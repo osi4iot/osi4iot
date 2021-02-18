@@ -1,0 +1,310 @@
+﻿<!DOCTYPE html>
+<html lang=en-US>
+<head>
+    <meta charset=UTF-8 name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Accelerations</title>
+    <script src="js/lib/jquery-3.3.1.js"></script>
+    <script src="js/lib/plotly-1.42.2.min.js"></script>
+    <script src="js/lib/numeric-1.2.6.js"></script>
+    <script src="js/lib/mqttws31.min.js" type="text/javascript"></script>
+    <script type="text/javascript" src="js/init.js"></script>
+    <style>
+        body {
+            font-family: verdana, arial, sans-serif;
+            background-color: #F6E3CE;
+            font-size: 100%;
+        }
+
+            body * {
+                box-sizing: border-box !important;
+            }
+
+        #bodyCalculator {
+            height: 100%;
+            width: 100%;
+            background-color: #F6E3CE;
+            padding: 10px 5px 10px 5px;
+        }
+
+        #bodyAbout, #bodyGraph {
+            height: 100%;
+            width: 100%;
+            background-color: #F6E3CE;
+            padding: 10px 5px 10px 5px;
+            display: none;
+        }
+
+        #Properties {
+            overflow: auto;
+        }
+
+        #matrix_type, #NumRows, #NumCols, #AutoFilling {
+            font-size: 1.0em;
+        }
+
+        #titleLine_div {
+            width: 100%;
+            display: table;
+            margin-bottom: 5px;
+            padding-left: 5px;
+            padding-right: 5px;
+            overflow: auto;
+        }
+
+        #Titulo {
+            font-size: 1.0em;
+            font-weight: bold;
+            width: 90%;
+            float: left;
+        }
+
+        #Config_div {
+            width: 10%;
+            float: left;
+        }
+
+        #btnConfig {
+            font-size: 1.0em;
+            font-weight: bold;
+            width: 100%;
+            background-color: #E69500;
+            line-height: 1.0em;
+            margin: 0 auto;
+            padding: 0;
+            display: inline-block;
+            text-align: center;
+            border-color: black;
+        }
+
+        #screenLine {
+            height: 100%;
+            width: 100%;
+        }
+
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        /* Track */
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            box-shadow: inset 0 0 5px grey;
+            border-radius: 10px;
+        }
+
+        /* Handle */
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+
+            /* Handle on hover */
+            ::-webkit-scrollbar-thumb:hover {
+                background: #555;
+            }
+
+        /*corner*/
+        ::-webkit-scrollbar-corner {
+            background: #F2F2F2;
+            border-top: 1px solid #E69500;
+            border-left: 1px solid #E69500;
+        }
+
+        input[type=button] {
+            display: inline-block;
+            height: 100%;
+            width: 100%;
+            font-size: 100%;
+            border-color: black;
+        }
+
+        input[type=text] {
+            font-size: 90%;
+        }
+
+        .pag_inicio {
+           font-size: 100%;
+        }
+        
+        
+         #div-expr {
+            visibility: hidden;
+            display: none;
+        }
+
+        sup {
+            line-height: 0;
+        }
+
+        *:focus {
+            outline: none;
+        }
+
+        #bodyConfig div {
+            margin-bottom: 30px;
+        }
+
+        .CloseContainer {
+            padding-top: 1em;
+            width: 100%;
+            text-align: center;
+        }
+
+        #btnCloseConfig,
+        #btnCloseAbout,
+        #btnCancelConfig
+         {
+            padding: 8px;
+            border-style: solid;
+            border-color: black;
+            align-content: center;
+            display: table-cell;
+            background-color: #E69500;
+            color: black;
+            font-weight: bold;
+            border-radius: 10px;
+            font-size: 1.0em;
+            margin-right: 10vw;
+            margin-left: 10vw;
+        }
+
+
+        #btnReadings,
+        #btnBack {
+            padding: 8px;
+            border-style: solid;
+            border-color: black;
+            align-content: center;
+            background-color: #E69500;
+            color: black;
+            font-weight: bold;
+            border-radius: 10px;
+            font-size: 1.0em;
+            min-width: 10em;
+            margin-top: 20px;
+            display: block;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        #ConfigListMenu {
+            margin-top: 10px;
+        }
+        
+         .dropdown-content {
+            display: none;
+            position: absolute;
+            background-color: #E69500;
+            min-width: 10px;
+            right: 0;
+            z-index: 1;
+            overflow: auto;
+            /*box-shadow: -2px 2px 5px 5px #888888 inset;*/
+            padding: 5px;
+        }
+
+            .dropdown-content a {
+                padding: 5px 10px;
+                text-decoration: none;
+                display: block;
+                color: black;
+            }
+
+            .dropdown-content hr {
+                width: 14em;
+            }
+
+            .dropdown-content #hr_line {
+                height: 2px;
+                display: table-cell;
+            }
+
+        .show {
+            display: block;
+        }
+
+        div {
+            -webkit-user-select: none; /* Chrome/Safari */
+            -moz-user-select: none; /* Firefox */
+            -ms-user-select: none; /* IE10+ */
+        }
+
+        .plots {
+            margin-top:20px;
+        }
+
+        #graphs_title {
+            font-size: 1.0em;
+            font-weight: bold;
+            padding:10px;
+        }
+
+        #myProgress {
+            width: 100%;
+            background-color: #ddd;
+            display: none;
+        }
+
+        #myBar {
+            width: 0%;
+            height: 20px;
+            background-color: #4CAF50;
+            text-align: center;
+            line-height: 20px;
+            color: white;
+        }
+
+        #samplesReaded,
+        #totalTime {
+            width: 100%;
+            align-content:center;
+            display: none;
+        }
+
+    </style>
+</head>
+<body onload="load();">
+    <div id="bodyCalculator">
+        <div id="titleLine_div">
+            <div id="Titulo">Web Accelerations</div>
+            <div id="Config_div">
+                <button id="btnConfig" onclick="ActiveBody('#bodyAbout');">&equiv;</button>
+            </div>
+        </div>
+
+        <div id="screenLine">
+            <br>
+            Total reading time [s]= <input type="text" class="pag_inicio" id="reading_time" name="reading_time" value="20" size="2" onchange="ChangeState(this);"><br/><br/>
+            Sampling frequency [samples/s]= <input type="text" class="pag_inicio" id="sampling_freq" name="sampling_freq" value="25" size="2" onchange="ChangeState(this);"><br/><br/>
+            Initial transient time [s]= <input type="text" class="pag_inicio" id="transient_time" name="transient_time" value="5" size="2" onchange="ChangeState(this);"><br/><br/>
+            <div id="myProgress">
+                <div id="myBar">0%</div>
+            </div>
+            <div id="samplesReaded"></div>
+            <div id="totalTime"></div>
+            <button id="btnReadings" onclick="Read_Manager();">Read accelerations</button>
+        </div>
+    </div>
+    <div id="bodyGraph">
+        <div id="graphs_title">Acceleration Graphs</div>
+        <div id="plot" class="plots"></div>
+        <div id="fft" class="plots"></div>
+        <div id="buttonVolver">
+            <button id="btnBack" onclick="Volver();">Return</button>
+        </div>
+    </div>
+    <div id="bodyAbout">
+        <h3>About Accelaration App</h3>
+        <p>Accelaration App has been developed by Dr. Daniel Di Capua.</p>
+        <p>The objective of this application is the determination of natural frequencies of bodies.</p>
+        <p>This application is based in part on the following open-source libraries which have been used without modifications:</p>
+        <p>1-) Numeric.js 1.2.6 licensed under MIT License, Copyright (C) 2011 by Sébastien Loisel.</p>
+        <p>2-) jQuery.js licensed under MIT License, Copyright JS Foundation and other contributors https://js.foundation/. </p>
+        <p>3-) plotly.js licensed under MIT License, Copyright (c) 2018 Plotly, Inc. </p>
+        <div class="CloseContainer">
+            <button id="btnCloseAbout" onclick="ActiveBody('#bodyCalculator');">Close</button>
+        </div>
+    </div>
+</body>
+</html>

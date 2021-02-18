@@ -1,0 +1,25 @@
+notifiers:
+  - name: Email_notification_1
+    type: email
+    uid: notifier1
+    org_id: 1
+    is_default: false
+    send_reminder: false
+    frequency: 1h
+    disable_resolve_message: false
+    settings:
+      addresses: $GMAIL_USER
+  - name: Telegram_notification_1
+    type: telegram
+    uid: notifier2
+    org_id: 1
+    is_default: false
+    send_reminder: false
+    frequency: 1h
+    disable_resolve_message: false
+    settings:
+      uploadImage: true
+      bottoken: $TELEGRAM_BOTTOKEN
+      chatid: $TELEGRAM_CHATID
+
+

@@ -1,0 +1,588 @@
+version: "3"
+
+services:
+
+  mosquitto:
+    container_name: ${PLATFORM_NAME}_mosquitto
+    image: eclipse-mosquitto
+    networks:
+      - internal_net
+      - fluentd_net
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+      - "9001:9001"
+    volumes:
+      - ./config/mosquitto:/mosquitto/config/
+      - ${HOST_VOLUMES_PATH}/mosquitto/data:/mosquitto/data/
+      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs:/mosquitto/mqtts_certs/
+      - ${HOST_CERTS_DIRECTORY}:/mosquitto/wss_certs/
+    restart: unless-stopped
+    logging:
+      driver: "fluentd"
+      options:
+        tag: mosquitto
+        fluentd-address: localhost:24224
+    depends_on:
+      - fluentd
+
+  nginx_proxy:
+    container_name: ${PLATFORM_NAME}_nginx_proxy
+    build: ./images/nginx
+    networks:
+      - internal_net
+      - fluentd_net
+    ports: 
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - SSL_CERTIFICATE_CA_PATH=${SSL_CERTIFICATE_CA_PATH}
+      - SSL_CERTIFICATE_SERVER_PATH=${SSL_CERTIFICATE_SERVER_PATH}      
+      - SSL_CERTIFICATE_KEY_PATH=${SSL_CERTIFICATE_KEY_PATH}
+      - SSL_DHPARAM_PATH=${SSL_DHPARAM_PATH}
+    restart: unless-stopped
+    volumes:
+      - ./images/nginx/templates:/etc/nginx/templates
+      - ./images/nginx/static/:/static/
+      - ${HOST_CERTS_DIRECTORY}:${CONTAINER_CERTS_DIRECTORY}
+    command: ./src/scripts/template_script.sh
+    depends_on:
+      - nodered
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        tag: nginx
+        fluentd-address: localhost:24224
+    
+  nodered:
+    container_name: ${PLATFORM_NAME}_nodered
+    build: ./images/nodered
+    user: "${UID}:${GID}"
+    networks:
+      - internal_net
+      - fluentd_net
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:1880:1880"
+    volumes:
+      - ${HOST_VOLUMES_PATH}/nodered/:/data
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      fluentd:
+        condition: service_started
+    logging:
+      driver: "fluentd"
+      options:
+        tag: nodered
+        fluentd-address: localhost:24224
+
+  postgres:
+    container_name: ${PLATFORM_NAME}_postgres
+    build:
+      context: ./images/postgres
+    networks:
+      - internal_net
+      - fluentd_net      
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+      GRAFANA_DATASOURCE_PASSWORD: ${GRAFANA_DATASOURCE_PASSWORD}
+    volumes:
+      - ${HOST_VOLUMES_PATH}/pgdata:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 4s
+      timeout: 120s
+      retries: 30
+    restart: unless-stopped
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        tag: postgres
+        fluentd-address: localhost:24224
+
+  grafana:
+    container_name: ${PLATFORM_NAME}_grafana
+    build: ./images/grafana
+    user: "${UID}:${GID}"
+    networks:
+      - internal_net
+      - fluentd_net      
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - ${HOST_VOLUMES_PATH}/grafana:/var/lib/grafana
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
+      - GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - HOME_DASHBOARD_PATH=/var/lib/grafana/data/home_dashboard.json
+      - GMAIL_USER=${GMAIL_USER}
+      - EMAIL_USER=${EMAIL_USER}
+      - EMAIL_ADDRESS=${EMAIL_ADDRESS}
+      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - TELEGRAM_BOTTOKEN=${TELEGRAM_BOTTOKEN}
+      - TELEGRAM_CHATID=${TELEGRAM_CHATID}
+      - GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
+      - GF_RENDERING_CALLBACK_URL=http://grafana:5000/
+      - GF_LOG_FILTERS=rendering:debug
+      - POSTGRES_DB=${POSTGRES_DB}
+      - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD}
+      - GRAFANA_DATASOURCE_PASSWORD=${GRAFANA_DATASOURCE_PASSWORD}
+      - INSTITUTION_NAME=${INSTITUTION_NAME}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]
+      interval: 10s
+      timeout: 300s
+      retries: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+      fluentd:
+        condition: service_started
+    logging:
+      driver: "fluentd"
+      options:
+        tag: grafana
+        fluentd-address: localhost:24224
+
+  grafana_renderer:
+    container_name: ${PLATFORM_NAME}_grafana_rendered
+    image: grafana/grafana-image-renderer:latest
+    networks:
+      - internal_net
+      - fluentd_net
+    ports:
+      - 8081
+    environment:
+      ENABLE_METRICS: 'true'
+    restart: unless-stopped
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        tag: grafana_renderer
+        fluentd-address: localhost:24224
+
+  pgadmin4:
+    container_name: ${PLATFORM_NAME}_pgadmin
+    image: dpage/pgadmin4
+    user: "${UID}:${GID}"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+    volumes:
+       - ${HOST_VOLUMES_PATH}/pgadmin_data/servers.json:/pgadmin4/servers.json
+       - ${HOST_VOLUMES_PATH}/pgadmin_data/pgadmin:/var/lib/pgadmin
+    ports:
+      - "127.0.0.1:5050:80"
+    networks:
+      - internal_net
+      - fluentd_net
+    restart: unless-stopped
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        tag: pgadmin4
+        fluentd-address: localhost:24224
+
+  admin_api:
+    build:
+      context: ./images/admin_api
+      dockerfile: Dockerfile.dev
+    container_name: ${PLATFORM_NAME}_admin_api
+    networks:
+      - internal_net
+      - fluentd_net
+    image: ts_node_admin
+    restart: always    
+    volumes:
+      - /app/node_modules
+      - ./images/admin_api:/app
+    working_dir: /app
+    env_file:
+      - .env
+    environment:
+      PORT: 3200
+    ports:
+    - "127.0.0.1:3200:3200"
+    depends_on:
+      grafana:
+        condition: service_started
+      fluentd:
+        condition: service_started
+    logging:
+      driver: "fluentd"
+      options:
+        tag: admin
+        fluentd-address: localhost:24224
+
+  admin_frontend:
+    build: 
+      context: ./images/admin_frontend
+      dockerfile: Dockerfile
+    container_name: ${PLATFORM_NAME}_admin_frontend
+    networks:
+      - internal_net
+      - fluentd_net
+    command: nginx -g "daemon off";
+    depends_on:
+      nginx_proxy:
+        condition: service_started     
+      admin_api:
+        condition: service_started
+      fluentd:
+        condition: service_started
+    logging:
+      driver: "fluentd"
+      options:
+        tag: admin
+        fluentd-address: localhost:24224
+
+  mobile_frontend:
+    build: 
+      context: ./images/mobile_frontend
+      dockerfile: Dockerfile
+    container_name: ${PLATFORM_NAME}_mobile_frontend
+    networks:
+      - internal_net
+      - fluentd_net
+    command: nginx -g "daemon off";
+    depends_on:
+      admin_api:
+        condition: nginx_proxy     
+      admin_api:
+        condition: service_started
+      fluentd:
+        condition: service_started
+    logging:
+      driver: "fluentd"
+      options:
+        tag: admin
+        fluentd-address: localhost:24224
+  
+  portainer:
+    image: portainer/portainer
+    container_name: ${PLATFORM_NAME}_portainer
+    networks:
+      - internal_net
+      - fluentd_net
+    command: -H unix:///var/run/docker.sock
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_VOLUMES_PATH}/portainer_data:/data
+    depends_on:
+      - fluentd
+    logging:
+      driver: "fluentd"
+      options:
+        tag: portainer
+        fluentd-address: localhost:24224
+      
+  elasticsearch:
+    build:
+      context: ./images/elasticsearch
+      args:
+        ELK_VERSION: $ELK_VERSION
+    container_name: ${PLATFORM_NAME}_elasticsearch
+    volumes:
+      - ./config/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - ${HOST_VOLUMES_PATH}/elasticsearch/data:/usr/share/elasticsearch/data
+    ports:
+      - "127.0.0.1:9200:9200"
+      - "127.0.0.1:9300:9300"
+    environment:
+      ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+      ELASTIC_PASSWORD: $ELASTIC_PASSWORD
+      # Use single node discovery in order to disable production mode and avoid bootstrap checks.
+      # see: https://www.elastic.co/guide/en/elasticsearch/reference/current/bootstrap-checks.html
+      discovery.type: single-node
+    networks:
+      - efk_net
+      - fluentd_net
+    logging:
+      driver: "fluentd"
+      options:
+        tag: elasticsearch
+        fluentd-address: localhost:24224
+    depends_on:
+      - fluentd
+
+  kibana:
+    build:
+      context: ./images/kibana
+      args:
+        ELK_VERSION: $ELK_VERSION
+    container_name: ${PLATFORM_NAME}_kibana
+    volumes:
+      - ./config/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    ports:
+      - "127.0.0.1:5601:5601"
+    environment:
+      ELASTIC_PASSWORD: $ELASTIC_PASSWORD
+    networks:
+      - internal_net
+      - efk_net
+      - fluentd_net
+    logging:
+      driver: "fluentd"
+      options:
+        tag: kibana
+        fluentd-address: localhost:24224      
+    depends_on:
+      - fluentd
+      - elasticsearch
+
+  fluentd:
+    build: ./images/fluentd
+    container_name: ${PLATFORM_NAME}_fluentd
+    ports:
+      - "127.0.0.1:24224:24224"
+      - "127.0.0.1:24224:24224/udp"
+    environment:
+      ELASTIC_PASSWORD: $ELASTIC_PASSWORD
+    volumes:
+      - ./config/fluentd:/fluentd/etc
+    networks:
+      - fluentd_net 
+      - efk_net
+
+  nodeexporter:
+    #image: prom/node-exporter:v1.1.0
+    image: prom/node-exporter:v0.14.0
+    container_name: ${PLATFORM_NAME}_nodeexporter
+    expose:
+      - 9100
+    ports:
+      - 127.0.0.1:9100:9100
+    restart: always
+    labels:
+      container_group: monitoring
+    logging:
+      driver: "fluentd"
+      options:
+        tag: nodeexporter
+        fluentd-address: localhost:24224  
+    depends_on:
+      - fluentd    
+    networks:
+      - fluentd_net
+
+  cadvisor:
+    #image: gcr.io/cadvisor/cadvisor:v0.38.7
+    image: google/cadvisor:v0.25.0
+    container_name: ${PLATFORM_NAME}_cadvisor
+    expose:
+      - 8088
+    ports:
+      - 127.0.0.1:8088:8088
+    command:
+      - '-port=8088'
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    restart: always
+    labels:
+      container_group: monitoring
+    logging:
+      driver: "fluentd"
+      options:
+        tag: cadvisor
+        fluentd-address: localhost:24224  
+    depends_on:
+      - fluentd    
+    networks:
+      - fluentd_net
+
+  prometheus:
+    #image: prom/prometheus:v2.24.1
+    image: prom/prometheus:v1.7.1
+    container_name: ${PLATFORM_NAME}_prometheus    
+    expose:
+      - 9090
+    ports:
+      - 127.0.0.1:9090:9090
+    volumes:
+      - ${HOST_VOLUMES_PATH}/prometheus:/prometheus
+      - ./config/prometheus:/etc/prometheus
+    restart: always
+    command:
+      - "-config.file=/etc/prometheus/prometheus.yml"
+      - "-storage.local.path=/prometheus"
+      - "-web.console.libraries=/etc/prometheus/console_libraries"
+      - "-web.console.templates=/etc/prometheus/consoles"
+      - "-web.listen-address=:9090"
+      - "-alertmanager.url=http://alertmanager:9093"
+      - "-storage.local.memory-chunks=300000"
+      - "-storage.local.retention=744h"
+    labels:
+      container_group: monitoring
+    logging:
+      driver: "fluentd"
+      options:
+        tag: prometheus
+        fluentd-address: localhost:24224  
+    depends_on:
+      - fluentd    
+    networks:
+      - fluentd_net
+
+  grafana_metrics:
+    image: grafana/grafana:latest-ubuntu
+    container_name: ${PLATFORM_NAME}_grafana_metrics
+    user: "${UID}:${GID}"
+    ports:
+      - 127.0.0.1:3000:3000
+    volumes:
+      - ${HOST_VOLUMES_PATH}/grafana_system:/var/lib/grafana
+    restart: always
+    labels:
+      container_group: monitoring
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GENERIC_PASSWORD}
+      - GF_SERVER_ROOT_URL=http://${DOMAIN_NAME}:3000/metrics/
+    networks:
+      - fluentd_net
+      - internal_net
+    logging:
+      driver: "fluentd"
+      options:
+        tag: grafana_system
+        fluentd-address: localhost:24224  
+    depends_on:
+      - fluentd    
+
+      
+  alertmanager:
+    image: prom/alertmanager:v0.8.0
+    container_name: ${PLATFORM_NAME}_alertmanager
+    expose:
+      - 9093
+    ports:
+      - 127.0.0.1:9093:9093
+    restart: always
+    volumes:
+      - ./config/alertmanager/:/etc/alertmanager/
+      - ${HOST_VOLUMES_PATH}/alertmanager/:/alertmanager
+    command:
+      - '-config.file=/etc/alertmanager/config.yml'
+      - '-storage.path=/alertmanager'
+    labels:
+      container_group: monitoring
+    logging:
+      driver: "fluentd"
+      options:
+        tag: alertmanager
+        fluentd-address: localhost:24224  
+    depends_on:
+      - fluentd    
+    networks:
+      - fluentd_net
+
+  blackboxprober:
+    image: prom/blackbox-exporter:v0.10.0
+    container_name: ${PLATFORM_NAME}_blackboxprober
+    volumes:
+      - ./config/blackboxprober:/etc/blackbox_exporter
+    ports:
+      - 127.0.0.1:9115:9115
+    restart: always
+    labels:
+      container_group: monitoring
+    logging:
+      driver: "fluentd"
+      options:
+        tag: blackboxprober
+        fluentd-address: localhost:24224  
+    depends_on:
+      - fluentd    
+    networks:
+      - fluentd_net
+
+  # browser:
+  #   container_name: ${PLATFORM_NAME}_browserless_chrome
+  #   image: browserless/chrome:1.22-chrome-stable
+  #   hostname: browser
+  #   networks:
+  #     - internal_net
+  #     - fluentd_net
+  #   ports:
+  #     - "127.0.0.1:3000:3000"
+  #   deploy:
+  #     replicas: 1
+  #     update_config:
+  #       parallelism: 1
+  #       delay: 10s
+  #     restart_policy:
+  #       condition: on-failure
+  #   environment:
+  #     CONNECTION_TIMEOUT: -1
+  #     KEEP_ALIVE: 'true'
+  #     WORKSPACE_EXPIRE_DAYS: 1
+  #     ENABLE_CORS: 'true'
+  #     CHROME_REFRESH_TIME: 86400000
+  #     DEFAULT_BLOCK_ADS: 'true'
+  #     FUNCTION_ENABLE_INCOGNITO_MODE: 'true'
+  #     ENABLE_XVBF: 'true'
+  #     CHROME_PATH: '/usr/bin/google-chrome'
+  #     USE_CHROME_STABLE: 'true'
+  #     NODE_ENV: 'production'
+  #   depends_on:
+  #     - fluentd
+  #   logging:
+  #     driver: "fluentd"
+  #     options:
+  #       tag: browser
+  #       fluentd-address: localhost:24224   
+
+  # wa:
+  #   build: ./wa
+  #   container_name: ${PLATFORM_NAME}_wa
+  #   networks:
+  #     - internal_net
+  #     - fluentd_net
+  #   restart: unless-stopped
+  #   depends_on:
+  #     - browser
+  #   ports:
+  #     - "127.0.0.1:8080:8080"
+  #   environment:
+  #     WA_BROWSER_WS_ENDPOINT: 'http://browser:3000'
+  #     WA_DISABLE_SPINS: 'true'
+  #     WA_SESSION_DATA: ${WA_SESSION_DATA}
+  #   depends_on:
+  #     - fluentd
+  #   logging:
+  #     driver: "fluentd"
+  #     options:
+  #       tag: wa
+  #       fluentd-address: localhost:24224   
+
+networks:
+  internal_net:
+  efk_net:
+  fluentd_net:
+
+

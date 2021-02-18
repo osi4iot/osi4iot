@@ -1,0 +1,73 @@
+# my global config
+global:
+  scrape_interval:     15s # By default, scrape targets every 15 seconds.
+  evaluation_interval: 15s # By default, scrape targets every 15 seconds.
+  # scrape_timeout is set to the global default (10s).
+
+  # Attach these labels to any time series or alerts when communicating with
+  # external systems (federation, remote storage, Alertmanager).
+  external_labels:
+      monitor: 'codelab-monitor'
+
+# Load and evaluate rules in this file every  gc'evaluation_interval' seconds.
+rule_files:
+  - "rules/alert.rules_nodes"
+  - "rules/alert.rules_containers"
+  - "rules/alert.rules_container-groups"
+  - "rules/alert.rules_sites"
+
+# A scrape configuration containing exactly one endpoint to scrape:
+# Here it's Prometheus itself.
+scrape_configs:
+  # The job name is added as a label `job=<job_name>` to any timeseries scraped from this config.
+
+  - job_name: 'node'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['nodeexporter:9100']
+        labels: {'host': 'host1'}
+
+  - job_name: 'containers'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['cadvisor:8088']
+        labels: {'host': 'host1'}
+
+  #Will/23.08.16: dcom restart prometheus suffices to load config/rule changes
+
+  - job_name: 'prometheus-server'
+    scrape_interval: 10s
+    scrape_timeout: 5s
+    static_configs:
+      - targets: ['localhost:9090']
+        labels: {'host': 'host1'}
+
+  # see https://github.com/prometheus/blackbox_exporter relabel 
+  - job_name: 'service'
+    scrape_interval: 60s
+    scrape_timeout: 15s
+    metrics_path: /probe
+    # if your target is https, you either need to install cert in blackbox proble container
+    # or add below line to ignore verify
+    # tls_config:
+    #  insecure_skip_verify: true
+    params:
+      module: [http_2xx]  # Look for a HTTP 200 response. 
+    file_sd_configs:
+      - files:
+        - /etc/prometheus/service.yml
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: (.*)
+        target_label: __param_target
+        replacement: ${1}
+      - source_labels: [__address__]
+        regex: (.*)
+        target_label: service_url
+        replacement: ${1}
+      - source_labels: []
+        regex: .*
+        target_label: __address__
+        replacement: blackboxprober:9115
