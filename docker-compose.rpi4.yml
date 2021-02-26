@@ -141,7 +141,6 @@ services:
     container_name: ${PLATFORM_NAME}_admin_api
     networks:
       - internal_net
-    image: ts_node_admin
     restart: always    
     volumes:
       - /app/node_modules

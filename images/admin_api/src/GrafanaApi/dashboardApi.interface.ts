@@ -1,14 +1,14 @@
-import IMessage from "../entities/Message";
-import IUserDTO from "../entities/UserDTO";
-import IUser from "../entities/User";
-import ITeamDTO from "../entities/TeamDTO";
-import IFolderDTO from "../entities/FolderDTO";
-import IFolder from "../entities/Folder";
-import IFolderPermissionDTO from "../entities/FolderPermissionDTO";
-import IUserId from "../entities/UserId";
-import ITeamMember from "../entities/TeamMember";
-import ITeamsWithPaging from "../entities/TeamsWithPaging";
-import ITeam from "../entities/Team";
+import IMessage from "./interfaces/Message";
+import IUserDTO from "./interfaces/UserDTO";
+import IUser from "../components/user/User.interface";
+import ITeamDTO from "./interfaces/TeamDTO";
+import IFolderDTO from "./interfaces/FolderDTO";
+import IFolder from "./interfaces/Folder";
+import IFolderPermissionDTO from "./interfaces/FolderPermissionDTO";
+import IUserId from "./interfaces/UserId";
+import ITeamMember from "./interfaces/TeamMember";
+import ITeamsWithPaging from "./interfaces/TeamsWithPaging";
+import ITeam from "./interfaces/Team";
 
 export default interface IDashboardApi {
     getUsers(): Promise<IUser[]>;

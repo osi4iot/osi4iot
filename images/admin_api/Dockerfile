@@ -15,8 +15,11 @@ FROM node:lts-alpine
 RUN mkdir -p /app/node_modules && chown -R node:node /app
 WORKDIR /app
 COPY package*.json ./
+ADD https://github.com/ufoscout/docker-compose-wait/releases/download/2.7.3/wait /wait
+RUN chmod +x /wait
+RUN apk --no-cache add curl
 USER node
 RUN npm install --only=production
 COPY --from=0 /app/build ./build
-CMD [ "node", "./build/index.js"]
+CMD /wait && npm start
 EXPOSE 3200

@@ -1,16 +1,16 @@
 import needle from "needle";
 import { v4 as uuidv4 } from "uuid";
-import IFolder from "../entities/Folder";
-import IFolderDTO from "../entities/FolderDTO";
-import IFolderPermissionDTO from "../entities/FolderPermissionDTO";
-import IMessage from "../entities/Message";
-import ITeam from "../entities/Team";
-import ITeamDTO from "../entities/TeamDTO";
-import TeamMember from "../entities/TeamMember";
-import TeamsWithPaging from "../entities/TeamsWithPaging";
-import IUser from "../entities/User";
-import IUserDTO from "../entities/UserDTO";
-import IUserId from "../entities/UserId";
+import IFolder from "./interfaces/Folder";
+import IFolderDTO from "./interfaces/FolderDTO";
+import IFolderPermissionDTO from "./interfaces/FolderPermissionDTO";
+import IMessage from "./interfaces/Message";
+import ITeam from "./interfaces/Team";
+import ITeamDTO from "./interfaces/TeamDTO";
+import TeamMember from "./interfaces/TeamMember";
+import TeamsWithPaging from "./interfaces/TeamsWithPaging";
+import IUser from "../components/user/User.interface";
+import IUserDTO from "./interfaces/UserDTO";
+import IUserId from "./interfaces/UserId";
 import IDashboardApi from "./dashboardApi.interface";
 
 const GrafanaApiURL = "http://localhost:5000/api"
@@ -43,7 +43,11 @@ export default class GrafanaApi implements IDashboardApi {
     }
 
     async getUserByLoginOrEmail(loginOrEmail: string): Promise<IUser> {
-        throw new Error("Method not implemented.");
+        const url = `${GrafanaApiURL}/users/lookup?loginOrEmail=${loginOrEmail}`;
+        const user  = await needle('get', url, optionsBasicAuth)
+            .then( res => res.body)
+            .catch(err => console.log(err));
+        return user;
     }
 
     async createUsers(users: IUserDTO[]): Promise<IMessage> {
@@ -68,8 +72,13 @@ export default class GrafanaApi implements IDashboardApi {
         throw new Error("Method not implemented.");
     }
 
-    async changeUserPassword(userId: number, password: string): Promise<IMessage> {
-        throw new Error("Method not implemented.");
+    async changeUserPassword(userId: number, newPassword: string): Promise<IMessage> {
+        const url = `${GrafanaApiURL}/admin/users/${userId}/password`;
+        const passwordData = { password: newPassword };
+        const message  = await needle('put', url, passwordData, optionsBasicAuth)
+            .then(res => res.body)
+            .catch(err => console.log(err));
+        return message;
     }
 
     async createTeam(teamData: ITeamDTO): Promise<IMessage> {

@@ -210,7 +210,6 @@ services:
     networks:
       - internal_net
       - fluentd_net
-    image: ts_node_admin
     restart: always    
     volumes:
       - /app/node_modules
