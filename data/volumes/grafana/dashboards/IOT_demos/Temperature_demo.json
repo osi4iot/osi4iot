@@ -65,7 +65,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "iot_platform_db",
+      "datasource": "iot_eebe_db",
       "description": "Test panel for iot demostration",
       "fieldConfig": {
         "defaults": {
@@ -190,7 +190,7 @@
       }
     },
     {
-      "datasource": "iot_platform_db",
+      "datasource": "iot_eebe_db",
       "description": "Temperature gauge for an iot demostration",
       "fieldConfig": {
         "defaults": {
@@ -271,7 +271,7 @@
       "type": "gauge"
     },
     {
-      "datasource": "iot_platform_db",
+      "datasource": "iot_eebe_db",
       "description": "Temperature table for IOT demostration",
       "fieldConfig": {
         "defaults": {

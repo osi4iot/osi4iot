@@ -24,7 +24,7 @@
       "bars": false,
       "dashLength": 10,
       "dashes": false,
-      "datasource": "iot_platform_db",
+      "datasource": "iot_eebe_db",
       "description": "Accelerations",
       "fieldConfig": {
         "defaults": {

@@ -1,4 +1,4 @@
 export default interface IUserFolderPermission {
-    userId: string;
-    permission: number;
+	userId: string;
+	permission: number;
 }

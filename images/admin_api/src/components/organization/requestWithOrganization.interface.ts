@@ -1,12 +1,8 @@
 import { Request } from "express";
-
-interface Organization {
-  id: number;
-  name: string;
-}
+import IOrganization from "./organization.interface";
 
 interface IRequestWithOrganization extends Request {
-  organization: Organization;
+  organization: IOrganization;
 }
 
 export default IRequestWithOrganization;

@@ -1,5 +1,5 @@
 export default interface ITeamDTO {
-    orgId?: number,
-    name: string;
-    email: string;
+	orgId?: number,
+	name: string;
+	email: string;
 }

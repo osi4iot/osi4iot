@@ -106,7 +106,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD}
       - GRAFANA_DATASOURCE_PASSWORD=${GRAFANA_DATASOURCE_PASSWORD}
-      - INSTITUTION_NAME=${INSTITUTION_NAME}
+      - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]

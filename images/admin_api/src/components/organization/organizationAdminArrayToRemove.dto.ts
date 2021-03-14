@@ -5,10 +5,10 @@ import { Allow } from "class-validator";
 
 // class CreateOrganizationAdminArrayToRemoveDto {
 //   @Allow()
-//   organizationId: string;
+//   orgId: string;
 
-//   @IsValidOrganizationAdminArray("organizationId")
-//   @IsValidUsersArray("organizationId")
+//   @IsValidOrganizationAdminArray("orgId")
+//   @IsValidUsersArray("orgId")
 //   @IsEmailsArray({ message: "The property: $property must be an array of valid emails" })
 //   public orgAdminToRemoveEmailsList: string[];
 // }

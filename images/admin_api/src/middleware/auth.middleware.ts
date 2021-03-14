@@ -7,72 +7,67 @@ import HttpException from "../exceptions/HttpException";
 import isValidUUIDv4 from "../utils/validators/isValidUIIDv4";
 import NotValidUUIDv4Exception from "../exceptions/NotValidUUIDv4Exception";
 import GrafanaApi from "../GrafanaApi/grafanaApi";
+import { isThisUserOrgAdmin } from "../components/user/userDAL";
 
 export const userAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
-  passport.authenticate("access_jwt", { session: false }, (err, user, info) => {
-    console.log("user= ", user);
-    if (info) {
-      return next(new HttpException(401, info.message));
-    }
+	passport.authenticate("access_jwt", { session: false }, (err, user, info) => {
+		if (info) {
+			return next(new HttpException(401, info.message));
+		}
 
-    if (err) {
-      return next(err);
-    }
+		if (err) {
+			return next(err);
+		}
 
-    if (!user) {
-      return next(new HttpException(401, "You are not allowed to access."));
-    }
-    req.user = user;
-    return next();
-  })(req, res, next);
+		if (!user) {
+			return next(new HttpException(401, "You are not allowed to access."));
+		}
+		req.user = user;
+		return next();
+	})(req, res, next);
 };
 
 export const superAdminAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
-  passport.authenticate("access_jwt", { session: false }, (err, user, info) => {
-    if (info) {
-      return next(new HttpException(401, info.message));
-    }
-    if (err) {
-      return next(err);
-    }
-    if (!user) {
-      return next(new HttpException(401, "You are not allowed to access."));
-    }
-    if (user && !user.isGrafanaAdmin) {
-      return next(new HttpException(401, "You don't have administrator privileges."));
-    }
+	passport.authenticate("access_jwt", { session: false }, (err, user, info) => {
+		if (info) {
+			return next(new HttpException(401, info.message));
+		}
+		if (err) {
+			return next(err);
+		}
+		if (!user) {
+			return next(new HttpException(401, "You are not allowed to access."));
+		}
+		if (user && !user.isGrafanaAdmin) {
+			return next(new HttpException(401, "You don't have administrator privileges."));
+		}
 
-    req.user = user;
-    return next();
-  })(req, res, next);
+		req.user = user;
+		return next();
+	})(req, res, next);
 };
 
-// export const organizationAdminAuth = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
-//   passport.authenticate("access_jwt", { session: false }, async (err, user, info) => {
-//     if (info) {
-//       return next(new HttpException(401, info.message));
-//     }
-//     if (err) {
-//       return next(err);
-//     }
-//     if (!user) {
-//       return next(new HttpException(401, "You are not allowed to access."));
-//     }
-//     const { organizationId } = req.params;
-//     if (!isValidUUIDv4(organizationId)) {
-//       return next(new NotValidUUIDv4Exception("Organization", organizationId));
-//     }
-//     const superAdminEmails = process.env.SUPERADMIN_EMAIL_ARRAY;
+export const organizationAdminAuth = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	passport.authenticate("access_jwt", { session: false }, async (err, user, info) => {
+		if (info) {
+			return next(new HttpException(401, info.message));
+		}
+		if (err) {
+			return next(err);
+		}
+		if (!user) {
+			return next(new HttpException(401, "You are not allowed to access."));
+		}
+		const { orgId } = req.params;
 
-//     const userRepository = getCustomRepository(UserRepository);
-//     let isOrganizationAdmin = await userRepository.isOrganizationAdmin(user.id, organizationId);
-//     if (superAdminEmails.indexOf(user.email) !== -1) isOrganizationAdmin = true;
+		let isOrganizationAdmin = await isThisUserOrgAdmin(user.id, parseInt(orgId,10));
+		if (user.isGrafanaAdmin) isOrganizationAdmin = true;
 
-//     if (user && !isOrganizationAdmin) {
-//       return next(new HttpException(401, "You don't have organization administrator privileges."));
-//     }
-//     req.user = user;
-//     return next();
-//   })(req, res, next);
-// };
+		if (user && !isOrganizationAdmin) {
+			return next(new HttpException(401, "You don't have organization administrator privileges."));
+		}
+		req.user = user;
+		return next();
+	})(req, res, next);
+};
 

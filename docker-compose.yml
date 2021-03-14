@@ -4,7 +4,7 @@ services:
 
   mosquitto:
     container_name: ${PLATFORM_NAME}_mosquitto
-    image: eclipse-mosquitto
+    build: ./images/mosquitto
     networks:
       - internal_net
     ports:
@@ -108,7 +108,7 @@ services:
       - POSTGRES_DB=${POSTGRES_DB}
       - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD}
       - GRAFANA_DATASOURCE_PASSWORD=${GRAFANA_DATASOURCE_PASSWORD}
-      - INSTITUTION_NAME=${INSTITUTION_NAME}
+      - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]
@@ -121,7 +121,7 @@ services:
 
   grafana_renderer:
     container_name: ${PLATFORM_NAME}_grafana_rendered
-    image: grafana/grafana-image-renderer:latest
+    build: ./images/grafana_renderer
     networks:
       - internal_net
     ports:
@@ -132,7 +132,9 @@ services:
 
   pgadmin4:
     container_name: ${PLATFORM_NAME}_pgadmin
-    image: dpage/pgadmin4
+    build:
+      context: ./images/pgadmin4 
+      dockerfile: Dockerfile
     user: "${UID}:${GID}"
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
@@ -144,8 +146,12 @@ services:
       - "127.0.0.1:5050:80"
     networks:
       - internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost || exit 1"]
+      interval: 10s
+      timeout: 300s
+      retries: 30      
     restart: unless-stopped
-
 
   admin_api:
     build:
@@ -156,18 +162,25 @@ services:
       - internal_net
     restart: always    
     volumes:
-      - /app/node_modules
+      - node_modules_vol:/app/node_modules
       - ./images/admin_api:/app
+      - ${SSL_CERTIFICATE_SERVER_PATH}:/app/ssl_config/iot_platform.cer
+      - ${SSL_CERTIFICATE_KEY_PATH}:/app/ssl_config/iot_platform.key
     working_dir: /app
     env_file:
       - .env
     environment:
       PORT: 3200
+      WAIT_HOSTS: postgres:5432, grafana:5000
+      WAIT_HOSTS_TIMEOUT: 60
+      WAIT_SLEEP_INTERVAL: 5
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --insecure https://localhost:3200/health || exit 1"]
+      interval: 10s
+      timeout: 300s
+      retries: 30
     ports:
     - "127.0.0.1:3200:3200"
-    depends_on:
-      grafana:
-        condition: service_started
 
   admin_frontend:
     build: 
@@ -177,9 +190,7 @@ services:
     networks:
       - internal_net
     command: nginx -g "daemon off";
-    depends_on:
-      nginx_proxy:
-        condition: service_started     
+    depends_on:   
       admin_api:
         condition: service_started
 
@@ -214,6 +225,10 @@ services:
 
 networks:
   internal_net:
+
+volumes:
+  node_modules_vol:
+
 
 
 

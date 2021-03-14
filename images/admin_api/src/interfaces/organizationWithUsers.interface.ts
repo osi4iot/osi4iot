@@ -1,7 +1,7 @@
 import IUserWithoutPassword from "./userWithoutPassword.interface";
 
 interface IOrganizationWithUsers {
-  organizationId: string;
+  orgId: string;
 
   organizationnName: string;
 

@@ -1,229 +1,1532 @@
 {
-    "openapi": "3.0.0",
-    "info": {
-        "version": "1.0.0",
-        "title": "Seans-TypeScript-NodeJS-CRUD-REST-API-Boilerplate",
-        "description": "A minimal and easy to follow example of what you need to create a CRUD style API in NodeJs using TypeScript",
-        "license": {
-            "name": "MIT",
-            "url": "https://opensource.org/licenses/MIT"
-        }
-    },
-    "servers": [
-        {
-            "url": "/",
-            "description": "Local Dev, or from Heroku"
-        },
-        {
-            "url": "/api/",
-            "description": "With docker-compose and nginx proxy"
-        }
-    ],
-    "tags": [
-        {
-            "name": "Cats",
-            "description": "API for cats in the system"
-        }
-    ],
-    "consumes": [
-        "application/json"
-    ],
-    "produces": [
-        "application/json"
-    ],
-    "paths": {
-        "/cats": {
-            "get": {
-                "tags": [
-                    "Cats"
-                ],
-                "summary": "Get all cats in system",
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/Cats"
-                        }
-                    }
-                }
-            },
-            "post": {
-                "tags": [
-                    "Cats"
-                ],
-                "summary": "Create a new cat in system",
-                "requestBody": {
-                    "description": "Cat Object",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/definitions/Cat"
-                            }
-                        }
-                    }
-                },
-                "produces": [
-                    "application/json"
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/id"
-                        }
-                    },
-                    "400": {
-                        "description": "Failed. Bad post data."
-                    }
-                }
-            }
-        },
-        "/cats/{id}": {
-            "parameters": [
-                {
-                    "name": "id",
-                    "in": "path",
-                    "required": true,
-                    "description": "ID of the cat that we want to match",
-                    "type": "string"
-                }
-            ],
-            "get": {
-                "tags": [
-                    "Cats"
-                ],
-                "summary": "Get cat with given ID",
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "id",
-                        "required": true,
-                        "description": "Cat with id",
-                        "schema": {
-                            "$ref": "#/definitions/id"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/Cat"
-                        }
-                    },
+	"openapi": "3.0.0",
+	"info": {
+		"version": "1.0.0",
+		"title": "IOT EEBE Platform",
+		"description": "A tool to boost education in engineering universities",
+		"license": {
+			"name": "MIT",
+			"url": "https://opensource.org/licenses/MIT"
+		}
+	},
+	"servers": [
+		{
+			"url": "/",
+			"description": "Local Dev"
+		},
+		{
+			"url": "/admin_api/",
+			"description": "With nginx proxy"
+		}
+	],
+	"components": {
+		"securitySchemes": {
+			"bearerAuth": {
+				"type": "http",
+				"scheme": "bearer",
+				"bearerFormat": "JWT"
+			}
+		}
+	},
+	"security": [
+		{
+			"bearerAuth": []
+		}
+	],
+	"tags": [
+		{
+			"name": "Authentication",
+			"description": "Platform authentication - Role required: User"
+		},
+		{
+			"name": "Application",
+			"description": "Platform managment - Role required: Platform_Admin"
+		},
+		{
+			"name": "Organization",
+			"description": "Management of organizations in the IOT Platform - Default role required: Organization_Admin"
+		},
+		{
+			"name": "Group",
+			"description": "Management of groups in organizations of the IOT Platform - Default role required: Group_Admin"
+		}
+	],
+	"consumes": ["application/json"],
+	"produces": ["application/json"],
+	"paths": {
+		"/auth/login": {
+			"post": {
+				"tags": ["Authentication"],
+				"summary": "Login in the platform administration",
+				"security": [],
+				"requestBody": {
+					"description": "User credentials",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/Login"
+							}
+						}
+					}
+				},
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "User validated. Access token delivered",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Access_token"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "User credentials not correct.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/auth/change_password": {
+			"patch": {
+				"tags": ["Authentication"],
+				"summary": "Change user password",
+				"requestBody": {
+					"description": "New password",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/New_password"
+							}
+						}
+					}
+				},
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "User password modified correctly",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/application/global_users": {
+			"get": {
+				"tags": ["Application"],
+				"summary": "Get all global users",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GlobalUsersOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/application/global_user": {
+			"post": {
+				"tags": ["Application"],
+				"summary": "Create global users",
+				"requestBody": {
+					"description": "Global user data",
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/GlobalUserInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Already exists an user with the same data",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/AlreadyExistsMessage"
+								}
+							}
+						}
+					}                    
+				}
+			}
+		},
+		"/application/global_user/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id, login or email of the user",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "User property value",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": ["Application"],
+				"summary": "Get an specific user data of the platform",
+				"responses": {
+					"200": {
+						"description": "Give the user of the platform",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GlobalUserOutput"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid propName",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/InvalidPropName"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                
+				}
+			},
+			"patch": {
+				"tags": ["Application"],
+				"summary": "Update an specific user of the platform.",
+				"requestBody": {
+					"description": "Global user data",
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/GlobalUserInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                    
+				}
+			},
+			"delete": {
+				"tags": ["Application"],
+				"summary": "Delete an specific user of the platform.",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                    
+				}
+			}
+		},
+		"/application/statistics": {
+			"get": {
+				"tags": ["Application"],
+				"summary": "Get statistics of the platform",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/PlatformStatistics"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/organizations": {
+			"get": {
+				"tags": ["Organization"],
+				"summary": "Get all organizations in the platform",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Organizations"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/organization": {
+			"post": {
+				"tags": ["Organization"],
+				"summary": "Create a new organization - Role required: Platform_Admin",
+				"requestBody": {
+					"description": "Organization parameters",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/OrganizationInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Already exists an organization with the same data",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/AlreadyExistsMessage"
+								}
+							}
+						}
+					}                    
+				}
+			}
+		},
+		"/organization/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id, name or acronym",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "Organization property value",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": ["Organization"],
+				"summary": "Get the organization where the property: propName (id, name, acronym) matches the value: propValue",
+				"responses": {
+					"200": {
+						"description": "Give the organization that match with the parameters",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/OrganizationOutput"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid propName",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/InvalidPropName"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                    
+				}
+			},
+			"patch": {
+				"tags": ["Organization"],
+				"summary": "Updates the organization where the property: propName (id, name, acronym) matches the value: propValue",
+				"requestBody": {
+					"description": "Organization parameters",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/OrganizationInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                    
+				}
+			},
+			"delete": {
+				"tags": ["Organization"],
+				"summary": "Delete the organization where the property: propName (id, name, acronym) matches the value: propValue",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                    
+				}
+			}
+		},
+		"/organization/{orgId}/users": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": ["Organization"],
+				"summary": "Get the users of the organization",
+				"responses": {
+					"200": {
+						"description": "Give the users data of the organization",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/UsersOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
                     "404": {
-                        "description": "Failed. Cat not found."
-                    }
-                }
-            },
-            "put": {
-                "summary": "Update cat with given ID",
-                "tags": [
-                    "Cats"
-                ],
-                "requestBody": {
-                    "description": "Cat Object",
-                    "required": true,
-                    "content": {
-                        "application/json": {
-                            "schema": {
-                                "$ref": "#/definitions/Cat"
-                            }
-                        }
-                    }
-                },
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "id",
-                        "required": true,
-                        "description": "Cat with new values of properties",
-                        "schema": {
-                            "$ref": "#/definitions/id"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/Cat"
-                        }
-                    },
-                    "400": {
-                        "description": "Failed. Bad post data."
-                    },
-                    "404": {
-                        "description": "Failed. Cat not found."
-                    }
-                }
-            },
-            "delete": {
-                "summary": "Delete cat with given ID",
-                "tags": [
-                    "Cats"
-                ],
-                "parameters": [
-                    {
-                        "in": "path",
-                        "name": "id",
-                        "required": true,
-                        "description": "Delete Cat with id",
-                        "schema": {
-                            "$ref": "#/definitions/id"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/id"
-                        }
-                    },
-                    "404": {
-                        "description": "Failed. Cat not found."
-                    }
-                }
-            }
-        }
-    },
-    "definitions": {
-        "id": {
-            "properties": {
-                "uuid": {
-                    "type": "string"
-                }
-            }
-        },
-        "Cat": {
-            "type": "object",
-            "properties": {
-                "genus": {
-                    "type": "string"
-                },
-                "name": {
-                    "type": "string"
-                },
-                "isHungry": {
-                    "type": "boolean"
-                },
-                "lastFedDate": {
-                    "type": "string"
-                }
-            }
-        },
-        "Cats": {
-            "type": "object",
-            "properties": {
-                "cats": {
-                    "type": "object",
-                    "additionalProperties": {
-                        "$ref": "#/definitions/Cat"
-                    }
-                }
-            }
-        }
-    }
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                    
+				}
+			},
+			"post": {
+				"tags": ["Organization"],
+				"summary": "Add users to the organization. If a user is not existent it is created. To assign roleInOrg = 'Admin' Platform_Admin role is required.",
+				"requestBody": {
+					"description": "Users data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/UsersInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                        
+				}
+			}
+		},
+		"/organization/{orgId}/user": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "string"
+				}
+			],
+			"post": {
+				"tags": ["Organization"],
+				"summary": "Add a user to the organization. If the user is not existent it is created. To assign roleInOrg = 'Admin' Platform_Admin role is required.",
+				"requestBody": {
+					"description": "User data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/UserInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                        
+				}
+			}
+		},
+		"/organization/{orgId}/user/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "string"
+				},
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id, login or email of the user",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "User property value",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": ["Organization"],
+				"summary": "Get an specific user data of the organization",
+				"responses": {
+					"200": {
+						"description": "Give the user of the organization",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/UserOutput"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid propName",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/InvalidPropName"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization or User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                     
+				}
+			},
+			"patch": {
+				"tags": ["Organization"],
+				"summary": "Update an specific user of the organization. To assign roleInOrg = 'Admin' Platform_Admin role is required.",
+				"requestBody": {
+					"description": "User data",
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/UserInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization or User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                     
+				}
+			},
+			"delete": {
+				"tags": ["Organization"],
+				"summary": "Remove an specific user of the organization.",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization or User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                     
+				}
+			}
+		},
+		"/groups/{orgId}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": ["Group"],
+				"summary": "Get all groups in the organization - Role required: Organization_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Groups"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}              
+				}
+			}
+		},
+		"/group/{orgId}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "string"
+				}
+			],
+			"post": {
+				"tags": ["Group"],
+				"summary": "Create a new group for the organization - Role required: Organization_Admin",
+				"requestBody": {
+					"description": "User data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/GroupInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupCreationOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					},                    
+					"409": {
+						"description": "Already exists a group with the same data",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/AlreadyExistsMessage"
+								}
+							}
+						}
+					}                       
+				}
+			}
+		},
+		"/group/{orgId}/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": ["Group"],
+				"summary": "Get a group of the organization - Role required: Organization_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupOutput"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid propName",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/InvalidPropName"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization or Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                     
+				}
+			},
+			"delete": {
+				"tags": ["Group"],
+				"summary": "Delete a group of the organization - Role required: Organization_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid propName",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/InvalidPropName"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization or Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                    
+				}
+			}
+		}
+	},
+	"definitions": {
+		"Login": {
+			"type": "object",
+			"properties": {
+				"emailOrLogin": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				}
+			}
+		},
+		"Access_token": {
+			"type": "object",
+			"properties": {
+				"accesToken": {
+					"type": "string"
+				}
+			}
+		},
+		"Credentials_rejected": {
+			"type": "object",
+			"properties": {
+				"message": {
+					"type": "string",
+					"default": "invalid token"
+				},
+				"status": {
+					"type": "number",
+					"default": 401
+				}
+			}
+		},
+		"Message": {
+			"type": "object",
+			"properties": {
+				"message": {
+					"type": "string"
+				}
+			}
+		},
+		"New_password": {
+			"type": "object",
+			"properties": {
+				"newPassword": {
+					"type": "string"
+				}
+			}
+		},
+		"InvalidPropName": {
+			"type": "object",
+			"properties": {
+				"message": {
+					"type": "string",
+					"default": "The propName: <propName> is invalid"
+				},
+				"status": {
+					"type": "number",
+					"default": 400
+				}
+			}
+		},
+		"NotFoundMessage": {
+			"type": "object",
+			"properties": {
+				"message": {
+					"type": "string",
+					"default": "The entity with <propName>: <propValue> is not found"
+				},
+				"status": {
+					"type": "number",
+					"default": 404
+				}
+			}
+		},
+		"AlreadyExistsMessage": {
+			"type": "object",
+			"properties": {
+				"message": {
+					"type": "string",
+					"default": "An entity with <propName>: <propValue> already exists in database"
+				},
+				"status": {
+					"type": "number",
+					"default": 409
+				}
+			}
+		},           
+		"OrganizationInput": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"acronym": {
+					"type": "string"
+				},
+				"address": {
+					"type": "string"
+				},
+				"city": {
+					"type": "string"
+				},
+				"zipCode": {
+					"type": "string"
+				},
+				"state": {
+					"type": "string"
+				},
+				"country": {
+					"type": "string"
+				}
+			}
+		},
+		"OrganizationOutput": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "number",
+					"default": 1
+				},
+				"name": {
+					"type": "string"
+				},
+				"acronym": {
+					"type": "string"
+				},
+				"address": {
+					"type": "string"
+				},
+				"zipCode": {
+					"type": "string"
+				},
+				"state": {
+					"type": "string"
+				},
+				"country": {
+					"type": "string"
+				}
+			}
+		},
+		"Organizations": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/OrganizationOutput"
+			}
+		},
+		"propName": {
+			"properties": {
+				"propName": {
+					"type": "string"
+				}
+			}
+		},
+		"propValue": {
+			"properties": {
+				"propValue": {
+					"type": "string"
+				}
+			}
+		},
+		"UserInput": {
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				},
+				"telegramId": {
+					"type": "string"
+				},
+				"roleInOrg": {
+					"type": "string",
+					"default": "Viewer"
+				}
+			}
+		},
+		"UserOutput": {
+			"properties": {
+				"userId": {
+					"type": "number",
+					"default": 1
+				},
+				"name": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},
+				"roleInOrg": {
+					"type": "string"
+				},
+				"telegramId": {
+					"type": "string"
+				},
+				"lastSeenAt": {
+					"type": "string"
+				},
+				"lastSeenAtAge": {
+					"type": "string"
+				}
+			}
+		},
+		"UsersOutput": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/UserOutput"
+			}
+		},
+		"UsersInput": {
+			"type": "object",
+			"properties": {
+				"users": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/UserInput"
+					}
+				}
+			}
+		},
+		"GlobalUserInput": {
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				},
+				"telegramId": {
+					"type": "string"
+				},
+				"isGrafanaAdmin": {
+					"type": "boolean",
+					"default": false
+				}
+			}
+		},
+		"GlobalUserOutput": {
+			"properties": {
+				"id": {
+					"type": "number",
+					"default": 1
+				},
+				"name": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},
+				"telegramId": {
+					"type": "string"
+				},
+				"isGrafanaAdmin": {
+					"type": "boleean"
+				},
+				"isDisabled": {
+					"type": "boleean"
+				},
+				"lastSeenAt": {
+					"type": "string"
+				},
+				"lastSeenAtAge": {
+					"type": "string"
+				}
+			}
+		},
+		"GlobalUsersOutput": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/GlobalUserOutput"
+			}
+		},
+		"PlatformStatistics": {
+			"properties": {
+				"orgs": {
+					"type": "number"
+				},
+				"dashboards": {
+					"type": "number"
+				},
+				"snapshots": {
+					"type": "number"
+				},
+				"tags": {
+					"type": "number"
+				},
+				"datasources": {
+					"type": "number"
+				},
+				"playlists": {
+					"type": "number"
+				},
+				"stars": {
+					"type": "number"
+				},
+				"alerts": {
+					"type": "number"
+				},
+				"users": {
+					"type": "number"
+				},
+				"admins": {
+					"type": "number"
+				},
+				"editors": {
+					"type": "number"
+				},
+				"viewers": {
+					"type": "number"
+				},
+				"activeUsers": {
+					"type": "number"
+				},
+				"activeAdmins": {
+					"type": "number"
+				},
+				"activeEditors": {
+					"type": "number"
+				},
+				"activeViewers": {
+					"type": "number"
+				},
+				"activeSessions": {
+					"type": "number"
+				}
+			}
+		},
+		"GroupInput": {
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"acronym": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				}
+			}
+		},
+		"GroupOutput": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"acronym": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				},
+				"groupHash": {
+					"type": "string"
+				},
+				"tableHash": {
+					"type": "string"
+				}
+			}
+		},
+		"GroupCreationOutput": {
+			"properties": {
+				"message": {
+					"type": "string"
+				},
+				"group": {
+				    "$ref": "#/definitions/GroupOutput"
+				}
+			}
+		},
+		"Groups": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/GroupOutput"
+			}
+		}
+	}
 }

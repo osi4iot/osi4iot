@@ -1,5 +1,5 @@
 notifiers:
-  - name: Email_notification_1
+  - name: Email_NC_default
     type: email
     uid: notifier1
     org_id: 1
@@ -9,7 +9,7 @@ notifiers:
     disable_resolve_message: false
     settings:
       addresses: $GMAIL_USER
-  - name: Telegram_notification_1
+  - name: Telegram_NC_default
     type: telegram
     uid: notifier2
     org_id: 1

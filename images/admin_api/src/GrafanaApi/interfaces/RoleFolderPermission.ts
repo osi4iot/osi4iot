@@ -1,4 +1,4 @@
 export default interface IRoleFolderPermission {
-    role: string;
-    permission: number;
+	role: string;
+	permission: number;
 }

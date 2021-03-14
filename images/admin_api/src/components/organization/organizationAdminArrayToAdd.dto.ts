@@ -4,7 +4,7 @@ import { Allow } from "class-validator";
 
 // class CreateInstitutionAdminArrayToAddDto {
 //   @Allow()
-//   organizationId: string;
+//   orgId: string;
 
 //   @IsValidUsersArray("institutionId")
 //   @IsEmailsArray({ message: "The property: $property must be an array of valid emails" })

@@ -1,3 +1,4 @@
 export default interface IFolderDTO {
-    title: string;
+	uid?: string;
+	title: string;
 }

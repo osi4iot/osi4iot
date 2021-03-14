@@ -1,3 +1,3 @@
 export default interface IUserId {
-    userId: number;
+	userId: number;
 }

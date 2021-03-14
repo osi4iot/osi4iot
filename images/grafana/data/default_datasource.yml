@@ -1,11 +1,13 @@
 apiVersion: 1
 
 datasources:
-  - name: iot_platform_db
+  - name: ${MAIN_ORGANIZATION_DATASOURCE_NAME}
     type: postgres
+    access: proxy
     url: postgres:5432
     database: $POSTGRES_DB
     orgId: 1
+    isDefault: true
     user: grafana_datasource_user
     secureJsonData:
       password: ${GRAFANA_DATASOURCE_PASSWORD}
