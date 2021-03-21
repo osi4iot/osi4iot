@@ -1,6 +1,6 @@
 import IMessage from "./interfaces/Message";
 import IUserDTO from "./interfaces/UserDTO";
-import IUser from "../components/user/User.interface";
+import IUser from "../components/user/interfaces/User.interface";
 import ITeamDTO from "./interfaces/TeamDTO";
 import IFolderDTO from "./interfaces/FolderDTO";
 import IFolder from "./interfaces/Folder";
@@ -13,13 +13,11 @@ import IOrganizationGrafanaDTO from "./interfaces/IOrganizationGrafanaDTO";
 import IOrganizationGrafana from "./interfaces/IOrganizationGrafana";
 import IApiKey from "./interfaces/ApiKey";
 import IApiKeyDTO from "./interfaces/ApiKeyDTO";
-import IUsersAddedToOrg from "./interfaces/UsersAddedToOrg";
-import IUsersCreated from "./interfaces/UsersCreated";
 import IUserInOrgGrafana from "./interfaces/UserInOrgGrafana.interface";
 import IUserGlobalGrafana from "./interfaces/UserGlobalGrafana.interface";
 import IPlatformStatistics from "./interfaces/PlatformStatistics";
-
-
+import INotificationChannel from "./interfaces/NotificationChannel";
+import CreateUserDto from "../components/user/interfaces/User.dto";
 
 export default interface IDashboardApi {
 	getPlatformStatistics(): Promise<IPlatformStatistics>;
@@ -38,14 +36,14 @@ export default interface IDashboardApi {
 	getUsersWithPaging(perpage: number, page: number, query: string): Promise<IUserGlobalGrafana[]>;
 	getUserByLoginOrEmail(loginOrEmail: string): Promise<IUserGlobalGrafana>;
 	giveGrafanaAdminPermissions(userId: number): Promise<IMessage>;
-	addUserToOrganization(orgId: number, userEmail: string, roleInOrg: string): Promise<IMessage>
-	addUsersToOrganization(orgId: number, usersData: IUserDTO[]): Promise<number>
+	addUserToOrganization(orgId: number, userEmail: string, roleInOrg: string): Promise<IMessage>;
+	addUsersToOrganization(orgId: number, usersData: CreateUserDto[]): Promise<IMessage[]>;
 	changeUserRoleInOrganization(orgId: number, userId: number, role: string): Promise<IMessage>
 	changeUsersRoleInOrganization(orgId: number, usersIdArray: number[], usersRoleArray: string[]): Promise<IMessage[]>
 	removeUserFromOrganization(orgId: number, usersIdArray: number): Promise<IMessage>;
 	removeUsersFromOrganization(orgId: number, idArray: number[]): Promise<IMessage[]>
-	createUser(user: IUserDTO): Promise<IMessage>;
-	createUsers(users: IUserDTO[]): Promise<IMessage[]>
+	createUser(user: CreateUserDto): Promise<IMessage>;
+	createUsers(users: CreateUserDto[]): Promise<IMessage[]>;
 	deleteGlobalUser(userId: number): Promise<IMessage>;
 	changeUserPassword(userId: number, password: string): Promise<IMessage>;
 	logoutUser(userId: number): Promise<IMessage>;
@@ -56,13 +54,17 @@ export default interface IDashboardApi {
 	updateTeamById(teamId: number, teamData: ITeamDTO): Promise<IMessage>;
 	deleteTeamById(teamId: number): Promise<IMessage>;
 	getTeamMembers(teamId: number): Promise<ITeamMember[]>;
-	addTeamMembers(teamId: number, usersId: IUserId[]): Promise<IMessage>;
+	addTeamMembers(teamId: number, usersId: IUserId[]): Promise<string[]>;
 	addMemberToTeam(teamId: number, userId: IUserId): Promise<IMessage>;
 	removeMemberFromTeam(teamId: number, userId: number): Promise<IMessage>;
+	removeMembersFromTeam(teamId: number, userIdsArray: number[]): Promise<IMessage[]>;
 
 	createFolder(folderData: IFolderDTO, orgKey: string): Promise<IFolder>;
 	folderPermission(uid: string, folderPermissionDTO: IFolderPermissionDTO, orgKey: string): Promise<IMessage>;
 	deleteFolderByUid(folderUid: string, orgKey: string): Promise<IMessage>;
 
 	createDataSourcePostgres(orgId: number, name: string, orgKey: string): Promise<IMessage>;
+
+	createNotificationChannel(orgKey: string, notifChannelData: INotificationChannel): Promise<INotificationChannel>;
+	updateNotificationChannel(orgKey: string, notifChannelData: INotificationChannel): Promise<INotificationChannel>;
 }

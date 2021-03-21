@@ -54,10 +54,10 @@
         "noDataState": "ok",
         "notifications": [
           {
-            "uid": "notifier1"
+            "uid": "Email_NC_demo"
           },
           {
-            "uid": "notifier2"
+            "uid": "Telegram_NC_demo"
           }
         ]
       },

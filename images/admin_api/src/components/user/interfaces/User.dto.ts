@@ -1,8 +1,17 @@
 import { IsString, IsEmail, ValidateIf, IsNumber, IsBoolean } from "class-validator";
 
 class CreateUserDto {
+	@ValidateIf((obj) => obj.id !== undefined)
+	@IsNumber()
+	public id?: number;
+
+	public name?: string;
+
 	@IsString()
-	public name: string;
+	public firstName: string;
+
+	@IsString()
+	public surname: string;
 
 	@IsEmail()
 	public email: string;

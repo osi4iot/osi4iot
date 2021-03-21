@@ -3,7 +3,7 @@ import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { superAdminAuth } from "../../middleware/auth.middleware";
 import grafanaApi from "../../GrafanaApi";
-import CreateUserDto from "../user/User.dto";
+import CreateUserDto from "../user/interfaces/User.dto";
 import {
 	createGlobalUser,
 	getGlobalUsers,
@@ -11,7 +11,7 @@ import {
 	updateGlobalUser
 } from "../user/userDAL";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
-import generateLastSeenAtAgeString from "../../utils/helpers/generatelastSeenAtAgeString";
+import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 
 class ApplicationController implements IController {
@@ -145,7 +145,7 @@ class ApplicationController implements IController {
 			}
 			const newUserData = { ...existUser, ...userData };
 			await updateGlobalUser(newUserData);
-			const message = { message: `The user with email=${existUser.email} has been updated succesfully.` }
+			const message = { message: "User updated successfully" }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);

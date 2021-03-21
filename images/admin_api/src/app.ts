@@ -14,6 +14,7 @@ import IController from "./interfaces/controller.interface";
 import errorMiddleware from "./middleware/error.middleware";
 import pool from "./config/dbconfig";
 import { ConsoleTransportOptions } from "winston/lib/winston/transports";
+import transporter from "./config/mailer";
 
 const httpsOptions = {
 	key: fs.readFileSync("./ssl_config/iot_platform.key"),
@@ -34,6 +35,7 @@ class App {
 		this.initializeControllers(controllers);
 		this.initializeErrorHandling();
 		this.dbConnect();
+		this.mailerReady();
 	}
 
 	public listen(): void {
@@ -65,7 +67,7 @@ class App {
 			swaggerOptions: {
 				docExpansion: 'none'
 			}
-		  };
+		};
 		this.app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
 	}
 
@@ -73,6 +75,12 @@ class App {
 		pool.connect((error, client, done) => {
 			if (error) return logger.log("error", "Database connection failed: %s ", error.message);
 			logger.log("info", "Database connected");
+		});
+	}
+
+	private mailerReady() {
+		transporter.verify().then(() => {
+			logger.log("info", "Ready for send emails");
 		});
 	}
 

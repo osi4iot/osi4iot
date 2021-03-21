@@ -1,6 +1,6 @@
 import { NextFunction, Response } from "express";
 import OrganizationNotFoundException from "../exceptions/OrganizationNotFoundException";
-import IRequestWithOrganization from "../components/organization/requestWithOrganization.interface";
+import IRequestWithOrganization from "../components/organization/interfaces/requestWithOrganization.interface";
 import { getOrganizationByProp } from "../components/organization/organizationDAL";
 
 

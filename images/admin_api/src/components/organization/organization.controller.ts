@@ -2,8 +2,8 @@ import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
-import CreateOrganizationDto from "./organization.dto";
-import IRequestWithOrganization from "./requestWithOrganization.interface";
+import CreateOrganizationDto from "./interfaces/organization.dto";
+import IRequestWithOrganization from "./interfaces/requestWithOrganization.interface";
 import { organizationAdminAuth, superAdminAuth } from "../../middleware/auth.middleware";
 import IOrganizationGrafanaDTO from "../../GrafanaApi/interfaces/IOrganizationGrafanaDTO";
 import grafanaApi from "../../GrafanaApi";
@@ -18,10 +18,11 @@ import {
 	getOrganizationByProp,
 	updateOrganizationByProp,
 	createDefaultOrgDataSource,
-	getOrganizationKey
+	getOrganizationKey,
+	addAdminToOrganization
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
-import CreateUserDto from "../user/User.dto";
+import CreateUserDto from "../user/interfaces/User.dto";
 import {
 	createOrganizationUser,
 	getUserLoginDatadByEmailOrLogin,
@@ -29,18 +30,22 @@ import {
 	createOrganizationUsers,
 	getOrganizationUserByProp,
 	updateOrganizationUser,
-	getUsersIdByEmailsArray
+	getUsersIdByEmailsArray,
+	isUsersDataCorrect
 } from "../user/userDAL";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
-import IRequestWithOrganizationAndUser from "./requestWithOrganizationAndUser.interfase";
+import IRequestWithOrganizationAndUser from "./interfaces/requestWithOrganizationAndUser.interface";
 import HttpException from "../../exceptions/HttpException";
 import CreateUsersArrayDto from "../user/usersArray.dto";
-import IUsersAddedToOrg from "../../GrafanaApi/interfaces/UsersAddedToOrg";
-import generateLastSeenAtAgeString from "../../utils/helpers/generatelastSeenAtAgeString";
-import UserInOrgToUpdateDto from "../user/UserInOrgToUpdate.dto";
+import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
+import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
 import { createGroup, deleteGroupByName } from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
+import CreateGroupMemberDto from "../group/interfaces/groupMember.dto";
+import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
+import CreateGroupAdminDto from "../group/interfaces/groupAdmin.dto";
+import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -124,6 +129,7 @@ class OrganizationController implements IController {
 	private createOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const organizationData: CreateOrganizationDto = req.body;
+			organizationData.acronym = organizationData.acronym.replace(/ /g, "_").toUpperCase();
 			const orgGrafanaDTO: IOrganizationGrafanaDTO = { name: organizationData.name };
 			const exits_OrganizationWithName = await exitsOrganizationWithName(organizationData.name);
 			const exits_OrganizationWithAcronym = await exitsOrganizationWithAcronym(organizationData.acronym);
@@ -131,6 +137,8 @@ class OrganizationController implements IController {
 				if (exits_OrganizationWithName) throw new AlreadyExistingItemException("An", "Organization", ["name"], [organizationData.name]);
 				if (exits_OrganizationWithAcronym) throw new AlreadyExistingItemException("An", "Organization", ["acronym"], [organizationData.acronym]);
 			} else {
+				if (!(await isUsersDataCorrect(organizationData.orgAdminArray)))
+					throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				await updateOrganizationById(newOrg.orgId, organizationData);
 				const apyKeyName = `ApiKey_${organizationData.acronym}`
@@ -143,11 +151,27 @@ class OrganizationController implements IController {
 				await grafanaApi.changeUserRoleInOrganization(newOrg.orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
 				const dataSourceName = `iot_${organizationData.acronym.toLowerCase()}_db`;
 				await createDefaultOrgDataSource(newOrg.orgId, dataSourceName, apiKeyObj.key);
+				const groupAdminDataArray: CreateGroupAdminDto[] = []
+				organizationData.orgAdminArray.forEach(user => {
+					groupAdminDataArray.push(
+						{
+							firstName: user.firstName,
+							surname: user.surname,
+							email: user.email,
+							roleInGroup: ("Admin" as RoleInGroupOption)
+						})
+				});
 				const defaultOrgGroup = {
-					name: `General_${organizationData.acronym}`,
-					acronym: organizationData.acronym,
-					email: ""
+					name: `${organizationData.name.replace(/ /g,"_").toUpperCase()}_general`,
+					acronym: organizationData.acronym.replace(/ /g,"_").toUpperCase(),
+					email: "",
+					telegramChatId: organizationData.telegramChatId,
+					telegramInvitationLink: organizationData.telegramInvitationLink,
+					folderPermission: ("Viewer" as FolderPermissionOption),
+					groupAdminDataArray
 				}
+				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
+				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.id = adminIdArray[index]);
 				await createGroup(newOrg.orgId, defaultOrgGroup, false);
 			}
 			const message = { message: `Organization created successfully` }
@@ -166,6 +190,8 @@ class OrganizationController implements IController {
 			const { organization } = req;
 			const orgUserData: CreateUserDto = req.body;
 			orgUserData.OrgId = organization.id;
+			if (!(await isUsersDataCorrect([orgUserData])))
+				throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
 			const existUser = await getUserLoginDatadByEmailOrLogin(orgUserData.email);
 			let user_msg: IMessage;
 			if (!orgUserData.roleInOrg) orgUserData.roleInOrg = "Viewer";
@@ -199,6 +225,8 @@ class OrganizationController implements IController {
 		try {
 			const { organization } = req;
 			const orgUsersData: CreateUserDto[] = req.body.users;
+			if (!(await isUsersDataCorrect(orgUsersData)))
+				throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
 			orgUsersData.forEach((user: CreateUserDto) => {
 				user.OrgId = organization.id
 				if (!user.roleInOrg) user.roleInOrg = "Viewer";
@@ -217,12 +245,14 @@ class OrganizationController implements IController {
 			let usersCreated = 0;
 			let usersAddedToOrg = 0;
 			if (nonExistingUserArray.length !== 0) {
-				usersCreated = await createOrganizationUsers(nonExistingUserArray, organization.id);
+				const msg_users = await createOrganizationUsers(organization.id, nonExistingUserArray);
+				usersCreated = msg_users.filter(msg => msg.message === "User created").length;
 				usersAddedToOrg = usersCreated;
 			}
 
 			if (existingUserArray.length !== 0) {
-				usersAddedToOrg += await this.grafanaRepository.addUsersToOrganization(organization.id, existingUserArray);
+				const msg_users = await this.grafanaRepository.addUsersToOrganization(organization.id, existingUserArray);
+				usersAddedToOrg += msg_users.filter(msg => msg.message === "User added to organization").length;
 			}
 			const message = { usersCreated, usersAddedToOrg };
 			res.status(200).send(message);
@@ -243,7 +273,7 @@ class OrganizationController implements IController {
 			const user = await getOrganizationUserByProp(organization.id, propName, propValue);
 			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
 			const msg = await grafanaApi.removeUserFromOrganization(organization.id, user.userId);
-			const message = { message: `The user with email=${user.email} has been removed from the organization.` }
+			const message = { message: `User removed from the organization` }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -270,7 +300,7 @@ class OrganizationController implements IController {
 			}
 			const userInOrgDataUpdated = { ...existUserInOrg, ...userInOrgData };
 			await updateOrganizationUser(userInOrgDataUpdated);
-			const message = { message: `The user in the organization with email=${existUserInOrg.email} has been updated succesfully.` }
+			const message = { message: `User updated succesfully.` }
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -355,7 +385,7 @@ class OrganizationController implements IController {
 			if (!oldOrganizationData) throw new ItemNotFoundException("The organization", propName, propValue);
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
 			await updateOrganizationByProp(propName, propValue, newOrganizationData);
-			res.status(200).json({ message: `Organization with ${propName}=${propValue} has been updated successfully` });
+			res.status(200).json({ message: `Organization updated successfully` });
 		} catch (error) {
 			next(error);
 		}
@@ -367,11 +397,11 @@ class OrganizationController implements IController {
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const organization = await getOrganizationByProp(propName, propValue);
 			if (!organization) throw new ItemNotFoundException("The Organization", propName, propValue);
-			const groupName = `General_${organization.acronym}`;
+			const groupName = `${organization.acronym}_general`;
 			const orgKey = await getOrganizationKey(organization.id);
 			await deleteGroupByName(groupName, orgKey);
 			await grafanaApi.deleteOrganizationById(organization.id);
-			res.status(200).json({ message: `Organization with ${propName}=${propValue} deleted successfully` });
+			res.status(200).json({ message: `Organization deleted successfully` });
 		} catch (error) {
 			next(error);
 		}

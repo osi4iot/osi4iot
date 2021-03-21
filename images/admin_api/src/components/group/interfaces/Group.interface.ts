@@ -4,10 +4,13 @@ export default interface IGroup {
 	teamId: number;
 	folderId: number;
 	folderUid: string;
+	folderPermission?: string;
 	name: string;
 	acronym: string;
 	groupUid: string;
-	telegramInvitationLink?: string;
-	telegramChatId?: string;
+	telegramInvitationLink: string;
+	telegramChatId: string;
+	emailNotificationChannelId: number;
+	telegramNotificationChannelId: number;
 	isPrivate: boolean;
 }

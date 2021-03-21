@@ -1,5 +1,5 @@
 import { Request } from "express";
-import IUser from "../user/User.interface";
+import IUser from "../../user/interfaces/User.interface";
 import IOrganization from "./organization.interface";
 
 interface IRequestWithOrganizationAndUser extends Request {

@@ -4,6 +4,7 @@ import { Pool, QueryResult } from "pg";
 import grafanaApi from "../../GrafanaApi"
 import { encrypt } from "../encryptAndDecrypt/encryptAndDecrypt";
 import { createGroup } from "../../components/group/groupDAL";
+import { FolderPermissionOption } from "../../components/group/interfaces/FolerPermissionsOptions";
 
 export async function dataBaseInitialization() {
 	const pool = new Pool({
@@ -27,7 +28,10 @@ export async function dataBaseInitialization() {
 	if (result0.rows[0].count !== "0") {
 
 		const tableUser = "grafanadb.user";
-		const queryStringUser = 'ALTER TABLE grafanadb.user ADD COLUMN telegram_id varchar(30) UNIQUE';
+		const queryStringUser = `ALTER TABLE grafanadb.user
+								ADD COLUMN first_name varchar(200),
+								ADD COLUMN surname varchar(200),
+								ADD COLUMN telegram_id varchar(200) UNIQUE`;
 		try {
 			await pool.query(queryStringUser);
 			logger.log("info", `Column telegram_id has been added sucessfully to Table ${tableUser}`);
@@ -36,10 +40,14 @@ export async function dataBaseInitialization() {
 		}
 
 		const plaformAdminUser = {
-			name: process.env.PLATFORM_ADMIN_NAME,
+			id: 2,
+			name: `${process.env.PLATFORM_ADMIN_FIRST_NAME} ${process.env.PLATFORM_ADMIN_SURNAME}`,
+			firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
+			surname: process.env.PLATFORM_ADMIN_SURNAME,
 			email: process.env.PLATFORM_ADMIN_EMAIL,
 			login: process.env.PLATFORM_ADMIN_USER_NAME,
 			password: process.env.PLATFORM_ADMIN_PASSWORD,
+			telegramId: process.env.PLATFORM_ADMIN_TELEGRAM_ID,
 			OrgId: 1
 		}
 		const grafanaAdminBasicAuthOptions = {
@@ -48,21 +56,34 @@ export async function dataBaseInitialization() {
 			json: true
 		}
 		await grafanaApi.createUser(plaformAdminUser, grafanaAdminBasicAuthOptions);
+
+		const queryString1b = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE id = $4';
+		try {
+			await pool.query(queryString1b,
+				[
+					process.env.PLATFORM_ADMIN_FIRST_NAME,
+					process.env.PLATFORM_ADMIN_SURNAME,
+					`${process.env.PLATFORM_ADMIN_FIRST_NAME} ${process.env.PLATFORM_ADMIN_SURNAME}`,
+					2
+				]);
+		} catch (err) {
+			logger.log("error", `Platform admin user can not be updated: %s`, err.message);
+		}
 		await grafanaApi.giveGrafanaAdminPermissions(2);
 		await grafanaApi.changeUserRoleInOrganization(1, 2, "Admin");
 
-		const queryString1b = 'ALTER TABLE grafanadb.org ADD COLUMN acronym varchar(20) UNIQUE';
+		const queryString1c = 'ALTER TABLE grafanadb.org ADD COLUMN acronym varchar(20) UNIQUE';
 		try {
-			await pool.query(queryString1b);
+			await pool.query(queryString1c);
 			logger.log("info", `Column acronym has been added sucessfully to Table ${tableName1}`);
 		} catch (err) {
 			logger.log("error", `Column acronym can not be added sucessfully to Table ${tableName1}: %s`, err.message);
 		}
 
-		const queryString1c = 'UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5, state = $6, country = $7 WHERE name = $8';
-		const parameterArray1c = [
+		const queryString1d = 'UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5, state = $6, country = $7 WHERE name = $8';
+		const parameterArray1d = [
 			process.env.MAIN_ORGANIZATION_NAME,
-			process.env.MAIN_ORGANIZATION_ACRONYM,
+			process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase(),
 			process.env.MAIN_ORGANIZATION_ADDRESS1,
 			process.env.MAIN_ORGANIZATION_CITY,
 			process.env.MAIN_ORGANIZATION_ZIP_CODE,
@@ -73,8 +94,8 @@ export async function dataBaseInitialization() {
 		let apiKeyMainOrg: string;
 
 		try {
-			await pool.query(queryString1c, parameterArray1c);
-			const apyKeyName = `ApiKey_${process.env.MAIN_ORGANIZATION_ACRONYM}`
+			await pool.query(queryString1d, parameterArray1d);
+			const apyKeyName = `ApiKey_${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase()}`
 			const apiKeyData = { name: apyKeyName, role: "Admin" };
 			const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
 			apiKeyMainOrg = apiKeyObj.key;
@@ -133,6 +154,8 @@ export async function dataBaseInitialization() {
 				group_uid VARCHAR(42),
 				telegram_invitation_link VARCHAR(50),
 				telegram_chatid VARCHAR(15),
+				email_notification_channel_id bigint,
+				telegram_notification_channel_id bigint,
 				is_private BOOLEAN DEFAULT true,
 				CONSTRAINT fk_org_id
 					FOREIGN KEY(org_id)
@@ -159,10 +182,20 @@ export async function dataBaseInitialization() {
 
 		try {
 			await pool.query(queryString3a);
+			const mainOrgGroupAdmin = {
+				id: 2,
+				firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
+				surname: process.env.PLATFORM_ADMIN_SURNAME,
+				email: process.env.PLATFORM_ADMIN_EMAIL
+			}
 			const defaultMainOrgGroup = {
-				name: `General_${process.env.MAIN_ORGANIZATION_ACRONYM}`,
-				acronym: process.env.MAIN_ORGANIZATION_ACRONYM,
-				email: ""
+				name: `${process.env.MAIN_ORGANIZATION_NAME.replace(/ /g,"_").toUpperCase()}_general`,
+				acronym: process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase(),
+				email: "",
+				telegramChatId: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
+				telegramInvitationLink: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
+				folderPermission: ("Viewer" as FolderPermissionOption),
+				groupAdminDataArray: [mainOrgGroupAdmin]
 			}
 			await createGroup(1, defaultMainOrgGroup, false);
 			logger.log("info", `Table ${tableName3} has been created sucessfully`);

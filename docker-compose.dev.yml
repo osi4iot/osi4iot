@@ -65,22 +65,22 @@ services:
       postgres:
         condition: service_healthy
 
-  # nodered:
-  #   container_name: ${PLATFORM_NAME}_nodered
-  #   build: ./images/nodered
-  #   user: "${UID}:${GID}"
-  #   networks:
-  #     - internal_net
-  #   env_file:
-  #     - .env
-  #   ports:
-  #     - "127.0.0.1:1880:1880"
-  #   volumes:
-  #     - ${HOST_VOLUMES_PATH}/nodered/:/data
-  #   restart: unless-stopped
-  #   depends_on:
-  #     postgres:
-  #       condition: service_healthy        
+  nodered:
+    container_name: ${PLATFORM_NAME}_nodered
+    build: ./images/nodered
+    user: "${UID}:${GID}"
+    networks:
+      - internal_net
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:1880:1880"
+    volumes:
+      - ${HOST_VOLUMES_PATH}/nodered/:/data
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy        
 
   grafana_renderer:
     container_name: ${PLATFORM_NAME}_grafana_rendered

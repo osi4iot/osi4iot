@@ -518,7 +518,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NotFoundMessage"
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
 								}
 							}
 						}
@@ -565,7 +565,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NotFoundMessage"
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
 								}
 							}
 						}
@@ -601,7 +601,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NotFoundMessage"
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
 								}
 							}
 						}
@@ -616,7 +616,7 @@
 					"in": "path",
 					"required": true,
 					"description": "Organization id",
-					"type": "string"
+					"type": "number"
 				}
 			],
 			"get": {
@@ -648,7 +648,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NotFoundMessage"
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
 								}
 							}
 						}
@@ -695,7 +695,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NotFoundMessage"
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
 								}
 							}
 						}
@@ -710,7 +710,7 @@
 					"in": "path",
 					"required": true,
 					"description": "Organization id",
-					"type": "string"
+					"type": "number"
 				}
 			],
 			"post": {
@@ -753,7 +753,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NotFoundMessage"
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
 								}
 							}
 						}
@@ -768,7 +768,7 @@
 					"in": "path",
 					"required": true,
 					"description": "Organization id",
-					"type": "string"
+					"type": "number"
 				},
 				{
 					"name": "propName",
@@ -921,7 +921,7 @@
 					"in": "path",
 					"required": true,
 					"description": "Organization id",
-					"type": "string"
+					"type": "number"
 				}
 			],
 			"get": {
@@ -953,7 +953,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NotFoundMessage"
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
 								}
 							}
 						}
@@ -968,14 +968,14 @@
 					"in": "path",
 					"required": true,
 					"description": "Organization id",
-					"type": "string"
+					"type": "number"
 				}
 			],
 			"post": {
 				"tags": ["Group"],
 				"summary": "Create a new group for the organization - Role required: Organization_Admin",
 				"requestBody": {
-					"description": "User data",
+					"description": "Group data",
 					"required": false,
 					"content": {
 						"application/json": {
@@ -1011,7 +1011,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NotFoundMessage"
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
 								}
 							}
 						}
@@ -1025,7 +1025,7 @@
 								}
 							}
 						}
-					}                       
+					}
 				}
 			}
 		},
@@ -1036,8 +1036,22 @@
 					"in": "path",
 					"required": true,
 					"description": "Organization id",
+					"type": "number"
+				},
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id, name or acronym of the group",
 					"type": "string"
-				}
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "Group property value",
+					"type": "string"
+				}				
 			],
 			"get": {
 				"tags": ["Group"],
@@ -1085,6 +1099,63 @@
 					}                     
 				}
 			},
+			"patch": {
+				"tags": ["Group"],
+				"summary": "Update a group of the organization - Role required: Organization_Admin",
+				"requestBody": {
+					"description": "Group data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/GroupUpdateInput"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"400": {
+						"description": "Invalid propName",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/InvalidPropName"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization or Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},			
 			"delete": {
 				"tags": ["Group"],
 				"summary": "Delete a group of the organization - Role required: Organization_Admin",
@@ -1131,7 +1202,433 @@
 					}                    
 				}
 			}
-		}
+		},
+		"/group/{groupId}/member": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],
+			"post": {
+				"tags": ["Group"],
+				"summary": "Add member to the group - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/GroupMemberInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}			
+		},		
+		"/group/{groupId}/members": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],
+			"post": {
+				"tags": ["Group"],
+				"summary": "Add members for the group - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/AddMembersToGroupInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": ["Group"],
+				"summary": "Update members roles in the group - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/GroupMemberInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},			
+			"get": {
+				"tags": ["Group"],
+				"summary": "Get group members  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupMembers"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},
+			"delete": {
+				"tags": ["Group"],
+				"summary": "Remove all group members with 'Viewer' or 'Editor' - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}					
+		},
+		"/group/{groupId}/members_editor_or_admin": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],		
+			"get": {
+				"tags": ["Group"],
+				"summary": "Get group members with 'Editor' or 'Admin' role  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupMembers"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}					
+		},		
+		"/group/{groupId}/member/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "userId, login or email of the group member",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "Group member property value",
+					"type": "string"
+				}				
+			],
+			"get": {
+				"tags": ["Group"],
+				"summary": "Get group member by propName: id, login or email  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupMemberOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": ["Group"],
+				"summary": "Update group member role by propName: id, login or email  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/GroupMemberRoleUpdate"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupMemberOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},			
+			"delete": {
+				"tags": ["Group"],
+				"summary": "Remove group member by propName: id, login or email  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}							
+		}				
 	},
 	"definitions": {
 		"Login": {
@@ -1208,6 +1705,32 @@
 				}
 			}
 		},
+		"OrganizationNotFoundMessage": {
+			"type": "object",
+			"properties": {
+				"message": {
+					"type": "string",
+					"default": "Organizattion not found"
+				},
+				"status": {
+					"type": "number",
+					"default": 404
+				}
+			}
+		},		
+		"GroupNotFoundMessage": {
+			"type": "object",
+			"properties": {
+				"message": {
+					"type": "string",
+					"default": "Group not found"
+				},
+				"status": {
+					"type": "number",
+					"default": 404
+				}
+			}
+		},		
 		"AlreadyExistsMessage": {
 			"type": "object",
 			"properties": {
@@ -1244,9 +1767,37 @@
 				},
 				"country": {
 					"type": "string"
+				},
+				"orgAdminArray": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/OrgAdminInput"
+					}
 				}
 			}
 		},
+		"OrgAdminInput": {
+			"properties": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
+					"type": "string"
+				},				
+				"email": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				},
+				"telegramId": {
+					"type": "string"
+				}
+			}
+		},		
 		"OrganizationOutput": {
 			"type": "object",
 			"properties": {
@@ -1296,7 +1847,10 @@
 		},
 		"UserInput": {
 			"properties": {
-				"name": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
 					"type": "string"
 				},
 				"email": {
@@ -1323,7 +1877,10 @@
 					"type": "number",
 					"default": 1
 				},
-				"name": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
 					"type": "string"
 				},
 				"email": {
@@ -1365,7 +1922,10 @@
 		},
 		"GlobalUserInput": {
 			"properties": {
-				"name": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
 					"type": "string"
 				},
 				"email": {
@@ -1392,9 +1952,12 @@
 					"type": "number",
 					"default": 1
 				},
-				"name": {
+				"firstName": {
 					"type": "string"
 				},
+				"surname": {
+					"type": "string"
+				},				
 				"email": {
 					"type": "string"
 				},
@@ -1487,11 +2050,94 @@
 				"acronym": {
 					"type": "string"
 				},
-				"email": {
+				"telegramInvitationLink": {
 					"type": "string"
-				}
+				},
+				"telegramChatId": {
+					"type": "string"
+				},				
+				"folderPermission": {
+					"type": "string"
+				},
+				"groupAdminDataArray": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/GroupMemberInput"
+					}
+				}				
 			}
 		},
+		"GroupUpdateInput": {
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"acronym": {
+					"type": "string"
+				},
+				"telegramInvitationLink": {
+					"type": "string"
+				},
+				"telegramChatId": {
+					"type": "string"
+				},				
+				"folderPermission": {
+					"type": "string"
+				}			
+			}
+		},		
+		"GroupMemberInput": {
+			"properties": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
+					"type": "string"
+				},				
+				"email": {
+					"type": "string"
+				},
+				"roleInGroup": {
+					"type": "string",
+					"default": "Viewer"
+				}				
+			}
+		},
+		"GroupMemberRoleUpdate": {
+			"properties": {
+				"roleInGroup": {
+					"type": "string",
+					"default": "Viewer"
+				}				
+			}
+		},		
+		"GroupMemberOutput": {
+			"properties": {
+				"userId": {
+					"type": "string"
+				},				
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},							
+				"email": {
+					"type": "string"
+				},
+				"telegramId": {
+					"type": "string",
+					"default": "Viewer"
+				},				
+				"roleInGroup": {
+					"type": "string",
+					"default": "Viewer"
+				}				
+			}
+		},			    
 		"GroupOutput": {
 			"type": "object",
 			"properties": {
@@ -1527,6 +2173,24 @@
 			"items": {
 				"$ref": "#/definitions/GroupOutput"
 			}
+		},
+		"AddMembersToGroupInput": {
+			"properties": {
+				"members": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/GroupMemberInput"
+					}
+				}				
+			}
+		},
+		"GroupMembers": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/GroupMemberOutput"
+			}
 		}
 	}
 }
+  
+

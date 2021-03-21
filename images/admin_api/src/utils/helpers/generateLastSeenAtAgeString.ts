@@ -1,5 +1,5 @@
-import IUser from "../../components/user/User.interface";
-import IUserInOrg from "../../components/user/UserInOrg.interface";
+import IUser from "../../components/user/interfaces/User.interface";
+import IUserInOrg from "../../components/user/interfaces/UserInOrg.interface";
 
 const generateLastSeenAtAgeString = (user: IUser | IUserInOrg): string => {
 	const objectArray = Object.entries(user.lastSeenAtAge);

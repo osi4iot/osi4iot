@@ -2,7 +2,7 @@ import { ValidationError as ValErr } from "class-validator";
 import * as express from "express";
 import { transformAndValidate } from "class-transformer-validator";
 import HttpException from "../exceptions/HttpException";
-import IRequestWithOrganization from "../components/organization/requestWithOrganization.interface";
+import IRequestWithOrganization from "../components/organization/interfaces/requestWithOrganization.interface";
 
 function errorMessageItem(errorArray: ValErr[]): string {
 	return errorArray

@@ -1,6 +1,7 @@
 export default interface IUserInOrg {
 	userId: number;
-	name: string;
+	firstName: string;
+	surname: string;
 	login: string;
 	email: string;
 	telegramId: string;

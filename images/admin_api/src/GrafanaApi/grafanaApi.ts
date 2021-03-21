@@ -7,7 +7,7 @@ import ITeam from "./interfaces/Team";
 import ITeamDTO from "./interfaces/TeamDTO";
 import TeamMember from "./interfaces/TeamMember";
 import TeamsWithPaging from "./interfaces/TeamsWithPaging";
-import IUser from "../components/user/User.interface";
+import IUser from "../components/user/interfaces/User.interface";
 import IUserDTO from "./interfaces/UserDTO";
 import IUserId from "./interfaces/UserId";
 import IDashboardApi from "./dashboardApi.interface";
@@ -16,12 +16,13 @@ import IOrganizationGrafanaDTO from "./interfaces/IOrganizationGrafanaDTO";
 import IApiKey from "./interfaces/ApiKey";
 import IApiKeyDTO from "./interfaces/ApiKeyDTO";
 import { logger } from "../config/winston";
-import IUsersAddedToOrg from "./interfaces/UsersAddedToOrg";
-import IUsersCreated from "./interfaces/UsersCreated";
 import IUserInOrgGrafana from "./interfaces/UserInOrgGrafana.interface";
 import IUserGlobalGrafana from "./interfaces/UserGlobalGrafana.interface";
 import IPlatformStatistics from "./interfaces/PlatformStatistics";
 import IOptionsToken from "./interfaces/OptionsToken";
+import INotificationChannel from "./interfaces/NotificationChannel";
+import { updateNotificationChannelSettings } from "../components/group/groupDAL";
+import CreateUserDto from "../components/user/interfaces/User.dto";
 
 const GrafanaApiURL = "grafana:5000/api"
 const optionsBasicAuth = {
@@ -138,7 +139,7 @@ export default class GrafanaApi implements IDashboardApi {
 		return user;
 	}
 
-	async createUser(user: IUserDTO, options_BasicAuth = optionsBasicAuth): Promise<IMessage> {
+	async createUser(user: CreateUserDto, options_BasicAuth = optionsBasicAuth): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/admin/users`;
 		const message = await needle('post', url, user, options_BasicAuth)
 			.then(res => (res.body))
@@ -169,7 +170,7 @@ export default class GrafanaApi implements IDashboardApi {
 		return user_message;
 	}
 
-	async addUsersToOrganization(orgId: number, usersData: IUserDTO[]): Promise<number> {
+	async addUsersToOrganization(orgId: number, usersData: CreateUserDto[]): Promise<IMessage[]> {
 		const url = `${GrafanaApiURL}/orgs/${orgId}/users`;
 		const usersAddedQueries = [];
 		for (let i = 0; i < usersData.length; i++) {
@@ -184,7 +185,7 @@ export default class GrafanaApi implements IDashboardApi {
 		const msg_users = await Promise.all(usersAddedQueries)
 			.then(messages => messages);
 
-		return msg_users.filter(msg => msg.message === "User added to organization").length;
+		return msg_users;
 	}
 
 	async changeUserRoleInOrganization(orgId: number, userId: number, role: string): Promise<IMessage> {
@@ -234,7 +235,7 @@ export default class GrafanaApi implements IDashboardApi {
 			.then(messages => messages)
 	}
 
-	async createUsers(users: IUserDTO[]): Promise<IMessage[]> {
+	async createUsers(users: CreateUserDto[]): Promise<IMessage[]> {
 		const url = `${GrafanaApiURL}/admin/users`;
 		const usersCreationQueries = [];
 		for (let i = 0; i < users.length; i++) {
@@ -324,7 +325,7 @@ export default class GrafanaApi implements IDashboardApi {
 		return members;
 	}
 
-	async addTeamMembers(teamId: number, usersId: IUserId[]): Promise<IMessage> {
+	async addTeamMembers(teamId: number, usersId: IUserId[]): Promise<string[]> {
 		const url = `${GrafanaApiURL}/teams/${teamId}/members`;
 		const usersCreationQueries = [];
 		for (let i = 0; i < usersId.length; i++) {
@@ -337,13 +338,7 @@ export default class GrafanaApi implements IDashboardApi {
 		}
 
 		return await Promise.all(usersCreationQueries)
-			.then(messages => {
-				let usersAdded = 0;
-				messages.forEach(msg => {
-					if (msg === "Member added to Team") usersAdded++
-				})
-				return { message: `Have been added ${usersAdded} users to team with id: ${teamId}` };
-			})
+			.then(messages => messages)
 	}
 
 	async addMemberToTeam(teamId: number, userId: IUserId): Promise<IMessage> {
@@ -360,6 +355,22 @@ export default class GrafanaApi implements IDashboardApi {
 			.then(res => res.body)
 			.catch(err => logger.log("error", "The member with id=${usersId} could not be removed to the team with id=${teamId}: %s", err.message));
 		return message;
+	}
+
+	async removeMembersFromTeam(teamId: number, userIdsArray: number[]): Promise<IMessage[]> {
+		const memberToRemoveQueries = [];
+		for (let i = 0; i < userIdsArray.length; i++) {
+			const url = `${GrafanaApiURL}/teams/${teamId}/members/${userIdsArray[i]}`;
+			memberToRemoveQueries[i] =
+				needle('delete', url, null, optionsBasicAuth)
+					.then(res => {
+						return res.body;
+					})
+					.catch(err => logger.log("error", "A member to the team with id=${teamId} could not be removed: %s", err.message));
+		}
+
+		return await Promise.all(memberToRemoveQueries)
+			.then(messages => messages)
 	}
 
 	async createFolder(folderData: IFolderDTO, orgKey: string): Promise<IFolder> {
@@ -421,6 +432,26 @@ export default class GrafanaApi implements IDashboardApi {
 			.then(res => res.body)
 			.catch(err => logger.log("error", `Data source for the organization with id: ${orgId} could not be created: %s`, err.message));
 		return message;
+	}
+
+	async createNotificationChannel(orgKey: string, notifChannelData: INotificationChannel): Promise<INotificationChannel> {
+		const url = `${GrafanaApiURL}/alert-notifications`;
+		const optionsToken = this.generateOptionsToken(orgKey);
+		const notificationChannel: INotificationChannel = await needle('post', url, notifChannelData, optionsToken)
+			.then(res => res.body)
+			.catch(err => logger.log("error", "A new notification channel could not be created: %s", err.message));
+		await updateNotificationChannelSettings(notificationChannel.id, notifChannelData.settings);
+		return notificationChannel;
+	}
+
+	async updateNotificationChannel(orgKey: string, notifChannelData: INotificationChannel): Promise<INotificationChannel> {
+		const url = `${GrafanaApiURL}/alert-notifications/${notifChannelData.id}`;
+		const optionsToken = this.generateOptionsToken(orgKey);
+		const notificationChannel: INotificationChannel = await needle('put', url, notifChannelData, optionsToken)
+			.then(res => res.body)
+			.catch(err => logger.log("error", "The notification channel could not be updated: %s", err.message));
+		await updateNotificationChannelSettings(notificationChannel.id, notifChannelData.settings);
+		return notificationChannel;
 	}
 
 }

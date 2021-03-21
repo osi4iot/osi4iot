@@ -1,13 +1,10 @@
 import pool from "../../config/dbconfig";
 import grafanaApi from "../../GrafanaApi";
-import { logger } from "../../config/winston";
 import { QueryResult } from 'pg';
-import CreateUserDto from "./User.dto";
-import IUser from "./User.interface";
-import IUserLoginData from "./UserLoginData.inteface";
-import IUserInOrg from "./UserInOrg.interface";
-import IUserIdAndEmail from "./UserIdAndEmail.interface";
-import IUserDTO from "../../GrafanaApi/interfaces/UserDTO";
+import CreateUserDto from "./interfaces/User.dto";
+import IUser from "./interfaces/User.interface";
+import IUserLoginData from "./interfaces/UserLoginData.inteface";
+import IUserInOrg from "./interfaces/UserInOrg.interface";
 
 export const getUserLoginDatadByEmailOrLogin = async (emailOrLogin: string): Promise<IUserLoginData> => {
 	const response: QueryResult = await
@@ -15,9 +12,9 @@ export const getUserLoginDatadByEmailOrLogin = async (emailOrLogin: string): Pro
 	return response.rows[0];
 };
 
-export const getUsersIdByEmailsArray = async (emailArray: string[]): Promise<(IUserIdAndEmail | null)[]> => {
+export const getUsersIdByEmailsArray = async (emailArray: string[]): Promise<(Partial<IUser> | null)[]> => {
 	const response: QueryResult =
-		await pool.query('SELECT id, email FROM grafanadb.user WHERE email =  ANY($1::varchar(190)[])', [emailArray]);
+		await pool.query('SELECT id, name, login, email FROM grafanadb.user WHERE email =  ANY($1::varchar(190)[])', [emailArray]);
 	return response.rows;
 };
 
@@ -31,8 +28,9 @@ export const getUserByProp = async (propName: string, propValue: string | number
 };
 
 export const getGlobalUsers = async (): Promise<IUser[]> => {
-	const query = `SELECT id, name, login, email, telegram_id as "telegramId", is_admin as "isGrafanaAdmin",
-					is_disabled as "isDisabled", last_seen_at as lastSeenAt, AGE(NOW(),last_seen_at) as "lastSeenAtAge"
+	const query = `SELECT id, first_name as "firstName", surname, login, email, telegram_id as "telegramId",
+					is_admin as "isGrafanaAdmin", is_disabled as "isDisabled", last_seen_at as lastSeenAt,
+					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					ORDER BY id ASC`
 	const result = await pool.query(query);
@@ -49,10 +47,12 @@ export const getUserdByEmailOrLogin = async (emailOrLogin: string): Promise<IUse
 };
 
 export const createOrganizationUser = async (userData: CreateUserDto, orgId: number) => {
+	if (!userData.name || userData.name === "") userData.name = `${userData.firstName}  ${userData.surname}`
+	if (!userData.telegramId) userData.telegramId = userData.name;
 	const user_msg = await grafanaApi.createUser(userData);
-	if (userData.telegramId) {
-		await pool.query('UPDATE grafanadb.user SET telegram_id = $1 WHERE id = $2', [userData.telegramId, user_msg.id]);
-	}
+	if (!userData.telegramId) userData.telegramId = userData.name;
+	await pool.query('UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE id = $4',
+		[userData.firstName, userData.surname, userData.telegramId, user_msg.id]);
 	if (orgId !== 1) {
 		await grafanaApi.removeUserFromOrganization(orgId, user_msg.id);
 		await grafanaApi.addUserToOrganization(orgId, userData.email, userData.roleInOrg);
@@ -62,15 +62,21 @@ export const createOrganizationUser = async (userData: CreateUserDto, orgId: num
 	return user_msg;
 }
 
-export const createOrganizationUsers = async (usersData: CreateUserDto[], orgId: number) => {
+export const createOrganizationUsers = async (orgId: number, usersData: CreateUserDto[]) => {
+	usersData.forEach(user => {
+		if (!user.name || user.name === "") user.name = `${user.firstName}  ${user.surname}`
+		if (!user.telegramId) user.telegramId = user.name;
+		if (!user.OrgId) user.OrgId = orgId;
+	});
 	const msg_users = await grafanaApi.createUsers(usersData);
-	const userWithTelegramId = usersData.filter(user => user.telegramId);
 	const numCreatedUsers = msg_users.filter(msg => msg.message === "User created").length;
 
 	if (numCreatedUsers) {
 		const usersModificationQuery = [];
-		for (let i = 0; i < userWithTelegramId.length; i++) {
-			usersModificationQuery[i] = pool.query('UPDATE grafanadb.user SET telegram_id = $1 WHERE email = $2', [usersData[i].telegramId, userWithTelegramId[i].email]);
+		for (let i = 0; i < usersData.length; i++) {
+			usersModificationQuery[i] =
+				pool.query('UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE email = $4',
+					[usersData[i].firstName, usersData[i].surname, usersData[i].telegramId, usersData[i].email]);
 		}
 		await Promise.all(usersModificationQuery);
 
@@ -83,7 +89,7 @@ export const createOrganizationUsers = async (usersData: CreateUserDto[], orgId:
 		await grafanaApi.changeUsersRoleInOrganization(orgId, usersIdArray, usersRoleArray);
 	}
 
-	return numCreatedUsers;
+	return msg_users;
 }
 
 export const createGlobalUser = async (userData: CreateUserDto) => {
@@ -99,8 +105,9 @@ export const isThisUserOrgAdmin = async (userId: number, orgId: number): Promise
 };
 
 export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]> => {
-	const query = `SELECT grafanadb.user.id as "userId", name, login, email, telegram_id as "telegramId", role as "roleInOrg",
-					is_disabled as "isDisabled", last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
+	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
+					telegram_id as "telegramId", role as "roleInOrg", is_disabled as "isDisabled",
+					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1
@@ -110,8 +117,9 @@ export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]>
 };
 
 export const getOrganizationUserByProp = async (orgId: number, propName: string, propValue: string | number): Promise<IUserInOrg> => {
-	const query = `SELECT grafanadb.user.id as "userId", name, login, email, telegram_id as "telegramId", role as "roleInOrg",
-					is_disabled as "isDisabled", last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
+	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
+					telegram_id as "telegramId", role as "roleInOrg", is_disabled as "isDisabled",
+					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.${propName} = $2`
@@ -119,17 +127,76 @@ export const getOrganizationUserByProp = async (orgId: number, propName: string,
 	return result.rows[0];
 };
 
+export const getOrganizationUsersByEmailArray = async (orgId: number, emailsArray: string[]): Promise<IUserInOrg[]> => {
+	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
+					telegram_id as "telegramId", role as "roleInOrg", is_disabled as "isDisabled",
+					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
+					FROM grafanadb.user
+					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
+					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.email =  ANY($2::varchar(190)[])`
+	const result = await pool.query(query, [orgId, emailsArray]);
+	return result.rows;
+};
+
 export const updateOrganizationUser = async (userData: IUserInOrg) => {
+	const name = `${userData.firstName} ${userData.surname}`
 	const query = `UPDATE grafanadb.user
-                	SET  name = $1, login = $2, email = $3, telegram_id = $4
-		       		WHERE id = $5`;
-	await pool.query(query, [userData.name, userData.login, userData.email, userData.telegramId, userData.userId]);
+                	SET  name = $1, first_name = $2, surname = $3,  login = $4, email = $5, telegram_id = $6
+		       		WHERE id = $7`;
+	await pool.query(query,
+		[
+			name,
+			userData.firstName,
+			userData.surname,
+			userData.login,
+			userData.email,
+			userData.telegramId,
+			userData.userId
+		]);
 };
 
 
 export const updateGlobalUser = async (userData: IUser) => {
+	const name = `${userData.firstName} ${userData.surname}`
 	const query = `UPDATE grafanadb.user
-                	SET  name = $1, login = $2, email = $3, telegram_id = $4, is_admin = $5
-		       		WHERE id = $6`;
-	await pool.query(query, [userData.name, userData.login, userData.email, userData.telegramId, userData.isGrafanaAdmin, userData.id]);
+                	SET  name = $1, first_name = $2, surname = $3, login = $4, email = $5, telegram_id = $6, is_admin = $7
+		       		WHERE id = $8`;
+	await pool.query(query,
+		[
+			name,
+			userData.firstName,
+			userData.surname,
+			userData.login,
+			userData.email,
+			userData.telegramId,
+			userData.isGrafanaAdmin,
+			userData.id
+		]);
 };
+
+export const isUsersDataCorrect = async (usersInputData: CreateUserDto[]): Promise<boolean> => {
+	usersInputData.forEach(user => user.name = `${user.firstName} ${user.surname}`);
+	const namesArray = usersInputData.map(user => user.name);
+	const loginArray = usersInputData.map(user => user.login);
+	const emailsArray = usersInputData.map(user => user.email);
+	const telegramIdArray = usersInputData.map(user => user.telegramId);
+	const response: QueryResult =
+		await pool.query(`SELECT id, name, login, email, telegram_id FROM grafanadb.user
+						WHERE name =  ANY($1::varchar(225)[])
+						OR login =  ANY($2::varchar(190)[])
+						OR email =  ANY($3::varchar(190)[])
+						OR telegram_id = ANY($3::varchar(200)[])`,
+			[namesArray, loginArray, emailsArray]);
+	const existentUsers = response.rows;
+
+	if (existentUsers.length > usersInputData.length) return false;
+	for (const user of existentUsers) {
+		const sameName = namesArray.indexOf(user.name) !== -1;
+		const sameLogin = loginArray.indexOf(user.login) !== -1;
+		const sameEmail = emailsArray.indexOf(user.email) !== -1;
+		const sameTelegramId = telegramIdArray.indexOf(user.telegram_id) !== -1;
+		if ((sameName && sameLogin && sameEmail && sameTelegramId) !== (sameName || sameLogin || sameEmail || sameTelegramId)) return false;
+	}
+
+	return true;
+}

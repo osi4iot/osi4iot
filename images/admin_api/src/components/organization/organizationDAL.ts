@@ -1,8 +1,11 @@
 import pool from "../../config/dbconfig";
-import CreateOrganizationDto from "./organization.dto";
-import IOrganization from "./organization.interface";
+import CreateOrganizationDto from "./interfaces/organization.dto";
+import IOrganization from "./interfaces/organization.interface";
 import grafanaApi from "../../GrafanaApi";
 import { decrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
+import CreateUserDto from "../user/interfaces/User.dto";
+import { createOrganizationUsers, getUsersIdByEmailsArray } from "../user/userDAL";
+import IUser from "../user/interfaces/User.interface";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
@@ -16,13 +19,12 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 	return result.rows[0].count !== "0";
 };
 
-
 export const updateOrganizationById = async (orgId: number, orgData: CreateOrganizationDto): Promise<void> => {
 	await pool.query('UPDATE grafanadb.org SET acronym = $1, address1 = $2,  city = $3, zip_code = $4, state = $5, country = $6 WHERE id = $7',
 		[orgData.acronym, orgData.address, orgData.city, orgData.zipCode, orgData.state, orgData.country, orgId]);
 };
 
-export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: CreateOrganizationDto): Promise<void> => {
+export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7  WHERE ${propName} = $8;`;
 	const queryArray = [orgData.name, orgData.acronym, orgData.address, orgData.city, orgData.zipCode, orgData.state, orgData.country, propValue];
 	await pool.query(query, queryArray);
@@ -62,7 +64,7 @@ export const getOrganizationKey = async (orgId: number): Promise<string> => {
 	return apiKey;
 }
 
-export const createDefaultOrgDataSource= async (orgId: number, name: string, orgKey: string): Promise<void> => {
+export const createDefaultOrgDataSource = async (orgId: number, name: string, orgKey: string): Promise<void> => {
 	const query1 = `SELECT id, json_data, secure_json_data
 					FROM grafanadb.data_source WHERE name = $1;`;
 	const result = await pool.query(query1, [process.env.MAIN_ORGANIZATION_DATASOURCE_NAME]);
@@ -75,5 +77,42 @@ export const createDefaultOrgDataSource= async (orgId: number, name: string, org
 
 	const querry2 = 'UPDATE grafanadb.data_source SET is_default = $1, read_only= $2, json_data = $3, secure_json_data = $4 WHERE id = $5';
 	await pool.query(querry2, [true, true, jsonData, secureJsonData, dataSourceId]);
+}
+
+export const addAdminToOrganization = async (orgId: number, orgAdminArray: CreateUserDto[]): Promise<number[]> => {
+	orgAdminArray.forEach(user => user.roleInOrg = "Admin");
+	const adminIdArray:  number[] = [];
+	orgAdminArray.forEach(user => adminIdArray.push(0));
+	const usersIdArray = await getUsersIdByEmailsArray(orgAdminArray.map(user => user.email));
+	const emailsArray = usersIdArray.map(user => user.email);
+	const existingUserArray = orgAdminArray.filter(user => emailsArray.indexOf(user.email) !== -1);
+	const nonExistingUserArray = orgAdminArray.filter(user => emailsArray.indexOf(user.email) === -1);
+	if (nonExistingUserArray.length !== 0) {
+		const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
+		orgAdminArray.forEach((user, index) => {
+			for (let i = 0; i < nonExistingUserArray.length; i++) {
+				if(nonExistingUserArray[i].email === user.email)  adminIdArray[index] = msg_users[i].id;
+			 }
+		})
+	}
+
+	if (existingUserArray.length !== 0) {
+		const msg_users = await grafanaApi.addUsersToOrganization(orgId, existingUserArray);
+		orgAdminArray.forEach((user, index) => {
+			for (let i = 0; i < existingUserArray.length; i++) {
+				if(existingUserArray[i].email === user.email)  adminIdArray[index] = msg_users[i].userId;
+			 }
+		})
+	}
+	return adminIdArray;
+}
+
+export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser>[]> => {
+	const query = `SELECT grafanadb.user.id, name, login, email, telegram_id as "telegramId"
+					FROM grafanadb.user
+					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
+					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.org_user.role = $2`
+	const result = await pool.query(query, [orgId, "Admin"]);
+	return result.rows;
 }
 
