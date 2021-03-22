@@ -190,8 +190,8 @@ export async function dataBaseInitialization() {
 			}
 			const defaultMainOrgGroup = {
 				name: `${process.env.MAIN_ORGANIZATION_NAME.replace(/ /g,"_")}_general`,
-				acronym: process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase(),
-				email: "",
+				acronym: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase()}_GRAL`,
+				email: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toLocaleLowerCase()}_general@test.com`,
 				telegramChatId: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 				telegramInvitationLink: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 				folderPermission: ("Viewer" as FolderPermissionOption),

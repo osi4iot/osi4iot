@@ -152,7 +152,7 @@ class GroupController implements IController {
 		try {
 			const groupInput: CreateGroupDto = req.body;
 			groupInput.acronym = groupInput.acronym.replace(/ /g, "_").toUpperCase();
-			groupInput.email = `${groupInput.acronym}@test.com`;
+			groupInput.email = `${groupInput.acronym.toLocaleLowerCase()}@test.com`;
 			const orgId = parseInt(req.params.orgId, 10);
 			const existentGroup = await getGroupByProp("name", groupInput.name);
 			if (existentGroup) throw new AlreadyExistingItemException("A", "Group", ["name"], [groupInput.name]);

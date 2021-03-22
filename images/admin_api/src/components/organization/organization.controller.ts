@@ -163,8 +163,8 @@ class OrganizationController implements IController {
 				});
 				const defaultOrgGroup = {
 					name: `${organizationData.name.replace(/ /g,"_")}_general`,
-					acronym: organizationData.acronym.replace(/ /g,"_").toUpperCase(),
-					email: "",
+					acronym: `${organizationData.acronym.replace(/ /g,"_").toUpperCase()}_GRAL`,
+					email: `${organizationData.acronym.replace(/ /g,"_").toLocaleLowerCase()}_general@test.com`,
 					telegramChatId: organizationData.telegramChatId,
 					telegramInvitationLink: organizationData.telegramInvitationLink,
 					folderPermission: ("Viewer" as FolderPermissionOption),
