@@ -189,7 +189,7 @@ export async function dataBaseInitialization() {
 				email: process.env.PLATFORM_ADMIN_EMAIL
 			}
 			const defaultMainOrgGroup = {
-				name: `${process.env.MAIN_ORGANIZATION_NAME.replace(/ /g,"_").toUpperCase()}_general`,
+				name: `${process.env.MAIN_ORGANIZATION_NAME.replace(/ /g,"_")}_general`,
 				acronym: process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase(),
 				email: "",
 				telegramChatId: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,

@@ -162,7 +162,7 @@ class OrganizationController implements IController {
 						})
 				});
 				const defaultOrgGroup = {
-					name: `${organizationData.name.replace(/ /g,"_").toUpperCase()}_general`,
+					name: `${organizationData.name.replace(/ /g,"_")}_general`,
 					acronym: organizationData.acronym.replace(/ /g,"_").toUpperCase(),
 					email: "",
 					telegramChatId: organizationData.telegramChatId,
@@ -171,10 +171,10 @@ class OrganizationController implements IController {
 					groupAdminDataArray
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
-				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.id = adminIdArray[index]);
+				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);
 				await createGroup(newOrg.orgId, defaultOrgGroup, false);
 			}
-			const message = { message: `Organization created successfully` }
+			const message = { message: "Organization created successfully" }
 			res.status(201).send(message);
 		} catch (error) {
 			next(error);
