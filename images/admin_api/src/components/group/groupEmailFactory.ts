@@ -28,24 +28,38 @@ const informationToEditOrAdminHtml = (group: IGroup): string => {
 }
 
 
-export const sendGroupAdminInvitationEmail = async (group: IGroup, groupAdminDataArray: CreateGroupAdminDto[]): Promise<void> => {
-	const subject = `Invitation to be the administrator of the group ${group.name}`;
-	const platformName = `${process.env.PLATFORM_NAME.toUpperCase()}_PLATFORM`;
+export const sendGroupAdminInvitationEmail = async (orgName: string, group: IGroup, groupAdminDataArray: CreateGroupAdminDto[]): Promise<void> => {
+	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
+	let subject: string;
+	if (group.isPrivate) {
+		subject = `Invitation to be the administrator of the group "${group.name}"`;
+	} else {
+		subject = `Invitation to be the administrator of the organization "${orgName}"`;
+	}
 
 	const groupAdminInvitationEmailQuery = [];
 	for (let i = 0; i < groupAdminDataArray.length; i++) {
 		const mailTo = groupAdminDataArray[i].email;
 		const groupAdminFirstName = groupAdminDataArray[i].firstName;
-		let mailBody =
-			`<p>Dear ${groupAdminFirstName},</p>
-			<p>Welcome to the the group "${group.name}" of the ${platformName}!!!</p>
+		let mailBody = `<p>Dear ${groupAdminFirstName},</p>`;
+		if (group.isPrivate) {
+			mailBody = `${mailBody}
+			<p>Welcome to the group "${group.name}" of the organization "${orgName}" of the ${platformName}!!!</p>
 			<p>You have been proposed to be the administrator of the group "${group.name}".</p>
 			${informationToEditOrAdminHtml(group)}`;
+		} else {
+			mailBody = `${mailBody}
+			<p>Welcome to the organization "${orgName}" of the ${platformName}!!!</p>
+			<p>You have been proposed to be the administrator of the organization "${orgName}".</p>
+			<p>One organization can have several groups but a group called "${group.name}" has been created automatically. You are also administrator of this group.</p>
+			<p>You have to know that all the organization members have by default a "${group.folderPermission}" role in the group "${group.name}".</p>
+			${informationToEditOrAdminHtml(group)}`;
+		}
 		if (group.telegramInvitationLink !== "" && group.telegramChatId !== "") {
 			mailBody =
 				`${mailBody}
 				<div>
-					<p>You can join to the group's Telegram chat clicking in the following link:</p>
+					<p>You can join to the group"s Telegram chat clicking in the following link:</p>
 					<a href="${group.telegramInvitationLink}">${group.telegramInvitationLink}</a>
 				</div>`;
 		}
@@ -62,8 +76,8 @@ export const sendGroupAdminInvitationEmail = async (group: IGroup, groupAdminDat
 }
 
 export const sendGroupMemberInvitationEmail = async (group: IGroup, groupMemberArray: CreateGroupMemberDto[]): Promise<void> => {
-	const subject = `Membership of the group ${group.name}`;
-	const platformName = `${process.env.PLATFORM_NAME.toUpperCase()}_PLATFORM`;
+	const subject = `Membership of the group "${group.name}"`;
+	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 
 	const groupMembershipEmailQuery = [];
 	for (let i = 0; i < groupMemberArray.length; i++) {
@@ -84,7 +98,7 @@ export const sendGroupMemberInvitationEmail = async (group: IGroup, groupMemberA
 			mailBody =
 				`${mailBody}
 			<div>
-				<p>You can join to the group's Telegram chat clicking in the following link:</p>
+				<p>You can join to the group"s Telegram chat clicking in the following link:</p>
 				<a href = "${group.telegramInvitationLink}" > ${group.telegramInvitationLink} </a>
 			</div>`;
 		}
@@ -101,8 +115,8 @@ export const sendGroupMemberInvitationEmail = async (group: IGroup, groupMemberA
 }
 
 export const sendRoleInGroupChangeInformationEmail = async (group: IGroup, groupMemberArray: CreateGroupMemberDto[]): Promise<void> => {
-	const subject = `Information of change of the member role in the group ${group.name}`;
-	const platformName = `${process.env.PLATFORM_NAME.toUpperCase()}_PLATFORM`;
+	const subject = `Information of change of the member role in the group "${group.name}"`;
+	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 
 	const groupRoleChangeEmailQuery = [];
 	for (let i = 0; i < groupMemberArray.length; i++) {
@@ -131,7 +145,7 @@ export const sendRoleInGroupChangeInformationEmail = async (group: IGroup, group
 
 export const sendChangeGroupDataInformationEmail = async (newGroupData: IGroup, oldGroupName: string): Promise<void> => {
 	const subject = `Information of change of data in the group "${oldGroupName}"`;
-	const platformName = `${process.env.PLATFORM_NAME.toUpperCase()}_PLATFORM`;
+	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 	const groupMemberArray = await getGroupMembers(newGroupData);
 	const groupChangeDataInformationEmailQuery = [];
 	for (let i = 0; i < groupMemberArray.length; i++) {
@@ -165,12 +179,12 @@ export const sendChangeGroupDataInformationEmail = async (newGroupData: IGroup, 
 
 export const sendRemoveGroupInformationEmail = async (group: IGroup, groupMembersToRemove: CreateGroupMemberDto[], removeOrgMembership: boolean = false): Promise<void> => {
 	const subject = `Unsubscribed information from the "${group.name}" group`;
-	const platformName = `${process.env.PLATFORM_NAME.toUpperCase()}_PLATFORM`;
+	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 	const groupChangeDataInformationEmailQuery = [];
 	let removeOrgComment = "";
 	if (removeOrgMembership) {
-		const organization = getOrganizationByProp("id", group.orgId);
-		removeOrgComment = ` and in the organization: "${(await organization).name}"`;
+		const organization = await getOrganizationByProp("id", group.orgId);
+		removeOrgComment = ` and in the organization: "${organization.name}"`;
 	}
 	for (let i = 0; i < groupMembersToRemove.length; i++) {
 		const mailTo = groupMembersToRemove[i].email;

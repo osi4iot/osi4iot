@@ -1,15 +1,29 @@
 import passport from "passport";
 import { NextFunction, Response } from "express";
-// import OrganizationRepository from "../repositories/organization.repository";
 import IRequestWithUser from "../interfaces/requestWithUser.interface";
 import HttpException from "../exceptions/HttpException";
-// import UserRepository from "../repositories/user.repository";
-import isValidUUIDv4 from "../utils/validators/isValidUIIDv4";
-import NotValidUUIDv4Exception from "../exceptions/NotValidUUIDv4Exception";
-import GrafanaApi from "../GrafanaApi/grafanaApi";
 import { isThisUserOrgAdmin } from "../components/user/userDAL";
 import { haveThisUserGroupAdminPermissions } from "../components/group/groupDAL";
 import IRequestWithUserAndGroup from "../components/group/interfaces/requestWithUserAndGroup.interface";
+
+export const registerAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
+	passport.authenticate("register_jwt", { session: false }, (err, user, info) => {
+		if (info) {
+			return next(new HttpException(401, info.message));
+		}
+
+		if (err) {
+			return next(err);
+		}
+
+		if (!user) {
+			return next(new HttpException(401, "You are not allowed to access."));
+		}
+		req.user = user;
+		return next();
+	})(req, res, next);
+};
+
 
 export const userAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
 	passport.authenticate("access_jwt", { session: false }, (err, user, info) => {

@@ -4,7 +4,7 @@ import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
 import CreateOrganizationDto from "./interfaces/organization.dto";
 import IRequestWithOrganization from "./interfaces/requestWithOrganization.interface";
-import { organizationAdminAuth, superAdminAuth } from "../../middleware/auth.middleware";
+import { organizationAdminAuth, superAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import IOrganizationGrafanaDTO from "../../GrafanaApi/interfaces/IOrganizationGrafanaDTO";
 import grafanaApi from "../../GrafanaApi";
 import AlreadyExistingItemException from "../../exceptions/AlreadyExistingItemException";
@@ -19,12 +19,14 @@ import {
 	updateOrganizationByProp,
 	createDefaultOrgDataSource,
 	getOrganizationKey,
-	addAdminToOrganization
+	addAdminToOrganization,
+	addOrgUsersToDefaultOrgGroup,
+	addUsersToOrganizationAndMembersToDefaultOrgGroup,
+	getOrganizationsManagedByUserId
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
 import {
-	createOrganizationUser,
 	getUserLoginDatadByEmailOrLogin,
 	getOrganizationUsers,
 	createOrganizationUsers,
@@ -39,13 +41,16 @@ import HttpException from "../../exceptions/HttpException";
 import CreateUsersArrayDto from "../user/usersArray.dto";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
-import { createGroup, deleteGroupByName } from "../group/groupDAL";
+import { createGroup, defaultOrgGroupName, deleteGroupByName } from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import CreateGroupMemberDto from "../group/interfaces/groupMember.dto";
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
 import CreateGroupAdminDto from "../group/interfaces/groupAdmin.dto";
 import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
+import { createDemoDashboards, createHomeDashboard } from "../group/dashboardDAL";
+import IRequestWithUser from "../../interfaces/requestWithUser.interface";
+import IOrganization from "./interfaces/organization.interface";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -59,6 +64,13 @@ class OrganizationController implements IController {
 	}
 
 	private initializeRoutes(): void {
+		this.router
+			.get(
+				`${this.path}s/user_managed/`,
+				userAuth,
+				this.getOrganizationsManagedByUser
+			)
+
 		this.router
 			.post(
 				`${this.path}/:orgId/user/`,
@@ -126,6 +138,20 @@ class OrganizationController implements IController {
 
 	}
 
+	private getOrganizationsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			let organizations: IOrganization[];
+			if (req.user.isGrafanaAdmin) {
+				organizations = await getOrganizations();
+			} else {
+				organizations = await getOrganizationsManagedByUserId(req.user.id);
+			}
+			res.status(200).send(organizations);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private createOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const organizationData: CreateOrganizationDto = req.body;
@@ -149,7 +175,7 @@ class OrganizationController implements IController {
 				const apiKeyId = await getApiKeyIdByName(apyKeyName);
 				await insertOrganizationToken(newOrg.orgId, apiKeyId, hashedApiKey);
 				await grafanaApi.changeUserRoleInOrganization(newOrg.orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
-				const dataSourceName = `iot_${organizationData.acronym.toLowerCase()}_db`;
+				const dataSourceName = `iot_${organizationData.acronym.replace(/ /g, "_").toLowerCase()}_db`;
 				await createDefaultOrgDataSource(newOrg.orgId, dataSourceName, apiKeyObj.key);
 				const groupAdminDataArray: CreateGroupAdminDto[] = []
 				organizationData.orgAdminArray.forEach(user => {
@@ -161,10 +187,12 @@ class OrganizationController implements IController {
 							roleInGroup: ("Admin" as RoleInGroupOption)
 						})
 				});
+				const groupName = defaultOrgGroupName(organizationData.name, organizationData.acronym);
+				const defaultOrgGroupAcronym = `${organizationData.acronym.replace(/ /g, "_").toUpperCase()}_GRAL`;
 				const defaultOrgGroup = {
-					name: `${organizationData.name.replace(/ /g,"_")}_general`,
-					acronym: `${organizationData.acronym.replace(/ /g,"_").toUpperCase()}_GRAL`,
-					email: `${organizationData.acronym.replace(/ /g,"_").toLocaleLowerCase()}_general@test.com`,
+					name: groupName,
+					acronym: defaultOrgGroupAcronym,
+					email: `${organizationData.acronym.replace(/ /g, "_").toLocaleLowerCase()}_general@test.com`,
 					telegramChatId: organizationData.telegramChatId,
 					telegramInvitationLink: organizationData.telegramInvitationLink,
 					folderPermission: ("Viewer" as FolderPermissionOption),
@@ -172,7 +200,10 @@ class OrganizationController implements IController {
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);
-				await createGroup(newOrg.orgId, defaultOrgGroup, false);
+				const group = await createGroup(newOrg.orgId, defaultOrgGroup, organizationData.name, false);
+				await addOrgUsersToDefaultOrgGroup(organizationData.name, organizationData.acronym, organizationData.orgAdminArray);
+				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
+				await createDemoDashboards(organizationData.acronym, group);
 			}
 			const message = { message: "Organization created successfully" }
 			res.status(201).send(message);
@@ -200,16 +231,18 @@ class OrganizationController implements IController {
 					throw new HttpException(401, "To assign organization admin role to a user, platform administrator privileges are needed.");
 				}
 			}
+			const orgId = organization.id;
+			const orgName = organization.name;
+			const orgAcronym = organization.acronym;
 			if (existUser) {
-				user_msg = await grafanaApi.addUserToOrganization(organization.id, existUser.email, orgUserData.roleInOrg);
+				orgUserData.id = existUser.id;
+				const msg_users = await addUsersToOrganizationAndMembersToDefaultOrgGroup(orgId, orgName, orgAcronym, [orgUserData]);
+				user_msg = msg_users[0];
 			} else {
-				user_msg = await createOrganizationUser(orgUserData, organization.id);
-				if (user_msg.message === "User created") {
-					user_msg.message = "A new user has been created and added to the organization"
-				}
-				if (orgUserData.roleInOrg !== "Viewer") {
-					await grafanaApi.changeUserRoleInOrganization(organization.id, user_msg.id, orgUserData.roleInOrg);
-				}
+				const msg_users = await createOrganizationUsers(organization.id, [orgUserData]);
+				orgUserData.id = msg_users[0].id;
+				await addOrgUsersToDefaultOrgGroup(orgName, orgAcronym, [orgUserData]);
+				user_msg = msg_users[0];
 			}
 			res.status(200).send(user_msg);
 		} catch (error) {
@@ -239,22 +272,35 @@ class OrganizationController implements IController {
 
 			const usersIdArray = await getUsersIdByEmailsArray(orgUsersData.map(user => user.email));
 			const emailsArray = usersIdArray.map(user => user.email);
-			const existingUserArray = orgUsersData.filter(user => emailsArray.indexOf(user.email) !== -1);
+			const existingUserArray: CreateUserDto[] = [];
+			orgUsersData.forEach(orgUser => {
+				const orgIndex = emailsArray.indexOf(orgUser.email);
+				if (orgIndex !== -1) {
+					orgUser.id = usersIdArray[orgIndex].id;
+					existingUserArray.push(orgUser);
+				}
+			})
+			orgUsersData.filter(user => emailsArray.indexOf(user.email) !== -1);
 			const nonExistingUserArray = orgUsersData.filter(user => emailsArray.indexOf(user.email) === -1);
 
-			let usersCreated = 0;
-			let usersAddedToOrg = 0;
+			let numUsersCreated = 0;
+			let numUsersAddedToOrg = 0;
+			const orgId = organization.id;
+			const orgName = organization.name;
+			const orgAcronym = organization.acronym;
 			if (nonExistingUserArray.length !== 0) {
 				const msg_users = await createOrganizationUsers(organization.id, nonExistingUserArray);
-				usersCreated = msg_users.filter(msg => msg.message === "User created").length;
-				usersAddedToOrg = usersCreated;
+				msg_users.forEach((msg, index) => nonExistingUserArray[index].id = msg.id);
+				await addOrgUsersToDefaultOrgGroup(orgName, orgAcronym, nonExistingUserArray);
+				numUsersCreated = msg_users.filter(msg => msg.message === "User created").length;
+				numUsersAddedToOrg = numUsersCreated;
 			}
 
 			if (existingUserArray.length !== 0) {
-				const msg_users = await this.grafanaRepository.addUsersToOrganization(organization.id, existingUserArray);
-				usersAddedToOrg += msg_users.filter(msg => msg.message === "User added to organization").length;
+				const msg_users = await addUsersToOrganizationAndMembersToDefaultOrgGroup(orgId, orgName, orgAcronym, existingUserArray);
+				numUsersAddedToOrg += msg_users.filter(msg => msg.message === "User added to organization").length;
 			}
-			const message = { usersCreated, usersAddedToOrg };
+			const message = { numUsersCreated, numUsersAddedToOrg };
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -324,19 +370,6 @@ class OrganizationController implements IController {
 			next(error);
 		}
 	};
-	private getOrganizationUsers_grafana = async (
-		req: IRequestWithOrganization,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
-		try {
-			const { organization } = req;
-			const users = await this.grafanaRepository.getOrganizationUsers(organization.id);
-			res.status(200).json(users);
-		} catch (error) {
-			next(error);
-		}
-	};
 
 	private getOrganizationUsers = async (
 		req: IRequestWithOrganization,
@@ -397,7 +430,7 @@ class OrganizationController implements IController {
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const organization = await getOrganizationByProp(propName, propValue);
 			if (!organization) throw new ItemNotFoundException("The Organization", propName, propValue);
-			const groupName = `${organization.acronym}_general`;
+			const groupName = defaultOrgGroupName(organization.name, organization.acronym);
 			const orgKey = await getOrganizationKey(organization.id);
 			await deleteGroupByName(groupName, orgKey);
 			await grafanaApi.deleteOrganizationById(organization.id);

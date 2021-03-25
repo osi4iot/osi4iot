@@ -5,6 +5,10 @@ import CreateUserDto from "./interfaces/User.dto";
 import IUser from "./interfaces/User.interface";
 import IUserLoginData from "./interfaces/UserLoginData.inteface";
 import IUserInOrg from "./interfaces/UserInOrg.interface";
+import UserRegisterDto from "../authentication/userRegister.dto";
+import { sendUserRegistrationInvitationEmail } from "./userEmailFactory";
+import { passwordGenerator } from "../../utils/passwordGenerator";
+
 
 export const getUserLoginDatadByEmailOrLogin = async (emailOrLogin: string): Promise<IUserLoginData> => {
 	const response: QueryResult = await
@@ -46,27 +50,13 @@ export const getUserdByEmailOrLogin = async (emailOrLogin: string): Promise<IUse
 	return response.rows[0];
 };
 
-export const createOrganizationUser = async (userData: CreateUserDto, orgId: number) => {
-	if (!userData.name || userData.name === "") userData.name = `${userData.firstName}  ${userData.surname}`
-	if (!userData.telegramId) userData.telegramId = userData.name;
-	const user_msg = await grafanaApi.createUser(userData);
-	if (!userData.telegramId) userData.telegramId = userData.name;
-	await pool.query('UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE id = $4',
-		[userData.firstName, userData.surname, userData.telegramId, user_msg.id]);
-	if (orgId !== 1) {
-		await grafanaApi.removeUserFromOrganization(orgId, user_msg.id);
-		await grafanaApi.addUserToOrganization(orgId, userData.email, userData.roleInOrg);
-	} else {
-		await grafanaApi.changeUserRoleInOrganization(orgId, user_msg.id, userData.roleInOrg);
-	}
-	return user_msg;
-}
-
 export const createOrganizationUsers = async (orgId: number, usersData: CreateUserDto[]) => {
 	usersData.forEach(user => {
 		if (!user.name || user.name === "") user.name = `${user.firstName}  ${user.surname}`
 		if (!user.telegramId) user.telegramId = user.name;
 		if (!user.OrgId) user.OrgId = orgId;
+		if (!user.login) user.login = `${user.firstName.replace(/ /g, "_").toLocaleLowerCase()}.${user.surname.replace(/ /g, "_").toLocaleLowerCase()}`;
+		if (!user.password) user.password = passwordGenerator(10);
 	});
 	const msg_users = await grafanaApi.createUsers(usersData);
 	const numCreatedUsers = msg_users.filter(msg => msg.message === "User created").length;
@@ -83,19 +73,25 @@ export const createOrganizationUsers = async (orgId: number, usersData: CreateUs
 
 		const usersIdArray = msg_users.filter(msg => msg.message === "User created").map(msg => msg.id);
 		const usersRoleArray: string[] = [];
+		const usersCreatedArray: CreateUserDto[] = [];
 		msg_users.forEach((msg, index) => {
-			if (msg.message === "User created") usersRoleArray.push(usersData[index].roleInOrg);
+			if (msg.message === "User created") {
+				usersRoleArray.push(usersData[index].roleInOrg);
+				usersCreatedArray.push(usersData[index]);
+			}
 		});
 		await grafanaApi.changeUsersRoleInOrganization(orgId, usersIdArray, usersRoleArray);
+		await sendUserRegistrationInvitationEmail(usersCreatedArray);
 	}
 
 	return msg_users;
 }
 
 export const createGlobalUser = async (userData: CreateUserDto) => {
-	const user_msg = await createOrganizationUser(userData, 1);
-	await grafanaApi.removeUserFromOrganization(1, user_msg.id);
-	return user_msg;
+	const user_msg = await createOrganizationUsers(1, [userData]);
+	await grafanaApi.removeUserFromOrganization(1, user_msg[0].id);
+	await sendUserRegistrationInvitationEmail([userData]);
+	return user_msg[0];
 }
 
 export const isThisUserOrgAdmin = async (userId: number, orgId: number): Promise<boolean> => {
@@ -138,7 +134,8 @@ export const getOrganizationUsersByEmailArray = async (orgId: number, emailsArra
 	return result.rows;
 };
 
-export const updateOrganizationUser = async (userData: IUserInOrg) => {
+
+export const updateOrganizationUser = async (userData: IUserInOrg | UserRegisterDto) => {
 	const name = `${userData.firstName} ${userData.surname}`
 	const query = `UPDATE grafanadb.user
                 	SET  name = $1, first_name = $2, surname = $3,  login = $4, email = $5, telegram_id = $6

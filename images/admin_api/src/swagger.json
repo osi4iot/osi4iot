@@ -54,6 +54,46 @@
 	"consumes": ["application/json"],
 	"produces": ["application/json"],
 	"paths": {
+		"/auth/register": {
+			"patch": {
+				"tags": ["Authentication"],
+				"summary": "User registration in the plataform",
+				"requestBody": {
+					"description": "User registration data",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/UserRegister"
+							}
+						}
+					}
+				},
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "User password modified correctly",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/auth/login": {
 			"post": {
 				"tags": ["Authentication"],
@@ -95,6 +135,56 @@
 				}
 			}
 		},
+		"/auth/{groupId}/long_term_token": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],			
+			"post": {
+				"tags": ["Authentication"],
+				"summary": "Request of a long term access token. Use only when safety is guaranteed. - Role required: Group_Admin",
+				"security": [],
+				"requestBody": {
+					"description": "User credentials",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/LongTermToken"
+							}
+						}
+					}
+				},
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "User validated. Access token delivered",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Access_token"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "User credentials not correct.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/auth/change_password": {
 			"patch": {
 				"tags": ["Authentication"],
@@ -413,6 +503,34 @@
 				}
 			}
 		},
+		"/organizations/user_managed": {		
+			"get": {
+				"tags": ["Organization"],
+				"summary": "Get all organizations managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Organizations"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/organization": {
 			"post": {
 				"tags": ["Organization"],
@@ -961,6 +1079,34 @@
 				}
 			}
 		},
+		"/groups/user_managed": {		
+			"get": {
+				"tags": ["Group"],
+				"summary": "Get all groups managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Groups"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/group/{orgId}": {
 			"parameters": [
 				{
@@ -1631,6 +1777,29 @@
 		}				
 	},
 	"definitions": {
+		"UserRegister": {
+			"type": "object",
+			"properties": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				},													
+				"password": {
+					"type": "string"
+				},			
+				"telegramId": {
+					"type": "string"
+				}
+			}
+		},		
 		"Login": {
 			"type": "object",
 			"properties": {
@@ -1642,6 +1811,26 @@
 				}
 			}
 		},
+		"LongTermToken": {
+			"type": "object",
+			"properties": {
+				"emailOrLogin": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				},
+				"tokenLifeTime": {
+					"type": "number",
+					"default": 31536000
+				}
+			},
+			"required": [
+				"emailOrLogin",
+				"password",
+				"tokenLifeTime"
+			]
+		},		
 		"Access_token": {
 			"type": "object",
 			"properties": {
@@ -1869,7 +2058,12 @@
 					"type": "string",
 					"default": "Viewer"
 				}
-			}
+			},
+			"required": [
+				"firstName",
+				"surname",
+				"email"
+			]
 		},
 		"UserOutput": {
 			"properties": {
@@ -1944,7 +2138,12 @@
 					"type": "boolean",
 					"default": false
 				}
-			}
+			},
+			"required": [
+				"firstName",
+				"surname",
+				"email"
+			]
 		},
 		"GlobalUserOutput": {
 			"properties": {

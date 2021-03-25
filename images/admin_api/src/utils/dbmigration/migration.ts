@@ -3,8 +3,9 @@ import { logger } from "../../config/winston";
 import { Pool, QueryResult } from "pg";
 import grafanaApi from "../../GrafanaApi"
 import { encrypt } from "../encryptAndDecrypt/encryptAndDecrypt";
-import { createGroup } from "../../components/group/groupDAL";
+import { createGroup, defaultOrgGroupName } from "../../components/group/groupDAL";
 import { FolderPermissionOption } from "../../components/group/interfaces/FolerPermissionsOptions";
+import { createDemoDashboards, createHomeDashboard } from "../../components/group/dashboardDAL";
 
 export async function dataBaseInitialization() {
 	const pool = new Pool({
@@ -188,16 +189,22 @@ export async function dataBaseInitialization() {
 				surname: process.env.PLATFORM_ADMIN_SURNAME,
 				email: process.env.PLATFORM_ADMIN_EMAIL
 			}
+			const mainOrgGroupName = defaultOrgGroupName(process.env.MAIN_ORGANIZATION_NAME, process.env.MAIN_ORGANIZATION_ACRONYM);
+			const mainOrgGroupAcronym = `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase()}_GRAL`;
 			const defaultMainOrgGroup = {
-				name: `${process.env.MAIN_ORGANIZATION_NAME.replace(/ /g,"_")}_general`,
-				acronym: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase()}_GRAL`,
+				name: mainOrgGroupName,
+				acronym: mainOrgGroupAcronym,
 				email: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toLocaleLowerCase()}_general@test.com`,
 				telegramChatId: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 				telegramInvitationLink: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 				folderPermission: ("Viewer" as FolderPermissionOption),
 				groupAdminDataArray: [mainOrgGroupAdmin]
 			}
-			await createGroup(1, defaultMainOrgGroup, false);
+			const group = await createGroup(1, defaultMainOrgGroup, process.env.MAIN_ORGANIZATION_NAME, false);
+			const orgAcronym = process.env.MAIN_ORGANIZATION_ACRONYM;
+			const orgName = process.env.MAIN_ORGANIZATION_NAME;
+			await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
+			await createDemoDashboards(orgAcronym, group);
 			logger.log("info", `Table ${tableName3} has been created sucessfully`);
 		} catch (err) {
 			logger.log("error", `Table ${tableName3} can not be created: %s`, err.message);

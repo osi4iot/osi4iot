@@ -3,7 +3,7 @@ import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
 import groupExists from "../../middleware/groupExists.middleware";
-import { organizationAdminAuth, groupAdminAuth } from "../../middleware/auth.middleware";
+import { organizationAdminAuth, groupAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
 import grafanaApi from "../../GrafanaApi";
 import AlreadyExistingItemException from "../../exceptions/AlreadyExistingItemException";
@@ -12,12 +12,15 @@ import {
 	addMembersToGroup,
 	createGroup,
 	deleteGroup,
+	getAllGroups,
 	getAllGroupsInOrganization,
+	getAllGroupsInOrgArray,
 	getGroupByProp,
 	getGroupByWithFolderPermissionProp,
 	getGroupMemberByProp,
 	getGroupMembers,
 	getGroupMembersByEmailsArray,
+	getGroupsManagedByUserId,
 	getNumberOfGroupMemberWithAdminRole,
 	removeMembersInGroup,
 	udpateRoleMemberInGroup,
@@ -25,7 +28,7 @@ import {
 } from "./groupDAL";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
-import { getOrganizationKey } from "../organization/organizationDAL";
+import { getOrganizationKey, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { getOrganizationUserByProp, getOrganizationUsersByEmailArray, isThisUserOrgAdmin } from "../user/userDAL";
 import HttpException from "../../exceptions/HttpException";
 import CreateGroupMembersArrayDto from "./interfaces/groupMembersArray.dto";
@@ -34,19 +37,28 @@ import CreateGroupMemberDto from "./interfaces/groupMember.dto";
 import IRequestWithUserAndGroup from "./interfaces/requestWithUserAndGroup.interface";
 import UpdateGroupDto from "./interfaces/group_update.dto";
 import UpdateGroupMemberDto from "./interfaces/groupMemberUpdate.dto";
+import IRequestWithUser from "../../interfaces/requestWithUser.interface";
+import IGroup from "./interfaces/Group.interface";
+import { createDemoDashboards } from "./dashboardDAL";
 
 class GroupController implements IController {
 	public path = "/group";
 
 	public router = Router();
 
-	private grafanaRepository = grafanaApi;
-
 	constructor() {
 		this.initializeRoutes();
 	}
 
 	private initializeRoutes(): void {
+		this.router
+		.get(
+			`${this.path}s/user_managed/`,
+			userAuth,
+			this.getGroupsManagedByUser
+		);
+
+
 		this.router
 			.get(
 				`${this.path}s/:orgId/`,
@@ -148,6 +160,29 @@ class GroupController implements IController {
 
 	}
 
+	private getGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			let groups: IGroup[] = [];
+			if (req.user.isGrafanaAdmin) {
+				groups = await getAllGroups();
+			} else {
+				groups = await getGroupsManagedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(orgInGroup => {
+						if (groupsIdArray.indexOf(orgInGroup.id) === -1) groups.push(orgInGroup);
+					})
+				}
+			}
+			res.status(200).send(groups);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private createGroup = async (req: IRequestWithOrganization, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const groupInput: CreateGroupDto = req.body;
@@ -166,7 +201,8 @@ class GroupController implements IController {
 					groupInput.groupAdminDataArray[index].surname = user.surname;
 				});
 			}
-			const groupCreated = await createGroup(orgId, groupInput)
+			const groupCreated = await createGroup(orgId, groupInput, req.organization.name);
+			await createDemoDashboards(req.organization.acronym, groupCreated);
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;
 			const isPrivate = true;
@@ -181,7 +217,6 @@ class GroupController implements IController {
 	private getAllGroupsInOrg = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const orgId = parseInt(req.params.orgId, 10);
-			const orgKey = await getOrganizationKey(orgId);
 			const groups = await getAllGroupsInOrganization(orgId);
 			res.status(200).send(groups);
 		} catch (error) {
@@ -433,7 +468,6 @@ class GroupController implements IController {
 			next(error);
 		}
 	};
-
 }
 
 export default GroupController;

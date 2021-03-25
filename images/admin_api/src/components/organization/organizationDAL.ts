@@ -6,6 +6,10 @@ import { decrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
 import { createOrganizationUsers, getUsersIdByEmailsArray } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
+import { addMembersToGroup, defaultOrgGroupName, getGroupByProp } from "../group/groupDAL";
+import CreateGroupMemberDto from "../group/interfaces/groupMember.dto";
+import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
+import IMessage from "../../GrafanaApi/interfaces/Message";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
@@ -79,6 +83,17 @@ export const createDefaultOrgDataSource = async (orgId: number, name: string, or
 	await pool.query(querry2, [true, true, jsonData, secureJsonData, dataSourceId]);
 }
 
+export const addUsersToOrganizationAndMembersToDefaultOrgGroup = async (orgId: number, orgName: string, orgAcronym: string, orgUsersArray: CreateUserDto[]): Promise<IMessage[]> => {
+	const msg_users = await grafanaApi.addUsersToOrganization(orgId, orgUsersArray);
+	const usersAddedToOrg: CreateUserDto[] = [];
+	msg_users.forEach((msg, index) => {
+		const orgUser = orgUsersArray[index];
+		if (msg.message === "User added to organization") usersAddedToOrg.push(orgUser);
+	});
+	await addOrgUsersToDefaultOrgGroup(orgName, orgAcronym, usersAddedToOrg);
+	return msg_users;
+}
+
 export const addAdminToOrganization = async (orgId: number, orgAdminArray: CreateUserDto[]): Promise<number[]> => {
 	orgAdminArray.forEach(user => user.roleInOrg = "Admin");
 	const adminIdArray:  number[] = [];
@@ -114,5 +129,33 @@ export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.org_user.role = $2`
 	const result = await pool.query(query, [orgId, "Admin"]);
 	return result.rows;
+}
+
+export const getOrganizationsManagedByUserId = async (userId: number): Promise<IOrganization[]> => {
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode", state, country
+					FROM grafanadb.org
+					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
+					WHERE grafanadb.org_user.user_id = $1 AND grafanadb.org_user.role = $2
+					ORDER BY id ASC`;
+	const result = await pool.query(query, [userId, "Admin"]);
+	return result.rows;
+}
+
+export const addOrgUsersToDefaultOrgGroup = async (orgName: string, orgAcronym: string, usersAddedToOrg: CreateUserDto[]): Promise<IMessage> => {
+	const groupName = defaultOrgGroupName(orgName,  orgAcronym);
+	const group = await getGroupByProp("name", groupName);
+	const groupMembersArray: CreateGroupMemberDto[] = [];
+	usersAddedToOrg.forEach(user => {
+		const groupMember = {
+			userId: user.id,
+			firstName: user.firstName,
+			surname: user.surname,
+			email: user.email,
+			roleInGroup: (user.roleInOrg as RoleInGroupOption)
+		};
+		groupMembersArray.push(groupMember);
+	})
+	const message = await addMembersToGroup(group, groupMembersArray);
+	return message;
 }
 

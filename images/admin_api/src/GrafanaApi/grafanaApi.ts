@@ -7,8 +7,6 @@ import ITeam from "./interfaces/Team";
 import ITeamDTO from "./interfaces/TeamDTO";
 import TeamMember from "./interfaces/TeamMember";
 import TeamsWithPaging from "./interfaces/TeamsWithPaging";
-import IUser from "../components/user/interfaces/User.interface";
-import IUserDTO from "./interfaces/UserDTO";
 import IUserId from "./interfaces/UserId";
 import IDashboardApi from "./dashboardApi.interface";
 import IOrganizationGrafana from "./interfaces/IOrganizationGrafana";
@@ -23,6 +21,7 @@ import IOptionsToken from "./interfaces/OptionsToken";
 import INotificationChannel from "./interfaces/NotificationChannel";
 import { updateNotificationChannelSettings } from "../components/group/groupDAL";
 import CreateUserDto from "../components/user/interfaces/User.dto";
+import { addOrgUsersToDefaultOrgGroup } from "../components/organization/organizationDAL";
 
 const GrafanaApiURL = "grafana:5000/api"
 const optionsBasicAuth = {
@@ -184,7 +183,6 @@ export default class GrafanaApi implements IDashboardApi {
 
 		const msg_users = await Promise.all(usersAddedQueries)
 			.then(messages => messages);
-
 		return msg_users;
 	}
 

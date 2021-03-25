@@ -23,7 +23,13 @@ import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import UpdateGroupDto from "./interfaces/group_update.dto";
 
 
-export const createGroup = async (orgId: number, groupInput: CreateGroupDto, isPrivate: boolean = true): Promise<IGroup> => {
+export const defaultOrgGroupName =  (orgName: string, orgAcronym: string): string => {
+	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
+	if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").toUpperCase()}_general`;
+	return groupName;
+};
+
+export const createGroup = async (orgId: number, groupInput: CreateGroupDto, orgName: string, isPrivate: boolean = true): Promise<IGroup> => {
 	let group: IGroup;
 	const groupUid = uuidv4().replace(/-/g, "_");
 	if (!groupInput.telegramInvitationLink) groupInput.telegramInvitationLink = "";
@@ -101,7 +107,8 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, isP
 
 	await createView(groupUid);
 	await insertGroup(group);
-	await sendGroupAdminInvitationEmail(group, groupInput.groupAdminDataArray);
+	group.folderPermission = folderPermission;
+	await sendGroupAdminInvitationEmail(orgName, group, groupInput.groupAdminDataArray);
 	return group;
 }
 
@@ -136,6 +143,49 @@ const updateFolderName = async (folderId: number, newTitle: string): Promise<voi
 	await pool.query('UPDATE grafanadb.dashboard SET title = $1 WHERE id = $2', [newTitle, folderId]);
 }
 
+
+export const getAllGroups = async (): Promise<IGroup[]> => {
+	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
+				grafanadb.group.team_id AS "teamId",
+				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
+				grafanadb.dashboard_acl.permission AS "folderPermission",
+				name, acronym, group_uid AS  "groupUid",
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				email_notification_channel_id AS "emailNotificationChannelId",
+				telegram_notification_channel_id AS "telegramNotificationChannelId",
+				is_private AS "isPrivate"
+				FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				ORDER BY id ASC;`;
+	const result = await pool.query(query);
+	const permissionCodes = ["None", "Viewer", "Editor"];
+	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
+	return result.rows;
+}
+
+export const getGroupsManagedByUserId= async (userId: number): Promise<IGroup[]> => {
+	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
+				grafanadb.group.team_id AS "teamId",
+				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
+				grafanadb.dashboard_acl.permission AS "folderPermission",
+				name, acronym, group_uid AS  "groupUid",
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				email_notification_channel_id AS "emailNotificationChannelId",
+				telegram_notification_channel_id AS "telegramNotificationChannelId",
+				is_private AS "isPrivate"
+				FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
+				WHERE grafanadb.team_member.permission = $1 OR grafanadb.team_member.permission = $2
+				ORDER BY id ASC;`;
+	const result = await pool.query(query, [2, 4]);
+	const permissionCodes = ["None", "Viewer", "Editor"];
+	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
+	return result.rows;
+}
+
 export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[]> => {
 	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
 				grafanadb.group.team_id AS "teamId",
@@ -152,6 +202,27 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				WHERE grafanadb.group.org_id = $1
 				ORDER BY id ASC;`;
 	const result = await pool.query(query, [orgId]);
+	const permissionCodes = ["None", "Viewer", "Editor"];
+	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
+	return result.rows;
+}
+
+export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGroup[]> => {
+	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
+				grafanadb.group.team_id AS "teamId",
+				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
+				grafanadb.dashboard_acl.permission AS "folderPermission",
+				name, acronym, group_uid AS  "groupUid",
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				email_notification_channel_id AS "emailNotificationChannelId",
+				telegram_notification_channel_id AS "telegramNotificationChannelId",
+				is_private AS "isPrivate"
+				FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				WHERE grafanadb.group.org_id = ANY($1::bigint[])
+				ORDER BY id ASC;`;
+	const result = await pool.query(query, [orgIdsArray]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
 	return result.rows;
@@ -353,7 +424,8 @@ const setFolderPermissions = async (orgId: number, folderId: number, permissions
 			folderPermissionQueries.push(query);
 		}
 	}
-	await Promise.all(folderPermissionQueries)
+	await Promise.all(folderPermissionQueries);
+	await pool.query('UPDATE grafanadb.dashboard SET has_acl = $1 WHERE id = $2', [true, folderId]);
 }
 
 const updateFolderPermissionsForTeam = async (group: IGroup): Promise<void> => {
