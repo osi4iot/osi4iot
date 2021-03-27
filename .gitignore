@@ -31,6 +31,7 @@ data/volumes/prometheus/*
 images/admin_api/node_modules
 images/admin_api/build
 images/admin_api/ssl_config
+images/admin_api/mqtts_certs
 images/admin_api/logs
 !README.md
 

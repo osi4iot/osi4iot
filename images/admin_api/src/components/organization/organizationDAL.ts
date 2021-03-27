@@ -6,7 +6,7 @@ import { decrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
 import { createOrganizationUsers, getUsersIdByEmailsArray } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
-import { addMembersToGroup, defaultOrgGroupName, getGroupByProp } from "../group/groupDAL";
+import { addMembersToGroup, getDefaultOrgGroup } from "../group/groupDAL";
 import CreateGroupMemberDto from "../group/interfaces/groupMember.dto";
 import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import IMessage from "../../GrafanaApi/interfaces/Message";
@@ -83,14 +83,14 @@ export const createDefaultOrgDataSource = async (orgId: number, name: string, or
 	await pool.query(querry2, [true, true, jsonData, secureJsonData, dataSourceId]);
 }
 
-export const addUsersToOrganizationAndMembersToDefaultOrgGroup = async (orgId: number, orgName: string, orgAcronym: string, orgUsersArray: CreateUserDto[]): Promise<IMessage[]> => {
+export const addUsersToOrganizationAndMembersToDefaultOrgGroup = async (orgId: number, orgUsersArray: CreateUserDto[]): Promise<IMessage[]> => {
 	const msg_users = await grafanaApi.addUsersToOrganization(orgId, orgUsersArray);
 	const usersAddedToOrg: CreateUserDto[] = [];
 	msg_users.forEach((msg, index) => {
 		const orgUser = orgUsersArray[index];
 		if (msg.message === "User added to organization") usersAddedToOrg.push(orgUser);
 	});
-	await addOrgUsersToDefaultOrgGroup(orgName, orgAcronym, usersAddedToOrg);
+	await addOrgUsersToDefaultOrgGroup(orgId, usersAddedToOrg);
 	return msg_users;
 }
 
@@ -141,9 +141,9 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 	return result.rows;
 }
 
-export const addOrgUsersToDefaultOrgGroup = async (orgName: string, orgAcronym: string, usersAddedToOrg: CreateUserDto[]): Promise<IMessage> => {
-	const groupName = defaultOrgGroupName(orgName,  orgAcronym);
-	const group = await getGroupByProp("name", groupName);
+export const addOrgUsersToDefaultOrgGroup = async (orgId: number, usersAddedToOrg: CreateUserDto[]): Promise<IMessage> => {
+	const group = await getDefaultOrgGroup(orgId);
+	console.log("addOrgUsersToDefaultOrgGroup group = ", group);
 	const groupMembersArray: CreateGroupMemberDto[] = [];
 	usersAddedToOrg.forEach(user => {
 		const groupMember = {

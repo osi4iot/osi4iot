@@ -1,15 +1,15 @@
 import sendEmail from "../../utils/sendEmail";
 import IGroup from "./interfaces/Group.interface";
 import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
-import { getGroupMembers } from "./groupDAL";
+import { getGroupMembers, getNotificationChannelName } from "./groupDAL";
 import CreateGroupMemberDto from "./interfaces/groupMember.dto";
 import { getOrganizationByProp } from "../organization/organizationDAL";
 
-const informationToEditOrAdminHtml = (group: IGroup): string => {
+const informationToEditorOrAdminHtml = async (group: IGroup): Promise<string> => {
 	const groupHash = `Group_${group.groupUid}`;
 	const tableHash = `Table_${group.groupUid}`;
-	const emailNotifChannelName = `${group.acronym}_email_NC`;
-	const telegramNotifChannelName = `${group.acronym}_telegram_NC`;
+	const emailNotifChannelName = await getNotificationChannelName(group.emailNotificationChannelId);
+	const telegramNotifChannelName =  await getNotificationChannelName(group.telegramNotificationChannelId);
 
 	const informationHtml =
 		`<div>
@@ -31,10 +31,10 @@ const informationToEditOrAdminHtml = (group: IGroup): string => {
 export const sendGroupAdminInvitationEmail = async (orgName: string, group: IGroup, groupAdminDataArray: CreateGroupAdminDto[]): Promise<void> => {
 	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 	let subject: string;
-	if (group.isPrivate) {
-		subject = `Invitation to be the administrator of the group "${group.name}"`;
-	} else {
+	if (group.isOrgDefaultGroup) {
 		subject = `Invitation to be the administrator of the organization "${orgName}"`;
+	} else {
+		subject = `Invitation to be the administrator of the group "${group.name}"`;
 	}
 
 	const groupAdminInvitationEmailQuery = [];
@@ -42,18 +42,19 @@ export const sendGroupAdminInvitationEmail = async (orgName: string, group: IGro
 		const mailTo = groupAdminDataArray[i].email;
 		const groupAdminFirstName = groupAdminDataArray[i].firstName;
 		let mailBody = `<p>Dear ${groupAdminFirstName},</p>`;
-		if (group.isPrivate) {
-			mailBody = `${mailBody}
-			<p>Welcome to the group "${group.name}" of the organization "${orgName}" of the ${platformName}!!!</p>
-			<p>You have been proposed to be the administrator of the group "${group.name}".</p>
-			${informationToEditOrAdminHtml(group)}`;
-		} else {
+		const informationToEditorOrAdmin = await informationToEditorOrAdminHtml(group);
+		if (group.isOrgDefaultGroup) {
 			mailBody = `${mailBody}
 			<p>Welcome to the organization "${orgName}" of the ${platformName}!!!</p>
 			<p>You have been proposed to be the administrator of the organization "${orgName}".</p>
 			<p>One organization can have several groups but a group called "${group.name}" has been created automatically. You are also administrator of this group.</p>
 			<p>You have to know that all the organization members have by default a "${group.folderPermission}" role in the group "${group.name}".</p>
-			${informationToEditOrAdminHtml(group)}`;
+			${informationToEditorOrAdmin}`;
+		} else {
+			mailBody = `${mailBody}
+			<p>Welcome to the group "${group.name}" of the organization "${orgName}" of the ${platformName}!!!</p>
+			<p>You have been proposed to be the administrator of the group "${group.name}".</p>
+			${informationToEditorOrAdmin}`;
 		}
 		if (group.telegramInvitationLink !== "" && group.telegramChatId !== "") {
 			mailBody =
@@ -89,9 +90,10 @@ export const sendGroupMemberInvitationEmail = async (group: IGroup, groupMemberA
 			<p>Welcome to the group "${group.name}" of the ${platformName}!!!</p>
 			<p>You are now member of the group "${group.name}" with "${roleInGroup}" role.</p>`;
 		if (roleInGroup === "Editor") {
+			const informationToEditorOrAdmin = await informationToEditorOrAdminHtml(group);
 			mailBody =
 				`${mailBody}
-				${informationToEditOrAdminHtml(group)}`;
+				${informationToEditorOrAdmin}`;
 		}
 
 		if (group.telegramInvitationLink !== "" && group.telegramChatId !== "") {
@@ -127,9 +129,10 @@ export const sendRoleInGroupChangeInformationEmail = async (group: IGroup, group
 			`<p>Dear ${memberFirstName},</p>
 			<p>Your role in the "${group.name}" group has been changed to "${roleInGroup}".</p>`;
 		if (roleInGroup === "Editor" || roleInGroup === "Admin") {
+			const informationToEditorOrAdmin = await informationToEditorOrAdminHtml(group);
 			mailBody =
 				`${mailBody}
-				${informationToEditOrAdminHtml(group)}`;
+				${informationToEditorOrAdmin}`;
 		}
 		mailBody =
 			`${mailBody}
@@ -161,9 +164,10 @@ export const sendChangeGroupDataInformationEmail = async (newGroupData: IGroup, 
 				<p>Telegram invitation link: <a href = "${newGroupData.telegramInvitationLink}">${newGroupData.telegramInvitationLink}</a></p>
 			</div>`;
 		if (roleInGroup === "Editor") {
+			const informationToEditorOrAdmin = await informationToEditorOrAdminHtml(newGroupData);
 			mailBody =
 				`${mailBody}
-				${informationToEditOrAdminHtml(newGroupData)}`;
+				${informationToEditorOrAdmin}`;
 		}
 		mailBody =
 			`${mailBody}

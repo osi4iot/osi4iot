@@ -18,7 +18,7 @@ class CreateGroupDto {
 	@IsString()
 	public telegramChatId?: string;
 
-	public isPrivate?: boolean;
+	public isOrgDefaultGroup?: boolean;
 
 	@IsEnum(FolderPermissionOptions, {message: " 'Editor' or 'Viewer' are the only valid options for folderPermission."})
 	public folderPermission: FolderPermissionOption;

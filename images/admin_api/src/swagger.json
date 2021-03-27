@@ -1773,8 +1773,55 @@
 						}
 					}
 				}
-			}							
-		}				
+			}
+		},
+		"/group/{groupId}/ssl_certs": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}				
+			],
+			"get": {
+				"tags": ["Group"],
+				"summary": "Get ssl certificates for the group  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/SSLCerts"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}						
+		}			
 	},
 	"definitions": {
 		"UserRegister": {
@@ -2358,6 +2405,7 @@
 			}
 		},
 		"GroupCreationOutput": {
+			"type": "object",
 			"properties": {
 				"message": {
 					"type": "string"
@@ -2387,6 +2435,20 @@
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/GroupMemberOutput"
+			}
+		},
+		"SSLCerts": {
+			"type": "object",
+			"properties": {
+				"caCert": {
+					"type": "string"
+				},
+				"clientCert": {
+					"type": "string"
+				},
+				"clientKey": {
+					"type": "string"
+				}
 			}
 		}
 	}

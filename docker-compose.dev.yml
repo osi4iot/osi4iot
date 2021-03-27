@@ -2,6 +2,24 @@ version: "3"
 
 services:
 
+  mosquitto:
+    container_name: ${PLATFORM_NAME}_mosquitto
+    build: ./images/mosquitto
+    networks:
+      - internal_net
+    ports:
+      - "1883:1883"
+      - "8883:8883"
+      - "9001:9001"
+    volumes:
+      - ./config/mosquitto:/mosquitto/config/
+      - ${HOST_VOLUMES_PATH}/mosquitto/data:/mosquitto/data/
+      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs:/mosquitto/mqtts_certs/
+      - ${SSL_CERTIFICATE_CA_PATH}:/mosquitto/wss_certs/iot_platform_ca.pem
+      - ${SSL_CERTIFICATE_SERVER_PATH}:/mosquitto/wss_certs/iot_platform_cert.cer
+      - ${SSL_CERTIFICATE_KEY_PATH}:/mosquitto/wss_certs/iot_platform.key
+    restart: unless-stopped
+
   postgres:
     container_name: ${PLATFORM_NAME}_postgres
     build:
@@ -129,6 +147,8 @@ services:
       - ./images/admin_api:/app
       - ${SSL_CERTIFICATE_SERVER_PATH}:/app/ssl_config/iot_platform.cer
       - ${SSL_CERTIFICATE_KEY_PATH}:/app/ssl_config/iot_platform.key
+      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs/ca.crt:/app/mqtts_certs/ca.crt
+      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs/ca.key:/app/mqtts_certs/ca.key
     working_dir: /app
     env_file:
       - .env

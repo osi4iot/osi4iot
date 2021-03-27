@@ -84,7 +84,7 @@ export async function dataBaseInitialization() {
 		const queryString1d = 'UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5, state = $6, country = $7 WHERE name = $8';
 		const parameterArray1d = [
 			process.env.MAIN_ORGANIZATION_NAME,
-			process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase(),
+			process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
 			process.env.MAIN_ORGANIZATION_ADDRESS1,
 			process.env.MAIN_ORGANIZATION_CITY,
 			process.env.MAIN_ORGANIZATION_ZIP_CODE,
@@ -96,7 +96,7 @@ export async function dataBaseInitialization() {
 
 		try {
 			await pool.query(queryString1d, parameterArray1d);
-			const apyKeyName = `ApiKey_${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toUpperCase()}`
+			const apyKeyName = `ApiKey_${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase()}`
 			const apiKeyData = { name: apyKeyName, role: "Admin" };
 			const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
 			apiKeyMainOrg = apiKeyObj.key;
@@ -152,12 +152,12 @@ export async function dataBaseInitialization() {
 				folder_uid VARCHAR(40),
 				name VARCHAR(190) UNIQUE,
 				acronym varchar(20) UNIQUE,
-				group_uid VARCHAR(42),
+				group_uid VARCHAR(42) UNIQUE,
 				telegram_invitation_link VARCHAR(50),
 				telegram_chatid VARCHAR(15),
 				email_notification_channel_id bigint,
 				telegram_notification_channel_id bigint,
-				is_private BOOLEAN DEFAULT true,
+				is_org_default_group BOOLEAN DEFAULT true,
 				CONSTRAINT fk_org_id
 					FOREIGN KEY(org_id)
 						REFERENCES grafanadb.org(id)
@@ -194,7 +194,7 @@ export async function dataBaseInitialization() {
 			const defaultMainOrgGroup = {
 				name: mainOrgGroupName,
 				acronym: mainOrgGroupAcronym,
-				email: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g,"_").toLocaleLowerCase()}_general@test.com`,
+				email: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toLocaleLowerCase()}_general@test.com`,
 				telegramChatId: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 				telegramInvitationLink: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 				folderPermission: ("Viewer" as FolderPermissionOption),
@@ -208,6 +208,49 @@ export async function dataBaseInitialization() {
 			logger.log("info", `Table ${tableName3} has been created sucessfully`);
 		} catch (err) {
 			logger.log("error", `Table ${tableName3} can not be created: %s`, err.message);
+		}
+
+		const tableName4 = "grafanadb.device";
+		const queryString4a = `
+			CREATE TABLE IF NOT EXISTS ${tableName4}(
+				id serial PRIMARY KEY,
+				org_id bigint,
+				group_id bigint,
+				name VARCHAR(190) UNIQUE,
+				CONSTRAINT fk_org_id
+					FOREIGN KEY(org_id)
+						REFERENCES grafanadb.org(id)
+						ON DELETE CASCADE,
+				CONSTRAINT fk_group_id
+					FOREIGN KEY(group_id)
+						REFERENCES grafanadb.team(id)
+						ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_device_name
+			ON grafanadb.device(name);`;
+
+		try {
+			await pool.query(queryString4a);
+			logger.log("info", `Table ${tableName4} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableName4} can not be created: %s`, err.message);
+		}
+
+		const tableName5 = "iot_data.thingData";
+		const queryString5a = `
+			ALTER TABLE iot_data.thingData
+				ADD CONSTRAINT fk_group_uid
+				FOREIGN KEY(group_uid)
+				REFERENCES grafanadb.group(group_uid)
+					ON DELETE CASCADE
+					ON UPDATE CASCADE;`;
+
+		try {
+			await pool.query(queryString5a);
+			logger.log("info", `Foreing key in table ${tableName5} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Foreing key in table ${tableName5} could not be created: %s`, err.message);
 		}
 
 		pool.end(() => {

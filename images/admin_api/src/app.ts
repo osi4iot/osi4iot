@@ -13,7 +13,6 @@ import morganOption from "./config/morgan";
 import IController from "./interfaces/controller.interface";
 import errorMiddleware from "./middleware/error.middleware";
 import pool from "./config/dbconfig";
-import { ConsoleTransportOptions } from "winston/lib/winston/transports";
 import transporter from "./config/mailer";
 
 const httpsOptions = {

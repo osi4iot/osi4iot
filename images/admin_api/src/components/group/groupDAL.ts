@@ -21,6 +21,7 @@ import IMessage from "../../GrafanaApi/interfaces/Message";
 import { RoleInGroupOption } from "./interfaces/RoleInGroupOptions";
 import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import UpdateGroupDto from "./interfaces/group_update.dto";
+import INotificationChannel from "./interfaces/NotificationChannel";
 
 
 export const defaultOrgGroupName =  (orgName: string, orgAcronym: string): string => {
@@ -29,7 +30,7 @@ export const defaultOrgGroupName =  (orgName: string, orgAcronym: string): strin
 	return groupName;
 };
 
-export const createGroup = async (orgId: number, groupInput: CreateGroupDto, orgName: string, isPrivate: boolean = true): Promise<IGroup> => {
+export const createGroup = async (orgId: number, groupInput: CreateGroupDto, orgName: string, isOrgDefaultGroup: boolean = false): Promise<IGroup> => {
 	let group: IGroup;
 	const groupUid = uuidv4().replace(/-/g, "_");
 	if (!groupInput.telegramInvitationLink) groupInput.telegramInvitationLink = "";
@@ -52,10 +53,10 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 		permission: folderPermission
 	}];
 
-	if (isPrivate) {
-		groupInput.groupAdminDataArray.forEach(admin => permissionsArray.push({ userId: admin.userId, permission: "Editor" }));
-	} else {
+	if (isOrgDefaultGroup) {
 		groupInput.groupAdminDataArray.forEach(admin => permissionsArray.push({ userId: admin.userId, permission: "Admin" }));
+	} else {
+		groupInput.groupAdminDataArray.forEach(admin => permissionsArray.push({ userId: admin.userId, permission: "Editor" }));
 	}
 	await setFolderPermissions(orgId, folderId, permissionsArray);
 	const groupAdminIdArray = groupInput.groupAdminDataArray.map(admin => ({ userId: admin.userId }));
@@ -102,7 +103,7 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 		telegramChatId,
 		emailNotificationChannelId,
 		telegramNotificationChannelId,
-		isPrivate
+		isOrgDefaultGroup
 	}
 
 	await createView(groupUid);
@@ -154,7 +155,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_private AS "isPrivate"
+				is_org_default_group AS "isOrgDefaultGroup"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				ORDER BY id ASC;`;
@@ -164,7 +165,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 	return result.rows;
 }
 
-export const getGroupsManagedByUserId= async (userId: number): Promise<IGroup[]> => {
+export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]> => {
 	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
 				grafanadb.group.team_id AS "teamId",
 				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
@@ -174,7 +175,7 @@ export const getGroupsManagedByUserId= async (userId: number): Promise<IGroup[]>
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_private AS "isPrivate"
+				is_org_default_group AS "isOrgDefaultGroup"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
@@ -196,7 +197,7 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_private AS "isPrivate"
+				is_org_default_group AS "isOrgDefaultGroup"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = $1
@@ -217,7 +218,7 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_private AS "isPrivate"
+				is_org_default_group AS "isOrgDefaultGroup"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = ANY($1::bigint[])
@@ -237,7 +238,7 @@ export const getGroupByWithFolderPermissionProp = async (propName: string, propV
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_private AS "isPrivate"
+				is_org_default_group AS "isOrgDefaultGroup"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.${propName} = $1;`;
@@ -255,19 +256,35 @@ export const getGroupByProp = async (propName: string, propValue: (string | numb
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_private AS "isPrivate"
+				is_org_default_group AS "isOrgDefaultGroup"
 				FROM grafanadb.group
 				WHERE grafanadb.group.${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
 	return result.rows[0];
 }
 
+export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
+	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId", grafanadb.group.team_id AS "teamId",
+				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
+				name, acronym, group_uid AS  "groupUid",
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				email_notification_channel_id AS "emailNotificationChannelId",
+				telegram_notification_channel_id AS "telegramNotificationChannelId",
+				is_org_default_group AS "isOrgDefaultGroup"
+				FROM grafanadb.group
+				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
+	const result = await pool.query(query, [orgId, true]);
+	return result.rows[0];
+};
+
+
 export const insertGroup = async (group: IGroup): Promise<void> => {
 	await pool.query(`INSERT INTO grafanadb.group (org_id, team_id, folder_id,
 					folder_uid, name, acronym, group_uid,
 					telegram_invitation_link, telegram_chatid,
 					email_notification_channel_id,
-					telegram_notification_channel_id, is_private)
+					telegram_notification_channel_id, is_org_default_group)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
 		[
 			group.orgId,
@@ -281,8 +298,8 @@ export const insertGroup = async (group: IGroup): Promise<void> => {
 			group.telegramChatId,
 			group.emailNotificationChannelId,
 			group.telegramNotificationChannelId,
-			group.isPrivate
-		]);
+			group.isOrgDefaultGroup
+		])
 };
 
 export const updateGroupById = async (group: IGroup): Promise<void> => {
@@ -302,7 +319,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 export const createView = async (groupUid: string): Promise<void> => {
 	const viewName = `Table_${groupUid}`;
 	const groupId = `Group_${groupUid}`;
-	await pool.query(`CREATE VIEW iot_datasource.${viewName} AS SELECT timestamp, topic, payload FROM iot_data.thingData WHERE group_id = '${groupId}'`);
+	await pool.query(`CREATE VIEW iot_datasource.${viewName} AS SELECT timestamp, topic, payload FROM iot_data.thingData WHERE group_uid = '${groupId}'`);
 };
 
 export const deleteView = async (groupUid: string): Promise<void> => {
@@ -317,11 +334,11 @@ export const changeGroupUidByUid = async (newGroupUid: string, oldGroupUid: stri
 	await createView(newGroupUid);
 };
 
-export const deleteGroup = async (groupData: IGroup, orgKey: string): Promise<void> => {
-	await pool.query('DELETE FROM grafanadb.group WHERE id = $1', [groupData.id]);
-	await grafanaApi.deleteFolderByUid(groupData.folderUid, orgKey);
-	await grafanaApi.deleteTeamById(groupData.teamId);
-	await deleteView(groupData.groupUid);
+export const deleteGroup = async (group: IGroup, orgKey: string): Promise<void> => {
+	await pool.query('DELETE FROM grafanadb.group WHERE id = $1', [group.id]);
+	await grafanaApi.deleteFolderByUid(group.folderUid, orgKey);
+	await grafanaApi.deleteTeamById(group.teamId);
+	await deleteView(group.groupUid);
 };
 
 export const deleteGroupByName = async (groupName: string, orgKey: string): Promise<void> => {
@@ -343,6 +360,26 @@ export const updateNotificationChannelName = async (id: number, newName: string)
 
 export const getNotificationChannelSettings = async (id: number): Promise<settingType> => {
 	const result = await pool.query('SELECT settings FROM grafanadb.alert_notification WHERE id = $1', [id]);
+	return result.rows[0];
+};
+
+export const getNotificationChannelName = async (id: number): Promise<string> => {
+	const result = await pool.query('SELECT name FROM grafanadb.alert_notification WHERE id = $1', [id]);
+	return result.rows[0];
+};
+
+export const getNotificationChannelUid = async (id: number): Promise<string> => {
+	const result = await pool.query('SELECT uid FROM grafanadb.alert_notification WHERE id = $1', [id]);
+	return result.rows[0].uid;
+};
+
+export const getNotificationChannelById = async (id: number): Promise<INotificationChannel> => {
+	const result = await pool.query(
+		`SELECT id, org_id AS "orgId", name, type, settings, created
+		is_default AS "isDefault", frequency, sendReminder AS "sendReminder",
+		disable_resolve_message AS "disableResolveMessage",
+		uid, secure_settings AS "secureSettings"
+	  	FROM grafanadb.alert_notification WHERE id = $1`, [id]);
 	return result.rows[0];
 };
 

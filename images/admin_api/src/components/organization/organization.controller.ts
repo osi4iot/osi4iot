@@ -41,10 +41,9 @@ import HttpException from "../../exceptions/HttpException";
 import CreateUsersArrayDto from "../user/usersArray.dto";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
-import { createGroup, defaultOrgGroupName, deleteGroupByName } from "../group/groupDAL";
+import { createGroup, defaultOrgGroupName, deleteGroup, getDefaultOrgGroup } from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
-import CreateGroupMemberDto from "../group/interfaces/groupMember.dto";
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
 import CreateGroupAdminDto from "../group/interfaces/groupAdmin.dto";
 import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
@@ -200,8 +199,8 @@ class OrganizationController implements IController {
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);
-				const group = await createGroup(newOrg.orgId, defaultOrgGroup, organizationData.name, false);
-				await addOrgUsersToDefaultOrgGroup(organizationData.name, organizationData.acronym, organizationData.orgAdminArray);
+				const group = await createGroup(newOrg.orgId, defaultOrgGroup, organizationData.name, true);
+				await addOrgUsersToDefaultOrgGroup(newOrg.orgId, organizationData.orgAdminArray);
 				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
 				await createDemoDashboards(organizationData.acronym, group);
 			}
@@ -232,16 +231,14 @@ class OrganizationController implements IController {
 				}
 			}
 			const orgId = organization.id;
-			const orgName = organization.name;
-			const orgAcronym = organization.acronym;
 			if (existUser) {
 				orgUserData.id = existUser.id;
-				const msg_users = await addUsersToOrganizationAndMembersToDefaultOrgGroup(orgId, orgName, orgAcronym, [orgUserData]);
+				const msg_users = await addUsersToOrganizationAndMembersToDefaultOrgGroup(orgId, [orgUserData]);
 				user_msg = msg_users[0];
 			} else {
 				const msg_users = await createOrganizationUsers(organization.id, [orgUserData]);
 				orgUserData.id = msg_users[0].id;
-				await addOrgUsersToDefaultOrgGroup(orgName, orgAcronym, [orgUserData]);
+				await addOrgUsersToDefaultOrgGroup(orgId, [orgUserData]);
 				user_msg = msg_users[0];
 			}
 			res.status(200).send(user_msg);
@@ -286,18 +283,16 @@ class OrganizationController implements IController {
 			let numUsersCreated = 0;
 			let numUsersAddedToOrg = 0;
 			const orgId = organization.id;
-			const orgName = organization.name;
-			const orgAcronym = organization.acronym;
 			if (nonExistingUserArray.length !== 0) {
-				const msg_users = await createOrganizationUsers(organization.id, nonExistingUserArray);
+				const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
 				msg_users.forEach((msg, index) => nonExistingUserArray[index].id = msg.id);
-				await addOrgUsersToDefaultOrgGroup(orgName, orgAcronym, nonExistingUserArray);
+				await addOrgUsersToDefaultOrgGroup(organization.id, nonExistingUserArray);
 				numUsersCreated = msg_users.filter(msg => msg.message === "User created").length;
 				numUsersAddedToOrg = numUsersCreated;
 			}
 
 			if (existingUserArray.length !== 0) {
-				const msg_users = await addUsersToOrganizationAndMembersToDefaultOrgGroup(orgId, orgName, orgAcronym, existingUserArray);
+				const msg_users = await addUsersToOrganizationAndMembersToDefaultOrgGroup(orgId, existingUserArray);
 				numUsersAddedToOrg += msg_users.filter(msg => msg.message === "User added to organization").length;
 			}
 			const message = { numUsersCreated, numUsersAddedToOrg };
@@ -430,9 +425,9 @@ class OrganizationController implements IController {
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const organization = await getOrganizationByProp(propName, propValue);
 			if (!organization) throw new ItemNotFoundException("The Organization", propName, propValue);
-			const groupName = defaultOrgGroupName(organization.name, organization.acronym);
+			const defaultOrgGroup = await getDefaultOrgGroup(organization.id);
 			const orgKey = await getOrganizationKey(organization.id);
-			await deleteGroupByName(groupName, orgKey);
+			await deleteGroup(defaultOrgGroup, orgKey);
 			await grafanaApi.deleteOrganizationById(organization.id);
 			res.status(200).json({ message: `Organization deleted successfully` });
 		} catch (error) {

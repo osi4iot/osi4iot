@@ -21,7 +21,6 @@ import IOptionsToken from "./interfaces/OptionsToken";
 import INotificationChannel from "./interfaces/NotificationChannel";
 import { updateNotificationChannelSettings } from "../components/group/groupDAL";
 import CreateUserDto from "../components/user/interfaces/User.dto";
-import { addOrgUsersToDefaultOrgGroup } from "../components/organization/organizationDAL";
 
 const GrafanaApiURL = "grafana:5000/api"
 const optionsBasicAuth = {

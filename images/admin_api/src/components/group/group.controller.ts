@@ -40,6 +40,7 @@ import UpdateGroupMemberDto from "./interfaces/groupMemberUpdate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IGroup from "./interfaces/Group.interface";
 import { createDemoDashboards } from "./dashboardDAL";
+import sslCerticatesGenerator from "./sslCerticatesGenerator";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -52,11 +53,11 @@ class GroupController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-		.get(
-			`${this.path}s/user_managed/`,
-			userAuth,
-			this.getGroupsManagedByUser
-		);
+			.get(
+				`${this.path}s/user_managed/`,
+				userAuth,
+				this.getGroupsManagedByUser
+			);
 
 
 		this.router
@@ -74,6 +75,13 @@ class GroupController implements IController {
 				this.createGroup
 			);
 
+		this.router
+			.get(
+				`${this.path}/:groupId/ssl_certs/`,
+				groupExists,
+				groupAdminAuth,
+				this.getSslCerts
+			)
 
 		this.router
 			.post(
@@ -205,8 +213,8 @@ class GroupController implements IController {
 			await createDemoDashboards(req.organization.acronym, groupCreated);
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;
-			const isPrivate = true;
-			const group = { ...groupInput, isPrivate, groupHash, tableHash };
+			const isOrgDefaultGroup = false;
+			const group = { ...groupInput, isOrgDefaultGroup, groupHash, tableHash };
 			const message = { message: `Group created successfully`, group }
 			res.status(201).send(message);
 		} catch (error) {
@@ -464,6 +472,15 @@ class GroupController implements IController {
 			const groupMembersToRemove = groupMembers.filter(member => member.roleInGroup !== "Admin");
 			const message = await removeMembersInGroup(req.group, groupMembersToRemove);
 			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getSslCerts = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const certs = await sslCerticatesGenerator(req.group);
+			res.status(200).send(certs);
 		} catch (error) {
 			next(error);
 		}

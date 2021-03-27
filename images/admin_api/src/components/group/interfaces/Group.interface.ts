@@ -12,5 +12,5 @@ export default interface IGroup {
 	telegramChatId: string;
 	emailNotificationChannelId: number;
 	telegramNotificationChannelId: number;
-	isPrivate: boolean;
+	isOrgDefaultGroup: boolean;
 }
