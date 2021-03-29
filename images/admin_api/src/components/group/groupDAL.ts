@@ -321,8 +321,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 
 export const createView = async (groupUid: string): Promise<void> => {
 	const viewName = `Table_${groupUid}`;
-	const groupId = `Group_${groupUid}`;
-	await pool.query(`CREATE VIEW iot_datasource.${viewName} AS SELECT timestamp, topic, payload FROM iot_data.thingData WHERE group_uid = '${groupId}'`);
+	await pool.query(`CREATE VIEW iot_datasource.${viewName} AS SELECT timestamp, topic, payload FROM iot_data.thingData WHERE group_uid = '${groupUid}'`);
 };
 
 export const deleteView = async (groupUid: string): Promise<void> => {
