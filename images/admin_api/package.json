@@ -7,7 +7,6 @@
     "build": "tsc",
     "clean": "rimraf build",
     "dev": "cross-env NODE_ENV=development ts-node-dev --poll --respawn --transpile-only ./src/index.ts",
-    "prestart": "npm run build",
     "start": "cross-env NODE_ENV=production node ./build/index.js"
   },
   "keywords": [],

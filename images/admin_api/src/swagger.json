@@ -15,7 +15,7 @@
 			"description": "Local Dev"
 		},
 		{
-			"url": "/admin_api/",
+			"url": "https://localhost/admin_api/",
 			"description": "With nginx proxy"
 		}
 	],

@@ -4,7 +4,7 @@ services:
 
   mosquitto:
     container_name: ${PLATFORM_NAME}_mosquitto
-    image: eclipse-mosquitto
+    build: ./images/mosquitto
     networks:
       - internal_net
     ports:
@@ -39,7 +39,7 @@ services:
       - ${SSL_DHPARAM_PATH}:/etc/ssl/certs/dhparam-2048.pem
     depends_on:
       - nodered
-    
+
   nodered:
     container_name: ${PLATFORM_NAME}_nodered
     build: ./images/nodered
@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_healthy   
 
   postgres:
     container_name: ${PLATFORM_NAME}_postgres
@@ -102,11 +102,14 @@ services:
       - EMAIL_PASSWORD=${EMAIL_PASSWORD}
       - TELEGRAM_BOTTOKEN=${TELEGRAM_BOTTOKEN}
       - TELEGRAM_CHATID=${TELEGRAM_CHATID}
+      - GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
+      - GF_RENDERING_CALLBACK_URL=http://grafana:5000/
       - GF_LOG_FILTERS=rendering:debug
       - POSTGRES_DB=${POSTGRES_DB}
       - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD}
       - GRAFANA_DATASOURCE_PASSWORD=${GRAFANA_DATASOURCE_PASSWORD}
       - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
+      - MAIN_ORGANIZATION_DATASOURCE_NAME=${MAIN_ORGANIZATION_DATASOURCE_NAME}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]
@@ -115,11 +118,13 @@ services:
       retries: 30
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_healthy     
 
   pgadmin4:
     container_name: ${PLATFORM_NAME}_pgadmin
-    image: biarms/pgadmin4
+    build:
+      context: ./images/pgadmin4 
+      dockerfile: Dockerfile.rpi4
     user: "${UID}:${GID}"
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
@@ -131,30 +136,44 @@ services:
       - "127.0.0.1:5050:80"
     networks:
       - internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost || exit 1"]
+      interval: 10s
+      timeout: 300s
+      retries: 30      
     restart: unless-stopped
-
 
   admin_api:
     build:
       context: ./images/admin_api
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile 
     container_name: ${PLATFORM_NAME}_admin_api
     networks:
       - internal_net
-    restart: always    
+    restart: always 
     volumes:
-      - /app/node_modules
-      - ./images/admin_api:/app
+      - ${SSL_CERTIFICATE_SERVER_PATH}:/app/ssl_config/iot_platform.cer
+      - ${SSL_CERTIFICATE_KEY_PATH}:/app/ssl_config/iot_platform.key
+      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs/ca.crt:/app/mqtts_certs/ca.crt
+      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs/ca.key:/app/mqtts_certs/ca.key
     working_dir: /app
     env_file:
       - .env
     environment:
       PORT: 3200
+      WAIT_HOSTS: postgres:5432, grafana:5000
+      WAIT_HOSTS_TIMEOUT: 300
+      WAIT_SLEEP_INTERVAL: 5
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --insecure https://localhost:3200/health || exit 1"]
+      interval: 10s
+      timeout: 300s
+      retries: 30
     ports:
-    - "127.0.0.1:3200:3200"
+    - "3200:3200"
     depends_on:
       grafana:
-        condition: service_started
+        condition: service_healthy    
 
   admin_frontend:
     build: 
@@ -164,9 +183,7 @@ services:
     networks:
       - internal_net
     command: nginx -g "daemon off";
-    depends_on:
-      nginx_proxy:
-        condition: service_started     
+    depends_on:   
       admin_api:
         condition: service_started
 
@@ -194,7 +211,7 @@ services:
     command: -H unix:///var/run/docker.sock
     restart: unless-stopped
     ports:
-      - "127.0.0.1:9000:9000"
+      - "9000:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ${HOST_VOLUMES_PATH}/portainer_data:/data

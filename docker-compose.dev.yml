@@ -20,6 +20,43 @@ services:
       - ${SSL_CERTIFICATE_KEY_PATH}:/mosquitto/wss_certs/iot_platform.key
     restart: unless-stopped
 
+  nginx_proxy:
+    container_name: ${PLATFORM_NAME}_nginx_proxy
+    build: ./images/nginx
+    networks:
+      - internal_net
+    ports: 
+      - "80:80"
+      - "443:443"
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    restart: unless-stopped
+    volumes:
+      - ./images/nginx/static/:/static/
+      - ${SSL_CERTIFICATE_CA_PATH}:/etc/ssl/certs/iot_platform_ca.pem
+      - ${SSL_CERTIFICATE_SERVER_PATH}:/etc/ssl/certs/iot_platform_cert.cer
+      - ${SSL_CERTIFICATE_KEY_PATH}:/etc/ssl/certs/iot_platform.key
+      - ${SSL_DHPARAM_PATH}:/etc/ssl/certs/dhparam-2048.pem
+    depends_on:
+      - nodered
+
+  nodered:
+    container_name: ${PLATFORM_NAME}_nodered
+    build: ./images/nodered
+    user: "${UID}:${GID}"
+    networks:
+      - internal_net
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:1880:1880"
+    volumes:
+      - ${HOST_VOLUMES_PATH}/nodered/:/data
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy   
+
   postgres:
     container_name: ${PLATFORM_NAME}_postgres
     build:
@@ -81,24 +118,7 @@ services:
       retries: 30
     depends_on:
       postgres:
-        condition: service_healthy
-
-  nodered:
-    container_name: ${PLATFORM_NAME}_nodered
-    build: ./images/nodered
-    user: "${UID}:${GID}"
-    networks:
-      - internal_net
-    env_file:
-      - .env
-    ports:
-      - "127.0.0.1:1880:1880"
-    volumes:
-      - ${HOST_VOLUMES_PATH}/nodered/:/data
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy        
+        condition: service_healthy     
 
   grafana_renderer:
     container_name: ${PLATFORM_NAME}_grafana_rendered
@@ -176,6 +196,35 @@ services:
     depends_on:   
       admin_api:
         condition: service_started
+
+  mobile_frontend:
+    build: 
+      context: ./images/mobile_frontend
+      dockerfile: Dockerfile
+    container_name: ${PLATFORM_NAME}_mobile_frontend
+    networks:
+      - internal_net
+    command: nginx -g "daemon off";
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME}
+    depends_on:
+      admin_api:
+        condition: nginx_proxy     
+      admin_api:
+        condition: service_started
+  
+  portainer:
+    image: portainer/portainer
+    container_name: ${PLATFORM_NAME}_portainer
+    networks:
+      - internal_net
+    command: -H unix:///var/run/docker.sock
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9000:9000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${HOST_VOLUMES_PATH}/portainer_data:/data
 
 networks:
   internal_net:

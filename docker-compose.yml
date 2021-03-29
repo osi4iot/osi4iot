@@ -39,7 +39,7 @@ services:
       - ${SSL_DHPARAM_PATH}:/etc/ssl/certs/dhparam-2048.pem
     depends_on:
       - nodered
-    
+
   nodered:
     container_name: ${PLATFORM_NAME}_nodered
     build: ./images/nodered
@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_healthy   
 
   postgres:
     container_name: ${PLATFORM_NAME}_postgres
@@ -109,6 +109,7 @@ services:
       - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD}
       - GRAFANA_DATASOURCE_PASSWORD=${GRAFANA_DATASOURCE_PASSWORD}
       - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
+      - MAIN_ORGANIZATION_DATASOURCE_NAME=${MAIN_ORGANIZATION_DATASOURCE_NAME}
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]
@@ -117,7 +118,7 @@ services:
       retries: 30
     depends_on:
       postgres:
-        condition: service_healthy
+        condition: service_healthy     
 
   grafana_renderer:
     container_name: ${PLATFORM_NAME}_grafana_rendered
@@ -156,23 +157,23 @@ services:
   admin_api:
     build:
       context: ./images/admin_api
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile 
     container_name: ${PLATFORM_NAME}_admin_api
     networks:
       - internal_net
-    restart: always    
+    restart: always 
     volumes:
-      - node_modules_vol:/app/node_modules
-      - ./images/admin_api:/app
       - ${SSL_CERTIFICATE_SERVER_PATH}:/app/ssl_config/iot_platform.cer
       - ${SSL_CERTIFICATE_KEY_PATH}:/app/ssl_config/iot_platform.key
+      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs/ca.crt:/app/mqtts_certs/ca.crt
+      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs/ca.key:/app/mqtts_certs/ca.key
     working_dir: /app
     env_file:
       - .env
     environment:
       PORT: 3200
       WAIT_HOSTS: postgres:5432, grafana:5000
-      WAIT_HOSTS_TIMEOUT: 60
+      WAIT_HOSTS_TIMEOUT: 300
       WAIT_SLEEP_INTERVAL: 5
     healthcheck:
       test: ["CMD-SHELL", "curl --fail --insecure https://localhost:3200/health || exit 1"]
@@ -180,7 +181,7 @@ services:
       timeout: 300s
       retries: 30
     ports:
-    - "127.0.0.1:3200:3200"
+    - "3200:3200"
 
   admin_frontend:
     build: 
@@ -225,10 +226,3 @@ services:
 
 networks:
   internal_net:
-
-volumes:
-  node_modules_vol:
-
-
-
-
