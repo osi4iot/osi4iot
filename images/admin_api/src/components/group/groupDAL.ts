@@ -107,8 +107,9 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 	}
 
 	await createView(groupUid);
-	await insertGroup(group);
-	group.folderPermission = folderPermission;
+	const groupResponse = await insertGroup(group);
+	group.id = groupResponse.id;
+	group.folderPermission = folderPermission;;
 	await sendGroupAdminInvitationEmail(orgName, group, groupInput.groupAdminDataArray);
 	return group;
 }
@@ -279,13 +280,14 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 };
 
 
-export const insertGroup = async (group: IGroup): Promise<void> => {
-	await pool.query(`INSERT INTO grafanadb.group (org_id, team_id, folder_id,
+export const insertGroup = async (group: IGroup): Promise<IGroup> => {
+	const response = await pool.query(`INSERT INTO grafanadb.group (org_id, team_id, folder_id,
 					folder_uid, name, acronym, group_uid,
 					telegram_invitation_link, telegram_chatid,
 					email_notification_channel_id,
 					telegram_notification_channel_id, is_org_default_group)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+					RETURNING *`,
 		[
 			group.orgId,
 			group.teamId,
@@ -300,6 +302,7 @@ export const insertGroup = async (group: IGroup): Promise<void> => {
 			group.telegramNotificationChannelId,
 			group.isOrgDefaultGroup
 		])
+	return response.rows[0];
 };
 
 export const updateGroupById = async (group: IGroup): Promise<void> => {
@@ -327,11 +330,14 @@ export const deleteView = async (groupUid: string): Promise<void> => {
 	await pool.query(`DROP VIEW iot_datasource.${viewName}`);
 };
 
-export const changeGroupUidByUid = async (newGroupUid: string, oldGroupUid: string): Promise<void> => {
+export const changeGroupUidByUid = async (group: IGroup): Promise<string> => {
+	const oldGroupUid = group.groupUid;
+	const newGroupUid = uuidv4().replace(/-/g, "_");
 	await pool.query('UPDATE grafanadb.group SET group_uid = $1 WHERE group_uid = $2',
 		[newGroupUid, oldGroupUid]);
 	await deleteView(oldGroupUid);
 	await createView(newGroupUid);
+	return newGroupUid;
 };
 
 export const deleteGroup = async (group: IGroup, orgKey: string): Promise<void> => {
@@ -365,7 +371,7 @@ export const getNotificationChannelSettings = async (id: number): Promise<settin
 
 export const getNotificationChannelName = async (id: number): Promise<string> => {
 	const result = await pool.query('SELECT name FROM grafanadb.alert_notification WHERE id = $1', [id]);
-	return result.rows[0];
+	return result.rows[0].name;
 };
 
 export const getNotificationChannelUid = async (id: number): Promise<string> => {

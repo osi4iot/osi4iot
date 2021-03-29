@@ -10,6 +10,7 @@ import { addMembersToGroup, getDefaultOrgGroup } from "../group/groupDAL";
 import CreateGroupMemberDto from "../group/interfaces/groupMember.dto";
 import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import IMessage from "../../GrafanaApi/interfaces/Message";
+import { giveGeolocationPoint } from "../../utils/geolocation.ts/geolocation";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
@@ -24,13 +25,36 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 };
 
 export const updateOrganizationById = async (orgId: number, orgData: CreateOrganizationDto): Promise<void> => {
-	await pool.query('UPDATE grafanadb.org SET acronym = $1, address1 = $2,  city = $3, zip_code = $4, state = $5, country = $6 WHERE id = $7',
-		[orgData.acronym, orgData.address, orgData.city, orgData.zipCode, orgData.state, orgData.country, orgId]);
+	await pool.query(`UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5,
+					 state = $6, country = $7, geolocation = $8 WHERE id = $9`,
+		[
+			orgData.name,
+			orgData.acronym,
+			orgData.address,
+			orgData.city,
+			orgData.zipCode,
+			orgData.state,
+			orgData.country,
+			giveGeolocationPoint(orgData.longitude, orgData.latitude),
+			orgId
+		]);
 };
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
-	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7  WHERE ${propName} = $8;`;
-	const queryArray = [orgData.name, orgData.acronym, orgData.address, orgData.city, orgData.zipCode, orgData.state, orgData.country, propValue];
+	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7
+	geolocation = $8 WHERE ${propName} = $9;`;
+	const queryArray =
+		[
+			orgData.name,
+			orgData.acronym,
+			orgData.address,
+			orgData.city,
+			orgData.zipCode,
+			orgData.state,
+			orgData.country,
+			giveGeolocationPoint(orgData.longitude, orgData.latitude),
+			propValue
+		];
 	await pool.query(query, queryArray);
 }
 
@@ -46,7 +70,8 @@ export const insertOrganizationToken = async (orgId: number, apiKeyId: number, h
 };
 
 export const getOrganizations = async (): Promise<IOrganization[]> => {
-	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode", state, country
+	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode",
+					state, country, geolocation[0] AS longitude, geolocation[1] AS latitude
 					FROM grafanadb.org
 					ORDER BY id ASC;`;
 	const result = await pool.query(query);
@@ -54,7 +79,8 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 }
 
 export const getOrganizationByProp = async (propName: string, propValue: (string | number)): Promise<IOrganization> => {
-	const query = `SELECT id, org.name, acronym, address1 as adress, city, grafanadb.org.zip_code as "zipCode", state, country
+	const query = `SELECT id, org.name, acronym, address1 as adress, city, grafanadb.org.zip_code as "zipCode",
+					 state, country, geolocation[0] AS longitude, geolocation[1] AS latitude
 					FROM grafanadb.org WHERE ${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
 	return result.rows[0];
@@ -96,7 +122,7 @@ export const addUsersToOrganizationAndMembersToDefaultOrgGroup = async (orgId: n
 
 export const addAdminToOrganization = async (orgId: number, orgAdminArray: CreateUserDto[]): Promise<number[]> => {
 	orgAdminArray.forEach(user => user.roleInOrg = "Admin");
-	const adminIdArray:  number[] = [];
+	const adminIdArray: number[] = [];
 	orgAdminArray.forEach(user => adminIdArray.push(0));
 	const usersIdArray = await getUsersIdByEmailsArray(orgAdminArray.map(user => user.email));
 	const emailsArray = usersIdArray.map(user => user.email);
@@ -106,8 +132,8 @@ export const addAdminToOrganization = async (orgId: number, orgAdminArray: Creat
 		const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
 		orgAdminArray.forEach((user, index) => {
 			for (let i = 0; i < nonExistingUserArray.length; i++) {
-				if(nonExistingUserArray[i].email === user.email)  adminIdArray[index] = msg_users[i].id;
-			 }
+				if (nonExistingUserArray[i].email === user.email) adminIdArray[index] = msg_users[i].id;
+			}
 		})
 	}
 
@@ -115,8 +141,8 @@ export const addAdminToOrganization = async (orgId: number, orgAdminArray: Creat
 		const msg_users = await grafanaApi.addUsersToOrganization(orgId, existingUserArray);
 		orgAdminArray.forEach((user, index) => {
 			for (let i = 0; i < existingUserArray.length; i++) {
-				if(existingUserArray[i].email === user.email)  adminIdArray[index] = msg_users[i].userId;
-			 }
+				if (existingUserArray[i].email === user.email) adminIdArray[index] = msg_users[i].userId;
+			}
 		})
 	}
 	return adminIdArray;
@@ -143,7 +169,6 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 
 export const addOrgUsersToDefaultOrgGroup = async (orgId: number, usersAddedToOrg: CreateUserDto[]): Promise<IMessage> => {
 	const group = await getDefaultOrgGroup(orgId);
-	console.log("addOrgUsersToDefaultOrgGroup group = ", group);
 	const groupMembersArray: CreateGroupMemberDto[] = [];
 	usersAddedToOrg.forEach(user => {
 		const groupMember = {

@@ -7,4 +7,6 @@ export default interface IOrganization {
 	zipCode: string;
 	state: string;
 	country: string;
+	latitude: number;
+	longitude: number;
 }

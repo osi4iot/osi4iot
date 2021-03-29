@@ -50,6 +50,7 @@ import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import { createDemoDashboards, createHomeDashboard } from "../group/dashboardDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IOrganization from "./interfaces/organization.interface";
+import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -202,7 +203,14 @@ class OrganizationController implements IController {
 				const group = await createGroup(newOrg.orgId, defaultOrgGroup, organizationData.name, true);
 				await addOrgUsersToDefaultOrgGroup(newOrg.orgId, organizationData.orgAdminArray);
 				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
-				await createDemoDashboards(organizationData.acronym, group);
+				const defaultGroupDeviceData = {
+					name: defaultGroupDeviceName(group),
+					description: `Default device of the group ${groupName}`,
+					latitude: organizationData.longitude,
+					longitude: organizationData.longitude
+				};
+				const device = await createDevice(group, defaultGroupDeviceData, true);
+				await createDemoDashboards(organizationData.acronym, group, device);
 			}
 			const message = { message: "Organization created successfully" }
 			res.status(201).send(message);

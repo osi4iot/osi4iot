@@ -30,6 +30,7 @@
     "jsonwebtoken": "^8.5.1",
     "mkcert": "^1.4.0",
     "morgan": "^1.9.1",
+    "nanoid": "^3.1.22",
     "needle": "^2.6.0",
     "nodemailer": "^6.5.0",
     "passport": "^0.4.1",

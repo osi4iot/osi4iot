@@ -1,11 +1,15 @@
 // import pool from "../../config/dbconfig";
-import { logger } from "../../config/winston";
+import { logger } from "../config/winston";
 import { Pool, QueryResult } from "pg";
-import grafanaApi from "../../GrafanaApi"
-import { encrypt } from "../encryptAndDecrypt/encryptAndDecrypt";
-import { createGroup, defaultOrgGroupName } from "../../components/group/groupDAL";
-import { FolderPermissionOption } from "../../components/group/interfaces/FolerPermissionsOptions";
-import { createDemoDashboards, createHomeDashboard } from "../../components/group/dashboardDAL";
+import grafanaApi from "../GrafanaApi"
+import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
+import { createGroup, defaultOrgGroupName } from "../components/group/groupDAL";
+import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
+import { createDemoDashboards, createHomeDashboard } from "../components/group/dashboardDAL";
+import { createDevice, defaultGroupDeviceName } from "../components/device/deviceDAL";
+import { giveDefaultGeolocation } from "../utils/geolocation.ts/geolocation";
+import IGroup from "../components/group/interfaces/Group.interface";
+
 
 export async function dataBaseInitialization() {
 	const pool = new Pool({
@@ -73,7 +77,9 @@ export async function dataBaseInitialization() {
 		await grafanaApi.giveGrafanaAdminPermissions(2);
 		await grafanaApi.changeUserRoleInOrganization(1, 2, "Admin");
 
-		const queryString1c = 'ALTER TABLE grafanadb.org ADD COLUMN acronym varchar(20) UNIQUE';
+		const queryString1c = `ALTER TABLE grafanadb.org
+								ADD COLUMN acronym varchar(20) UNIQUE,
+								ADD COLUMN geolocation POINT`;
 		try {
 			await pool.query(queryString1c);
 			logger.log("info", `Column acronym has been added sucessfully to Table ${tableName1}`);
@@ -81,7 +87,8 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Column acronym can not be added sucessfully to Table ${tableName1}: %s`, err.message);
 		}
 
-		const queryString1d = 'UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5, state = $6, country = $7 WHERE name = $8';
+		const queryString1d = `UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5,
+								state = $6, country = $7, geolocation = $8 WHERE name = $9`;
 		const parameterArray1d = [
 			process.env.MAIN_ORGANIZATION_NAME,
 			process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
@@ -90,6 +97,7 @@ export async function dataBaseInitialization() {
 			process.env.MAIN_ORGANIZATION_ZIP_CODE,
 			process.env.MAIN_ORGANIZATION_STATE,
 			process.env.MAIN_ORGANIZATION_COUNTRY,
+			giveDefaultGeolocation(),
 			"Main Org."
 		];
 		let apiKeyMainOrg: string;
@@ -142,6 +150,10 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Data in table ${tableName2} con not been inserted: %s`, err.message);
 		}
 
+		let group: IGroup;
+		const mainOrgGroupName = defaultOrgGroupName(process.env.MAIN_ORGANIZATION_NAME, process.env.MAIN_ORGANIZATION_ACRONYM);
+		const orgAcronym = process.env.MAIN_ORGANIZATION_ACRONYM;
+		const orgName = process.env.MAIN_ORGANIZATION_NAME;
 		const tableName3 = "grafanadb.group";
 		const queryString3a = `
 			CREATE TABLE IF NOT EXISTS ${tableName3}(
@@ -189,7 +201,6 @@ export async function dataBaseInitialization() {
 				surname: process.env.PLATFORM_ADMIN_SURNAME,
 				email: process.env.PLATFORM_ADMIN_EMAIL
 			}
-			const mainOrgGroupName = defaultOrgGroupName(process.env.MAIN_ORGANIZATION_NAME, process.env.MAIN_ORGANIZATION_ACRONYM);
 			const mainOrgGroupAcronym = `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase()}_GRAL`;
 			const defaultMainOrgGroup = {
 				name: mainOrgGroupName,
@@ -200,11 +211,8 @@ export async function dataBaseInitialization() {
 				folderPermission: ("Viewer" as FolderPermissionOption),
 				groupAdminDataArray: [mainOrgGroupAdmin]
 			}
-			const group = await createGroup(1, defaultMainOrgGroup, process.env.MAIN_ORGANIZATION_NAME, false);
-			const orgAcronym = process.env.MAIN_ORGANIZATION_ACRONYM;
-			const orgName = process.env.MAIN_ORGANIZATION_NAME;
+			group = await createGroup(1, defaultMainOrgGroup, process.env.MAIN_ORGANIZATION_NAME, true);
 			await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
-			await createDemoDashboards(orgAcronym, group);
 			logger.log("info", `Table ${tableName3} has been created sucessfully`);
 		} catch (err) {
 			logger.log("error", `Table ${tableName3} can not be created: %s`, err.message);
@@ -217,6 +225,12 @@ export async function dataBaseInitialization() {
 				org_id bigint,
 				group_id bigint,
 				name VARCHAR(190) UNIQUE,
+				description TEXT,
+				device_uid VARCHAR(40) UNIQUE,
+				geolocation POINT,
+				is_default_group_device BOOLEAN,
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
 				CONSTRAINT fk_org_id
 					FOREIGN KEY(org_id)
 						REFERENCES grafanadb.org(id)
@@ -244,10 +258,23 @@ export async function dataBaseInitialization() {
 				FOREIGN KEY(group_uid)
 				REFERENCES grafanadb.group(group_uid)
 					ON DELETE CASCADE
-					ON UPDATE CASCADE;`;
+					ON UPDATE CASCADE,
+				ADD CONSTRAINT fk_device_uid
+				FOREIGN KEY(device_uid)
+					REFERENCES grafanadb.device(device_uid)
+						ON DELETE CASCADE
+						ON UPDATE CASCADE;`;
 
 		try {
 			await pool.query(queryString5a);
+			const defaultGroupDeviceData = {
+				name: defaultGroupDeviceName(group),
+				description: `Default device of the group ${mainOrgGroupName}`,
+				latitude: 0,
+				longitude: 0
+			};
+			const device = await createDevice(group, defaultGroupDeviceData, true);
+			await createDemoDashboards(orgAcronym, group, device);
 			logger.log("info", `Foreing key in table ${tableName5} has been created sucessfully`);
 		} catch (err) {
 			logger.log("error", `Foreing key in table ${tableName5} could not be created: %s`, err.message);

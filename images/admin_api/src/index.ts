@@ -4,10 +4,11 @@ import App from "./app";
 import HealthCheckController from "./utils/healthCheck/healthCheck.controller";
 import AuthenticationController from "./components/authentication/authentication.controller";
 import { logger } from "./config/winston";
-import { dataBaseInitialization } from "./utils/dbmigration/migration";
+import { dataBaseInitialization } from "./dbmigration/migration";
 import OrganizationController from "./components/organization/organization.controller";
 import ApplicationController from "./components/application/application.controller";
 import GroupController from "./components/group/group.controller";
+import DeviceController from "./components/device/device.controller";
 
 async function main(): Promise<void> {
 	try {
@@ -19,6 +20,7 @@ async function main(): Promise<void> {
 			new ApplicationController(),
 			new OrganizationController(),
 			new GroupController(),
+			new DeviceController()
 		]);
 		app.listen();
 	} catch (error) {

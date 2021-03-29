@@ -10,6 +10,7 @@ import AlreadyExistingItemException from "../../exceptions/AlreadyExistingItemEx
 import CreateGroupDto from "./interfaces/group.dto";
 import {
 	addMembersToGroup,
+	changeGroupUidByUid,
 	createGroup,
 	deleteGroup,
 	getAllGroups,
@@ -39,8 +40,9 @@ import UpdateGroupDto from "./interfaces/group_update.dto";
 import UpdateGroupMemberDto from "./interfaces/groupMemberUpdate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IGroup from "./interfaces/Group.interface";
-import { createDemoDashboards } from "./dashboardDAL";
+import { createDemoDashboards, getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfGroup } from "./dashboardDAL";
 import sslCerticatesGenerator from "./sslCerticatesGenerator";
+import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -81,6 +83,12 @@ class GroupController implements IController {
 				groupExists,
 				groupAdminAuth,
 				this.getSslCerts
+			)
+			.patch(
+				`${this.path}/:groupId/change_uid/`,
+				groupExists,
+				groupAdminAuth,
+				this.changeGroupUid
 			)
 
 		this.router
@@ -210,7 +218,14 @@ class GroupController implements IController {
 				});
 			}
 			const groupCreated = await createGroup(orgId, groupInput, req.organization.name);
-			await createDemoDashboards(req.organization.acronym, groupCreated);
+			const defaultGroupDeviceData = {
+				name: defaultGroupDeviceName(groupCreated),
+				description: `Default device of the group ${groupCreated.name}`,
+				latitude: req.organization.longitude,
+				longitude: req.organization.longitude
+			};
+			const device = await createDevice(groupCreated, defaultGroupDeviceData, true);
+			await createDemoDashboards(req.organization.acronym, groupCreated, device);
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;
 			const isOrgDefaultGroup = false;
@@ -481,6 +496,18 @@ class GroupController implements IController {
 		try {
 			const certs = await sslCerticatesGenerator(req.group);
 			res.status(200).send(certs);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private changeGroupUid = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const dashboards = await getDashboardsDataWithRawSqlOfGroup(req.group);
+			const newGroupUid = await changeGroupUidByUid(req.group);
+			await updateDashboardsDataRawSqlOfGroup(req.group, newGroupUid, dashboards);
+			const message = { newGroupUid };
+			res.status(200).send(message);
 		} catch (error) {
 			next(error);
 		}

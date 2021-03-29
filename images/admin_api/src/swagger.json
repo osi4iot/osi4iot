@@ -49,6 +49,10 @@
 		{
 			"name": "Group",
 			"description": "Management of groups in organizations of the IOT Platform - Default role required: Group_Admin"
+		},
+		{
+			"name": "Device",
+			"description": "Management of devices in groups of an organization of the IOT Platform - Default role required: Group_Admin"
 		}
 	],
 	"consumes": ["application/json"],
@@ -1473,7 +1477,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"$ref": "#/definitions/GroupMemberInput"
+								"$ref": "#/definitions/Message"
 							}
 						}
 					}
@@ -1820,8 +1824,406 @@
 						}
 					}
 				}
-			}						
-		}			
+			}
+								
+		},
+		"/group/{groupId}/change_uid": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}				
+			],
+			"patch": {
+				"tags": ["Group"],
+				"summary": "Generate a new uid for the group  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NewGroupUid"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/devices_in_org/{orgId}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": ["Device"],
+				"summary": "Get all devices in the organization - Role required: Organization_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Devices"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
+								}
+							}
+						}
+					}              
+				}
+			}
+		},
+		"/devices_in_group/{groupId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": ["Device"],
+				"summary": "Get all devices in a group of the platform - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Groups"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}              
+				}
+			}
+		},
+		"/device/{groupId}/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id, name or deviceUid of the device",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "Device property value",
+					"type": "string"
+				}				
+			],
+			"get": {
+				"tags": ["Device"],
+				"summary": "Get device by propName: id, name or deviceUid  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DeviceOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": ["Device"],
+				"summary": "Update device by propName: id, name or deviceUid  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/DeviceInput"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},			
+			"delete": {
+				"tags": ["Device"],
+				"summary": "Delete device by propName: id, name or deviceUid  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/device/{groupId}/changeUid/{deviceId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "number"
+				}			
+			],
+			"patch": {
+				"tags": ["Device"],
+				"summary": "Change deviceUid by deviceId  - Role required: Group_Admin",			
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/device/{groupId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}		
+			],
+			"post": {
+				"tags": ["Device"],
+				"summary": "Create device in a group  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/DeviceInput"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		}							
 	},
 	"definitions": {
 		"UserRegister": {
@@ -2004,6 +2406,12 @@
 				"country": {
 					"type": "string"
 				},
+				"longitude": {
+					"type": "number"
+				},
+				"latitude": {
+					"type": "number"
+				},				
 				"orgAdminArray": {
 					"type": "array",
 					"items": {
@@ -2058,6 +2466,12 @@
 				},
 				"country": {
 					"type": "string"
+				},
+				"longitude": {
+					"type": "number"
+				},
+				"latitude": {
+					"type": "number"
 				}
 			}
 		},
@@ -2447,6 +2861,81 @@
 					"type": "string"
 				},
 				"clientKey": {
+					"type": "string"
+				},
+				"validityDays": {
+					"type": "string"
+				}
+			}
+		},
+		"NewGroupUid": {
+			"type": "object",
+			"properties": {
+				"newGroupUid": {
+					"type": "string"
+				}
+			}
+		},
+		"DeviceInput": {
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"longitude": {
+					"type": "number"
+				},
+				"latitude": {
+					"type": "number"
+				}			
+			}
+		},
+		"DeviceOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"groupId": {
+					"type": "number"
+				},										
+				"name": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"isDefaultGroupDevice": {
+					"type": "boolean"
+				},				
+				"longitude": {
+					"type": "number"
+				},
+				"latitude": {
+					"type": "number"
+				},
+				"created": {
+					"type": "string"
+				},										
+				"updated": {
+					"type": "string"
+				}	
+			}
+		},
+		"Devices": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/DeviceOutput"
+			}
+		},
+		"NewDeviceUid": {
+			"type": "object",
+			"properties": {
+				"newDeviceUid": {
 					"type": "string"
 				}
 			}

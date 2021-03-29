@@ -1,10 +1,9 @@
 import { IsString } from "class-validator";
 
-class ISSLCertificates {
-	public caCert: string;
-	public clientCert: string;
-	public clientKey: string;
+export default interface ISSLCertificates {
+	caCert: string;
+	clientCert: string;
+	clientKey: string;
+	validityDays: number;
 
 }
-
-export default ISSLCertificates;

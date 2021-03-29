@@ -7,6 +7,7 @@ const sslCerticatesGenerator = async (group: IGroup): Promise<ISSLCertificates> 
 
 	const ca_crt = fs.readFileSync("./mqtts_certs/ca.crt");
 	const ca_key = fs.readFileSync("./mqtts_certs/ca.key");
+	const validityDays = parseInt(process.env.SSL_CERTS_VALIDITY_DAYS,10);
 
 	const ca_certs = {
 		key: ca_key.toString(),
@@ -17,7 +18,7 @@ const sslCerticatesGenerator = async (group: IGroup): Promise<ISSLCertificates> 
 
 	const clientCerts = await mkcert.createCert({
 		domains: [groupId],
-		validityDays: 365,
+		validityDays,
 		caKey: ca_certs.key,
 		caCert: ca_certs.cert,
 	});
@@ -25,7 +26,8 @@ const sslCerticatesGenerator = async (group: IGroup): Promise<ISSLCertificates> 
 	const certs = {
 		caCert: ca_certs.cert,
 		clientCert: clientCerts.cert,
-		clientKey: clientCerts.key
+		clientKey: clientCerts.key,
+		validityDays
 	}
 
 	return certs;
