@@ -196,4 +196,4 @@ export const isUsersDataCorrect = async (usersInputData: CreateUserDto[]): Promi
 	}
 
 	return true;
-}
+};

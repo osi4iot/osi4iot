@@ -1,4 +1,3 @@
-import { parseConnectionUrl } from "nodemailer/lib/shared";
 import { v4 as uuidv4 } from "uuid";
 import pool from "../../config/dbconfig";
 import IDevice from "../device/device.interface";

@@ -1,7 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { groupAdminAuth, organizationAdminAuth } from "../../middleware/auth.middleware";
+import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth } from "../../middleware/auth.middleware";
 import grafanaApi from "../../GrafanaApi";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
@@ -12,13 +12,12 @@ import IRequestWithOrganization from "../organization/interfaces/requestWithOrga
 import { changeDeviceUidByUid, createDevice, deleteDeviceByProp, getDeviceByProp, getDevicesByGroupId, getDevicesByOrgId, updateDeviceByProp } from "./deviceDAL";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfDevice } from "../group/dashboardDAL";
+import LoginDto from "../authentication/login.dto";
 
 class DeviceController implements IController {
 	public path = "/device";
 
 	public router = Router();
-
-	private grafanaRepository = grafanaApi;
 
 	constructor() {
 		this.initializeRoutes();
@@ -49,6 +48,13 @@ class DeviceController implements IController {
 				groupExists,
 				groupAdminAuth,
 				this.getDeviceByProp
+			)
+			.post(
+				`${this.path}_information/:groupId/:deviceId`,
+				groupExists,
+				validationMiddleware<LoginDto>(LoginDto),
+				basicGroupAdminAuth,
+				this.getDeviceById
 			)
 			.delete(
 				`${this.path}/:groupId/:propName/:propValue`,
@@ -109,6 +115,21 @@ class DeviceController implements IController {
 			if (!this.isValidDevicePropName(propName)) throw new InvalidPropNameExeception(propName);
 			const device = await getDeviceByProp(propName, propValue);
 			if (!device) throw new ItemNotFoundException("The device", propName, propValue);
+			res.status(200).json(device);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getDeviceById = async (
+		req: IRequestWithGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { deviceId } = req.params;
+			const device = await getDeviceByProp("id", deviceId);
+			if (!device) throw new ItemNotFoundException("The device", "id", deviceId);
 			res.status(200).json(device);
 		} catch (error) {
 			next(error);

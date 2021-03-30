@@ -58,7 +58,7 @@ export default function passportInitialize(): void {
 				let user;
 				try {
 					user = await getUserdByEmailOrLogin(jwtPayload.email);
-					if (!user  || jwtPayload.action !== "access") {
+					if (!user || jwtPayload.action !== "access") {
 						return done(null, false);
 					}
 					return done(null, user);
@@ -78,7 +78,33 @@ export default function passportInitialize(): void {
 				let user;
 				try {
 					user = await getUserdByEmailOrLogin(jwtPayload.email);
-					if (!user || jwtPayload.action !== "registration" ) {
+					if (!user || jwtPayload.action !== "registration") {
+						return done(null, false);
+					}
+					return done(null, user);
+				} catch (err) {
+					return done(err, null); // Error in DB
+				}
+			}
+		)
+	);
+
+	const optsRefreshToken = {
+		jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+		secretOrKey: process.env.REFRESH_TOKEN_SECRET,
+		algorithms: [process.env.JWT_ALGORITHM]
+	};
+
+	passport.use(
+		"refresh_jwt",
+		new JwtStrategy(
+			optsRefreshToken,
+			// prettier-ignore
+			async (jwtPayload, done) => {
+				let user;
+				try {
+					user = await getUserdByEmailOrLogin(jwtPayload.email);
+					if (!user || jwtPayload.action !== "refresh_token") {
 						return done(null, false);
 					}
 					return done(null, user);

@@ -61,7 +61,6 @@ class GroupController implements IController {
 				this.getGroupsManagedByUser
 			);
 
-
 		this.router
 			.get(
 				`${this.path}s/:orgId/`,

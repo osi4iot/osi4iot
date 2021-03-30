@@ -117,11 +117,11 @@
 				"produces": ["application/json"],
 				"responses": {
 					"200": {
-						"description": "User validated. Access token delivered",
+						"description": "User validated. Access and refresh token delivered",
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/Access_token"
+									"$ref": "#/definitions/LoginOutput"
 								}
 							}
 						}
@@ -139,39 +139,18 @@
 				}
 			}
 		},
-		"/auth/{groupId}/long_term_token": {
-			"parameters": [
-				{
-					"name": "groupId",
-					"in": "path",
-					"required": true,
-					"description": "Group id",
-					"type": "number"
-				}
-			],			
-			"post": {
+		"/auth/refresh_token": {
+			"patch": {
 				"tags": ["Authentication"],
-				"summary": "Request of a long term access token. Use only when safety is guaranteed. - Role required: Group_Admin",
-				"security": [],
-				"requestBody": {
-					"description": "User credentials",
-					"required": true,
-					"content": {
-						"application/json": {
-							"schema": {
-								"$ref": "#/definitions/LongTermToken"
-							}
-						}
-					}
-				},
+				"summary": "Login in the platform administration",
 				"produces": ["application/json"],
 				"responses": {
 					"200": {
-						"description": "User validated. Access token delivered",
+						"description": "User validated. Access and refresh token delivered",
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/Access_token"
+									"$ref": "#/definitions/LoginOutput"
 								}
 							}
 						}
@@ -188,7 +167,85 @@
 					}
 				}
 			}
-		},		
+		},
+		"/auth/disable_refresh_token": {
+			"delete": {
+				"tags": ["Authentication"],
+				"summary": "Disable refresh token - Role required: Platform_Admin",
+				"requestBody": {
+					"description": "User credentials",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/DisableRefreshToken"
+							}
+						}
+					}
+				},
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "Token disabled successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "User credentials not correct.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},	
+		"/auth/disable_user_refresh_tokens/{userId}": {
+			"parameters": [
+				{
+					"name": "userId",
+					"in": "path",
+					"required": true,
+					"description": "id of the user",
+					"type": "string"
+				}
+			],			
+			"delete": {
+				"tags": ["Authentication"],
+				"summary": "Disable all refresh tokens of a user - Role required: Platform_Admin",
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "Token disabled successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "User credentials not correct.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},			
 		"/auth/change_password": {
 			"patch": {
 				"tags": ["Authentication"],
@@ -2112,6 +2169,72 @@
 				}
 			}
 		},
+		"/device_information/{groupId}/{deviceId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "id of the device",
+					"type": "string"
+				}				
+			],
+			"post": {
+				"tags": ["Device"],
+				"summary": "Get device by id - Role required: Group_Admin with basic auth", 
+				"security": [],
+				"requestBody": {
+					"description": "User credentials",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/Login"
+							}
+						}
+					}
+				},					
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DeviceOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "User credentials not correct.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group or device not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/device/{groupId}/changeUid/{deviceId}": {
 			"parameters": [
 				{
@@ -2280,14 +2403,25 @@
 				"tokenLifeTime"
 			]
 		},		
-		"Access_token": {
+		"LoginOutput": {
 			"type": "object",
 			"properties": {
-				"accesToken": {
+				"accessToken": {
 					"type": "string"
-				}
+				},
+				"refreshToken": {
+					"type": "string"
+				}				
 			}
 		},
+		"DisableRefreshToken": {
+			"type": "object",
+			"properties": {
+				"refreshTokenToDisable": {
+					"type": "string"
+				}				
+			}
+		},		
 		"Credentials_rejected": {
 			"type": "object",
 			"properties": {

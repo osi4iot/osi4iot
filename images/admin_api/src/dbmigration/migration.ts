@@ -280,6 +280,30 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Foreing key in table ${tableName5} could not be created: %s`, err.message);
 		}
 
+		const tableName6 = "grafanadb.refresh_token";
+		const queryString6a = `
+			CREATE TABLE IF NOT EXISTS ${tableName6}(
+				id serial PRIMARY KEY,
+				user_id bigint,
+				token TEXT UNIQUE,
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
+				CONSTRAINT fk_user_id
+					FOREIGN KEY(user_id)
+						REFERENCES grafanadb.user(id)
+						ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_refresh_token
+			ON grafanadb.refresh_token(token);`;
+
+			try {
+				await pool.query(queryString6a);
+				logger.log("info", `Table ${tableName6} has been created sucessfully`);
+			} catch (err) {
+				logger.log("error", `Table ${tableName6} can not be created: %s`, err.message);
+			}
+
 		pool.end(() => {
 			logger.log("info", `Migration pool has ended`);
 		})

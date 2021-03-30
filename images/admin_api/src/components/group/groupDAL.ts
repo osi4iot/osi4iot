@@ -493,7 +493,8 @@ export const teamMembersPermissions = async (teamId: number, groupMembersArray: 
 }
 
 
-export const haveThisUserGroupAdminPermissions = async (userId: number, teamId: number, orgId: number): Promise<boolean> => {
+export const haveThisUserGroupAdminPermissions = async (userId: number, group: IGroup, orgId: number): Promise<boolean> => {
+	const teamId = group.teamId;
 	let havePermissions = false;
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND user_id = $2 AND permission = $3',
 		[teamId, userId, 4]);
