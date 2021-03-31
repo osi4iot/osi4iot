@@ -131,10 +131,9 @@ services:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
     volumes:
-       - ${HOST_VOLUMES_PATH}/pgadmin_data/servers.json:/pgadmin4/servers.json
-       - ${HOST_VOLUMES_PATH}/pgadmin_data/pgadmin:/var/lib/pgadmin
+       - ${HOST_VOLUMES_PATH}/pgadmin_data/pgadmin:/pgadmin
     ports:
-      - "127.0.0.1:5050:80"
+      - "127.0.0.1:5050:5050"
     networks:
       - internal_net
     healthcheck:
@@ -147,7 +146,7 @@ services:
   admin_api:
     build:
       context: ./images/admin_api
-      dockerfile: Dockerfile 
+      dockerfile: Dockerfile.rpi4
     container_name: ${PLATFORM_NAME}_admin_api
     networks:
       - internal_net
@@ -162,9 +161,6 @@ services:
       - .env
     environment:
       PORT: 3200
-      WAIT_HOSTS: postgres:5432, grafana:5000
-      WAIT_HOSTS_TIMEOUT: 300
-      WAIT_SLEEP_INTERVAL: 5
     healthcheck:
       test: ["CMD-SHELL", "curl --fail --insecure https://localhost:3200/health || exit 1"]
       interval: 10s

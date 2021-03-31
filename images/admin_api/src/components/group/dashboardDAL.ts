@@ -5,6 +5,7 @@ import { accelDashboardJson } from "./defaultDashboards/accelDashboardJson";
 import { homeDashboardJson } from "./defaultDashboards/homeDashboardJson";
 import { tempDashboardJson } from "./defaultDashboards/tempDashboardJson";
 import { getNotificationChannelUid } from "./groupDAL";
+import IAlert from "./interfaces/Alert.interface";
 import IDashboardData from "./interfaces/DashboardData.interface";
 import IGroup from "./interfaces/Group.interface";
 
@@ -128,7 +129,9 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	tempDashboard.panels[0].alert.notifications[0].uid = emailNotificationChannelUid;
 	const telegramNotificationChannelUid = await getNotificationChannelUid(group.telegramNotificationChannelId);
 	tempDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
-	await insertDashboard(group.orgId, group.folderId, titleTempDashboard, tempDashboard);
+	const responseTemp = await insertDashboard(group.orgId, group.folderId, titleTempDashboard, tempDashboard);
+	const tempAlert = createTempDemoAlert(group.orgId, responseTemp.id, 2, tempDashboard.panels[0].alert)
+	await createAlert(tempAlert);
 
 	const accelDashboard = JSON.parse(accelDashboardJson);
 	const titleTempAccelDashboard = `${grouAcronym.replace(/ /g, "_")}_Accel_demo`;
@@ -139,6 +142,55 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
 	await insertDashboard(group.orgId, group.folderId, titleTempAccelDashboard, accelDashboard);
 };
+
+export const createAlert = async (alertData: Partial<IAlert>): Promise<void> => {
+	const response = await pool.query(`INSERT INTO grafanadb.alert (version, dashboard_id, panel_id,
+					org_id, name, message, state, settings, frequency, handler, severity, silenced,
+					execution_error, eval_data, new_state_date, state_changes, created, updated, "for")
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15,
+					NOW(), NOW(), $16)`,
+		[
+			alertData.version,
+			alertData.dashboardId,
+			alertData.panelId,
+			alertData.orgId,
+			alertData.name,
+			alertData.message,
+			alertData.state,
+			alertData.settings,
+			alertData.frequency,
+			alertData.handler,
+			'',
+			false,
+			'',
+			'',
+			0,
+			alertData.for]
+	);
+}
+
+const createTempDemoAlert = (orgId: number, dashboardId: number, panelId: number, settings: any): Partial<IAlert> => {
+	const alert: Partial<IAlert> = {
+		version: 0,
+		dashboardId,
+		panelId,
+		orgId,
+		name: "Temperature evolution alert",
+		message: "Device temperature has exceeded 50°C, please try to fix it as soon as possible",
+		state: 'unknown',
+		settings,
+		frequency: 60,
+		handler: 1,
+		severity: "",
+		silenced: false,
+		executionError: "",
+		evalData: "",
+		stateChanges: 0,
+		for: 180000000000
+	}
+	return alert;
+}
+
 
 
 
