@@ -33,5 +33,8 @@ images/admin_api/build
 images/admin_api/ssl_config
 images/admin_api/mqtts_certs
 images/admin_api/logs
+images/sensor_demo/nodejs/temp_monitoring/certs
+images/sensor_demo/nodejs/temp_monitoring/node_modules
+images/sensor_demo/nodejs/temp_monitoring/.env
 !README.md
 

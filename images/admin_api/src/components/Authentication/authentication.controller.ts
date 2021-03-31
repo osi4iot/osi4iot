@@ -12,21 +12,10 @@ import { userAuth, registerAuth, superAdminAuth } from "../../middleware/auth.mi
 import grafanaApi from '../../GrafanaApi';
 import UserRegisterDto from "./userRegister.dto";
 import { updateOrganizationUser } from "../user/userDAL";
-import groupExists from "../../middleware/groupExists.middleware";
-import { haveThisUserGroupAdminPermissions } from "../group/groupDAL";
-import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
-import CreateLongTermTokenDto from "./longTermToken.dto";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
 import { deleteRefreshToken, deleteUserRefreshTokens, exitsRefreshToken, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
 
-
-interface IJwtPayload {
-	id: string;
-	email: string;
-	iat: number;
-	exp: number;
-}
 
 interface ILoginOutput {
 	accessToken: string;

@@ -58,6 +58,7 @@
     "@types/node": "^13.7.0",
     "@types/nodemailer": "^6.4.1",
     "@types/passport": "^1.0.2",
+    "@types/passport-http": "^0.3.8",
     "@types/passport-jwt": "^3.0.3",
     "@types/passport-local": "^1.0.33",
     "@types/pg": "^7.14.9",
