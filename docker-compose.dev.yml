@@ -69,6 +69,7 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
       GRAFANA_DATASOURCE_PASSWORD: ${GRAFANA_DATASOURCE_PASSWORD}
+      TZ: ${TIME_ZONE}
     volumes:
       - ${HOST_VOLUMES_PATH}/pgdata:/var/lib/postgresql/data
     ports:

@@ -14,8 +14,15 @@ import UserRegisterDto from "./userRegister.dto";
 import { updateOrganizationUser } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
-import { deleteRefreshToken, deleteUserRefreshTokens, exitsRefreshToken, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
+import { deleteRefreshToken, deleteUserRefreshTokens, exitsRefreshToken, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
 
+interface IJwtPayload {
+	id: string;
+	email: string;
+	action: string;
+	iat: number;
+	exp: number;
+}
 
 interface ILoginOutput {
 	accessToken: string;
@@ -50,32 +57,59 @@ class AuthenticationController implements IController {
 
 	}
 
-	private generateLoginOutput = (user: IUser): ILoginOutput => {
-		const payloadAccessToken = {
-			id: user.id,
-			email: user.email,
-			action: "access"
-		};
-
-		const algorithm = process.env.JWT_ALGORITHM as jwt.Algorithm;
-		const accessToken = jwt.sign({ ...payloadAccessToken }, process.env.ACCESS_TOKEN_SECRET, {
-			algorithm,
-			expiresIn: parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10)
-		});
-
-
+	private generateNewRefreshToken = (user: IUser) => {
 		const payloadRefreshToken = {
 			id: user.id,
 			email: user.email,
 			action: "refresh_token"
 		};
 
-		const  refreshToken	= jwt.sign({ ...payloadRefreshToken }, process.env.REFRESH_TOKEN_SECRET, {
+		const algorithm = process.env.JWT_ALGORITHM as jwt.Algorithm;
+		const refreshToken = jwt.sign({ ...payloadRefreshToken }, process.env.REFRESH_TOKEN_SECRET, {
 			algorithm,
 			expiresIn: parseInt(process.env.REFRESH_TOKEN_LIFETIME, 10)
 		});
 
-		const loginOutput: ILoginOutput = {
+		return refreshToken;
+
+	}
+
+	private generateLoginOutput = async (user: IUser): Promise<ILoginOutput> => {
+		const payloadAccessToken = {
+			id: user.id,
+			email: user.email,
+			action: "access"
+		};
+
+		let loginOutput: ILoginOutput;
+		const algorithm = process.env.JWT_ALGORITHM as jwt.Algorithm;
+		const accessToken = jwt.sign({ ...payloadAccessToken }, process.env.ACCESS_TOKEN_SECRET, {
+			algorithm,
+			expiresIn: parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10)
+		});
+
+		const existentRefreshToken = await getRefreshTokenByUserId(user.id);
+		let refreshToken;
+		if (existentRefreshToken)  {
+			const decoded = jwt.decode(existentRefreshToken.token) as IJwtPayload;
+			const expirationDate = new Date(decoded.exp * 1000);
+			const timeframe = parseInt(process.env.REFRESH_TOKEN_LIFETIME, 10)*0.1;
+			const accessTokenLifeTime = parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10);
+			const nextRefreshDate = new Date(Date.now() + (accessTokenLifeTime - timeframe) * 1000);
+			refreshToken = existentRefreshToken.token;
+			console.log("expirationDate= ", expirationDate);
+			console.log("nextRefreshDate= ", nextRefreshDate);
+			if (expirationDate > nextRefreshDate) refreshToken = existentRefreshToken.token;
+			else {
+				refreshToken = this.generateNewRefreshToken(user);
+				await updateRefreshToken(existentRefreshToken.token, refreshToken);
+			}
+		} else {
+			refreshToken = this.generateNewRefreshToken(user);
+			await insertRefreshToken(user.id, refreshToken);
+		}
+
+		loginOutput = {
 			accessToken,
 			refreshToken
 		};
@@ -94,8 +128,7 @@ class AuthenticationController implements IController {
 				}
 
 				try {
-					const loginOutput = this.generateLoginOutput(user);
-					await insertRefreshToken(user.id, loginOutput.refreshToken);
+					const loginOutput = await this.generateLoginOutput(user);
 					return res.status(200).json(loginOutput);
 				} catch (error) {
 					return next(error);
@@ -164,11 +197,10 @@ class AuthenticationController implements IController {
 				try {
 					const oldRefreshToken: string = req.headers.authorization.slice(7);
 					const isRefreshTokenCorrect = await exitsRefreshToken(oldRefreshToken);
-					if (!isRefreshTokenCorrect ) {
-					  return next(new HttpException(404, "The refresh token supplied does not exist"));
+					if (!isRefreshTokenCorrect) {
+						return next(new HttpException(404, "The refresh token supplied does not exist"));
 					}
-					const loginOutput = this.generateLoginOutput(user);
-					await updateRefreshToken(oldRefreshToken, loginOutput.refreshToken);
+					const loginOutput = await this.generateLoginOutput(user);
 					return res.status(200).json(loginOutput);
 				} catch (error) {
 					return next(error);
@@ -188,7 +220,7 @@ class AuthenticationController implements IController {
 	};
 
 	private disableUsersRefreshToken = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
-		const userId = parseInt(req.params.userId,10);
+		const userId = parseInt(req.params.userId, 10);
 		try {
 			const message = await deleteUserRefreshTokens(userId);
 			res.status(200).json({ message });

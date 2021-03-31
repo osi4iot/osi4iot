@@ -1,4 +1,5 @@
 import pool from "../../config/dbconfig";
+import IRefreshToken from "./refreshToken.interface";
 
 export const insertRefreshToken = async (userId: number, refreshToken: string): Promise<void> => {
 	const result = await pool.query(`INSERT INTO grafanadb.refresh_token (user_id, token, created, updated)
@@ -33,8 +34,14 @@ export const deleteUserRefreshTokens = async (userId: number): Promise<string> =
 };
 
 export const updateRefreshToken = async (oldRefreshToken: string, newRefreshToken: string): Promise<void> => {
-	const result = await pool.query('UPDATE grafanadb.refresh_token SET token = $1 WHERE token = $2 RETURNING *',
+	const result = await pool.query('UPDATE grafanadb.refresh_token SET token = $1, updated = NOW() WHERE token = $2 RETURNING *',
 		[newRefreshToken, oldRefreshToken]);
+};
+
+export const getRefreshTokenByUserId = async (userId: number): Promise<IRefreshToken> => {
+	const result = await pool.query(`SELECT id, user_id AS "userId", token, created, updated
+							 		FROM grafanadb.refresh_token WHERE user_id = $1`, [userId]);
+	return result.rows[0];
 };
 
 
