@@ -1,5 +1,5 @@
 module.exports = {
-	host: process.env.MQTT_HOST, // process.env.MQTT_HOST, '192.168.1.41', '147.83.143.71', '10.5.49.99',//Here it is used the server IP
+	host: process.env.MQTT_HOST,
 	clientId: "RPI_1",
 	port: 8883, //1883 or 8883
 	groupId: process.env.GROUP_ID,
