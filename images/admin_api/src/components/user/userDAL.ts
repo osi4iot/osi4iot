@@ -182,8 +182,8 @@ export const isUsersDataCorrect = async (usersInputData: CreateUserDto[]): Promi
 						WHERE name =  ANY($1::varchar(225)[])
 						OR login =  ANY($2::varchar(190)[])
 						OR email =  ANY($3::varchar(190)[])
-						OR telegram_id = ANY($3::varchar(200)[])`,
-			[namesArray, loginArray, emailsArray]);
+						OR telegram_id = ANY($4::varchar(200)[])`,
+			[namesArray, loginArray, emailsArray, telegramIdArray]);
 	const existentUsers = response.rows;
 
 	if (existentUsers.length > usersInputData.length) return false;

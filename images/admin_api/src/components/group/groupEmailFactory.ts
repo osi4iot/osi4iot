@@ -196,7 +196,7 @@ export const sendRemoveGroupInformationEmail = async (group: IGroup, groupMember
 		let mailBody =
 			`<p>Dear ${memberFirstName},</p>
 			<p>This cycle is over and your participation in the group: "${group.name}"${removeOrgComment} is no longer necessary.</p>
-			<p>Thank you for your colaboration.</p>`;
+			<p>Thank you for your collaboration.</p>`;
 		mailBody =
 			`${mailBody}
 			<br>

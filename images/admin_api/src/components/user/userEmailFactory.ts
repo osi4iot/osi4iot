@@ -20,7 +20,7 @@ export const sendUserRegistrationInvitationEmail = async (usersArray: CreateUser
 			algorithm,
 			expiresIn: parseInt(process.env.REGISTRATION_TOKEN_LIFETIME, 10)
 		});
-		const registrationLink = `https://${process.env.DOMAIN_NAME}/admin_frontend/register?token=${registrationToken}`;
+		const registrationLink = `https://${process.env.DOMAIN_NAME}/admin/register?token=${registrationToken}`;
 
 		let mailBody =
 			`<p>Dear ${userFirstName},</p>

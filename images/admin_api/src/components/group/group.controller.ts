@@ -43,6 +43,7 @@ import IGroup from "./interfaces/Group.interface";
 import { createDemoDashboards, getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfGroup } from "./dashboardDAL";
 import sslCerticatesGenerator from "./sslCerticatesGenerator";
 import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
+import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -281,8 +282,8 @@ class GroupController implements IController {
 			const group = await getGroupByProp(propName, propValue);
 			if (!group) throw new ItemNotFoundException("The group", propName, propValue);
 			const orgKey = await getOrganizationKey(orgId);
-			await deleteGroup(group, orgKey);
-			res.status(200).send(group);
+			const message = await deleteGroup(group, orgKey);
+			res.status(200).send({message});
 		} catch (error) {
 			next(error);
 		}
@@ -505,6 +506,7 @@ class GroupController implements IController {
 			const dashboards = await getDashboardsDataWithRawSqlOfGroup(req.group);
 			const newGroupUid = await changeGroupUidByUid(req.group);
 			await updateDashboardsDataRawSqlOfGroup(req.group, newGroupUid, dashboards);
+			await updateGroupUidOfRawSqlAlertSettingOfGroup(req.group, newGroupUid);
 			const message = { newGroupUid };
 			res.status(200).send(message);
 		} catch (error) {

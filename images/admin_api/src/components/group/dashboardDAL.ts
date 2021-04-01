@@ -1,8 +1,11 @@
 import { v4 as uuidv4 } from "uuid";
 import pool from "../../config/dbconfig";
 import IDevice from "../device/device.interface";
+import { createAlert } from "./alertDAL";
+import { getDataSourceByProp } from "./datasourceDAL";
 import { accelDashboardJson } from "./defaultDashboards/accelDashboardJson";
 import { homeDashboardJson } from "./defaultDashboards/homeDashboardJson";
+import { tempAlertJson } from "./defaultDashboards/tempAlertJson";
 import { tempDashboardJson } from "./defaultDashboards/tempDashboardJson";
 import { getNotificationChannelUid } from "./groupDAL";
 import IAlert from "./interfaces/Alert.interface";
@@ -63,7 +66,7 @@ export const updateDashboardsDataRawSqlOfGroup = async (group: IGroup, newGroupU
 		updateRawSqlQueries.push(query);
 	});
 	await Promise.all(updateRawSqlQueries);
-}
+};
 
 export const updateDashboardsDataRawSqlOfDevice = async (device: IDevice, newDeviceUid: string, dashboardsWithRawSql: IDashboardData[]): Promise<void> => {
 	const updateRawSqlQueries: any[] = [];
@@ -84,7 +87,7 @@ export const updateDashboardsDataRawSqlOfDevice = async (device: IDevice, newDev
 		updateRawSqlQueries.push(query);
 	});
 	await Promise.all(updateRawSqlQueries);
-}
+};
 
 export const updateDashboardData = async (dashboardId: number, data: any): Promise<void> => {
 	const now = new Date();
@@ -113,6 +116,7 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 
 export const createDemoDashboards = async (orgAcronym: string, group: IGroup, device: IDevice): Promise<void> => {
 	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").toLowerCase()}_db`;
+	const dataSource = await getDataSourceByProp("name", dataSourceName);
 	const grouAcronym = group.acronym;
 	const tempDashboard = JSON.parse(tempDashboardJson);
 	const titleTempDashboard = `${grouAcronym.replace(/ /g, "_")}_Temp_demo`;
@@ -130,7 +134,13 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	const telegramNotificationChannelUid = await getNotificationChannelUid(group.telegramNotificationChannelId);
 	tempDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
 	const responseTemp = await insertDashboard(group.orgId, group.folderId, titleTempDashboard, tempDashboard);
-	const tempAlert = createTempDemoAlert(group.orgId, responseTemp.id, 2, tempDashboard.panels[0].alert)
+
+	const tempAlertData = JSON.parse(tempAlertJson);
+	tempAlertData.conditions[0].query.datasourceId = dataSource.id;
+	tempAlertData.conditions[0].query.model.rawSql = rawSqlTemp;
+	tempAlertData.notifications[0].uid = emailNotificationChannelUid;
+	tempAlertData.notifications[1].uid = telegramNotificationChannelUid;
+	const tempAlert = createTempDemoAlert(group.orgId, responseTemp.id, 2, tempAlertData);
 	await createAlert(tempAlert);
 
 	const accelDashboard = JSON.parse(accelDashboardJson);
@@ -143,31 +153,6 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	await insertDashboard(group.orgId, group.folderId, titleTempAccelDashboard, accelDashboard);
 };
 
-export const createAlert = async (alertData: Partial<IAlert>): Promise<void> => {
-	const response = await pool.query(`INSERT INTO grafanadb.alert (version, dashboard_id, panel_id,
-					org_id, name, message, state, settings, frequency, handler, severity, silenced,
-					execution_error, eval_data, new_state_date, state_changes, created, updated, "for")
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15,
-					NOW(), NOW(), $16)`,
-		[
-			alertData.version,
-			alertData.dashboardId,
-			alertData.panelId,
-			alertData.orgId,
-			alertData.name,
-			alertData.message,
-			alertData.state,
-			alertData.settings,
-			alertData.frequency,
-			alertData.handler,
-			'',
-			false,
-			'',
-			'',
-			0,
-			alertData.for]
-	);
-}
 
 const createTempDemoAlert = (orgId: number, dashboardId: number, panelId: number, settings: any): Partial<IAlert> => {
 	const alert: Partial<IAlert> = {

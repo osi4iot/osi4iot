@@ -23,7 +23,6 @@ import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import UpdateGroupDto from "./interfaces/group_update.dto";
 import INotificationChannel from "./interfaces/NotificationChannel";
 
-
 export const defaultOrgGroupName =  (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
 	if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").toUpperCase()}_general`;
@@ -133,6 +132,13 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 
 		const telegramNotifChannelName = `${groupData.acronym}_telegram_NC`
 		await updateNotificationChannelName(groupData.telegramNotificationChannelId, telegramNotifChannelName);
+	}
+
+	if (groupData.telegramChatId !== existentGroup.telegramChatId) {
+		const settings = await getNotificationChannelSettings(groupData.telegramNotificationChannelId);
+		const oldSettings: IGrafanaNotificationChannelSettings = JSON.parse(settings.settings);
+		const newSettings = { bottoken: oldSettings.bottoken, uploadImage: oldSettings.uploadImage, chatid: groupData.telegramChatId };
+		await updateNotificationChannelSettings(groupData.telegramNotificationChannelId, newSettings);
 	}
 	await sendChangeGroupDataInformationEmail(groupData, existentGroup.name);
 }
@@ -339,11 +345,16 @@ export const changeGroupUidByUid = async (group: IGroup): Promise<string> => {
 	return newGroupUid;
 };
 
-export const deleteGroup = async (group: IGroup, orgKey: string): Promise<void> => {
-	await pool.query('DELETE FROM grafanadb.group WHERE id = $1', [group.id]);
+export const deleteGroup = async (group: IGroup, orgKey: string): Promise<string> => {
+	const response = await pool.query('DELETE FROM grafanadb.group WHERE id = $1 RETURNING *', [group.id]);
 	await grafanaApi.deleteFolderByUid(group.folderUid, orgKey);
 	await grafanaApi.deleteTeamById(group.teamId);
 	await deleteView(group.groupUid);
+	await deleteNotificationChannelById(group.telegramNotificationChannelId);
+	await deleteNotificationChannelById(group.emailNotificationChannelId);
+	let message = "The group could not be deleted";
+	if (response.rows[0]) message = "Group deleted successfully";
+	return message;
 };
 
 export const deleteGroupByName = async (groupName: string, orgKey: string): Promise<void> => {
@@ -359,11 +370,18 @@ export const updateNotificationChannelSettings = async (id: number, settings: se
 	await pool.query('UPDATE grafanadb.alert_notification SET settings = $1 WHERE id = $2', [settings, id]);
 };
 
+export const deleteNotificationChannelById = async (id: number): Promise<string> => {
+	const response = await pool.query('DELETE FROM grafanadb.alert_notification WHERE id = $1 RETURNING *', [id]);
+	let message = "Alert notification could not be deleted";
+	if (response.rows[0]) message = "Alert notification deleted successfully";
+	return message;
+};
+
 export const updateNotificationChannelName = async (id: number, newName: string): Promise<void> => {
 	await pool.query('UPDATE grafanadb.alert_notification SET name = $1 WHERE id = $2', [newName, id]);
 };
 
-export const getNotificationChannelSettings = async (id: number): Promise<settingType> => {
+export const getNotificationChannelSettings = async (id: number): Promise<any> => {
 	const result = await pool.query('SELECT settings FROM grafanadb.alert_notification WHERE id = $1', [id]);
 	return result.rows[0];
 };
@@ -501,9 +519,10 @@ export const haveThisUserGroupAdminPermissions = async (userId: number, group: I
 
 	if (result.rows[0].count === "0") {
 		havePermissions = await isThisUserOrgAdmin(userId, orgId);
+	} else {
+		havePermissions = true;
 	}
 	return havePermissions;
-
 }
 
 export const getNumberOfGroupMemberWithAdminRole = async (teamId: number): Promise<number> => {
@@ -562,8 +581,9 @@ export const addMembersToGroup = async (group: IGroup, groupMembersArray: Create
 	await teamMembersPermissions(group.teamId, groupMembersAddedArray);
 	await setFolderPermissionsForNewAddedMember(group, groupMembersAddedArray);
 
-	const oldNotificationEmailSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
-	const oldAddress = (oldNotificationEmailSettings as IEmailNotificationChannelSettings).addresses;
+	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
+	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
+	const oldAddress = oldNotificationEmailSettings.addresses;
 	const newAddress = `${oldAddress},${groupMembersAddedArray.map(member => member.email).join()}`;
 	const newSettings = { addresses: newAddress };
 	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
@@ -648,13 +668,25 @@ export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: 
 		await removeFolderPermissionsForMemberArray(group, groupMembersToRemoveFolderPermissions)
 	}
 
-	const userIdsArray = groupMembersToRemove.map(member => member.userId);
-	const msgArray = await grafanaApi.removeMembersFromTeam(group.teamId, userIdsArray);
+	const memberIdsArray = groupMembersToRemove.map(member => member.userId);
+	const msgArray = await grafanaApi.removeMembersFromTeam(group.teamId, memberIdsArray);
 	let numGroupMembersRemoved = 0;
 	msgArray.forEach(msg => {
 		if (msg.message === "Team Member removed") numGroupMembersRemoved++;
 	});
 	await sendRemoveGroupInformationEmail(group, groupMembersToRemove);
+
+	const memberToRemoveEmailsArray = groupMembersToRemove.map(member => member.email);
+	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
+	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
+	const oldAddressArray = oldNotificationEmailSettings.addresses.split(",");
+	console.log("OJO oldAddressArray=", oldAddressArray);
+	console.log("OJO memberToRemoveEmailsArray=", memberToRemoveEmailsArray);
+	const newEmailsArray = oldAddressArray.filter(email => memberToRemoveEmailsArray.indexOf(email) === -1);
+	const newAddress = newEmailsArray.join();
+	const newSettings = { addresses: newAddress };
+	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
+
 	let message: string;
 	if (numGroupMembersRemoved === 0) message = "No one member has been removed of the group";
 	else if (numGroupMembersRemoved === 1) message = "Has been removed one member of the group";

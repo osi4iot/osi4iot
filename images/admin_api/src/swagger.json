@@ -713,7 +713,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"$ref": "#/definitions/OrganizationInput"
+								"$ref": "#/definitions/OrganizationUpdate"
 							}
 						}
 					}
@@ -2261,7 +2261,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/Message"
+									"$ref": "#/definitions/NewDeviceUid"
 								}
 							}
 						}
@@ -2540,12 +2540,18 @@
 				"country": {
 					"type": "string"
 				},
+				"telegramInvitationLink": {
+					"type": "string"
+				},
+				"telegramChatId": {
+					"type": "string"
+				},				
 				"longitude": {
 					"type": "number"
 				},
 				"latitude": {
 					"type": "number"
-				},				
+				},								
 				"orgAdminArray": {
 					"type": "array",
 					"items": {
@@ -2554,6 +2560,38 @@
 				}
 			}
 		},
+		"OrganizationUpdate": {
+			"type": "object",
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"acronym": {
+					"type": "string"
+				},
+				"address": {
+					"type": "string"
+				},
+				"city": {
+					"type": "string"
+				},
+				"zipCode": {
+					"type": "string"
+				},
+				"state": {
+					"type": "string"
+				},
+				"country": {
+					"type": "string"
+				},				
+				"longitude": {
+					"type": "number"
+				},
+				"latitude": {
+					"type": "number"
+				}
+			}
+		},		
 		"OrgAdminInput": {
 			"properties": {
 				"firstName": {

@@ -127,7 +127,6 @@ export const basicGroupAdminAuth = async (req: IRequestWithUserAndGroup, res: Re
 			return next(new HttpException(401, "You are not allowed to access."));
 		}
 
-		const { groupId } = req.params;
 		const orgId = req.group.orgId;
 		const group = req.group;
 

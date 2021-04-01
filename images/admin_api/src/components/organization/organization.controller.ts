@@ -51,6 +51,7 @@ import { createDemoDashboards, createHomeDashboard } from "../group/dashboardDAL
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IOrganization from "./interfaces/organization.interface";
 import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
+import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -125,7 +126,7 @@ class OrganizationController implements IController {
 			.patch(
 				`${this.path}/:propName/:propValue`,
 				superAdminAuth,
-				validationMiddleware<CreateOrganizationDto>(CreateOrganizationDto, true),
+				validationMiddleware<UpdateOrganizationDto>(UpdateOrganizationDto, true),
 				this.modifyOrganizationByProp
 			)
 			.delete(`${this.path}/:propName/:propValue`, superAdminAuth, this.deleteOrganizationByProp)
@@ -164,7 +165,7 @@ class OrganizationController implements IController {
 				if (exits_OrganizationWithAcronym) throw new AlreadyExistingItemException("An", "Organization", ["acronym"], [organizationData.acronym]);
 			} else {
 				if (!(await isUsersDataCorrect(organizationData.orgAdminArray)))
-					throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
+					throw new HttpException(400, "The same values of name, login, email and/or telegramId of some user already exists.")
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				await updateOrganizationById(newOrg.orgId, organizationData);
 				const apyKeyName = `ApiKey_${organizationData.acronym}`
@@ -249,7 +250,8 @@ class OrganizationController implements IController {
 				await addOrgUsersToDefaultOrgGroup(orgId, [orgUserData]);
 				user_msg = msg_users[0];
 			}
-			res.status(200).send(user_msg);
+			const message = { message: user_msg.message };
+			res.status(200).send(message);
 		} catch (error) {
 			next(error);
 		}
@@ -416,7 +418,7 @@ class OrganizationController implements IController {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(propName);
-			const orgDataToUpdate: Partial<CreateOrganizationDto> = req.body;
+			const orgDataToUpdate: UpdateOrganizationDto = req.body;
 			const oldOrganizationData = await getOrganizationByProp(propName, propValue);
 			if (!oldOrganizationData) throw new ItemNotFoundException("The organization", propName, propValue);
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
@@ -433,10 +435,12 @@ class OrganizationController implements IController {
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const organization = await getOrganizationByProp(propName, propValue);
 			if (!organization) throw new ItemNotFoundException("The Organization", propName, propValue);
+			if (organization.id === 1) throw new HttpException(400, "Main organization can not be deleted");
 			const defaultOrgGroup = await getDefaultOrgGroup(organization.id);
 			const orgKey = await getOrganizationKey(organization.id);
 			await deleteGroup(defaultOrgGroup, orgKey);
 			await grafanaApi.deleteOrganizationById(organization.id);
+			await grafanaApi.switchOrgContextForAdmin(1);
 			res.status(200).json({ message: `Organization deleted successfully` });
 		} catch (error) {
 			next(error);

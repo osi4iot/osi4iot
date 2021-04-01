@@ -41,7 +41,7 @@ export const updateOrganizationById = async (orgId: number, orgData: CreateOrgan
 };
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
-	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7
+	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7,
 	geolocation = $8 WHERE ${propName} = $9;`;
 	const queryArray =
 		[

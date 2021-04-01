@@ -2,7 +2,6 @@ import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth } from "../../middleware/auth.middleware";
-import grafanaApi from "../../GrafanaApi";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -13,6 +12,7 @@ import { changeDeviceUidByUid, createDevice, deleteDeviceByProp, getDeviceByProp
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfDevice } from "../group/dashboardDAL";
 import LoginDto from "../authentication/login.dto";
+import { updateDeviceUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -186,6 +186,7 @@ class DeviceController implements IController {
 			const dashboards = await getDashboardsDataWithRawSqlOfGroup(req.group);
 			const newDeviceUid = await changeDeviceUidByUid(device);
 			await updateDashboardsDataRawSqlOfDevice(device, newDeviceUid, dashboards);
+			await updateDeviceUidRawSqlAlertSettingOfGroup(req.group,device.deviceUid, newDeviceUid);
 			const message = { newDeviceUid };
 			res.status(200).json(message);
 		} catch (error) {

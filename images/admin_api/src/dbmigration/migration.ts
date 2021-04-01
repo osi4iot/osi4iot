@@ -237,7 +237,7 @@ export async function dataBaseInitialization() {
 						ON DELETE CASCADE,
 				CONSTRAINT fk_group_id
 					FOREIGN KEY(group_id)
-						REFERENCES grafanadb.team(id)
+						REFERENCES grafanadb.group(id)
 						ON DELETE CASCADE
 			);
 
@@ -297,12 +297,27 @@ export async function dataBaseInitialization() {
 			CREATE INDEX IF NOT EXISTS idx_refresh_token
 			ON grafanadb.refresh_token(token);`;
 
-			try {
-				await pool.query(queryString6a);
-				logger.log("info", `Table ${tableName6} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableName6} can not be created: %s`, err.message);
-			}
+		try {
+			await pool.query(queryString6a);
+			logger.log("info", `Table ${tableName6} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableName6} can not be created: %s`, err.message);
+		}
+
+		const tableName7 = "grafanadb.alert_notification";
+		const queryString7a = `
+				ALTER TABLE grafanadb.alert_notification
+					ADD CONSTRAINT fk_org_id
+					FOREIGN KEY(org_id)
+					REFERENCES grafanadb.org(id)
+						ON DELETE CASCADE;`;
+
+		try {
+			await pool.query(queryString7a);
+			logger.log("info", `Foreing key in table ${tableName7} has been added sucessfully`);
+		} catch (err) {
+			logger.log("error", `Foreing key in table ${tableName7} couldd not be added: %s`, err.message);
+		}
 
 		pool.end(() => {
 			logger.log("info", `Migration pool has ended`);
