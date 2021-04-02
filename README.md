@@ -1,7 +1,5 @@
-# IOT EEBE PLATFORM
+# OSI4IOT
 
-An IOT platform based in several open source tools for using in Barcelona East School of Engineering (EEBE)
-
-Polytechnic University of Catalonia (UPC).
+Open Source Integration for Internet of Things
 
 ATENTION: This application is in development phase!!!
