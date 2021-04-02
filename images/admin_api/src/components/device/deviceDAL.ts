@@ -65,6 +65,7 @@ export const createDevice =  async (group: IGroup, deviceInput: CreateDeviceDto,
 
 export const getDeviceByProp = async (propName: string, propValue: (string | number)): Promise<IDevice> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
+	                                grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[0] AS latitude,
@@ -78,6 +79,7 @@ export const getDeviceByProp = async (propName: string, propValue: (string | num
 
 export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
+									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[0] AS latitude,
@@ -86,7 +88,7 @@ export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> =
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.device.group_id = $1`, [groupId]);
-	return response.rows[0];
+	return response.rows;
 };
 
 export const getDevicesByOrgId = async (orgId: number): Promise<IDevice[]> => {

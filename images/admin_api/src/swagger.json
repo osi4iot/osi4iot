@@ -1534,7 +1534,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"$ref": "#/definitions/Message"
+								"$ref": "#/definitions/AddMembersToGroupInput"
 							}
 						}
 					}
@@ -1997,7 +1997,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/Groups"
+									"$ref": "#/definitions/Devices"
 								}
 							}
 						}

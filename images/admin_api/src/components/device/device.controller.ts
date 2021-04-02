@@ -66,7 +66,7 @@ class DeviceController implements IController {
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
 				groupAdminAuth,
-				validationMiddleware<CreateDeviceDto>(CreateDeviceDto),
+				validationMiddleware<CreateDeviceDto>(CreateDeviceDto, true),
 				this.updateDeviceByProp
 			)
 			.post(
@@ -147,7 +147,7 @@ class DeviceController implements IController {
 			const device = await getDeviceByProp(propName, propValue);
 			if (!device) throw new ItemNotFoundException("The device", propName, propValue);
 			await deleteDeviceByProp(propName, propValue);
-			const message = "Device deleted successfully"
+			const message = { message: "Device deleted successfully" }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);

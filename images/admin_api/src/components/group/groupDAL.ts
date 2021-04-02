@@ -114,33 +114,38 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 }
 
 export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: IGroup): Promise<void> => {
-	newGroupData.acronym = newGroupData.acronym.replace(/ /g, "_").toUpperCase();
+	if (newGroupData.acronym) newGroupData.acronym = newGroupData.acronym.replace(/ /g, "_").toUpperCase();
 	const groupData: IGroup = { ...existentGroup, ...newGroupData };
 	await updateGroupById(groupData);
-	if (groupData.folderPermission !== existentGroup.folderPermission) {
+	let hasGroupChange = false;
+	if (groupData.folderPermission && (groupData.folderPermission !== existentGroup.folderPermission)) {
 		await updateFolderPermissionsForTeam(groupData);
+		hasGroupChange = true;
 	}
 
-	if (groupData.name !== existentGroup.name) {
+	if (groupData.name && (groupData.name !== existentGroup.name)) {
 		await updateTeamName(groupData.teamId, groupData.name);
 		await updateFolderName(groupData.folderId, groupData.name);
+		hasGroupChange = true;
 	}
 
-	if (groupData.acronym !== existentGroup.acronym) {
+	if (groupData.acronym && (groupData.acronym !== existentGroup.acronym)) {
 		const emailNotifChannelName = `${groupData.acronym}_email_NC`
 		await updateNotificationChannelName(groupData.emailNotificationChannelId, emailNotifChannelName);
 
 		const telegramNotifChannelName = `${groupData.acronym}_telegram_NC`
 		await updateNotificationChannelName(groupData.telegramNotificationChannelId, telegramNotifChannelName);
+		hasGroupChange = true;
 	}
 
-	if (groupData.telegramChatId !== existentGroup.telegramChatId) {
+	if (groupData.telegramChatId && (groupData.telegramChatId !== existentGroup.telegramChatId)) {
 		const settings = await getNotificationChannelSettings(groupData.telegramNotificationChannelId);
 		const oldSettings: IGrafanaNotificationChannelSettings = JSON.parse(settings.settings);
 		const newSettings = { bottoken: oldSettings.bottoken, uploadImage: oldSettings.uploadImage, chatid: groupData.telegramChatId };
 		await updateNotificationChannelSettings(groupData.telegramNotificationChannelId, newSettings);
+		hasGroupChange = true;
 	}
-	await sendChangeGroupDataInformationEmail(groupData, existentGroup.name);
+	if(hasGroupChange) await sendChangeGroupDataInformationEmail(groupData, existentGroup.name);
 }
 
 const updateTeamName = async (teamId: number, newName: string): Promise<void> => {

@@ -161,6 +161,7 @@ export const sendChangeGroupDataInformationEmail = async (newGroupData: IGroup, 
 			<div style="padding:5px 15px;">
 				<p>Group name: "${newGroupData.name}"</p>
 				<p>Group acronym: "${newGroupData.acronym}"</p>
+				<p>Folder permission: "${newGroupData.folderPermission}"</p>
 				<p>Telegram invitation link: <a href = "${newGroupData.telegramInvitationLink}">${newGroupData.telegramInvitationLink}</a></p>
 			</div>`;
 		if (roleInGroup === "Editor") {

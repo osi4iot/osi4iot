@@ -164,7 +164,7 @@ class GroupController implements IController {
 				`${this.path}/:orgId/:propName/:propValue/`,
 				organizationAdminAuth,
 				organizationExists,
-				validationMiddleware<UpdateGroupDto>(UpdateGroupDto),
+				validationMiddleware<UpdateGroupDto>(UpdateGroupDto, true),
 				this.updateGroupByProp
 			)
 			.delete(
