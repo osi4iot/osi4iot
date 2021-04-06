@@ -2,7 +2,7 @@
 import "reflect-metadata";
 import App from "./app";
 import HealthCheckController from "./utils/healthCheck/healthCheck.controller";
-import AuthenticationController from "./components/authentication/authentication.controller";
+import AuthenticationController from "./components/Authentication/authentication.controller";
 import { logger } from "./config/winston";
 import { dataBaseInitialization } from "./dbmigration/migration";
 import OrganizationController from "./components/organization/organization.controller";

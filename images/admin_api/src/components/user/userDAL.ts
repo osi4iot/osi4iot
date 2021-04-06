@@ -5,7 +5,7 @@ import CreateUserDto from "./interfaces/User.dto";
 import IUser from "./interfaces/User.interface";
 import IUserLoginData from "./interfaces/UserLoginData.inteface";
 import IUserInOrg from "./interfaces/UserInOrg.interface";
-import UserRegisterDto from "../authentication/userRegister.dto";
+import UserRegisterDto from "../Authentication/userRegister.dto";
 import { sendUserRegistrationInvitationEmail } from "./userEmailFactory";
 import { passwordGenerator } from "../../utils/passwordGenerator";
 

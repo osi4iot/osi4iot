@@ -11,7 +11,7 @@ import IRequestWithOrganization from "../organization/interfaces/requestWithOrga
 import { changeDeviceUidByUid, createDevice, deleteDeviceByProp, getDeviceByProp, getDevicesByGroupId, getDevicesByOrgId, updateDeviceByProp } from "./deviceDAL";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfDevice } from "../group/dashboardDAL";
-import LoginDto from "../authentication/login.dto";
+import LoginDto from "../Authentication/login.dto";
 import { updateDeviceUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 
 class DeviceController implements IController {
