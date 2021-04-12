@@ -97,7 +97,36 @@
 					}
 				}
 			}
-		},		
+		},
+		"/auth/user_data": {
+			"patch": {
+				"tags": ["Authentication"],
+				"summary": "User firstName, surname and email to complete registration form",
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "User password modified correctly",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/UserRegisterData"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},			
 		"/auth/login": {
 			"post": {
 				"tags": ["Authentication"],
@@ -2363,7 +2392,7 @@
 				},
 				"email": {
 					"type": "string"
-				},													
+				},
 				"password": {
 					"type": "string"
 				},			
@@ -2371,7 +2400,21 @@
 					"type": "string"
 				}
 			}
-		},		
+		},
+		"UserRegisterData": {
+			"type": "object",
+			"properties": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				}
+			}
+		},			
 		"Login": {
 			"type": "object",
 			"properties": {

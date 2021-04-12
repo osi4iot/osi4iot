@@ -191,6 +191,8 @@ services:
       context: ./images/admin_frontend
       dockerfile: Dockerfile
     container_name: ${PLATFORM_NAME}_admin_frontend
+    environment:
+      REACT_APP_PLATFORM_NAME: "IOT_EEBE"
     networks:
       - internal_net
     command: nginx -g "daemon off";

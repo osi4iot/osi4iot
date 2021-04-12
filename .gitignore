@@ -28,6 +28,9 @@ data/volumes/grafana_system/*
 !data/volumes/grafana_system/.gitkeep
 data/volumes/prometheus/*
 !data/volumes/prometheus/.gitkeep
+images/admin_frontend/static/register/build
+images/admin_frontend/static/register/.env
+images/admin_frontend/static/register/node_modules
 images/admin_api/node_modules
 images/admin_api/build
 images/admin_api/ssl_config

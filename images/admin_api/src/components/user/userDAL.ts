@@ -43,7 +43,8 @@ export const getGlobalUsers = async (): Promise<IUser[]> => {
 
 export const getUserdByEmailOrLogin = async (emailOrLogin: string): Promise<IUser> => {
 	const response: QueryResult = await
-		pool.query(`SELECT id, name, login, email, telegram_id as "telegramId", is_admin as "isGrafanaAdmin",
+		pool.query(`SELECT id, first_name as "firstName", surname, login, email,
+					telegram_id as "telegramId", is_admin as "isGrafanaAdmin",
 					is_disabled as "isDisabled", last_seen_at as "lastSeenAt",
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user WHERE email = $1 OR login = $1`, [emailOrLogin]);

@@ -1,0 +1,7 @@
+./static/register/node_modules
+./static/register/public
+./static/register/src
+./static/register/package.json
+./static/register/README.md
+./static/register/tsconfig.json
+./static/register/yarn.lock
