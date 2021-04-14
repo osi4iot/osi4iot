@@ -30,8 +30,10 @@ data/volumes/prometheus/*
 !data/volumes/prometheus/.gitkeep
 images/admin_frontend/static/register/build
 images/admin_frontend/static/register/public/env-config.js
-images/admin_frontend/static/register/.env
-images/admin_frontend/static/register/node_modules
+images/admin_frontend/app/.env
+images/admin_frontend/app/node_modules
+images/admin_frontend/app/build
+images/admin_frontend/app/public/env-config.js
 images/admin_api/node_modules
 images/admin_api/build
 images/admin_api/ssl_config

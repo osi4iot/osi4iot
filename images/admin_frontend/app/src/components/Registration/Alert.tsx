@@ -30,7 +30,7 @@ interface AlertProp {
 }
 
 const Alert: FC<AlertProp> = ({ alertText }) => {
-	return <AlertContainer>{alertText}</AlertContainer>;
+	return <AlertContainer>&#9888;&nbsp;&nbsp;{alertText}</AlertContainer>;
 };
 
 export default Alert;

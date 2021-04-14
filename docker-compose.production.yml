@@ -238,6 +238,9 @@ services:
       context: ./images/admin_frontend
       dockerfile: Dockerfile
     container_name: ${PLATFORM_NAME}_admin_frontend
+    environment:
+      PLATFORM_NAME: ${PLATFORM_NAME}
+      DOMAIN_NAME: ${DOMAIN_NAME}    
     networks:
       - internal_net
       - fluentd_net
@@ -255,11 +258,11 @@ services:
         tag: admin
         fluentd-address: localhost:24224
 
-  mobile_frontend:
+  mobile_sensors:
     build: 
-      context: ./images/mobile_frontend
+      context: ./images/mobile_sensors
       dockerfile: Dockerfile
-    container_name: ${PLATFORM_NAME}_mobile_frontend
+    container_name: ${PLATFORM_NAME}_mobile_sensors
     networks:
       - internal_net
       - fluentd_net

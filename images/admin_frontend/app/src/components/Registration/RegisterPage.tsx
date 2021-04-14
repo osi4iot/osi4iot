@@ -4,7 +4,7 @@ import styled from "styled-components";
 import Header from "./Header";
 import Alert from "./Alert";
 import SuccessModal from "./SuccesModal";
-import ErrorModal from "./ErrorModal";
+import ErrorMessage from "./ErrorMessage";
 
 const Main = styled.main`
 	color: white;
@@ -102,23 +102,23 @@ const ItemContainer = styled.div`
 
 const Submit = styled.input`
 	width: 150px;
-	background-color: rgb(50, 116, 217);
+	background-color: #3274D9;
 	padding: 8px;
 	color: white;
 	border: 1px solid #2c3235;
 	border-radius: 10px;
 	outline: none;
 	cursor: pointer;
-	box-shadow: 0 5px rgb(23, 59, 112);
+	box-shadow: 0 5px #173B70;
 	margin-bottom: 15px;
 
 	&:hover {
-		background-color: rgb(42, 96, 177);
+		background-color: #2A6075;
 	}
 
 	&:active {
-		background-color: rgb(42, 96, 177);
-		box-shadow: 0 2px rgb(23, 59, 112);
+		background-color: #2A6075;
+		box-shadow: 0 2px #173B70;
 		transform: translateY(4px);
 	}
 `;
@@ -167,26 +167,27 @@ const LinksContainer = styled.div`
 	justify-content: space-around;
 	align-items: center;
 	width: 300px;
-	height: 400px;
+	height: 450px;
 `;
 
 const ButtonLink = styled.button`
-	background-color: rgb(50, 116, 217);
+	background-color: #3274D9;
 	padding: 10px 20px;
 	color: white;
 	border: 1px solid #2c3235;
 	border-radius: 10px;
 	outline: none;
 	cursor: pointer;
-	box-shadow: 0 5px rgb(23, 59, 112);
+	box-shadow: 0 5px #173B70;
+	width: 250px;
 
 	&:hover {
-		background-color: rgb(42, 96, 177);
+		background-color: #2A6075;
 	}
 
 	&:active {
-		background-color: rgb(42, 96, 177);
-		box-shadow: 0 2px rgb(23, 59, 112);
+		background-color: #2A6075;
+		box-shadow: 0 2px #173B70;
 		transform: translateY(4px);
 	}
 `;
@@ -278,16 +279,21 @@ const RegisterPage: FC<{}> = () => {
 		window.location.href = `https://${window._env_.DOMAIN_NAME}`;
 	};
 
-	const handleGroupManagmentLink = () => {
+	const handlePlatformAssistantLink = () => {
 		window.location.href = `https://${window._env_.DOMAIN_NAME}/admin_api/swagger/`;
 	};
+
+	const handleMobileSensorsLink = () => {
+		window.location.href = `https://${window._env_.DOMAIN_NAME}/mobile_sensors/`;
+	};
+
 
 	if (!isValidToken) {
 		return (
 			<>
 				<Header />
 				<Main>
-					<ErrorModal>&#x2718;&nbsp;&nbsp;Invalid Token</ErrorModal>
+					<ErrorMessage>&#x2718;&nbsp;&nbsp;Invalid Token</ErrorMessage>
 				</Main>
 			</>
 		);
@@ -382,7 +388,8 @@ const RegisterPage: FC<{}> = () => {
 						<LinksContainer>
 							<SuccessModal>&#10004;&nbsp;&nbsp;User registered successfully</SuccessModal>
 							<ButtonLink onClick={handleGrafanaLink}>Dashboards</ButtonLink>
-							<ButtonLink onClick={handleGroupManagmentLink}>Groups Managment</ButtonLink>
+							<ButtonLink onClick={handlePlatformAssistantLink}>Platform assistant</ButtonLink>
+							<ButtonLink onClick={handleMobileSensorsLink}>Mobile sensors<br /> (Only Android devices)</ButtonLink>
 						</LinksContainer>
 					)}
 				</Main>

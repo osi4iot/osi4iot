@@ -6,8 +6,9 @@ const SuccessModalContainer = styled.div`
 	font-weight: 500;
 	padding: 10px 20px;
 	color: rgb(255, 255, 255);
-	background: #03ac03;
+	background: #60A917;
 	border-radius: 2px;
+	width: 250px;
 `;
 
 interface SuccessModalProp {

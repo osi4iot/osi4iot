@@ -1,7 +1,7 @@
 import React, { FC } from "react";
 import styled from "styled-components";
 
-const ErrorModalContainer = styled.div`
+const ErrorMessageContainer = styled.div`
 	width: 300px;
 	height: 200px;
 	display: flex;
@@ -18,16 +18,16 @@ const ErrorText = styled.div`
 	border-radius: 2px;
 `;
 
-interface ErrorModalProp {
+interface ErrorMessageProp {
 	children: string;
 }
 
-const ErrorModal: FC<ErrorModalProp> = ({ children }) => {
+const ErrorMessage: FC<ErrorMessageProp> = ({ children }) => {
 	return (
-		<ErrorModalContainer>
+		<ErrorMessageContainer>
 			<ErrorText>{children}</ErrorText>
-		</ErrorModalContainer>
+		</ErrorMessageContainer>
 	);
 };
 
-export default ErrorModal;
+export default ErrorMessage;

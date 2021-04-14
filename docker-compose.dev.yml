@@ -192,7 +192,8 @@ services:
       dockerfile: Dockerfile
     container_name: ${PLATFORM_NAME}_admin_frontend
     environment:
-      REACT_APP_PLATFORM_NAME: "IOT_EEBE"
+      PLATFORM_NAME: ${PLATFORM_NAME}
+      DOMAIN_NAME: ${DOMAIN_NAME}
     networks:
       - internal_net
     command: nginx -g "daemon off";
@@ -200,11 +201,11 @@ services:
       admin_api:
         condition: service_started
 
-  mobile_frontend:
+  mobile_sensors:
     build: 
-      context: ./images/mobile_frontend
+      context: ./images/mobile_sensors
       dockerfile: Dockerfile
-    container_name: ${PLATFORM_NAME}_mobile_frontend
+    container_name: ${PLATFORM_NAME}_mobile_sensors
     networks:
       - internal_net
     command: nginx -g "daemon off";
