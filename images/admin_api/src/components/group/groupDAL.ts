@@ -685,8 +685,6 @@ export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: 
 	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
 	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
 	const oldAddressArray = oldNotificationEmailSettings.addresses.split(",");
-	console.log("OJO oldAddressArray=", oldAddressArray);
-	console.log("OJO memberToRemoveEmailsArray=", memberToRemoveEmailsArray);
 	const newEmailsArray = oldAddressArray.filter(email => memberToRemoveEmailsArray.indexOf(email) === -1);
 	const newAddress = newEmailsArray.join();
 	const newSettings = { addresses: newAddress };

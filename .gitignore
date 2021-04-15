@@ -34,6 +34,10 @@ images/admin_frontend/app/.env
 images/admin_frontend/app/node_modules
 images/admin_frontend/app/build
 images/admin_frontend/app/public/env-config.js
+images/mobile_sensors/app/.env
+images/mobile_sensors/app/node_modules
+images/mobile_sensors/app/build
+images/mobile_sensors/app/public/env-config.js
 images/admin_api/node_modules
 images/admin_api/build
 images/admin_api/ssl_config

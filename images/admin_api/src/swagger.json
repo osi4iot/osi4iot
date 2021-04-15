@@ -568,7 +568,7 @@
 		"/organizations": {
 			"get": {
 				"tags": ["Organization"],
-				"summary": "Get all organizations in the platform",
+				"summary": "Get all organizations in the platform - Role required: Platform_Admin",
 				"responses": {
 					"200": {
 						"description": "OK",

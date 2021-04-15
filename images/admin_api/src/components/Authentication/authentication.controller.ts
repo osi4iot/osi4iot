@@ -98,8 +98,6 @@ class AuthenticationController implements IController {
 			const accessTokenLifeTime = parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10);
 			const nextRefreshDate = new Date(Date.now() + (accessTokenLifeTime - timeframe) * 1000);
 			refreshToken = existentRefreshToken.token;
-			console.log("expirationDate= ", expirationDate);
-			console.log("nextRefreshDate= ", nextRefreshDate);
 			if (expirationDate > nextRefreshDate) refreshToken = existentRefreshToken.token;
 			else {
 				refreshToken = this.generateNewRefreshToken(user);

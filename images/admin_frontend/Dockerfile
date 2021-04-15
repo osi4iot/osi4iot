@@ -1,10 +1,3 @@
-# FROM nginx
-# COPY /nginx.conf	/etc/nginx/nginx.conf
-# COPY /static/login /static/login
-# COPY /static/register/build /static/register
-# HEALTHCHECK --interval=10s --timeout=3s \
-# CMD curl -f http://localhost/health || exit 1
-
 # => Build container
 FROM node:lts-alpine as builder
 WORKDIR /app
