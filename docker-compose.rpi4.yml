@@ -172,11 +172,11 @@ services:
       grafana:
         condition: service_healthy    
 
-  admin_frontend:
+  frontend:
     build: 
-      context: ./images/admin_frontend
+      context: ./images/frontend
       dockerfile: Dockerfile
-    container_name: ${PLATFORM_NAME}_admin_frontend
+    container_name: ${PLATFORM_NAME}_frontend
     environment:
       PLATFORM_NAME: ${PLATFORM_NAME}
       DOMAIN_NAME: ${DOMAIN_NAME}    
@@ -184,22 +184,6 @@ services:
       - internal_net
     command: nginx -g "daemon off";
     depends_on:   
-      admin_api:
-        condition: service_started
-
-  mobile_sensors:
-    build: 
-      context: ./images/mobile_sensors
-      dockerfile: Dockerfile
-    container_name: ${PLATFORM_NAME}_mobile_sensors
-    networks:
-      - internal_net
-    command: nginx -g "daemon off";
-    environment:
-      - DOMAIN_NAME=${DOMAIN_NAME}
-    depends_on:
-      admin_api:
-        condition: nginx_proxy     
       admin_api:
         condition: service_started
   

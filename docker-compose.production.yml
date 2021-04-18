@@ -233,11 +233,11 @@ services:
         tag: admin
         fluentd-address: localhost:24224
 
-  admin_frontend:
+  frontend:
     build: 
-      context: ./images/admin_frontend
+      context: ./images/frontend
       dockerfile: Dockerfile
-    container_name: ${PLATFORM_NAME}_admin_frontend
+    container_name: ${PLATFORM_NAME}_frontend
     environment:
       PLATFORM_NAME: ${PLATFORM_NAME}
       DOMAIN_NAME: ${DOMAIN_NAME}    
@@ -248,28 +248,6 @@ services:
     depends_on:
       nginx_proxy:
         condition: service_started     
-      admin_api:
-        condition: service_started
-      fluentd:
-        condition: service_started
-    logging:
-      driver: "fluentd"
-      options:
-        tag: admin
-        fluentd-address: localhost:24224
-
-  mobile_sensors:
-    build: 
-      context: ./images/mobile_sensors
-      dockerfile: Dockerfile
-    container_name: ${PLATFORM_NAME}_mobile_sensors
-    networks:
-      - internal_net
-      - fluentd_net
-    command: nginx -g "daemon off";
-    depends_on:
-      admin_api:
-        condition: nginx_proxy     
       admin_api:
         condition: service_started
       fluentd:

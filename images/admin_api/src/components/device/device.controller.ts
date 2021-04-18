@@ -1,18 +1,21 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth } from "../../middleware/auth.middleware";
+import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
 import CreateDeviceDto from "./device.dto";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
-import { changeDeviceUidByUid, createDevice, deleteDeviceByProp, getDeviceByProp, getDevicesByGroupId, getDevicesByOrgId, updateDeviceByProp } from "./deviceDAL";
+import { changeDeviceUidByUid, createDevice, deleteDeviceByProp, getAllDevices, getDeviceByProp, getDevicesByGroupId, getDevicesByGroupsIdArray, getDevicesByOrgId, updateDeviceByProp } from "./deviceDAL";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfDevice } from "../group/dashboardDAL";
 import LoginDto from "../Authentication/login.dto";
 import { updateDeviceUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
+import IRequestWithUser from "../../interfaces/requestWithUser.interface";
+import IDevice from "./device.interface";
+import { getGroupsManagedByUserId } from "../group/groupDAL";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -25,6 +28,11 @@ class DeviceController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
+			.get(
+				`${this.path}s/user_managed/`,
+				userAuth,
+				this.getDevicesManagedByUser
+			)
 			.get(
 				`${this.path}s_in_org/:orgId/`,
 				organizationAdminAuth,
@@ -78,6 +86,28 @@ class DeviceController implements IController {
 			)
 
 	}
+
+	private getDevicesManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let devices: IDevice[] = [];
+			if (req.user.isGrafanaAdmin) {
+				devices = await getAllDevices();
+			} else {
+				const groups = await getGroupsManagedByUserId(req.user.id);
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					devices = await getDevicesByGroupsIdArray(groupsIdArray);
+				}
+			}
+			res.status(200).send(devices);
+		} catch (error) {
+			next(error);
+		}
+	};
 
 	private getDevicesInOrg = async (
 		req: IRequestWithOrganization,
@@ -186,7 +216,7 @@ class DeviceController implements IController {
 			const dashboards = await getDashboardsDataWithRawSqlOfGroup(req.group);
 			const newDeviceUid = await changeDeviceUidByUid(device);
 			await updateDashboardsDataRawSqlOfDevice(device, newDeviceUid, dashboards);
-			await updateDeviceUidRawSqlAlertSettingOfGroup(req.group,device.deviceUid, newDeviceUid);
+			await updateDeviceUidRawSqlAlertSettingOfGroup(req.group, device.deviceUid, newDeviceUid);
 			const message = { newDeviceUid };
 			res.status(200).json(message);
 		} catch (error) {

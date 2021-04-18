@@ -315,6 +315,35 @@
 				}
 			}
 		},
+		"/auth/user_managed_components": {
+			"get": {
+				"tags": ["Authentication"],
+				"summary": "Components (orgs, groups and devices) managed by logged user",
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "Components (orgs, groups and devices) managed by logged user",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/PlatformComponents"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/application/global_users": {
 			"get": {
 				"tags": ["Application"],
@@ -1960,6 +1989,34 @@
 				}
 			}
 		},
+		"/devices/user_managed": {
+			"get": {
+				"tags": ["Device"],
+				"summary": "Get all devices managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Devices"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}          
+				}
+			}
+		},		
 		"/devices_in_org/{orgId}": {
 			"parameters": [
 				{
@@ -2425,27 +2482,7 @@
 					"type": "string"
 				}
 			}
-		},
-		"LongTermToken": {
-			"type": "object",
-			"properties": {
-				"emailOrLogin": {
-					"type": "string"
-				},
-				"password": {
-					"type": "string"
-				},
-				"tokenLifeTime": {
-					"type": "number",
-					"default": 31536000
-				}
-			},
-			"required": [
-				"emailOrLogin",
-				"password",
-				"tokenLifeTime"
-			]
-		},		
+		},	
 		"LoginOutput": {
 			"type": "object",
 			"properties": {
@@ -2454,7 +2491,10 @@
 				},
 				"refreshToken": {
 					"type": "string"
-				}				
+				},
+				"expirationDate": {
+					"type": "string"
+				}					
 			}
 		},
 		"DisableRefreshToken": {
@@ -2478,6 +2518,30 @@
 				}
 			}
 		},
+		"PlatformComponents": {
+			"type": "object",
+			"properties": {
+				"organizations": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/OrganizationOutput"
+					}
+				},
+		
+				"groups": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/GroupOutput"
+					}
+				},
+				"Devices": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/DeviceOutput"
+					}
+				}
+			}
+		},		
 		"Message": {
 			"type": "object",
 			"properties": {

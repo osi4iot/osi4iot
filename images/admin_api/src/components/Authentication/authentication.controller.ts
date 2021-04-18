@@ -15,6 +15,10 @@ import { updateOrganizationUser } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
 import { deleteRefreshToken, deleteUserRefreshTokens, exitsRefreshToken, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
+import { getAllDevices, getDevicesByGroupsIdArray } from "../device/deviceDAL";
+import { getOrganizations, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import { getAllGroups, getGroupsManagedByUserId } from "../group/groupDAL";
+import IPlatformComponents from "./PlatformComponents.interface";
 
 interface IJwtPayload {
 	id: string;
@@ -27,6 +31,7 @@ interface IJwtPayload {
 interface ILoginOutput {
 	accessToken: string;
 	refreshToken: string;
+	expirationDate: string;
 }
 
 class AuthenticationController implements IController {
@@ -55,7 +60,7 @@ class AuthenticationController implements IController {
 		this.router.patch(`${this.path}/refresh_token/`, this.refreshToken);
 		this.router.delete(`${this.path}/disable_refresh_token/`, superAdminAuth, validationMiddleware<RefreshTokenToDisableDto>(RefreshTokenToDisableDto), this.disableRefreshToken);
 		this.router.delete(`${this.path}/disable_user_refresh_tokens/:userId`, superAdminAuth, this.disableUsersRefreshToken);
-
+		this.router.get(`${this.path}/user_managed_components`, userAuth, this.componentsManagedByUser);
 	}
 
 	private generateNewRefreshToken = (user: IUser) => {
@@ -88,17 +93,19 @@ class AuthenticationController implements IController {
 			algorithm,
 			expiresIn: parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10)
 		});
+		const decodedAccessToken = jwt.decode(accessToken) as IJwtPayload;
+		const expirationDate = (new Date(decodedAccessToken.exp * 1000)).toString();
 
 		const existentRefreshToken = await getRefreshTokenByUserId(user.id);
 		let refreshToken;
 		if (existentRefreshToken)  {
-			const decoded = jwt.decode(existentRefreshToken.token) as IJwtPayload;
-			const expirationDate = new Date(decoded.exp * 1000);
+			const decodedRefreshToken = jwt.decode(existentRefreshToken.token) as IJwtPayload;
+			const refreshTokenExpirationDate = new Date(decodedRefreshToken.exp * 1000);
 			const timeframe = parseInt(process.env.REFRESH_TOKEN_LIFETIME, 10)*0.1;
 			const accessTokenLifeTime = parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10);
 			const nextRefreshDate = new Date(Date.now() + (accessTokenLifeTime - timeframe) * 1000);
 			refreshToken = existentRefreshToken.token;
-			if (expirationDate > nextRefreshDate) refreshToken = existentRefreshToken.token;
+			if (refreshTokenExpirationDate > nextRefreshDate) refreshToken = existentRefreshToken.token;
 			else {
 				refreshToken = this.generateNewRefreshToken(user);
 				await updateRefreshToken(existentRefreshToken.token, refreshToken);
@@ -110,7 +117,8 @@ class AuthenticationController implements IController {
 
 		loginOutput = {
 			accessToken,
-			refreshToken
+			refreshToken,
+			expirationDate
 		};
 
 		return loginOutput;
@@ -227,6 +235,33 @@ class AuthenticationController implements IController {
 		try {
 			const message = await deleteRefreshToken(refreshTokenToDisable);
 			res.status(200).json({ message });
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private componentsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const platformComponents: IPlatformComponents = {
+				organizations: [],
+				groups: [],
+				devices: []
+			};
+			const userId = req.user.id;
+			if (req.user.isGrafanaAdmin) {
+				platformComponents.organizations = await getOrganizations();
+				platformComponents.groups = await getAllGroups();
+				platformComponents.devices = await getAllDevices();
+			} else {
+				platformComponents.organizations  = await getOrganizationsManagedByUserId(req.user.id);
+				const groups = await getGroupsManagedByUserId(userId);
+				platformComponents.groups = groups;
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					platformComponents.devices = await getDevicesByGroupsIdArray(groupsIdArray);
+				}
+			}
+			res.status(200).send(platformComponents);
 		} catch (error) {
 			next(error);
 		}

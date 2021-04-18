@@ -229,9 +229,9 @@ class OrganizationController implements IController {
 			const { organization } = req;
 			const orgUserData: CreateUserDto = req.body;
 			orgUserData.OrgId = organization.id;
-			if (!(await isUsersDataCorrect([orgUserData])))
-				throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
 			const existUser = await getUserLoginDatadByEmailOrLogin(orgUserData.email);
+			if (!existUser && !(await isUsersDataCorrect([orgUserData])))
+				throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
 			let user_msg: IMessage;
 			if (!orgUserData.roleInOrg) orgUserData.roleInOrg = "Viewer";
 			else {
@@ -265,8 +265,6 @@ class OrganizationController implements IController {
 		try {
 			const { organization } = req;
 			const orgUsersData: CreateUserDto[] = req.body.users;
-			if (!(await isUsersDataCorrect(orgUsersData)))
-				throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
 			orgUsersData.forEach((user: CreateUserDto) => {
 				user.OrgId = organization.id
 				if (!user.roleInOrg) user.roleInOrg = "Viewer";
@@ -294,6 +292,8 @@ class OrganizationController implements IController {
 			let numUsersAddedToOrg = 0;
 			const orgId = organization.id;
 			if (nonExistingUserArray.length !== 0) {
+				if (!(await isUsersDataCorrect(nonExistingUserArray)))
+					throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
 				const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
 				msg_users.forEach((msg, index) => nonExistingUserArray[index].id = msg.id);
 				await addOrgUsersToDefaultOrgGroup(organization.id, nonExistingUserArray);
