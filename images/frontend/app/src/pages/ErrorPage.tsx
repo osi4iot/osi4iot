@@ -2,6 +2,7 @@ import React, { FC } from "react";
 import styled from "styled-components";
 import Header from "../components/Header";
 import Main from "../components/Main";
+import { ChildrenProp } from "../interfaces/interfaces";
 
 const ErrorMessageContainer = styled.div`
 	width: 300px;
@@ -15,16 +16,13 @@ const ErrorText = styled.div`
 	font-size: 20px;
 	font-weight: 500;
 	padding: 10px 20px;
-	color: rgb(255, 255, 255);
-	background: rgb(224, 47, 68);
+	color: #FFFFFF;
+	background: #E02F44;
 	border-radius: 2px;
 `;
 
-interface ErrorPageProps {
-	children: JSX.Element
-}
 
-const ErrorPage: FC<ErrorPageProps> = ({ children }) => {
+const ErrorPage: FC<ChildrenProp> = ({ children }) => {
 	return (
 		<>
 			<Header />

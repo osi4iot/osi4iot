@@ -15,7 +15,7 @@ export async function loginUser(dispatch: AuthDispatch, loginPayload: LoginData)
 
 		if (data.accessToken) {
 			dispatch({ type: 'LOGIN_SUCCESS', payload: data });
-			localStorage.setItem('loggedUser', JSON.stringify(data));
+			localStorage.setItem('iot_platform_auth', JSON.stringify(data));
 			return data;
 		}
 

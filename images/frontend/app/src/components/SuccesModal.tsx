@@ -5,7 +5,7 @@ const SuccessModalContainer = styled.div`
 	font-size: 14px;
 	font-weight: 500;
 	padding: 10px 20px;
-	color: rgb(255, 255, 255);
+	color: #FFFFFF;
 	background: #60A917;
 	border-radius: 2px;
 	width: 250px;

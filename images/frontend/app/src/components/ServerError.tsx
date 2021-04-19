@@ -6,8 +6,8 @@ const ServerErrorContainer = styled.div`
 	font-size: 14px;
 	padding: 10px;
 	font-weight: 500;
-	color: rgb(255, 255, 255);
-	background: rgb(224, 47, 68);
+	color: #FFFFFF;
+	background: #E02F44;
 	border-radius: 2px;
 `;
 

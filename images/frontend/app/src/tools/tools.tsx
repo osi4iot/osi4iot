@@ -25,6 +25,12 @@ export const isValidText = (text: string): boolean => {
 	return isValid;
 };
 
+export const isValidNumber = (value: number, limitValue: number): boolean => {
+	let isValid = true;
+	if (value <= limitValue) isValid = false;
+	return isValid;
+};
+
 export const isValidEmail = (email: string): boolean => {
 	let isValid = true;
 	/* eslint-disable no-useless-escape */

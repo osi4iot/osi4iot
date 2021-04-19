@@ -1,15 +1,15 @@
 import { Action, AuthContextProps } from "../interfaces/interfaces";
 
-let accessToken = localStorage.getItem("loggedUser")
-	? JSON.parse(localStorage.getItem("loggedUser") as string).accessToken
+let accessToken = localStorage.getItem("iot_platform_auth")
+	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).accessToken
 	: "";
 
-let refreshToken = localStorage.getItem("loggedUser")
-	? JSON.parse(localStorage.getItem("loggedUser") as string).refreshToken
+let refreshToken = localStorage.getItem("iot_platform_auth")
+	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).refreshToken
 	: "";
 
-let expirationDate = localStorage.getItem("loggedUser")
-	? JSON.parse(localStorage.getItem("loggedUser") as string).expirationDate
+let expirationDate = localStorage.getItem("iot_platform_auth")
+	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).expirationDate
 	: "";
 
 export const initialState = {

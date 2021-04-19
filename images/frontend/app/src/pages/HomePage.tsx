@@ -105,7 +105,7 @@ const HomePage: FC<MenuProps> = ({ children }) => {
 					<Title>Platform options</Title>
 					<MenuContainer>
 						{children}
-						<ButtonLink onClick={() => handleLinkClick("")}>Dashboards</ButtonLink>
+						<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
 						<ButtonLink onClick={() => handleLinkClick("/admin_api/swagger/")}>Platform assistant</ButtonLink>
 						<StyledNavLink exact to="/mobile_sensors">
 							<p>Mobile sensors</p>

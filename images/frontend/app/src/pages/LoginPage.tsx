@@ -118,7 +118,7 @@ const LoginPage: FC<{}> = () => {
 	const location = useLocation<any>();
 	const previusObjectURL = location.state?.from;
 
-	const dispatch = useAuthDispatch();
+	const authDispatch = useAuthDispatch();
 	const { loading, errorMessage } = useAuthState();
 
 	const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -139,7 +139,7 @@ const LoginPage: FC<{}> = () => {
 			setIsValidationRequired(true);
 		} else {
 			try {
-				let response = await loginUser(dispatch, loginData);
+				let response = await loginUser(authDispatch, loginData);
 				if (!response?.accessToken) return;
 				history.push(previusObjectURL);
 			} catch (error) {
@@ -184,7 +184,7 @@ const LoginPage: FC<{}> = () => {
 							)}
 						</ItemContainer>
 
-						<SubmitContainer className="row">
+						<SubmitContainer>
 							<Submit type="submit" value="SIGN IN" disabled={loading} />
 						</SubmitContainer>
 					</Form>

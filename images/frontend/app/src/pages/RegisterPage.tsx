@@ -294,7 +294,7 @@ const RegisterPage: FC<{}> = () => {
 									/>
 								</ItemContainer>
 
-								<SubmitContainer className="row">
+								<SubmitContainer>
 									<Submit type="submit" value="SUBMIT" />
 								</SubmitContainer>
 							</Form>
