@@ -271,7 +271,7 @@ export const tempDashboardJson =
 				"type": "gauge"
 			},
 			{
-				"datasource": "iot_eebe_db",
+				"datasource": "",
 				"description": "Temperature table for demostration",
 				"fieldConfig": {
 					"defaults": {
