@@ -11,7 +11,7 @@ const MqttConnection = (setIsMqttConnected: React.Dispatch<React.SetStateAction<
 
 	function onConnectionLost(error: MQTTError) {
         if (error.errorCode !== 0) {
-            setIsMqttConnected(true);
+            setIsMqttConnected(false);
 			console.log("onConnectionLost:" + error.errorMessage);
 		}
 	}

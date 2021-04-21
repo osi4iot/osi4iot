@@ -6,11 +6,10 @@ const ReadAccelerations = (mqttClient: Paho.Client, mqttTopic: string, readingPa
   const totalReadings = readingParameter.totalReadingTime / deltaT;
 
   const sensor = new Accelerometer({ frequency: readingParameter.samplingFrequency, referenceFrame: "device" });
-  console.log("Paso por aqui=", sensor);
   sensor.start();
   sensor.onreading = function () {
     if (readingsCont <= totalReadings) {
-      let az = sensor.z - 9.81;
+      let az = sensor.z - 9.80665;
       const payload = { ax: sensor.x, ay: sensor.y, az };
       const message = new Paho.Message(JSON.stringify(payload));
       message.destinationName = mqttTopic;
@@ -20,6 +19,7 @@ const ReadAccelerations = (mqttClient: Paho.Client, mqttTopic: string, readingPa
       sensor.stop();
     }
   };
+
 };
 
 export default ReadAccelerations;

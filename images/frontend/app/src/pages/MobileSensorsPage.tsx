@@ -166,6 +166,8 @@ const initialFormValues = {
 	samplingFrequency: 25,
 };
 
+let mqttClient: Paho.Client;
+
 const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const [devicesManaged, setDevicesManaged] = useState([]);
 	const [isValidationRequired, setIsValidationRequired] = useState(false);
@@ -174,7 +176,6 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const { deviceSelectedIndex, topic, totalReadingTime, samplingFrequency } = formValues;
 
 	const { accessToken, loading, errorMessage } = useAuthState();
-	let mqttClient: Paho.Client;
 
 	useEffect(() => {
 		const url = `https://${domainName}/admin_api/devices/user_managed`;
@@ -225,7 +226,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 		} else {
 			const GroupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
 			const DeviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
-			const mqttTopic = `dev2pdb/${GroupHash}/${DeviceHash}/${topic}`;
+			const mqttTopic = `dev2pdb/Group_${GroupHash}/Device_${DeviceHash}/${topic}`;
 			ReadAccelerations(mqttClient, mqttTopic, readingParameter);
 		}
 	};
