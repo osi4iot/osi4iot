@@ -140,7 +140,7 @@ export const accelDashboardJson =
 				}
 			}
 		],
-		"refresh": "100ms",
+		"refresh": "200ms",
 		"schemaVersion": 27,
 		"style": "dark",
 		"tags": [],
@@ -153,7 +153,7 @@ export const accelDashboardJson =
 		},
 		"timepicker": {
 			"refresh_intervals": [
-				"100ms",
+				"200ms",
 				"1s",
 				"5s",
 				"10s",
