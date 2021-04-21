@@ -12,6 +12,7 @@ import { ChildrenProp, IDevice } from "../interfaces/interfaces";
 import { getDomainName, isValidNumber, isValidText } from "../tools/tools";
 import ReadAccelerations from "../tools/ReadingAccelerations";
 import MqttConnection from "../tools/MqttConnection";
+import ProgresBar from "../components/ProgressBar";
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -28,20 +29,21 @@ interface ConnectionLedProps {
 }
 
 const ConnectionLed = styled.span<ConnectionLedProps>`
-	background-color:${(props) =>  props.isMqttConnected ?  "#62f700" : "#f80000" };
+	background-color: ${(props) => (props.isMqttConnected ? "#62f700" : "#f80000")};
 	width: 17px;
-    height: 17px;
+	height: 17px;
 	margin: -2px 10px;
 	border-radius: 50%;
-	border: 2px solid #FFFFFF;
+	border: 2px solid #ffffff;
 	display: inline-block;
 `;
 
 const Form = styled.form`
+	position: relative;
 	margin: 0 5px;
 	color: white;
 	margin: 10px 0;
-	padding: 20px;
+	padding: 20px 20px 90px 20px;
 	width: 300px;
 	border: 2px solid #3274d9;
 	border-radius: 15px;
@@ -109,11 +111,23 @@ const Select = styled.select<InputProps>`
 `;
 
 const SubmitContainer = styled.div`
-	width: 100%;
-	margin-top: 20px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
+	position: absolute;
+	bottom: 7px;
+	left: 0;
+	right: 0;
+	margin-left: auto;
+	margin-right: auto;
+	width: 150px;
+`;
+
+const ProgressBarContainer = styled.div`
+	position: absolute;
+	bottom: 60px;
+	left: 0;
+	right: 0;
+	margin-left: auto;
+	margin-right: auto;
+	width: 250px;
 `;
 
 const ItemContainer = styled.div`
@@ -121,24 +135,29 @@ const ItemContainer = styled.div`
 	width: 100%;
 `;
 
-const Submit = styled.input`
+interface SubmitProps {
+	readonly isSensorReading: boolean;
+}
+
+const Submit = styled.input<SubmitProps>`
 	width: 150px;
-	background-color: #3274d9;
+	background-color: ${(props) => (props.isSensorReading ? "#E02F44" : "#3274d9")};
 	padding: 8px;
 	color: white;
 	border: 1px solid #2c3235;
 	border-radius: 10px;
 	outline: none;
 	cursor: pointer;
-	box-shadow: 0 5px #173b70;
+	box-shadow: ${(props) => (props.isSensorReading ? "0 5px #59121B" : "0 5px #173b70")};
 	margin-bottom: 15px;
 
 	&:hover {
-		background-color: #2461c0;
+		background-color: ${(props) => (props.isSensorReading ? "#E02F44" : "#2461c0")};
+		padding: 8px;
 	}
 
 	&:active {
-		background-color: #2461c0;
+		background-color: ${(props) => (props.isSensorReading ? "#E02F44" : "#2461c0")};
 		box-shadow: 0 2px #173b70;
 		transform: translateY(4px);
 	}
@@ -173,6 +192,8 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const [isValidationRequired, setIsValidationRequired] = useState(false);
 	const [isMqttConnected, setIsMqttConnected] = useState(false);
 	const [formValues, setFormValues] = useState(initialFormValues);
+	const [readingProgress, setReadingProgress] = useState(0);
+	const [isSensorReading, setIsSensorReadings] = useState(false);
 	const { deviceSelectedIndex, topic, totalReadingTime, samplingFrequency } = formValues;
 
 	const { accessToken, loading, errorMessage } = useAuthState();
@@ -216,18 +237,20 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 
 	const handleSubmit = async (e: SyntheticEvent) => {
 		e.preventDefault();
-		const readingParameter = {
-			deviceSelectedIndex,
-			totalReadingTime,
-			samplingFrequency,
-		};
-		if (!areReadingParameterOK(readingParameter)) {
-			setIsValidationRequired(true);
-		} else {
-			const GroupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
-			const DeviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
-			const mqttTopic = `dev2pdb/Group_${GroupHash}/Device_${DeviceHash}/${topic}`;
-			ReadAccelerations(mqttClient, mqttTopic, readingParameter);
+		if (!isSensorReading) {
+			const readingParameter = {
+				deviceSelectedIndex,
+				totalReadingTime,
+				samplingFrequency,
+			};
+			if (!areReadingParameterOK(readingParameter)) {
+				setIsValidationRequired(true);
+			} else {
+				const GroupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
+				const DeviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
+				const mqttTopic = `dev2pdb/Group_${GroupHash}/Device_${DeviceHash}/${topic}`;
+				ReadAccelerations(mqttClient, mqttTopic, readingParameter, setIsSensorReadings, setReadingProgress);
+			}
 		}
 	};
 
@@ -236,7 +259,9 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 			<Header />
 			<Main>
 				<>
-					<Title>Mobile accelerations <ConnectionLed isMqttConnected={isMqttConnected}/></Title>
+					<Title>
+						Mobile accelerations <ConnectionLed isMqttConnected={isMqttConnected} />
+					</Title>
 					{errorMessage && <ServerError errorText={errorMessage} />}
 					<Form onSubmit={handleSubmit}>
 						<ItemContainer>
@@ -273,7 +298,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 						</ItemContainer>
 
 						<ItemContainer>
-							<Label>Total reading time:</Label>
+							<Label>Total reading time (sec):</Label>
 							<Input
 								type="number"
 								name="totalReadingTime"
@@ -288,7 +313,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 						</ItemContainer>
 
 						<ItemContainer>
-							<Label>Sampling frequency [samples/s]:</Label>
+							<Label>Sampling frequency [samples/sec]:</Label>
 							<Input
 								type="number"
 								name="samplingFrequency"
@@ -301,9 +326,17 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 								<Alert alertText="The sampling frequency must be greater than 20 samples by second" />
 							)}
 						</ItemContainer>
-
+						{isSensorReading ? (
+							<ProgressBarContainer>
+								<ProgresBar value={readingProgress} />
+							</ProgressBarContainer>
+						) : null}
 						<SubmitContainer>
-							<Submit type="submit" value="READ" disabled={loading} />
+							{isSensorReading ? (
+								<Submit type="submit" value="READING" disabled={loading} isSensorReading={isSensorReading} />
+							) : (
+								<Submit type="submit" value="READ" disabled={loading} isSensorReading={isSensorReading} />
+							)}
 						</SubmitContainer>
 					</Form>
 				</>
