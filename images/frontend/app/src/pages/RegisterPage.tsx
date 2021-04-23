@@ -1,4 +1,4 @@
-import React, { FC, SyntheticEvent, ChangeEvent, useState, useEffect } from "react";
+import { FC, SyntheticEvent, ChangeEvent, useState, useEffect } from "react";
 import {Redirect } from "react-router-dom";
 import axios from "axios";
 import styled from "styled-components";

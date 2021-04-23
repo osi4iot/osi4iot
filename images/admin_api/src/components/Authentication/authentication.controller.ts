@@ -29,6 +29,7 @@ interface IJwtPayload {
 }
 
 interface ILoginOutput {
+	userName: string;
 	accessToken: string;
 	refreshToken: string;
 	expirationDate: string;
@@ -116,6 +117,7 @@ class AuthenticationController implements IController {
 		}
 
 		loginOutput = {
+			userName: user.login,
 			accessToken,
 			refreshToken,
 			expirationDate

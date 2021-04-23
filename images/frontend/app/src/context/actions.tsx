@@ -30,6 +30,5 @@ export async function loginUser(dispatch: AuthDispatch, loginPayload: LoginData)
 
 export async function logout(dispatch: AuthDispatch) {
 	dispatch({ type: 'LOGOUT' });
-	localStorage.removeItem('currentUser');
-	localStorage.removeItem('token');
+	localStorage.removeItem('iot_platform_auth');
 }

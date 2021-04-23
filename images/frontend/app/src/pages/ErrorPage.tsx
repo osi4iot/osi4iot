@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import { FC } from "react";
 import styled from "styled-components";
 import Header from "../components/Header";
 import Main from "../components/Main";

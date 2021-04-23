@@ -1,5 +1,9 @@
 import { Action, AuthContextProps } from "../interfaces/interfaces";
 
+let userName = localStorage.getItem("iot_platform_auth")
+	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).userName
+	: "";
+
 let accessToken = localStorage.getItem("iot_platform_auth")
 	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).accessToken
 	: "";
@@ -13,6 +17,7 @@ let expirationDate = localStorage.getItem("iot_platform_auth")
 	: "";
 
 export const initialState = {
+	userName: "" || userName,
 	accessToken: "" || accessToken,
     refreshToken: "" || refreshToken,
     expirationDate: "" || expirationDate,
@@ -30,6 +35,7 @@ export const AuthReducer = (initialState: AuthContextProps, action: Action) => {
 		case "LOGIN_SUCCESS":
 			return {
 				...initialState,
+				userName: action.payload.userName,
 				accessToken: action.payload.accessToken,
 				refreshToken: action.payload.refreshToken,
 				loading: false,
@@ -37,6 +43,7 @@ export const AuthReducer = (initialState: AuthContextProps, action: Action) => {
 		case "LOGOUT":
 			return {
 				...initialState,
+				userName: "",
 				accessToken: "",
 				refreshToken: "",
 			};

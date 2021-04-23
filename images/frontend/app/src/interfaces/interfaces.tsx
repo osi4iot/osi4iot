@@ -6,6 +6,7 @@ export interface LoggedUser {
 }
 
 export interface AuthContextProps {
+	userName: string;
 	accessToken: string;
 	refreshToken: string;
 	expirationDate: string;
@@ -14,6 +15,7 @@ export interface AuthContextProps {
 }
 
 export interface ActionPayload {
+	userName: string;
 	accessToken: string;
 	refreshToken: string;
 }

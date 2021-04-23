@@ -19,6 +19,13 @@ export const useIsUserAuth = () => {
 	return accessToken !== "";
 }
 
+export const useLoggedUserLogin = () => {
+	const { userName } = useContext(AuthStateContext);
+	return userName;
+}
+
+
+
 export function useAuthDispatch() {
 	const context = React.useContext(AuthDispatchContext);
 	if (context === undefined) {

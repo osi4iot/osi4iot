@@ -1,4 +1,4 @@
-import React, { FC } from "react";
+import { FC } from "react";
 import { NavLink } from "react-router-dom";
 import styled from "styled-components";
 import Main from "../components/Main";
@@ -15,16 +15,59 @@ const Title = styled.h2`
 	width: 300px;
 `;
 
+const ImageContainer = styled.div`
+	width: 75vw;
+	height: 100%;
+	padding: 0px 0px 10px 0px;
+	display: none;
+
+	@media screen and (min-width: 768px) {
+		display: block;
+	}
+`;
+
+const FondImage = styled.img`
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: 5px 10%;
+`;
+
 const MenuContainer = styled.div`
+	width: 25vw;
+	min-width: 440px;
+	display: flex;
+	flex-direction: column;
+	/* justify-content: center; */
+	align-items: center;
+
+	@media screen and (max-width: 768px) {
+		width: 100%;
+		min-width: 100%;
+	}
+`;
+
+const MenuBorder = styled.div`
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	justify-content: space-around;
 	align-items: center;
-	width: 300px;
-	height: 450px;
+	width: 320px;
+	height: calc(100vh - 180px);
 	font-size: 18px;
-	border: 2px solid #3274d9;
+	border: 3px solid #3274d9;
 	border-radius: 15px;
+	padding-bottom: 40px;
+
+	@media screen and (min-width: 768px) {
+		width: 400px;
+	}
+
+	@media screen and (min-height: 750px) {
+		justify-content: flex-start;
+	}
+
 `;
 
 const ButtonLink = styled.button`
@@ -36,7 +79,7 @@ const ButtonLink = styled.button`
 	outline: none;
 	cursor: pointer;
 	box-shadow: 0 5px #173b70;
-	width: 250px;
+	width: 80%;
 
 	&:hover {
 		background-color: #2461c0;
@@ -46,6 +89,11 @@ const ButtonLink = styled.button`
 		background-color: #2461c0;
 		box-shadow: 0 2px #173b70;
 		transform: translateY(4px);
+	}
+
+
+	@media screen and (min-height: 750px) {
+		margin: 50px 0;
 	}
 `;
 
@@ -58,7 +106,7 @@ const StyledNavLink = styled(NavLink)`
 	outline: none;
 	cursor: pointer;
 	box-shadow: 0 5px #173b70;
-	width: 250px;
+	width: 80%;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -84,17 +132,27 @@ const StyledNavLink = styled(NavLink)`
 	&:hover p {
 		background-color: #2461c0;
 	}
+
+	@media screen and (min-height: 750px) {
+		margin: 50px 0;
+	}
 `;
+
+const Footer = styled.p`
+	position: absolute;
+	font-size: 12px;
+	margin: 5px;
+	bottom: 5px;
+`;
+
 
 const domainName = getDomainName();
 
-interface MenuProps {
-	children?: JSX.Element;
-}
 
-const HomePage: FC<MenuProps> = ({ children }) => {
+const HomePage: FC<{}> = () => {
 	const handleLinkClick = (path: string) => {
-		window.location.href = `https://${domainName}${path}`;
+		const url = `https://${domainName}${path}`;
+		window.open(url, "_blank");
 	};
 
 	return (
@@ -102,15 +160,20 @@ const HomePage: FC<MenuProps> = ({ children }) => {
 			<Header />
 			<Main>
 				<>
-					<Title>Platform options</Title>
+					<ImageContainer>
+						<FondImage src="osi4iot_fond.jpg" alt="Logo" />
+					</ImageContainer>
 					<MenuContainer>
-						{children}
-						<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
-						<ButtonLink onClick={() => handleLinkClick("/admin_api/swagger/")}>Platform assistant</ButtonLink>
-						<StyledNavLink exact to="/mobile_sensors">
-							<p>Mobile sensors</p>
-							<p>(Only Android devices)</p>
-						</StyledNavLink>
+						<Title>Platform options</Title>
+						<MenuBorder>
+							<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
+							<ButtonLink onClick={() => handleLinkClick("/admin_api/swagger/")}>Platform assistant</ButtonLink>
+							<StyledNavLink exact to="/mobile_sensors">
+								<p>Mobile sensors</p>
+								<p>(Only Android devices)</p>
+							</StyledNavLink>
+							<Footer>Power by Aula CIMNE-EEBE - dicapua@cimne.upc.edu</Footer>
+						</MenuBorder>
 					</MenuContainer>
 				</>
 			</Main>

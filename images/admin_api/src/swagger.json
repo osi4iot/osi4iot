@@ -2486,6 +2486,9 @@
 		"LoginOutput": {
 			"type": "object",
 			"properties": {
+				"userName": {
+					"type": "string"
+				},
 				"accessToken": {
 					"type": "string"
 				},
