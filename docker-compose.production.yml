@@ -212,8 +212,8 @@ services:
     volumes:
       - ./certs/domain_certs/iot_platform_cert.cer:/app/ssl_config/iot_platform_cert.cer
       - ./certs/domain_certs/iot_platform.key:/app/ssl_config/iot_platform.key
-      - ./certs/mqtts_server_certs/ca.crt:/app/mqtt_certs/ca.crt
-      - ./certs/mqtts_server_certs/ca.key:/app/mqtt_certs/ca.key
+      - ./certs/mqtt_server_certs/ca.crt:/app/mqtt_certs/ca.crt
+      - ./certs/mqtt_server_certs/ca.key:/app/mqtt_certs/ca.key
     working_dir: /app
     env_file:
       - .env
