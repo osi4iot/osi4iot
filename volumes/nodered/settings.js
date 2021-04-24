@@ -140,11 +140,6 @@ module.exports = {
             username: process.env.NODE_RED_ADMIN,
             password: process.env.NODE_RED_ADMIN_HASH,
             permissions: "*"
-        },
-        {
-            username: process.env.NODE_RED_USER,
-            password: process.env.NODE_RED_USER_HASH,
-            permissions: "read"
         }]
     },
 
