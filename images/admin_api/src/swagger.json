@@ -2,17 +2,17 @@
 	"openapi": "3.0.0",
 	"info": {
 		"version": "1.0.0",
-		"title": "IOT EEBE Platform",
-		"description": "A tool to boost education in engineering universities",
+		"title": "OSI4IOT DEMO Platform",
+		"description": "Open source integration for internet of things",
 		"license": {
-			"name": "MIT",
-			"url": "https://opensource.org/licenses/MIT"
+			"name": "Apache 2.0",
+			"url": "https://opensource.org/licenses/Apache-2.0"
 		}
 	},
 	"servers": [
 		{
 			"url": "https://localhost/admin_api/",
-			"description": "With nginx proxy"
+			"description": "Url behind proxy"
 		}
 	],
 	"components": {

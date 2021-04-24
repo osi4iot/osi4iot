@@ -1,6 +1,8 @@
 /* istanbul ignore file */
 import "reflect-metadata";
 import App from "./app";
+import fs from "fs";
+import path from "path";
 import HealthCheckController from "./utils/healthCheck/healthCheck.controller";
 import AuthenticationController from "./components/Authentication/authentication.controller";
 import { logger } from "./config/winston";
@@ -9,6 +11,7 @@ import OrganizationController from "./components/organization/organization.contr
 import ApplicationController from "./components/application/application.controller";
 import GroupController from "./components/group/group.controller";
 import DeviceController from "./components/device/device.controller";
+
 
 async function main(): Promise<void> {
 	try {

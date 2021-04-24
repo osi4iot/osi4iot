@@ -1,5 +1,5 @@
 import bodyParser from "body-parser";
-import express from "express";
+import express, { Request, Response, NextFunction} from "express";
 import https from "https";
 import fs from "fs";
 import helmet from "helmet";
@@ -14,6 +14,7 @@ import IController from "./interfaces/controller.interface";
 import errorMiddleware from "./middleware/error.middleware";
 import pool from "./config/dbconfig";
 import transporter from "./config/mailer";
+import IRequestWithSwaggerDoc from "./interfaces/requestWithSwaggerDoc";
 
 const httpsOptions = {
 	key: fs.readFileSync("./ssl_config/iot_platform.key"),
@@ -67,7 +68,16 @@ class App {
 				docExpansion: 'none'
 			}
 		};
-		this.app.use("/swagger", swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
+		const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} Platform`;
+		const platformPhrase = `${process.env.PLATFORM_PHRASE}`;
+		const serverUrl = `https://${process.env.DOMAIN_NAME}/admin_api/`;
+		this.app.use("/swagger", (req: IRequestWithSwaggerDoc, res: Response, next: NextFunction) => {
+			(swaggerDocument as any).info.title = platformName;
+			(swaggerDocument as any).info.description = platformPhrase;
+			(swaggerDocument as any).servers[0].url = serverUrl;
+			req.swaggerDoc = swaggerDocument;
+			next();
+		}, swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
 	}
 
 	private dbConnect() {
