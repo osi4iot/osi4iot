@@ -178,7 +178,7 @@ services:
       timeout: 300s
       retries: 30
     ports:
-    - "3200:3200"
+    - "127.0.0.1:3200:3200"
 
   frontend:
     build: 
