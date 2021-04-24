@@ -107,7 +107,6 @@ services:
       - GRAFANA_DATASOURCE_PASSWORD=${GRAFANA_DATASOURCE_PASSWORD}
       - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
       - MAIN_ORGANIZATION_DATASOURCE_NAME=${MAIN_ORGANIZATION_DATASOURCE_NAME}
-    restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]
       interval: 10s
@@ -116,6 +115,7 @@ services:
     depends_on:
       postgres:
         condition: service_healthy     
+    restart: unless-stopped
 
   pgadmin4:
     container_name: ${PLATFORM_NAME}_pgadmin
@@ -130,7 +130,7 @@ services:
     volumes:
       - ./volumes/pgadmin:/var/lib/pgadmin
     ports:
-      - "127.0.0.1:5050:5050"
+      - "127.0.0.1:5050:80"
     networks:
       - internal_net
     healthcheck:
