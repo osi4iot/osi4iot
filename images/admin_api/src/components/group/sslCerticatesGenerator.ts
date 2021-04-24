@@ -5,8 +5,8 @@ import ISSLCertificates from "./interfaces/ISSLCertificates";
 
 const sslCerticatesGenerator = async (group: IGroup): Promise<ISSLCertificates> => {
 
-	const ca_crt = fs.readFileSync("./mqtts_certs/ca.crt");
-	const ca_key = fs.readFileSync("./mqtts_certs/ca.key");
+	const ca_crt = fs.readFileSync("./mqtt_certs/ca.crt");
+	const ca_key = fs.readFileSync("./mqtt_certs/ca.key");
 	const validityDays = parseInt(process.env.SSL_CERTS_VALIDITY_DAYS,10);
 
 	const ca_certs = {

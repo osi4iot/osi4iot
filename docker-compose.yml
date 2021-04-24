@@ -13,11 +13,9 @@ services:
       - "9001:9001"
     volumes:
       - ./config/mosquitto:/mosquitto/config/
-      - ${HOST_VOLUMES_PATH}/mosquitto/data:/mosquitto/data/
-      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs:/mosquitto/mqtts_certs/
-      - ${SSL_CERTIFICATE_CA_PATH}:/mosquitto/wss_certs/iot_platform_ca.pem
-      - ${SSL_CERTIFICATE_SERVER_PATH}:/mosquitto/wss_certs/iot_platform_cert.cer
-      - ${SSL_CERTIFICATE_KEY_PATH}:/mosquitto/wss_certs/iot_platform.key
+      - ./volumes/mosquitto/data:/mosquitto/data/
+      - ./certs/mqtt_server_certs/:/mosquitto/mqtt_certs/
+      - ./certs/domain_certs/:/mosquitto/wss_certs/
     restart: unless-stopped
 
   nginx_proxy:
@@ -33,10 +31,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./images/nginx/static/:/static/
-      - ${SSL_CERTIFICATE_CA_PATH}:/etc/ssl/certs/iot_platform_ca.pem
-      - ${SSL_CERTIFICATE_SERVER_PATH}:/etc/ssl/certs/iot_platform_cert.cer
-      - ${SSL_CERTIFICATE_KEY_PATH}:/etc/ssl/certs/iot_platform.key
-      - ${SSL_DHPARAM_PATH}:/etc/ssl/certs/dhparam-2048.pem
+      - ./certs/domain_certs/:/etc/ssl/certs/
     depends_on:
       - nodered
 
@@ -51,7 +46,8 @@ services:
     ports:
       - "127.0.0.1:1880:1880"
     volumes:
-      - ${HOST_VOLUMES_PATH}/nodered/:/data
+      - ./volumes/nodered/:/data
+      - ./certs/mqtt_nodered_certs/:/data/certs/
     restart: unless-stopped
     depends_on:
       postgres:
@@ -71,7 +67,7 @@ services:
       GRAFANA_DATASOURCE_PASSWORD: ${GRAFANA_DATASOURCE_PASSWORD}
       TZ: ${TIME_ZONE}      
     volumes:
-      - ${HOST_VOLUMES_PATH}/pgdata:/var/lib/postgresql/data
+      - ./volumes/pgdata:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -90,7 +86,7 @@ services:
     ports:
       - "127.0.0.1:5000:5000"
     volumes:
-      - ${HOST_VOLUMES_PATH}/grafana:/var/lib/grafana
+      - ./volumes/grafana:/var/lib/grafana
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
       - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
@@ -141,9 +137,9 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      POSTGRES_USER: ${POSTGRES_USER}
     volumes:
-       - ${HOST_VOLUMES_PATH}/pgadmin_data/servers.json:/pgadmin4/servers.json
-       - ${HOST_VOLUMES_PATH}/pgadmin_data/pgadmin:/var/lib/pgadmin
+      - ./volumes/pgadmin:/var/lib/pgadmin
     ports:
       - "127.0.0.1:5050:80"
     networks:
@@ -164,10 +160,10 @@ services:
       - internal_net
     restart: always 
     volumes:
-      - ${SSL_CERTIFICATE_SERVER_PATH}:/app/ssl_config/iot_platform.cer
-      - ${SSL_CERTIFICATE_KEY_PATH}:/app/ssl_config/iot_platform.key
-      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs/ca.crt:/app/mqtts_certs/ca.crt
-      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs/ca.key:/app/mqtts_certs/ca.key
+      - ./certs/domain_certs/iot_platform_cert.cer:/app/ssl_config/iot_platform_cert.cer
+      - ./certs/domain_certs/iot_platform.key:/app/ssl_config/iot_platform.key
+      - ./certs/mqtts_server_certs/ca.crt:/app/mqtt_certs/ca.crt
+      - ./certs/mqtts_server_certs/ca.key:/app/mqtt_certs/ca.key
     working_dir: /app
     env_file:
       - .env
@@ -210,7 +206,7 @@ services:
       - "127.0.0.1:9000:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${HOST_VOLUMES_PATH}/portainer_data:/data
+      - ./volumes/portainer_data:/data
 
 networks:
   internal_net:

@@ -11,10 +11,6 @@
 	},
 	"servers": [
 		{
-			"url": "/",
-			"description": "Local Dev"
-		},
-		{
 			"url": "https://localhost/admin_api/",
 			"description": "With nginx proxy"
 		}

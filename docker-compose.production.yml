@@ -14,9 +14,9 @@ services:
       - "9001:9001"
     volumes:
       - ./config/mosquitto:/mosquitto/config/
-      - ${HOST_VOLUMES_PATH}/mosquitto/data:/mosquitto/data/
-      - ${HOST_VOLUMES_PATH}/mosquitto/mqtts_certs:/mosquitto/mqtts_certs/
-      - ${HOST_CERTS_DIRECTORY}:/mosquitto/wss_certs/
+      - ./volumes/mosquitto/data:/mosquitto/data/
+      - ./certs/mqtt_server_certs/:/mosquitto/mqtt_certs/
+      - ./certs/domain_certs/:/mosquitto/wss_certs/
     restart: unless-stopped
     logging:
       driver: "fluentd"
@@ -36,16 +36,12 @@ services:
       - "80:80"
       - "443:443"
     environment:
-      - DOMAIN_NAME=${DOMAIN_NAME}
-      - SSL_CERTIFICATE_CA_PATH=${SSL_CERTIFICATE_CA_PATH}
-      - SSL_CERTIFICATE_SERVER_PATH=${SSL_CERTIFICATE_SERVER_PATH}      
-      - SSL_CERTIFICATE_KEY_PATH=${SSL_CERTIFICATE_KEY_PATH}
-      - SSL_DHPARAM_PATH=${SSL_DHPARAM_PATH}
+      - ./images/nginx/static/:/static/
+      - ./certs/domain_certs/:/etc/ssl/certs/
     restart: unless-stopped
     volumes:
-      - ./images/nginx/templates:/etc/nginx/templates
       - ./images/nginx/static/:/static/
-      - ${HOST_CERTS_DIRECTORY}:${CONTAINER_CERTS_DIRECTORY}
+      - ./certs/domain_certs/:/etc/ssl/certs/
     command: ./src/scripts/template_script.sh
     depends_on:
       - nodered
@@ -68,7 +64,8 @@ services:
     ports:
       - "127.0.0.1:1880:1880"
     volumes:
-      - ${HOST_VOLUMES_PATH}/nodered/:/data
+      - ./volumes/nodered/:/data
+      - ./certs/mqtt_nodered_certs/:/data/certs/
     restart: unless-stopped
     depends_on:
       postgres:
@@ -96,7 +93,7 @@ services:
       GRAFANA_DATASOURCE_PASSWORD: ${GRAFANA_DATASOURCE_PASSWORD}
       TZ: ${TIME_ZONE}
     volumes:
-      - ${HOST_VOLUMES_PATH}/pgdata:/var/lib/postgresql/data
+      - ./volumes/pgdata:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -123,7 +120,7 @@ services:
     ports:
       - "127.0.0.1:5000:5000"
     volumes:
-      - ${HOST_VOLUMES_PATH}/grafana:/var/lib/grafana
+      - ./volumes/grafana:/var/lib/grafana
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
       - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
@@ -186,9 +183,9 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      POSTGRES_USER: ${POSTGRES_USER}
     volumes:
-       - ${HOST_VOLUMES_PATH}/pgadmin_data/servers.json:/pgadmin4/servers.json
-       - ${HOST_VOLUMES_PATH}/pgadmin_data/pgadmin:/var/lib/pgadmin
+      - ./volumes/pgadmin:/var/lib/pgadmin
     ports:
       - "127.0.0.1:5050:80"
     networks:
@@ -206,15 +203,17 @@ services:
   admin_api:
     build:
       context: ./images/admin_api
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
     container_name: ${PLATFORM_NAME}_admin_api
     networks:
       - internal_net
       - fluentd_net
     restart: always    
     volumes:
-      - /app/node_modules
-      - ./images/admin_api:/app
+      - ./certs/domain_certs/iot_platform_cert.cer:/app/ssl_config/iot_platform_cert.cer
+      - ./certs/domain_certs/iot_platform.key:/app/ssl_config/iot_platform.key
+      - ./certs/mqtts_server_certs/ca.crt:/app/mqtt_certs/ca.crt
+      - ./certs/mqtts_server_certs/ca.key:/app/mqtt_certs/ca.key
     working_dir: /app
     env_file:
       - .env
@@ -270,7 +269,7 @@ services:
       - "127.0.0.1:9000:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ${HOST_VOLUMES_PATH}/portainer_data:/data
+      - ./volumes/portainer_data:/data
     depends_on:
       - fluentd
     logging:
@@ -287,7 +286,7 @@ services:
     container_name: ${PLATFORM_NAME}_elasticsearch
     volumes:
       - ./config/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
-      - ${HOST_VOLUMES_PATH}/elasticsearch/data:/usr/share/elasticsearch/data
+      - ./volumes/elasticsearch/data:/usr/share/elasticsearch/data
     ports:
       - "127.0.0.1:9200:9200"
       - "127.0.0.1:9300:9300"
@@ -405,7 +404,7 @@ services:
     ports:
       - 127.0.0.1:9090:9090
     volumes:
-      - ${HOST_VOLUMES_PATH}/prometheus:/prometheus
+      - ./volumes/prometheus:/prometheus
       - ./config/prometheus:/etc/prometheus
     restart: always
     command:
@@ -436,7 +435,7 @@ services:
     ports:
       - 127.0.0.1:3000:3000
     volumes:
-      - ${HOST_VOLUMES_PATH}/grafana_system:/var/lib/grafana
+      - ./volumes/grafana_system:/var/lib/grafana
     restart: always
     labels:
       container_group: monitoring
@@ -466,7 +465,7 @@ services:
     restart: always
     volumes:
       - ./config/alertmanager/:/etc/alertmanager/
-      - ${HOST_VOLUMES_PATH}/alertmanager/:/alertmanager
+      - ./volumes/alertmanager/:/alertmanager
     command:
       - '-config.file=/etc/alertmanager/config.yml'
       - '-storage.path=/alertmanager'

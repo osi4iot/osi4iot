@@ -17,7 +17,7 @@ import transporter from "./config/mailer";
 
 const httpsOptions = {
 	key: fs.readFileSync("./ssl_config/iot_platform.key"),
-	cert: fs.readFileSync("./ssl_config/iot_platform.cer"),
+	cert: fs.readFileSync("./ssl_config/iot_platform_cert.cer"),
 };
 
 class App {
