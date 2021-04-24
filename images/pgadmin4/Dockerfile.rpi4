@@ -8,3 +8,4 @@ RUN apk --no-cache add curl
 HEALTHCHECK --interval=10s --timeout=3s \
   CMD curl -f http://localhost || exit 1
 USER pgadmin
+ENTRYPOINT ["/pgadmin4/scripts/entry_script.sh"]
