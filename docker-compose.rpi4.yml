@@ -89,6 +89,7 @@ services:
       - ./volumes/grafana:/var/lib/grafana
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
+      - DEFAULT_TIME_ZONE=${DEFAULT_TIME_ZONE}       
       - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
       - GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
