@@ -89,6 +89,7 @@ services:
       - ./volumes/grafana:/var/lib/grafana
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
+      - TIME_ZONE=${TIME_ZONE}
       - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
       - GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
@@ -101,7 +102,6 @@ services:
       - TELEGRAM_CHATID=${TELEGRAM_CHATID}
       - GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
       - GF_RENDERING_CALLBACK_URL=http://grafana:5000/grafana/
-      - BROWSER_TZ=${TIME_ZONE}
       - GF_LOG_FILTERS=rendering:debug
       - POSTGRES_DB=${POSTGRES_DB}
       - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD}
