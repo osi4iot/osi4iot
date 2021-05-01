@@ -48,20 +48,20 @@ export default interface IDashboardApi {
 	changeUserPassword(userId: number, password: string): Promise<IMessage>;
 	logoutUser(userId: number): Promise<IMessage>;
 
-	createTeam(teamData: ITeamDTO): Promise<IMessage>;
-	getTeamsWithPaging(perpage: number, page: number, query?: string, name?: string): Promise<ITeamsWithPaging>;
-	getTeamById(teamId: number): Promise<ITeam>;
-	updateTeamById(teamId: number, teamData: ITeamDTO): Promise<IMessage>;
-	deleteTeamById(teamId: number): Promise<IMessage>;
-	getTeamMembers(teamId: number): Promise<ITeamMember[]>;
-	addTeamMembers(teamId: number, usersId: IUserId[]): Promise<string[]>;
-	addMemberToTeam(teamId: number, userId: IUserId): Promise<IMessage>;
-	removeMemberFromTeam(teamId: number, userId: number): Promise<IMessage>;
-	removeMembersFromTeam(teamId: number, userIdsArray: number[]): Promise<IMessage[]>;
+	createTeam(orgId: number, teamData: ITeamDTO): Promise<IMessage>;
+	getTeamsWithPaging(orgId: number, perpage: number, page: number, query?: string, name?: string): Promise<ITeamsWithPaging>;
+	getTeamById(orgId: number, teamId: number): Promise<ITeam>;
+	updateTeamById(orgId: number, teamId: number, teamData: ITeamDTO): Promise<IMessage>;
+	deleteTeamById(orgId: number, teamId: number): Promise<IMessage>;
+	getTeamMembers(orgId: number, teamId: number): Promise<ITeamMember[]>;
+	addTeamMembers(orgId: number, teamId: number, usersId: IUserId[]): Promise<string[]>;
+	addMemberToTeam(orgId: number, teamId: number, userId: IUserId): Promise<IMessage>;
+	removeMemberFromTeam(orgId: number, teamId: number, userId: number): Promise<IMessage>;
+	removeMembersFromTeam(orgId: number, teamId: number, userIdsArray: number[]): Promise<IMessage[]>;
 
 	createFolder(folderData: IFolderDTO, orgKey: string): Promise<IFolder>;
-	folderPermission(uid: string, folderPermissionDTO: IFolderPermissionDTO, orgKey: string): Promise<IMessage>;
-	deleteFolderByUid(folderUid: string, orgKey: string): Promise<IMessage>;
+	folderPermission(orgId: number, uid: string, folderPermissionDTO: IFolderPermissionDTO, orgKey: string): Promise<IMessage>;
+	deleteFolderByUid(orgId: number, folderUid: string, orgKey: string): Promise<IMessage>;
 
 	createDataSourcePostgres(orgId: number, name: string, orgKey: string): Promise<IMessage>;
 

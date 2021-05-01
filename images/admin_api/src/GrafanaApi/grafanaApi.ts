@@ -271,7 +271,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return message;
 	}
 
-	async createTeam(teamData: ITeamDTO): Promise<IMessage> {
+	async createTeam(orgId: number, teamData: ITeamDTO): Promise<IMessage> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams`;
 		const message = await needle('post', url, teamData, optionsBasicAuth)
 			.then(res => res.body)
@@ -279,7 +280,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return message;
 	}
 
-	async getTeamsWithPaging(perpage: number, page: number, query?: string, name?: string): Promise<TeamsWithPaging> {
+	async getTeamsWithPaging(orgId: number, perpage: number, page: number, query?: string, name?: string): Promise<TeamsWithPaging> {
+		await this.switchOrgContextForAdmin(orgId);
 		const base_url = `${GrafanaApiURL}/teams/search?`;
 		let url = (perpage && page) ? `${base_url}perpage=${perpage}&page=${page}` : base_url;
 		url = query ? `${url}&query=${query}` : url;
@@ -290,7 +292,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return teams;
 	}
 
-	async getTeamById(teamId: number): Promise<ITeam> {
+	async getTeamById(orgId: number, teamId: number): Promise<ITeam> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}`;
 		const team = await needle('get', url, optionsBasicAuth)
 			.then(res => res.body)
@@ -298,7 +301,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return team;
 	}
 
-	async updateTeamById(teamId: number, teamData: ITeamDTO): Promise<IMessage> {
+	async updateTeamById(orgId: number, teamId: number, teamData: ITeamDTO): Promise<IMessage> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}`;
 		const team = await needle('put', url, teamData, optionsBasicAuth)
 			.then(res => res.body)
@@ -306,7 +310,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return team;
 	}
 
-	async deleteTeamById(teamId: number): Promise<IMessage> {
+	async deleteTeamById(orgId: number, teamId: number): Promise<IMessage> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}`;
 		const team = await needle('delete', url, null, optionsBasicAuth)
 			.then(res => res.body)
@@ -314,7 +319,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return team;
 	}
 
-	async getTeamMembers(teamId: number): Promise<TeamMember[]> {
+	async getTeamMembers(orgId: number, teamId: number): Promise<TeamMember[]> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}/members`;
 		const members = await needle('get', url, optionsBasicAuth)
 			.then(res => res.body)
@@ -322,7 +328,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return members;
 	}
 
-	async addTeamMembers(teamId: number, usersId: IUserId[]): Promise<string[]> {
+	async addTeamMembers(orgId: number, teamId: number, usersId: IUserId[]): Promise<string[]> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}/members`;
 		const usersCreationQueries = [];
 		for (let i = 0; i < usersId.length; i++) {
@@ -338,7 +345,8 @@ export default class GrafanaApi implements IDashboardApi {
 			.then(messages => messages)
 	}
 
-	async addMemberToTeam(teamId: number, userId: IUserId): Promise<IMessage> {
+	async addMemberToTeam(orgId: number, teamId: number, userId: IUserId): Promise<IMessage> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}/members`;
 		const message = await needle('post', url, userId, optionsBasicAuth)
 			.then(res => res.body)
@@ -346,7 +354,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return message;
 	}
 
-	async removeMemberFromTeam(teamId: number, usersId: number): Promise<IMessage> {
+	async removeMemberFromTeam(orgId: number, teamId: number, usersId: number): Promise<IMessage> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}/members/${usersId}`;
 		const message = await needle('delete', url, null, optionsBasicAuth)
 			.then(res => res.body)
@@ -354,7 +363,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return message;
 	}
 
-	async removeMembersFromTeam(teamId: number, userIdsArray: number[]): Promise<IMessage[]> {
+	async removeMembersFromTeam(orgId: number, teamId: number, userIdsArray: number[]): Promise<IMessage[]> {
+		await this.switchOrgContextForAdmin(orgId);
 		const memberToRemoveQueries = [];
 		for (let i = 0; i < userIdsArray.length; i++) {
 			const url = `${GrafanaApiURL}/teams/${teamId}/members/${userIdsArray[i]}`;
@@ -379,7 +389,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return folder;
 	}
 
-	async folderPermission(uid: string, folderPermissionDTO: IFolderPermissionDTO, orgKey: string): Promise<IMessage> {
+	async folderPermission(orgId: number, uid: string, folderPermissionDTO: IFolderPermissionDTO, orgKey: string): Promise<IMessage> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/folders/${uid}/permissions`;
 		const optionsToken = this.generateOptionsToken(orgKey);
 		const message = await needle('post', url, folderPermissionDTO, optionsToken)
@@ -388,7 +399,8 @@ export default class GrafanaApi implements IDashboardApi {
 		return message;
 	}
 
-	async deleteFolderByUid(folderUid: string, orgKey: string): Promise<IMessage> {
+	async deleteFolderByUid(orgId: number, folderUid: string, orgKey: string): Promise<IMessage> {
+		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/folders/${folderUid}`;
 		const optionsToken = this.generateOptionsToken(orgKey);
 		const message = await needle('delete', url, null, optionsToken)

@@ -24,8 +24,6 @@ export const useLoggedUserLogin = () => {
 	return userName;
 }
 
-
-
 export function useAuthDispatch() {
 	const context = React.useContext(AuthDispatchContext);
 	if (context === undefined) {

@@ -134,7 +134,7 @@ services:
       - TELEGRAM_BOTTOKEN=${TELEGRAM_BOTTOKEN}
       - TELEGRAM_CHATID=${TELEGRAM_CHATID}
       - GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
-      - GF_RENDERING_CALLBACK_URL=http://grafana:5000/
+      - GF_RENDERING_CALLBACK_URL=http://grafana:5000/grafana/
       - GF_LOG_FILTERS=rendering:debug
       - POSTGRES_DB=${POSTGRES_DB}
       - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD}

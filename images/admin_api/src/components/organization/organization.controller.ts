@@ -22,7 +22,8 @@ import {
 	addAdminToOrganization,
 	addOrgUsersToDefaultOrgGroup,
 	addUsersToOrganizationAndMembersToDefaultOrgGroup,
-	getOrganizationsManagedByUserId
+	getOrganizationsManagedByUserId,
+	updateOrgUserRoleInDefaultOrgGroup
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -347,7 +348,10 @@ class OrganizationController implements IController {
 				if (!req.user.isGrafanaAdmin && userInOrgData.roleInOrg === "Admin") {
 					throw new HttpException(401, "To assign organization admin role to a user, platform administrator privileges are needed.");
 				}
-				await grafanaApi.changeUserRoleInOrganization(organization.id, existUserInOrg.userId, userInOrgData.roleInOrg);
+				if (userInOrgData.roleInOrg !== existUserInOrg.roleInOrg) {
+					await grafanaApi.changeUserRoleInOrganization(organization.id, existUserInOrg.userId, userInOrgData.roleInOrg);
+					await updateOrgUserRoleInDefaultOrgGroup(organization.id, existUserInOrg, userInOrgData.roleInOrg);
+				}
 			}
 			const userInOrgDataUpdated = { ...existUserInOrg, ...userInOrgData };
 			await updateOrganizationUser(userInOrgDataUpdated);

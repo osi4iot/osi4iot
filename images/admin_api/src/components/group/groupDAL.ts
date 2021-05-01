@@ -37,7 +37,7 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 	if (!groupInput.email) groupInput.email = `${groupInput.acronym}@test.com`;
 	const teamData = { ...groupInput, orgId };
 	const orgKey = await getOrganizationKey(orgId);
-	const team = await grafanaApi.createTeam(teamData);
+	const team = await grafanaApi.createTeam(orgId, teamData);
 	const folderData = { title: groupInput.name, email: groupInput.email };
 	const folder = await grafanaApi.createFolder(folderData, orgKey);
 	const teamId = team.teamId;
@@ -59,7 +59,7 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 	}
 	await setFolderPermissions(orgId, folderId, permissionsArray);
 	const groupAdminIdArray = groupInput.groupAdminDataArray.map(admin => ({ userId: admin.userId }));
-	await grafanaApi.addTeamMembers(teamId, groupAdminIdArray);
+	await grafanaApi.addTeamMembers(orgId, teamId, groupAdminIdArray);
 	groupInput.groupAdminDataArray.forEach(groupAdmin => groupAdmin.roleInGroup = "Admin" as RoleInGroupOption);
 	await teamMembersPermissions(teamId, groupInput.groupAdminDataArray)
 	const emailNotificationChannelData = {
@@ -191,9 +191,9 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
-				WHERE grafanadb.team_member.permission = $1 OR grafanadb.team_member.permission = $2
+				WHERE grafanadb.team_member.user_id = $1 AND (grafanadb.team_member.permission = $2 OR grafanadb.team_member.permission = $3)
 				ORDER BY id ASC;`;
-	const result = await pool.query(query, [2, 4]);
+	const result = await pool.query(query, [userId, 2, 4]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
 	return result.rows;
@@ -352,8 +352,8 @@ export const changeGroupUidByUid = async (group: IGroup): Promise<string> => {
 
 export const deleteGroup = async (group: IGroup, orgKey: string): Promise<string> => {
 	const response = await pool.query('DELETE FROM grafanadb.group WHERE id = $1 RETURNING *', [group.id]);
-	await grafanaApi.deleteFolderByUid(group.folderUid, orgKey);
-	await grafanaApi.deleteTeamById(group.teamId);
+	await grafanaApi.deleteFolderByUid(group.orgId, group.folderUid, orgKey);
+	await grafanaApi.deleteTeamById(group.orgId, group.teamId);
 	await deleteView(group.groupUid);
 	await deleteNotificationChannelById(group.telegramNotificationChannelId);
 	await deleteNotificationChannelById(group.emailNotificationChannelId);
@@ -365,8 +365,8 @@ export const deleteGroup = async (group: IGroup, orgKey: string): Promise<string
 export const deleteGroupByName = async (groupName: string, orgKey: string): Promise<void> => {
 	const group = await getGroupByProp("name", groupName);
 	await pool.query('DELETE FROM grafanadb.group WHERE id = $1', [group.id]);
-	await grafanaApi.deleteFolderByUid(group.folderUid, orgKey);
-	await grafanaApi.deleteTeamById(group.teamId);
+	await grafanaApi.deleteFolderByUid(group.folderId, group.folderUid, orgKey);
+	await grafanaApi.deleteTeamById(group.orgId, group.teamId);
 	await deleteView(group.groupUid);
 };
 
@@ -577,8 +577,8 @@ export const getGroupMemberByProp = async (group: IGroup, propName: string, prop
 };
 
 export const addMembersToGroup = async (group: IGroup, groupMembersArray: CreateGroupMemberDto[]): Promise<IMessage> => {
-	const groupMembersIdArray = groupMembersArray.map(user => ({ userId: user.userId}));
-	const msgArray = await grafanaApi.addTeamMembers(group.teamId, groupMembersIdArray);
+	const groupMembersIdArray = groupMembersArray.map(user => ({ userId: user.userId }));
+	const msgArray = await grafanaApi.addTeamMembers(group.orgId, group.teamId, groupMembersIdArray);
 	const groupMembersAddedArray: CreateGroupMemberDto[] = []
 	msgArray.forEach((msg, index) => {
 		if (msg === "Member added to Team") groupMembersAddedArray.push(groupMembersArray[index]);
@@ -674,7 +674,7 @@ export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: 
 	}
 
 	const memberIdsArray = groupMembersToRemove.map(member => member.userId);
-	const msgArray = await grafanaApi.removeMembersFromTeam(group.teamId, memberIdsArray);
+	const msgArray = await grafanaApi.removeMembersFromTeam(group.orgId, group.teamId, memberIdsArray);
 	let numGroupMembersRemoved = 0;
 	msgArray.forEach(msg => {
 		if (msg.message === "Team Member removed") numGroupMembersRemoved++;

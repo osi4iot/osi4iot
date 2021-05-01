@@ -6,11 +6,13 @@ import { decrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
 import { createOrganizationUsers, getUsersIdByEmailsArray } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
-import { addMembersToGroup, getDefaultOrgGroup } from "../group/groupDAL";
+import { addMembersToGroup, getDefaultOrgGroup, udpateRoleMemberInGroup } from "../group/groupDAL";
 import CreateGroupMemberDto from "../group/interfaces/groupMember.dto";
 import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import { giveGeolocationPoint } from "../../utils/geolocation.ts/geolocation";
+import IUserInOrg from "../user/interfaces/UserInOrg.interface";
+import IGroupMember from "../group/interfaces/GroupMember.interface";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
@@ -183,4 +185,31 @@ export const addOrgUsersToDefaultOrgGroup = async (orgId: number, usersAddedToOr
 	const message = await addMembersToGroup(group, groupMembersArray);
 	return message;
 }
+
+export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IUserInOrg, newRoleInOrg: string): Promise<IMessage> => {
+	const group = await getDefaultOrgGroup(orgId);
+	const groupMembersArray: CreateGroupMemberDto[] = [{
+		userId: user.userId,
+		firstName: user.firstName,
+		surname: user.surname,
+		email: user.email,
+		roleInGroup: (newRoleInOrg as RoleInGroupOption)
+	}];
+
+	const existentGroupMemberArray: IGroupMember[] = [
+		{
+			userId:  user.userId,
+			firstName: user.firstName,
+			surname: user.surname,
+			login: user.login,
+			email: user.email,
+			telegramId: user.telegramId,
+			roleInGroup: (user.roleInOrg as RoleInGroupOption)
+		}
+	];
+
+	const message = await udpateRoleMemberInGroup(group, groupMembersArray, existentGroupMemberArray);
+	return message;
+}
+
 
