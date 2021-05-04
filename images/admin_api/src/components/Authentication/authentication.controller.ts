@@ -15,10 +15,10 @@ import { updateOrganizationUser } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
 import { deleteRefreshToken, deleteUserRefreshTokens, exitsRefreshToken, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
-import { getAllDevices, getDevicesByGroupsIdArray } from "../device/deviceDAL";
-import { getOrganizations, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
-import { getAllGroups, getGroupsManagedByUserId } from "../group/groupDAL";
-import IPlatformComponents from "./PlatformComponents.interface";
+import { getAllDevices, getDevicesByGroupsIdArray, getNumDevices, getNumDevicesByGroupsIdArray } from "../device/deviceDAL";
+import { getNumOrganizations, getOrganizations, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import { getAllGroups, getAllGroupsInOrgArray, getGroupsManagedByUserId, getNumGroups, getNumGroupsManagedByUserId } from "../group/groupDAL";
+import IComponentsManagedByUser from "./ComponentsManagedByUser.interface";
 
 interface IJwtPayload {
 	id: string;
@@ -61,7 +61,7 @@ class AuthenticationController implements IController {
 		this.router.patch(`${this.path}/refresh_token/`, this.refreshToken);
 		this.router.delete(`${this.path}/disable_refresh_token/`, superAdminAuth, validationMiddleware<RefreshTokenToDisableDto>(RefreshTokenToDisableDto), this.disableRefreshToken);
 		this.router.delete(`${this.path}/disable_user_refresh_tokens/:userId`, superAdminAuth, this.disableUsersRefreshToken);
-		this.router.get(`${this.path}/user_managed_components`, userAuth, this.componentsManagedByUser);
+		this.router.get(`${this.path}/user_managed_components`, userAuth, this.numComponentsManagedByUser);
 	}
 
 	private generateNewRefreshToken = (user: IUser) => {
@@ -99,10 +99,10 @@ class AuthenticationController implements IController {
 
 		const existentRefreshToken = await getRefreshTokenByUserId(user.id);
 		let refreshToken;
-		if (existentRefreshToken)  {
+		if (existentRefreshToken) {
 			const decodedRefreshToken = jwt.decode(existentRefreshToken.token) as IJwtPayload;
 			const refreshTokenExpirationDate = new Date(decodedRefreshToken.exp * 1000);
-			const timeframe = parseInt(process.env.REFRESH_TOKEN_LIFETIME, 10)*0.1;
+			const timeframe = parseInt(process.env.REFRESH_TOKEN_LIFETIME, 10) * 0.1;
 			const accessTokenLifeTime = parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10);
 			const nextRefreshDate = new Date(Date.now() + (accessTokenLifeTime - timeframe) * 1000);
 			refreshToken = existentRefreshToken.token;
@@ -171,7 +171,7 @@ class AuthenticationController implements IController {
 
 	};
 
-	private getUserRegisterData  = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getUserRegisterData = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { user } = req;
 			const userData = {
@@ -242,32 +242,52 @@ class AuthenticationController implements IController {
 		}
 	};
 
-	private componentsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private numComponentsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const platformComponents: IPlatformComponents = {
-				organizations: [],
-				groups: [],
-				devices: []
+			const componentsManaged: IComponentsManagedByUser = {
+				userRole: "User",
+				numOrganizationsManaged: 0,
+				numGroupsManaged: 0,
+				numDevicesManaged: 0
 			};
-			const userId = req.user.id;
+
 			if (req.user.isGrafanaAdmin) {
-				platformComponents.organizations = await getOrganizations();
-				platformComponents.groups = await getAllGroups();
-				platformComponents.devices = await getAllDevices();
+				componentsManaged.userRole = "PlatformAdmin";
+				componentsManaged.numOrganizationsManaged = await getNumOrganizations();
+				componentsManaged.numGroupsManaged = await getNumGroups();
+				componentsManaged.numDevicesManaged = await getNumDevices();
 			} else {
-				platformComponents.organizations  = await getOrganizationsManagedByUserId(req.user.id);
-				const groups = await getGroupsManagedByUserId(userId);
-				platformComponents.groups = groups;
-				if (groups.length !== 0) {
-					const groupsIdArray = groups.map(group => group.id);
-					platformComponents.devices = await getDevicesByGroupsIdArray(groupsIdArray);
+				const organizationsManagedByUser = await getOrganizationsManagedByUserId(req.user.id);
+				const groupsManagedByUser = await getGroupsManagedByUserId(req.user.id);
+				const allGroupsManagedByUser = [...groupsManagedByUser];
+				if (organizationsManagedByUser.length) {
+					componentsManaged.userRole = "OrgAdmin";
+					componentsManaged.numOrganizationsManaged = organizationsManagedByUser.length;
+					const orgIdsArray = organizationsManagedByUser.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArrayManagedByUser = groupsManagedByUser.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArrayManagedByUser.indexOf(groupInOrg.id) === -1) allGroupsManagedByUser.push(groupInOrg);
+					});
+					componentsManaged.numGroupsManaged = allGroupsManagedByUser.length;
+					const allGroupsIdArrayManagedByUser = allGroupsManagedByUser.map(group => group.id);
+					componentsManaged.numDevicesManaged = await getNumDevicesByGroupsIdArray(allGroupsIdArrayManagedByUser);
+				}
+				else {
+					if (groupsManagedByUser.length !== 0) {
+						componentsManaged.userRole = "GroupAdmin";
+						componentsManaged.numGroupsManaged = groupsManagedByUser.length;
+						const allGroupsIdArrayManagedByUser = allGroupsManagedByUser.map(group => group.id);
+						componentsManaged.numDevicesManaged = await getNumDevicesByGroupsIdArray(allGroupsIdArrayManagedByUser);
+					}
 				}
 			}
-			res.status(200).send(platformComponents);
+			res.status(200).send(componentsManaged);
 		} catch (error) {
 			next(error);
 		}
 	};
+
 
 	private disableUsersRefreshToken = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		const userId = parseInt(req.params.userId, 10);

@@ -188,8 +188,8 @@ class GroupController implements IController {
 					const orgIdsArray = organizations.map(org => org.id);
 					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
 					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(orgInGroup => {
-						if (groupsIdArray.indexOf(orgInGroup.id) === -1) groups.push(orgInGroup);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
 					})
 				}
 			}

@@ -80,6 +80,12 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 	return result.rows;
 }
 
+export const getNumOrganizations = async (): Promise<number> => {
+	const query = `SELECT COUNT(*) FROM grafanadb.org;`;
+	const result = await pool.query(query);
+	return parseInt(result.rows[0].count, 10);
+}
+
 export const getOrganizationByProp = async (propName: string, propValue: (string | number)): Promise<IOrganization> => {
 	const query = `SELECT id, org.name, acronym, address1 as adress, city, grafanadb.org.zip_code as "zipCode",
 					 state, country, geolocation[0] AS longitude, geolocation[1] AS latitude
@@ -168,6 +174,7 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 	const result = await pool.query(query, [userId, "Admin"]);
 	return result.rows;
 }
+
 
 export const addOrgUsersToDefaultOrgGroup = async (orgId: number, usersAddedToOrg: CreateUserDto[]): Promise<IMessage> => {
 	const group = await getDefaultOrgGroup(orgId);

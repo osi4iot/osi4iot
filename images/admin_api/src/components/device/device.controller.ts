@@ -15,7 +15,7 @@ import LoginDto from "../Authentication/login.dto";
 import { updateDeviceUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IDevice from "./device.interface";
-import { getGroupsManagedByUserId } from "../group/groupDAL";
+import { getGroupsThatCanBeEditatedAndAdministratedByUserId} from "../group/groupDAL";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -97,7 +97,7 @@ class DeviceController implements IController {
 			if (req.user.isGrafanaAdmin) {
 				devices = await getAllDevices();
 			} else {
-				const groups = await getGroupsManagedByUserId(req.user.id);
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				if (groups.length !== 0) {
 					const groupsIdArray = groups.map(group => group.id);
 					devices = await getDevicesByGroupsIdArray(groupsIdArray);

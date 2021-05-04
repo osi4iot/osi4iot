@@ -177,7 +177,13 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 	return result.rows;
 }
 
-export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]> => {
+export const getNumGroups = async (): Promise<number> => {
+	const query = `SELECT COUNT(*) FROM grafanadb.group;`;
+	const result = await pool.query(query);
+	return parseInt(result.rows[0].count, 10);
+}
+
+export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId: number): Promise<IGroup[]> => {
 	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
 				grafanadb.group.team_id AS "teamId",
 				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
@@ -197,6 +203,38 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
 	return result.rows;
+}
+
+
+export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]> => {
+	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
+				grafanadb.group.team_id AS "teamId",
+				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
+				grafanadb.dashboard_acl.permission AS "folderPermission",
+				name, acronym, group_uid AS  "groupUid",
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				email_notification_channel_id AS "emailNotificationChannelId",
+				telegram_notification_channel_id AS "telegramNotificationChannelId",
+				is_org_default_group AS "isOrgDefaultGroup"
+				FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
+				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2
+				ORDER BY id ASC;`;
+	const result = await pool.query(query, [userId, 4]);
+	const permissionCodes = ["None", "Viewer", "Editor"];
+	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
+	return result.rows;
+}
+
+export const getNumGroupsManagedByUserId = async (userId: number): Promise<number> => {
+	const query = `SELECT COUNT(*) FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
+				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2;`;
+	const result = await pool.query(query, [userId, 4]);
+	return parseInt(result.rows[0].count, 10);
 }
 
 export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[]> => {

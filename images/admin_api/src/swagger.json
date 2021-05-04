@@ -322,7 +322,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/PlatformComponents"
+									"$ref": "#/definitions/UserManagedComponents"
 								}
 							}
 						}
@@ -339,7 +339,7 @@
 					}
 				}
 			}
-		},		
+		},			
 		"/application/global_users": {
 			"get": {
 				"tags": ["Application"],
@@ -2517,30 +2517,31 @@
 				}
 			}
 		},
-		"PlatformComponents": {
+		"UserRole": {
 			"type": "object",
 			"properties": {
-				"organizations": {
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/OrganizationOutput"
-					}
-				},
-		
-				"groups": {
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/GroupOutput"
-					}
-				},
-				"Devices": {
-					"type": "array",
-					"items": {
-						"$ref": "#/definitions/DeviceOutput"
-					}
+				"userRole": {
+					"type": "string"
 				}
 			}
 		},		
+		"UserManagedComponents": {
+			"type": "object",
+			"properties": {
+				"userRole": {
+					"type": "string"
+				},
+				"numOrganizationManaged": {
+					"type": "number"
+				},
+				"numGroupsManaged": {
+					"type": "number"
+				},
+				"numDevicesManaged": {
+					"type": "number"
+				}
+			}
+		},
 		"Message": {
 			"type": "object",
 			"properties": {

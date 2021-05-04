@@ -1,6 +1,7 @@
-import { FC, SyntheticEvent, useEffect, useState } from "react";
+import { FC, SyntheticEvent } from "react";
 import { useHistory } from "react-router-dom";
 import styled from "styled-components";
+import { useWindowWidth } from "@react-hook/window-size";
 
 const LogoLarge = styled.img`
 	width: 250px;
@@ -32,17 +33,8 @@ const LogoContainer = styled.div`
 
 const Logo: FC<{}> = () => {
 	const history = useHistory();
-	const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+	const windowWidth = useWindowWidth();
 	const isMobile = windowWidth < 768;
-
-	useEffect(() => {
-		const handleResize = () => setWindowWidth(window.innerWidth);
-		window.addEventListener("resize", handleResize);
-
-		return () => {
-			window.removeEventListener("resize", handleResize);
-		};
-	}, []);
 
 	const handleSendHome = (e: SyntheticEvent) => {
 		history.push("/");

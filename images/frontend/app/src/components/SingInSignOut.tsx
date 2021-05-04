@@ -1,7 +1,8 @@
-import { FC, SyntheticEvent, useEffect, useState } from "react";
+import { FC, SyntheticEvent } from "react";
 import { RiLoginCircleLine, RiLogoutCircleLine } from "react-icons/ri";
 import { useHistory } from "react-router-dom";
 import styled from "styled-components";
+import { useWindowWidth } from "@react-hook/window-size";
 import { logout, useAuthDispatch, useIsUserAuth } from "../context";
 import { useLoggedUserLogin } from "../context/context";
 
@@ -25,7 +26,7 @@ const SignInSignOutContainer = styled.div`
 	align-items: center;
 
 	&:hover {
-        border: 1px solid white;
+		border: 1px solid white;
 
 		& ${SignOutIcon} {
 			color: white;
@@ -42,27 +43,19 @@ const SignInSignOutContainer = styled.div`
 `;
 
 const UserName = styled.p`
-    margin: 0 10px;
+	margin: 0 10px;
 `;
 
 const SingInSignOut: FC<{}> = () => {
-    const [windowWidth, setWindowWidth] = useState(window.innerWidth);
-    
+	const windowWidth = useWindowWidth();
+
 	const authDispatch = useAuthDispatch();
 	const history = useHistory();
 	const isUserLogged = useIsUserAuth();
-    const userName = useLoggedUserLogin();
-    
-	useEffect(() => {
-        const handleResize = () => setWindowWidth(window.innerWidth);
-		window.addEventListener("resize", handleResize);
-        
-		return () => {
-            window.removeEventListener("resize", handleResize);
-		};
-    }, []);
-    
-    const isMobile = windowWidth < 768;
+	const userName = useLoggedUserLogin();
+
+
+	const isMobile = windowWidth < 768;
 
 	const onSignInSignOutClickHandler = (e: SyntheticEvent) => {
 		if (isUserLogged) logout(authDispatch);
@@ -71,8 +64,8 @@ const SingInSignOut: FC<{}> = () => {
 
 	if (isUserLogged) {
 		return (
-            <>
-                {! isMobile && <UserName>User: {userName}</UserName>}
+			<>
+				{!isMobile && <UserName>User: {userName}</UserName>}
 				<SignInSignOutContainer onClick={onSignInSignOutClickHandler}>
 					<SignOutIcon />
 				</SignInSignOutContainer>

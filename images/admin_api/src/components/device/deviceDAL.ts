@@ -91,6 +91,11 @@ export const getAllDevices = async (): Promise<IDevice[]> => {
 	return response.rows;
 }
 
+export const getNumDevices = async (): Promise<number> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.device;`);
+	return parseInt(result.rows[0].count, 10);
+}
+
 
 export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
@@ -118,6 +123,14 @@ export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promis
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.device.group_id = ANY($1::bigint[])`, [groupsIdArray]);
 	return response.rows;
+};
+
+
+export const getNumDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promise<number> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.device
+									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
+									WHERE grafanadb.device.group_id = ANY($1::bigint[])`, [groupsIdArray]);
+	return parseInt(result.rows[0].count, 10);
 }
 
 export const getDevicesByOrgId = async (orgId: number): Promise<IDevice[]> => {

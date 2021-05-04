@@ -185,7 +185,7 @@ const initialFormValues = {
 	samplingFrequency: 25,
 };
 
-let mqttClient: Paho.Client;
+let mqttClient: (Paho.Client | null ) = null;
 
 const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const [devicesManaged, setDevicesManaged] = useState([]);
@@ -215,7 +215,6 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	}, [accessToken]);
 
 	useEffect(() => {
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 		mqttClient = MqttConnection(setIsMqttConnected);
 	}, []);
 
@@ -237,7 +236,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 
 	const handleSubmit = async (e: SyntheticEvent) => {
 		e.preventDefault();
-		if (!isSensorReading) {
+		if (mqttClient && !isSensorReading) {
 			const readingParameter = {
 				deviceSelectedIndex,
 				totalReadingTime,
@@ -249,7 +248,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 				const GroupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
 				const DeviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
 				const mqttTopic = `dev2pdb/Group_${GroupHash}/Device_${DeviceHash}/${topic}`;
-				ReadAccelerations(mqttClient, mqttTopic, readingParameter, setIsSensorReadings, setReadingProgress);
+				ReadAccelerations(mqttClient as Paho.Client, mqttTopic, readingParameter, setIsSensorReadings, setReadingProgress);
 			}
 		}
 	};
