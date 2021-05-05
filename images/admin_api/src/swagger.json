@@ -32,7 +32,7 @@
 	"tags": [
 		{
 			"name": "Authentication",
-			"description": "Platform authentication - Role required: User"
+			"description": "Platform authentication - Default role required: User"
 		},
 		{
 			"name": "Application",
@@ -1147,6 +1147,60 @@
 				}
 			}
 		},
+		"/organization/{orgId}/users/{whoToRemove}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "number"
+				},
+				{
+					"name": "whoToRemove",
+					"in": "path",
+					"required": true,
+					"description": "allUsers, allNotOrgAdminUsers or allNotGroupsAdminUsers",
+					"type": "string"
+				}
+			],
+			"delete": {
+				"tags": ["Organization"],
+				"summary": "Remove all user of the organization.",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization or User not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NotFoundMessage"
+								}
+							}
+						}
+					}                     
+				}
+			}
+		},		
 		"/groups/{orgId}": {
 			"parameters": [
 				{
@@ -3001,7 +3055,7 @@
 				"groupAdminDataArray": {
 					"type": "array",
 					"items": {
-						"$ref": "#/definitions/GroupMemberInput"
+						"$ref": "#/definitions/GroupAdminInput"
 					}
 				}				
 			}
@@ -3021,6 +3075,19 @@
 					"type": "string"
 				},				
 				"folderPermission": {
+					"type": "string"
+				}			
+			}
+		},
+		"GroupAdminInput": {
+			"properties": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
+					"type": "string"
+				},				
+				"email": {
 					"type": "string"
 				}			
 			}

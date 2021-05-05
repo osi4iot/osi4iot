@@ -113,6 +113,19 @@ export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]>
 	return result.rows;
 };
 
+export const getOrganizationUsersWithGrafanaAdmin = async (orgId: number): Promise<IUserInOrg[]> => {
+	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
+					telegram_id as "telegramId", role as "roleInOrg", is_admin as "isGrafanaAdmin",
+					is_disabled as "isDisabled", last_seen_at as "lastSeenAt",
+					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
+					FROM grafanadb.user
+					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
+					WHERE grafanadb.org_user.org_id = $1
+					ORDER BY grafanadb.user.id ASC`
+	const result = await pool.query(query, [orgId]);
+	return result.rows;
+};
+
 export const getOrganizationUserByProp = async (orgId: number, propName: string, propValue: string | number): Promise<IUserInOrg> => {
 	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
 					telegram_id as "telegramId", role as "roleInOrg", is_disabled as "isDisabled",

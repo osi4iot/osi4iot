@@ -23,7 +23,7 @@ import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import UpdateGroupDto from "./interfaces/group_update.dto";
 import INotificationChannel from "./interfaces/NotificationChannel";
 
-export const defaultOrgGroupName =  (orgName: string, orgAcronym: string): string => {
+export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
 	if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").toUpperCase()}_general`;
 	return groupName;
@@ -145,7 +145,7 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 		await updateNotificationChannelSettings(groupData.telegramNotificationChannelId, newSettings);
 		hasGroupChange = true;
 	}
-	if(hasGroupChange) await sendChangeGroupDataInformationEmail(groupData, existentGroup.name);
+	if (hasGroupChange) await sendChangeGroupDataInformationEmail(groupData, existentGroup.name);
 }
 
 const updateTeamName = async (teamId: number, newName: string): Promise<void> => {
@@ -223,6 +223,50 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2
 				ORDER BY id ASC;`;
 	const result = await pool.query(query, [userId, 4]);
+	const permissionCodes = ["None", "Viewer", "Editor"];
+	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
+	return result.rows;
+}
+
+export const getGroupsOfOrgIdWhereUserIdIsMember = async (orgId: number, userId: number): Promise<IGroup[]> => {
+	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
+				grafanadb.group.team_id AS "teamId",
+				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
+				grafanadb.dashboard_acl.permission AS "folderPermission",
+				name, acronym, group_uid AS  "groupUid",
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				email_notification_channel_id AS "emailNotificationChannelId",
+				telegram_notification_channel_id AS "telegramNotificationChannelId",
+				is_org_default_group AS "isOrgDefaultGroup"
+				FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
+				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.group.org_id = $2
+				ORDER BY id ASC;`;
+	const result = await pool.query(query, [userId, orgId]);
+	const permissionCodes = ["None", "Viewer", "Editor"];
+	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
+	return result.rows;
+}
+
+export const getGroupsWhereUserIdIsMember = async (userId: number): Promise<IGroup[]> => {
+	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId",
+				grafanadb.group.team_id AS "teamId",
+				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
+				grafanadb.dashboard_acl.permission AS "folderPermission",
+				name, acronym, group_uid AS  "groupUid",
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				email_notification_channel_id AS "emailNotificationChannelId",
+				telegram_notification_channel_id AS "telegramNotificationChannelId",
+				is_org_default_group AS "isOrgDefaultGroup"
+				FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
+				WHERE grafanadb.team_member.user_id = $1
+				ORDER BY id ASC;`;
+	const result = await pool.query(query, [userId]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
 	return result.rows;
@@ -626,8 +670,9 @@ export const addMembersToGroup = async (group: IGroup, groupMembersArray: Create
 
 	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
 	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
-	const oldAddress = oldNotificationEmailSettings.addresses;
-	const newAddress = `${oldAddress},${groupMembersAddedArray.map(member => member.email).join()}`;
+	let oldAddressesArray = oldNotificationEmailSettings.addresses.split(",");
+	oldAddressesArray = oldAddressesArray.filter(address => address !== "");
+	const newAddress = [...oldAddressesArray,  groupMembersAddedArray.map(member => member.email)].join();
 	const newSettings = { addresses: newAddress };
 	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
 
@@ -646,7 +691,6 @@ export const addMembersToGroup = async (group: IGroup, groupMembersArray: Create
 	}
 	return message;
 };
-
 
 export const udpateRoleMemberInGroup = async (group: IGroup, groupMembersArray: CreateGroupMemberDto[],
 	existentGroupMemberArray: IGroupMember[]): Promise<IMessage> => {
@@ -696,6 +740,15 @@ export const udpateRoleMemberInGroup = async (group: IGroup, groupMembersArray: 
 	return message;
 };
 
+export const removeMembersInGroupsArray = async (groupsArray: IGroup[], groupMembersToRemove: IGroupMember[]): Promise<IMessage[]> => {
+	const queriesArray = [];
+	for (let i = 0; i < groupsArray.length; i++) {
+		queriesArray[i] = removeMembersInGroup(groupsArray[i], groupMembersToRemove);
+	}
+
+	return await Promise.all(queriesArray)
+		.then(messages => messages)
+}
 
 export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: IGroupMember[]): Promise<IMessage> => {
 	if (groupMembersToRemove.length === 0) return { message: "All non admin members has been already removed of the group" };
@@ -722,8 +775,8 @@ export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: 
 	const memberToRemoveEmailsArray = groupMembersToRemove.map(member => member.email);
 	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
 	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
-	const oldAddressArray = oldNotificationEmailSettings.addresses.split(",");
-	const newEmailsArray = oldAddressArray.filter(email => memberToRemoveEmailsArray.indexOf(email) === -1);
+	const oldAddressesArray = oldNotificationEmailSettings.addresses.split(",");
+	const newEmailsArray = oldAddressesArray.filter(email => memberToRemoveEmailsArray.indexOf(email) === -1 && email !== "");
 	const newAddress = newEmailsArray.join();
 	const newSettings = { addresses: newAddress };
 	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
@@ -735,8 +788,22 @@ export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: 
 	return { message };
 };
 
+export const cleanEmailNotificationChannelForGroup = async (userEmail: string, group: IGroup): Promise<void> => {
+	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
+	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
+	const oldAddressArray = oldNotificationEmailSettings.addresses.split(",");
+	const newEmailsArray = oldAddressArray.filter(email => email !== userEmail && email !== "");
+	const newAddress = newEmailsArray.join();
+	const newSettings = { addresses: newAddress };
+	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
+}
 
+export const cleanEmailNotificationChannelForGroupsArray = async (userEmail: string, groupsArray: IGroup[]): Promise<void> => {
+	const queriesArray = [];
+	for (let i = 0; i < groupsArray.length; i++) {
+		queriesArray[i] = cleanEmailNotificationChannelForGroup(userEmail, groupsArray[i]);
+	}
 
-
-
+	await Promise.all(queriesArray);
+}
 

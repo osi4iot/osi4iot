@@ -13,6 +13,7 @@ import {
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
+import { cleanEmailNotificationChannelForGroupsArray, getGroupsWhereUserIdIsMember } from "../group/groupDAL";
 
 class ApplicationController implements IController {
 	public path = "/application";
@@ -162,6 +163,8 @@ class ApplicationController implements IController {
 			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const user = await getUserByProp(propName, propValue);
 			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
+			const groupsArray = await getGroupsWhereUserIdIsMember(user.id);
+			await cleanEmailNotificationChannelForGroupsArray(user.email, groupsArray);
 			const message = await this.grafanaRepository.deleteGlobalUser(user.id);
 			res.status(200).json(message);
 		} catch (error) {

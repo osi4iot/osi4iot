@@ -34,7 +34,8 @@ import {
 	getOrganizationUserByProp,
 	updateOrganizationUser,
 	getUsersIdByEmailsArray,
-	isUsersDataCorrect
+	isUsersDataCorrect,
+	getOrganizationUsersWithGrafanaAdmin
 } from "../user/userDAL";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import IRequestWithOrganizationAndUser from "./interfaces/requestWithOrganizationAndUser.interface";
@@ -42,7 +43,7 @@ import HttpException from "../../exceptions/HttpException";
 import CreateUsersArrayDto from "../user/usersArray.dto";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
-import { createGroup, defaultOrgGroupName, deleteGroup, getDefaultOrgGroup } from "../group/groupDAL";
+import { createGroup, defaultOrgGroupName, deleteGroup, getAllGroupsInOrganization, getDefaultOrgGroup, getGroupMemberByProp, getGroupMembers, getGroupsOfOrgIdWhereUserIdIsMember, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
@@ -53,6 +54,7 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IOrganization from "./interfaces/organization.interface";
 import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
+import IGroupMember from "../group/interfaces/GroupMember.interface";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -106,6 +108,12 @@ class OrganizationController implements IController {
 				superAdminAuth,
 				organizationExists,
 				this.removeUserFromOrganization
+			)
+			.delete(
+				`${this.path}/:orgId/users/:whoToRemove`,
+				superAdminAuth,
+				organizationExists,
+				this.removeOrganizationUsers
 			);
 
 		this.router
@@ -324,8 +332,51 @@ class OrganizationController implements IController {
 			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const user = await getOrganizationUserByProp(organization.id, propName, propValue);
 			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
+			const groupsArray = await getGroupsOfOrgIdWhereUserIdIsMember(organization.id, user.userId);
+			if (groupsArray.length !== 0) {
+				const groupMember = await getGroupMemberByProp(groupsArray[0], "id", user.userId);
+				await removeMembersInGroupsArray(groupsArray, [groupMember]);
+			}
 			const msg = await grafanaApi.removeUserFromOrganization(organization.id, user.userId);
 			const message = { message: `User removed from the organization` }
+			res.status(200).json(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private removeOrganizationUsers = async (
+		req: IRequestWithOrganization,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { whoToRemove } = req.params;
+			if (!this.isValidWhoToRemove(whoToRemove)) throw new InvalidPropNameExeception(whoToRemove);
+			const { organization } = req;
+			const usersArray = await getOrganizationUsersWithGrafanaAdmin(organization.id);
+			const groupsArray = await getAllGroupsInOrganization(organization.id);
+			if (groupsArray.length !== 0) {
+				for (const group of groupsArray) {
+					const groupMembers = await getGroupMembers(group);
+					let groupMembersToRemove: IGroupMember[] = [];
+					if (whoToRemove === "allUsers" || whoToRemove === "allNotOrgAdminUsers") {
+						groupMembersToRemove = [...groupMembers]
+					} else {
+						groupMembers.filter(member => member.roleInGroup !== "Admin");
+					}
+					await removeMembersInGroup(group, groupMembersToRemove);
+				}
+			}
+
+			let usersIdArray: number[];
+			if (whoToRemove === "allUsers") {
+				usersIdArray = usersArray.filter(user => !user.isGrafanaAdmin).map(user => user.userId);
+			} else {
+				usersIdArray = usersArray.filter(user => user.roleInOrg !== "Admin").map(user => user.userId);
+			}
+			const msgArray = await grafanaApi.removeUsersFromOrganization(organization.id, usersIdArray);
+			const message = { message: `Users removed from the organization` }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -459,6 +510,11 @@ class OrganizationController implements IController {
 	private isValidUserPropName = (propName: string) => {
 		const validPropName = ["id", "login", "email"];
 		return validPropName.indexOf(propName) !== -1;
+	}
+
+	private isValidWhoToRemove = (whoToRemove: string) => {
+		const validWhoToRemove = ["allUsers", "allNotOrgAdminUsers", "allNotGroupsAdminUsers"];
+		return validWhoToRemove.indexOf(whoToRemove) !== -1;
 	}
 }
 
