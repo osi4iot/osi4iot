@@ -4,7 +4,7 @@ import axios from "axios";
 import styled from "styled-components";
 import Header from "../components/Header";
 import Alert from "../components/Alert";
-import { getDomainName, isValidEmail, isValidPassword, isValidText } from "../tools/tools";
+import { axiosAuth, getDomainName, isValidEmail, isValidPassword, isValidText } from "../tools/tools";
 import ErrorPage from "./ErrorPage";
 import Main from "../components/Main";
 
@@ -101,15 +101,6 @@ const getToken = () => {
 		token = searchParams.get("token");
 	}
 	return token;
-};
-
-const axiosAuth = (token: string) => {
-	const config = {
-		headers: {
-			Authorization: "Bearer " + token,
-		},
-	};
-	return config;
 };
 
 interface IUserRegistrationData {

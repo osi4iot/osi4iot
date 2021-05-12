@@ -43,9 +43,9 @@ const Logo: FC<{}> = () => {
 	return (
 		<LogoContainer>
 			{isMobile ? (
-				<LogoSmall src="logo_small.png" alt="Logo" onClick={handleSendHome} />
+				<LogoSmall src="../logo_small.png" alt="Logo" onClick={handleSendHome} />
 			) : (
-				<LogoLarge src="logo_large.png" alt="Logo" onClick={handleSendHome} />
+				<LogoLarge src="../logo_large.png" alt="Logo" onClick={handleSendHome} />
 			)}
 		</LogoContainer>
 	);

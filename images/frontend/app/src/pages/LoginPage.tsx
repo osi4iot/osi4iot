@@ -5,7 +5,7 @@ import Header from "../components/Header";
 import Alert from "../components/Alert";
 import { isValidPassword, isValidText } from "../tools/tools";
 import Main from "../components/Main";
-import { loginUser, useAuthState, useAuthDispatch } from "../context";
+import { loginUser, useAuthState, useAuthDispatch } from "../contexts/authContext";
 import ServerError from "../components/ServerError";
 
 const Title = styled.h2`

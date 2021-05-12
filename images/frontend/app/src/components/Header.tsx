@@ -14,6 +14,7 @@ const StyledHeader = styled.header`
 `;
 
 const HeaderLogo = styled.div`
+	background-color: #202226;
 	width: 33%;
 `;
 

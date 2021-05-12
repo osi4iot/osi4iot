@@ -145,9 +145,7 @@ const Footer = styled.p`
 	bottom: 5px;
 `;
 
-
 const domainName = getDomainName();
-
 
 const HomePage: FC<{}> = () => {
 	const handleLinkClick = (path: string) => {
@@ -167,7 +165,10 @@ const HomePage: FC<{}> = () => {
 						<Title>Platform options</Title>
 						<MenuBorder>
 							<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
-							<ButtonLink onClick={() => handleLinkClick("/admin_api/swagger/")}>Platform assistant</ButtonLink>
+							<ButtonLink onClick={() => handleLinkClick("/admin_api/swagger/")}>Swagger</ButtonLink>
+							<StyledNavLink exact to="/platform_assistant">
+								<p>Platform assistant</p>
+							</StyledNavLink>
 							<StyledNavLink exact to="/mobile_sensors">
 								<p>Mobile sensors</p>
 								<p>(Only Android devices)</p>

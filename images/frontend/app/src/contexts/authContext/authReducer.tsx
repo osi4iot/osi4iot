@@ -1,4 +1,4 @@
-import { Action, AuthContextProps } from "../interfaces/interfaces";
+import { AuthAction, AuthContextProps } from "./interfaces";
 
 let userName = localStorage.getItem("iot_platform_auth")
 	? JSON.parse(localStorage.getItem("iot_platform_auth") as string).userName
@@ -19,13 +19,17 @@ let expirationDate = localStorage.getItem("iot_platform_auth")
 export const initialState = {
 	userName: "" || userName,
 	accessToken: "" || accessToken,
-    refreshToken: "" || refreshToken,
-    expirationDate: "" || expirationDate,
+	refreshToken: "" || refreshToken,
+	expirationDate: "" || expirationDate,
+	userRole: "user",
+	numOrganizationManaged: 0,
+	numGroupsManaged: 0,
+	numDevicesManage: 0,
 	loading: false,
 	errorMessage: null,
 };
 
-export const AuthReducer = (initialState: AuthContextProps, action: Action) => {
+export const AuthReducer = (initialState: AuthContextProps, action: AuthAction) => {
 	switch (action.type) {
 		case "REQUEST_LOGIN":
 			return {
@@ -53,6 +57,14 @@ export const AuthReducer = (initialState: AuthContextProps, action: Action) => {
 				...initialState,
 				loading: false,
 				errorMessage: action.error,
+			};
+		case "USER_ROLE":
+			return {
+				...initialState,
+				userRole: action.payload.userRole,
+				numOrganizationManaged: action.payload.numOrganizationManaged,
+				numGroupsManaged: action.payload.numGroupsManaged,
+				numDevicesManage: action.payload.numDevicesManage
 			};
 
 		default:

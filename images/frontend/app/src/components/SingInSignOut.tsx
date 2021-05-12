@@ -3,8 +3,8 @@ import { RiLoginCircleLine, RiLogoutCircleLine } from "react-icons/ri";
 import { useHistory } from "react-router-dom";
 import styled from "styled-components";
 import { useWindowWidth } from "@react-hook/window-size";
-import { logout, useAuthDispatch, useIsUserAuth } from "../context";
-import { useLoggedUserLogin } from "../context/context";
+import { logout, useAuthDispatch, useIsUserAuth } from "../contexts/authContext";
+import { useLoggedUserLogin } from "../contexts/authContext/authContext";
 
 const SignOutIcon = styled(RiLogoutCircleLine)`
 	font-size: 30px;
@@ -44,6 +44,7 @@ const SignInSignOutContainer = styled.div`
 
 const UserName = styled.p`
 	margin: 0 10px;
+	background-color: #202226;
 `;
 
 const SingInSignOut: FC<{}> = () => {

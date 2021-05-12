@@ -5,7 +5,7 @@ import Main from "../components/Main";
 import { ChildrenProp } from "../interfaces/interfaces";
 
 const ErrorMessageContainer = styled.div`
-	width: 300px;
+	max-width: 90vw;
 	height: 200px;
 	display: flex;
 	align-items: center;

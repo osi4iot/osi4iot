@@ -48,3 +48,12 @@ export const isValidPassword = (password: string): boolean => {
 	if (password.trim() === "" || password.trim().length < 4) isValid = false;
 	return isValid;
 };
+
+export const axiosAuth = (token: string) => {
+    const config = {
+        headers: {
+            Authorization: "Bearer " + token,
+        },
+    };
+    return config;
+}; 

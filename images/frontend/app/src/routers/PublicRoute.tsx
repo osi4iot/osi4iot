@@ -1,6 +1,6 @@
 import { FC } from "react";
 import { Route, Redirect, RouteProps } from "react-router-dom";
-import { useIsUserAuth } from "../context";
+import { useIsUserAuth } from "../contexts/authContext";
 import { ChildrenProp } from "../interfaces/interfaces";
 
 interface PublicRouteProps extends RouteProps {

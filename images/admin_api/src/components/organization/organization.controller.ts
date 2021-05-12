@@ -111,8 +111,8 @@ class OrganizationController implements IController {
 			)
 			.delete(
 				`${this.path}/:orgId/users/:whoToRemove`,
-				superAdminAuth,
 				organizationExists,
+				organizationAdminAuth,
 				this.removeOrganizationUsers
 			);
 
@@ -215,7 +215,7 @@ class OrganizationController implements IController {
 				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
 				const defaultGroupDeviceData = {
 					name: defaultGroupDeviceName(group),
-					description: `Default device of the group ${groupName}`,
+					description: `Default device of the group ${defaultOrgGroupAcronym}`,
 					latitude: organizationData.longitude,
 					longitude: organizationData.longitude
 				};
@@ -346,14 +346,17 @@ class OrganizationController implements IController {
 	};
 
 	private removeOrganizationUsers = async (
-		req: IRequestWithOrganization,
+		req: IRequestWithOrganizationAndUser,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const { whoToRemove } = req.params;
 			if (!this.isValidWhoToRemove(whoToRemove)) throw new InvalidPropNameExeception(whoToRemove);
-			const { organization } = req;
+			const { organization, user } = req;
+			if (!user.isGrafanaAdmin && whoToRemove === "allUsers") {
+				throw new HttpException(401, "To remove organization admin users, platform administrator privileges are needed.");
+			}
 			const usersArray = await getOrganizationUsersWithGrafanaAdmin(organization.id);
 			const groupsArray = await getAllGroupsInOrganization(organization.id);
 			if (groupsArray.length !== 0) {

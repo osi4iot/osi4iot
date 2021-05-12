@@ -7,7 +7,7 @@ import Alert from "../components/Alert";
 import Header from "../components/Header";
 import Main from "../components/Main";
 import ServerError from "../components/ServerError";
-import { useAuthState } from "../context";
+import { useAuthState } from "../contexts/authContext";
 import { ChildrenProp, IDevice } from "../interfaces/interfaces";
 import { getDomainName, isValidNumber, isValidText } from "../tools/tools";
 import ReadAccelerations from "../tools/ReadingAccelerations";

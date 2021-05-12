@@ -760,7 +760,7 @@
 			},
 			"patch": {
 				"tags": ["Organization"],
-				"summary": "Updates the organization where the property: propName (id, name, acronym) matches the value: propValue",
+				"summary": "Update the organization where the property: propName (id, name, acronym) matches the value: propValue - Role required: Platform_Admin",
 				"requestBody": {
 					"description": "Organization parameters",
 					"required": false,
@@ -807,7 +807,7 @@
 			},
 			"delete": {
 				"tags": ["Organization"],
-				"summary": "Delete the organization where the property: propName (id, name, acronym) matches the value: propValue",
+				"summary": "Delete the organization where the property: propName (id, name, acronym) matches the value: propValue - Role required: Platform_Admin",
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -2120,7 +2120,7 @@
 					"name": "groupId",
 					"in": "path",
 					"required": true,
-					"description": "Organization id",
+					"description": "Group id",
 					"type": "number"
 				}
 			],
@@ -2961,10 +2961,10 @@
 					"type": "string"
 				},
 				"isGrafanaAdmin": {
-					"type": "boleean"
+					"type": "boolean"
 				},
 				"isDisabled": {
-					"type": "boleean"
+					"type": "boolean"
 				},
 				"lastSeenAt": {
 					"type": "string"
