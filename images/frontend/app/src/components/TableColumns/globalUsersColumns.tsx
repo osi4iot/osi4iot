@@ -38,29 +38,36 @@ export const GLOBAL_USERS_COLUMNS: Column<IUser>[] = [
     },
     {
         Header: "TelegramId",
-        accessor: "telegramId"
+        accessor: "telegramId",
+        disableFilters: true
     },
     {
-        Header: "Role",
-        accessor: "roleInPlatform"
+        Header: () => <div style={{backgroundColor: '#202226'}}>Platform<br/>role</div>,
+        accessor: "roleInPlatform",
+        disableFilters: true
     },
     {
         Header: "Seen",
-        accessor: "lastSeenAtAge"
+        accessor: "lastSeenAtAge",
+        disableFilters: true
     },
     {
         Header: "",
         accessor: "edit",
+        disableFilters: true,
+        disableSortBy: true,
         Cell: props => {
-            const globalUserId = props.rows[props.row.id as unknown as number].cells[0].value;
+            const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             return <EditIcon id={globalUserId} />
         }
     },
     {
         Header: "",
         accessor: "delete",
+        disableFilters: true,
+        disableSortBy: true,
         Cell: props => {
-            const globalUserId = props.rows[props.row.id as unknown as number].cells[0].value;
+            const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             return <DeleteIcon id={globalUserId} />
         }
     }

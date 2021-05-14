@@ -4,7 +4,7 @@ import styled from "styled-components";
 
 const FaTrashAltStyled = styled(FaTrashAlt)`
     font-size: 17px;
-    color: #e02f44;
+    color: white;
 `;
 
 const IconContainer = styled.div`
@@ -16,7 +16,7 @@ const IconContainer = styled.div`
         cursor: pointer;
 
 		& ${FaTrashAltStyled} {
-			color: white;
+			color: #e02f44;
 		}
     }
 `;

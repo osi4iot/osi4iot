@@ -4,7 +4,7 @@ import styled from "styled-components";
 
 const FaEditStyled = styled(FaEdit)`
     font-size: 18px;
-    color: #62f700;
+    color: white;
 `;
 
 const IconContainer = styled.div`
@@ -16,7 +16,7 @@ const IconContainer = styled.div`
         cursor: pointer;
 
 		& ${FaEditStyled} {
-			color: white;
+			color: #3274d9;
 		}
     }
 `;

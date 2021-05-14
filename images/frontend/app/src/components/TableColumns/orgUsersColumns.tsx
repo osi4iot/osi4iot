@@ -7,7 +7,8 @@ export interface IOrgUser {
 	firstName: string;
 	surname: string;
 	login: string;
-	email: string;
+    email: string;
+    orgId: number;
 	telegramId: string;
 	roleInOrg: string;
     lastSeenAtAge: string;
@@ -37,30 +38,41 @@ export const ORG_USERS_COLUMNS: Column<IOrgUser>[] = [
         accessor: "email"
     },
     {
+        Header: "OrgId",
+        accessor: "orgId"
+    },    
+    {
         Header: "TelegramId",
-        accessor: "telegramId"
+        accessor: "telegramId",
+        disableFilters: true,
     },
     {
-        Header: "Role",
-        accessor: "roleInOrg"
+        Header: () => <div style={{backgroundColor: '#202226'}}>Role<br/>in org</div>,
+        accessor: "roleInOrg",
+        disableFilters: true,
     },
     {
         Header: "Seen",
-        accessor: "lastSeenAtAge"
+        accessor: "lastSeenAtAge",
+        disableFilters: true
     },
     {
         Header: "",
         accessor: "edit",
+        disableFilters: true,
+        disableSortBy: true,
         Cell: props => {
-            const userId = props.rows[props.row.id as unknown as number].cells[0].value;
+            const userId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             return <EditIcon id={userId} />
         }
     },
     {
         Header: "",
         accessor: "delete",
+        disableFilters: true,
+        disableSortBy: true,
         Cell: props => {
-            const userId = props.rows[props.row.id as unknown as number].cells[0].value;
+            const userId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             return <DeleteIcon id={userId} />
         }
     }

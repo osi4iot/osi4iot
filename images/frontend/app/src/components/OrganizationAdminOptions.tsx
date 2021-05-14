@@ -6,6 +6,7 @@ import { useAuthState } from '../contexts/authContext';
 import { axiosAuth, getDomainName } from '../tools/tools';
 import { GROUPS_COLUMNS } from './TableColumns/groupsColumns';
 import { ORG_USERS_COLUMNS } from './TableColumns/orgUsersColumns';
+import { ORGS_MANAGED_COLUMNS } from './TableColumns/organizationsManagedColumns';
 import TableWithPagination from './TableWithPagination';
 import { useIsOrgAdmin, useIsPlatformAdmin } from '../contexts/platformAssistantContext';
 import Loader from "./Loader";
@@ -57,15 +58,30 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const isPlatformAdmin = useIsPlatformAdmin();
     const isOrgAdmin = useIsOrgAdmin();
     const { accessToken } = useAuthState();
-    const [optionToShow, setOptionToShow] = useState("Groups");
+    const [optionToShow, setOptionToShow] = useState("Orgs managed");
+    const [orgsManaged, setOrgsManaged] = useState([]);
     const [groups, setGroups] = useState([]);
     const [orgUsers, setOrgUsers] = useState([]);
+    const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
     const [orgUsersLoading, setOrgUsersLoading] = useState(true);
 
     useEffect(() => {
-        const urlOrganizationUsers = `https://${domainName}/admin_api/organization/1/users`;
+        const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
         const config = axiosAuth(accessToken);
+        axios
+            .get(urlOrgsManaged, config)
+            .then((response) => {
+                const orgsManaged = response.data;
+                setOrgsManaged(orgsManaged);
+                setOrgsManagedLoading(false);
+            })
+            .catch((error) => {
+                console.log(error);
+            });
+
+
+        const urlOrganizationUsers = `https://${domainName}/admin_api/organization_users/user_managed/`;
         axios
             .get(urlOrganizationUsers, config)
             .then((response) => {
@@ -78,7 +94,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             });
 
 
-        const urlGroups = `https://${domainName}/admin_api/groups/1`;
+        const urlGroups = `https://${domainName}/admin_api/groups/user_managed`;
         axios
             .get(urlGroups, config)
             .then((response) => {
@@ -106,20 +122,24 @@ const OrganizationAdminOptions: FC<{}> = () => {
     return (
         <>
             <OrganizationAdminOptionsContainer>
-                <OptionContainer isOptionActive={optionToShow === "Groups"} onClick={() => clickHandler("Groups")}>
-                    Groups
+                <OptionContainer isOptionActive={optionToShow === "Orgs managed"} onClick={() => clickHandler("Orgs managed")}>
+                    Orgs managed
                 </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === "Org Users"} onClick={() => clickHandler("Org Users")}>
                     Org Users
                 </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === "Groups"} onClick={() => clickHandler("Groups")}>
+                    Groups
+                </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
-                {(groupsLoading || orgUsersLoading) ?
+                {(orgsManagedLoading || groupsLoading || orgUsersLoading) ?
                     <Loader />
                     :
                     <>
-                        {optionToShow === "Groups" && <TableWithPagination dataTable={groups} columnsTable={GROUPS_COLUMNS} />}
-                        {optionToShow === "Org Users" && <TableWithPagination dataTable={orgUsers} columnsTable={ORG_USERS_COLUMNS} />}
+                        {optionToShow === "Orgs managed" && <TableWithPagination dataTable={orgsManaged} columnsTable={ORGS_MANAGED_COLUMNS} componentName="" />}
+                        {optionToShow === "Org Users" && <TableWithPagination dataTable={orgUsers} columnsTable={ORG_USERS_COLUMNS} componentName="org user" />}
+                        {optionToShow === "Groups" && <TableWithPagination dataTable={groups} columnsTable={GROUPS_COLUMNS} componentName="group" />}
                     </>
                 }
             </ContentContainer>

@@ -4,6 +4,7 @@ export default interface IUserInOrg {
 	surname: string;
 	login: string;
 	email: string;
+	orgId: number;
 	telegramId: string;
 	roleInOrg: string;
 	isGrafanaAdmin?: boolean;

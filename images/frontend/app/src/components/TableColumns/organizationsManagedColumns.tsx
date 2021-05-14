@@ -1,8 +1,6 @@
 import { Column } from 'react-table';
-import EditIcon from '../EditIcon';
-import DeleteIcon from '../DeleteIcon';
 
-export interface IOrganization {
+export interface IOrgManaged {
 	id: number;
 	name: string;
 	acronym: string;
@@ -13,18 +11,16 @@ export interface IOrganization {
 	country: string;
 	latitude: number;
     longitude: number;
-    edit: string;
-    delete: string;
 }
 
-export const ORGANIZATIONS_COLUMNS: Column<IOrganization>[] = [
+export const ORGS_MANAGED_COLUMNS: Column<IOrgManaged>[] = [
     {
         Header: "Id",
         accessor: "id"
     },
     {
         Header: "Name",
-        accessor: "name"
+        accessor: "name",
     },
     {
         Header: "Acronym",
@@ -33,17 +29,17 @@ export const ORGANIZATIONS_COLUMNS: Column<IOrganization>[] = [
     {
         Header: "Address",
         accessor: "address",
-        disableFilters: true
+        disableFilters: true,
     },
     {
         Header: "City",
         accessor: "city",
-        disableFilters: true
+        disableFilters: true,
     },
     {
         Header: "Zip code",
         accessor: "zipCode",
-        disableFilters: true
+        disableFilters: true,
     },
     {
         Header: "State",
@@ -64,25 +60,5 @@ export const ORGANIZATIONS_COLUMNS: Column<IOrganization>[] = [
         Header: "Latitude",
         accessor: "latitude",
         disableFilters: true
-    },
-    {
-        Header: "",
-        accessor: "edit",
-        disableFilters: true,
-        disableSortBy: true,
-        Cell: props => {
-            const orgId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <EditIcon id={orgId} />
-        }
-    },
-    {
-        Header: "",
-        accessor: "delete",
-        disableFilters: true,
-        disableSortBy: true,
-        Cell: props => {
-            const orgId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <DeleteIcon id={orgId} />
-        }
     }
 ]

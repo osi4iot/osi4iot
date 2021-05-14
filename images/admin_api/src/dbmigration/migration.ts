@@ -152,6 +152,7 @@ export async function dataBaseInitialization() {
 
 		let group: IGroup;
 		const mainOrgGroupName = defaultOrgGroupName(process.env.MAIN_ORGANIZATION_NAME, process.env.MAIN_ORGANIZATION_ACRONYM);
+		const mainOrgGroupAcronym = `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase()}_GRAL`;
 		const orgAcronym = process.env.MAIN_ORGANIZATION_ACRONYM;
 		const orgName = process.env.MAIN_ORGANIZATION_NAME;
 		const tableName3 = "grafanadb.group";
@@ -201,7 +202,6 @@ export async function dataBaseInitialization() {
 				surname: process.env.PLATFORM_ADMIN_SURNAME,
 				email: process.env.PLATFORM_ADMIN_EMAIL
 			}
-			const mainOrgGroupAcronym = `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase()}_GRAL`;
 			const defaultMainOrgGroup = {
 				name: mainOrgGroupName,
 				acronym: mainOrgGroupAcronym,
@@ -269,7 +269,7 @@ export async function dataBaseInitialization() {
 			await pool.query(queryString5a);
 			const defaultGroupDeviceData = {
 				name: defaultGroupDeviceName(group),
-				description: `Default device of the group ${mainOrgGroupName}`,
+				description: `Default device of the group ${mainOrgGroupAcronym}`,
 				latitude: 0,
 				longitude: 0
 			};

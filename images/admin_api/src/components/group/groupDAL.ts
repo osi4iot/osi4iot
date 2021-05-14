@@ -625,8 +625,23 @@ export const getGroupMembers = async (group: IGroup): Promise<IGroupMember[]> =>
 					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
-					WHERE grafanadb.team_member.team_id = $1`
+					WHERE grafanadb.team_member.team_id = $1
+					ORDER BY grafanadb.user.id ASC`;
 	const result = await pool.query(query, [group.teamId]);
+	result.rows.forEach(member => member.roleInGroup = permissionCodes[member.roleInGroup]);
+	return result.rows;
+};
+
+export const getGroupMembersInTeamIdArray = async (teamIdsArray: number[]): Promise<IGroupMember[]> => {
+	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
+	const query = `SELECT grafanadb.user.id AS "userId", grafanadb.user.first_name AS "firstName",
+	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
+					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
+					FROM grafanadb.user
+					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
+					WHERE grafanadb.team_member.team_id = ANY($1::bigint[])
+					ORDER BY grafanadb.user.id ASC`;
+	const result = await pool.query(query, [teamIdsArray]);
 	result.rows.forEach(member => member.roleInGroup = permissionCodes[member.roleInGroup]);
 	return result.rows;
 };

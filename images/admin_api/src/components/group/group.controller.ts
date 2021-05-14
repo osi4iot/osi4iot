@@ -21,6 +21,7 @@ import {
 	getGroupMemberByProp,
 	getGroupMembers,
 	getGroupMembersByEmailsArray,
+	getGroupMembersInTeamIdArray,
 	getGroupsManagedByUserId,
 	getNumberOfGroupMemberWithAdminRole,
 	removeMembersInGroup,
@@ -44,6 +45,7 @@ import { createDemoDashboards, getDashboardsDataWithRawSqlOfGroup, updateDashboa
 import sslCerticatesGenerator from "./sslCerticatesGenerator";
 import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
+import IUser from "../user/interfaces/User.interface";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -60,6 +62,11 @@ class GroupController implements IController {
 				`${this.path}s/user_managed/`,
 				userAuth,
 				this.getGroupsManagedByUser
+			)
+			.get(
+				`/group_members/user_managed/`,
+				userAuth,
+				this.getGroupMembersForGroupsManagedByUser
 			);
 
 		this.router
@@ -176,24 +183,40 @@ class GroupController implements IController {
 
 	}
 
+	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> =>{
+		let groups: IGroup[] = [];
+		if (user.isGrafanaAdmin) {
+			groups = await getAllGroups();
+		} else {
+			groups = await getGroupsManagedByUserId(user.id);
+			const organizations = await getOrganizationsManagedByUserId(user.id);
+			if (organizations.length !== 0) {
+				const orgIdsArray = organizations.map(org => org.id);
+				const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+				const groupsIdArray = groups.map(group => group.id);
+				groupsInOrgs.forEach(groupInOrg => {
+					if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+				})
+			}
+		}
+		return groups;
+	}
+
 	private getGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			let groups: IGroup[] = [];
-			if (req.user.isGrafanaAdmin) {
-				groups = await getAllGroups();
-			} else {
-				groups = await getGroupsManagedByUserId(req.user.id);
-				const organizations = await getOrganizationsManagedByUserId(req.user.id);
-				if (organizations.length !== 0) {
-					const orgIdsArray = organizations.map(org => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(groupInOrg => {
-						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-					})
-				}
-			}
+			const groups = await this.groupsManagedByUsers(req.user);
 			res.status(200).send(groups);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getGroupMembersForGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const groups = await this.groupsManagedByUsers(req.user);
+			const teamIdsArray = groups.map(group => group.teamId);
+			const groupMembers = await getGroupMembersInTeamIdArray(teamIdsArray);
+			res.status(200).send(groupMembers);
 		} catch (error) {
 			next(error);
 		}
@@ -283,7 +306,7 @@ class GroupController implements IController {
 			if (!group) throw new ItemNotFoundException("The group", propName, propValue);
 			const orgKey = await getOrganizationKey(orgId);
 			const message = await deleteGroup(group, orgKey);
-			res.status(200).send({message});
+			res.status(200).send({ message });
 		} catch (error) {
 			next(error);
 		}

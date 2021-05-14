@@ -37,25 +37,31 @@ export const GROUP_MEMBERS_COLUMNS: Column<IGroupMember>[] = [
     },
     {
         Header: "TelegramId",
-        accessor: "telegramId"
+        accessor: "telegramId",
+        disableFilters: true
     },
     {
-        Header: "Role",
-        accessor: "roleInGroup"
+        Header: () => <div style={{backgroundColor: '#202226'}}>Role in<br/>group</div>,
+        accessor: "roleInGroup",
+        disableFilters: true
     },
     {
         Header: "",
         accessor: "edit",
+        disableFilters: true,
+        disableSortBy: true,
         Cell: props => {
-            const groupMemberId = props.rows[props.row.id as unknown as number].cells[0].value;
+            const groupMemberId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             return <EditIcon id={groupMemberId} />
         }
     },
     {
         Header: "",
         accessor: "delete",
+        disableFilters: true,
+        disableSortBy: true,
         Cell: props => {
-            const groupMemberId = props.rows[props.row.id as unknown as number].cells[0].value;
+            const groupMemberId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             return <DeleteIcon id={groupMemberId} />
         }
     }

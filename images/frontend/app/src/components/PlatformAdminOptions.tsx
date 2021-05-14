@@ -6,10 +6,10 @@ import axios from 'axios';
 import { useIsPlatformAdmin } from '../contexts/platformAssistantContext';
 import { useAuthState } from '../contexts/authContext';
 import { GLOBAL_USERS_COLUMNS } from "./TableColumns/globalUsersColumns";
-import Table from "./Table";
 import { ORGANIZATIONS_COLUMNS } from './TableColumns/organizationsColumns';
 import TableWithPagination from './TableWithPagination';
 import Loader from "./Loader";
+// import Table from "./Table";
 // import mockOrganizations from "./mockOrganizations";
 
 const PlatformAdminOptionsContainer = styled.div`
@@ -80,6 +80,7 @@ const PlatformAdminOptions: FC<{}> = () => {
 
         // const organizations = JSON.parse(mockOrganizations);
         // setOrganizations(organizations);
+        // setOrgsLoading(false);
 
         const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
         axios
@@ -87,7 +88,6 @@ const PlatformAdminOptions: FC<{}> = () => {
             .then((response) => {
                 const globalUsers = response.data;
                 globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
-                    user.lastSeenAtAge = user.lastSeenAtAge.split(" ")[0];
                     user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
                     return user;
                 })
@@ -122,8 +122,8 @@ const PlatformAdminOptions: FC<{}> = () => {
                     <Loader />
                     :
                     <>
-                        {optionToShow === "Organizations" && <Table dataTable={organizations} columnsTable={ORGANIZATIONS_COLUMNS} />}
-                        {optionToShow === "Global Users" && <TableWithPagination dataTable={globalUsers} columnsTable={GLOBAL_USERS_COLUMNS} />}
+                        {optionToShow === "Organizations" && <TableWithPagination dataTable={organizations} columnsTable={ORGANIZATIONS_COLUMNS} componentName="org" />}
+                        {optionToShow === "Global Users" && <TableWithPagination dataTable={globalUsers} columnsTable={GLOBAL_USERS_COLUMNS} componentName="global user" />}
                     </>
                 }
             </ContentContainer>

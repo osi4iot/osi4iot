@@ -1,8 +1,6 @@
 import { Column } from 'react-table';
-import EditIcon from '../EditIcon';
-import DeleteIcon from '../DeleteIcon';
 
-export interface IGroup {
+export interface IGroupsManaged {
     id: number;
     name: string;
     acronym: string;
@@ -12,11 +10,9 @@ export interface IGroup {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
-    edit: string;
-    delete: string;
 }
 
-export const GROUPS_COLUMNS: Column<IGroup>[] = [
+export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
     {
         Header: "Id",
         accessor: "id"
@@ -46,7 +42,7 @@ export const GROUPS_COLUMNS: Column<IGroup>[] = [
     {
         Header: "Telegram Invitation Link",
         accessor: "telegramInvitationLink",
-        disableFilters: true
+        disableFilters: true,
     },
     {
         Header: () => <div style={{backgroundColor: '#202226'}}>Telegram<br/>chatId</div>,
@@ -57,25 +53,5 @@ export const GROUPS_COLUMNS: Column<IGroup>[] = [
         Header: () => <div style={{backgroundColor: '#202226'}}>Is org<br/>default?</div>,
         accessor: "isOrgDefaultGroup",
         disableFilters: true
-    },
-    {
-        Header: "",
-        accessor: "edit",
-        disableFilters: true,
-        disableSortBy: true,
-        Cell: props => {
-            const groupId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <EditIcon id={groupId} />
-        }
-    },
-    {
-        Header: "",
-        accessor: "delete",
-        disableFilters: true,
-        disableSortBy: true,
-        Cell: props => {
-            const groupId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <DeleteIcon id={groupId} />
-        }
     }
 ]

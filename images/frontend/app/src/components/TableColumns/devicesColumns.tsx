@@ -8,7 +8,6 @@ export interface IDevices {
     description: string;
     orgId: number;
     groupId: string;
-    groupUid: string;
     deviceUid: string;
 	latitude: number;
 	longitude: number;
@@ -39,38 +38,42 @@ export const DEVICES_COLUMNS: Column<IDevices>[] = [
         accessor: "groupId"
     },
     {
-        Header: "Group Hash",
-        accessor: "groupUid"
-    },
-    {
         Header: "Device Hash",
-        accessor: "deviceUid"
+        accessor: "deviceUid",
+        disableFilters: true
     },
     {
         Header: "Longitude",
-        accessor: "longitude"
+        accessor: "longitude",
+        disableFilters: true
     },
     {
         Header: "Latitude",
-        accessor: "latitude"
+        accessor: "latitude",
+        disableFilters: true
     },
     {
-        Header: "Group Default",
-        accessor: "isDefaultGroupDevice"
+        Header: () => <div style={{backgroundColor: '#202226'}}>Is group<br/>default?</div>,
+        accessor: "isDefaultGroupDevice",
+        disableFilters: true
     },
     {
         Header: "",
         accessor: "edit",
+        disableFilters: true,
+        disableSortBy: true,
         Cell: props => {
-            const deviceId = props.rows[props.row.id as unknown as number].cells[0].value;
+            const deviceId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             return <EditIcon id={deviceId} />
         }
     },
     {
         Header: "",
         accessor: "delete",
+        disableFilters: true,
+        disableSortBy: true,
         Cell: props => {
-            const deviceId = props.rows[props.row.id as unknown as number].cells[0].value;
+            const deviceId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             return <DeleteIcon id={deviceId} />
         }
     }

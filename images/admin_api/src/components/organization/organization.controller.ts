@@ -35,7 +35,8 @@ import {
 	updateOrganizationUser,
 	getUsersIdByEmailsArray,
 	isUsersDataCorrect,
-	getOrganizationUsersWithGrafanaAdmin
+	getOrganizationUsersWithGrafanaAdmin,
+	getOrganizationUsersByOrgManagedByUser
 } from "../user/userDAL";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import IRequestWithOrganizationAndUser from "./interfaces/requestWithOrganizationAndUser.interface";
@@ -55,6 +56,7 @@ import IOrganization from "./interfaces/organization.interface";
 import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
+import IUser from "../user/interfaces/User.interface";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -74,6 +76,11 @@ class OrganizationController implements IController {
 				userAuth,
 				this.getOrganizationsManagedByUser
 			)
+			.get(
+				`/organization_users/user_managed/`,
+				userAuth,
+				this.getOrganizationsUserForOrgsManagedByUser
+			);
 
 		this.router
 			.post(
@@ -148,19 +155,39 @@ class OrganizationController implements IController {
 
 	}
 
+	private organizationsManagedByUser = async (user: IUser): Promise<IOrganization[]> => {
+		let organizations: IOrganization[];
+		if (user.isGrafanaAdmin) {
+			organizations = await getOrganizations();
+		} else {
+			organizations = await getOrganizationsManagedByUserId(user.id);
+		}
+		return organizations;
+	}
+
 	private getOrganizationsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			let organizations: IOrganization[];
-			if (req.user.isGrafanaAdmin) {
-				organizations = await getOrganizations();
-			} else {
-				organizations = await getOrganizationsManagedByUserId(req.user.id);
-			}
+			const organizations = await this.organizationsManagedByUser(req.user);
 			res.status(200).send(organizations);
 		} catch (error) {
 			next(error);
 		}
 	};
+
+	private getOrganizationsUserForOrgsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const organizations = await this.organizationsManagedByUser(req.user);
+			const orgIdsArray = organizations.map(org => org.id);
+			const orgUsers = await getOrganizationUsersByOrgManagedByUser(orgIdsArray);
+			orgUsers.forEach(user => {
+				user.lastSeenAtAge = generateLastSeenAtAgeString(user);
+			});
+			res.status(200).send(orgUsers);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 
 	private createOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
@@ -353,8 +380,8 @@ class OrganizationController implements IController {
 		try {
 			const { whoToRemove } = req.params;
 			if (!this.isValidWhoToRemove(whoToRemove)) throw new InvalidPropNameExeception(whoToRemove);
-			const { organization, user } = req;
-			if (!user.isGrafanaAdmin && whoToRemove === "allUsers") {
+			const { organization } = req;
+			if (!req.user.isGrafanaAdmin && whoToRemove === "allUsers") {
 				throw new HttpException(401, "To remove organization admin users, platform administrator privileges are needed.");
 			}
 			const usersArray = await getOrganizationUsersWithGrafanaAdmin(organization.id);
