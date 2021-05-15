@@ -8,7 +8,9 @@ import { FaSearch } from "react-icons/fa";
 
 interface TableStylesProps {
     columnsWidth: string[];
+    columnsMaxWidth: string[];
 }
+
 
 const TableStyles = styled.div<TableStylesProps>`
   padding: 1rem;
@@ -41,37 +43,49 @@ const TableStyles = styled.div<TableStylesProps>`
         th td:nth-child(1) {
             width: ${(props) => props.columnsWidth[0]};
             min-width: ${(props) => props.columnsWidth[0]};
+            max-width: ${(props) => props.columnsMaxWidth[0]};
+            word-wrap: break-word;
         }
 
         tr td:nth-child(2),
         th td:nth-child(2) {
             width: ${(props) => props.columnsWidth[1]};
             min-width: ${(props) => props.columnsWidth[1]};
+            max-width: ${(props) => props.columnsMaxWidth[1]};
+            word-wrap: break-word;
         }
 
         tr td:nth-child(3),
         th td:nth-child(3) {
             width: ${(props) => props.columnsWidth[2]};
             min-width: ${(props) => props.columnsWidth[2]};
+            max-width: ${(props) => props.columnsMaxWidth[2]};
+            word-wrap: break-word;
         }
         
         tr td:nth-child(4),
         th td:nth-child(4) {
             width: ${(props) => props.columnsWidth[3]};
             min-width: ${(props) => props.columnsWidth[3]};
+            max-width: ${(props) => props.columnsMaxWidth[3]};
+            word-wrap: break-word;
         }
 
         tr td:nth-child(5),
         th td:nth-child(5) {
             width: ${(props) => props.columnsWidth[4]};
             min-width: ${(props) => props.columnsWidth[4]};
+            max-width: ${(props) => props.columnsMaxWidth[4]};
+            word-wrap: break-word;
         }
         
         tr td:nth-child(6),
         th td:nth-child(6) {
             width: ${(props) => props.columnsWidth[5]};
             min-width: ${(props) => props.columnsWidth[5]};
-        }          
+            max-width: ${(props) => props.columnsMaxWidth[5]};
+            word-wrap: break-word;
+        } 
 
   }
 `
@@ -84,6 +98,8 @@ const TableContainer = styled.div`
 	justify-content: flex-start;
 	align-items: center;
     background-color: #202226;
+    margin-left: auto;
+    margin-right: auto;
 `;
 
 const TableOptionsContainer = styled.div`
@@ -291,9 +307,18 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
     const columnsWidth = columnsTable.map(column => {
         if (typeof column.Header !== 'function') {
             const headerName = (column.Header as string);
-            if (headerName.slice(-2) === "Id" && headerName !== "TelegramId" ) return "100px"
+            if (headerName.slice(-2) === "Id" && headerName !== "TelegramId") return "100px"
             else return "auto"
-        } else return "auto"
+        } else return "auto";
+    });
+
+    const columnsMaxWidth = columnsTable.map(column => {
+        if (typeof column.Header !== 'function') {
+            const headerName = (column.Header as string);
+            if (headerName.slice(-2) === "Id" && headerName !== "TelegramId") return "100px"
+            else if (headerName === "Refresh tokens") return "1300px";
+            else return "auto"
+        } else return "auto";
     });
 
     const filterTypes = useMemo(
@@ -416,7 +441,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
                 />
                 {componentName !== "" && <NewComponentButton onClick={handleClick}>New {componentName}</NewComponentButton>}
             </TableOptionsContainer>
-            <TableStyles columnsWidth={columnsWidth} >
+            <TableStyles columnsWidth={columnsWidth} columnsMaxWidth={columnsMaxWidth} >
                 <table {...getTableProps()}>
                     <thead>
                         {headerGroups.map(headerGroup => (

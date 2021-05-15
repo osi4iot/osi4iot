@@ -154,7 +154,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                         <>
                             {optionToShow === "Organizations" && <TableWithPagination dataTable={organizations} columnsTable={ORGANIZATIONS_COLUMNS} componentName="org" />}
                             {optionToShow === "Global users" && <TableWithPagination dataTable={globalUsers} columnsTable={GLOBAL_USERS_COLUMNS} componentName="global user" />}
-                            {optionToShow === "Refresh tokens" && <TableWithPagination dataTable={refreshTokens} columnsTable={REFRESH_TOKENS_COLUMNS} componentName="Refresh tokens" />}
+                            {optionToShow === "Refresh tokens" && <TableWithPagination dataTable={refreshTokens} columnsTable={REFRESH_TOKENS_COLUMNS} componentName="" />}
                         </>
                     }
                     {optionToShow === "Tools" && <PlatformTools />}

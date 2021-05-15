@@ -14,17 +14,16 @@ export const REFRESH_TOKENS_COLUMNS: Column<IRefreshToken>[] = [
     {
         Header: "Id",
         accessor: "id",
-        filter: 'equals'
+        filter: 'equals',
     },
     {
         Header: "UserId",
         accessor: "userId",
-        filter: 'equals'
+        filter: 'equals',
     },
     {
-        Header: "Refresh Token",
-        accessor: "token",
-        filter: 'equals'
+        Header: "Refresh tokens",
+        accessor: "token"
     },
     {
         Header: "Created",
