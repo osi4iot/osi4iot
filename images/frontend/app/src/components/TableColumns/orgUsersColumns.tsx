@@ -3,12 +3,12 @@ import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 
 export interface IOrgUser {
+    orgId: number;
 	userId: number;
 	firstName: string;
 	surname: string;
 	login: string;
     email: string;
-    orgId: number;
 	telegramId: string;
 	roleInOrg: string;
     lastSeenAtAge: string;
@@ -18,8 +18,14 @@ export interface IOrgUser {
 
 export const ORG_USERS_COLUMNS: Column<IOrgUser>[] = [
     {
+        Header: "OrgId",
+        accessor: "orgId",
+        filter: 'equals'
+    }, 
+    {
         Header: "UserId",
-        accessor: "userId"
+        accessor: "userId",
+        filter: 'equals'
     },
     {
         Header: "First Name",
@@ -36,11 +42,7 @@ export const ORG_USERS_COLUMNS: Column<IOrgUser>[] = [
     {
         Header: "Email",
         accessor: "email"
-    },
-    {
-        Header: "OrgId",
-        accessor: "orgId"
-    },    
+    },  
     {
         Header: "TelegramId",
         accessor: "telegramId",
@@ -62,8 +64,9 @@ export const ORG_USERS_COLUMNS: Column<IOrgUser>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const userId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <EditIcon id={userId} />
+            const userId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <EditIcon id={userId} rowIndex={parseInt(rowIndex)} />
         }
     },
     {
@@ -72,8 +75,9 @@ export const ORG_USERS_COLUMNS: Column<IOrgUser>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const userId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <DeleteIcon id={userId} />
+            const userId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <DeleteIcon id={userId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

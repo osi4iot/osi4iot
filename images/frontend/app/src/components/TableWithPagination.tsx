@@ -40,31 +40,37 @@ const TableStyles = styled.div<TableStylesProps>`
         tr td:nth-child(1),
         th td:nth-child(1) {
             width: ${(props) => props.columnsWidth[0]};
+            min-width: ${(props) => props.columnsWidth[0]};
         }
 
         tr td:nth-child(2),
         th td:nth-child(2) {
             width: ${(props) => props.columnsWidth[1]};
+            min-width: ${(props) => props.columnsWidth[1]};
         }
 
         tr td:nth-child(3),
         th td:nth-child(3) {
             width: ${(props) => props.columnsWidth[2]};
+            min-width: ${(props) => props.columnsWidth[2]};
         }
         
         tr td:nth-child(4),
         th td:nth-child(4) {
             width: ${(props) => props.columnsWidth[3]};
+            min-width: ${(props) => props.columnsWidth[3]};
         }
 
         tr td:nth-child(5),
         th td:nth-child(5) {
             width: ${(props) => props.columnsWidth[4]};
+            min-width: ${(props) => props.columnsWidth[4]};
         }
         
         tr td:nth-child(6),
         th td:nth-child(6) {
             width: ${(props) => props.columnsWidth[5]};
+            min-width: ${(props) => props.columnsWidth[5]};
         }          
 
   }
@@ -150,7 +156,7 @@ type GlobalFilterProps = {
 
 const Search = styled.div`
     background-color: #202226;
-    width: 250px;
+    width: 265px;
 
     & input {
         font-size: 15px;

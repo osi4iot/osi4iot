@@ -39,9 +39,20 @@ export const updateRefreshToken = async (oldRefreshToken: string, newRefreshToke
 };
 
 export const getRefreshTokenByUserId = async (userId: number): Promise<IRefreshToken> => {
-	const result = await pool.query(`SELECT id, user_id AS "userId", token, created, updated
+	const result = await pool.query(`SELECT id, user_id AS "userId", token,
+									created, AGE(NOW(), created) AS "createdAtAge",
+									updated, AGE(NOW(), updated) AS "updatedAtAge"
 							 		FROM grafanadb.refresh_token WHERE user_id = $1`, [userId]);
 	return result.rows[0];
 };
+
+export const getAllRefreshTokens = async (): Promise<IRefreshToken[]> => {
+	const result = await pool.query(`SELECT id, user_id AS "userId", token,
+									created, AGE(NOW(), created) AS "createdAtAge",
+									updated, AGE(NOW(), updated) AS "updatedAtAge"
+	 								FROM grafanadb.refresh_token
+									ORDER BY id ASC, user_id ASC`);
+	return result.rows;
+}
 
 

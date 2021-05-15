@@ -165,7 +165,6 @@ const HomePage: FC<{}> = () => {
 						<Title>Platform options</Title>
 						<MenuBorder>
 							<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
-							<ButtonLink onClick={() => handleLinkClick("/admin_api/swagger/")}>Swagger</ButtonLink>
 							<StyledNavLink exact to="/platform_assistant">
 								<p>Platform assistant</p>
 							</StyledNavLink>

@@ -1,15 +1,16 @@
 import axios from 'axios';
-import { FC, useEffect, useState } from 'react'
+import { FC, SetStateAction, useEffect, useState } from 'react'
 import { Redirect } from 'react-router-dom';
 import styled from "styled-components";
 import { useAuthState } from '../contexts/authContext';
 import { axiosAuth, getDomainName } from '../tools/tools';
 import { GROUPS_COLUMNS } from './TableColumns/groupsColumns';
-import { ORG_USERS_COLUMNS } from './TableColumns/orgUsersColumns';
+import { ORG_USERS_COLUMNS, IOrgUser } from './TableColumns/orgUsersColumns';
 import { ORGS_MANAGED_COLUMNS } from './TableColumns/organizationsManagedColumns';
 import TableWithPagination from './TableWithPagination';
 import { useIsOrgAdmin, useIsPlatformAdmin } from '../contexts/platformAssistantContext';
 import Loader from "./Loader";
+import elaspsedTimeFormat from '../tools/elapsedTimeFormat';
 
 const OrganizationAdminOptionsContainer = styled.div`
 	display: flex;
@@ -85,8 +86,12 @@ const OrganizationAdminOptions: FC<{}> = () => {
         axios
             .get(urlOrganizationUsers, config)
             .then((response) => {
-                const users = response.data;
-                setOrgUsers(users);
+                const users: IOrgUser[] = response.data;
+                users.map(user => {
+                    user.lastSeenAtAge =  elaspsedTimeFormat(user.lastSeenAtAge); 
+                    return user;
+                })
+                setOrgUsers(users as unknown as SetStateAction<never[]>);
                 setOrgUsersLoading(false);
             })
             .catch((error) => {

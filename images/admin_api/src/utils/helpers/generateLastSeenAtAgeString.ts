@@ -1,8 +1,8 @@
 import IUser from "../../components/user/interfaces/User.interface";
 import IUserInOrg from "../../components/user/interfaces/UserInOrg.interface";
 
-const generateLastSeenAtAgeString = (user: IUser | IUserInOrg): string => {
-	const objectArray = Object.entries(user.lastSeenAtAge);
+const generateLastSeenAtAgeString = (lastSeenAtAge: string): string => {
+	const objectArray = Object.entries(lastSeenAtAge);
 	let lastSeenAtAgeString = "";
 	objectArray.forEach(([key, value]) => {
 		if (key === "milliseconds" || key === "milliseconds") {

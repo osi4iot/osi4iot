@@ -1,25 +1,23 @@
 import { FC, SyntheticEvent } from "react";
-import { FaEdit } from "react-icons/fa";
+import { FaExchangeAlt } from "react-icons/fa";
 import styled from "styled-components";
 
-
-const FaEditStyled = styled(FaEdit)`
+const ExChangeStyled = styled(FaExchangeAlt)`
     font-size: 18px;
     color: white;
 `;
 
-interface FaEditProps {
+interface ExChangeProps {
     rowIndex: number
 }
 
-const FaEditWrapper = styled.div<FaEditProps>`
-    ${FaEditStyled} {
+const ExChangeWrapper = styled.div<ExChangeProps>`
+    ${ExChangeStyled} {
         background-color:${(props) => (props.rowIndex % 2 === 0 ? '#0c0d0f' : '#202226')};
     }
 `;
 
-
-const IconContainer = styled.div<FaEditProps>`
+const IconContainer = styled.div<ExChangeProps>`
 	display: flex;
 	justify-content: center;
 	align-items: center;
@@ -28,18 +26,18 @@ const IconContainer = styled.div<FaEditProps>`
     &:hover {
         cursor: pointer;
 
-		& ${FaEditStyled} {
+		& ${ExChangeStyled} {
 			color: #3274d9;
 		}
     }
 `;
 
-interface EditIconProps {
+interface ExChangeIconProps {
     id: number;
-    rowIndex: number;
+    rowIndex: number
 }
 
-const EditIcon: FC<EditIconProps> = ({ id, rowIndex }) => {
+const ExChangeIcon: FC<ExChangeIconProps> = ({ id, rowIndex }) => {
 
     const handleClick = (e: SyntheticEvent) => {
         console.log("Click= ", id)
@@ -47,11 +45,11 @@ const EditIcon: FC<EditIconProps> = ({ id, rowIndex }) => {
 
     return (
         <IconContainer onClick={handleClick} rowIndex={rowIndex}>
-            <FaEditWrapper rowIndex={rowIndex} >
-                <FaEditStyled />
-            </FaEditWrapper>
+            <ExChangeWrapper rowIndex={rowIndex}>
+                <ExChangeStyled />
+            </ExChangeWrapper>
         </IconContainer>
     );
 };
 
-export default EditIcon;
+export default ExChangeIcon;

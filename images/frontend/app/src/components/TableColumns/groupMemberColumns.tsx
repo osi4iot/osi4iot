@@ -3,6 +3,7 @@ import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 
 export interface IGroupMember {
+    groupId: number;
 	userId: number;
 	firstName: string;
 	surname: string;
@@ -16,8 +17,14 @@ export interface IGroupMember {
 
 export const GROUP_MEMBERS_COLUMNS: Column<IGroupMember>[] = [
     {
-        Header: "userId",
-        accessor: "userId"
+        Header: "GroupId",
+        accessor: "groupId",
+        filter: 'equals'
+    },
+    {
+        Header: "UserId",
+        accessor: "userId",
+        filter: 'equals'
     },
     {
         Header: "First Name",
@@ -51,8 +58,9 @@ export const GROUP_MEMBERS_COLUMNS: Column<IGroupMember>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const groupMemberId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <EditIcon id={groupMemberId} />
+            const groupMemberId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <EditIcon id={groupMemberId} rowIndex={parseInt(rowIndex)} />
         }
     },
     {
@@ -61,8 +69,9 @@ export const GROUP_MEMBERS_COLUMNS: Column<IGroupMember>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const groupMemberId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <DeleteIcon id={groupMemberId} />
+            const groupMemberId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <DeleteIcon id={groupMemberId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

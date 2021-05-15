@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useState } from 'react'
+import React, { FC, SetStateAction, useEffect, useState } from 'react'
 import { Redirect } from "react-router-dom";
 import styled from "styled-components";
 import { axiosAuth, getDomainName } from '../tools/tools';
@@ -9,8 +9,10 @@ import { GLOBAL_USERS_COLUMNS } from "./TableColumns/globalUsersColumns";
 import { ORGANIZATIONS_COLUMNS } from './TableColumns/organizationsColumns';
 import TableWithPagination from './TableWithPagination';
 import Loader from "./Loader";
-// import Table from "./Table";
-// import mockOrganizations from "./mockOrganizations";
+import PlatformTools from './PlatformToolsOptions';
+import mockOrganizations from "./mockOrganizations";
+import { IRefreshToken, REFRESH_TOKENS_COLUMNS } from './TableColumns/refreshTokensColumns';
+import elaspsedTimeFormat from '../tools/elapsedTimeFormat';
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;
@@ -63,24 +65,26 @@ const PlatformAdminOptions: FC<{}> = () => {
     const [globalUsers, setGlobalUsers] = useState([]);
     const [orgsLoading, setOrgsLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
+    const [refreshTokens, setRefreshTokens] = useState([]);
+    const [refreshTokensLoading, setRefreshTokensLoading] = useState(true);
 
     useEffect(() => {
         const urlOrganizations = `https://${domainName}/admin_api/organizations`;
         const config = axiosAuth(accessToken);
-        axios
-            .get(urlOrganizations, config)
-            .then((response) => {
-                const organizations = response.data;
-                setOrganizations(organizations);
-                setOrgsLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
+        // axios
+        //     .get(urlOrganizations, config)
+        //     .then((response) => {
+        //         const organizations = response.data;
+        //         setOrganizations(organizations);
+        //         setOrgsLoading(false);
+        //     })
+        //     .catch((error) => {
+        //         console.log(error);
+        //     });
 
-        // const organizations = JSON.parse(mockOrganizations);
-        // setOrganizations(organizations);
-        // setOrgsLoading(false);
+        const organizations = JSON.parse(mockOrganizations);
+        setOrganizations(organizations);
+        setOrgsLoading(false);
 
         const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
         axios
@@ -89,6 +93,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                 const globalUsers = response.data;
                 globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
                     user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
+                    user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
                     return user;
                 })
                 setGlobalUsers(globalUsers);
@@ -97,6 +102,24 @@ const PlatformAdminOptions: FC<{}> = () => {
             .catch((error) => {
                 console.log(error);
             });
+
+            const urlRefreshTokens = `https://${domainName}/admin_api/auth/refresh_tokens`;
+            axios
+                .get(urlRefreshTokens, config)
+                .then((response) => {
+                    const refreshTokens: IRefreshToken[] = response.data;
+                    refreshTokens.map(token => {
+                        token.createdAtAge = elaspsedTimeFormat(token.createdAtAge);
+                        token.updatedAtAge = elaspsedTimeFormat(token.updatedAtAge);
+                        return token;
+                    })
+                    setRefreshTokens(refreshTokens as unknown as SetStateAction<never[]>);
+                    setRefreshTokensLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });        
+        
     }, [accessToken]);
 
     const clickHandler = (optionToShow: string) => {
@@ -113,19 +136,29 @@ const PlatformAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === "Organizations"} onClick={() => clickHandler("Organizations")}>
                     Organizations
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === "Global Users"} onClick={() => clickHandler("Global Users")}>
-                    Global Users
+                <OptionContainer isOptionActive={optionToShow === "Global users"} onClick={() => clickHandler("Global users")}>
+                    Global users
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === "Refresh tokens"} onClick={() => clickHandler("Refresh tokens")}>
+                    Refresh tokens
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === "Tools"} onClick={() => clickHandler("Tools")}>
+                    Tools
                 </OptionContainer>
             </PlatformAdminOptionsContainer>
             <ContentContainer >
-                {(orgsLoading || globalUsersLoading) ?
-                    <Loader />
-                    :
-                    <>
-                        {optionToShow === "Organizations" && <TableWithPagination dataTable={organizations} columnsTable={ORGANIZATIONS_COLUMNS} componentName="org" />}
-                        {optionToShow === "Global Users" && <TableWithPagination dataTable={globalUsers} columnsTable={GLOBAL_USERS_COLUMNS} componentName="global user" />}
-                    </>
-                }
+                <>
+                    {(orgsLoading || globalUsersLoading || refreshTokensLoading) ?
+                        <Loader />
+                        :
+                        <>
+                            {optionToShow === "Organizations" && <TableWithPagination dataTable={organizations} columnsTable={ORGANIZATIONS_COLUMNS} componentName="org" />}
+                            {optionToShow === "Global users" && <TableWithPagination dataTable={globalUsers} columnsTable={GLOBAL_USERS_COLUMNS} componentName="global user" />}
+                            {optionToShow === "Refresh tokens" && <TableWithPagination dataTable={refreshTokens} columnsTable={REFRESH_TOKENS_COLUMNS} componentName="Refresh tokens" />}
+                        </>
+                    }
+                    {optionToShow === "Tools" && <PlatformTools />}
+                </>
             </ContentContainer>
         </>
     )

@@ -1,8 +1,9 @@
 import { Column } from 'react-table';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
+import DisableRefreshTokenIcon from '../DisableRefreshTokenIcon';
 
-export interface IUser {
+export interface IGlobalUser {
 	id: number;
 	firstName: string;
 	surname: string;
@@ -11,14 +12,16 @@ export interface IUser {
 	telegramId: string;
 	roleInPlatform: string;
     lastSeenAtAge: string;
+    cancelRefreshToken: string;
     edit: string;
     delete: string;
 }
 
-export const GLOBAL_USERS_COLUMNS: Column<IUser>[] = [
+export const GLOBAL_USERS_COLUMNS: Column<IGlobalUser>[] = [
     {
         Header: "Id",
-        accessor: "id"
+        accessor: "id",
+        filter: 'equals'
     },
     {
         Header: "First Name",
@@ -52,13 +55,25 @@ export const GLOBAL_USERS_COLUMNS: Column<IUser>[] = [
         disableFilters: true
     },
     {
+        Header:  () => <div style={{backgroundColor: '#202226'}}>Disable user<br/>refresh tokens</div>,
+        accessor: "cancelRefreshToken",
+        disableFilters: true,
+        disableSortBy: true,
+        Cell: props => {
+            const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <DisableRefreshTokenIcon id={globalUserId} rowIndex={parseInt(rowIndex)} />
+        }
+    },
+    {
         Header: "",
         accessor: "edit",
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <EditIcon id={globalUserId} />
+            const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <EditIcon id={globalUserId} rowIndex={parseInt(rowIndex)} />
         }
     },
     {
@@ -68,7 +83,8 @@ export const GLOBAL_USERS_COLUMNS: Column<IUser>[] = [
         disableSortBy: true,
         Cell: props => {
             const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <DeleteIcon id={globalUserId} />
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0].row.id;
+            return <DeleteIcon id={globalUserId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

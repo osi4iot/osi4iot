@@ -3,10 +3,10 @@ import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 
 export interface IGroup {
+    orgId: number;
     id: number;
     name: string;
     acronym: string;
-    orgId: number;
     folderPermission: string;
     groupUid: string;
     telegramInvitationLink: string;
@@ -18,8 +18,14 @@ export interface IGroup {
 
 export const GROUPS_COLUMNS: Column<IGroup>[] = [
     {
-        Header: "Id",
-        accessor: "id"
+        Header: "OrgId",
+        accessor: "orgId",
+        filter: 'equals'
+    },
+    {
+        Header: "GroupId",
+        accessor: "id",
+        filter: 'equals'
     },
     {
         Header: "Name",
@@ -28,10 +34,6 @@ export const GROUPS_COLUMNS: Column<IGroup>[] = [
     {
         Header: "Acronym",
         accessor: "acronym"
-    },
-    {
-        Header: "OrgId",
-        accessor: "orgId"
     },
     {
         Header: () => <div style={{backgroundColor: '#202226'}}>Folder<br/>permission</div>,
@@ -64,8 +66,9 @@ export const GROUPS_COLUMNS: Column<IGroup>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const groupId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <EditIcon id={groupId} />
+            const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <EditIcon id={groupId} rowIndex={parseInt(rowIndex)} />
         }
     },
     {
@@ -74,8 +77,9 @@ export const GROUPS_COLUMNS: Column<IGroup>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const groupId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <DeleteIcon id={groupId} />
+            const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <DeleteIcon id={groupId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

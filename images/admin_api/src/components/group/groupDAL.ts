@@ -620,11 +620,12 @@ export const getNumberOfGroupMemberWithAdminRole = async (teamId: number): Promi
 
 export const getGroupMembers = async (group: IGroup): Promise<IGroupMember[]> => {
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
-	const query = `SELECT grafanadb.user.id AS "userId", grafanadb.user.first_name AS "firstName",
+	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.user.id AS "userId", grafanadb.user.first_name AS "firstName",
 	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
 					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
+					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
 					WHERE grafanadb.team_member.team_id = $1
 					ORDER BY grafanadb.user.id ASC`;
 	const result = await pool.query(query, [group.teamId]);
@@ -634,11 +635,13 @@ export const getGroupMembers = async (group: IGroup): Promise<IGroupMember[]> =>
 
 export const getGroupMembersInTeamIdArray = async (teamIdsArray: number[]): Promise<IGroupMember[]> => {
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
-	const query = `SELECT grafanadb.user.id AS "userId", grafanadb.user.first_name AS "firstName",
+	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.user.id AS "userId",
+					grafanadb.user.first_name AS "firstName",
 	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
 					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
+					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
 					WHERE grafanadb.team_member.team_id = ANY($1::bigint[])
 					ORDER BY grafanadb.user.id ASC`;
 	const result = await pool.query(query, [teamIdsArray]);
@@ -648,11 +651,13 @@ export const getGroupMembersInTeamIdArray = async (teamIdsArray: number[]): Prom
 
 export const getGroupMembersByEmailsArray = async (group: IGroup, emailsArray: string[]): Promise<IGroupMember[]> => {
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
-	const query = `SELECT grafanadb.user.id AS "userId", grafanadb.user.first_name AS "firstName",
+	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.user.id AS "userId",
+					grafanadb.user.first_name AS "firstName",
 	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
 					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
+					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
 					WHERE grafanadb.team_member.team_id = $1 AND grafanadb.user.email =  ANY($2::varchar(190)[])`
 	const result = await pool.query(query, [group.teamId, emailsArray]);
 	result.rows.forEach(member => member.roleInGroup = permissionCodes[member.roleInGroup]);
@@ -661,11 +666,13 @@ export const getGroupMembersByEmailsArray = async (group: IGroup, emailsArray: s
 
 export const getGroupMemberByProp = async (group: IGroup, propName: string, propValue: (string | number)): Promise<IGroupMember> => {
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
-	const query = `SELECT grafanadb.user.id AS "userId", grafanadb.user.first_name AS "firstName",
+	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.user.id AS "userId",
+					grafanadb.user.first_name AS "firstName",
 	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
 					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
+					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
 					WHERE grafanadb.team_member.team_id = $1
 					AND  grafanadb.user.${propName} = $2`
 	const result = await pool.query(query, [group.teamId, propValue]);

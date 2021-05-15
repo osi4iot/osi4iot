@@ -164,14 +164,14 @@
 				}
 			}
 		},
-		"/auth/refresh_token": {
+		"/auth/update_refresh_token": {
 			"patch": {
 				"tags": ["Authentication"],
-				"summary": "Login in the platform administration",
+				"summary": "Update refresh token",
 				"produces": ["application/json"],
 				"responses": {
 					"200": {
-						"description": "User validated. Access and refresh token delivered",
+						"description": "Refresh token updated. Access and refresh token delivered",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -193,6 +193,35 @@
 				}
 			}
 		},
+		"/auth/refresh_tokens": {
+			"get": {
+				"tags": ["Authentication"],
+				"summary": "All refresh tokens - Role required: PlaformAdmin",
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "All refresh tokens",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/UserManagedComponents"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},	
 		"/auth/disable_refresh_token": {
 			"delete": {
 				"tags": ["Authentication"],
@@ -2606,6 +2635,23 @@
 				}					
 			}
 		},
+		"RefreshToken": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"userId": {
+					"type": "number"
+				},
+				"refreshToken": {
+					"type": "string"
+				},
+				"expirationDate": {
+					"type": "string"
+				}					
+			}
+		},		
 		"DisableRefreshToken": {
 			"type": "object",
 			"properties": {
@@ -3175,6 +3221,9 @@
 		},		
 		"GroupMemberOutput": {
 			"properties": {
+				"groupId": {
+					"type": "string"
+				},
 				"userId": {
 					"type": "string"
 				},				

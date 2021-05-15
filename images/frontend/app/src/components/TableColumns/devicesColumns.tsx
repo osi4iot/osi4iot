@@ -1,25 +1,38 @@
 import { Column } from 'react-table';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
+import ExChangeIcon from '../ExchangeIcon';
 
 export interface IDevices {
+    orgId: number;
+    groupId: string;
     id: number;
     name: string;
     description: string;
-    orgId: number;
-    groupId: string;
     deviceUid: string;
 	latitude: number;
 	longitude: number;
     isDefaultGroupDevice: boolean;
+    changeDeviceHash: string;
     edit: string;
     delete: string;
 }
 
 export const DEVICES_COLUMNS: Column<IDevices>[] = [
     {
-        Header: "Id",
-        accessor: "id"
+        Header: "OrgId",
+        accessor: "orgId",
+        filter: 'equals'
+    },
+    {
+        Header: "GroupId",
+        accessor: "groupId",
+        filter: 'equals'
+    },
+    {
+        Header: "DeviceId",
+        accessor: "id",
+        filter: 'equals'
     },
     {
         Header: "Name",
@@ -30,15 +43,7 @@ export const DEVICES_COLUMNS: Column<IDevices>[] = [
         accessor: "description"
     },
     {
-        Header: "OrgId",
-        accessor: "orgId"
-    },
-    {
-        Header: "GroupId",
-        accessor: "groupId"
-    },
-    {
-        Header: "Device Hash",
+        Header: "Device hash",
         accessor: "deviceUid",
         disableFilters: true
     },
@@ -58,13 +63,25 @@ export const DEVICES_COLUMNS: Column<IDevices>[] = [
         disableFilters: true
     },
     {
+        Header: () => <div style={{backgroundColor: '#202226'}}>Change<br/>hash</div>,
+        accessor: "changeDeviceHash",
+        disableFilters: true,
+        disableSortBy: true,
+        Cell: props => {
+            const groupId = props.rows[props.row.id as unknown as number]?.cells[0].value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0].row.id;
+            return <ExChangeIcon id={groupId} rowIndex={parseInt(rowIndex,10)}/>
+        }
+    },
+    {
         Header: "",
         accessor: "edit",
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const deviceId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <EditIcon id={deviceId} />
+            const deviceId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <EditIcon id={deviceId} rowIndex={parseInt(rowIndex)} />
         }
     },
     {
@@ -73,8 +90,9 @@ export const DEVICES_COLUMNS: Column<IDevices>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const deviceId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <DeleteIcon id={deviceId} />
+            const deviceId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <DeleteIcon id={deviceId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

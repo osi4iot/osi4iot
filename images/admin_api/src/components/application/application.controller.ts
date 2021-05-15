@@ -105,7 +105,7 @@ class ApplicationController implements IController {
 		try {
 			const users = await getGlobalUsers();
 			users.forEach(user => {
-				user.lastSeenAtAge = generateLastSeenAtAgeString(user);
+				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			});
 			res.status(200).send(users);
 		} catch (error) {
@@ -123,7 +123,7 @@ class ApplicationController implements IController {
 			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const user = await getUserByProp(propName, propValue);
 			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
-			if (user.lastSeenAtAge) user.lastSeenAtAge = generateLastSeenAtAgeString(user);
+			if (user.lastSeenAtAge) user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			res.status(200).json(user);
 		} catch (error) {
 			next(error);

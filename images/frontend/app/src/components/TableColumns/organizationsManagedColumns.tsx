@@ -16,7 +16,8 @@ export interface IOrgManaged {
 export const ORGS_MANAGED_COLUMNS: Column<IOrgManaged>[] = [
     {
         Header: "Id",
-        accessor: "id"
+        accessor: "id",
+        filter: 'equals'
     },
     {
         Header: "Name",

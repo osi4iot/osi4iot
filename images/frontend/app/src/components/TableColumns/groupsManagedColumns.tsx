@@ -1,4 +1,6 @@
 import { Column } from 'react-table';
+import DownloadFileIcon from '../DownloadFileIcon';
+import ExChangeIcon from '../ExchangeIcon';
 
 export interface IGroupsManaged {
     id: number;
@@ -10,12 +12,15 @@ export interface IGroupsManaged {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
+    sslCerts: string;
+    changeGroupHash: string;
 }
 
 export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
     {
         Header: "Id",
-        accessor: "id"
+        accessor: "id",
+        filter: 'equals'
     },
     {
         Header: "Name",
@@ -27,7 +32,8 @@ export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
     },
     {
         Header: "OrgId",
-        accessor: "orgId"
+        accessor: "orgId",
+        filter: 'equals'
     },
     {
         Header: () => <div style={{backgroundColor: '#202226'}}>Folder<br/>permission</div>,
@@ -35,7 +41,7 @@ export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
         disableFilters: true
     },
     {
-        Header: "Group Hash",
+        Header: "Group hash",
         accessor: "groupUid",
         disableFilters: true
     },
@@ -53,5 +59,27 @@ export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
         Header: () => <div style={{backgroundColor: '#202226'}}>Is org<br/>default?</div>,
         accessor: "isOrgDefaultGroup",
         disableFilters: true
+    },
+    {
+        Header: () => <div style={{backgroundColor: '#202226'}}>SSL<br/>certs</div>,
+        accessor: "sslCerts",
+        disableFilters: true,
+        disableSortBy: true,
+        Cell: props => {
+            const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <DownloadFileIcon id={groupId} rowIndex={parseInt(rowIndex,10)}/>
+        }
+    },
+    {
+        Header: () => <div style={{backgroundColor: '#202226'}}>Change<br/>hash</div>,
+        accessor: "changeGroupHash",
+        disableFilters: true,
+        disableSortBy: true,
+        Cell: props => {
+            const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <ExChangeIcon id={groupId} rowIndex={parseInt(rowIndex,10)}/>
+        }
     }
 ]

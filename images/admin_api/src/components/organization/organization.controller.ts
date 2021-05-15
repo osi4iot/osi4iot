@@ -180,7 +180,7 @@ class OrganizationController implements IController {
 			const orgIdsArray = organizations.map(org => org.id);
 			const orgUsers = await getOrganizationUsersByOrgManagedByUser(orgIdsArray);
 			orgUsers.forEach(user => {
-				user.lastSeenAtAge = generateLastSeenAtAgeString(user);
+				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			});
 			res.status(200).send(orgUsers);
 		} catch (error) {
@@ -454,7 +454,7 @@ class OrganizationController implements IController {
 			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const user = await getOrganizationUserByProp(organization.id, propName, propValue);
 			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
-			if (user.lastSeenAtAge) user.lastSeenAtAge = generateLastSeenAtAgeString(user);
+			if (user.lastSeenAtAge) user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			res.status(200).json(user);
 		} catch (error) {
 			next(error);
@@ -470,7 +470,7 @@ class OrganizationController implements IController {
 			const { organization } = req;
 			const users = await getOrganizationUsers(organization.id);
 			users.forEach(user => {
-				user.lastSeenAtAge = generateLastSeenAtAgeString(user);
+				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			});
 			res.status(200).json(users);
 		} catch (error) {

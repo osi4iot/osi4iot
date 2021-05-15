@@ -205,6 +205,7 @@ export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IU
 
 	const existentGroupMemberArray: IGroupMember[] = [
 		{
+			groupId: group.id,
 			userId:  user.userId,
 			firstName: user.firstName,
 			surname: user.surname,

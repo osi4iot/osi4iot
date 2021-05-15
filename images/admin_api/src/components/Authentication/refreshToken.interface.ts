@@ -3,5 +3,7 @@ export default interface IRefreshToken {
 	userId: number;
 	token: string;
 	created: string;
+	createdAtAge: string;
 	updated: string;
+	updatedAtAge: string;
 }

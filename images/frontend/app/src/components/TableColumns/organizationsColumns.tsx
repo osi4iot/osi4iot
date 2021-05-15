@@ -20,7 +20,8 @@ export interface IOrganization {
 export const ORGANIZATIONS_COLUMNS: Column<IOrganization>[] = [
     {
         Header: "Id",
-        accessor: "id"
+        accessor: "id",
+        filter: 'equals'
     },
     {
         Header: "Name",
@@ -71,8 +72,9 @@ export const ORGANIZATIONS_COLUMNS: Column<IOrganization>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const orgId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <EditIcon id={orgId} />
+            const orgId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <EditIcon id={orgId} rowIndex={parseInt(rowIndex)} />
         }
     },
     {
@@ -81,8 +83,9 @@ export const ORGANIZATIONS_COLUMNS: Column<IOrganization>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const orgId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-            return <DeleteIcon id={orgId} />
+            const orgId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+            return <DeleteIcon id={orgId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]
