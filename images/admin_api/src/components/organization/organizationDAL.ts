@@ -1,6 +1,6 @@
 import pool from "../../config/dbconfig";
 import CreateOrganizationDto from "./interfaces/organization.dto";
-import IOrganization from "./interfaces/organization.interface";
+import IOrganization, { IOrganizationWichTheLoggedUserIsUser } from "./interfaces/organization.interface";
 import grafanaApi from "../../GrafanaApi";
 import { decrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -166,7 +166,9 @@ export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser
 }
 
 export const getOrganizationsManagedByUserId = async (userId: number): Promise<IOrganization[]> => {
-	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode", state, country
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, address1 as address, city,
+	                grafanadb.org.zip_code as "zipCode", state, country,
+					geolocation[0] AS longitude, geolocation[1] AS latitude
 					FROM grafanadb.org
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
 					WHERE grafanadb.org_user.user_id = $1 AND grafanadb.org_user.role = $2
@@ -175,6 +177,19 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 	return result.rows;
 }
 
+
+export const organizationsWhichTheLoggedUserIsUser = async (userId: number): Promise<IOrganizationWichTheLoggedUserIsUser[]> => {
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, address1 as address, city,
+					grafanadb.org.zip_code as "zipCode", state, country,
+					geolocation[0] AS longitude, geolocation[1] AS latitude,
+	                grafanadb.org_user.role AS "roleInOrg"
+					FROM grafanadb.org
+					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
+					WHERE grafanadb.org_user.user_id = $1
+					ORDER BY id ASC`;
+	const result = await pool.query(query, [userId]);
+	return result.rows;
+}
 
 export const addOrgUsersToDefaultOrgGroup = async (orgId: number, usersAddedToOrg: CreateUserDto[]): Promise<IMessage> => {
 	const group = await getDefaultOrgGroup(orgId);

@@ -51,7 +51,8 @@ class AuthenticationController implements IController {
 		passportInitialize();
 		this.router.post(`${this.path}/login`, validationMiddleware<LoginDto>(LoginDto), this.userLogin);
 		this.router.patch(`${this.path}/register`, registerAuth, validationMiddleware<UserRegisterDto>(UserRegisterDto), this.userRegister);
-		this.router.get(`${this.path}/user_data`, registerAuth, this.getUserRegisterData);
+		this.router.get(`${this.path}/user_data_for_register`, registerAuth, this.getUserRegisterData);
+		this.router.get(`${this.path}/user_profile`, userAuth, this.getUserProfile);
 		this.router.patch(
 			`${this.path}/change_password`,
 			userAuth,
@@ -180,6 +181,23 @@ class AuthenticationController implements IController {
 				firstName: user.firstName,
 				surname: user.surname,
 				email: user.email
+			}
+			res.status(200).json(userData);
+		} catch (error) {
+			return next(error);
+		}
+	};
+
+	private getUserProfile = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const { user } = req;
+			const userData = {
+				userId: user.id,
+				firstName: user.firstName,
+				surname: user.surname,
+				email: user.email,
+				login: user.login,
+				telegramId: user.telegramId,
 			}
 			res.status(200).json(userData);
 		} catch (error) {

@@ -24,6 +24,7 @@ import {
 	getGroupMembersInTeamIdArray,
 	getGroupsManagedByUserId,
 	getNumberOfGroupMemberWithAdminRole,
+	groupsWhichTheLoggedUserIsMember,
 	removeMembersInGroup,
 	udpateRoleMemberInGroup,
 	updateGroup
@@ -67,6 +68,11 @@ class GroupController implements IController {
 				`/group_members/user_managed/`,
 				userAuth,
 				this.getGroupMembersForGroupsManagedByUser
+			)
+			.get(
+				`${this.path}s/which_the_logged_user_is_member/`,
+				userAuth,
+				this.getGroupsWhichTheLoggedUserIsMember
 			);
 
 		this.router
@@ -183,7 +189,7 @@ class GroupController implements IController {
 
 	}
 
-	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> =>{
+	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> => {
 		let groups: IGroup[] = [];
 		if (user.isGrafanaAdmin) {
 			groups = await getAllGroups();
@@ -205,6 +211,15 @@ class GroupController implements IController {
 	private getGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const groups = await this.groupsManagedByUsers(req.user);
+			res.status(200).send(groups);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getGroupsWhichTheLoggedUserIsMember = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const groups = await groupsWhichTheLoggedUserIsMember(req.user.id);
 			res.status(200).send(groups);
 		} catch (error) {
 			next(error);

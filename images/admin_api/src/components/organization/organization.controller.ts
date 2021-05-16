@@ -23,7 +23,8 @@ import {
 	addOrgUsersToDefaultOrgGroup,
 	addUsersToOrganizationAndMembersToDefaultOrgGroup,
 	getOrganizationsManagedByUserId,
-	updateOrgUserRoleInDefaultOrgGroup
+	updateOrgUserRoleInDefaultOrgGroup,
+	organizationsWhichTheLoggedUserIsUser
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -80,6 +81,11 @@ class OrganizationController implements IController {
 				`/organization_users/user_managed/`,
 				userAuth,
 				this.getOrganizationsUserForOrgsManagedByUser
+			)
+			.get(
+				`${this.path}s/which_the_logged_user_is_user/`,
+				userAuth,
+				this.getOrganizationsWhichTheLoggedUserIsUser
 			);
 
 		this.router
@@ -187,6 +193,16 @@ class OrganizationController implements IController {
 			next(error);
 		}
 	};
+
+	private getOrganizationsWhichTheLoggedUserIsUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const organizations = await organizationsWhichTheLoggedUserIsUser(req.user.id);
+			res.status(200).send(organizations);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 
 
 	private createOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

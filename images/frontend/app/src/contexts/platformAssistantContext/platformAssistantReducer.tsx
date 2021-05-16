@@ -2,11 +2,11 @@ import { PlatformAssistantContextProps, PlatformAssistantAction } from "./interf
 import PLATFORM_ASSISTANT_OPTIONS from "./platformAssistantOptions";
 
 export const initialState = {
-    userRole: "user",
+    userRole: "unknown",
     numOrganizationManaged: 0,
     numGroupsManaged: 0,
     numDevicesManage: 0,
-    platformOptionsToShow: PLATFORM_ASSISTANT_OPTIONS.USER,
+    platformOptionsToShow: PLATFORM_ASSISTANT_OPTIONS.UNKNOWN,
     loading: false,
     errorMessage: null,
 };

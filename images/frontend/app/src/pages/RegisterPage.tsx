@@ -143,7 +143,7 @@ const RegisterPage: FC<{}> = () => {
 	const { firstName, surname, login, email, password, telegramId } = formValues;
 
 	useEffect(() => {
-		const url = `https://${domainName}/admin_api/auth/user_data`;
+		const url = `https://${domainName}/admin_api/auth/user_data_for_register`;
 		const token = getToken();
 		if (token) {
 			const config = axiosAuth(token as string);

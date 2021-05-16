@@ -10,9 +10,9 @@ import { ORGANIZATIONS_COLUMNS } from './TableColumns/organizationsColumns';
 import TableWithPagination from './TableWithPagination';
 import Loader from "./Loader";
 import PlatformTools from './PlatformToolsOptions';
-import mockOrganizations from "./mockOrganizations";
 import { IRefreshToken, REFRESH_TOKENS_COLUMNS } from './TableColumns/refreshTokensColumns';
 import elaspsedTimeFormat from '../tools/elapsedTimeFormat';
+// import mockOrganizations from "./mockOrganizations";
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;
@@ -71,20 +71,20 @@ const PlatformAdminOptions: FC<{}> = () => {
     useEffect(() => {
         const urlOrganizations = `https://${domainName}/admin_api/organizations`;
         const config = axiosAuth(accessToken);
-        // axios
-        //     .get(urlOrganizations, config)
-        //     .then((response) => {
-        //         const organizations = response.data;
-        //         setOrganizations(organizations);
-        //         setOrgsLoading(false);
-        //     })
-        //     .catch((error) => {
-        //         console.log(error);
-        //     });
+        axios
+            .get(urlOrganizations, config)
+            .then((response) => {
+                const organizations = response.data;
+                setOrganizations(organizations);
+                setOrgsLoading(false);
+            })
+            .catch((error) => {
+                console.log(error);
+            });
 
-        const organizations = JSON.parse(mockOrganizations);
-        setOrganizations(organizations);
-        setOrgsLoading(false);
+        // const organizations = JSON.parse(mockOrganizations);
+        // setOrganizations(organizations);
+        // setOrgsLoading(false);
 
         const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
         axios

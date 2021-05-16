@@ -94,14 +94,14 @@
 				}
 			}
 		},
-		"/auth/user_data": {
-			"patch": {
+		"/auth/user_data_for_register": {
+			"get": {
 				"tags": ["Authentication"],
-				"summary": "User firstName, surname and email to complete registration form",
+				"summary": "User firstName, surname and email to complete registration form - Register token required",
 				"produces": ["application/json"],
 				"responses": {
 					"200": {
-						"description": "User password modified correctly",
+						"description": "User firstName, surname and email",
 						"content": {
 							"application/json": {
 								"schema": {
@@ -122,7 +122,36 @@
 					}
 				}
 			}
-		},			
+		},
+		"/auth/user_profile": {
+			"get": {
+				"tags": ["Authentication"],
+				"summary": "User profile",
+				"produces": ["application/json"],
+				"responses": {
+					"200": {
+						"description": "User profile",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/UserProfile"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},				
 		"/auth/login": {
 			"post": {
 				"tags": ["Authentication"],
@@ -686,6 +715,34 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/definitions/UsersOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/organizations/which_the_logged_user_is_user/": {		
+			"get": {
+				"tags": ["Organization"],
+				"summary": "Get all organizations which the logged user is user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/OrganizationsWhichTheLoggedUserIsUser"
 								}
 							}
 						}
@@ -1333,6 +1390,34 @@
 				}
 			}
 		},
+		"/groups/which_the_logged_user_is_member": {		
+			"get": {
+				"tags": ["Group"],
+				"summary": "Get all groups which the logged user is member",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupsWhichTheLoggedUserIsMember"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/group_members/user_managed": {		
 			"get": {
 				"tags": ["Group"],
@@ -2593,6 +2678,29 @@
 				}
 			}
 		},
+		"UserProfile": {
+			"type": "object",
+			"properties": {
+				"userId": {
+					"type": "number"
+				},
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				},			
+				"telegramId": {
+					"type": "string"
+				}
+			}
+		},		
 		"UserRegisterData": {
 			"type": "object",
 			"properties": {
@@ -2916,6 +3024,48 @@
 				"$ref": "#/definitions/OrganizationOutput"
 			}
 		},
+		"OrganizationWhichTheLoggedUserIsUser": {
+			"type": "object",
+			"properties": {
+				"id": {
+					"type": "number",
+					"default": 1
+				},
+				"name": {
+					"type": "string"
+				},
+				"acronym": {
+					"type": "string"
+				},
+				"address": {
+					"type": "string"
+				},
+				"zipCode": {
+					"type": "string"
+				},
+				"state": {
+					"type": "string"
+				},
+				"country": {
+					"type": "string"
+				},
+				"longitude": {
+					"type": "number"
+				},
+				"latitude": {
+					"type": "number"
+				},
+				"roleInOrg": {
+					"type": "string"
+				}	
+			}
+		},
+		"OrganizationsWhichTheLoggedUserIsUser": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/OrganizationWhichTheLoggedUserIsUser"
+			}
+		},			
 		"propName": {
 			"properties": {
 				"propName": {
@@ -3286,6 +3436,38 @@
 				"$ref": "#/definitions/GroupOutput"
 			}
 		},
+		"GroupWhichTheLoggedUserIsMember": {
+			"type": "object",
+			"properties": {
+				"groupId": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},								
+				"name": {
+					"type": "string"
+				},
+				"acronym": {
+					"type": "string"
+				},
+				"telegramInvitationLink": {
+					"type": "string"
+				},
+				"telegramChatId": {
+					"type": "string"
+				},
+				"roleInGroup:": {
+					"type": "string"
+				}
+			}
+		},
+		"GroupsWhichTheLoggedUserIsMember": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/GroupWhichTheLoggedUserIsMember"
+			}
+		},		
 		"AddMembersToGroupInput": {
 			"properties": {
 				"members": {

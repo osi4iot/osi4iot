@@ -22,6 +22,7 @@ import { RoleInGroupOption } from "./interfaces/RoleInGroupOptions";
 import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import UpdateGroupDto from "./interfaces/group_update.dto";
 import INotificationChannel from "./interfaces/NotificationChannel";
+import IMembershipInGroups from "./interfaces/MembershipInGroups.interface";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
@@ -225,6 +226,23 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 	const result = await pool.query(query, [userId, 4]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
+	return result.rows;
+}
+
+export const groupsWhichTheLoggedUserIsMember = async (userId: number): Promise<IMembershipInGroups[]> => {
+	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.group.org_id AS "orgId",
+	            grafanadb.group.name, grafanadb.group.acronym,
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				grafanadb.team_member.permission AS "roleInGroup"
+				FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
+				WHERE grafanadb.team_member.user_id = $1
+				ORDER BY grafanadb.group.id ASC;`;
+	const result = await pool.query(query, [userId]);
+	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
+	result.rows.forEach(row => row.roleInGroup = permissionCodes[row.roleInGroup]);
 	return result.rows;
 }
 

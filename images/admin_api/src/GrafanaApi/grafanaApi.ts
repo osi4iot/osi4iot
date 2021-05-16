@@ -400,7 +400,6 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async deleteFolderByUid(orgId: number, folderUid: string, orgKey: string): Promise<IMessage> {
-		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/folders/${folderUid}`;
 		const optionsToken = this.generateOptionsToken(orgKey);
 		const message = await needle('delete', url, null, optionsToken)

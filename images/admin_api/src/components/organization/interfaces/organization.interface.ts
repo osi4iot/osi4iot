@@ -10,3 +10,7 @@ export default interface IOrganization {
 	latitude: number;
 	longitude: number;
 }
+
+export interface IOrganizationWichTheLoggedUserIsUser extends IOrganization {
+	roleInOrg: string;
+}
