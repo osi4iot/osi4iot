@@ -10,3 +10,16 @@ body, table.body, h1, h2, h3, h4, h5, h6, p, td, div {
   background-color: #0c0d0f;
   color: #FFFFFF;
 }
+
+.ReactModal__Content {
+  transform: scale(0.1);
+  transition: all 500ms ease-in-out;
+}
+
+.ReactModal__Content--after-open {
+  transform: scale(1.0);
+}
+
+.ReactModal__Overlay--before-close {
+  transform: scale(0.1);
+}

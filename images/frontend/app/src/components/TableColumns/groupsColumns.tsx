@@ -1,6 +1,8 @@
+import { FC } from 'react';
 import { Column } from 'react-table';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
+import Modal from '../Modal';
 
 export interface IGroup {
     orgId: number;
@@ -14,6 +16,25 @@ export interface IGroup {
     isOrgDefaultGroup: boolean;
     edit: string;
     delete: string;
+}
+
+interface DeleteGroupModalProps {
+    rowIndex: number;
+    groupId: number;
+}
+
+const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, groupId }) => {
+    const component = "group";
+    const consequences = "All teams, folders, devices and its measurements belonging to this group are going to be lost.";
+    const action = () => {
+        console.log("Delete group with id=", groupId);;
+    }
+
+    const [showModal] = Modal(component, consequences, action);
+
+    return (
+        <DeleteIcon action={showModal} rowIndex={rowIndex} />
+    )
 }
 
 export const GROUPS_COLUMNS: Column<IGroup>[] = [
@@ -79,7 +100,7 @@ export const GROUPS_COLUMNS: Column<IGroup>[] = [
         Cell: props => {
             const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
             const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-            return <DeleteIcon id={groupId} rowIndex={parseInt(rowIndex)} />
+            return <DeleteGroupModal groupId={groupId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

@@ -1,6 +1,8 @@
+import { FC } from 'react';
 import { Column } from 'react-table';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
+import Modal from '../Modal';
 
 export interface IOrgUser {
     orgId: number;
@@ -14,6 +16,26 @@ export interface IOrgUser {
     lastSeenAtAge: string;
     edit: string;
     delete: string;
+}
+
+interface DeleteOrgUserModalProps {
+    rowIndex: number;
+    userId: number;
+}
+
+
+const DeleteOrgUserModal: FC<DeleteOrgUserModalProps> = ({ rowIndex, userId }) => {
+    const component = "org user";
+    const consequences = "The user are going be removed of all group beloging to the org.";
+    const action = () => {
+        console.log("Delete org user with id=", userId);;
+    }
+
+    const [showModal] = Modal(component, consequences, action);
+
+    return (
+        <DeleteIcon action={showModal} rowIndex={rowIndex} />
+    )
 }
 
 export const ORG_USERS_COLUMNS: Column<IOrgUser>[] = [
@@ -77,7 +99,7 @@ export const ORG_USERS_COLUMNS: Column<IOrgUser>[] = [
         Cell: props => {
             const userId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
             const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-            return <DeleteIcon id={userId} rowIndex={parseInt(rowIndex)} />
+            return <DeleteOrgUserModal userId={userId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

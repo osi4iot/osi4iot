@@ -36,14 +36,14 @@ const IconContainer = styled.div<FaTrashAltProps>`
 `;
 
 interface DeleteIconProps {
-    id: number;
+    action: any;
     rowIndex: number;
 }
 
-const DeleteIcon: FC<DeleteIconProps> = ({ id, rowIndex }) => {
+const DeleteIcon: FC<DeleteIconProps> = ({ action, rowIndex }) => {
 
     const handleClick = (e: SyntheticEvent) => {
-        console.log("Click= ", id)
+        action();
     };
 
     return (

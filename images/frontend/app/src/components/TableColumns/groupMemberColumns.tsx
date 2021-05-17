@@ -1,6 +1,8 @@
+import { FC } from 'react';
 import { Column } from 'react-table';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
+import Modal from '../Modal';
 
 export interface IGroupMember {
     groupId: number;
@@ -13,6 +15,25 @@ export interface IGroupMember {
     roleInGroup: string;
     edit: string;
     delete: string;
+}
+
+interface DeleteGroupMemberModalProps {
+    rowIndex: number;
+    groupMemberId: number;
+}
+
+const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, groupMemberId }) => {
+    const component = "group member";
+    const consequences = "The member are going to be remove of the group but continues active in the org.";
+    const action = () => {
+        console.log("Delete group member with id=", groupMemberId);;
+    }
+
+    const [showModal] = Modal(component, consequences, action);
+
+    return (
+        <DeleteIcon action={showModal} rowIndex={rowIndex} />
+    )
 }
 
 export const GROUP_MEMBERS_COLUMNS: Column<IGroupMember>[] = [
@@ -71,7 +92,7 @@ export const GROUP_MEMBERS_COLUMNS: Column<IGroupMember>[] = [
         Cell: props => {
             const groupMemberId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
             const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-            return <DeleteIcon id={groupMemberId} rowIndex={parseInt(rowIndex)} />
+            return <DeleteGroupMemberModal groupMemberId={groupMemberId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

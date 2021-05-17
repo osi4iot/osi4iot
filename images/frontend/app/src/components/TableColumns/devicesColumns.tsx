@@ -1,7 +1,9 @@
+import { FC } from 'react';
 import { Column } from 'react-table';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import ExChangeIcon from '../ExchangeIcon';
+import Modal from '../Modal';
 
 export interface IDevices {
     orgId: number;
@@ -16,6 +18,25 @@ export interface IDevices {
     changeDeviceHash: string;
     edit: string;
     delete: string;
+}
+
+interface DeleteDeviceModalProps {
+    rowIndex: number;
+    deviceId: number;
+}
+
+const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, deviceId }) => {
+    const component = "device";
+    const consequences = "All measurements of this device and its mesurements are going to be lost.";
+    const action = () => {
+        console.log("Delete device with id=", deviceId);;
+    }
+
+    const [showModal] = Modal(component, consequences, action);
+
+    return (
+        <DeleteIcon action={showModal} rowIndex={rowIndex} />
+    )
 }
 
 export const DEVICES_COLUMNS: Column<IDevices>[] = [
@@ -92,7 +113,7 @@ export const DEVICES_COLUMNS: Column<IDevices>[] = [
         Cell: props => {
             const deviceId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
             const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-            return <DeleteIcon id={deviceId} rowIndex={parseInt(rowIndex)} />
+            return <DeleteDeviceModal deviceId={deviceId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

@@ -1,5 +1,7 @@
+import { FC } from 'react';
 import { Column } from 'react-table';
 import DeleteIcon from '../DeleteIcon';
+import Modal from '../Modal';
 
 export interface IRefreshToken {
 	id: number;
@@ -8,6 +10,25 @@ export interface IRefreshToken {
     createdAtAge: string;
     updatedAtAge: string;
     delete: string;
+}
+
+interface DeleteRefreshTokenModalProps {
+    rowIndex: number;
+    refreshTokenId: number;
+}
+
+const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, refreshTokenId }) => {
+    const component = "refresh token";
+    const consequences = "The user are going to need to sign in again.";
+    const action = () => {
+        console.log("Delete refresh token with id=", refreshTokenId);;
+    }
+
+    const [showModal] = Modal(component, consequences, action);
+
+    return (
+        <DeleteIcon action={showModal} rowIndex={rowIndex} />
+    )
 }
 
 export const REFRESH_TOKENS_COLUMNS: Column<IRefreshToken>[] = [
@@ -41,9 +62,9 @@ export const REFRESH_TOKENS_COLUMNS: Column<IRefreshToken>[] = [
         disableFilters: true,
         disableSortBy: true,
         Cell: props => {
-            const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0].value;
+            const refreshTokenId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0].row.id;
-            return <DeleteIcon id={globalUserId} rowIndex={parseInt(rowIndex)} />
+            return <DeleteRefreshTokenModal refreshTokenId={refreshTokenId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]

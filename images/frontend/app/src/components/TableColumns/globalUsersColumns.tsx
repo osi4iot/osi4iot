@@ -1,7 +1,9 @@
+import { FC } from 'react';
 import { Column } from 'react-table';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import DisableRefreshTokenIcon from '../DisableRefreshTokenIcon';
+import Modal from '../Modal';
 
 export interface IGlobalUser {
 	id: number;
@@ -16,6 +18,26 @@ export interface IGlobalUser {
     edit: string;
     delete: string;
 }
+
+interface DeleteGlobalUserModalProps {
+    rowIndex: number;
+    globalUserId: number;
+}
+
+const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globalUserId }) => {
+    const component = "global user";
+    const consequences = "The user are going to be removed of the platform.";
+    const action = () => {
+        console.log("Delete global user with id=", globalUserId);;
+    }
+
+    const [showModal] = Modal(component, consequences, action);
+
+    return (
+        <DeleteIcon action={showModal} rowIndex={rowIndex} />
+    )
+}
+
 
 export const GLOBAL_USERS_COLUMNS: Column<IGlobalUser>[] = [
     {
@@ -84,7 +106,7 @@ export const GLOBAL_USERS_COLUMNS: Column<IGlobalUser>[] = [
         Cell: props => {
             const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0].value;
             const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0].row.id;
-            return <DeleteIcon id={globalUserId} rowIndex={parseInt(rowIndex)} />
+            return <DeleteGlobalUserModal globalUserId={globalUserId} rowIndex={parseInt(rowIndex)} />
         }
     }
 ]
