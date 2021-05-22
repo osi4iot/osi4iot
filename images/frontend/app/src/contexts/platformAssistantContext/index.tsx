@@ -5,7 +5,7 @@ import {
     usePlatformAssitantState,
     useIsPlatformAdmin,
     useIsOrgAdmin,
-    useIsGroupAdmin
+    useIsGroupAdmin,
 } from './platformAssistantContext';
 
 export {
@@ -15,5 +15,5 @@ export {
     usePlatformAssitantState,
     useIsPlatformAdmin,
     useIsOrgAdmin,
-    useIsGroupAdmin
+    useIsGroupAdmin,
 };

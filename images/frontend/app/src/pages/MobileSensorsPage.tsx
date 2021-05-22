@@ -3,16 +3,16 @@ import React, { ChangeEvent, FC, SyntheticEvent, useEffect, useState } from "rea
 import styled from "styled-components";
 import { nanoid } from "nanoid";
 import Paho from "paho-mqtt";
-import Alert from "../components/Alert";
-import Header from "../components/Header";
-import Main from "../components/Main";
-import ServerError from "../components/ServerError";
+import Alert from "../components/Tools/Alert";
+import Header from "../components/Layout/Header";
+import Main from "../components/Layout/Main";
+import ServerError from "../components/Tools/ServerError";
 import { useAuthState } from "../contexts/authContext";
 import { ChildrenProp, IDevice } from "../interfaces/interfaces";
 import { getDomainName, isValidNumber, isValidText } from "../tools/tools";
 import ReadAccelerations from "../tools/ReadingAccelerations";
 import MqttConnection from "../tools/MqttConnection";
-import ProgresBar from "../components/ProgressBar";
+import ProgresBar from "../components/Tools/ProgressBar";
 
 const Title = styled.h2`
 	font-size: 20px;

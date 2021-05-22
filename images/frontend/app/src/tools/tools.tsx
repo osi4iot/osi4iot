@@ -1,3 +1,5 @@
+import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/platformAssistantOptions";
+
 export const isRegistrationRequest = () => {
     let isRegistrationReq = false;
     const location = window.location.href;
@@ -57,3 +59,14 @@ export const axiosAuth = (token: string) => {
     };
     return config;
 }; 
+
+
+
+export const getPlatformAssistantPathForUserRole = (userRole: string) => {
+	let platformAssistantPath = PLATFORM_ASSISTANT_ROUTES.HOME;
+	if (userRole === "PlatformAdmin") platformAssistantPath = PLATFORM_ASSISTANT_ROUTES.PLATFORM_ADMIN;
+	else if (userRole === "OrgAdmin") platformAssistantPath = PLATFORM_ASSISTANT_ROUTES.ORG_ADMIN;
+	else if (userRole === "GroupAdmin") platformAssistantPath = PLATFORM_ASSISTANT_ROUTES.GROUP_ADMIN;
+	else if (userRole === "User") platformAssistantPath = PLATFORM_ASSISTANT_ROUTES.USER;
+	return platformAssistantPath;
+}

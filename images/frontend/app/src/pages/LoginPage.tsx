@@ -1,12 +1,14 @@
 import { FC, SyntheticEvent, ChangeEvent, useState } from "react";
 import { useHistory, useLocation } from "react-router-dom";
 import styled from "styled-components";
-import Header from "../components/Header";
-import Alert from "../components/Alert";
+import Header from "../components/Layout/Header";
+import Alert from "../components/Tools/Alert";
 import { isValidPassword, isValidText } from "../tools/tools";
-import Main from "../components/Main";
+import Main from "../components/Layout/Main";
 import { loginUser, useAuthState, useAuthDispatch } from "../contexts/authContext";
-import ServerError from "../components/ServerError";
+import ServerError from "../components/Tools/ServerError";
+import { getUserRoleAndRedirect } from "../tools/userRole";
+import { usePlatformAssitantDispatch } from "../contexts/platformAssistantContext";
 
 const Title = styled.h2`
 	font-size: 30px;
@@ -112,6 +114,7 @@ const initialFormValues = {
 const LoginPage: FC<{}> = () => {
 	const [isValidationRequired, setIsValidationRequired] = useState(false);
 	const [formValues, setFormValues] = useState(initialFormValues);
+	const platformAssistantDispatch = usePlatformAssitantDispatch();
 	const { userName, password } = formValues;
 
 	const history = useHistory();
@@ -141,7 +144,8 @@ const LoginPage: FC<{}> = () => {
 			try {
 				let response = await loginUser(authDispatch, loginData);
 				if (!response?.accessToken) return;
-				history.push(previusObjectURL);
+				if (previusObjectURL) history.push(previusObjectURL);
+				else getUserRoleAndRedirect(response.accessToken, platformAssistantDispatch, history);
 			} catch (error) {
 				console.log(error);
 			}

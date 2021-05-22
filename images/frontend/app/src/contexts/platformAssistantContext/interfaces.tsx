@@ -7,7 +7,12 @@ export interface PlatformAssistantContextProps {
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
 	numDevicesManage: number;
-	platformOptionsToShow: string;
+	platformAssitantOptionToShow: string;
+	groupMembersOptionToShow: string;
+	groupMemberIdToEdit: number;
+	userOptionToShow: string;
+	userProfileOptionToShow: string;
+	homeOptionToShow: string
 	loading: boolean;
 	errorMessage: string | null;
 }
@@ -17,7 +22,12 @@ export interface PlatformAssistantActionPayload {
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
 	numDevicesManage: number;
-	platformOptionsToShow: string;
+	platformAssitantOptionToShow: string;
+	groupMembersOptionToShow: string;
+	groupMemberIdToEdit: number;
+	userOptionToShow: string;
+	userProfileOptionToShow: string;
+	homeOptionToShow: string
 }
 
 export interface PlatformAssistantAction {
@@ -33,6 +43,9 @@ export interface IUserRole {
 	numDevicesManaged: number;
 }
 
-export interface IPlatformOptionsToShow {
-	platformOptionsToShow: string;
+export interface IPlatformAssistantOptionToShow {
+	platformAssistantOptionToShow: string;
 }
+
+
+

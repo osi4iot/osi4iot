@@ -25,6 +25,15 @@ export const deleteRefreshToken = async (refreshToken: string): Promise<string> 
 	else return "The indicated refresh token not exists";
 };
 
+export const deleteRefreshTokenById = async (refreshTokenId: number): Promise<string> => {
+	const result = await pool.query(`DELETE FROM grafanadb.refresh_token WHERE id = $1
+							RETURNING *`,
+		[refreshTokenId]);
+	const deletedRefreshToken = result.rows[0];
+	if (deletedRefreshToken) return "Refresh token disabled successfully";
+	else return "The indicated refresh token not exists";
+};
+
 export const deleteUserRefreshTokens = async (userId: number): Promise<string> => {
 	const result = await pool.query(`DELETE FROM grafanadb.refresh_token WHERE user_id = $1
 							RETURNING *`,

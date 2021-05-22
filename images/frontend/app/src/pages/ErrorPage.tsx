@@ -1,7 +1,7 @@
 import { FC } from "react";
 import styled from "styled-components";
-import Header from "../components/Header";
-import Main from "../components/Main";
+import Header from "../components/Layout/Header";
+import Main from "../components/Layout/Main";
 import { ChildrenProp } from "../interfaces/interfaces";
 
 const ErrorMessageContainer = styled.div`

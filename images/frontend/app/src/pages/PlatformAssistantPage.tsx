@@ -1,20 +1,15 @@
 import { FC, useEffect } from "react";
 import styled from "styled-components";
-import Main from "../components/Main";
-import Header from "../components/Header";
-import PlatformAssistantMenu from "../components/PlatformAssistantMenu";
+import Main from "../components/Layout/Main";
+import Header from "../components/Layout/Header";
+import PlatformAssistantMenu from "../components/PlatformAssistant/PlatformAssistantMenu";
 import { useAuthState } from "../contexts/authContext";
 import { usePlatformAssitantDispatch } from "../contexts/platformAssistantContext";
 import { axiosAuth, getDomainName } from "../tools/tools";
 import axios from "axios";
 import { setUserRole } from "../contexts/platformAssistantContext";
-import PlatformAdminOptions from "../components/PlatformAdminOptions";
-import OrganizationAdminOptions from "../components/OrganizationAdminOptions";
-import GroupAdminOptions from "../components/GroupAdminOptions";
-import { setPlaformOptionsToShow } from "../contexts/platformAssistantContext/platformAssistantAction";
-import PLATFORM_ASSISTANT_OPTIONS from "../contexts/platformAssistantContext/platformAssistantOptions";
-import { usePlatformAsistantOptionsToShow } from "../contexts/platformAssistantContext/platformAssistantContext";
-import UserOptions from "../components/UserOptions";
+import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/platformAssistantOptions";
+
 
 const Container = styled.div`
     display: flex;
@@ -37,18 +32,10 @@ const Title = styled.h2`
 
 const domainName = getDomainName();
 
-const getDefaultPlatformAssistantOptionsToShow = (userRole: string) => {
-	let platformAssistantOptionsToShow = PLATFORM_ASSISTANT_OPTIONS.USER;
-	if (userRole === "PlatformAdmin") platformAssistantOptionsToShow = PLATFORM_ASSISTANT_OPTIONS.PLATFORM_ADMIN;
-	else if (userRole === "OrgAdmin") platformAssistantOptionsToShow = PLATFORM_ASSISTANT_OPTIONS.ORG_ADMIN;
-	else if (userRole === "GroupAdmin") platformAssistantOptionsToShow = PLATFORM_ASSISTANT_OPTIONS.GROUP_ADMIN;
-	return platformAssistantOptionsToShow;
-}
 
 const PlatformAssistantPage: FC<{}> = () => {
 	const { accessToken } = useAuthState();
 	const platformAssistantDispatch = usePlatformAssitantDispatch();
-	const plattformAsistantOptionsToShow = usePlatformAsistantOptionsToShow();
 
 	useEffect(() => {
 		const url = `https://${domainName}/admin_api/auth/user_managed_components`;
@@ -58,9 +45,6 @@ const PlatformAssistantPage: FC<{}> = () => {
 			.then((response) => {
 				const data = response.data;
 				setUserRole(platformAssistantDispatch, data);
-				const defaultPlatformAssistantOptionsToShow = getDefaultPlatformAssistantOptionsToShow(data.userRole);
-				const platformOptionsToShow = { platformOptionsToShow: defaultPlatformAssistantOptionsToShow };
-				setPlaformOptionsToShow(platformAssistantDispatch, platformOptionsToShow);
 			})
 			.catch((error) => {
 				console.log(error);
@@ -72,21 +56,9 @@ const PlatformAssistantPage: FC<{}> = () => {
 			<Header />
 			<Main>
 				<>
-					<PlatformAssistantMenu />
+					<PlatformAssistantMenu platformAssistantOptionToShow={PLATFORM_ASSISTANT_OPTION.HOME} />
 					<Container>
 						<Title>Platform assistant</Title>
-						{plattformAsistantOptionsToShow === PLATFORM_ASSISTANT_OPTIONS.PLATFORM_ADMIN
-							&& <PlatformAdminOptions />}
-
-						{plattformAsistantOptionsToShow === PLATFORM_ASSISTANT_OPTIONS.ORG_ADMIN
-							&& <OrganizationAdminOptions />}
-
-						{plattformAsistantOptionsToShow === PLATFORM_ASSISTANT_OPTIONS.GROUP_ADMIN
-							&& <GroupAdminOptions />}
-
-						{plattformAsistantOptionsToShow === PLATFORM_ASSISTANT_OPTIONS.USER
-							&& <UserOptions />}
-
 					</Container>
 				</>
 			</Main>

@@ -2,11 +2,11 @@ import { FC, SyntheticEvent, ChangeEvent, useState, useEffect } from "react";
 import {Redirect } from "react-router-dom";
 import axios from "axios";
 import styled from "styled-components";
-import Header from "../components/Header";
-import Alert from "../components/Alert";
+import Header from "../components/Layout/Header";
+import Alert from "../components/Tools/Alert";
 import { axiosAuth, getDomainName, isValidEmail, isValidPassword, isValidText } from "../tools/tools";
 import ErrorPage from "./ErrorPage";
-import Main from "../components/Main";
+import Main from "../components/Layout/Main";
 
 
 const Title = styled.h2`

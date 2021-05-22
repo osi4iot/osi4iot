@@ -1,9 +1,10 @@
 import { FC } from "react";
 import { NavLink } from "react-router-dom";
 import styled from "styled-components";
-import Main from "../components/Main";
-import Header from "../components/Header";
-import { getDomainName } from "../tools/tools";
+import Main from "../components/Layout/Main";
+import Header from "../components/Layout/Header";
+import {  getDomainName } from "../tools/tools";
+
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -69,6 +70,7 @@ const MenuBorder = styled.div`
 	}
 
 `;
+
 
 const ButtonLink = styled.button`
 	background-color: #3274d9;
@@ -145,13 +147,16 @@ const Footer = styled.p`
 	bottom: 5px;
 `;
 
+
 const domainName = getDomainName();
 
 const HomePage: FC<{}> = () => {
+
 	const handleLinkClick = (path: string) => {
 		const url = `https://${domainName}${path}`;
 		window.open(url, "_blank");
 	};
+
 
 	return (
 		<>
@@ -165,8 +170,8 @@ const HomePage: FC<{}> = () => {
 						<Title>Platform options</Title>
 						<MenuBorder>
 							<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
-							<StyledNavLink exact to="/platform_assistant">
-								<p>Platform assistant</p>
+							<StyledNavLink exact to="/platform_assistant" >
+								Platform assistant
 							</StyledNavLink>
 							<StyledNavLink exact to="/mobile_sensors">
 								<p>Mobile sensors</p>

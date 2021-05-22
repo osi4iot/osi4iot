@@ -14,7 +14,7 @@ import UserRegisterDto from "./userRegister.dto";
 import { updateOrganizationUser } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
-import { deleteRefreshToken, deleteUserRefreshTokens, exitsRefreshToken, getAllRefreshTokens, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
+import { deleteRefreshToken, deleteRefreshTokenById, deleteUserRefreshTokens, exitsRefreshToken, getAllRefreshTokens, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
 import { getAllDevices, getDevicesByGroupsIdArray, getNumDevices, getNumDevicesByGroupsIdArray } from "../device/deviceDAL";
 import { getNumOrganizations, getOrganizations, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { getAllGroups, getAllGroupsInOrgArray, getGroupsManagedByUserId, getNumGroups, getNumGroupsManagedByUserId } from "../group/groupDAL";
@@ -63,6 +63,7 @@ class AuthenticationController implements IController {
 		this.router.get(`${this.path}/refresh_tokens/`, superAdminAuth, this.getRefreshTokens);
 		this.router.patch(`${this.path}/update_refresh_token/`, this.refreshToken);
 		this.router.delete(`${this.path}/disable_refresh_token/`, superAdminAuth, validationMiddleware<RefreshTokenToDisableDto>(RefreshTokenToDisableDto), this.disableRefreshToken);
+		this.router.delete(`${this.path}/disable_refresh_token_by_id/:refreshTokenId`, superAdminAuth, this.disableRefreshTokenById);
 		this.router.delete(`${this.path}/disable_user_refresh_tokens/:userId`, superAdminAuth, this.disableUsersRefreshToken);
 		this.router.get(`${this.path}/user_managed_components`, userAuth, this.numComponentsManagedByUser);
 	}
@@ -262,6 +263,16 @@ class AuthenticationController implements IController {
 		}
 	};
 
+	private disableRefreshTokenById = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		const refreshTokenId = parseInt(req.params.refreshTokenId, 10);
+		try {
+			const message = await deleteRefreshTokenById(refreshTokenId);
+			res.status(200).json({ message });
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private numComponentsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const componentsManaged: IComponentsManagedByUser = {
@@ -322,7 +333,6 @@ class AuthenticationController implements IController {
 	private getRefreshTokens = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const refreshTokens = await getAllRefreshTokens();
-			console.log("refreshTokens=", refreshTokens)
 			refreshTokens.forEach(token => {
 				token.createdAtAge = generateLastSeenAtAgeString(token.createdAtAge);
 				token.updatedAtAge = generateLastSeenAtAgeString(token.updatedAtAge);

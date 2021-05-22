@@ -39,13 +39,15 @@ export const useIsGroupAdmin = (): boolean => {
 	return context.userRole === "GroupAdmin";
 }
 
-export const usePlatformAsistantOptionsToShow = (): string => {
+export const useUserRole = (): string => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
-		throw new Error('usePlatformAsistantOptionsToShow must be used within a PlatformAssitantProvider');
+		throw new Error('useIsPlatformAdmin must be used within a PlatformAssitantProvider');
 	}
-	return context.platformOptionsToShow;
+	return context.userRole;
 }
+
+
 
 export function usePlatformAssitantDispatch() {
 	const context = React.useContext(PlatformAssitantDispatchContext);
@@ -67,3 +69,4 @@ export const PlatformAssitantProvider: FC<ChildrenProp> = ({ children }) => {
 		</PlatformAssitantStateContext.Provider>
 	);
 };
+

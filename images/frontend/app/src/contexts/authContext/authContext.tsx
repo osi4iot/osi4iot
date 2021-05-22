@@ -31,30 +31,6 @@ export const useLoggedUserLogin = () => {
 	return context.userName;
 }
 
-export const useIsPlatformAdmin = (): boolean => {
-	const context = useContext(AuthStateContext);
-	if (context === undefined) {
-		throw new Error('useAuthState must be used within a AuthProvider');
-	}
-	return context.userRole === "PlatformAdmin";
-}
-
-export const useIsOrgAdmin = (): boolean => {
-	const context = useContext(AuthStateContext);
-	if (context === undefined) {
-		throw new Error('useAuthState must be used within a AuthProvider');
-	}
-	return context.userRole === "OrgAdmin";
-}
-
-export const useIsGroupAdmin = (): boolean => {
-	const context = useContext(AuthStateContext);
-	if (context === undefined) {
-		throw new Error('useAuthState must be used within a AuthProvider');
-	}
-	return context.userRole === "GroupAdmin";
-}
-
 export function useAuthDispatch() {
 	const context = React.useContext(AuthDispatchContext);
 	if (context === undefined) {
