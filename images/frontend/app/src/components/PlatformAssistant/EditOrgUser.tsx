@@ -4,10 +4,12 @@ import {
     useOrgUsersDispatch,
     setOrgUsersOptionToShow,
     useOrgUserOrgIdToEdit,
-    useOrgUserUserIdToEdit
+    useOrgUserUserIdToEdit,
+    useOrgUserRowIndexToEdit
 } from '../../contexts/orgUsers';
 import { ORG_USERS_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
+import { IOrgUser } from './TableColumns/orgUsersColumns';
 
 
 const Container = styled.div`
@@ -28,14 +30,16 @@ const Container = styled.div`
 const domainName = getDomainName();
 
 interface EditOrgUserProps {
+    orgUsers: IOrgUser[];
     refreshOrgUsers: () => void;
 }
 
 
-const EditOrgUser: FC<EditOrgUserProps> = ({refreshOrgUsers}) => {
+const EditOrgUser: FC<EditOrgUserProps> = ({orgUsers, refreshOrgUsers}) => {
     const orgsUsersDispatch = useOrgUsersDispatch();
     const orgId = useOrgUserOrgIdToEdit()
     const userId = useOrgUserUserIdToEdit();
+    const orgsUsersRowIndex = useOrgUserRowIndexToEdit()
 
 
     const handleSubmit = () => {
@@ -49,6 +53,7 @@ const EditOrgUser: FC<EditOrgUserProps> = ({refreshOrgUsers}) => {
         <Container>
            <div>Edit org user</div>
             <div>OrgId={orgId} and UserId={userId} </div>
+            <div>Org row index={orgsUsersRowIndex}</div>
             <div>
                 <button onClick={handleSubmit}>Submit</button>
             </div>

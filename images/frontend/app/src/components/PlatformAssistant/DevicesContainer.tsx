@@ -18,7 +18,7 @@ const DevicesContainer: FC<DevicesContainerProps> = ({ devices, refreshDevices }
     return (
         <>
             {devicesOptionToShow ===  DEVICES_OPTIONS.CREATE_DEVICE && <CreateDevice refreshDevices={refreshDevices} />}
-            {devicesOptionToShow === DEVICES_OPTIONS.EDIT_DEVICE && <EditDevice refreshDevices={refreshDevices} />}
+            {devicesOptionToShow === DEVICES_OPTIONS.EDIT_DEVICE && <EditDevice devices={devices} refreshDevices={refreshDevices} />}
             {devicesOptionToShow === DEVICES_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={devices}

@@ -7,6 +7,7 @@ import {
 export const initialState = {
     devicesOptionToShow: DEVICES_OPTIONS.TABLE,
     deviceIdToEdit: 0,
+    deviceRowIndexToEdit: 0
 };
 
 export const DevicesReducer = (initialState: DevicesContextProps, action: DevicesAction) => {
@@ -21,6 +22,11 @@ export const DevicesReducer = (initialState: DevicesContextProps, action: Device
             return {
                 ...initialState,
                 deviceIdToEdit: action.payload.deviceIdToEdit
+            };
+        case "DEVICE_ROW_INDEX_TO_EDIT":
+            return {
+                ...initialState,
+                deviceRowIndexToEdit: action.payload.deviceRowIndexToEdit
             };
         default:
             throw new Error(`Unhandled action type: ${action.type}`);

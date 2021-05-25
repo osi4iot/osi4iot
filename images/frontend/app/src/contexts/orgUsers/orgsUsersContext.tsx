@@ -62,3 +62,10 @@ export const useOrgUserUserIdToEdit = (): number => {
 	return context.orgUserUserIdToEdit;
 };
 
+export const useOrgUserRowIndexToEdit = (): number => {
+	const context = useContext(OrgUsersStateContext);
+	if (context === undefined) {
+		throw new Error('useOrgUserRowIndexToEdit must be used within a OrgUsersProvider');
+	}
+	return context.orgUserRowIndexToEdit;
+};

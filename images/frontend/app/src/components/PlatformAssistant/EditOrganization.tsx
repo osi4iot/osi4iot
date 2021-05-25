@@ -1,8 +1,14 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import { useOrgsDispatch, useOrgIdToEdit, setOrgsOptionToShow } from '../../contexts/orgs';
+import {
+    useOrgsDispatch,
+    useOrgIdToEdit,
+    useOrgRowIndexToEdit,
+    setOrgsOptionToShow
+} from '../../contexts/orgs';
 import { ORGS_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
+import { IOrganization } from './TableColumns/organizationsColumns';
 
 
 const Container = styled.div`
@@ -23,12 +29,14 @@ const Container = styled.div`
 const domainName = getDomainName();
 
 interface EditOrganizationProps {
+    organizations: IOrganization[];
     refreshOrgs: () => void;
 }
 
-const EditOrganization: FC<EditOrganizationProps> = ({ refreshOrgs }) => {
+const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrgs }) => {
     const orgsDispatch = useOrgsDispatch();
     const orgId = useOrgIdToEdit();
+    const orgRowIndex = useOrgRowIndexToEdit();
 
     const handleSubmit = () => {
         const orgsOptionToShow = { orgsOptionToShow: ORGS_OPTIONS.TABLE };
@@ -41,6 +49,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ refreshOrgs }) => {
         <Container>
             <div>Edit org</div>
             <div>Org id= {orgId} </div>
+            <div>Org row index={orgRowIndex}</div>
             <div>
                 <button onClick={handleSubmit}>Submit</button>
             </div>

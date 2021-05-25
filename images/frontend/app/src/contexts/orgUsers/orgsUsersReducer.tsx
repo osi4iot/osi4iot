@@ -9,6 +9,7 @@ export const initialState = {
     orgUsersOptionToShow: ORG_USERS_OPTIONS.TABLE,
     orgUserOrgIdToEdit: 0,
     orgUserUserIdToEdit: 0,
+    orgUserRowIndexToEdit: 0,
 };
 
 export const PlatformAssitantReducer = (initialState: OrgUsersContextProps, action: OrgUsersAction) => {
@@ -31,6 +32,11 @@ export const PlatformAssitantReducer = (initialState: OrgUsersContextProps, acti
                 orgUserUserIdToEdit: action.payload.orgUserUserIdToEdit
             };
 
+        case "ORG_USER_ROW_INDEX_TO_EDIT":
+            return {
+                ...initialState,
+                orgUserRowIndexToEdit: action.payload.orgUserRowIndexToEdit
+            };
 
         default:
             throw new Error(`Unhandled action type: ${action.type}`);

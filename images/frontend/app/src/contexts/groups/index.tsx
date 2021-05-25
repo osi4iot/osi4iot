@@ -1,9 +1,10 @@
-import { setGroupsOptionToShow, setGroupIdToEdit } from './groupsAction';
+import { setGroupsOptionToShow, setGroupIdToEdit, setGroupRowIndexToEdit } from './groupsAction';
 import {
     GroupsProvider,
     useGroupsDispatch,
     useGroupsOptionToShow,
-    useGroupIdToEdit
+    useGroupIdToEdit,
+    useGroupRowIndexToEdit
 } from './groupsContext';
 
 export {
@@ -11,6 +12,8 @@ export {
     useGroupsDispatch,
     useGroupsOptionToShow,
     useGroupIdToEdit,
+    useGroupRowIndexToEdit,
     setGroupsOptionToShow,
-    setGroupIdToEdit
+    setGroupIdToEdit,
+    setGroupRowIndexToEdit
 };

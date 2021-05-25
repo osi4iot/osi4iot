@@ -9,7 +9,7 @@ import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { useGlobalUsersDispatch } from '../../../contexts/globalUsers';
 import { GLOBAL_USERS_OPTIONS } from '../platformAssistantOptions';
-import { setGlobalUserIdToEdit, setGlobalUsersOptionToShow } from '../../../contexts/globalUsers';
+import { setGlobalUserIdToEdit, setGlobalUserRowIndexToEdit, setGlobalUsersOptionToShow } from '../../../contexts/globalUsers';
 
 export interface IGlobalUser {
     id: number;
@@ -80,6 +80,9 @@ const EditGlobalUsers: FC<EditGlobalUsersProps> = ({ rowIndex, globalUserId }) =
     const handleClick = () => {
         const globalUserIdToEdit = { globalUserIdToEdit: globalUserId };
         setGlobalUserIdToEdit(globalUsersDispatch, globalUserIdToEdit);
+
+        const globalUserRowIndexToEdit = { globalUserRowIndexToEdit: rowIndex};
+        setGlobalUserRowIndexToEdit(globalUsersDispatch, globalUserRowIndexToEdit);        
 
         const globalUsersOptionToShow = { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.EDIT_GLOBAL_USER };
         setGlobalUsersOptionToShow(globalUsersDispatch, globalUsersOptionToShow);

@@ -20,7 +20,7 @@ const GroupsContainer: FC<GroupsContainerProps> = ({ groups, refreshGroups }) =>
         <>
 
             { groupsOptionToShow === GROUPS_OPTIONS.CREATE_GROUP && <CreateGroup refreshGroups={refreshGroups} />}
-            { groupsOptionToShow === GROUPS_OPTIONS.EDIT_GROUP && <EditGroup refreshGroups={refreshGroups} />}
+            { groupsOptionToShow === GROUPS_OPTIONS.EDIT_GROUP && <EditGroup groups={groups} refreshGroups={refreshGroups} />}
             { groupsOptionToShow === GROUPS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={groups}

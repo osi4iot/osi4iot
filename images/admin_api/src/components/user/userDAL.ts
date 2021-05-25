@@ -8,6 +8,7 @@ import IUserInOrg from "./interfaces/UserInOrg.interface";
 import UserRegisterDto from "../Authentication/userRegister.dto";
 import { sendUserRegistrationInvitationEmail } from "./userEmailFactory";
 import { passwordGenerator } from "../../utils/passwordGenerator";
+import UserProfileDto from "./interfaces/UserProfile.dto";
 
 
 export const getUserLoginDatadByEmailOrLogin = async (emailOrLogin: string): Promise<IUserLoginData> => {
@@ -202,12 +203,32 @@ export const updateGlobalUser = async (userData: IUser) => {
 		]);
 };
 
+export const updateUserProfileById = async (userData: CreateUserDto) => {
+	const name = `${userData.firstName} ${userData.surname}`
+	const query = `UPDATE grafanadb.user
+                	SET  name = $1, first_name = $2, surname = $3, login = $4, email = $5, telegram_id = $6
+		       		WHERE id = $7`;
+	await pool.query(query,
+		[
+			name,
+			userData.firstName,
+			userData.surname,
+			userData.login,
+			userData.email,
+			userData.telegramId,
+			userData.id
+		]);
+};
+
 export const isUsersDataCorrect = async (usersInputData: CreateUserDto[]): Promise<boolean> => {
 	usersInputData.forEach(user => user.name = `${user.firstName} ${user.surname}`);
 	const namesArray = usersInputData.map(user => user.name);
-	const loginArray = usersInputData.map(user => user.login);
 	const emailsArray = usersInputData.map(user => user.email);
-	const telegramIdArray = usersInputData.map(user => user.telegramId);
+	const loginArray = usersInputData.map(user => user.login).filter(item => !!item);
+	const telegramIdArray = usersInputData.map(user => user.telegramId).filter(item => !!item);
+	if ((loginArray.length !== 0 || telegramIdArray.length !== 0) && (namesArray.length !== loginArray.length && namesArray.length !== telegramIdArray.length)) {
+		throw new Error('Each user must have the same amount of data');
+	}
 	const response: QueryResult =
 		await pool.query(`SELECT id, name, login, email, telegram_id FROM grafanadb.user
 						WHERE name =  ANY($1::varchar(225)[])
@@ -220,10 +241,33 @@ export const isUsersDataCorrect = async (usersInputData: CreateUserDto[]): Promi
 	if (existentUsers.length > usersInputData.length) return false;
 	for (const user of existentUsers) {
 		const sameName = namesArray.indexOf(user.name) !== -1;
-		const sameLogin = loginArray.indexOf(user.login) !== -1;
 		const sameEmail = emailsArray.indexOf(user.email) !== -1;
-		const sameTelegramId = telegramIdArray.indexOf(user.telegram_id) !== -1;
-		if ((sameName && sameLogin && sameEmail && sameTelegramId) !== (sameName || sameLogin || sameEmail || sameTelegramId)) return false;
+		if (loginArray.length !== 0 && telegramIdArray.length !== 0) {
+			const sameLogin = loginArray.indexOf(user.login) !== -1;
+			const sameTelegramId = telegramIdArray.indexOf(user.telegram_id) !== -1;
+			if ((sameName && sameEmail && sameLogin && sameTelegramId) !== (sameName || sameEmail || sameLogin || sameTelegramId)) return false;
+		} else {
+			if ((sameName && sameEmail) !== (sameName || sameEmail)) return false;
+		}
+	}
+
+	return true;
+};
+
+export const isUserProfileDataCorrect = async (userProfileData: UserProfileDto): Promise<boolean> => {
+	userProfileData.name = `${userProfileData.firstName} ${userProfileData.surname}`
+	const response: QueryResult =
+		await pool.query(`SELECT id, name, login, email, telegram_id FROM grafanadb.user
+						WHERE name = $1
+						OR login =  $2
+						OR email =  $3
+						OR telegram_id = $4`,
+			[userProfileData.name, userProfileData.login, userProfileData.email, userProfileData.telegramId]);
+	const existentUsers = response.rows;
+
+	if (existentUsers.length > 1) return false;
+	else {
+		if (existentUsers[0].id !== userProfileData.userId) return false;
 	}
 
 	return true;

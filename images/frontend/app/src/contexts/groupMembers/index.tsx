@@ -1,10 +1,16 @@
-import { setGroupMembersOptionToShow, setGroupMemberGroupIdToEdit, setGroupMemberUserIdToEdit } from './groupMembersAction';
+import {
+    setGroupMembersOptionToShow,
+    setGroupMemberGroupIdToEdit,
+    setGroupMemberUserIdToEdit,
+    setGroupMemberRowIndexToEdit
+} from './groupMembersAction';
 import {
     GroupMembersProvider,
     useGroupMembersDispatch,
     useGroupMembersOptionToShow,
     useGroupMemberGroupIdToEdit,
     useGroupMemberUserIdToEdit,
+    useGroupMembeRowIndexToEdit
 } from './groupMembersContext';
 
 export {
@@ -13,7 +19,9 @@ export {
     useGroupMembersOptionToShow,
     useGroupMemberGroupIdToEdit,
     useGroupMemberUserIdToEdit,
+    useGroupMembeRowIndexToEdit,
     setGroupMembersOptionToShow,
     setGroupMemberGroupIdToEdit,
-    setGroupMemberUserIdToEdit
+    setGroupMemberUserIdToEdit,
+    setGroupMemberRowIndexToEdit
 };

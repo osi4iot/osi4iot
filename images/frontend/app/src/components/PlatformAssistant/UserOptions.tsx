@@ -8,115 +8,7 @@ import TableWithPagination from './TableWithPagination';
 import { MEMBERSHIP_IN_ORGS } from './TableColumns/membershipInOrgs';
 import { MEMBERSHIP_IN_GROUPS } from './TableColumns/membershipInGroups';
 import { USER_OPTIONS } from './platformAssistantOptions';
-
-
-const Button = styled.button`
-	background-color: #3274d9;
-	padding: 10px 20px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-	box-shadow: 0 5px #173b70;
-    /* margin-left: auto; */
-
-	&:hover {
-		background-color: #2461c0;
-	}
-
-	&:active {
-		background-color: #2461c0;
-		box-shadow: 0 2px #173b70;
-		transform: translateY(4px);
-	}
-`;
-
-const UserProfileContainer = styled.div`
-    margin-top: 40px;
-    padding: 20px 30px 30px 30px;
-    display: flex;
-	flex-direction: column;
-    justify-content: flex-start;
-	align-items: flex-start;
-    width: 390px;
-    background-color: #202226;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-`;
-
-const ItemType = styled.span`
-    background-color: #202226;
-    font-weight: 600;
-    margin-right: 5px;
-`;
-
-const ItemValue = styled.span`
-    background-color: #202226;
-`;
-
-const UserProfileItem = styled.div`
-    margin-top: 10px;
-    margin-bottom: 10px;
-    width: 100%;
-    background-color: #202226;
-`;
-
-const ButtonsContainer = styled.div`
-    margin-top: 20px;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-	align-items: center;
-    width: 100%;
-    background-color: #202226;
-`;
-
-interface IUserProfile {
-    userId: number;
-    name: string;
-    firstName: string;
-    surname: string;
-    login: string;
-    email: string;
-    telegramId: string;
-}
-
-
-interface UserProfileProps {
-    userProfile: IUserProfile;
-}
-
-
-const UserProfile: FC<UserProfileProps> = ({ userProfile }) => {
-    return (
-        <UserProfileContainer >
-            <UserProfileItem>
-                <ItemType>First Name:</ItemType><ItemValue>{userProfile.firstName}</ItemValue>
-            </UserProfileItem>
-            <UserProfileItem>
-                <ItemType>Surname:</ItemType><ItemValue>{userProfile.surname}</ItemValue>
-            </UserProfileItem>
-            <UserProfileItem>
-                <ItemType>Email:</ItemType><ItemValue>{userProfile.email}</ItemValue>
-            </UserProfileItem>
-            <UserProfileItem>
-                <ItemType>Username: </ItemType><ItemValue>{userProfile.login}</ItemValue>
-            </UserProfileItem>
-            <UserProfileItem>
-                <ItemType>TelegramId:</ItemType><ItemValue>{userProfile.telegramId}</ItemValue>
-            </UserProfileItem>
-            <ButtonsContainer>
-                <Button>
-                    Edit profile
-                </Button>
-                <Button>
-                    Change password
-                </Button>
-            </ButtonsContainer>
-        </UserProfileContainer >
-    )
-}
+import UserProfile from './UserProfile';
 
 
 const UserOptionsContainer = styled.div`
@@ -174,17 +66,23 @@ const domainName = getDomainName();
 
 const UserOptions: FC<{}> = () => {
     const { accessToken } = useAuthState();
-    const [optionToShow, setOptionToShow] = useState("User profile");
+    const [optionToShow, setOptionToShow] = useState(USER_OPTIONS.USER_PROFILE);
     const [userProfile, setUserProfile] = useState(initialUserProfile);
-    const [userProfileLoding, setUserProfileLoading] = useState(true);
+    const [userProfileLoading, setUserProfileLoading] = useState(true);
     const [orgsMembership, setOrgsMembership] = useState([]);
     const [loadingOrgsMembership, setLoadingOrgsMembership] = useState(true);
     const [groupsMembership, setGroupsMembership] = useState([]);
     const [loadingGroupsMembership, setLoadinGroupsMembership] = useState(true);
+    const [reloadUserProfile, setReloadUserProfile] = useState(0);
+
+    const refreshUserProfile = () => {
+        setReloadUserProfile(reloadUserProfile + 1);
+        setUserProfileLoading(true);
+    }
 
     useEffect(() => {
-        const urlUserProfile = `https://${domainName}/admin_api/auth/user_profile`;
         const config = axiosAuth(accessToken);
+        const urlUserProfile = `https://${domainName}/admin_api/auth/user_profile`;
         axios
             .get(urlUserProfile, config)
             .then((response) => {
@@ -196,6 +94,10 @@ const UserOptions: FC<{}> = () => {
                 console.log(error);
             });
 
+    }, [accessToken, reloadUserProfile]);
+
+    useEffect(() => {
+        const config = axiosAuth(accessToken);
         const urlMembershipInOrgs = `https://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
         axios
             .get(urlMembershipInOrgs, config)
@@ -208,6 +110,10 @@ const UserOptions: FC<{}> = () => {
                 console.log(error);
             });
 
+    }, [accessToken]);
+    
+    useEffect(() => {
+        const config = axiosAuth(accessToken);
         const urlMembershipInGroups = `https://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
         axios
             .get(urlMembershipInGroups, config)
@@ -219,7 +125,6 @@ const UserOptions: FC<{}> = () => {
             .catch((error) => {
                 console.log(error);
             });
-
 
     }, [accessToken]);
 
@@ -250,11 +155,14 @@ const UserOptions: FC<{}> = () => {
                 </OptionContainer>
             </UserOptionsContainer>
             <ContentContainer >
-                {(userProfileLoding || loadingOrgsMembership || loadingGroupsMembership) ?
+                {(userProfileLoading || loadingOrgsMembership || loadingGroupsMembership) ?
                     <Loader />
                     :
                     <>
-                        {optionToShow === USER_OPTIONS.USER_PROFILE && <UserProfile userProfile={userProfile} />}
+                        {
+                            optionToShow === USER_OPTIONS.USER_PROFILE &&
+                            <UserProfile userProfile={userProfile} refreshUserProfile={refreshUserProfile}/>
+                        }
                         {
                             optionToShow === USER_OPTIONS.MEMBERSHIP_IN_ORGS
                             &&

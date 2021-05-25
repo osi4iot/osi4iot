@@ -1,8 +1,14 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import { setGroupsOptionToShow, useGroupIdToEdit, useGroupsDispatch } from '../../contexts/groups';
+import {
+    setGroupsOptionToShow,
+    useGroupIdToEdit,
+    useGroupsDispatch,
+    useGroupRowIndexToEdit
+} from '../../contexts/groups';
 import {  GROUPS_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
+import { IGroup } from './TableColumns/groupsColumns';
 
 
 const Container = styled.div`
@@ -23,12 +29,14 @@ const Container = styled.div`
 const domainName = getDomainName();
 
 interface EditGroupProps {
+    groups: IGroup[];
     refreshGroups: () => void;
 }
 
-const EditGroup: FC<EditGroupProps> = ({refreshGroups} ) => {
+const EditGroup: FC<EditGroupProps> = ({groups, refreshGroups} ) => {
     const groupsDispatch = useGroupsDispatch();
     const groupId = useGroupIdToEdit();
+    const groupRowIndex = useGroupRowIndexToEdit();
 
     const handleSubmit = () => {
         const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
@@ -41,6 +49,7 @@ const EditGroup: FC<EditGroupProps> = ({refreshGroups} ) => {
         <Container>
             <div>Edit group</div>
             <div>Group id= {groupId} </div>
+            <div>Group row index={groupRowIndex}</div>
             <div>
                 <button onClick={handleSubmit}>Submit</button>
             </div>

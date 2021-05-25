@@ -5,11 +5,13 @@ export interface DevicesDispatch {
 export interface DevicesContextProps {
 	devicesOptionToShow: string;
 	deviceIdToEdit: number;
+	deviceRowIndexToEdit: number;
 }
 
 export interface DevicesActionPayload {
 	devicesOptionToShow: string;
 	deviceIdToEdit: number;
+	deviceRowIndexToEdit: number;
 }
 
 export interface DevicesAction {
@@ -17,18 +19,6 @@ export interface DevicesAction {
 	payload: DevicesActionPayload;
 	error: string;
 }
-
-export interface IUserRole {
-	userRole: string;
-	numOrganizationManaged: number;
-	numGroupsManaged: number;
-	numDevicesManaged: number;
-}
-
-export interface IPlatformAssistantOptionToShow {
-	platformAssistantOptionToShow: string;
-}
-
 
 export interface IDevicesOptionToShow {
 	devicesOptionToShow: string;
@@ -38,22 +28,12 @@ export interface IDeviceIdToEdit {
 	deviceIdToEdit: number;
 }
 
-export interface IGroupMembersOptionToShow {
-	groupMembersOptionToShow: string;
-}
-
-export interface IGroupMemberIdToEdit {
-	groupMemberIdToEdit: number;
+export interface IDeviceRowIndexToEdit {
+	deviceRowIndexToEdit: number;
 }
 
 
-export interface IUserProfileOptionToShow {
-	userProfileOptionToShow: string;
-}
 
-export interface IHomeOptionToShow {
-	homeOptionToShow: string;
-}
 
 
 

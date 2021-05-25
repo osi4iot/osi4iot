@@ -145,6 +145,7 @@ const RegisterPage: FC<{}> = () => {
 	useEffect(() => {
 		const url = `https://${domainName}/admin_api/auth/user_data_for_register`;
 		const token = getToken();
+		console.log("token=", token)
 		if (token) {
 			const config = axiosAuth(token as string);
 			axios

@@ -20,7 +20,11 @@ const GlobalUsersContainer: FC<GlobalUsersContainerProps> = ({ globalUsers, refr
         <>
 
             { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.CREATE_GLOBAL_USER && <CreateGlobalUser refreshGlobalUsers={refreshGlobalUsers} />}
-            { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.EDIT_GLOBAL_USER && <EditGlobalUser refreshGlobalUsers={refreshGlobalUsers} />}
+            { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.EDIT_GLOBAL_USER &&
+                <EditGlobalUser
+                    globalUsers={globalUsers}
+                    refreshGlobalUsers={refreshGlobalUsers}
+                />}
             { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={globalUsers}

@@ -1,10 +1,11 @@
 
-import { setOrgsOptionToShow, setOrgIdToEdit } from './orgsAction';
+import { setOrgsOptionToShow, setOrgIdToEdit, setOrgRowIndexToEdit } from './orgsAction';
 import {
     OrgsProvider,
     useOrgsDispatch,
     useOrgsOptionToShow,
     useOrgIdToEdit,
+    useOrgRowIndexToEdit
 } from './orgsContext';
 
 export {
@@ -12,6 +13,8 @@ export {
     useOrgsDispatch,
     useOrgsOptionToShow,
     useOrgIdToEdit,
+    useOrgRowIndexToEdit,
     setOrgsOptionToShow,
-    setOrgIdToEdit
+    setOrgIdToEdit,
+    setOrgRowIndexToEdit
 };

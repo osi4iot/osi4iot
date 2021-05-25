@@ -127,6 +127,44 @@
 			"get": {
 				"tags": ["Authentication"],
 				"summary": "User profile",
+				"produces": ["application/json"],				
+				"responses": {
+					"200": {
+						"description": "User profile",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/UserProfile"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": ["Authentication"],
+				"summary": "Update profile",
+				"requestBody": {
+					"description": "User registration data",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/UserRegister"
+							}
+						}
+					}
+				},				
 				"produces": ["application/json"],
 				"responses": {
 					"200": {
@@ -2817,6 +2855,9 @@
 		"New_password": {
 			"type": "object",
 			"properties": {
+				"oldPassword": {
+					"type": "string"
+				},
 				"newPassword": {
 					"type": "string"
 				}

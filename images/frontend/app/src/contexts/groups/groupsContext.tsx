@@ -45,3 +45,11 @@ export const useGroupIdToEdit = (): number => {
 	}
 	return context.groupIdToEdit;
 }
+
+export const useGroupRowIndexToEdit = (): number => {
+	const context = useContext(GroupsStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupRowIndexToEdit must be used within a GroupsProvider');
+	}
+	return context.groupRowIndexToEdit;
+}

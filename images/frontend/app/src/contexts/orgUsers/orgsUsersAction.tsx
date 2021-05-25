@@ -2,7 +2,8 @@ import {
 	OrgUsersDispatch,
 	IOrgUserOrgIdToEdit,
 	IOrgUserUserIdToEdit,
-	IOrgUsersOptionToShow
+	IOrgUsersOptionToShow,
+	IOrgUserRowIndexToEdit
 } from "./interfaces";
 
 
@@ -17,4 +18,9 @@ export function setOrgUserOrgIdToEdit(orgUserstDispatch: OrgUsersDispatch, data:
 export function setOrgUserUserIdToEdit(orgUserstDispatch: OrgUsersDispatch, data: IOrgUserUserIdToEdit) {
 	orgUserstDispatch({ type: "ORG_USER_USER_ID_TO_EDIT", payload: data });
 }
+
+export function setOrgUserRowIndexToEdit(orgUserstDispatch: OrgUsersDispatch, data: IOrgUserRowIndexToEdit) {
+	orgUserstDispatch({ type: "ORG_USER_ROW_INDEX_TO_EDIT", payload: data });
+}
+
 

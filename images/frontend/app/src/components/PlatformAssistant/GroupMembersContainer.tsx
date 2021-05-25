@@ -18,7 +18,12 @@ const GroupMembersContainer: FC<GroupMembersContainerProps> = ({ groupMembers, r
     return (
         <>
             {groupMembersOptionToShow === GROUP_MEMBERS_OPTIONS.CREATE_GROUP_MEMBER && <CreateGroupMember refreshGroupMembers={refreshGroupMembers} />}
-            {groupMembersOptionToShow === GROUP_MEMBERS_OPTIONS.EDIT_GROUP_MEMBER && <EditGroupMember refreshGroupMembers={refreshGroupMembers} />}
+            {groupMembersOptionToShow === GROUP_MEMBERS_OPTIONS.EDIT_GROUP_MEMBER &&
+                <EditGroupMember
+                    groupMembers={groupMembers}
+                    refreshGroupMembers={refreshGroupMembers}
+                />
+            }
             {groupMembersOptionToShow === GROUP_MEMBERS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={groupMembers}

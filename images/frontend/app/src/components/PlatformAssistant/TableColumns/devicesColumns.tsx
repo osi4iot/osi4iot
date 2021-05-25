@@ -9,7 +9,7 @@ import DeleteIcon from '../DeleteIcon';
 import ExChangeIcon from '../ExchangeIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { DEVICES_OPTIONS } from '../platformAssistantOptions';
-import { setDeviceIdToEdit, setDevicesOptionToShow, useDevicesDispatch } from '../../../contexts/devices';
+import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devices';
 
 export interface IDevices {
     orgId: number;
@@ -84,6 +84,9 @@ const EditDevice: FC<EditDeviceProps> = ({ rowIndex, deviceId }) => {
         const deviceIdToEdit = { deviceIdToEdit: deviceId };
         setDeviceIdToEdit(devicesDispatch , deviceIdToEdit);
 
+        const deviceRowIndexToEdit = { deviceRowIndexToEdit: rowIndex };
+        setDeviceRowIndexToEdit(devicesDispatch , deviceRowIndexToEdit);
+
         const devicesOptionToShow = { devicesOptionToShow: DEVICES_OPTIONS.EDIT_DEVICE };
         setDevicesOptionToShow(devicesDispatch, devicesOptionToShow);
     };
@@ -147,8 +150,8 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0].row.id;
+                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
                 return <ExChangeIcon id={groupId} rowIndex={parseInt(rowIndex, 10)} />
             }
         },

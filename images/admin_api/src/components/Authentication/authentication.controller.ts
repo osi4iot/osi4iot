@@ -11,7 +11,7 @@ import passportInitialize from "../../config/passportHandler";
 import { userAuth, registerAuth, superAdminAuth } from "../../middleware/auth.middleware";
 import grafanaApi from '../../GrafanaApi';
 import UserRegisterDto from "./userRegister.dto";
-import { updateOrganizationUser } from "../user/userDAL";
+import { getUserLoginDatadByEmailOrLogin, isUserProfileDataCorrect, isUsersDataCorrect, updateOrganizationUser, updateUserProfileById } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
 import { deleteRefreshToken, deleteRefreshTokenById, deleteUserRefreshTokens, exitsRefreshToken, getAllRefreshTokens, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
@@ -20,6 +20,9 @@ import { getNumOrganizations, getOrganizations, getOrganizationsManagedByUserId 
 import { getAllGroups, getAllGroupsInOrgArray, getGroupsManagedByUserId, getNumGroups, getNumGroupsManagedByUserId } from "../group/groupDAL";
 import IComponentsManagedByUser from "./ComponentsManagedByUser.interface";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
+import CreateUserDto from "../user/interfaces/User.dto";
+import UserProfileDto from "../user/interfaces/UserProfile.dto";
+import verifiyPassword from "../../utils/helpers/verifiyPassword";
 
 interface IJwtPayload {
 	id: string;
@@ -53,6 +56,7 @@ class AuthenticationController implements IController {
 		this.router.patch(`${this.path}/register`, registerAuth, validationMiddleware<UserRegisterDto>(UserRegisterDto), this.userRegister);
 		this.router.get(`${this.path}/user_data_for_register`, registerAuth, this.getUserRegisterData);
 		this.router.get(`${this.path}/user_profile`, userAuth, this.getUserProfile);
+		this.router.patch(`${this.path}/user_profile`, userAuth, validationMiddleware<UserProfileDto>(UserProfileDto), this.updateUserProfile);
 		this.router.patch(
 			`${this.path}/change_password`,
 			userAuth,
@@ -206,19 +210,57 @@ class AuthenticationController implements IController {
 		}
 	};
 
-	private changePassword = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
-		const { user } = req;
-		const { newPassword } = req.body;
-		const { email } = user;
-		const { message } = await this.grafanaRepository.changeUserPassword(user.id, newPassword);
-
-		if (message !== "User password updated") {
-			const errorMessage = `The password of user with email: ${email} could not be modified`;
-			next(new HttpException(400, errorMessage));
-		} else {
-			const okMessage = `The password of the user with email: ${email} has been modified correctly`;
-			res.status(200).json({ message: okMessage });
+	private updateUserProfile = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const { user } = req;
+			const userData: UserProfileDto = req.body;
+			userData.id = userData.userId;
+			if (!(
+				user.id === userData.id &&
+				user.firstName === userData.firstName &&
+				user.surname === userData.surname &&
+				user.email === userData.email &&
+				user.login === userData.login &&
+				user.telegramId === userData.telegramId
+			)) {
+				const isUpdateUserDataCorrect = await isUserProfileDataCorrect(userData);
+				if (!isUpdateUserDataCorrect)
+					throw new HttpException(400, "The inputted values of name, login, email and/or telegramId already exists for another user.")
+				await updateUserProfileById(userData as CreateUserDto);
+			}
+			const message = { message: "User profile updated succesfully" };
+			res.status(200).json(message);
+		} catch (error) {
+			return next(error);
 		}
+	};
+
+	private changePassword = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const { user } = req;
+			if (user.isGrafanaAdmin) {
+				throw new HttpException(403, "Platform admin password can not be modified.")
+			}
+			const { oldPassword, newPassword } = req.body;
+			const { email } = user;
+			const storedUserData = await getUserLoginDatadByEmailOrLogin(email);
+			const match = verifiyPassword(oldPassword, storedUserData.password, storedUserData.salt);
+			if (!match) {
+				const errorMessage = "The old password inputted is not correct.";
+				throw new HttpException(403, errorMessage);
+			}
+			const { message } = await this.grafanaRepository.changeUserPassword(user.id, newPassword);
+			if (message !== "User password updated") {
+				const errorMessage = `The password of user with email: ${email} could not be modified`;
+				throw new HttpException(403, errorMessage);
+			} else {
+				const okMessage = "Password modified successfully";
+				res.status(200).json({ message: okMessage });
+			}
+		} catch (error) {
+			return next(error);
+		}
+
 	};
 
 	private refreshToken = (req: Request, res: Response, next: NextFunction): void => {

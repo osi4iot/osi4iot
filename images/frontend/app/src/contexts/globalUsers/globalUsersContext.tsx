@@ -43,3 +43,11 @@ export const useGlobalUserIdToEdit = (): number => {
 	}
 	return context.globalUserIdToEdit;
 }
+
+export const useGlobalUserRowIndexToEdit = (): number => {
+	const context = useContext(GlobalUsersStateContext);
+	if (context === undefined) {
+		throw new Error('useGlobalUserRowIndexToEdit must be used within a GlobalUsersProvider');
+	}
+	return context.globalUserRowIndexToEdit;
+}

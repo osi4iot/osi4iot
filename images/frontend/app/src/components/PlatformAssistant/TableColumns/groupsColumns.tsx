@@ -8,7 +8,12 @@ import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { GROUPS_OPTIONS } from '../platformAssistantOptions';
-import { setGroupIdToEdit, setGroupsOptionToShow, useGroupsDispatch } from '../../../contexts/groups';
+import {
+    setGroupIdToEdit,
+    setGroupRowIndexToEdit,
+    setGroupsOptionToShow,
+    useGroupsDispatch
+} from '../../../contexts/groups';
 
 export interface IGroup {
     orgId: number;
@@ -44,7 +49,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
             refreshGroups();
         }
     }, [isGroupDeleted, refreshGroups]);
-    
+
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
         const config = axiosAuth(accessToken);
@@ -81,7 +86,10 @@ const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId }) => {
 
     const handleClick = () => {
         const groupIdToEdit = { groupIdToEdit: groupId };
-        setGroupIdToEdit(groupsDispatch , groupIdToEdit);
+        setGroupIdToEdit(groupsDispatch, groupIdToEdit);
+
+        const groupRowIndexToEdit = { groupRowIndexToEdit: rowIndex };
+        setGroupRowIndexToEdit(groupsDispatch, groupRowIndexToEdit);
 
         const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.EDIT_GROUP };
         setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);

@@ -5,11 +5,13 @@ export interface OrgsDispatch {
 export interface OrgsContextProps {
 	orgsOptionToShow: string;
 	orgIdToEdit: number;
+	orgRowIndexToEdit: number;
 }
 
 export interface OrgsActionPayload {
 	orgsOptionToShow: string;
 	orgIdToEdit: number;
+	orgRowIndexToEdit: number;
 }
 
 export interface OrgsAction {
@@ -25,4 +27,8 @@ export interface IOrgsOptionToShow {
 
 export interface IOrgIdToEdit {
 	orgIdToEdit: number;
+}
+
+export interface IOrgRowIndexToEdit {
+	orgRowIndexToEdit: number;
 }

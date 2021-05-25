@@ -1,10 +1,16 @@
-import { setOrgUsersOptionToShow, setOrgUserOrgIdToEdit, setOrgUserUserIdToEdit } from './orgsUsersAction';
+import {
+    setOrgUsersOptionToShow,
+    setOrgUserOrgIdToEdit,
+    setOrgUserUserIdToEdit,
+    setOrgUserRowIndexToEdit
+} from './orgsUsersAction';
 import {
     OrgUsersProvider,
     useOrgUsersDispatch,
     useOrgUsersOptionToShow,
     useOrgUserOrgIdToEdit,
     useOrgUserUserIdToEdit,
+    useOrgUserRowIndexToEdit
 } from './orgsUsersContext';
 
 export {
@@ -13,7 +19,9 @@ export {
     useOrgUsersOptionToShow,
     useOrgUserOrgIdToEdit,
     useOrgUserUserIdToEdit,
+    useOrgUserRowIndexToEdit,
     setOrgUsersOptionToShow,
     setOrgUserOrgIdToEdit,
-    setOrgUserUserIdToEdit
+    setOrgUserUserIdToEdit,
+    setOrgUserRowIndexToEdit
 };

@@ -8,7 +8,13 @@ import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { ORG_USERS_OPTIONS } from '../platformAssistantOptions';
-import { setOrgUserOrgIdToEdit, setOrgUsersOptionToShow, setOrgUserUserIdToEdit, useOrgUsersDispatch } from '../../../contexts/orgUsers';
+import {
+    setOrgUserOrgIdToEdit,
+    setOrgUsersOptionToShow,
+    setOrgUserUserIdToEdit,
+    setOrgUserRowIndexToEdit,
+    useOrgUsersDispatch
+} from '../../../contexts/orgUsers';
 
 export interface IOrgUser {
     orgId: number;
@@ -85,6 +91,9 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ rowIndex, orgId, userId }) => {
 
         const orgUserUserIdToEdit = { orgUserUserIdToEdit: userId };
         setOrgUserUserIdToEdit(orgUsersDispatch, orgUserUserIdToEdit);
+
+        const orgUserRowIndexToEdit = { orgUserRowIndexToEdit: rowIndex };
+        setOrgUserRowIndexToEdit(orgUsersDispatch, orgUserRowIndexToEdit);
 
         const orgUsersOptionToShow = { orgUsersOptionToShow: ORG_USERS_OPTIONS.EDIT_ORG_USER };
         setOrgUsersOptionToShow(orgUsersDispatch, orgUsersOptionToShow);

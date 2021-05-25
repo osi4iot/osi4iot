@@ -4,10 +4,12 @@ import {
     useGroupMembersDispatch,
     setGroupMembersOptionToShow,
     useGroupMemberGroupIdToEdit,
-    useGroupMemberUserIdToEdit
+    useGroupMemberUserIdToEdit,
+    useGroupMembeRowIndexToEdit
 } from '../../contexts/groupMembers';
 import { GROUP_MEMBERS_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
+import { IGroupMember } from './TableColumns/groupMemberColumns';
 
 
 const Container = styled.div`
@@ -28,13 +30,15 @@ const Container = styled.div`
 const domainName = getDomainName();
 
 interface EditGroupMemberProps {
+    groupMembers: IGroupMember[];
     refreshGroupMembers: () => void;
 }
 
-const EditGroupMember: FC<EditGroupMemberProps> = ({ refreshGroupMembers }) => {
+const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupMembers }) => {
     const groupMembersDispatch = useGroupMembersDispatch();
     const groupId = useGroupMemberGroupIdToEdit();
     const userId = useGroupMemberUserIdToEdit();
+    const groupMemberRowIndex = useGroupMembeRowIndexToEdit();
 
     const handleSubmit = () => {
         const groupMembersOptionToShow = { groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.TABLE };
@@ -48,6 +52,7 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ refreshGroupMembers }) => {
         <Container>
             <div>Edit group member</div>
             <div>GroupId={groupId} and userId={userId} </div>
+            <div>Group Member row index={groupMemberRowIndex} </div>
             <div>
                 <button onClick={handleSubmit}>Submit</button>
             </div>

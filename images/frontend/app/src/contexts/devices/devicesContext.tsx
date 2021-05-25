@@ -45,3 +45,11 @@ export const useDeviceIdToEdit = (): number => {
 	}
 	return context.deviceIdToEdit;
 }
+
+export const useDeviceRowIndexToEdit = (): number => {
+	const context = useContext(DevicesStateContext);
+	if (context === undefined) {
+		throw new Error('useDeviceRowIndexToEdit must be used within a DevicesProvider');
+	}
+	return context.deviceRowIndexToEdit;
+}

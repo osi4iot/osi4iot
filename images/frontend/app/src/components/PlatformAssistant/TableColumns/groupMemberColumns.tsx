@@ -12,6 +12,7 @@ import {
     useGroupMembersDispatch,
     setGroupMemberGroupIdToEdit,
     setGroupMemberUserIdToEdit,
+    setGroupMemberRowIndexToEdit,
     setGroupMembersOptionToShow
 } from '../../../contexts/groupMembers';
 
@@ -87,7 +88,10 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ rowIndex, groupId, userId }
         setGroupMemberGroupIdToEdit(groupMembersDispatch, groupMemberGroupIdToEdit);
 
         const groupMemberUserIdToEdit = { groupMemberUserIdToEdit: userId };
-        setGroupMemberUserIdToEdit(groupMembersDispatch, groupMemberUserIdToEdit );
+        setGroupMemberUserIdToEdit(groupMembersDispatch, groupMemberUserIdToEdit);
+        
+        const groupMemberRowIndexToEdit = { groupMemberRowIndexToEdit: rowIndex };
+        setGroupMemberRowIndexToEdit(groupMembersDispatch, groupMemberRowIndexToEdit );
 
         const groupMembersOptionToShow = { groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.EDIT_GROUP_MEMBER };
         setGroupMembersOptionToShow(groupMembersDispatch, groupMembersOptionToShow);

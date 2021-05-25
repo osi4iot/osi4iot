@@ -8,6 +8,7 @@ export const initialState = {
     groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.TABLE,
     groupMemberGroupIdToEdit: 0,
     groupMemberUserIdToEdit: 0,
+    groupMemberRowIndexToEdit: 0
 };
 
 export const GroupMembersReducer = (initialState: GroupMembersContextProps, action: GroupMembersAction) => {
@@ -28,6 +29,12 @@ export const GroupMembersReducer = (initialState: GroupMembersContextProps, acti
             return {
                 ...initialState,
                 groupMemberUserIdToEdit: action.payload.groupMemberUserIdToEdit
+            };
+
+        case "GROUP_MEMBER_ROW_INDEX_TO_EDIT":
+            return {
+                ...initialState,
+                groupMemberRowIndexToEdit: action.payload.groupMemberRowIndexToEdit
             };
 
         default:

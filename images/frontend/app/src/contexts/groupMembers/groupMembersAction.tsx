@@ -2,7 +2,8 @@ import {
 	GroupMembersDispatch,
 	IGroupMembersOptionToShow,
 	IGroupMemberGroupIdToEdit,
-	IGroupMemberUserIdToEdit
+	IGroupMemberUserIdToEdit,
+	IGroupMemberRowIndexToEdit
 } from "./interfaces";
 
 
@@ -18,5 +19,6 @@ export function setGroupMemberUserIdToEdit(groupMembersDispatch: GroupMembersDis
 	groupMembersDispatch({ type: "GROUP_MEMBER_USER_ID_TO_EDIT", payload: data });
 }
 
-
-
+export function setGroupMemberRowIndexToEdit(groupMembersDispatch: GroupMembersDispatch, data: IGroupMemberRowIndexToEdit) {
+	groupMembersDispatch({ type: "GROUP_MEMBER_ROW_INDEX_TO_EDIT", payload: data });
+}

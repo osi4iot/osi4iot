@@ -5,11 +5,13 @@ export interface GroupsDispatch {
 export interface GroupsContextProps {
 	groupsOptionToShow: string;
 	groupIdToEdit: number;
+	groupRowIndexToEdit: number;
 }
 
 export interface GroupsActionPayload {
 	groupsOptionToShow: string;
 	groupIdToEdit: number;
+	groupRowIndexToEdit: number;
 }
 
 export interface GroupsAction {
@@ -25,6 +27,10 @@ export interface IGroupsOptionToShow {
 
 export interface IGroupIdToEdit {
 	groupIdToEdit: number;
+}
+
+export interface IGroupRowToEdit {
+	groupRowIndexToEdit: number;
 }
 
 

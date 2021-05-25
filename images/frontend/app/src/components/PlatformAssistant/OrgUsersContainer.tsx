@@ -18,7 +18,7 @@ const OrgUsersContainer: FC<OrgUsersContainerProps> = ({ orgUsers, refreshOrgUse
     return (
         <>
             {orgUsersOptionToShow === ORG_USERS_OPTIONS.CREATE_ORG_USER && <CreateOrgUser refreshOrgUsers={refreshOrgUsers} />}
-            {orgUsersOptionToShow === ORG_USERS_OPTIONS.EDIT_ORG_USER && <EditOrgUser refreshOrgUsers={refreshOrgUsers} />}
+            {orgUsersOptionToShow === ORG_USERS_OPTIONS.EDIT_ORG_USER && <EditOrgUser orgUsers={orgUsers} refreshOrgUsers={refreshOrgUsers} />}
             {orgUsersOptionToShow === ORG_USERS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={orgUsers}

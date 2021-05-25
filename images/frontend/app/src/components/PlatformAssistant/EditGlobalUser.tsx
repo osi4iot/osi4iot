@@ -1,8 +1,14 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import { useGlobalUserIdToEdit, setGlobalUsersOptionToShow, useGlobalUsersDispatch } from '../../contexts/globalUsers';
+import {
+    useGlobalUserIdToEdit,
+    setGlobalUsersOptionToShow,
+    useGlobalUserRowIndexToEdit,
+    useGlobalUsersDispatch
+} from '../../contexts/globalUsers';
 import { GLOBAL_USERS_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
+import { IGlobalUser } from './TableColumns/globalUsersColumns';
 
 
 
@@ -23,12 +29,14 @@ const Container = styled.div`
 const domainName = getDomainName();
 
 interface EditGlobalUserProps {
+    globalUsers: IGlobalUser[];
     refreshGlobalUsers: () => void;
 }
 
-const EditGlobalUser: FC<EditGlobalUserProps> = ({refreshGlobalUsers}) => {
+const EditGlobalUser: FC<EditGlobalUserProps> = ({globalUsers, refreshGlobalUsers}) => {
     const globalUserDispatch = useGlobalUsersDispatch();
     const globalUserId = useGlobalUserIdToEdit();
+    const globalUserRowIndex = useGlobalUserRowIndexToEdit();
 
     const handleSubmit = () => {
         const globalUsersOptionToShow = { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.TABLE };
@@ -41,6 +49,7 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({refreshGlobalUsers}) => {
         <Container>
             <div>Edit global user</div>
             <div>global user id= {globalUserId} </div>
+            <div>global user row Index= {globalUserRowIndex} </div>
             <div>
                 <button onClick={handleSubmit}>Submit</button>
             </div>

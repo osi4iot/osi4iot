@@ -1,9 +1,10 @@
-import { setDevicesOptionToShow, setDeviceIdToEdit } from './devicesAction';
+import { setDevicesOptionToShow, setDeviceIdToEdit, setDeviceRowIndexToEdit } from './devicesAction';
 import {
     DevicesProvider,
     useDevicesDispatch,
     useDevicesOptionToShow,
     useDeviceIdToEdit,
+    useDeviceRowIndexToEdit
 } from './devicesContext';
 
 export {
@@ -11,6 +12,8 @@ export {
     useDevicesDispatch,
     useDevicesOptionToShow,
     useDeviceIdToEdit,
+    useDeviceRowIndexToEdit,
     setDevicesOptionToShow,
-    setDeviceIdToEdit
+    setDeviceIdToEdit,
+    setDeviceRowIndexToEdit
 };

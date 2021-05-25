@@ -8,7 +8,7 @@ import { axiosAuth, getDomainName } from '../../../tools/tools';
 import { useAuthState } from '../../../contexts/authContext';
 import axios from 'axios';
 import { ORGS_OPTIONS } from '../platformAssistantOptions';
-import { setOrgIdToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgs';
+import { setOrgIdToEdit, setOrgRowIndexToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgs';
 
 
 export interface IOrganization {
@@ -77,11 +77,14 @@ interface EditOrgProps {
 }
 
 const EditOrg: FC<EditOrgProps> = ({ rowIndex, orgId }) => {
-    const orgsDispatch = useOrgsDispatch()
+    const orgsDispatch = useOrgsDispatch();
 
     const handleClick = () => {
         const orgIdToEdit = { orgIdToEdit: orgId };
         setOrgIdToEdit(orgsDispatch, orgIdToEdit);
+
+        const orgRowIndexToEdit = { orgRowIndexToEdit: rowIndex };
+        setOrgRowIndexToEdit(orgsDispatch, orgRowIndexToEdit);
 
         const orgsOptionToShow = { orgsOptionToShow: ORGS_OPTIONS.EDIT_ORG };
         setOrgsOptionToShow(orgsDispatch, orgsOptionToShow);

@@ -6,12 +6,14 @@ export interface OrgUsersContextProps {
 	orgUsersOptionToShow: string;
 	orgUserOrgIdToEdit: number;
 	orgUserUserIdToEdit: number;
+	orgUserRowIndexToEdit: number;
 }
 
 export interface OrgUsersActionPayload {
 	orgUsersOptionToShow: string;
 	orgUserOrgIdToEdit: number;
 	orgUserUserIdToEdit: number;
+	orgUserRowIndexToEdit: number;
 }
 
 export interface OrgUsersAction {
@@ -30,6 +32,10 @@ export interface IOrgUserOrgIdToEdit {
 
 export interface IOrgUserUserIdToEdit {
 	orgUserUserIdToEdit: number;
+}
+
+export interface IOrgUserRowIndexToEdit {
+	orgUserRowIndexToEdit: number;
 }
 
 

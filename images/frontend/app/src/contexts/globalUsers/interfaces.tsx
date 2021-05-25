@@ -5,11 +5,13 @@ export interface GlobalUsersDispatch {
 export interface GlobalUsersContextProps {
 	globalUsersOptionToShow: string;
 	globalUserIdToEdit: number;
+	globalUserRowIndexToEdit: number;
 }
 
 export interface GlobalUsersActionPayload {
 	globalUsersOptionToShow: string;
 	globalUserIdToEdit: number;
+	globalUserRowIndexToEdit: number;
 }
 
 export interface GlobalUsersAction {
@@ -25,5 +27,10 @@ export interface IGlobalUsersOptionToShow {
 export interface IGlobalUserIdToEdit {
 	globalUserIdToEdit: number;
 }
+
+export interface IGlobalUserRowIndexToEdit {
+	globalUserRowIndexToEdit: number;
+}
+
 
 

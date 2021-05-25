@@ -60,3 +60,11 @@ export const useGroupMemberUserIdToEdit = (): number => {
 	}
 	return context.groupMemberUserIdToEdit;
 }
+
+export const useGroupMembeRowIndexToEdit = (): number => {
+	const context = useContext(GroupMembersStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupMembeRowIndexToEdit must be used within a GroupMembersProvider');
+	}
+	return context.groupMemberRowIndexToEdit;
+}

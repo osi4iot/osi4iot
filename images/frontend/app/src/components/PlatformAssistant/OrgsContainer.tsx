@@ -15,10 +15,19 @@ const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) =
     const orgsDispatch = useOrgsDispatch();
     const orgsOptionToShow = useOrgsOptionToShow();
 
+    const showOrgsTableOption = () => {
+        setOrgsOptionToShow(orgsDispatch, { orgsOptionToShow: ORGS_OPTIONS.TABLE });
+    }
+
     return (
         <>
-            {orgsOptionToShow === ORGS_OPTIONS.CREATE_ORG && <CreateOrganization refreshOrgs={refreshOrgs} />}
-            {orgsOptionToShow === ORGS_OPTIONS.EDIT_ORG && <EditOrganization refreshOrgs={refreshOrgs} />}
+            {orgsOptionToShow === ORGS_OPTIONS.CREATE_ORG && <CreateOrganization backToTable={showOrgsTableOption} refreshOrgs={refreshOrgs} />}
+            {orgsOptionToShow === ORGS_OPTIONS.EDIT_ORG &&
+                <EditOrganization
+                    organizations={organizations}
+                    refreshOrgs={refreshOrgs}
+                />
+            }
             {orgsOptionToShow === ORGS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={organizations}

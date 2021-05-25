@@ -87,6 +87,7 @@ export const USER_OPTIONS = {
 export const USER_PROFILE_OPTIONS = {
     USER_PROFILE: "User profile",
     EDIT_USER_PROFILE: "Edit user profile",
+    CHANGE_PASSWORD: "Change password",
 }
 
 export const HOME_OPTIONS = {

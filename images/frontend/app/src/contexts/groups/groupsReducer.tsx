@@ -7,6 +7,7 @@ import {
 export const initialState = {
     groupsOptionToShow: GROUPS_OPTIONS.TABLE,
     groupIdToEdit: 0,
+    groupRowIndexToEdit: 0,
 };
 
 export const GroupsReducer = (initialState: GroupsContextProps, action: GroupsAction) => {
@@ -21,6 +22,12 @@ export const GroupsReducer = (initialState: GroupsContextProps, action: GroupsAc
             return {
                 ...initialState,
                 groupIdToEdit: action.payload.groupIdToEdit
+            };
+
+        case "GROUP_ROW_INDEX_TO_EDIT":
+            return {
+                ...initialState,
+                groupRowIndexToEdit: action.payload.groupRowIndexToEdit
             };
 
         default:

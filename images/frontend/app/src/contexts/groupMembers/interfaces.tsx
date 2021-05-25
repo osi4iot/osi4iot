@@ -6,12 +6,14 @@ export interface GroupMembersContextProps {
 	groupMembersOptionToShow: string;
 	groupMemberGroupIdToEdit: number;
 	groupMemberUserIdToEdit: number;
+	groupMemberRowIndexToEdit: number;
 }
 
 export interface GroupMembersActionPayload {
 	groupMembersOptionToShow: string;
 	groupMemberGroupIdToEdit: number;
 	groupMemberUserIdToEdit: number;
+	groupMemberRowIndexToEdit: number;
 }
 
 export interface GroupMembersAction {
@@ -32,6 +34,11 @@ export interface IGroupMemberGroupIdToEdit {
 export interface IGroupMemberUserIdToEdit {
 	groupMemberUserIdToEdit: number;
 }
+
+export interface IGroupMemberRowIndexToEdit {
+	groupMemberRowIndexToEdit: number;
+}
+
 
 
 

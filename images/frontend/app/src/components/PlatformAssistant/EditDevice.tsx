@@ -1,8 +1,9 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import {  useDevicesDispatch, useDeviceIdToEdit, setDevicesOptionToShow } from '../../contexts/devices';
+import {  useDevicesDispatch, useDeviceIdToEdit, useDeviceRowIndexToEdit, setDevicesOptionToShow } from '../../contexts/devices';
 import { DEVICES_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
+import { IDevices } from './TableColumns/devicesColumns';
 
 
 const Container = styled.div`
@@ -23,12 +24,14 @@ const Container = styled.div`
 const domainName = getDomainName();
 
 interface EditDeviceProps {
+    devices: IDevices[];
     refreshDevices: () => void;
 }
 
-const EditDevice: FC<EditDeviceProps> = ({refreshDevices}) => {
+const EditDevice: FC<EditDeviceProps> = ({devices, refreshDevices}) => {
     const devicesDispatch = useDevicesDispatch();
     const deviceId = useDeviceIdToEdit();
+    const deviceRowIndex = useDeviceRowIndexToEdit();
 
     const handleSubmit = () => {
         const devicesOptionToShow = { devicesOptionToShow: DEVICES_OPTIONS.TABLE };
@@ -41,6 +44,7 @@ const EditDevice: FC<EditDeviceProps> = ({refreshDevices}) => {
         <Container>
             <div>Edit device</div>
             <div>Device id= {deviceId} </div>
+            <div>Device row index= {deviceRowIndex} </div>
             <div>
                 <button onClick={handleSubmit}>Submit</button>
             </div>

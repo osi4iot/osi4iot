@@ -5,8 +5,9 @@ import {
 
 
 export const initialState = {
-    globalUsersOptionToShow:GLOBAL_USERS_OPTIONS.TABLE,
-	globalUserIdToEdit: 0
+    globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.TABLE,
+    globalUserIdToEdit: 0,
+    globalUserRowIndexToEdit: 0
 };
 
 export const GlobalUsersReducer = (initialState: GlobalUsersContextProps, action: GlobalUsersAction) => {
@@ -22,6 +23,12 @@ export const GlobalUsersReducer = (initialState: GlobalUsersContextProps, action
             return {
                 ...initialState,
                 globalUserIdToEdit: action.payload.globalUserIdToEdit
+            };
+
+        case "GLOBAL_USER_ROW_INDEX_TO_EDIT":
+            return {
+                ...initialState,
+                globalUserRowIndexToEdit: action.payload.globalUserRowIndexToEdit
             };
 
         default:

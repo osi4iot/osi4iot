@@ -11,7 +11,7 @@ export async function loginUser(authDispatch: AuthDispatch, loginPayload: LoginD
 		authDispatch({ type: 'REQUEST_LOGIN' });
         const url = `https://${domainName}/admin_api/auth/login`;
         const resp = await axios.post(url, loginPayload);
-        const data = resp.data;
+		const data = resp.data;
 
 		if (data.accessToken) {
 			authDispatch({ type: 'LOGIN_SUCCESS', payload: data });

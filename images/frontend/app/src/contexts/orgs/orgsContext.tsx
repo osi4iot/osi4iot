@@ -44,3 +44,12 @@ export const useOrgIdToEdit = (): number => {
 	}
 	return context.orgIdToEdit;
 }
+
+export const useOrgRowIndexToEdit = (): number => {
+	const context = useContext(OrgsStateContext);
+	if (context === undefined) {
+		throw new Error('useOrgRowIndexToEdit must be used within a OrgsProvider');
+	}
+	return context.orgRowIndexToEdit;
+}
+
