@@ -4,7 +4,6 @@ import { useOrgUsersDispatch, setOrgUsersOptionToShow } from '../../contexts/org
 import { ORG_USERS_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
 
-
 const Container = styled.div`
     width: 90%;
     height: 90%;
@@ -26,7 +25,7 @@ interface CreateOrgUserProps {
     refreshOrgUsers: () => void;
 }
 
-const CreateOrgUser: FC<CreateOrgUserProps> = ({refreshOrgUsers}) => {
+const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers }) => {
     const orgsUsersDispatch = useOrgUsersDispatch();
 
     const handleSubmit = () => {

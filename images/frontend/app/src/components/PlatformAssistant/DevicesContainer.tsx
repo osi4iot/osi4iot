@@ -15,10 +15,14 @@ const DevicesContainer: FC<DevicesContainerProps> = ({ devices, refreshDevices }
     const devicesDispatch = useDevicesDispatch();
     const devicesOptionToShow = useDevicesOptionToShow();
 
+    const showDevicesTableOption = () => {
+        setDevicesOptionToShow(devicesDispatch, { devicesOptionToShow: DEVICES_OPTIONS.TABLE });
+    }
+
     return (
         <>
-            {devicesOptionToShow ===  DEVICES_OPTIONS.CREATE_DEVICE && <CreateDevice refreshDevices={refreshDevices} />}
-            {devicesOptionToShow === DEVICES_OPTIONS.EDIT_DEVICE && <EditDevice devices={devices} refreshDevices={refreshDevices} />}
+            {devicesOptionToShow ===  DEVICES_OPTIONS.CREATE_DEVICE && <CreateDevice backToTable={showDevicesTableOption} refreshDevices={refreshDevices} />}
+            {devicesOptionToShow === DEVICES_OPTIONS.EDIT_DEVICE && <EditDevice devices={devices} backToTable={showDevicesTableOption} refreshDevices={refreshDevices} />}
             {devicesOptionToShow === DEVICES_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={devices}

@@ -16,7 +16,7 @@ export interface IMembershipInOrgs {
 
 export const MEMBERSHIP_IN_ORGS: Column<IMembershipInOrgs>[] = [
     {
-        Header: "orgId",
+        Header: "OrgId",
         accessor: "id",
         filter: 'equals'
     },

@@ -16,11 +16,15 @@ const GroupsContainer: FC<GroupsContainerProps> = ({ groups, refreshGroups }) =>
     const groupsDispatch = useGroupsDispatch();
     const groupsOptionToShow = useGroupsOptionToShow();
 
+    const showGroupsTableOption = () => {
+        setGroupsOptionToShow(groupsDispatch, { groupsOptionToShow: GROUPS_OPTIONS.TABLE });
+    }
+
     return (
         <>
 
-            { groupsOptionToShow === GROUPS_OPTIONS.CREATE_GROUP && <CreateGroup refreshGroups={refreshGroups} />}
-            { groupsOptionToShow === GROUPS_OPTIONS.EDIT_GROUP && <EditGroup groups={groups} refreshGroups={refreshGroups} />}
+            { groupsOptionToShow === GROUPS_OPTIONS.CREATE_GROUP && <CreateGroup backToTable={showGroupsTableOption} refreshGroups={refreshGroups} />}
+            { groupsOptionToShow === GROUPS_OPTIONS.EDIT_GROUP && <EditGroup groups={groups} backToTable={showGroupsTableOption} refreshGroups={refreshGroups} />}
             { groupsOptionToShow === GROUPS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={groups}

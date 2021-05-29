@@ -1,5 +1,14 @@
-import { FC } from 'react';
+import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
+import { Formik, Form } from 'formik';
+import * as Yup from 'yup';
+import axios from "axios";
+import { axiosAuth, getDomainName } from "../../tools/tools";
+import { useAuthState } from "../../contexts/authContext";
+import { toast } from "react-toastify";
+import FormikControl from "../Tools/FormikControl";
+import FormButtonsProps from "../Tools/FormButtons";
+import FormTitle from "../Tools/FormTitle";
 import {
     setGroupsOptionToShow,
     useGroupIdToEdit,
@@ -7,53 +16,143 @@ import {
     useGroupRowIndexToEdit
 } from '../../contexts/groups';
 import {  GROUPS_OPTIONS } from './platformAssistantOptions';
-import { getDomainName } from '../../tools/tools';
 import { IGroup } from './TableColumns/groupsColumns';
 
 
-const Container = styled.div`
-    width: 90%;
-    height: 90%;
-    padding: 1rem;
-    background-color: #202226;
-    margin: 20px;
-    padding: 20px;
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-    flex-wrap: wrap;
-`
+const FormContainer = styled.div`
+	font-size: 12px;
+    padding: 30px 20px;
+    border: 3px solid #3274d9;
+    border-radius: 20px;
+    width: 400px;
+`;
 
+const ControlsContainer = styled.div`
+    width: 100%;
+
+    div:first-child {
+        margin-top: 0;
+    }
+`;
+
+const folderPermissionOptions = [
+    {
+        label: "Viewer",
+        value: "Viewer"
+    },
+    {
+        label: "Editor",
+        value: "Editor"
+    }
+];
 
 const domainName = getDomainName();
 
 interface EditGroupProps {
     groups: IGroup[];
+    backToTable: () => void;
     refreshGroups: () => void;
 }
 
-const EditGroup: FC<EditGroupProps> = ({groups, refreshGroups} ) => {
+const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const { accessToken } = useAuthState();
     const groupsDispatch = useGroupsDispatch();
     const groupId = useGroupIdToEdit();
     const groupRowIndex = useGroupRowIndexToEdit();
 
-    const handleSubmit = () => {
-        const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
-        setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
-        refreshGroups();
-        console.log(domainName);
+    const onSubmit = (values: any, actions: any) => {
+        const orgId = groups[groupRowIndex].orgId;
+        const url = `https://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
+        const config = axiosAuth(accessToken);
+        setIsSubmitting(true);
+        axios
+            .patch(url, values, config)
+            .then((response) => {
+                const data = response.data;
+                toast.success(data.message);
+                const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
+                setIsSubmitting(false);
+                setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
+                refreshGroups();
+            })
+            .catch((error) => {
+                const errorMessage = error.response.data.message;
+                toast.error(errorMessage);
+                backToTable();
+            })
     }
 
+
+    const initialGroupData = {
+        name: groups[groupRowIndex].name,
+        acronym: groups[groupRowIndex].acronym,
+        folderPermission: groups[groupRowIndex].folderPermission,
+        telegramInvitationLink: groups[groupRowIndex].telegramInvitationLink,
+        telegramChatId: groups[groupRowIndex].telegramChatId,
+    }
+
+    const validationSchema = Yup.object().shape({
+        name: Yup.string().max(190,"The maximum number of characters allowed is 200").required('Required'),
+        acronym: Yup.string().max(25,"The maximum number of characters allowed is 25").required('Required'),
+        folderPermission: Yup.string().required('Required'),
+        telegramInvitationLink: Yup.string().url("Enter a valid url").max(60,"The maximum number of characters allowed is 60").required('Required'),
+        telegramChatId: Yup.string().max(15,"The maximum number of characters allowed is 15").required('Required'),
+    });
+
+    const onCancel = (e: SyntheticEvent) => {
+        e.preventDefault();
+        backToTable();
+    };
+
     return (
-        <Container>
-            <div>Edit group</div>
-            <div>Group id= {groupId} </div>
-            <div>Group row index={groupRowIndex}</div>
-            <div>
-                <button onClick={handleSubmit}>Submit</button>
-            </div>
-        </Container>
+        <>
+            <FormTitle isSubmitting={isSubmitting} >Edit group</FormTitle>
+            <FormContainer>
+                <Formik initialValues={initialGroupData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                    {
+                        formik => (
+                            <Form>
+                                <ControlsContainer>
+                                    <FormikControl
+                                        control='input'
+                                        label='Group name'
+                                        name='name'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Group acronym'
+                                        name='acronym'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Folder permission'
+                                        name="folderPermission"
+                                        options={folderPermissionOptions}
+                                        type='text'
+                                    />                                  
+                                    <FormikControl
+                                        control='input'
+                                        label='Telegram invitation link'
+                                        name='telegramInvitationLink'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Telegram chat id'
+                                        name='telegramChatId'
+                                        type='text'
+                                    />
+                                </ControlsContainer>
+                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                            </Form>
+                        )
+                    }
+                </Formik>
+            </FormContainer>
+        </>
     )
 }
 

@@ -26,6 +26,7 @@ const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) =
                 <EditOrganization
                     organizations={organizations}
                     refreshOrgs={refreshOrgs}
+                    backToTable={showOrgsTableOption}
                 />
             }
             {orgsOptionToShow === ORGS_OPTIONS.TABLE &&

@@ -1,4 +1,4 @@
-import { FC, SyntheticEvent } from "react";
+import { FC, useState, SyntheticEvent } from "react";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -33,6 +33,7 @@ interface IChangePassword {
 
 const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
     const { accessToken } = useAuthState();
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const validationSchema = Yup.object({
         oldPassword: Yup.string().required('Required'),
         newPassword: Yup.string().required('Required'),
@@ -43,12 +44,14 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
     const onSubmit = (values: IChangePassword, actions: any) => {
         const url = `https://${domainName}/admin_api/auth/change_password`;
         const config = axiosAuth(accessToken);
-        const passwordData = {oldPassword: values.oldPassword, newPassword: values.newPassword}
+        const passwordData = { oldPassword: values.oldPassword, newPassword: values.newPassword }
+        setIsSubmitting(true);
         axios
             .patch(url, passwordData, config)
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);
+                setIsSubmitting(false);
                 backToUserProfile();
             })
             .catch((error) => {
@@ -65,7 +68,7 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
 
     return (
         <>
-            <FormTitle>Change user password</FormTitle>
+            <FormTitle isSubmitting={isSubmitting} >Change user password</FormTitle>
             <FormContainer>
                 <Formik initialValues={{ oldPassword: "", newPassword: "", confirmPassword: "" }} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {

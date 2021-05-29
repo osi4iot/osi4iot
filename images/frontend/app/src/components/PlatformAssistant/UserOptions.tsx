@@ -50,6 +50,34 @@ const ContentContainer = styled.div`
     justify-content: flex-start;
 	align-items: center;
     overflow: auto;
+
+        /* width */
+        ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+
+    /* Track */
+    ::-webkit-scrollbar-track {
+        background: #202226;
+        border-radius: 5px;
+    }
+    
+    /* Handle */
+    ::-webkit-scrollbar-thumb {
+        background: #2c3235; 
+        border-radius: 5px;
+    }
+
+    /* Handle on hover */
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: #343840;
+    }
+
+    ::-webkit-scrollbar-corner {
+        /* background-color: #0c0d0f; */
+        background: #202226;
+    }
 `;
 
 const initialUserProfile = {

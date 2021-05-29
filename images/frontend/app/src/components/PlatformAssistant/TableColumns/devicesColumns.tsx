@@ -127,17 +127,20 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
         {
             Header: "Device hash",
             accessor: "deviceUid",
-            disableFilters: true
+            disableFilters: true,
+            disableSortBy: true
         },
         {
             Header: "Longitude",
             accessor: "longitude",
-            disableFilters: true
+            disableFilters: true,
+            disableSortBy: true
         },
         {
             Header: "Latitude",
             accessor: "latitude",
-            disableFilters: true
+            disableFilters: true,
+            disableSortBy: true
         },
         {
             Header: "Type",

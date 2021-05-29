@@ -2,45 +2,73 @@ import { FC } from "react";
 import { Field, FieldArray, ErrorMessage } from 'formik';
 import styled from "styled-components";
 import TextError from "./TextError";
+import { FaTrashAlt } from "react-icons/fa";
 
 
 const Container = styled.div`
     margin: 20px 0 0;
 `;
 
-const Title = styled.div`
-    margin-bottom: 5px;
-`;
 
 const InputArrayStyled = styled.div`
-    border: 2px solid #2c3235;
-    border-radius: 10px;
-    padding: 10px;
+    /* border: 2px solid #2c3235;
+    border-radius: 10px; */
+    /* padding: 10px; */
     width: 100%;
+
+    & > div:not(:first-child) {
+        height: 40px;
+        margin-right: 0;
+    }
+`;
+
+const LabelsContainer = styled.div`
+    display: flex;
+    flex-direction: row;
+    justify-content: flex-start;
+    align-items: center;
+    width: 100%;
+    height: 20px;
+    padding-left: 10px;
+`;
+
+const LabelContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 200px;
+`;
+
+const Label = styled.div`
+    font-size: 12px;
+    width: 100%;
+`;
+
+const DeleteContainer = styled.div`
+    font-size: 12px;
+    width: 30px;
 `;
 
 const Item = styled.div`
-    border: 2px solid #2c3235;
-    border-radius: 10px;
-    margin: 10px 0;
     display: flex;
-    flex-direction: column;
+    flex-direction: row;
     justify-content: flex-start;
-    align-items: flex-start;
+    align-items: center;
     width: 100%;
+    height: 40px;
 `;
 
 const FieldContainer = styled.div`
-    padding: 10px;
+    padding: 5px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
-    width: 100%;
+    width: 200px;
 
     & label {
         font-size: 12px;
-        margin: 0 0 5px 3px;
         width: 100%;
     }
 
@@ -98,7 +126,7 @@ const AddButtonsContainer = styled.div`
 
 const AddButton = styled.button`
 	background-color: #3274d9;
-	padding: 5px 10px;
+	padding: 10px 20px;
 	color: white;
 	border: 1px solid #2c3235;
 	border-radius: 10px;
@@ -121,25 +149,37 @@ const AddButton = styled.button`
 const RemoveButtonsContainer = styled.div`
     display: flex;
     flex-direction: row;
-    justify-content: flex-end;
+    justify-content: flex-start;
 	align-items: center;
     background-color: #202226;
-    width: 100%;
+    width: 30px;
+    height: 30px;
+    margin-left: 5px;
 `;
+
+const FaTrashAltStyled = styled(FaTrashAlt)`
+    font-size: 17px;
+    color: white;
+ `;
 
 const RemoveButton = styled.button`
-	background-color: #e02f44;
-	padding: 5px 10px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-    font-size: 14px;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+    border: none;
+    background-color: #202226;
+
+    &:hover {
+        cursor: pointer;
+
+		& ${FaTrashAltStyled} {
+			color: #e02f44;
+		}
+    }
 `;
 
 
-interface InputArrayProps {
+interface InputArrayRowsProps {
     name: string;
     label: string;
     labelArray: string[];
@@ -152,13 +192,21 @@ interface InitialValues {
     [key: string]: string;
 }
 
-const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, typeArray, addLabel }) => {
+const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, nameArray, typeArray, addLabel }) => {
     const keyValueArray = nameArray.map(el => [el, ""]);
     const initialValues: InitialValues = Object.fromEntries(keyValueArray);
     return (
         <Container>
-            <Title>{label}</Title>
             <InputArrayStyled>
+                <LabelsContainer>
+                    {labelArray.map((item, index) => (
+                        <LabelContainer key={index}>
+                            <Label>{`${labelArray[index]}`}</Label>
+                        </LabelContainer>
+                    ))}
+                    <DeleteContainer>
+                    </DeleteContainer>
+                </LabelsContainer>
                 <FieldArray name={name} >
                     {(fieldArrayProps) => {
                         const { push, remove, form } = fieldArrayProps;
@@ -167,21 +215,23 @@ const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, t
                         return (
                             <>
                                 {valuesArray.map((item: any, index: number) => (
-                                    <div  key={`${name}_${index}`}>
+                                    <div key={index}>
                                         <Item>
-                                            <RemoveButtonsContainer>
-                                                {
-                                                    !(index === 0 && valuesArray.length === 1) &&
-                                                    <RemoveButton type='button' onClick={() => remove(index)}>x</RemoveButton>
-                                                }
-                                            </RemoveButtonsContainer>
                                             {labelArray.map((subitem, subIndex) => (
-                                                <FieldContainer key={`${name}_${index}_${subIndex}`}>
-                                                    <label htmlFor={`${nameArray[subIndex]}`}>{`${labelArray[subIndex]}`}</label>
+                                                <FieldContainer key={subIndex}>
+                                                    {/* <label htmlFor={`${nameArray[subIndex]}`}>{`${labelArray[subIndex]}`}</label> */}
                                                     <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} />
                                                     <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError} />
                                                 </FieldContainer>
                                             ))}
+                                            <RemoveButtonsContainer>
+                                                {
+                                                    !(index === 0 && valuesArray.length === 1) &&
+                                                    <RemoveButton type='button' onClick={() => remove(index)}>
+                                                        <FaTrashAltStyled/>
+                                                    </RemoveButton>
+                                                }
+                                            </RemoveButtonsContainer>
                                         </Item>
                                         <AddButtonsContainer>
                                             {
@@ -202,4 +252,4 @@ const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, t
 
 }
 
-export default InputArray;
+export default InputArrayRows;

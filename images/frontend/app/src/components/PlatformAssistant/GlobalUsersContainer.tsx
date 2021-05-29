@@ -16,10 +16,19 @@ const GlobalUsersContainer: FC<GlobalUsersContainerProps> = ({ globalUsers, refr
     const globalUsersDispatch = useGlobalUsersDispatch();
     const globalUsersOptionToShow = useGlobalUsersOptionToShow();
 
+    const showGlobalUsersTableOption = () => {
+        setGlobalUsersOptionToShow(globalUsersDispatch, { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.TABLE });
+    }
+
     return (
         <>
 
-            { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.CREATE_GLOBAL_USER && <CreateGlobalUser refreshGlobalUsers={refreshGlobalUsers} />}
+            { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.CREATE_GLOBAL_USER &&
+                <CreateGlobalUser
+                    backToTable={showGlobalUsersTableOption}
+                    refreshGlobalUsers={refreshGlobalUsers}
+                />
+            }
             { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.EDIT_GLOBAL_USER &&
                 <EditGlobalUser
                     globalUsers={globalUsers}

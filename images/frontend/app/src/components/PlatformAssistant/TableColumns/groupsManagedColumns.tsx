@@ -18,6 +18,11 @@ export interface IGroupsManaged {
 
 export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
     {
+        Header: "OrgId",
+        accessor: "orgId",
+        filter: 'equals'
+    },
+    {
         Header: "Id",
         accessor: "id",
         filter: 'equals'
@@ -31,11 +36,6 @@ export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
         accessor: "acronym"
     },
     {
-        Header: "OrgId",
-        accessor: "orgId",
-        filter: 'equals'
-    },
-    {
         Header: () => <div style={{backgroundColor: '#202226'}}>Folder<br/>permission</div>,
         accessor: "folderPermission",
         disableFilters: true
@@ -43,17 +43,20 @@ export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
     {
         Header: "Group hash",
         accessor: "groupUid",
-        disableFilters: true
+        disableFilters: true,
+        disableSortBy: true,
     },
     {
         Header: "Telegram Invitation Link",
         accessor: "telegramInvitationLink",
         disableFilters: true,
+        disableSortBy: true,
     },
     {
         Header: "ChatId",
         accessor: "telegramChatId",
-        disableFilters: true
+        disableFilters: true,
+        disableSortBy: true,
     },
     {
         Header: "Type",

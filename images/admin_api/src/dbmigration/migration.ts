@@ -34,8 +34,8 @@ export async function dataBaseInitialization() {
 
 		const tableUser = "grafanadb.user";
 		const queryStringUser = `ALTER TABLE grafanadb.user
-								ADD COLUMN first_name varchar(200),
-								ADD COLUMN surname varchar(200),
+								ADD COLUMN first_name varchar(127),
+								ADD COLUMN surname varchar(127),
 								ADD COLUMN telegram_id varchar(200) UNIQUE`;
 		try {
 			await pool.query(queryStringUser);
@@ -166,7 +166,7 @@ export async function dataBaseInitialization() {
 				name VARCHAR(190) UNIQUE,
 				acronym varchar(20) UNIQUE,
 				group_uid VARCHAR(42) UNIQUE,
-				telegram_invitation_link VARCHAR(50),
+				telegram_invitation_link VARCHAR(60),
 				telegram_chatid VARCHAR(15),
 				email_notification_channel_id bigint,
 				telegram_notification_channel_id bigint,

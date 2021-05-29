@@ -12,13 +12,13 @@ export interface IMembershipInGroups {
 
 export const MEMBERSHIP_IN_GROUPS: Column<IMembershipInGroups>[] = [
     {
-        Header: "GroupId",
-        accessor: "groupId",
+        Header: "OrdId",
+        accessor: "orgId",
         filter: 'equals'
     },
     {
-        Header: "OrdId",
-        accessor: "orgId",
+        Header: "GroupId",
+        accessor: "groupId",
         filter: 'equals'
     },
     {

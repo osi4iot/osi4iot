@@ -38,6 +38,7 @@ const domainName = getDomainName();
 
 const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refreshUserProfile, backToUserProfile }) => {
     const { accessToken } = useAuthState();
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [userProfileUpdated, setUserProfileUpdated] = useState(false);
     const validationSchema = Yup.object({
         firstName: Yup.string().required('Required'),
@@ -54,11 +55,13 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
     const onSubmit = (values: {}, actions: any) => {
         const url = `https://${domainName}/admin_api/auth/user_profile`;
         const config = axiosAuth(accessToken);
+        setIsSubmitting(true);
         axios
             .patch(url, values, config)
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);
+                setIsSubmitting(false);
                 setUserProfileUpdated(true);
                 backToUserProfile();
             })
@@ -76,7 +79,7 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
 
     return (
         <>
-            <FormTitle>Edit user profile</FormTitle>
+            <FormTitle isSubmitting={isSubmitting}>Edit user profile</FormTitle>
             <FormContainer>
                 <Formik initialValues={userProfileToEdit} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {

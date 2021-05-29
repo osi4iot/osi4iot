@@ -1,4 +1,4 @@
-import { FC, SyntheticEvent } from 'react';
+import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -12,7 +12,6 @@ import FormTitle from "../Tools/FormTitle";
 import { setOrgsOptionToShow, useOrgsDispatch } from '../../contexts/orgs';
 import { ORGS_OPTIONS } from './platformAssistantOptions';
 
-
 const FormContainer = styled.div`
 	font-size: 12px;
     padding: 30px 10px 30px 20px;
@@ -21,7 +20,7 @@ const FormContainer = styled.div`
     width: 400px;
     height: calc(100vh - 290px);
 
-    form div:nth-child(2) {
+    form > div:nth-child(2) {
         margin-right: 10px;
     }
 `;
@@ -58,6 +57,7 @@ const ControlsContainer = styled.div`
     }
 `;
 
+
 const domainName = getDomainName();
 
 interface CreateOrganizationProps {
@@ -66,6 +66,7 @@ interface CreateOrganizationProps {
 }
 
 const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs }) => {
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken } = useAuthState();
     const orgsDispatch = useOrgsDispatch();
     const initialOrgData = {
@@ -85,28 +86,32 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 firstName: "",
                 surname: "",
                 email: "",
+                login: "",
+                password: ""
             }
         ]
     }
 
     const validationSchema = Yup.object().shape({
-        name: Yup.string().required('Required'),
-        acronym: Yup.string().required('Required'),
-        address: Yup.string().required('Required'),
-        city: Yup.string().required('Required'),
-        zipCode: Yup.string().required('Required'),
-        state: Yup.string().required('Required'),
-        country: Yup.string().required('Required'),
-        longitude: Yup.number().required('Required'),
-        latitude: Yup.number().required('Required'),
-        telegramInvitationLink: Yup.string().required('Required'),
-        telegramChatId: Yup.string().required('Required'),
+        name: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
+        acronym: Yup.string().max(20,"The maximum number of characters allowed is 20").required('Required'),
+        address: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
+        city: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
+        zipCode: Yup.string().max(50,"The maximum number of characters allowed is 50").required('Required'),
+        state: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
+        country: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
+        longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
+        latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
+        telegramInvitationLink: Yup.string().url("Enter a valid url").max(60,"The maximum number of characters allowed is 60").required('Required'),
+        telegramChatId: Yup.string().max(15,"The maximum number of characters allowed is 15").required('Required'),
         orgAdminArray: Yup.array()
             .of(
                 Yup.object().shape({
-                    firstName: Yup.string().required('Required'),
-                    surname: Yup.string().required('Required'),
-                    email: Yup.string().email("Enter a valid email").required('Required')
+                    firstName: Yup.string().max(127,"The maximum number of characters allowed is 127").required('Required'),
+                    surname: Yup.string().max(127,"The maximum number of characters allowed is 127").required('Required'),
+                    email: Yup.string().email("Enter a valid email").max(190, "The maximum number of characters allowed is 190").required('Required'),
+                    login: Yup.string().max(190, "The maximum number of characters allowed is 190"),
+                    password: Yup.string().max(255,"The maximum number of characters allowed is 255"),
                 })
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied
@@ -116,16 +121,16 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
     const onSubmit = (values: {}, actions: any) => {
         const url = `https://${domainName}/admin_api/organization`;
         const config = axiosAuth(accessToken);
-        console.log("values=", values);
+        setIsSubmitting(true);
         axios
             .post(url, values, config)
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);
                 const orgsOptionToShow = { orgsOptionToShow: ORGS_OPTIONS.TABLE };
+                setIsSubmitting(false);
                 setOrgsOptionToShow(orgsDispatch, orgsOptionToShow);
                 refreshOrgs();
-        
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
@@ -141,7 +146,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
 
     return (
         <>
-            <FormTitle>Create org</FormTitle>
+            <FormTitle isSubmitting={isSubmitting } >Create org</FormTitle>
             <FormContainer>
                 <Formik initialValues={initialOrgData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
@@ -194,13 +199,13 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                                         control='input'
                                         label='Longitude'
                                         name='longitude'
-                                        type='number'
+                                        type='text'
                                     />
                                     <FormikControl
                                         control='input'
                                         label='Latitude'
                                         name='latitude'
-                                        type='number'
+                                        type='text'
                                     />
                                     <FormikControl
                                         control='input'
@@ -218,9 +223,9 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                                         control='inputArray'
                                         label='Organization admins'
                                         name='orgAdminArray'
-                                        labelArray={['First name', 'Surname', 'Email']}
-                                        nameArray={['firstName', 'surname', 'email']}
-                                        typeArray={['text', 'text', 'email']}
+                                        labelArray={['First name *', 'Surname *', 'Email *', 'Username', 'Password']}
+                                        nameArray={['firstName', 'surname', 'email', 'login', 'password']}
+                                        typeArray={['text', 'text', 'email', 'text', 'password']}
                                         addLabel="org admim"
                                     />
                                 </ControlsContainer>
