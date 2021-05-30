@@ -32,6 +32,7 @@ const GlobalUsersContainer: FC<GlobalUsersContainerProps> = ({ globalUsers, refr
             { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.EDIT_GLOBAL_USER &&
                 <EditGlobalUser
                     globalUsers={globalUsers}
+                    backToTable={showGlobalUsersTableOption}
                     refreshGlobalUsers={refreshGlobalUsers}
                 />}
             { globalUsersOptionToShow === GLOBAL_USERS_OPTIONS.TABLE &&

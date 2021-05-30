@@ -6,7 +6,7 @@ import SelectControl from "./SelectControl";
 import { OptionsType } from "react-select";
 
 interface IOption {
-    value: string;
+    value: string | boolean;
     label: string;
 }
 

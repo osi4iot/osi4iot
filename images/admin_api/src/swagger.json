@@ -629,7 +629,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"$ref": "#/definitions/GlobalUserInput"
+								"$ref": "#/definitions/GlobalUserUpdate"
 							}
 						}
 					}
@@ -3274,6 +3274,31 @@
 				"email"
 			]
 		},
+		"GlobalUserUpdate": {
+			"properties": {
+				"firstName": {
+					"type": "string"
+				},
+				"surname": {
+					"type": "string"
+				},
+				"email": {
+					"type": "string"
+				},
+				"login": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				},
+				"telegramId": {
+					"type": "string"
+				},
+				"isGrafanaAdmin": {
+					"type": "string"
+				}
+			}
+		},		
 		"GlobalUsersInput": {
 			"type": "object",
 			"properties": {

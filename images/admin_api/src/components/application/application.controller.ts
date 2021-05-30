@@ -203,7 +203,7 @@ class ApplicationController implements IController {
 			}
 			const newUserData = { ...existUser, ...userData };
 			await updateGlobalUser(newUserData);
-			const message = { message: "User updated successfully" }
+			const message = { message: "Global user updated successfully" }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);

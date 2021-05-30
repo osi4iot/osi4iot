@@ -45,8 +45,19 @@ const customStyles = {
         backgroundColor: '#0c0d0f',
         margin: '0 auto',
         width: '100%',
+        height: 30,
+        minHeight: 30,
+        borderRadius: 0,
         "&:hover": {
             boxShadow: 'rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px'
+        },
+        "& > div": {
+            height: 26,
+            minHeight: 26,
+            padding: '2px 0'
+        },        
+        "& > div > div": {
+            padding: '5px'
         }
     }),
     dropdownIndicator: (provided: any, state: any) => ({
@@ -55,7 +66,12 @@ const customStyles = {
     }),
     valueContainer: (provided: any, state: any) => ({
         ...provided,
-    }),      
+    }),
+    indicatorsContainer: (provided: any, state: any) => ({
+        ...provided,
+        height: 26,
+        minHeight: 26,
+    }),
     indicatorSeparator: (provided: any, state: any) => ({
         ...provided,
         backgroundColor: '#2c3235',
@@ -73,7 +89,7 @@ const customStyles = {
 }
 
 interface IOption {
-    value: string;
+    value: string | boolean;
     label: string;
 }
 
