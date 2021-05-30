@@ -462,12 +462,58 @@
 						}
 					}
 				}
+			},
+			"post": {
+				"tags": ["Application"],
+				"summary": "Create global users",
+				"requestBody": {
+					"description": "Global user data",
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/GlobalUsersInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"409": {
+						"description": "Already exists an user with the same data",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/AlreadyExistsMessage"
+								}
+							}
+						}
+					}                    
+				}
 			}
 		},
 		"/application/global_user": {
 			"post": {
 				"tags": ["Application"],
-				"summary": "Create global users",
+				"summary": "Create a global user",
 				"requestBody": {
 					"description": "Global user data",
 					"content": {
@@ -3220,10 +3266,6 @@
 				},
 				"telegramId": {
 					"type": "string"
-				},
-				"isGrafanaAdmin": {
-					"type": "boolean",
-					"default": false
 				}
 			},
 			"required": [
@@ -3231,6 +3273,17 @@
 				"surname",
 				"email"
 			]
+		},
+		"GlobalUsersInput": {
+			"type": "object",
+			"properties": {
+				"users": {
+					"type": "array",
+					"items": {
+						"$ref": "#/definitions/GlobalUserInput"
+					}
+				}
+			}
 		},
 		"GlobalUserOutput": {
 			"properties": {

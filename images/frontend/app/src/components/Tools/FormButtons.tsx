@@ -61,7 +61,6 @@ interface FormButtonsProps {
 }
 
 const FormButtons: FC<FormButtonsProps> = ({ onCancel, isValid, isSubmitting, isWideForm = false }) => {
-    console.log("isWideForm=", isWideForm)
     return (
         <ButtonsContainer isWideForm={isWideForm}>
             <Button isWideForm={isWideForm} onClick={onCancel}>

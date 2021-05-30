@@ -58,6 +58,7 @@ const ControlsContainer = styled.div`
     }
 `;
 
+
 const domainName = getDomainName();
 
 interface CreateGlobalUserProps {
@@ -71,7 +72,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
     const globalUsersDispatch = useGlobalUsersDispatch();
 
     const initialGlobalUsersData = {
-        globalUsersArray: [
+        users: [
             {
                 firstName: "",
                 surname: "",
@@ -84,7 +85,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
     }
 
     const validationSchema = Yup.object().shape({
-        globalUsersArray: Yup.array()
+        users: Yup.array()
             .of(
                 Yup.object().shape({
                     firstName: Yup.string().max(127, "The maximum number of characters allowed is 127").required('Required'),
@@ -99,7 +100,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
     });
 
     const onSubmit = (values: {}, actions: any) => {
-        const url = `https://${domainName}/admin_api/organization`;
+        const url = `https://${domainName}/admin_api/application/global_users`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axios
@@ -135,7 +136,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
                                     <FormikControl
                                         control='inputArrayRows'
                                         label='Global user'
-                                        name='globalUsersArray'
+                                        name='users'
                                         labelArray={['First name *', 'Surname *', 'Email *', 'Username', 'Password', 'TelegramId']}
                                         nameArray={['firstName', 'surname', 'email', 'login', 'password', 'telegramId']}
                                         typeArray={['text', 'text', 'email', 'text', 'password', 'text']}

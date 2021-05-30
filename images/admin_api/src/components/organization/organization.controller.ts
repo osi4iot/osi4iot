@@ -42,7 +42,7 @@ import {
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import IRequestWithOrganizationAndUser from "./interfaces/requestWithOrganizationAndUser.interface";
 import HttpException from "../../exceptions/HttpException";
-import CreateUsersArrayDto from "../user/usersArray.dto";
+import CreateUsersArrayDto from "../user/interfaces/UsersArray.dto";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
 import { createGroup, defaultOrgGroupName, deleteGroup, getAllGroupsInOrganization, getDefaultOrgGroup, getGroupMemberByProp, getGroupMembers, getGroupsOfOrgIdWhereUserIdIsMember, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
@@ -283,7 +283,7 @@ class OrganizationController implements IController {
 			orgUserData.OrgId = organization.id;
 			const existUser = await getUserLoginDatadByEmailOrLogin(orgUserData.email);
 			if (!existUser && !(await isUsersDataCorrect([orgUserData])))
-				throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
+				throw new HttpException(400, "The same values of name, login, email and / or telegramId of some of the users is already taken.")
 			let user_msg: IMessage;
 			if (!orgUserData.roleInOrg) orgUserData.roleInOrg = "Viewer";
 			else {
@@ -337,7 +337,6 @@ class OrganizationController implements IController {
 					existingUserArray.push(orgUser);
 				}
 			})
-			orgUsersData.filter(user => emailsArray.indexOf(user.email) !== -1);
 			const nonExistingUserArray = orgUsersData.filter(user => emailsArray.indexOf(user.email) === -1);
 
 			let numUsersCreated = 0;
@@ -345,7 +344,7 @@ class OrganizationController implements IController {
 			const orgId = organization.id;
 			if (nonExistingUserArray.length !== 0) {
 				if (!(await isUsersDataCorrect(nonExistingUserArray)))
-					throw new HttpException(400, "The same values of name, login, email and/or telegramId of any user already exists.")
+					throw new HttpException(400, "The same values of name, login, email and / or telegramId of some of the users is already taken.")
 				const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
 				msg_users.forEach((msg, index) => nonExistingUserArray[index].id = msg.id);
 				await addOrgUsersToDefaultOrgGroup(organization.id, nonExistingUserArray);

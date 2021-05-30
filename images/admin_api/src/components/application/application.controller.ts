@@ -6,14 +6,20 @@ import grafanaApi from "../../GrafanaApi";
 import CreateUserDto from "../user/interfaces/User.dto";
 import {
 	createGlobalUser,
+	createGlobalUsers,
 	getGlobalUsers,
 	getUserByProp,
+	getUsersIdByEmailsArray,
+	isUsersDataCorrect,
 	updateGlobalUser
 } from "../user/userDAL";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import { cleanEmailNotificationChannelForGroupsArray, getGroupsWhereUserIdIsMember } from "../group/groupDAL";
+import CreateUsersArrayDto from "../user/interfaces/UsersArray.dto";
+import CreateGlobalUsersArrayDto from "../user/interfaces/GlobalUsersArray.dto";
+import HttpException from "../../exceptions/HttpException";
 
 class ApplicationController implements IController {
 	public path = "/application";
@@ -60,7 +66,12 @@ class ApplicationController implements IController {
 				validationMiddleware<CreateUserDto>(CreateUserDto),
 				this.createGlobalUser
 			)
-
+			.post(
+				`${this.path}/global_users/`,
+				superAdminAuth,
+				validationMiddleware<CreateGlobalUsersArrayDto>(CreateGlobalUsersArrayDto),
+				this.createGlobalUsers
+			)
 	}
 
 	private getPlatformStatistics = async (
@@ -90,6 +101,52 @@ class ApplicationController implements IController {
 				message = { message: `A new global user has been created` };
 			} else {
 				message = { message: `The user with email: ${userData.email} already exist` };
+			}
+			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private createGlobalUsers = async (
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const globalUsersData: CreateUserDto[] = req.body.users;
+			const usersIdArray = await getUsersIdByEmailsArray(globalUsersData.map(user => user.email));
+			const emailsArray = usersIdArray.map(user => user.email);
+			const existingUserArray: CreateUserDto[] = [];
+			globalUsersData.forEach(user => {
+				const orgIndex = emailsArray.indexOf(user.email);
+				if (orgIndex !== -1) {
+					existingUserArray.push(user);
+				}
+			})
+			const nonExistingUsersArray = globalUsersData.filter(user => emailsArray.indexOf(user.email) === -1);
+
+			let message: { message: string };
+			if (nonExistingUsersArray.length !== 0) {
+				if (!(await isUsersDataCorrect(nonExistingUsersArray)))
+					throw new HttpException(400, "The same values of name, login, email and / or telegramId of some of the users is already taken.")
+				const msg_users = await createGlobalUsers(nonExistingUsersArray);
+				const globalUsersCreated = msg_users.filter(msg => msg.message === "User created");
+				const numNewGlobalUsers = globalUsersCreated.length;
+				const numExistingUsers = existingUserArray.length;
+				const numFailures = nonExistingUsersArray.length - numNewGlobalUsers;
+				if (globalUsersData.length === numNewGlobalUsers) {
+					message = { message: `${numNewGlobalUsers} new global user/s have been created.` };
+				} else {
+					if (numFailures === 0) {
+						message = { message: `Only ${numNewGlobalUsers} new global users have been created but ${numExistingUsers} users already exist` };
+					} else {
+						message = { message: `Number of failures: ${numFailures}; new global users created: ${numNewGlobalUsers}; already existing users: ${numExistingUsers}` };
+					}
+				}
+
+			} else {
+				message = { message: `All the inputted user/s already exist` };
 			}
 			res.status(200).send(message);
 		} catch (error) {

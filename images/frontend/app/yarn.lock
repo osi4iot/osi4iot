@@ -5244,6 +5244,13 @@ file-loader@6.1.1:
     loader-utils "^2.0.0"
     schema-utils "^3.0.0"
 
+file-selector@0.2.4:
+  version "0.2.4"
+  resolved "https://registry.yarnpkg.com/file-selector/-/file-selector-0.2.4.tgz#7b98286f9dbb9925f420130ea5ed0a69238d4d80"
+  integrity sha512-ZDsQNbrv6qRi1YTDOEWzf5J2KjZ9KMI1Q2SGeTkCJmNNW25Jg4TW4UMcmoqcg4WrAyKRcpBXdbWRxkfrOzVRbA==
+  dependencies:
+    tslib "^2.0.3"
+
 file-uri-to-path@1.0.0:
   version "1.0.0"
   resolved "https://registry.yarnpkg.com/file-uri-to-path/-/file-uri-to-path-1.0.0.tgz#553a7b8446ff6f684359c445f1e37a05dacc33dd"
@@ -11376,6 +11383,13 @@ url@^0.11.0:
   dependencies:
     punycode "1.3.2"
     querystring "0.2.0"
+
+use-file-picker@^1.2.0:
+  version "1.2.0"
+  resolved "https://registry.yarnpkg.com/use-file-picker/-/use-file-picker-1.2.0.tgz#104ed45e8628efd1d408d7e0d95278b43ca93c1d"
+  integrity sha512-1NtZx1JP1LpQqOEZnLa2tO5GQI19gZUOjE3y5Mm8waR4wW44yYKPRumpIX/UY5CltVdcu//wbXaoILhEdxdULQ==
+  dependencies:
+    file-selector "0.2.4"
 
 use@^3.1.0:
   version "3.1.1"

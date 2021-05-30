@@ -9,6 +9,7 @@ import UserRegisterDto from "../Authentication/userRegister.dto";
 import { sendUserRegistrationInvitationEmail } from "./userEmailFactory";
 import { passwordGenerator } from "../../utils/passwordGenerator";
 import UserProfileDto from "./interfaces/UserProfile.dto";
+import CreateGlobalUserDto from "./interfaces/GlobalUser.dto";
 
 
 export const getUserLoginDatadByEmailOrLogin = async (emailOrLogin: string): Promise<IUserLoginData> => {
@@ -54,7 +55,7 @@ export const getUserdByEmailOrLogin = async (emailOrLogin: string): Promise<IUse
 
 export const createOrganizationUsers = async (orgId: number, usersData: CreateUserDto[]) => {
 	usersData.forEach(user => {
-		if (!user.name || user.name === "") user.name = `${user.firstName}  ${user.surname}`
+		if (!user.name || user.name === "") user.name = `${user.firstName} ${user.surname}`
 		if (!user.telegramId) user.telegramId = user.name;
 		if (!user.OrgId) user.OrgId = orgId;
 		if (!user.login) user.login = `${user.firstName.replace(/ /g, "_").toLocaleLowerCase()}.${user.surname.replace(/ /g, "_").toLocaleLowerCase()}`;
@@ -95,6 +96,15 @@ export const createGlobalUser = async (userData: CreateUserDto) => {
 	await sendUserRegistrationInvitationEmail([userData]);
 	return user_msg[0];
 }
+
+export const createGlobalUsers = async (usersData: CreateUserDto[]) => {
+	const users_msg = await createOrganizationUsers(1, usersData);
+	const userIdArray = users_msg.map(msg => msg.id);
+	await grafanaApi.removeUsersFromOrganization(1, userIdArray);
+	await sendUserRegistrationInvitationEmail(usersData);
+	return users_msg;
+}
+
 
 export const isThisUserOrgAdmin = async (userId: number, orgId: number): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org_user WHERE user_id = $1 AND org_id = $2 AND role = $3',
@@ -220,7 +230,7 @@ export const updateUserProfileById = async (userData: CreateUserDto) => {
 		]);
 };
 
-export const isUsersDataCorrect = async (usersInputData: CreateUserDto[]): Promise<boolean> => {
+export const isUsersDataCorrect = async (usersInputData: (CreateUserDto | CreateGlobalUserDto)[]): Promise<boolean> => {
 	usersInputData.forEach(user => user.name = `${user.firstName} ${user.surname}`);
 	const namesArray = usersInputData.map(user => user.name);
 	const emailsArray = usersInputData.map(user => user.email);

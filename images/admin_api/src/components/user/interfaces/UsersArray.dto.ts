@@ -1,6 +1,6 @@
 import { Type } from "class-transformer";
 import { ValidateNested, Allow } from "class-validator";
-import CreateUserDto from "./interfaces/User.dto";
+import CreateUserDto from "./User.dto";
 
 class CreateUsersArrayDto {
   @ValidateNested({ each: true })
