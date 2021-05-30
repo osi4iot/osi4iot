@@ -18,7 +18,7 @@ const InputArrayStyled = styled.div`
     width: 100%;
 
     & > div:not(:first-child) {
-        height: 40px;
+        /* height: 40px; */
         margin-right: 0;
     }
 `;
@@ -33,12 +33,16 @@ const LabelsContainer = styled.div`
     padding-left: 10px;
 `;
 
-const LabelContainer = styled.div`
+interface LabelContainerProps {
+    type: string;
+}
+
+const LabelContainer = styled.div<LabelContainerProps>`
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
-    width: 200px;
+    width: ${props => props.type === 'email' ? '350px' : '200px'};
 `;
 
 const Label = styled.div`
@@ -56,16 +60,20 @@ const Item = styled.div`
     justify-content: flex-start;
     align-items: flex-start;
     width: 100%;
-    height: 40px;
+    /* height: 40px; */
 `;
 
-const FieldContainer = styled.div`
+interface FieldContainerProps {
+    type: string;
+}
+
+const FieldContainer = styled.div<FieldContainerProps>`
     padding: 5px;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
-    width: 200px;
+    width: ${props => props.type === 'email' ? '350px' : '200px'};
 
     & label {
         font-size: 12px;
@@ -212,13 +220,12 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
     });
 
     useEffect(() => {
-        console.log("Entro en useffect");
         if (!loading && filesContent.length !== 0 && plainFiles.length !== 0) {
             setLocalFileContent(filesContent[0].content);
             setLocalFileLoaded(true)
             setLocalFileLabel(`Add ${addLabel}s from ${plainFiles[0].name} file`);
         }
-        
+
     }, [loading, filesContent, plainFiles, addLabel])
 
 
@@ -227,7 +234,7 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
             <InputArrayStyled>
                 <LabelsContainer>
                     {labelArray.map((item, index) => (
-                        <LabelContainer key={index}>
+                        <LabelContainer key={index} type={typeArray[index]}>
                             <Label>{`${labelArray[index]}`}</Label>
                         </LabelContainer>
                     ))}
@@ -268,7 +275,7 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
                                     <div key={index}>
                                         <Item>
                                             {labelArray.map((subitem, subIndex) => (
-                                                <FieldContainer key={subIndex}>
+                                                <FieldContainer key={subIndex} type={typeArray[subIndex]}>
                                                     <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} />
                                                     <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError} />
                                                 </FieldContainer>
