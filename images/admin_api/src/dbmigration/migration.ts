@@ -36,7 +36,7 @@ export async function dataBaseInitialization() {
 		const queryStringUser = `ALTER TABLE grafanadb.user
 								ADD COLUMN first_name varchar(127),
 								ADD COLUMN surname varchar(127),
-								ADD COLUMN telegram_id varchar(200) UNIQUE`;
+								ADD COLUMN telegram_id varchar(40) UNIQUE`;
 		try {
 			await pool.query(queryStringUser);
 			logger.log("info", `Column telegram_id has been added sucessfully to Table ${tableUser}`);

@@ -11,6 +11,10 @@ import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
 import { setOrgsOptionToShow, useOrgsDispatch } from '../../contexts/orgs';
 import { ORGS_OPTIONS } from './platformAssistantOptions';
+import { ISelectUser } from './TableColumns/selectUserColumns';
+import SelectUsers from './SelectUsers';
+import { IOrgInputData } from './OrgsContainer';
+
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -58,60 +62,63 @@ const ControlsContainer = styled.div`
 `;
 
 
+
 const domainName = getDomainName();
 
 interface CreateOrganizationProps {
     backToTable: () => void;
     refreshOrgs: () => void;
+    selectUsers: ISelectUser[];
+    orgInputData: IOrgInputData;
+    setOrgInputData: (orgInputData: IOrgInputData) => void;
 }
 
-const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs }) => {
+
+const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs, selectUsers, orgInputData, setOrgInputData }) => {
+    const [showCreateOrg, setShowCreateOrg] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectUser[]>([]);
     const { accessToken } = useAuthState();
     const orgsDispatch = useOrgsDispatch();
-    const initialOrgData = {
-        name: "",
-        acronym: "",
-        address: "",
-        city: "",
-        zipCode: "",
-        state: "",
-        country: "",
-        longitude: 0,
-        latitude: 0,
-        telegramInvitationLink: "",
-        telegramChatId: "",
-        orgAdminArray: [
-            {
-                firstName: "",
-                surname: "",
-                email: "",
+    const initialOrgData = { ...orgInputData };
+    if (selectedUsersArray.length !== 0) {
+        const newOrgAdmins = selectedUsersArray.map(user => {
+            const orgAdminData = {
+                firstName: user.firstName,
+                surname: user.surname,
+                email: user.email,
                 login: "",
                 password: ""
-            }
-        ]
+            };
+            return orgAdminData;
+        });
+        initialOrgData.orgAdminArray = [...initialOrgData.orgAdminArray, ...newOrgAdmins];
     }
 
     const validationSchema = Yup.object().shape({
-        name: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
-        acronym: Yup.string().max(20,"The maximum number of characters allowed is 20").required('Required'),
-        address: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
-        city: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
-        zipCode: Yup.string().max(50,"The maximum number of characters allowed is 50").required('Required'),
-        state: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
-        country: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
+        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        acronym: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
+        address: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        city: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        zipCode: Yup.string().max(50, "The maximum number of characters allowed is 50").required('Required'),
+        state: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        country: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
-        telegramInvitationLink: Yup.string().url("Enter a valid url").max(60,"The maximum number of characters allowed is 60").required('Required'),
-        telegramChatId: Yup.string().max(15,"The maximum number of characters allowed is 15").required('Required'),
+        telegramInvitationLink: Yup.string().url("Enter a valid url").max(60, "The maximum number of characters allowed is 60").required('Required'),
+        telegramChatId: Yup.string().max(15, "The maximum number of characters allowed is 15").required('Required'),
         orgAdminArray: Yup.array()
             .of(
                 Yup.object().shape({
-                    firstName: Yup.string().max(127,"The maximum number of characters allowed is 127").required('Required'),
-                    surname: Yup.string().max(127,"The maximum number of characters allowed is 127").required('Required'),
+                    firstName: Yup.string().max(127, "The maximum number of characters allowed is 127").required('Required'),
+                    surname: Yup.string().max(127, "The maximum number of characters allowed is 127").required('Required'),
                     email: Yup.string().email("Enter a valid email").max(190, "The maximum number of characters allowed is 190").required('Required'),
-                    login: Yup.string().max(190, "The maximum number of characters allowed is 190"),
-                    password: Yup.string().max(255,"The maximum number of characters allowed is 255"),
+                    login: Yup.string()
+                        .matches(/^[a-zA-Z0-9._-]*$/g, "Only the following characters are allowed for username: a-zA-Z0-9._-")
+                        .max(190, "The maximum number of characters allowed is 190"),
+                    password: Yup.string()
+                        .matches(/^[a-zA-Z0-9.-_\\@\\#\\$\\%]*$/g, "Only the following characters are allowed for password: a-zA-Z0-9.-_@#$%")
+                        .max(190, "The maximum number of characters allowed is 100"),
                 })
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied
@@ -144,97 +151,114 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
         backToTable();
     };
 
+    const goToSelect = (orgInputData: IOrgInputData) => {
+        setOrgInputData(orgInputData);
+        setShowCreateOrg(false);
+    }
+
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting } >Create org</FormTitle>
-            <FormContainer>
-                <Formik initialValues={initialOrgData} validationSchema={validationSchema} onSubmit={onSubmit} >
-                    {
-                        formik => (
-                            <Form>
-                                <ControlsContainer>
-                                    <FormikControl
-                                        control='input'
-                                        label='Org name'
-                                        name='name'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Org acronym'
-                                        name='acronym'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Address'
-                                        name='address'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='City'
-                                        name='city'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Zip code'
-                                        name='zipCode'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='State'
-                                        name='state'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Country'
-                                        name='country'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Longitude'
-                                        name='longitude'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Latitude'
-                                        name='latitude'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Telegram invitation link'
-                                        name='telegramInvitationLink'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Telegram chat id'
-                                        name='telegramChatId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='inputArray'
-                                        label='Organization admins'
-                                        name='orgAdminArray'
-                                        labelArray={['First name *', 'Surname *', 'Email *', 'Username', 'Password']}
-                                        nameArray={['firstName', 'surname', 'email', 'login', 'password']}
-                                        typeArray={['text', 'text', 'email', 'text', 'password']}
-                                        addLabel="org admim"
-                                    />
-                                </ControlsContainer>
-                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
-                            </Form>
-                        )
-                    }
-                </Formik>
-            </FormContainer>
+            { showCreateOrg ?
+                <>
+                    <FormTitle isSubmitting={isSubmitting} >Create org</FormTitle>
+                    <FormContainer>
+                        <Formik initialValues={initialOrgData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                            {
+                                formik => (
+                                    <Form>
+                                        <ControlsContainer>
+                                            <FormikControl
+                                                control='input'
+                                                label='Org name'
+                                                name='name'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='Org acronym'
+                                                name='acronym'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='Address'
+                                                name='address'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='City'
+                                                name='city'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='Zip code'
+                                                name='zipCode'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='State'
+                                                name='state'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='Country'
+                                                name='country'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='Longitude'
+                                                name='longitude'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='Latitude'
+                                                name='latitude'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='Telegram invitation link'
+                                                name='telegramInvitationLink'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='input'
+                                                label='Telegram chat id'
+                                                name='telegramChatId'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='inputArray'
+                                                label='Organization admins'
+                                                name='orgAdminArray'
+                                                labelArray={['First name *', 'Surname *', 'Email *', 'Username', 'Password']}
+                                                nameArray={['firstName', 'surname', 'email', 'login', 'password']}
+                                                typeArray={['text', 'text', 'email', 'text', 'password']}
+                                                addLabel="org admim"
+                                                selectLabel="user"
+                                                goToSelect={() => goToSelect(formik.values)}
+                                            />
+                                        </ControlsContainer>
+                                        <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                                    </Form>
+                                )
+                            }
+                        </Formik>
+                    </FormContainer>
+                </>
+                :
+                <SelectUsers
+                    backToCreate={() => setShowCreateOrg(true)}
+                    selectUsers={selectUsers}
+                    setSelectedUsersArray={(selectedUsers: ISelectUser[]) => setSelectedUsersArray(selectedUsers)}
+                />
+            }
         </>
     )
 }

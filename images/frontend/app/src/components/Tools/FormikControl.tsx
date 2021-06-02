@@ -19,10 +19,12 @@ interface FormikControlProps {
     nameArray?: string[];
     typeArray?: string[];
     addLabel?: string;
+    selectLabel?: string;
+    goToSelect?: () => void;
     options?: OptionsType<IOption>;
 }
 
-const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, options, ...rest }) => {
+const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, options, ...rest }) => {
     switch (control) {
         case 'input':
             return <Input label={label as string} name={name as string} type={type as string} {...rest} />
@@ -35,6 +37,8 @@ const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, lab
                     typeArray={typeArray as string[]}
                     nameArray={nameArray as string[]}
                     addLabel={addLabel as string}
+                    selectLabel={selectLabel as string}
+                    goToSelect={goToSelect as () => void}
                     {...rest}
                 />
             )

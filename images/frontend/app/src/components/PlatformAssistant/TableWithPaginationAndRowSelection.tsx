@@ -1,18 +1,13 @@
-import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy } from 'react-table';
-import { FC, useMemo, useState } from 'react';
+import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy, useRowSelect } from 'react-table';
+import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
 import { matchSorter } from 'match-sorter';
 import { FaSearch } from "react-icons/fa";
 
 
-interface TableStylesProps {
-    columnsWidth: string[];
-    columnsMaxWidth: string[];
-}
 
-
-const TableStyles = styled.div<TableStylesProps>`
+const TableStyles = styled.div`
   padding: 1rem;
   background-color: #202226;
 
@@ -47,58 +42,27 @@ const TableStyles = styled.div<TableStylesProps>`
 
         tr td:nth-child(1),
         th td:nth-child(1) {
-            width: ${(props) => props.columnsWidth[0]};
-            min-width: ${(props) => props.columnsWidth[0]};
-            max-width: ${(props) => props.columnsMaxWidth[0]};
-            word-wrap: break-word;
+            width: 50px;
+            min-width: 50px;
+            max-width: 50px;
         }
 
         tr td:nth-child(2),
         th td:nth-child(2) {
-            width: ${(props) => props.columnsWidth[1]};
-            min-width: ${(props) => props.columnsWidth[1]};
-            max-width: ${(props) => props.columnsMaxWidth[1]};
-            word-wrap: break-word;
+            width: 100px;
+            min-width: 100px;
+            max-width: 150px;
         }
 
-        tr td:nth-child(3),
-        th td:nth-child(3) {
-            width: ${(props) => props.columnsWidth[2]};
-            min-width: ${(props) => props.columnsWidth[2]};
-            max-width: ${(props) => props.columnsMaxWidth[2]};
-            word-wrap: break-word;
+        th:nth-child(5) {
+            padding: 10px 0px 10px 10px;
         }
-        
-        tr td:nth-child(4),
-        th td:nth-child(4) {
-            width: ${(props) => props.columnsWidth[3]};
-            min-width: ${(props) => props.columnsWidth[3]};
-            max-width: ${(props) => props.columnsMaxWidth[3]};
-            word-wrap: break-word;
-        }
-
-        tr td:nth-child(5),
-        th td:nth-child(5) {
-            width: ${(props) => props.columnsWidth[4]};
-            min-width: ${(props) => props.columnsWidth[4]};
-            max-width: ${(props) => props.columnsMaxWidth[4]};
-            word-wrap: break-word;
-        }
-        
-        tr td:nth-child(6),
-        th td:nth-child(6) {
-            width: ${(props) => props.columnsWidth[5]};
-            min-width: ${(props) => props.columnsWidth[5]};
-            max-width: ${(props) => props.columnsMaxWidth[5]};
-            word-wrap: break-word;
-        } 
-
   }
 `
 
 const TableContainer = styled.div`
-    margin-top: 40px;
-    padding: 10px;
+    margin-top: 10px;
+    padding: 10px 0 0;
     display: flex;
     flex-direction: column;
 	justify-content: flex-start;
@@ -124,6 +88,10 @@ const Pagination = styled.div`
     margin-left: 18px;
     background-color: #202226;
 
+    & span {
+        font-size: 15px;
+    }
+
     & span input,
     & select {
         font-size: 15px;
@@ -139,28 +107,6 @@ const Pagination = styled.div`
             box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
         }
     }
-`;
-
-const NewComponentButton = styled.button`
-	background-color: #3274d9;
-	padding: 10px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-	box-shadow: 0 5px #173b70;
-    /* margin-left: auto; */
-
-	&:hover {
-		background-color: #2461c0;
-	}
-
-	&:active {
-		background-color: #2461c0;
-		box-shadow: 0 2px #173b70;
-		transform: translateY(4px);
-	}
 `;
 
 
@@ -313,33 +259,39 @@ function fuzzyTextFilterFn(rows: row[], id: number, filterValue: string) {
     return matchSorter(rows, filterValue, { keys: [row => row.values[id]] })
 }
 
+interface Props {
+    indeterminate?: boolean;
+}
+
+const IndeterminateCheckbox = forwardRef<HTMLInputElement, Props>(
+    ({ indeterminate, ...rest }, ref: Ref<HTMLInputElement>) => {
+        const defaultRef = useRef()
+        const resolvedRef = ref || defaultRef
+
+        useEffect(() => {
+            if ((resolvedRef as MutableRefObject<HTMLInputElement>)?.current) {
+                (resolvedRef as MutableRefObject<HTMLInputElement>).current.indeterminate = indeterminate ?? false;;
+            }
+
+        }, [resolvedRef, indeterminate])
+
+        return (
+            <>
+                <input type="checkbox" ref={resolvedRef as MutableRefObject<HTMLInputElement>} {...rest} />
+            </>
+        )
+    }
+)
+
 type TableProps<T extends object> = {
     dataTable: T[];
     columnsTable: Column<T>[];
-    componentName: string;
-    createComponent?: () => void;
+    setSelectedUsers: (selectedUsers: never[]) => void;
 }
 
-const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, componentName, createComponent }) => {
+const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({ dataTable, columnsTable, setSelectedUsers }) => {
     const columns = useMemo(() => columnsTable, [columnsTable]);
     const data = useMemo(() => dataTable, [dataTable]);
-    const columnsWidth = columnsTable.map(column => {
-        if (typeof column.Header !== 'function') {
-            const headerName = (column.Header as string);
-            if (headerName.slice(-2) === "Id" && headerName !== "TelegramId") return "100px"
-            else return "auto"
-        } else return "auto";
-    });
-
-
-    const columnsMaxWidth = columnsTable.map(column => {
-        if (typeof column.Header !== 'function') {
-            const headerName = (column.Header as string);
-            if (headerName.slice(-2) === "Id" && headerName !== "TelegramId") return "100px"
-            else if (headerName === "Refresh tokens") return "1200px";
-            else return "auto"
-        } else return "auto";
-    });
 
     const filterTypes = useMemo(
         () => ({
@@ -370,10 +322,6 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
     )
 
 
-    const handleClick = () => {
-        if (createComponent) createComponent();
-    }
-
     const {
         getTableProps,
         getTableBodyProps,
@@ -391,6 +339,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
         state,
         preGlobalFilteredRows,
         setGlobalFilter,
+        selectedFlatRows,
     } = useTable(
         {
             columns,
@@ -402,10 +351,42 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
         useFilters, // useFilters!
         useGlobalFilter, // useGlobalFilter!
         useSortBy,
-        usePagination
+        usePagination,
+        useRowSelect,
+        hooks => {
+            hooks.visibleColumns.push(columns => [
+                // Let's make a column for selection
+                {
+                    id: 'selection',
+                    // The header can use the table's getToggleAllRowsSelectedProps method
+                    // to render a checkbox
+                    Header: ({ getToggleAllPageRowsSelectedProps }) => (
+                        <div>
+                            <IndeterminateCheckbox {...getToggleAllPageRowsSelectedProps()} />
+                        </div>
+                    ),
+                    // The cell can use the individual row's getToggleRowSelectedProps method
+                    // to the render a checkbox
+                    Cell: ({ row }) => (
+                        <div>
+                            <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
+                        </div>
+                    ),
+                },
+                ...columns,
+            ])
+        }
     )
 
     const { globalFilter, pageIndex, pageSize } = state;
+
+    useEffect(() => {
+        const selectedRows = selectedFlatRows.map(d => d.original);
+        setSelectedUsers(selectedRows as never[]);
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedFlatRows]);
+
 
     // Render the UI for your table
     return (
@@ -459,9 +440,8 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
                     globalFilter={globalFilter}
                     setGlobalFilter={setGlobalFilter}
                 />
-                {componentName !== "" && <NewComponentButton onClick={handleClick}>New {componentName}</NewComponentButton>}
             </TableOptionsContainer>
-            <TableStyles columnsWidth={columnsWidth} columnsMaxWidth={columnsMaxWidth} >
+            <TableStyles>
                 <table {...getTableProps()}>
                     <thead>
                         {headerGroups.map(headerGroup => (
@@ -507,4 +487,4 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
     )
 }
 
-export default TableWithPagination;
+export default TableWithPaginationAndRowSelection;

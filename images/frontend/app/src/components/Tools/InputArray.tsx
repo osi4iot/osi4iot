@@ -88,8 +88,8 @@ const FieldContainer = styled.div`
 
 const AddButtonsContainer = styled.div`
     display: flex;
-    margin: 20px 0 10px;
-    flex-direction: row;
+    margin: 10px 0 10px;
+    flex-direction: column;
     justify-content: center;
 	align-items: center;
     background-color: #202226;
@@ -99,6 +99,7 @@ const AddButtonsContainer = styled.div`
 const AddButton = styled.button`
 	background-color: #3274d9;
 	padding: 5px 10px;
+    margin: 10px 0;
 	color: white;
 	border: 1px solid #2c3235;
 	border-radius: 10px;
@@ -106,6 +107,7 @@ const AddButton = styled.button`
 	cursor: pointer;
 	box-shadow: 0 5px #173b70;
     font-size: 14px;
+    width: 40%;
 
 	&:hover {
 		background-color: #2461c0;
@@ -146,13 +148,15 @@ interface InputArrayProps {
     nameArray: string[];
     typeArray: string[];
     addLabel: string;
+    selectLabel: string;
+    goToSelect: () => void;
 }
 
 interface InitialValues {
     [key: string]: string;
 }
 
-const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, typeArray, addLabel }) => {
+const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect }) => {
     const keyValueArray = nameArray.map(el => [el, ""]);
     const initialValues: InitialValues = Object.fromEntries(keyValueArray);
     return (
@@ -167,7 +171,7 @@ const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, t
                         return (
                             <>
                                 {valuesArray.map((item: any, index: number) => (
-                                    <div  key={`${name}_${index}`}>
+                                    <div key={`${name}_${index}`}>
                                         <Item>
                                             <RemoveButtonsContainer>
                                                 {
@@ -186,7 +190,10 @@ const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, t
                                         <AddButtonsContainer>
                                             {
                                                 index === (valuesArray.length - 1) &&
-                                                <AddButton type='button' onClick={() => push(initialValues)}>Add {addLabel}</AddButton>
+                                                <>
+                                                    <AddButton type='button' onClick={() => push(initialValues)}>Add {addLabel}</AddButton>
+                                                    <AddButton type='button' onClick={() => goToSelect()}>Select {selectLabel}</AddButton>
+                                                </>
                                             }
                                         </AddButtonsContainer>
                                     </div>

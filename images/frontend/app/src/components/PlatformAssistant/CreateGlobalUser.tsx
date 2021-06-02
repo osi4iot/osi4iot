@@ -91,8 +91,13 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
                     firstName: Yup.string().max(127, "The maximum number of characters allowed is 127").required('Required'),
                     surname: Yup.string().max(127, "The maximum number of characters allowed is 127").required('Required'),
                     email: Yup.string().email("Enter a valid email").max(190, "The maximum number of characters allowed is 190").required('Required'),
-                    login: Yup.string().max(190, "The maximum number of characters allowed is 190"),
-                    telegramId: Yup.string().max(200, "The maximum number of characters allowed is 200")
+                    login: Yup.string()
+                        .matches(/^[a-zA-Z0-9._-]*$/g, "Only the following characters are allowed for username: a-zA-Z0-9._-")
+                        .max(190, "The maximum number of characters allowed is 190"),
+                    telegramId: Yup.string()
+                        .matches(/^[a-zA-Z0-9_]*$/g, "Only the following characters are allowed for TelegramId: a-zA-Z0-9_")
+                        .min(5, "The minimum number of characters allowed is 5")
+                        .max(32, "The maximum number of characters allowed is 32")
                 })
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied

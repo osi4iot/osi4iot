@@ -152,8 +152,8 @@ export const Create_GLOBAL_USERS_COLUMNS = (refreshGlobalUsers: () => void): Col
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0].row.id;
+                const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
                 return <DeleteGlobalUserModal globalUserId={globalUserId} rowIndex={parseInt(rowIndex)} refreshGlobalUsers={refreshGlobalUsers} />
             }
         }

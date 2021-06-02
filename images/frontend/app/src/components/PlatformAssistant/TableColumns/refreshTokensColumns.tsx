@@ -93,8 +93,8 @@ export const Create_REFRESH_TOKENS_COLUMNS = (refreshRefreshTokens: () => void):
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const refreshTokenId = props.rows[props.row.id as unknown as number]?.cells[0].value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0].row.id;
+                const refreshTokenId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
                 return <DeleteRefreshTokenModal refreshTokenId={refreshTokenId} rowIndex={parseInt(rowIndex)} refreshRefreshTokens={refreshRefreshTokens} />
             }
         }

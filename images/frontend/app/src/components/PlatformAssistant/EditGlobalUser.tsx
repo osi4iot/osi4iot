@@ -48,11 +48,13 @@ const platformAdminOptions = [
     }
 ];
 
+
 interface EditGlobalUserProps {
     globalUsers: IGlobalUser[];
     backToTable: () => void;
     refreshGlobalUsers: () => void;
 }
+
 
 const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, refreshGlobalUsers }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,9 +98,18 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
         firstName: Yup.string().max(127, "The maximum number of characters allowed is 127").required('Required'),
         surname: Yup.string().max(127, "The maximum number of characters allowed is 127").required('Required'),
         email: Yup.string().email("Enter a valid email").max(190, "The maximum number of characters allowed is 190").required('Required'),
-        login: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        password: Yup.string().max(190, "The maximum number of characters allowed is 190"),
-        telegramId: Yup.string().max(200, "The maximum number of characters allowed is 200").required('Required'),
+        login: Yup.string()
+            .matches(/^[a-zA-Z0-9._-]*$/g, "Only the following characters are allowed for username: a-zA-Z0-9._-")
+            .max(190, "The maximum number of characters allowed is 190")
+            .required('Required'),
+        password: Yup.string()
+            .matches(/^[a-zA-Z0-9.-_\\@\\#\\$\\%]*$/g, "Only the following characters are allowed for password: a-zA-Z0-9.-_@#$%")
+            .max(190, "The maximum number of characters allowed is 100"),
+        telegramId: Yup.string()
+            .matches(/^[a-zA-Z0-9_]*$/g, "Only the following characters are allowed for TelegramId: a-zA-Z0-9_")
+            .min(5, "The minimum number of characters allowed is 5")
+            .max(32, "The maximum number of characters allowed is 32")
+            .required('Required'),
         isGrafanaAdmin: Yup.boolean().required('Required'),
     });
 
@@ -151,14 +162,14 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
                                         label='Telegram Id'
                                         name='telegramId'
                                         type='text'
-                                    />                                    
+                                    />
                                     <FormikControl
                                         control='select'
                                         label='Platform admin'
                                         name="isGrafanaAdmin"
                                         options={platformAdminOptions}
                                         type='text'
-                                    />                                  
+                                    />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

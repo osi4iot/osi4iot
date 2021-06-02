@@ -198,7 +198,7 @@ class ApplicationController implements IController {
 			const userData: CreateUserDto = req.body;
 			const existUser = await getUserByProp(propName, propValue);
 			if (!existUser) throw new ItemNotFoundException("The user", propName, propValue);
-			if (userData.password) {
+			if (userData.password && userData.password !== "") {
 				await this.grafanaRepository.changeUserPassword(existUser.id, userData.password);
 			}
 			const newUserData = { ...existUser, ...userData };

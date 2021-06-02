@@ -1,19 +1,68 @@
-import React, { FC } from 'react'
+import React, { FC, useState } from 'react'
 import { IOrganization, Create_ORGANIZATIONS_COLUMNS } from './TableColumns/organizationsColumns';
 import TableWithPagination from './TableWithPagination';
 import CreateOrganization from './CreateOrganization';
 import EditOrganization from './EditOrganization';
 import { ORGS_OPTIONS } from './platformAssistantOptions';
 import { useOrgsDispatch, setOrgsOptionToShow, useOrgsOptionToShow } from '../../contexts/orgs';
+import { ISelectUser } from './TableColumns/selectUserColumns';
+
 
 interface OrgsContainerProps {
     organizations: IOrganization[];
+    selectUsers: ISelectUser[];
     refreshOrgs: () => void;
 }
 
-const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) => {
+export interface IOrgAdminData {
+    firstName: string;
+    surname: string;
+    email: string;
+    login: string;
+    password: string;
+}
+
+export interface IOrgInputData {
+    name: string;
+    acronym: string;
+    address: string;
+    city: string;
+    zipCode: string;
+    state: string;
+    country: string;
+    latitude: number;
+    longitude: number;
+    orgAdminArray: IOrgAdminData[];
+}
+
+
+const initialOrgData = {
+    name: "",
+    acronym: "",
+    address: "",
+    city: "",
+    zipCode: "",
+    state: "",
+    country: "",
+    longitude: 0,
+    latitude: 0,
+    telegramInvitationLink: "",
+    telegramChatId: "",
+    orgAdminArray: [
+        {
+            firstName: "",
+            surname: "",
+            email: "",
+            login: "",
+            password: ""
+        }
+    ]
+}
+
+const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, selectUsers, refreshOrgs }) => {
     const orgsDispatch = useOrgsDispatch();
     const orgsOptionToShow = useOrgsOptionToShow();
+    const [orgInputData, setOrgInputData] = useState<IOrgInputData>(initialOrgData)
 
     const showOrgsTableOption = () => {
         setOrgsOptionToShow(orgsDispatch, { orgsOptionToShow: ORGS_OPTIONS.TABLE });
@@ -21,7 +70,15 @@ const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) =
 
     return (
         <>
-            {orgsOptionToShow === ORGS_OPTIONS.CREATE_ORG && <CreateOrganization backToTable={showOrgsTableOption} refreshOrgs={refreshOrgs} />}
+            {orgsOptionToShow === ORGS_OPTIONS.CREATE_ORG &&
+                <CreateOrganization
+                    backToTable={showOrgsTableOption}
+                    refreshOrgs={refreshOrgs}
+                    selectUsers={selectUsers}
+                    orgInputData={orgInputData}
+                    setOrgInputData={(orgInputData: IOrgInputData) => setOrgInputData(orgInputData)}
+                />
+            }
             {orgsOptionToShow === ORGS_OPTIONS.EDIT_ORG &&
                 <EditOrganization
                     organizations={organizations}

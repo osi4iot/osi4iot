@@ -5,7 +5,6 @@ import { useFilePicker } from 'use-file-picker';
 import TextError from "./TextError";
 import { FaTrashAlt } from "react-icons/fa";
 
-
 const Container = styled.div`
     margin: 20px 0 0;
 `;
@@ -154,6 +153,38 @@ const AddButton = styled.button`
 	}
 `;
 
+interface AddDataFromFileButtonProps {
+    localFileLoaded: boolean;
+}
+
+const AddDataFromFileButton = styled.button<AddDataFromFileButtonProps>`
+	background-color: #3274d9;
+	padding: 10px 20px;
+	color: white;
+	border: 1px solid #2c3235;
+	border-radius: 10px;
+	outline: none;
+	cursor: pointer;
+	box-shadow: 0 5px #173b70;
+    font-size: 14px;
+
+	&:hover {
+		background-color: #2461c0;
+	}
+
+	&:active {
+        background-color:  ${props => props.localFileLoaded ? '#3c3d40' : '#2461c0'};
+        box-shadow:  ${props => props.localFileLoaded ? '0 2px #19191a' : '0 2px #173b70'};
+		transform: translateY(4px);
+
+        &:hover,
+        &:focus {
+            cursor:  ${props => props.localFileLoaded ? 'not-allowed' : 'pointer'};
+        }
+	}
+`;
+
+
 const RemoveButtonsContainer = styled.div`
     display: flex;
     flex-direction: row;
@@ -200,6 +231,12 @@ interface InitialValues {
     [key: string]: string;
 }
 
+const findOutSeperationSymbol = (text: string) => {
+    let separationSymbol = "\t";
+    if (text.indexOf(",") !== -1) separationSymbol = ",";
+    else if (text.indexOf(";") !== -1) separationSymbol = ";";
+    return separationSymbol;
+}
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
@@ -211,7 +248,7 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
     const initialValues: InitialValues = Object.fromEntries(keyValueArray);
     const [localFileContent, setLocalFileContent] = useState("");
     const [localFileLoaded, setLocalFileLoaded] = useState(false);
-    const [localFileLabel, setLocalFileLabel] = useState("Load local file");
+    const [localFileLabel, setLocalFileLabel] = useState("Select local file");
 
     const [openFileSelector, { filesContent, plainFiles, loading, clear }] = useFilePicker({
         readAs: 'Text',
@@ -225,7 +262,6 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
             setLocalFileLoaded(true)
             setLocalFileLabel(`Add ${addLabel}s from ${plainFiles[0].name} file`);
         }
-
     }, [loading, filesContent, plainFiles, addLabel])
 
 
@@ -252,13 +288,16 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
                                 remove(valuesArray.length - 1);
                             }
                             content.split('\r\n').forEach(register => {
-                                const dataArray = register.split(",");
-                                const keyValueArray = nameArray.map((el, index) => {
-                                    if (dataArray[index]) return [el, dataArray[index]];
-                                    else return [el, ""];
-                                });
-                                const dataValues: InitialValues = Object.fromEntries(keyValueArray);
-                                push(dataValues);
+                                if (register !== "") {
+                                    const separationSymbol = findOutSeperationSymbol(register);
+                                    const dataArray = register.split(separationSymbol);
+                                    const keyValueArray = nameArray.map((el, index) => {
+                                        if (dataArray[index]) return [el, dataArray[index]];
+                                        else return [el, ""];
+                                    });
+                                    const dataValues: InitialValues = Object.fromEntries(keyValueArray);
+                                    push(dataValues);
+                                }
                             })
                         };
 
@@ -292,7 +331,13 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
                                         {
                                             index === (valuesArray.length - 1) &&
                                             <AddButtonsContainer>
-                                                <AddButton type='button' onClick={() => localFileButtonHandler()}>{localFileLabel}</AddButton>
+                                                <AddDataFromFileButton
+                                                    type='button'
+                                                    localFileLoaded={localFileLoaded}
+                                                    onClick={() => localFileButtonHandler()}
+                                                >
+                                                    {localFileLabel}
+                                                </AddDataFromFileButton>
                                                 <AddButton type='button' onClick={() => push(initialValues)}>Add {addLabel}</AddButton>
                                             </AddButtonsContainer>
                                         }

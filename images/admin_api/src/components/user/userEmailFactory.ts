@@ -3,7 +3,7 @@ import CreateUserDto from "./interfaces/User.dto";
 import jwt from "jsonwebtoken";
 
 export const sendUserRegistrationInvitationEmail = async (usersArray: CreateUserDto[]): Promise<void> => {
-	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
+	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 	const subject = `Invitation to register in the ${platformName}`;
 
 	const userRegisterInvitationEmailQuery = [];

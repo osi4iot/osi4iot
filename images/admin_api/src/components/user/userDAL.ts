@@ -56,10 +56,10 @@ export const getUserdByEmailOrLogin = async (emailOrLogin: string): Promise<IUse
 export const createOrganizationUsers = async (orgId: number, usersData: CreateUserDto[]) => {
 	usersData.forEach(user => {
 		if (!user.name || user.name === "") user.name = `${user.firstName} ${user.surname}`
-		if (!user.telegramId) user.telegramId = user.name;
+		if (!user.telegramId || user.telegramId === "") user.telegramId = user.name;
 		if (!user.OrgId) user.OrgId = orgId;
-		if (!user.login) user.login = `${user.firstName.replace(/ /g, "_").toLocaleLowerCase()}.${user.surname.replace(/ /g, "_").toLocaleLowerCase()}`;
-		if (!user.password) user.password = passwordGenerator(10);
+		if (!user.login || user.login === "") user.login = `${user.firstName.replace(/ /g, ".").toLocaleLowerCase()}.${user.surname.replace(/ /g, ".").toLocaleLowerCase()}`;
+		if (!user.password || user.password === "") user.password = passwordGenerator(10);
 	});
 	const msg_users = await grafanaApi.createUsers(usersData);
 	const numCreatedUsers = msg_users.filter(msg => msg.message === "User created").length;

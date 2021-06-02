@@ -13,6 +13,8 @@ import { OrgsProvider } from '../../contexts/orgs';
 import OrgsContainer from './OrgsContainer';
 import { GlobalUsersProvider } from '../../contexts/globalUsers';
 import GlobalUsersContainer from './GlobalUsersContainer';
+import { ISelectUser } from './TableColumns/selectUserColumns';
+import { IGlobalUser } from './TableColumns/globalUsersColumns'
 // import mockOrganizations from "./mockOrganizations";
 
 const PlatformAdminOptionsContainer = styled.div`
@@ -100,6 +102,7 @@ const PlatformAdminOptions: FC<{}> = () => {
     const [reloadOrgs, setReloadOrgs] = useState(0);
     const [reloadGlobalUsers, setReloadGlobalUsers] = useState(0);
     const [reloadRefreshTokens, setReloadRefreshTokens] = useState(0);
+    const [selectUsers, setSelectUsers] = useState([]);
 
     const refreshOrgs = () => {
         setReloadOrgs(reloadOrgs + 1);
@@ -149,6 +152,16 @@ const PlatformAdminOptions: FC<{}> = () => {
                     return user;
                 })
                 setGlobalUsers(globalUsers);
+                const selectUsers = globalUsers.map((globalUser: IGlobalUser) => {
+                    const selectUser: ISelectUser = {
+                        userId: globalUser.id,
+                        firstName: globalUser.firstName,
+                        surname: globalUser.surname,
+                        email: globalUser.email
+                    }
+                    return selectUser;
+                })
+                setSelectUsers(selectUsers);
                 setGlobalUsersLoading(false);
             })
             .catch((error) => {
@@ -206,7 +219,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                         <>
                             {optionToShow === PLATFORM_ADMIN_OPTIONS.ORGS &&
                                 <OrgsProvider>
-                                    <OrgsContainer organizations={organizations} refreshOrgs={refreshOrgs} />
+                                    <OrgsContainer organizations={organizations} selectUsers={selectUsers} refreshOrgs={refreshOrgs} />
                                 </OrgsProvider>
                             }
                             {optionToShow === PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS &&
