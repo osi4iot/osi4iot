@@ -5,12 +5,10 @@ import CreateOrganization from './CreateOrganization';
 import EditOrganization from './EditOrganization';
 import { ORGS_OPTIONS } from './platformAssistantOptions';
 import { useOrgsDispatch, setOrgsOptionToShow, useOrgsOptionToShow } from '../../contexts/orgs';
-import { ISelectUser } from './TableColumns/selectUserColumns';
 
 
 interface OrgsContainerProps {
     organizations: IOrganization[];
-    selectUsers: ISelectUser[];
     refreshOrgs: () => void;
 }
 
@@ -59,13 +57,14 @@ const initialOrgData = {
     ]
 }
 
-const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, selectUsers, refreshOrgs }) => {
+const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) => {
     const orgsDispatch = useOrgsDispatch();
     const orgsOptionToShow = useOrgsOptionToShow();
     const [orgInputData, setOrgInputData] = useState<IOrgInputData>(initialOrgData)
 
     const showOrgsTableOption = () => {
         setOrgsOptionToShow(orgsDispatch, { orgsOptionToShow: ORGS_OPTIONS.TABLE });
+        setOrgInputData(initialOrgData);
     }
 
     return (
@@ -74,7 +73,6 @@ const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, selectUsers, ref
                 <CreateOrganization
                     backToTable={showOrgsTableOption}
                     refreshOrgs={refreshOrgs}
-                    selectUsers={selectUsers}
                     orgInputData={orgInputData}
                     setOrgInputData={(orgInputData: IOrgInputData) => setOrgInputData(orgInputData)}
                 />
@@ -91,6 +89,7 @@ const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, selectUsers, ref
                     dataTable={organizations}
                     columnsTable={Create_ORGANIZATIONS_COLUMNS(refreshOrgs)}
                     componentName="organization"
+                    reloadTable={refreshOrgs}
                     createComponent={() => setOrgsOptionToShow(orgsDispatch, { orgsOptionToShow: ORGS_OPTIONS.CREATE_ORG })}
                 />
             }

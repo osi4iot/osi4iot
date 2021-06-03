@@ -11,7 +11,7 @@ const DevicesDispatchContext = createContext<any>({});
 export function useDevicesDispatch() {
 	const context = React.useContext(DevicesDispatchContext);
 	if (context === undefined) {
-		throw new Error('usePlatformAssitantDispatch must be used within a AuthProvider');
+		throw new Error('useDevicesDispatch must be used within a AuthProvider');
 	}
 
 	return context;

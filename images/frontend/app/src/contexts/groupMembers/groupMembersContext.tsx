@@ -19,7 +19,7 @@ export function usePlatformAssitantState() {
 export function useGroupMembersDispatch() {
 	const context = React.useContext(GroupMembersDispatchContext);
 	if (context === undefined) {
-		throw new Error('usePlatformAssitantDispatch must be used within a GroupMembersProvider');
+		throw new Error('useGroupMembersDispatch must be used within a GroupMembersProvider');
 	}
 
 	return context;

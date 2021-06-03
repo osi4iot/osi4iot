@@ -9,6 +9,7 @@ import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
+import { IUserProfile } from "./UserProfile";
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -18,15 +19,6 @@ const FormContainer = styled.div`
     border-radius: 20px;
 `;
 
-interface IUserProfile {
-    userId: number;
-    name: string;
-    firstName: string;
-    surname: string;
-    login: string;
-    email: string;
-    telegramId: string;
-}
 
 interface EditUserProfileProps {
     userProfileToEdit: IUserProfile;

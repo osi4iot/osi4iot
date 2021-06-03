@@ -40,6 +40,7 @@ const GlobalUsersContainer: FC<GlobalUsersContainerProps> = ({ globalUsers, refr
                     dataTable={globalUsers}
                     columnsTable={Create_GLOBAL_USERS_COLUMNS(refreshGlobalUsers)}
                     componentName="global user"
+                    reloadTable={refreshGlobalUsers}
                     createComponent={() => setGlobalUsersOptionToShow(globalUsersDispatch, { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.CREATE_GLOBAL_USER })}
                 />
             }

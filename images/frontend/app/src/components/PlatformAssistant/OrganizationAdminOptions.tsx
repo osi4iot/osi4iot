@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { FC, SetStateAction, useEffect, useState } from 'react'
+import { FC, useEffect, useState } from 'react'
 import styled from "styled-components";
 import { useAuthState } from '../../contexts/authContext';
 import { axiosAuth, getDomainName } from '../../tools/tools';
@@ -13,6 +13,7 @@ import OrgUsersContainer from './OrgUsersContainer';
 import { GroupsProvider } from '../../contexts/groups';
 import GroupsContainer from './GroupsContainer';
 import { IOrgUser } from './TableColumns/orgUsersColumns';
+import { usePlatformAssitantDispatch, useOrgsManagedTable, useOrgUsersTable, useGroupsTable, setOrgsManagedTable, setOrgUsersTable, setGroupsTable } from '../../contexts/platformAssistantContext';
 
 const OrganizationAdminOptionsContainer = styled.div`
 	display: flex;
@@ -87,84 +88,101 @@ const domainName = getDomainName();
 
 const OrganizationAdminOptions: FC<{}> = () => {
     const { accessToken } = useAuthState();
-    const [orgsManaged, setOrgsManaged] = useState([]);
-    const [groups, setGroups] = useState([]);
-    const [orgUsers, setOrgUsers] = useState([]);
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
+    const orgsManagedTable = useOrgsManagedTable();
+    const orgUsersTable = useOrgUsersTable();
+    const groupsTable = useGroupsTable();
     const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
     const [orgUsersLoading, setOrgUsersLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(ORG_ADMIN_OPTIONS.ORGS_MANAGED);
-    const [reloadOrgUsers, setReloadOrgUsers] = useState(0);
-    const [reloadGroups, setReloadGroups] = useState(0);
 
-    // const [reloadOrgsManaged, setReloadOrgsManaged] = useState(0);
-    // const refreshOrgsManaged = () => {
-    //     setReloadOrgsManaged(reloadOrgsManaged + 1);
-    //     setOrgsManagedLoading(true);
-    // }
+    const [reloadOrgsManaged, setReloadOrgsManaged] = useState(false);
+    const [reloadOrgUsers, setReloadOrgUsers] = useState(false);
+    const [reloadGroups, setReloadGroups] = useState(false);
+
+    const refreshOrgsManaged = () => {
+        setReloadOrgsManaged(true);
+        setOrgsManagedLoading(true);
+        setTimeout(() => setReloadOrgsManaged(false), 500);
+    }
 
     const refreshOrgUsers = () => {
-        setReloadOrgUsers(reloadOrgUsers + 1);
+        setReloadOrgUsers(true);
         setOrgUsersLoading(true);
+        setTimeout(() => setReloadOrgUsers(false), 500);
     }
 
     const refreshGroups = () => {
-        setReloadGroups(reloadGroups + 1);
+        setReloadGroups(true);
         setGroupsLoading(true);
+        setTimeout(() => setReloadGroups(false), 500);
     }
 
     useEffect(() => {
-        const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
-        const config = axiosAuth(accessToken);
-        axios
-            .get(urlOrgsManaged, config)
-            .then((response) => {
-                const orgsManaged = response.data;
-                setOrgsManaged(orgsManaged);
-                setOrgsManagedLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-    }, [accessToken]);
+        if (orgsManagedTable.length === 0 || reloadOrgsManaged) {
+            const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
+            const config = axiosAuth(accessToken);
+            axios
+                .get(urlOrgsManaged, config)
+                .then((response) => {
+                    const orgsManaged = response.data;
+                    setOrgsManagedTable(plaformAssistantDispatch, { orgsManaged });
+                    setOrgsManagedLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setOrgsManagedLoading(false);
+        }
+    }, [accessToken, plaformAssistantDispatch, reloadOrgsManaged, orgsManagedTable.length]);
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlOrganizationUsers = `https://${domainName}/admin_api/organization_users/user_managed/`;
-        axios
-            .get(urlOrganizationUsers, config)
-            .then((response) => {
-                const users: IOrgUser[] = response.data;
-                users.map(user => {
-                    user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
-                    return user;
+        if (orgUsersTable.length === 0 || reloadOrgUsers) {
+            const config = axiosAuth(accessToken);
+            const urlOrganizationUsers = `https://${domainName}/admin_api/organization_users/user_managed/`;
+            axios
+                .get(urlOrganizationUsers, config)
+                .then((response) => {
+                    const orgUsers = response.data;
+                    orgUsers.map((user: IOrgUser) => {
+                        user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
+                        return user;
+                    })
+                    setOrgUsersTable(plaformAssistantDispatch, { orgUsers });
+                    setOrgUsersLoading(false);
                 })
-                setOrgUsers(users as unknown as SetStateAction<never[]>);
-                setOrgUsersLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-    }, [accessToken, reloadOrgUsers]);
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setOrgUsersLoading(false);
+        }
+    }, [accessToken, plaformAssistantDispatch, reloadOrgUsers, orgUsersTable.length]);
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlGroups = `https://${domainName}/admin_api/groups/user_managed`;
-        axios
-            .get(urlGroups, config)
-            .then((response) => {
-                const groups = response.data;
-                groups.map((group: { isOrgDefaultGroup: string; }) => {
-                    group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Yes" : "No";
-                    return group;
+        if (groupsTable.length === 0 || reloadGroups) {
+            const config = axiosAuth(accessToken);
+            const urlGroups = `https://${domainName}/admin_api/groups/user_managed`;
+            axios
+                .get(urlGroups, config)
+                .then((response) => {
+                    const groups = response.data;
+                    groups.map((group: { isOrgDefaultGroup: string; }) => {
+                        group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Yes" : "No";
+                        return group;
+                    })
+                    setGroupsTable(plaformAssistantDispatch, { groups });
+                    setGroupsLoading(false);
                 })
-                setGroups(groups);
-                setGroupsLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-    }, [accessToken, reloadGroups]);
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setGroupsLoading(false);
+        }
+    }, [accessToken, plaformAssistantDispatch, reloadGroups, groupsTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
@@ -190,19 +208,20 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     <>
                         {optionToShow === ORG_ADMIN_OPTIONS.ORGS_MANAGED &&
                             <TableWithPagination
-                                dataTable={orgsManaged}
+                                dataTable={orgsManagedTable}
                                 columnsTable={ORGS_MANAGED_COLUMNS}
+                                reloadTable={refreshOrgsManaged}
                                 componentName=""
                             />
                         }
                         {optionToShow === ORG_ADMIN_OPTIONS.ORG_USERS &&
                             <OrgUsersProvider>
-                                <OrgUsersContainer orgUsers={orgUsers} refreshOrgUsers={refreshOrgUsers} />
+                                <OrgUsersContainer orgUsers={orgUsersTable} refreshOrgUsers={refreshOrgUsers} />
                             </OrgUsersProvider>
                         }
                         {optionToShow === ORG_ADMIN_OPTIONS.GROUPS &&
                             <GroupsProvider>
-                                <GroupsContainer groups={groups} refreshGroups={refreshGroups} />
+                                <GroupsContainer groups={groupsTable} refreshGroups={refreshGroups} />
                             </GroupsProvider>
                         }
                     </>

@@ -24,6 +24,7 @@ const OrgUsersContainer: FC<OrgUsersContainerProps> = ({ orgUsers, refreshOrgUse
                     dataTable={orgUsers}
                     columnsTable={Create_ORG_USERS_COLUMNS(refreshOrgUsers)}
                     componentName="org user"
+                    reloadTable={refreshOrgUsers}
                     createComponent={() => setOrgUsersOptionToShow(orgUsersDispatch, { orgUsersOptionToShow: ORG_USERS_OPTIONS.CREATE_ORG_USER })}
                 />
             }

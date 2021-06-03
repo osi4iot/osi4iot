@@ -9,6 +9,15 @@ import { MEMBERSHIP_IN_ORGS } from './TableColumns/membershipInOrgs';
 import { MEMBERSHIP_IN_GROUPS } from './TableColumns/membershipInGroups';
 import { USER_OPTIONS } from './platformAssistantOptions';
 import UserProfile from './UserProfile';
+import {
+    usePlatformAssitantDispatch,
+    setUserProfileTable,
+    setOrgsMembershipTable,
+    setGroupsMembershipTable,
+    useUserProfileTable,
+    useOrgsMembershipTable,
+    useGroupsMembershipTable,
+} from '../../contexts/platformAssistantContext';
 
 
 const UserOptionsContainer = styled.div`
@@ -80,81 +89,103 @@ const ContentContainer = styled.div`
     }
 `;
 
-const initialUserProfile = {
-    userId: 0,
-    name: "",
-    firstName: "",
-    surname: "",
-    login: "",
-    email: "",
-    telegramId: "",
-}
-
 const domainName = getDomainName();
 
 const UserOptions: FC<{}> = () => {
     const { accessToken } = useAuthState();
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [optionToShow, setOptionToShow] = useState(USER_OPTIONS.USER_PROFILE);
-    const [userProfile, setUserProfile] = useState(initialUserProfile);
+
+    const userProfileTable = useUserProfileTable();
+    const orgsMembershipTable = useOrgsMembershipTable();
+    const groupsMembershipTable = useGroupsMembershipTable();
+
     const [userProfileLoading, setUserProfileLoading] = useState(true);
-    const [orgsMembership, setOrgsMembership] = useState([]);
     const [loadingOrgsMembership, setLoadingOrgsMembership] = useState(true);
-    const [groupsMembership, setGroupsMembership] = useState([]);
     const [loadingGroupsMembership, setLoadinGroupsMembership] = useState(true);
-    const [reloadUserProfile, setReloadUserProfile] = useState(0);
+
+    const [reloadUserProfile, setReloadUserProfile] = useState(false);
+    const [reloadOrgsMembership, setReloadOrgsMembership] = useState(false);
+    const [reloadGroupsMembership, setReloadGroupsMembership] = useState(false);
 
     const refreshUserProfile = () => {
-        setReloadUserProfile(reloadUserProfile + 1);
+        setReloadUserProfile(true);
         setUserProfileLoading(true);
+        setTimeout(() => setReloadUserProfile(false), 500);
+    }
+
+    const refreshOrgsMembership = () => {
+        setReloadOrgsMembership(true);
+        setLoadingOrgsMembership(true);
+        setTimeout(() => setReloadOrgsMembership(false), 500);
+    }
+
+    const refreshGroupsMembership = () => {
+        setReloadGroupsMembership(true);
+        setLoadinGroupsMembership(true);
+        setTimeout(() => setReloadGroupsMembership(false), 500);
     }
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlUserProfile = `https://${domainName}/admin_api/auth/user_profile`;
-        axios
-            .get(urlUserProfile, config)
-            .then((response) => {
-                const userData = response.data;
-                setUserProfile(userData);
-                setUserProfileLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
+        if (userProfileTable.userId === 0 || reloadUserProfile) {
+            const config = axiosAuth(accessToken);
+            const urlUserProfile = `https://${domainName}/admin_api/auth/user_profile`;
+            axios
+                .get(urlUserProfile, config)
+                .then((response) => {
+                    const userProfile = response.data;
+                    setUserProfileTable(plaformAssistantDispatch, { userProfile });
+                    setUserProfileLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setUserProfileLoading(false);
+        }
 
-    }, [accessToken, reloadUserProfile]);
+    }, [accessToken, plaformAssistantDispatch, reloadUserProfile, userProfileTable.userId]);
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlMembershipInOrgs = `https://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
-        axios
-            .get(urlMembershipInOrgs, config)
-            .then((response) => {
-                const orgsMembership = response.data;
-                setOrgsMembership(orgsMembership);
-                setLoadingOrgsMembership(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
+        if (orgsMembershipTable.length === 0 || reloadOrgsMembership) {
+            
+            const config = axiosAuth(accessToken);
+            const urlMembershipInOrgs = `https://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
+            axios
+                .get(urlMembershipInOrgs, config)
+                .then((response) => {
+                    const orgsMembership = response.data;
+                    setOrgsMembershipTable(plaformAssistantDispatch, { orgsMembership });
+                    setLoadingOrgsMembership(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setLoadingOrgsMembership(false);
+        }
 
-    }, [accessToken]);
-    
+    }, [accessToken, plaformAssistantDispatch, reloadOrgsMembership, orgsMembershipTable.length]);
+
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlMembershipInGroups = `https://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
-        axios
-            .get(urlMembershipInGroups, config)
-            .then((response) => {
-                const groupsMembership = response.data;
-                setGroupsMembership(groupsMembership);
-                setLoadinGroupsMembership(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
+        if (groupsMembershipTable.length === 0 || reloadGroupsMembership) {
+            const config = axiosAuth(accessToken);
+            const urlMembershipInGroups = `https://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
+            axios
+                .get(urlMembershipInGroups, config)
+                .then((response) => {
+                    const groupsMembership = response.data;
+                    setGroupsMembershipTable(plaformAssistantDispatch, { groupsMembership });
+                    setLoadinGroupsMembership(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setLoadinGroupsMembership(false);
+        }
 
-    }, [accessToken]);
+    }, [accessToken, plaformAssistantDispatch, reloadGroupsMembership, groupsMembershipTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
@@ -189,22 +220,24 @@ const UserOptions: FC<{}> = () => {
                     <>
                         {
                             optionToShow === USER_OPTIONS.USER_PROFILE &&
-                            <UserProfile userProfile={userProfile} refreshUserProfile={refreshUserProfile}/>
+                            <UserProfile userProfile={userProfileTable} refreshUserProfile={refreshUserProfile} />
                         }
                         {
                             optionToShow === USER_OPTIONS.MEMBERSHIP_IN_ORGS
                             &&
                             <TableWithPagination
-                                dataTable={orgsMembership}
+                                dataTable={orgsMembershipTable}
                                 columnsTable={MEMBERSHIP_IN_ORGS}
+                                reloadTable={refreshOrgsMembership}
                                 componentName=""
                             />}
                         {
                             optionToShow === USER_OPTIONS.MEMBERSHIP_IN_GROUPS
                             &&
                             <TableWithPagination
-                                dataTable={groupsMembership}
+                                dataTable={groupsMembershipTable}
                                 columnsTable={MEMBERSHIP_IN_GROUPS}
+                                reloadTable={refreshGroupsMembership}
                                 componentName=""
                             />}
                     </>

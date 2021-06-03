@@ -25,6 +25,9 @@ export interface IGroup {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
+}
+
+interface IGroupColumn extends IGroup {
     edit: string;
     delete: string;
 }
@@ -102,7 +105,7 @@ const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId }) => {
     )
 }
 
-export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroup>[] => {
+export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupColumn>[] => {
     return [
         {
             Header: "OrgId",

@@ -20,6 +20,10 @@ export interface IGlobalUser {
     telegramId: string;
     roleInPlatform: string;
     lastSeenAtAge: string;
+
+}
+
+interface IGlobalUserColumn extends IGlobalUser{
     edit: string;
     delete: string;
 }
@@ -97,7 +101,7 @@ const EditGlobalUsers: FC<EditGlobalUsersProps> = ({ rowIndex, globalUserId }) =
 }
 
 
-export const Create_GLOBAL_USERS_COLUMNS = (refreshGlobalUsers: () => void): Column<IGlobalUser>[] => {
+export const Create_GLOBAL_USERS_COLUMNS = (refreshGlobalUsers: () => void): Column<IGlobalUserColumn>[] => {
     return [
         {
             Header: "Id",

@@ -30,6 +30,7 @@ const GroupsContainer: FC<GroupsContainerProps> = ({ groups, refreshGroups }) =>
                     dataTable={groups}
                     columnsTable={Create_GROUPS_COLUMNS(refreshGroups)}
                     componentName="group"
+                    reloadTable={refreshGroups}
                     createComponent={() => setGroupsOptionToShow(groupsDispatch, { groupsOptionToShow: GROUPS_OPTIONS.CREATE_GROUP })}
                 />
             }

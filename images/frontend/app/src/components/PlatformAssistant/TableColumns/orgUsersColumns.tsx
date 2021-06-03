@@ -30,6 +30,11 @@ export interface IOrgUser {
     delete: string;
 }
 
+interface IOrgUserColumn extends IOrgUser {
+    edit: string;
+    delete: string;
+}
+
 interface DeleteOrgUserModalProps {
     rowIndex: number;
     orgId: number;
@@ -107,7 +112,7 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ rowIndex, orgId, userId }) => {
     )
 }
 
-export const Create_ORG_USERS_COLUMNS = (refreshOrgUsers: () => void): Column<IOrgUser>[] => {
+export const Create_ORG_USERS_COLUMNS = (refreshOrgUsers: () => void): Column<IOrgUserColumn>[] => {
     return [
         {
             Header: "OrgId",

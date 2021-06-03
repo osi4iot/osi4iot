@@ -25,6 +25,9 @@ export interface IGroupMember {
     email: string;
     telegramId: string;
     roleInGroup: string;
+}
+
+interface IGroupMemberColumn extends IGroupMember {
     edit: string;
     delete: string;
 }
@@ -105,7 +108,7 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ rowIndex, groupId, userId }
     )
 }
 
-export const Create_GROUP_MEMBERS_COLUMNS = (refreshGroupMembers: () => void): Column<IGroupMember>[] => {
+export const Create_GROUP_MEMBERS_COLUMNS = (refreshGroupMembers: () => void): Column<IGroupMemberColumn>[] => {
     return [
         {
             Header: "GroupId",

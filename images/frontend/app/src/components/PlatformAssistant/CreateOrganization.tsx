@@ -68,13 +68,11 @@ const domainName = getDomainName();
 interface CreateOrganizationProps {
     backToTable: () => void;
     refreshOrgs: () => void;
-    selectUsers: ISelectUser[];
     orgInputData: IOrgInputData;
     setOrgInputData: (orgInputData: IOrgInputData) => void;
 }
 
-
-const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs, selectUsers, orgInputData, setOrgInputData }) => {
+const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs,  orgInputData, setOrgInputData }) => {
     const [showCreateOrg, setShowCreateOrg] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectUser[]>([]);
@@ -92,7 +90,13 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
             };
             return orgAdminData;
         });
-        initialOrgData.orgAdminArray = [...initialOrgData.orgAdminArray, ...newOrgAdmins];
+        const lastOrgAdmin = initialOrgData.orgAdminArray[initialOrgData.orgAdminArray.length - 1];
+        if (Object.values(lastOrgAdmin).filter(value => value !== "").length === 0) {
+            initialOrgData.orgAdminArray = [...initialOrgData.orgAdminArray.slice(0,-1), ...newOrgAdmins];
+        } else {
+            initialOrgData.orgAdminArray = [...initialOrgData.orgAdminArray, ...newOrgAdmins];
+        }
+        
     }
 
     const validationSchema = Yup.object().shape({
@@ -255,7 +259,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 :
                 <SelectUsers
                     backToCreate={() => setShowCreateOrg(true)}
-                    selectUsers={selectUsers}
                     setSelectedUsersArray={(selectedUsers: ISelectUser[]) => setSelectedUsersArray(selectedUsers)}
                 />
             }

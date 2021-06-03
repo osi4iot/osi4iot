@@ -67,7 +67,7 @@ const ButtonsContainer = styled.div`
     background-color: #202226;
 `;
 
-interface IUserProfile {
+export interface IUserProfile {
     userId: number;
     name: string;
     firstName: string;

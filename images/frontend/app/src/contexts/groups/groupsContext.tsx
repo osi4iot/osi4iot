@@ -11,7 +11,7 @@ const GroupsDispatchContext = createContext<any>({});
 export function useGroupsDispatch() {
 	const context = React.useContext(GroupsDispatchContext);
 	if (context === undefined) {
-		throw new Error('usePlatformAssitantDispatch must be used within a GroupsProvider');
+		throw new Error('useGroupsDispatch must be used within a GroupsProvider');
 	}
 
 	return context;

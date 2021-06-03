@@ -11,6 +11,15 @@ import DevicesContainer from './DevicesContainer';
 import GroupMembersContainer from './GroupMembersContainer';
 import { GroupMembersProvider } from '../../contexts/groupMembers';
 import { DevicesProvider } from '../../contexts/devices';
+import {
+    usePlatformAssitantDispatch,
+    useGroupsManagedTable,
+    useDevicesTable,
+    useGroupMembersTable,
+    setGroupsManagedTable,
+    setGroupMembersTable,
+    setDevicesTable,
+} from '../../contexts/platformAssistantContext';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -85,79 +94,100 @@ const domainName = getDomainName();
 
 const GroupAdminOptions: FC<{}> = () => {
     const { accessToken } = useAuthState();
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [optionToShow, setOptionToShow] = useState(GROUP_ADMIN_OPTIONS.GROUPS_MANAGED);
-    const [groupsManaged, setGroupsManaged] = useState([]);
-    const [devices, setDevices] = useState([]);
-    const [groupMembers, setGroupMembers] = useState([]);
+    const groupsManagedTable = useGroupsManagedTable();
+    const devicesTable = useDevicesTable();
+    const groupMembersTable = useGroupMembersTable();
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
     const [deviceLoading, setDevicesLoading] = useState(true);
     const [groupMembersLoading, setGroupMembersLoading] = useState(true);
+    const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
+    const [reloadGroupMembers, setReloadGroupMembers] = useState(false);
+    const [reloadDevices, setReloadDevices] = useState(false);
 
-    const [reloadDevices, setReloadDevices] = useState(0);
-    const [reloadGroupMembers, setReloadGroupMembers] = useState(0);
+    const refreshGroupsManaged = () => {
+        setReloadGroupsManaged(true);
+        setGroupsManagedLoading(true);
+        setTimeout(() => setReloadGroupsManaged(false), 500);
+    }
 
     const refreshDevices = () => {
-        setReloadDevices(reloadDevices + 1);
+        setReloadDevices(true);
         setDevicesLoading(true);
+        setTimeout(() => setReloadDevices(false), 500);
     }
 
     const refreshGroupMembers = () => {
-        setReloadGroupMembers(reloadGroupMembers + 1);
+        setReloadGroupMembers(true);
         setGroupMembersLoading(true);
+        setTimeout(() => setReloadGroupMembers(false), 500);
     }
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlGroupsManaged = `https://${domainName}/admin_api/groups/user_managed`;
-        axios
-            .get(urlGroupsManaged, config)
-            .then((response) => {
-                const groupsManaged = response.data;
-                groupsManaged.map((group: { isOrgDefaultGroup: string; }) => {
-                    group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
-                    return group;
+        if (groupsManagedTable.length === 0 || reloadGroupsManaged) {
+            const config = axiosAuth(accessToken);
+            const urlGroupsManaged = `https://${domainName}/admin_api/groups/user_managed`;
+            axios
+                .get(urlGroupsManaged, config)
+                .then((response) => {
+                    const groupsManaged = response.data;
+                    groupsManaged.map((group: { isOrgDefaultGroup: string; }) => {
+                        group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
+                        return group;
+                    })
+                    setGroupsManagedTable(plaformAssistantDispatch, { groupsManaged });
+                    setGroupsManagedLoading(false);
                 })
-                setGroupsManaged(groupsManaged);
-                setGroupsManagedLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-    }, [accessToken]);
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setGroupsManagedLoading(false);
+        }
+    }, [accessToken, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
-        axios
-            .get(urlDevices, config)
-            .then((response) => {
-                const devices = response.data;
-                devices.map((device: { isDefaultGroupDevice: string; }) => {
-                    device.isDefaultGroupDevice = device.isDefaultGroupDevice ? "Default" : "Generic";
-                    return device;
+        if (devicesTable.length === 0 || reloadDevices) {
+            const config = axiosAuth(accessToken);
+            const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
+            axios
+                .get(urlDevices, config)
+                .then((response) => {
+                    const devices = response.data;
+                    devices.map((device: { isDefaultGroupDevice: string; }) => {
+                        device.isDefaultGroupDevice = device.isDefaultGroupDevice ? "Default" : "Generic";
+                        return device;
+                    })
+                    setDevicesTable(plaformAssistantDispatch, { devices });
+                    setDevicesLoading(false);
                 })
-                setDevices(devices);
-                setDevicesLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-    }, [accessToken, reloadDevices]);
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setDevicesLoading(false);
+        }
+    }, [accessToken, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlGroupMembers = `https://${domainName}/admin_api/group_members/user_managed`;
-        axios
-            .get(urlGroupMembers, config)
-            .then((response) => {
-                const groupMembers = response.data;
-                setGroupMembers(groupMembers);
-                setGroupMembersLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-    }, [accessToken, reloadGroupMembers]);
+        if (groupMembersTable.length === 0 || reloadGroupMembers) {
+            const config = axiosAuth(accessToken);
+            const urlGroupMembers = `https://${domainName}/admin_api/group_members/user_managed`;
+            axios
+                .get(urlGroupMembers, config)
+                .then((response) => {
+                    const groupMembers = response.data;
+                    setGroupMembersTable(plaformAssistantDispatch, { groupMembers });
+                    setGroupMembersLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setGroupMembersLoading(false);
+        }
+    }, [accessToken, plaformAssistantDispatch, reloadGroupMembers, groupMembersTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
@@ -169,11 +199,11 @@ const GroupAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.GROUPS_MANAGED)}>
                     Groups managed
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DEVICES} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DEVICES)}>
-                    Devices
-                </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.GROUP_MEMBERS)}>
                     Group members
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DEVICES} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DEVICES)}>
+                    Devices
                 </OptionContainer>
             </GroupAdminOptionsContainer>
             <ContentContainer >
@@ -185,19 +215,20 @@ const GroupAdminOptions: FC<{}> = () => {
                             optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED
                             &&
                             <TableWithPagination
-                                dataTable={groupsManaged}
+                                dataTable={groupsManagedTable}
                                 columnsTable={GROUPS_MANAGED_COLUMNS}
+                                reloadTable={refreshGroupsManaged}
                                 componentName=""
                             />
                         }
                         {optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS &&
                             <GroupMembersProvider>
-                                <GroupMembersContainer groupMembers={groupMembers} refreshGroupMembers={refreshGroupMembers} />
+                                <GroupMembersContainer groupMembers={groupMembersTable} refreshGroupMembers={refreshGroupMembers} />
                             </GroupMembersProvider>
                         }
                         {optionToShow === GROUP_ADMIN_OPTIONS.DEVICES &&
                             <DevicesProvider>
-                                <DevicesContainer devices={devices} refreshDevices={refreshDevices} />
+                                <DevicesContainer devices={devicesTable} refreshDevices={refreshDevices} />
                             </DevicesProvider>
                         }
                     </>

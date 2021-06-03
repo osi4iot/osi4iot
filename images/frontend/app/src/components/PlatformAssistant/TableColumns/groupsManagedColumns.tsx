@@ -12,11 +12,15 @@ export interface IGroupsManaged {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
+
+}
+
+interface IGroupsManagedColumn extends IGroupsManaged {
     sslCerts: string;
     changeGroupHash: string;
 }
 
-export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManaged>[] = [
+export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManagedColumn>[] = [
     {
         Header: "OrgId",
         accessor: "orgId",

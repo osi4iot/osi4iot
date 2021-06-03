@@ -21,13 +21,14 @@ const DevicesContainer: FC<DevicesContainerProps> = ({ devices, refreshDevices }
 
     return (
         <>
-            {devicesOptionToShow ===  DEVICES_OPTIONS.CREATE_DEVICE && <CreateDevice backToTable={showDevicesTableOption} refreshDevices={refreshDevices} />}
+            {devicesOptionToShow === DEVICES_OPTIONS.CREATE_DEVICE && <CreateDevice backToTable={showDevicesTableOption} refreshDevices={refreshDevices} />}
             {devicesOptionToShow === DEVICES_OPTIONS.EDIT_DEVICE && <EditDevice devices={devices} backToTable={showDevicesTableOption} refreshDevices={refreshDevices} />}
             {devicesOptionToShow === DEVICES_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={devices}
                     columnsTable={Create_DEVICES_COLUMNS(refreshDevices)}
                     componentName="devices"
+                    reloadTable={refreshDevices}
                     createComponent={() => setDevicesOptionToShow(devicesDispatch, { devicesOptionToShow: DEVICES_OPTIONS.CREATE_DEVICE })}
                 />
             }

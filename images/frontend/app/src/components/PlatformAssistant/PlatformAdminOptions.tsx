@@ -1,4 +1,4 @@
-import React, { FC, SetStateAction, useEffect, useState } from 'react'
+import React, { FC, useEffect, useState } from 'react'
 import styled from "styled-components";
 import { axiosAuth, getDomainName } from '../../tools/tools';
 import axios from 'axios';
@@ -15,6 +15,17 @@ import { GlobalUsersProvider } from '../../contexts/globalUsers';
 import GlobalUsersContainer from './GlobalUsersContainer';
 import { ISelectUser } from './TableColumns/selectUserColumns';
 import { IGlobalUser } from './TableColumns/globalUsersColumns'
+import {
+    usePlatformAssitantDispatch,
+    useGlobalUsersTable,
+    useOrganizationsTable,
+    useRefreshTokensTable,
+    setSelectUsersTable,
+    setOrganizationsTable,
+    setGlobalUsersTable,
+    setRefreshTokensTable,
+
+} from '../../contexts/platformAssistantContext';
 // import mockOrganizations from "./mockOrganizations";
 
 const PlatformAdminOptionsContainer = styled.div`
@@ -92,104 +103,117 @@ const domainName = getDomainName();
 
 const PlatformAdminOptions: FC<{}> = () => {
     const { accessToken } = useAuthState();
-    const [organizations, setOrganizations] = useState([]);
-    const [globalUsers, setGlobalUsers] = useState([]);
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
+    const organizationsTable = useOrganizationsTable();
+    const globalUsersTable = useGlobalUsersTable();
+    const refreshTokensTable = useRefreshTokensTable();
     const [orgsLoading, setOrgsLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
-    const [refreshTokens, setRefreshTokens] = useState([]);
     const [refreshTokensLoading, setRefreshTokensLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ADMIN_OPTIONS.ORGS);
-    const [reloadOrgs, setReloadOrgs] = useState(0);
-    const [reloadGlobalUsers, setReloadGlobalUsers] = useState(0);
-    const [reloadRefreshTokens, setReloadRefreshTokens] = useState(0);
-    const [selectUsers, setSelectUsers] = useState([]);
+    const [reloadOrgs, setReloadOrgs] = useState(false);
+    const [reloadGlobalUsers, setReloadGlobalUsers] = useState(false);
+    const [reloadRefreshTokens, setReloadRefreshTokens] = useState(false);
 
     const refreshOrgs = () => {
-        setReloadOrgs(reloadOrgs + 1);
+        setReloadOrgs(true);
         setOrgsLoading(true);
+        setTimeout(() => setReloadOrgs(false), 500);
     }
 
     const refreshGlobalUsers = () => {
-        setReloadGlobalUsers(reloadGlobalUsers + 1);
+        setReloadGlobalUsers(true);
         setGlobalUsersLoading(true);
+        setTimeout(() => setReloadGlobalUsers(false), 500);
     }
 
     const refreshRefreshTokens = () => {
-        setReloadRefreshTokens(reloadRefreshTokens + 1);
+        setReloadRefreshTokens(true);
         setRefreshTokensLoading(true);
+        setTimeout(() => setReloadRefreshTokens(false), 500);
     }
 
     useEffect(() => {
-        const urlOrganizations = `https://${domainName}/admin_api/organizations`;
-        const config = axiosAuth(accessToken);
-        axios
-            .get(urlOrganizations, config)
-            .then((response) => {
-                const organizations = response.data;
-                setOrganizations(organizations);
-                setOrgsLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-
-        // const organizations = JSON.parse(mockOrganizations);
-        // setOrganizations(organizations);
-        // setOrgsLoading(false);
-
-    }, [accessToken, reloadOrgs]);
+        if (organizationsTable.length === 0 || reloadOrgs) {
+            const urlOrganizations = `https://${domainName}/admin_api/organizations`;
+            const config = axiosAuth(accessToken);
+            axios
+                .get(urlOrganizations, config)
+                .then((response) => {
+                    const organizations = response.data;
+                    setOrganizationsTable(plaformAssistantDispatch, { organizations });
+                    setOrgsLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+    
+            // const organizations = JSON.parse(mockOrganizations);
+            // setOrganizations(organizations);
+            // setOrgsLoading(false);
+        } else {
+            setOrgsLoading(false);
+        }
+    }, [accessToken, reloadOrgs, plaformAssistantDispatch, organizationsTable.length]);
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
-        axios
-            .get(urlGlobalUsers, config)
-            .then((response) => {
-                const globalUsers = response.data;
-                globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
-                    user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
-                    user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
-                    return user;
+        if (globalUsersTable.length === 0 || reloadGlobalUsers) {
+            const config = axiosAuth(accessToken);
+            const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
+            axios
+                .get(urlGlobalUsers, config)
+                .then((response) => {
+                    const globalUsers = response.data;
+                    globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
+                        user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
+                        user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
+                        return user;
+                    })
+                    setGlobalUsersTable(plaformAssistantDispatch, { globalUsers });
+                    const selectUsers = globalUsers.map((globalUser: IGlobalUser) => {
+                        const selectUser: ISelectUser = {
+                            userId: globalUser.id,
+                            firstName: globalUser.firstName,
+                            surname: globalUser.surname,
+                            email: globalUser.email
+                        }
+                        return selectUser;
+                    })
+                    setSelectUsersTable(plaformAssistantDispatch, { selectUsers });
+                    setGlobalUsersLoading(false);
                 })
-                setGlobalUsers(globalUsers);
-                const selectUsers = globalUsers.map((globalUser: IGlobalUser) => {
-                    const selectUser: ISelectUser = {
-                        userId: globalUser.id,
-                        firstName: globalUser.firstName,
-                        surname: globalUser.surname,
-                        email: globalUser.email
-                    }
-                    return selectUser;
-                })
-                setSelectUsers(selectUsers);
-                setGlobalUsersLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setGlobalUsersLoading(false);
+        }
 
-    }, [accessToken, reloadGlobalUsers]);
+    }, [accessToken, reloadGlobalUsers, plaformAssistantDispatch, globalUsersTable.length]);
 
     useEffect(() => {
-        const config = axiosAuth(accessToken);
-        const urlRefreshTokens = `https://${domainName}/admin_api/auth/refresh_tokens`;
-        axios
-            .get(urlRefreshTokens, config)
-            .then((response) => {
-                const refreshTokens: IRefreshToken[] = response.data;
-                refreshTokens.map(token => {
-                    token.createdAtAge = elaspsedTimeFormat(token.createdAtAge);
-                    token.updatedAtAge = elaspsedTimeFormat(token.updatedAtAge);
-                    return token;
+        if (refreshTokensTable.length === 0 || reloadRefreshTokens) {
+            const config = axiosAuth(accessToken);
+            const urlRefreshTokens = `https://${domainName}/admin_api/auth/refresh_tokens`;
+            axios
+                .get(urlRefreshTokens, config)
+                .then((response) => {
+                    const refreshTokens = response.data;
+                    refreshTokens.map((token: IRefreshToken) => {
+                        token.createdAtAge = elaspsedTimeFormat(token.createdAtAge);
+                        token.updatedAtAge = elaspsedTimeFormat(token.updatedAtAge);
+                        return token;
+                    })
+                    setRefreshTokensTable(plaformAssistantDispatch, { refreshTokens });
+                    setRefreshTokensLoading(false);
                 })
-                setRefreshTokens(refreshTokens as unknown as SetStateAction<never[]>);
-                setRefreshTokensLoading(false);
-            })
-            .catch((error) => {
-                console.log(error);
-            });
-
-    }, [accessToken, reloadRefreshTokens]);
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setRefreshTokensLoading(false);
+        }
+    }, [accessToken, reloadRefreshTokens, plaformAssistantDispatch, refreshTokensTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
@@ -219,19 +243,20 @@ const PlatformAdminOptions: FC<{}> = () => {
                         <>
                             {optionToShow === PLATFORM_ADMIN_OPTIONS.ORGS &&
                                 <OrgsProvider>
-                                    <OrgsContainer organizations={organizations} selectUsers={selectUsers} refreshOrgs={refreshOrgs} />
+                                    <OrgsContainer organizations={organizationsTable} refreshOrgs={refreshOrgs} />
                                 </OrgsProvider>
                             }
                             {optionToShow === PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS &&
                                 <GlobalUsersProvider>
-                                    <GlobalUsersContainer globalUsers={globalUsers} refreshGlobalUsers={refreshGlobalUsers} />
+                                    <GlobalUsersContainer globalUsers={globalUsersTable} refreshGlobalUsers={refreshGlobalUsers} />
                                 </GlobalUsersProvider>
                             }
                             {
                                 optionToShow === "Refresh tokens" &&
                                 <TableWithPagination
-                                    dataTable={refreshTokens}
+                                    dataTable={refreshTokensTable}
                                     columnsTable={Create_REFRESH_TOKENS_COLUMNS(refreshRefreshTokens)}
+                                    reloadTable={refreshRefreshTokens}
                                     componentName=""
                                 />
                             }

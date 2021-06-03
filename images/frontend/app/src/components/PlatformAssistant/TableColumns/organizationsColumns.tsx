@@ -26,6 +26,11 @@ export interface IOrganization {
     delete: string;
 }
 
+interface IOrganizationColumn extends IOrganization {
+    edit: string;
+    delete: string;
+}
+
 interface DeleteOrgModalProps {
     rowIndex: number;
     orgId: number;
@@ -99,7 +104,7 @@ const EditOrg: FC<EditOrgProps> = ({ rowIndex, orgId }) => {
 }
 
 
-export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IOrganization>[] => {
+export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IOrganizationColumn>[] => {
     return [
         {
             Header: "Id",

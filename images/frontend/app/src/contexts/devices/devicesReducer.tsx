@@ -23,6 +23,7 @@ export const DevicesReducer = (initialState: DevicesContextProps, action: Device
                 ...initialState,
                 deviceIdToEdit: action.payload.deviceIdToEdit
             };
+        
         case "DEVICE_ROW_INDEX_TO_EDIT":
             return {
                 ...initialState,

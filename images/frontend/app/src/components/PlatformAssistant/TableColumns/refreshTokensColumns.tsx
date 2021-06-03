@@ -13,6 +13,9 @@ export interface IRefreshToken {
     token: string;
     createdAtAge: string;
     updatedAtAge: string;
+}
+
+interface IRefreshTokenColumn extends IRefreshToken {
     delete: string;
 }
 
@@ -61,7 +64,7 @@ const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, r
     )
 }
 
-export const Create_REFRESH_TOKENS_COLUMNS = (refreshRefreshTokens: () => void): Column<IRefreshToken>[] => {
+export const Create_REFRESH_TOKENS_COLUMNS = (refreshRefreshTokens: () => void): Column<IRefreshTokenColumn>[] => {
     return [
         {
             Header: "Id",

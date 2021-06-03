@@ -3,7 +3,7 @@ import { FC, useMemo, useState } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
 import { matchSorter } from 'match-sorter';
-import { FaSearch } from "react-icons/fa";
+import { FaSearch, FaRedo } from "react-icons/fa";
 
 
 interface TableStylesProps {
@@ -123,6 +123,9 @@ const TableOptionsContainer = styled.div`
 const Pagination = styled.div`
     margin-left: 18px;
     background-color: #202226;
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
 
     & span input,
     & select {
@@ -139,7 +142,34 @@ const Pagination = styled.div`
             box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
         }
     }
+
+    & span input {
+        height: 30px;
+    }
+
+    & button {
+        margin: 0px 1px;
+    }
 `;
+
+const StyledFaRedo = styled(FaRedo)`
+    color: white;
+`;
+
+const ReloadContainer = styled.div`
+    margin-left: 10px;
+    border: 1px solid #202226;
+    padding: 3px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+
+    &:hover {
+        border: 1px solid white;
+        cursor: pointer;
+    }
+`;
+
 
 const NewComponentButton = styled.button`
 	background-color: #3274d9;
@@ -252,7 +282,6 @@ const SearchGlobal = styled.div`
 `;
 
 
-
 const GlobalFilter = ({
     preGlobalFilteredRows,
     globalFilter,
@@ -317,10 +346,11 @@ type TableProps<T extends object> = {
     dataTable: T[];
     columnsTable: Column<T>[];
     componentName: string;
+    reloadTable?: () => void;
     createComponent?: () => void;
 }
 
-const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, componentName, createComponent }) => {
+const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, componentName, reloadTable, createComponent }) => {
     const columns = useMemo(() => columnsTable, [columnsTable]);
     const data = useMemo(() => dataTable, [dataTable]);
     const columnsWidth = columnsTable.map(column => {
@@ -435,6 +465,8 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
                         <input
                             type="number"
                             defaultValue={pageIndex + 1}
+                            min={1}
+                            max={pageOptions.length}
                             onChange={e => {
                                 const page = e.target.value ? Number(e.target.value) - 1 : 0
                                 gotoPage(page)
@@ -453,6 +485,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
                             </option>
                         ))}
                     </select>
+                    <ReloadContainer onClick={reloadTable}><StyledFaRedo /></ReloadContainer>
                 </Pagination>
                 <GlobalFilter
                     preGlobalFilteredRows={preGlobalFilteredRows}

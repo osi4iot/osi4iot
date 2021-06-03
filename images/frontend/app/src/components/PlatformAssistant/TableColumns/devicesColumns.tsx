@@ -22,6 +22,9 @@ export interface IDevices {
     longitude: number;
     isDefaultGroupDevice: boolean;
     changeDeviceHash: string;
+}
+
+interface IDevicesColumn extends IDevices {
     edit: string;
     delete: string;
 }
@@ -99,7 +102,7 @@ const EditDevice: FC<EditDeviceProps> = ({ rowIndex, deviceId }) => {
     )
 }
 
-export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevices>[] => {
+export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevicesColumn>[] => {
     return [
         {
             Header: "OrgId",

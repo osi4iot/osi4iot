@@ -1,22 +1,17 @@
 import { PlatformAssistantContextProps, PlatformAssistantAction } from "./interfaces";
 import {
-    PLATFORM_ADMIN_OPTIONS,
     PLATFORM_ASSISTANT_OPTION,
-    ORGS_OPTIONS,
-    GLOBAL_USERS_OPTIONS,
-    REFRESH_TOKENS_OPTIONS,
-    ORG_ADMIN_OPTIONS,
-    ORG_USERS_OPTIONS,
-    GROUPS_OPTIONS,
-    GROUP_ADMIN_OPTIONS,
-    DEVICES_OPTIONS,
-    GROUP_MEMBERS_OPTIONS,
-    USER_OPTIONS,
-    USER_PROFILE_OPTIONS,
-    HOME_OPTIONS,
-
 } from "../../components/PlatformAssistant/platformAssistantOptions";
 
+const initialUserProfile = {
+    userId: 0,
+    name: "",
+    firstName: "",
+    surname: "",
+    login: "",
+    email: "",
+    telegramId: "",
+}
 
 export const initialState = {
     userRole: "unknown",
@@ -24,28 +19,19 @@ export const initialState = {
     numGroupsManaged: 0,
     numDevicesManage: 0,
     platformAssitantOptionToShow: PLATFORM_ASSISTANT_OPTION.HOME,
-    platformAdminOptionToShow: PLATFORM_ADMIN_OPTIONS.ORGS,
-    orgsOptionToShow: ORGS_OPTIONS.TABLE,
-    orgIdToEdit: 0,
-    globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.TABLE,
-    globalUserIdToEdit: 0,
-    refreshTokensOptionToShow: REFRESH_TOKENS_OPTIONS.TABLE,
-    refreshTokenIdToEdit: 0,
-    orgAdminOptionToShow: ORG_ADMIN_OPTIONS.ORGS_MANAGED,
-    orgUsersOptionToShow: ORG_USERS_OPTIONS.TABLE,
-    orgUserIdToEdit: 0,
-    groupsOptionToShow: GROUPS_OPTIONS.TABLE,
-    groupIdToEdit: 0,
-    groupAdminOptionToShow: GROUP_ADMIN_OPTIONS.GROUPS_MANAGED,
-    devicesOptionToShow: DEVICES_OPTIONS.TABLE,
-    deviceIdToEdit: 0,
-    groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.TABLE,
-    groupMemberIdToEdit: 0,
-    userOptionToShow: USER_OPTIONS.USER_PROFILE,
-    userProfileOptionToShow: USER_PROFILE_OPTIONS.USER_PROFILE,
-    homeOptionToShow: HOME_OPTIONS.PLATFORM_LAYOUT,
-    loading: false,
-    errorMessage: null,
+    selectUsers: [],
+    organizations: [],
+    globalUsers: [],
+    refreshTokens: [],
+    orgsManaged: [],
+    orgUsers: [],
+    groups: [],
+    groupsManaged: [],
+    groupMembers: [],
+    devices: [],
+    userProfile: initialUserProfile,
+    orgsMembership: [],
+    groupsMembership: [],
 };
 
 export const PlatformAssitantReducer = (initialState: PlatformAssistantContextProps, action: PlatformAssistantAction) => {
@@ -63,6 +49,84 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
             return {
                 ...initialState,
                 platformOptionsToShow: action.payload.platformAssitantOptionToShow
+            };
+
+        case "SELECT_USERS_TABLE":
+            return {
+                ...initialState,
+                selectUsers: action.payload.selectUsers
+            };
+
+        case "ORGANIZATIONS_TABLE":
+            return {
+                ...initialState,
+                organizations: action.payload.organizations
+            };
+
+        case "GLOBAL_USERS_TABLE":
+            return {
+                ...initialState,
+                globalUsers: action.payload.globalUsers
+            };
+
+        case "REFRESH_TOKENS_TABLE":
+            return {
+                ...initialState,
+                refreshTokens: action.payload.refreshTokens
+            };
+
+        case "ORGS_MANAGED_TABLE":
+            return {
+                ...initialState,
+                orgsManaged: action.payload.orgsManaged
+            };
+
+        case "ORGS_USERS_TABLE":
+            return {
+                ...initialState,
+                orgUsers: action.payload.orgUsers
+            };
+
+        case "GROUPS_TABLE":
+            return {
+                ...initialState,
+                groups: action.payload.groups
+            };
+
+        case "GROUPS_MANAGED_TABLE":
+            return {
+                ...initialState,
+                groupsManaged: action.payload.groupsManaged
+            };
+
+        case "GROUPS_MEMBERS_TABLE":
+            return {
+                ...initialState,
+                groupMembers: action.payload.groupMembers
+            };
+
+        case "DEVICES_TABLE":
+            return {
+                ...initialState,
+                devices: action.payload.devices
+            };
+
+        case "USER_PROFILE_TABLE":
+            return {
+                ...initialState,
+                userProfile: action.payload.userProfile
+            };
+
+        case "ORGS_MEMBERSHIP_TABLE":
+            return {
+                ...initialState,
+                orgsMembership: action.payload.orgsMembership
+            };
+
+        case "GROUP_MEMBERSHIP_TABLE":
+            return {
+                ...initialState,
+                groupsMembership: action.payload.groupsMembership
             };
 
         default:

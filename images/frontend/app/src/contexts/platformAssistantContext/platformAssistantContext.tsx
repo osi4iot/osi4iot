@@ -1,4 +1,17 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
+import { IDevices } from '../../components/PlatformAssistant/TableColumns/devicesColumns';
+import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/globalUsersColumns';
+import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
+import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
+import { IGroupsManaged } from '../../components/PlatformAssistant/TableColumns/groupsManagedColumns';
+import { IMembershipInGroups } from '../../components/PlatformAssistant/TableColumns/membershipInGroups';
+import { IMembershipInOrgs } from '../../components/PlatformAssistant/TableColumns/membershipInOrgs';
+import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
+import { IOrgManaged } from '../../components/PlatformAssistant/TableColumns/organizationsManagedColumns';
+import { IOrgUser } from '../../components/PlatformAssistant/TableColumns/orgUsersColumns';
+import { IRefreshToken } from '../../components/PlatformAssistant/TableColumns/refreshTokensColumns';
+import { ISelectUser } from '../../components/PlatformAssistant/TableColumns/selectUserColumns';
+import { IUserProfile } from '../../components/PlatformAssistant/UserProfile';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { PlatformAssistantContextProps } from './interfaces'
 import { initialState, PlatformAssitantReducer } from './platformAssistantReducer';
@@ -47,7 +60,109 @@ export const useUserRole = (): string => {
 	return context.userRole;
 }
 
+export const useSelectUsersTable = (): ISelectUser[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useSelectUsersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.selectUsers;
+}
 
+export const useOrganizationsTable = (): IOrganization[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useOrganizationsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.organizations;
+}
+
+export const useGlobalUsersTable = (): IGlobalUser[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useGlobalUsersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.globalUsers;
+}
+
+export const useRefreshTokensTable = (): IRefreshToken[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useRefreshTokensTable must be used within a PlatformAssitantProvider');
+	}
+	return context.refreshTokens;
+}
+
+export const useOrgsManagedTable = (): IOrgManaged[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useOrgsManagedTable must be used within a PlatformAssitantProvider');
+	}
+	return context.orgsManaged;
+}
+
+export const useOrgUsersTable = (): IOrgUser[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useOrgUsersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.orgUsers;
+}
+
+export const useGroupsTable = (): IGroup[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.groups;
+}
+
+export const useGroupsManagedTable = (): IGroupsManaged[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupsManagedTable must be used within a PlatformAssitantProvider');
+	}
+	return context.groupsManaged;
+}
+
+export const useGroupMembersTable = (): IGroupMember[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupMembersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.groupMembers;
+}
+
+export const useDevicesTable = (): IDevices[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useDevicesTable must be used within a PlatformAssitantProvider');
+	}
+	return context.devices;
+}
+
+export const useUserProfileTable = (): IUserProfile => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useUserProfileTable must be used within a PlatformAssitantProvider');
+	}
+	return context.userProfile;
+}
+
+export const useOrgsMembershipTable = (): IMembershipInOrgs[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useOrgsMembershipTable must be used within a PlatformAssitantProvider');
+	}
+	return context.orgsMembership;
+}
+
+export const useGroupsMembershipTable = (): IMembershipInGroups[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupsMembershipTable must be used within a PlatformAssitantProvider');
+	}
+	return context.groupsMembership;
+}
 
 export function usePlatformAssitantDispatch() {
 	const context = React.useContext(PlatformAssitantDispatchContext);

@@ -10,7 +10,7 @@ const GlobalUsersDispatchContext = createContext<any>({});
 export function useGlobalUsersDispatch() {
 	const context = React.useContext(GlobalUsersDispatchContext);
 	if (context === undefined) {
-		throw new Error('usePlatformAssitantDispatch must be used within a GlobalUsersProvider');
+		throw new Error('useGlobalUsersDispatch must be used within a GlobalUsersProvider');
 	}
 
 	return context;

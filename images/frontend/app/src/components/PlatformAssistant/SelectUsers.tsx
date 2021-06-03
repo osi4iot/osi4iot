@@ -3,6 +3,7 @@ import styled from "styled-components";
 import FormTitle from "../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelection';
 import { SELECT_USERS, ISelectUser } from './TableColumns/selectUserColumns';
+import { useSelectUsersTable } from '../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -99,10 +100,10 @@ const Button = styled.button`
 interface SelectUsersProps {
     backToCreate: () => void;
     setSelectedUsersArray: (selectedUsers: ISelectUser[]) => void;
-    selectUsers: ISelectUser[];
 }
 
-const SelectUsers: FC<SelectUsersProps> = ({ backToCreate, setSelectedUsersArray, selectUsers }) => {
+const SelectUsers: FC<SelectUsersProps> = ({ backToCreate, setSelectedUsersArray }) => {
+    const selectUsersTable = useSelectUsersTable();
     const [selectedUsers, setSelectedUsers] = useState<ISelectUser[]>([]);
 
     const onSubmit = () => {
@@ -122,7 +123,7 @@ const SelectUsers: FC<SelectUsersProps> = ({ backToCreate, setSelectedUsersArray
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={selectUsers}
+                        dataTable={selectUsersTable}
                         columnsTable={SELECT_USERS}
                         setSelectedUsers={(selectedUsers: ISelectUser[]) => setSelectedUsers(selectedUsers)}
                     />
