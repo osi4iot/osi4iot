@@ -9,18 +9,15 @@ import PlatformTools from './PlatformToolsOptions';
 import { IRefreshToken, Create_REFRESH_TOKENS_COLUMNS } from './TableColumns/refreshTokensColumns';
 import elaspsedTimeFormat from '../../tools/elapsedTimeFormat';
 import { PLATFORM_ADMIN_OPTIONS } from './platformAssistantOptions';
-import { OrgsProvider } from '../../contexts/orgs';
+import { OrgsProvider } from '../../contexts/orgsOptions';
 import OrgsContainer from './OrgsContainer';
-import { GlobalUsersProvider } from '../../contexts/globalUsers';
+import { GlobalUsersProvider } from '../../contexts/globalUsersOptions';
 import GlobalUsersContainer from './GlobalUsersContainer';
-import { ISelectUser } from './TableColumns/selectUserColumns';
-import { IGlobalUser } from './TableColumns/globalUsersColumns'
 import {
     usePlatformAssitantDispatch,
     useGlobalUsersTable,
     useOrganizationsTable,
     useRefreshTokensTable,
-    setSelectUsersTable,
     setOrganizationsTable,
     setGlobalUsersTable,
     setRefreshTokensTable,
@@ -141,6 +138,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                 .get(urlOrganizations, config)
                 .then((response) => {
                     const organizations = response.data;
+                    // const organizations = JSON.parse(mockOrganizations);
                     setOrganizationsTable(plaformAssistantDispatch, { organizations });
                     setOrgsLoading(false);
                 })
@@ -148,9 +146,6 @@ const PlatformAdminOptions: FC<{}> = () => {
                     console.log(error);
                 });
     
-            // const organizations = JSON.parse(mockOrganizations);
-            // setOrganizations(organizations);
-            // setOrgsLoading(false);
         } else {
             setOrgsLoading(false);
         }
@@ -170,16 +165,6 @@ const PlatformAdminOptions: FC<{}> = () => {
                         return user;
                     })
                     setGlobalUsersTable(plaformAssistantDispatch, { globalUsers });
-                    const selectUsers = globalUsers.map((globalUser: IGlobalUser) => {
-                        const selectUser: ISelectUser = {
-                            userId: globalUser.id,
-                            firstName: globalUser.firstName,
-                            surname: globalUser.surname,
-                            email: globalUser.email
-                        }
-                        return selectUser;
-                    })
-                    setSelectUsersTable(plaformAssistantDispatch, { selectUsers });
                     setGlobalUsersLoading(false);
                 })
                 .catch((error) => {

@@ -114,8 +114,7 @@ export const isThisUserOrgAdmin = async (userId: number, orgId: number): Promise
 
 export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]> => {
 	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
-					grafanadb.org_user.org_id as "orgId", telegram_id as "telegramId",
-					role as "roleInOrg", is_disabled as "isDisabled",
+					grafanadb.org_user.org_id as "orgId", role as "roleInOrg",
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
@@ -127,8 +126,7 @@ export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]>
 
 export const getOrganizationUsersByOrgManagedByUser = async (orgIdsArray: number[]): Promise<IUserInOrg[]> => {
 	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
-	                grafanadb.org_user.org_id as "orgId", telegram_id as "telegramId",
-					role as "roleInOrg", is_disabled as "isDisabled",
+					grafanadb.org_user.org_id as "orgId", role as "roleInOrg",
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
@@ -139,9 +137,8 @@ export const getOrganizationUsersByOrgManagedByUser = async (orgIdsArray: number
 };
 
 export const getOrganizationUsersWithGrafanaAdmin = async (orgId: number): Promise<IUserInOrg[]> => {
-	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
-					grafanadb.org_user.org_id as "orgId", telegram_id as "telegramId",
-					role as "roleInOrg", is_admin as "isGrafanaAdmin",
+	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname,  login, email,
+					grafanadb.org_user.org_id as "orgId", role as "roleInOrg", is_admin as "isGrafanaAdmin",
 					is_disabled as "isDisabled", last_seen_at as "lastSeenAt",
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
@@ -152,10 +149,20 @@ export const getOrganizationUsersWithGrafanaAdmin = async (orgId: number): Promi
 	return result.rows;
 };
 
+export const getOrganizationUserWithGrafanaAdminByProp = async (orgId: number, propName: string, propValue: string | number): Promise<IUserInOrg> => {
+	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login,  email,
+					grafanadb.org_user.org_id as "orgId", role as "roleInOrg",  is_admin as "isGrafanaAdmin",
+					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
+					FROM grafanadb.user
+					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
+					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.${propName} = $2`
+	const result = await pool.query(query, [orgId, propValue]);
+	return result.rows[0];
+};
+
 export const getOrganizationUserByProp = async (orgId: number, propName: string, propValue: string | number): Promise<IUserInOrg> => {
-	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
-					grafanadb.org_user.org_id as "orgId", telegram_id as "telegramId",
-					role as "roleInOrg", is_disabled as "isDisabled",
+	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login,  email,
+					grafanadb.org_user.org_id as "orgId", role as "roleInOrg",
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
@@ -166,8 +173,7 @@ export const getOrganizationUserByProp = async (orgId: number, propName: string,
 
 export const getOrganizationUsersByEmailArray = async (orgId: number, emailsArray: string[]): Promise<IUserInOrg[]> => {
 	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
-	                grafanadb.org_user.org_id as "orgId", telegram_id as "telegramId",
-					role as "roleInOrg", is_disabled as "isDisabled",
+	                grafanadb.org_user.org_id as "orgId", role as "roleInOrg", is_disabled as "isDisabled",
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
@@ -187,9 +193,7 @@ export const updateOrganizationUser = async (userData: IUserInOrg | UserRegister
 			name,
 			userData.firstName,
 			userData.surname,
-			userData.login,
 			userData.email,
-			userData.telegramId,
 			userData.userId
 		]);
 };

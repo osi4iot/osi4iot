@@ -6,7 +6,7 @@ import {
     useGroupMemberGroupIdToEdit,
     useGroupMemberUserIdToEdit,
     useGroupMembeRowIndexToEdit
-} from '../../contexts/groupMembers';
+} from '../../contexts/groupMembersOptions';
 import { GROUP_MEMBERS_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
 import { IGroupMember } from './TableColumns/groupMemberColumns';

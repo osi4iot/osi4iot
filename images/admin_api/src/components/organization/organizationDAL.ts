@@ -224,9 +224,7 @@ export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IU
 			userId:  user.userId,
 			firstName: user.firstName,
 			surname: user.surname,
-			login: user.login,
 			email: user.email,
-			telegramId: user.telegramId,
 			roleInGroup: (user.roleInOrg as RoleInGroupOption)
 		}
 	];

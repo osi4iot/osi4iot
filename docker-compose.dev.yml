@@ -72,9 +72,9 @@ services:
       - "127.0.0.1:5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 4s
-      timeout: 120s
-      retries: 30
+      interval: 10s
+      timeout: 600s
+      retries: 60
     restart: unless-stopped
 
   grafana:
@@ -112,8 +112,8 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]
       interval: 10s
-      timeout: 300s
-      retries: 30
+      timeout: 600s
+      retries: 60
     depends_on:
       postgres:
         condition: service_healthy     
@@ -173,13 +173,13 @@ services:
     environment:
       PORT: 3200
       WAIT_HOSTS: postgres:5432, grafana:5000
-      WAIT_HOSTS_TIMEOUT: 300
+      WAIT_HOSTS_TIMEOUT: 600
       WAIT_SLEEP_INTERVAL: 5
     healthcheck:
       test: ["CMD-SHELL", "curl --fail --insecure https://localhost:3200/health || exit 1"]
       interval: 10s
-      timeout: 300s
-      retries: 30
+      timeout: 600s
+      retries: 60
     ports:
     - "3200:3200"
 

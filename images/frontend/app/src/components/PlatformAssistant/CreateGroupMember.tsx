@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import { useGroupMembersDispatch, setGroupMembersOptionToShow } from '../../contexts/groupMembers';
+import { useGroupMembersDispatch, setGroupMembersOptionToShow } from '../../contexts/groupMembersOptions';
 import {  GROUP_MEMBERS_OPTIONS } from './platformAssistantOptions';
 import { getDomainName } from '../../tools/tools';
 

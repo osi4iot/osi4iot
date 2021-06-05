@@ -13,7 +13,7 @@ import {
     setGroupRowIndexToEdit,
     setGroupsOptionToShow,
     useGroupsDispatch
-} from '../../../contexts/groups';
+} from '../../../contexts/groupsOptions';
 
 export interface IGroup {
     orgId: number;

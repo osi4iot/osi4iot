@@ -2,8 +2,9 @@ import { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import FormTitle from "../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelection';
-import { SELECT_USERS, ISelectUser } from './TableColumns/selectUserColumns';
-import { useSelectUsersTable } from '../../contexts/platformAssistantContext';
+import { SELECT_GLOBAL_USERS, ISelectGlobalUser } from './TableColumns/selectGlobalUserColumns';
+import { useGlobalUsersTable } from '../../contexts/platformAssistantContext';
+
 
 
 const FormContainer = styled.div`
@@ -97,14 +98,14 @@ const Button = styled.button`
 `;
 
 
-interface SelectUsersProps {
+interface SelectGlobalUsersProps {
     backToCreate: () => void;
-    setSelectedUsersArray: (selectedUsers: ISelectUser[]) => void;
+    setSelectedUsersArray: (selectedUsers: ISelectGlobalUser[]) => void;
 }
 
-const SelectUsers: FC<SelectUsersProps> = ({ backToCreate, setSelectedUsersArray }) => {
-    const selectUsersTable = useSelectUsersTable();
-    const [selectedUsers, setSelectedUsers] = useState<ISelectUser[]>([]);
+const SelectGlobalUsers: FC<SelectGlobalUsersProps> = ({ backToCreate, setSelectedUsersArray }) => {
+    const globalUsersTable = useGlobalUsersTable();
+    const [selectedUsers, setSelectedUsers] = useState<ISelectGlobalUser[]>([]);
 
     const onSubmit = () => {
         setSelectedUsersArray(selectedUsers);
@@ -113,6 +114,7 @@ const SelectUsers: FC<SelectUsersProps> = ({ backToCreate, setSelectedUsersArray
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
+        setSelectedUsersArray([]);
         backToCreate();
     };
 
@@ -123,9 +125,9 @@ const SelectUsers: FC<SelectUsersProps> = ({ backToCreate, setSelectedUsersArray
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={selectUsersTable}
-                        columnsTable={SELECT_USERS}
-                        setSelectedUsers={(selectedUsers: ISelectUser[]) => setSelectedUsers(selectedUsers)}
+                        dataTable={globalUsersTable}
+                        columnsTable={SELECT_GLOBAL_USERS}
+                        setSelectedUsers={(selectedUsers: ISelectGlobalUser[]) => setSelectedUsers(selectedUsers)}
                     />
                 </TableContainer>
                 <ButtonsContainer>
@@ -141,4 +143,4 @@ const SelectUsers: FC<SelectUsersProps> = ({ backToCreate, setSelectedUsersArray
     )
 }
 
-export default SelectUsers;
+export default SelectGlobalUsers;

@@ -12,7 +12,7 @@ export const initialState = {
     orgUserRowIndexToEdit: 0,
 };
 
-export const PlatformAssitantReducer = (initialState: OrgUsersContextProps, action: OrgUsersAction) => {
+export const OrgUsersReducer = (initialState: OrgUsersContextProps, action: OrgUsersAction) => {
     switch (action.type) {
         case "ORG_USERS_OPTION_TO_SHOW":
             return {

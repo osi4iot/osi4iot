@@ -136,7 +136,7 @@ class ApplicationController implements IController {
 				const numExistingUsers = existingUserArray.length;
 				const numFailures = nonExistingUsersArray.length - numNewGlobalUsers;
 				if (globalUsersData.length === numNewGlobalUsers) {
-					message = { message: `${numNewGlobalUsers} new global user/s have been created.` };
+					message = { message: `${numNewGlobalUsers} new global users have been created.` };
 				} else {
 					if (numFailures === 0) {
 						message = { message: `Only ${numNewGlobalUsers} new global users have been created but ${numExistingUsers} users already exist` };
@@ -146,7 +146,7 @@ class ApplicationController implements IController {
 				}
 
 			} else {
-				message = { message: `All the inputted user/s already exist` };
+				message = { message: `All the inputted users already exist` };
 			}
 			res.status(200).send(message);
 		} catch (error) {

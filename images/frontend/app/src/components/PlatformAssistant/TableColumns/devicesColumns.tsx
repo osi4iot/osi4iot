@@ -9,7 +9,7 @@ import DeleteIcon from '../DeleteIcon';
 import ExChangeIcon from '../ExchangeIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { DEVICES_OPTIONS } from '../platformAssistantOptions';
-import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devices';
+import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devicesOptions';
 
 export interface IDevices {
     orgId: number;

@@ -2,8 +2,10 @@ import React, { FC, useState, useEffect } from "react";
 import { Field, FieldArray, ErrorMessage } from 'formik';
 import styled from "styled-components";
 import { useFilePicker } from 'use-file-picker';
+import { OptionsType } from "react-select";
 import TextError from "./TextError";
 import { FaTrashAlt } from "react-icons/fa";
+import { DropDown } from "./SelectControl";
 
 const Container = styled.div`
     margin: 20px 0 0;
@@ -217,15 +219,28 @@ const RemoveButton = styled.button`
     }
 `;
 
-
-interface InputArrayRowsProps {
-    name: string;
+interface IOption {
+    value: string | boolean;
     label: string;
-    labelArray: string[];
-    nameArray: string[];
-    typeArray: string[];
-    addLabel: string;
 }
+
+
+
+
+const DropDownContainer = styled.div`
+    padding: 5px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    width: 200px;
+
+    & label {
+        font-size: 12px;
+        margin: 0 0 5px 3px;
+        width: 100%;
+    }
+`;
 
 interface InitialValues {
     [key: string]: string;
@@ -238,13 +253,52 @@ const findOutSeperationSymbol = (text: string) => {
     return separationSymbol;
 }
 
+interface InputArrayRowsProps {
+    name: string;
+    label: string;
+    labelArray: string[];
+    nameArray: string[];
+    typeArray: string[];
+    addLabel: string;
+    inputSelectOptions?: OptionsType<IOption>;
+    selectLabel: string;
+    goToSelect: () => void;
+}
+
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
 }
 
-const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, nameArray, typeArray, addLabel }) => {
-    const keyValueArray = nameArray.map(el => [el, ""]);
+const filterCondition = (value: string, idx: number, typeArray: string[], allowedSelectValues: string[]) => {
+    if (allowedSelectValues.length !== 0) {
+        return value !== "" && (typeArray[idx] === "select" && value !== allowedSelectValues[0]);
+    } else {
+        return value !== "";
+    }
+}
+
+const InputArrayRows: FC<InputArrayRowsProps> = (
+    {
+        name,
+        label,
+        labelArray,
+        nameArray,
+        typeArray,
+        addLabel,
+        inputSelectOptions,
+        selectLabel = "",
+        goToSelect = () => {}
+    }
+) => {
+    const keyValueArray = nameArray.map((el, index) => {
+        if (typeArray[index] === "select" && inputSelectOptions) return [el, inputSelectOptions[0].value];
+        else return [el, ""];
+    });
+    let allowedSelectValues: string[] = [];
+    if (inputSelectOptions) {
+        allowedSelectValues = inputSelectOptions.map(option => option.value as string);
+    }
     const initialValues: InitialValues = Object.fromEntries(keyValueArray);
     const [localFileContent, setLocalFileContent] = useState("");
     const [localFileLoaded, setLocalFileLoaded] = useState(false);
@@ -284,7 +338,7 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
                         const valuesArray = values[name];
                         const pushFromContent = (content: string) => {
                             const lastRowValuesArray = Object.values(valuesArray[valuesArray.length - 1]);
-                            if (lastRowValuesArray.filter(value => value !== "").length === 0) {
+                            if (lastRowValuesArray.filter((value, idx) => filterCondition(value as string, idx, typeArray, allowedSelectValues)).length === 0) {
                                 remove(valuesArray.length - 1);
                             }
                             content.split('\r\n').forEach(register => {
@@ -292,8 +346,14 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
                                     const separationSymbol = findOutSeperationSymbol(register);
                                     const dataArray = register.split(separationSymbol);
                                     const keyValueArray = nameArray.map((el, index) => {
-                                        if (dataArray[index]) return [el, dataArray[index]];
-                                        else return [el, ""];
+                                        if (dataArray[index]) {
+                                            if (typeArray[index] === "select" && allowedSelectValues?.indexOf(dataArray[index]) === -1) {
+                                                return [el, allowedSelectValues[0]];
+                                            } else return [el, dataArray[index]];
+                                        } else {
+                                            if (typeArray[index] === "select" && allowedSelectValues) return [el, allowedSelectValues[0]];
+                                            else return [el, ""];
+                                        }
                                     });
                                     const dataValues: InitialValues = Object.fromEntries(keyValueArray);
                                     push(dataValues);
@@ -314,10 +374,25 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
                                     <div key={index}>
                                         <Item>
                                             {labelArray.map((subitem, subIndex) => (
-                                                <FieldContainer key={subIndex} type={typeArray[subIndex]}>
-                                                    <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} />
-                                                    <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError} />
-                                                </FieldContainer>
+                                                <div key={subIndex}>
+                                                    {
+                                                        typeArray[subIndex] === "select" ?
+                                                            <DropDownContainer >
+                                                                <Field
+                                                                    name={`${name}[${index}].${nameArray[subIndex]}`}
+                                                                    options={inputSelectOptions}
+                                                                    component={DropDown}
+                                                                    placeholder="Select"
+                                                                    isMulti={false}
+                                                                />
+                                                            </DropDownContainer>
+                                                            :
+                                                            <FieldContainer type={typeArray[subIndex]}>
+                                                                <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} />
+                                                                <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError} />
+                                                            </FieldContainer>
+                                                    }
+                                                </div>
                                             ))}
                                             <RemoveButtonsContainer>
                                                 {
@@ -338,6 +413,7 @@ const InputArrayRows: FC<InputArrayRowsProps> = ({ name, label, labelArray, name
                                                 >
                                                     {localFileLabel}
                                                 </AddDataFromFileButton>
+                                                {selectLabel !== "" &&  <AddButton type='button' onClick={() => goToSelect()}>Select {selectLabel}</AddButton>}
                                                 <AddButton type='button' onClick={() => push(initialValues)}>Add {addLabel}</AddButton>
                                             </AddButtonsContainer>
                                         }

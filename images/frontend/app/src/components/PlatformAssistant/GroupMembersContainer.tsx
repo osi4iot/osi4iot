@@ -3,7 +3,7 @@ import TableWithPagination from './TableWithPagination';
 import { GROUP_MEMBERS_OPTIONS } from './platformAssistantOptions';
 import CreateGroupMember from './CreateGroupMember';
 import EditGroupMember from './EditGroupMember';
-import { setGroupMembersOptionToShow, useGroupMembersDispatch, useGroupMembersOptionToShow } from '../../contexts/groupMembers';
+import { setGroupMembersOptionToShow, useGroupMembersDispatch, useGroupMembersOptionToShow } from '../../contexts/groupMembersOptions';
 import { Create_GROUP_MEMBERS_COLUMNS, IGroupMember } from './TableColumns/groupMemberColumns';
 
 interface GroupMembersContainerProps {

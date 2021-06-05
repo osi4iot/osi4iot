@@ -1270,7 +1270,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"$ref": "#/definitions/UserInput"
+								"$ref": "#/definitions/OrgUserRoleUpdate"
 							}
 						}
 					}
@@ -3351,6 +3351,14 @@
 				"$ref": "#/definitions/GlobalUserOutput"
 			}
 		},
+		"OrgUserRoleUpdate": {
+			"properties": {
+				"roleInOrg": {
+					"type": "string",
+					"default": "Viewer"
+				}
+			}
+		},		
 		"PlatformStatistics": {
 			"properties": {
 				"orgs": {

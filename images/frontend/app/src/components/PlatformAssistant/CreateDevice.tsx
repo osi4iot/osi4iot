@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
-import { useDevicesDispatch, setDevicesOptionToShow } from '../../contexts/devices';
+import { useDevicesDispatch, setDevicesOptionToShow } from '../../contexts/devicesOptions';
 import { DEVICES_OPTIONS } from './platformAssistantOptions';
 
 

@@ -1,6 +1,3 @@
-import IUser from "../../components/user/interfaces/User.interface";
-import IUserInOrg from "../../components/user/interfaces/UserInOrg.interface";
-
 const generateLastSeenAtAgeString = (lastSeenAtAge: string): string => {
 	const objectArray = Object.entries(lastSeenAtAge);
 	let lastSeenAtAgeString = "";

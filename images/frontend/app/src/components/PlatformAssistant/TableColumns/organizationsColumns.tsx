@@ -8,7 +8,7 @@ import { axiosAuth, getDomainName } from '../../../tools/tools';
 import { useAuthState } from '../../../contexts/authContext';
 import axios from 'axios';
 import { ORGS_OPTIONS } from '../platformAssistantOptions';
-import { setOrgIdToEdit, setOrgRowIndexToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgs';
+import { setOrgIdToEdit, setOrgRowIndexToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgsOptions';
 
 
 export interface IOrganization {

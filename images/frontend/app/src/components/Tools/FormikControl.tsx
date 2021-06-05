@@ -51,13 +51,16 @@ const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, lab
                     typeArray={typeArray as string[]}
                     nameArray={nameArray as string[]}
                     addLabel={addLabel as string}
+                    inputSelectOptions={options as OptionsType<IOption>}
+                    selectLabel={selectLabel as string}
+                    goToSelect={goToSelect as () => void}
                     {...rest}
                 />
             )
         case 'textarea':
             break;
         case 'select':
-            return <SelectControl label={label as string} name={name as string} options={options as OptionsType<IOption>} type='text' />
+            return <SelectControl label={label as string} name={name as string} options={options as OptionsType<IOption>} />
         case 'radio':
             break;
         case 'checkbox':

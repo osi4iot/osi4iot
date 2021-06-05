@@ -1,6 +1,6 @@
 import {
     setUserRole,
-    setSelectUsersTable,
+    setSelectOrgUsersTable,
     setOrganizationsTable,
     setGlobalUsersTable,
     setRefreshTokensTable,
@@ -21,7 +21,7 @@ import {
     useIsPlatformAdmin,
     useIsOrgAdmin,
     useIsGroupAdmin,
-    useSelectUsersTable,
+    useSelectOrgUsersTable,
     useOrganizationsTable,
     useGlobalUsersTable,
     useRefreshTokensTable,
@@ -38,7 +38,7 @@ import {
 
 export {
     setUserRole,
-    setSelectUsersTable,
+    setSelectOrgUsersTable,
     setOrganizationsTable,
     setGlobalUsersTable,
     setRefreshTokensTable,
@@ -57,7 +57,7 @@ export {
     useIsPlatformAdmin,
     useIsOrgAdmin,
     useIsGroupAdmin,
-    useSelectUsersTable,
+    useSelectOrgUsersTable,
     useOrganizationsTable,
     useGlobalUsersTable,
     useRefreshTokensTable,

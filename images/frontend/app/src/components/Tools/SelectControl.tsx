@@ -98,7 +98,7 @@ interface DropDownProps extends FieldProps {
     placeholder?: string;
 }
 
-const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder }) => {
+export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder }) => {
 
     const onChange = (option: ValueType<IOption, false>) => {
         form.setFieldValue(
@@ -134,13 +134,12 @@ interface SelectControlProps {
     label: string;
     name: string;
     options: OptionsType<IOption>;
-    type: string;
 }
 
 const SelectControl: FC<SelectControlProps> = ({ label, name, options }) => {
     return (
         <DropDownContainer>
-            <label htmlFor={name}>{label}</label>
+            {label!== "" && <label htmlFor={name}>{label}</label>}
             <Field
                 name={name}
                 options={options}
@@ -152,6 +151,5 @@ const SelectControl: FC<SelectControlProps> = ({ label, name, options }) => {
     )
 
 }
-
 
 export default SelectControl;

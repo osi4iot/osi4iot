@@ -1,7 +1,7 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { OrgUsersContextProps } from './interfaces'
-import { initialState, PlatformAssitantReducer } from './orgsUsersReducer';
+import { initialState, OrgUsersReducer } from './orgsUsersReducer';
 
 
 const OrgUsersStateContext = createContext<OrgUsersContextProps>(initialState);
@@ -17,11 +17,11 @@ export function usePlatformAssitantState() {
 
 
 export const OrgUsersProvider: FC<ChildrenProp> = ({ children }) => {
-	const [data, platformAssistantDispatch] = useReducer(PlatformAssitantReducer, initialState);
+	const [data, orgUsersDispatch] = useReducer(OrgUsersReducer, initialState);
 
 	return (
 		<OrgUsersStateContext.Provider value={data}>
-			<OrgUsersDispatchContext.Provider value={platformAssistantDispatch}>
+			<OrgUsersDispatchContext.Provider value={orgUsersDispatch}>
 				{children}
 			</OrgUsersDispatchContext.Provider>
 		</OrgUsersStateContext.Provider>

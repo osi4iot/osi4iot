@@ -3,12 +3,13 @@ import { logger } from "../config/winston";
 import { Pool, QueryResult } from "pg";
 import grafanaApi from "../GrafanaApi"
 import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
-import { createGroup, defaultOrgGroupName } from "../components/group/groupDAL";
+import { addMembersToGroup, createGroup, defaultOrgGroupName } from "../components/group/groupDAL";
 import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
 import { createDemoDashboards, createHomeDashboard } from "../components/group/dashboardDAL";
 import { createDevice, defaultGroupDeviceName } from "../components/device/deviceDAL";
 import { giveDefaultGeolocation } from "../utils/geolocation.ts/geolocation";
 import IGroup from "../components/group/interfaces/Group.interface";
+import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 
 
 export async function dataBaseInitialization() {
@@ -213,6 +214,14 @@ export async function dataBaseInitialization() {
 			}
 			group = await createGroup(1, defaultMainOrgGroup, process.env.MAIN_ORGANIZATION_NAME, true);
 			await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
+			const groupMember = {
+				userId: 2,
+				firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
+				surname: process.env.PLATFORM_ADMIN_SURNAME,
+				email: process.env.PLATFORM_ADMIN_EMAIL,
+				roleInGroup: "Admin" as RoleInGroupOption
+			}
+			await addMembersToGroup(group, [groupMember])
 			logger.log("info", `Table ${tableName3} has been created sucessfully`);
 		} catch (err) {
 			logger.log("error", `Table ${tableName3} can not be created: %s`, err.message);

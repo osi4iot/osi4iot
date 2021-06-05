@@ -19,7 +19,7 @@ export const initialState = {
     numGroupsManaged: 0,
     numDevicesManage: 0,
     platformAssitantOptionToShow: PLATFORM_ASSISTANT_OPTION.HOME,
-    selectUsers: [],
+    selectOrgUsers: [],
     organizations: [],
     globalUsers: [],
     refreshTokens: [],
@@ -51,10 +51,10 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 platformOptionsToShow: action.payload.platformAssitantOptionToShow
             };
 
-        case "SELECT_USERS_TABLE":
+        case "SELECT_ORG_USERS_TABLE":
             return {
                 ...initialState,
-                selectUsers: action.payload.selectUsers
+                selectUsers: action.payload.selectOrgUsers
             };
 
         case "ORGANIZATIONS_TABLE":

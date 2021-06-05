@@ -3,7 +3,7 @@ import TableWithPagination from './TableWithPagination';
 import { GROUPS_OPTIONS } from './platformAssistantOptions';
 import CreateGroup from './CreateGroup';
 import EditGroup from './EditGroup';
-import { useGroupsDispatch, useGroupsOptionToShow, setGroupsOptionToShow } from '../../contexts/groups';
+import { useGroupsDispatch, useGroupsOptionToShow, setGroupsOptionToShow } from '../../contexts/groupsOptions';
 import { IGroup, Create_GROUPS_COLUMNS } from './TableColumns/groupsColumns';
 
 

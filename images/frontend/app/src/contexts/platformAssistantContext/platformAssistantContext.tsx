@@ -10,7 +10,7 @@ import { IOrganization } from '../../components/PlatformAssistant/TableColumns/o
 import { IOrgManaged } from '../../components/PlatformAssistant/TableColumns/organizationsManagedColumns';
 import { IOrgUser } from '../../components/PlatformAssistant/TableColumns/orgUsersColumns';
 import { IRefreshToken } from '../../components/PlatformAssistant/TableColumns/refreshTokensColumns';
-import { ISelectUser } from '../../components/PlatformAssistant/TableColumns/selectUserColumns';
+import { ISelectOrgUser } from '../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns';
 import { IUserProfile } from '../../components/PlatformAssistant/UserProfile';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { PlatformAssistantContextProps } from './interfaces'
@@ -60,12 +60,12 @@ export const useUserRole = (): string => {
 	return context.userRole;
 }
 
-export const useSelectUsersTable = (): ISelectUser[] => {
+export const useSelectOrgUsersTable = (): ISelectOrgUser[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
-		throw new Error('useSelectUsersTable must be used within a PlatformAssitantProvider');
+		throw new Error('useSelectOrgUsersTable must be used within a PlatformAssitantProvider');
 	}
-	return context.selectUsers;
+	return context.selectOrgUsers;
 }
 
 export const useOrganizationsTable = (): IOrganization[] => {

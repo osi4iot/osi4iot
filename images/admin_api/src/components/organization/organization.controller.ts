@@ -37,7 +37,8 @@ import {
 	getUsersIdByEmailsArray,
 	isUsersDataCorrect,
 	getOrganizationUsersWithGrafanaAdmin,
-	getOrganizationUsersByOrgManagedByUser
+	getOrganizationUsersByOrgManagedByUser,
+	getOrganizationUserWithGrafanaAdminByProp
 } from "../user/userDAL";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import IRequestWithOrganizationAndUser from "./interfaces/requestWithOrganizationAndUser.interface";
@@ -356,8 +357,8 @@ class OrganizationController implements IController {
 				const msg_users = await addUsersToOrganizationAndMembersToDefaultOrgGroup(orgId, existingUserArray);
 				numUsersAddedToOrg += msg_users.filter(msg => msg.message === "User added to organization").length;
 			}
-			const message = { numUsersCreated, numUsersAddedToOrg };
-			res.status(200).send(message);
+			const message = `${numUsersAddedToOrg} users added to org and ${numUsersCreated} new users created`;
+			res.status(200).send({ message });
 		} catch (error) {
 			next(error);
 		}
@@ -437,21 +438,22 @@ class OrganizationController implements IController {
 			const { organization } = req;
 			const { propName, propValue } = req.params;
 			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
-			const existUserInOrg = await getOrganizationUserByProp(organization.id, propName, propValue);
+			const existUserInOrg = await getOrganizationUserWithGrafanaAdminByProp(organization.id, propName, propValue);
 			if (!existUserInOrg) throw new ItemNotFoundException("The user", propName, propValue);
 			const userInOrgData: UserInOrgToUpdateDto = req.body;
 			if (userInOrgData.roleInOrg) {
 				if (!req.user.isGrafanaAdmin && userInOrgData.roleInOrg === "Admin") {
 					throw new HttpException(401, "To assign organization admin role to a user, platform administrator privileges are needed.");
 				}
+				if (!req.user.isGrafanaAdmin && existUserInOrg.isGrafanaAdmin) {
+					throw new HttpException(401, "The role in the org of the platform administrator only can be modify by himself.");
+				}
 				if (userInOrgData.roleInOrg !== existUserInOrg.roleInOrg) {
 					await grafanaApi.changeUserRoleInOrganization(organization.id, existUserInOrg.userId, userInOrgData.roleInOrg);
 					await updateOrgUserRoleInDefaultOrgGroup(organization.id, existUserInOrg, userInOrgData.roleInOrg);
 				}
 			}
-			const userInOrgDataUpdated = { ...existUserInOrg, ...userInOrgData };
-			await updateOrganizationUser(userInOrgDataUpdated);
-			const message = { message: `User updated succesfully.` }
+			const message = { message: `User role in org updated succesfully.` }
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

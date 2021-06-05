@@ -4,7 +4,7 @@ import TableWithPagination from './TableWithPagination';
 import { GLOBAL_USERS_OPTIONS } from './platformAssistantOptions';
 import CreateGlobalUser from './CreateGlobalUser';
 import EditGlobalUser from './EditGlobalUser';
-import { useGlobalUsersDispatch, useGlobalUsersOptionToShow, setGlobalUsersOptionToShow } from '../../contexts/globalUsers';
+import { useGlobalUsersDispatch, useGlobalUsersOptionToShow, setGlobalUsersOptionToShow } from '../../contexts/globalUsersOptions';
 
 
 interface GlobalUsersContainerProps {

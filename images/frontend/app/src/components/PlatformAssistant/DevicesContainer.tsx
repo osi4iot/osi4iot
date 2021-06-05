@@ -2,7 +2,7 @@ import React, { FC } from 'react'
 import TableWithPagination from './TableWithPagination';
 import { DEVICES_OPTIONS } from './platformAssistantOptions';
 import { Create_DEVICES_COLUMNS, IDevices } from './TableColumns/devicesColumns';
-import { setDevicesOptionToShow, useDevicesDispatch, useDevicesOptionToShow } from '../../contexts/devices';
+import { setDevicesOptionToShow, useDevicesDispatch, useDevicesOptionToShow } from '../../contexts/devicesOptions';
 import CreateDevice from './CreateDevice';
 import EditDevice from './EditDevice';
 

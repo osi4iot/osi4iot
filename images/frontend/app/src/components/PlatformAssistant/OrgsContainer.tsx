@@ -4,7 +4,7 @@ import TableWithPagination from './TableWithPagination';
 import CreateOrganization from './CreateOrganization';
 import EditOrganization from './EditOrganization';
 import { ORGS_OPTIONS } from './platformAssistantOptions';
-import { useOrgsDispatch, setOrgsOptionToShow, useOrgsOptionToShow } from '../../contexts/orgs';
+import { useOrgsDispatch, setOrgsOptionToShow, useOrgsOptionToShow } from '../../contexts/orgsOptions';
 
 
 interface OrgsContainerProps {

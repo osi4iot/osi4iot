@@ -7,9 +7,9 @@ import { useAuthState } from '../../../contexts/authContext';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
-import { useGlobalUsersDispatch } from '../../../contexts/globalUsers';
+import { useGlobalUsersDispatch } from '../../../contexts/globalUsersOptions';
 import { GLOBAL_USERS_OPTIONS } from '../platformAssistantOptions';
-import { setGlobalUserIdToEdit, setGlobalUserRowIndexToEdit, setGlobalUsersOptionToShow } from '../../../contexts/globalUsers';
+import { setGlobalUserIdToEdit, setGlobalUserRowIndexToEdit, setGlobalUsersOptionToShow } from '../../../contexts/globalUsersOptions';
 
 export interface IGlobalUser {
     id: number;

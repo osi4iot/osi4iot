@@ -9,8 +9,6 @@ import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
-import { setGlobalUsersOptionToShow, useGlobalUsersDispatch } from '../../contexts/globalUsers';
-import { GLOBAL_USERS_OPTIONS } from './platformAssistantOptions';
 
 
 const FormContainer = styled.div`
@@ -69,7 +67,6 @@ interface CreateGlobalUserProps {
 const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGlobalUsers }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken } = useAuthState();
-    const globalUsersDispatch = useGlobalUsersDispatch();
 
     const initialGlobalUsersData = {
         users: [
@@ -113,8 +110,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);
-                const globalUsersOptionToShow = { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.TABLE };
-                setGlobalUsersOptionToShow(globalUsersDispatch, globalUsersOptionToShow);
+                backToTable();
                 refreshGlobalUsers();
             })
             .catch((error) => {

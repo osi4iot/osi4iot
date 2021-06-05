@@ -14,7 +14,7 @@ import {
     setOrgUserUserIdToEdit,
     setOrgUserRowIndexToEdit,
     useOrgUsersDispatch
-} from '../../../contexts/orgUsers';
+} from '../../../contexts/orgUsersOptions';
 
 export interface IOrgUser {
     orgId: number;
@@ -23,7 +23,6 @@ export interface IOrgUser {
     surname: string;
     login: string;
     email: string;
-    telegramId: string;
     roleInOrg: string;
     lastSeenAtAge: string;
     edit: string;
@@ -141,11 +140,6 @@ export const Create_ORG_USERS_COLUMNS = (refreshOrgUsers: () => void): Column<IO
             accessor: "email"
         },
         {
-            Header: "TelegramId",
-            accessor: "telegramId",
-            disableFilters: true,
-        },
-        {
             Header: "Role",
             accessor: "roleInOrg",
             disableFilters: true,
@@ -174,7 +168,7 @@ export const Create_ORG_USERS_COLUMNS = (refreshOrgUsers: () => void): Column<IO
             disableSortBy: true,
             Cell: props => {
                 const orgId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const userId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const userId = props.rows[props.row.id as unknown as number]?.cells[1]?.value;
                 const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
                 return <DeleteOrgUserModal orgId={orgId} userId={userId} rowIndex={parseInt(rowIndex)} refreshOrgUsers={refreshOrgUsers} />
             }

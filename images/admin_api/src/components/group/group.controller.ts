@@ -5,7 +5,6 @@ import organizationExists from "../../middleware/organizationExists.middleware";
 import groupExists from "../../middleware/groupExists.middleware";
 import { organizationAdminAuth, groupAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
-import grafanaApi from "../../GrafanaApi";
 import AlreadyExistingItemException from "../../exceptions/AlreadyExistingItemException";
 import CreateGroupDto from "./interfaces/group.dto";
 import {

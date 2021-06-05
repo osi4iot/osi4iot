@@ -9,7 +9,7 @@ import { IOrganization } from "../../components/PlatformAssistant/TableColumns/o
 import { IOrgManaged } from "../../components/PlatformAssistant/TableColumns/organizationsManagedColumns";
 import { IOrgUser } from "../../components/PlatformAssistant/TableColumns/orgUsersColumns";
 import { IRefreshToken } from "../../components/PlatformAssistant/TableColumns/refreshTokensColumns";
-import { ISelectUser } from "../../components/PlatformAssistant/TableColumns/selectUserColumns";
+import { ISelectOrgUser } from "../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns";
 import { IUserProfile } from "../../components/PlatformAssistant/UserProfile";
 
 export interface PlatformAssistantDispatch {
@@ -22,7 +22,7 @@ export interface PlatformAssistantContextProps {
 	numGroupsManaged: number; 
 	numDevicesManage: number;
 	platformAssitantOptionToShow: string;
-	selectUsers: ISelectUser[];
+	selectOrgUsers: ISelectOrgUser[];
 	organizations: IOrganization[];
 	globalUsers: IGlobalUser[];
 	refreshTokens: IRefreshToken[];
@@ -43,7 +43,7 @@ export interface PlatformAssistantActionPayload {
 	numGroupsManaged: number; 
 	numDevicesManage: number;
 	platformAssitantOptionToShow: string;
-	selectUsers: ISelectUser[];
+	selectOrgUsers: ISelectOrgUser[];
 	organizations: IOrganization[];
 	globalUsers: IGlobalUser[];
 	refreshTokens: IRefreshToken[];
@@ -75,8 +75,8 @@ export interface IPlatformAssistantOptionToShow {
 	platformAssistantOptionToShow: string;
 }
 
-export interface ISelectUsersTable {
-	selectUsers: ISelectUser[];
+export interface ISelectOrgUsersTable {
+	selectOrgUsers: ISelectOrgUser[];
 }
 
 export interface IOrganizationsTable {

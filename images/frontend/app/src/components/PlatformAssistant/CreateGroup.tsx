@@ -9,7 +9,7 @@ import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
-import { useGroupsDispatch, setGroupsOptionToShow } from '../../contexts/groups';
+import { useGroupsDispatch, setGroupsOptionToShow } from '../../contexts/groupsOptions';
 import { GROUPS_OPTIONS } from './platformAssistantOptions';
 
 

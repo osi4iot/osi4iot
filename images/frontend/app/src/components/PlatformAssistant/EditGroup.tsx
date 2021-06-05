@@ -14,7 +14,7 @@ import {
     useGroupIdToEdit,
     useGroupsDispatch,
     useGroupRowIndexToEdit
-} from '../../contexts/groups';
+} from '../../contexts/groupsOptions';
 import {  GROUPS_OPTIONS } from './platformAssistantOptions';
 import { IGroup } from './TableColumns/groupsColumns';
 

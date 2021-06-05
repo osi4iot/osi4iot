@@ -9,10 +9,10 @@ import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
-import { setOrgsOptionToShow, useOrgsDispatch } from '../../contexts/orgs';
+import { setOrgsOptionToShow, useOrgsDispatch } from '../../contexts/orgsOptions';
 import { ORGS_OPTIONS } from './platformAssistantOptions';
-import { ISelectUser } from './TableColumns/selectUserColumns';
-import SelectUsers from './SelectUsers';
+import { ISelectGlobalUser } from './TableColumns/selectGlobalUserColumns';
+import SelectGlobalUsers from './SelectGlobalUsers';
 import { IOrgInputData } from './OrgsContainer';
 
 
@@ -75,7 +75,7 @@ interface CreateOrganizationProps {
 const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs,  orgInputData, setOrgInputData }) => {
     const [showCreateOrg, setShowCreateOrg] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectUser[]>([]);
+    const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
     const { accessToken } = useAuthState();
     const orgsDispatch = useOrgsDispatch();
     const initialOrgData = { ...orgInputData };
@@ -96,7 +96,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
         } else {
             initialOrgData.orgAdminArray = [...initialOrgData.orgAdminArray, ...newOrgAdmins];
         }
-        
     }
 
     const validationSchema = Yup.object().shape({
@@ -257,9 +256,9 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                     </FormContainer>
                 </>
                 :
-                <SelectUsers
+                <SelectGlobalUsers
                     backToCreate={() => setShowCreateOrg(true)}
-                    setSelectedUsersArray={(selectedUsers: ISelectUser[]) => setSelectedUsersArray(selectedUsers)}
+                    setSelectedUsersArray={(selectedUsers: ISelectGlobalUser[]) => setSelectedUsersArray(selectedUsers)}
                 />
             }
         </>

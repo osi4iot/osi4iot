@@ -14,7 +14,7 @@ import {
     setGlobalUsersOptionToShow,
     useGlobalUserRowIndexToEdit,
     useGlobalUsersDispatch
-} from '../../contexts/globalUsers';
+} from '../../contexts/globalUsersOptions';
 import { GLOBAL_USERS_OPTIONS } from './platformAssistantOptions';
 import { IGlobalUser } from './TableColumns/globalUsersColumns';
 

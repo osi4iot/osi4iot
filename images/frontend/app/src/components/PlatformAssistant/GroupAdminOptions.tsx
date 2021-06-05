@@ -9,8 +9,8 @@ import { GROUPS_MANAGED_COLUMNS } from './TableColumns/groupsManagedColumns';
 import { GROUP_ADMIN_OPTIONS } from './platformAssistantOptions';
 import DevicesContainer from './DevicesContainer';
 import GroupMembersContainer from './GroupMembersContainer';
-import { GroupMembersProvider } from '../../contexts/groupMembers';
-import { DevicesProvider } from '../../contexts/devices';
+import { GroupMembersProvider } from '../../contexts/groupMembersOptions';
+import { DevicesProvider } from '../../contexts/devicesOptions';
 import {
     usePlatformAssitantDispatch,
     useGroupsManagedTable,

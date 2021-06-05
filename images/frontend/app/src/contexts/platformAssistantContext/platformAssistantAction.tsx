@@ -2,7 +2,7 @@ import {
 	PlatformAssistantDispatch,
 	IUserRole,
 	IPlatformAssistantOptionToShow,
-	ISelectUsersTable,
+	ISelectOrgUsersTable,
 	IOrganizationsTable,
 	IGlobalUsersTable,
 	IRefreshTokensTable,
@@ -26,8 +26,8 @@ export function setPlaformAssistantOptionToShow(plaformAssistantDispatch: Platfo
 	plaformAssistantDispatch({ type: 'PLATFORM_ASSISTANT_OPTION_TO_SHOW', payload: data });
 }
 
-export function setSelectUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: ISelectUsersTable) {
-	plaformAssistantDispatch({ type: 'SELECT_USERS_TABLE', payload: data });
+export function setSelectOrgUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: ISelectOrgUsersTable) {
+	plaformAssistantDispatch({ type: 'SELECT_ORG_USERS_TABLE', payload: data });
 }
 
 export function setOrganizationsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrganizationsTable) {

@@ -14,7 +14,7 @@ import {
     setGroupMemberUserIdToEdit,
     setGroupMemberRowIndexToEdit,
     setGroupMembersOptionToShow
-} from '../../../contexts/groupMembers';
+} from '../../../contexts/groupMembersOptions';
 
 export interface IGroupMember {
     groupId: number;

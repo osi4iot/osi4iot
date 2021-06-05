@@ -46,9 +46,14 @@ export const ORG_ADMIN_OPTIONS = {
     GROUPS: "Groups",
 }
 
+export const ORGS_MANAGED_OPTIONS = {
+    TABLE: "Table",
+    CREATE_ORG_USERS: "Create org users",
+    REMOVE_ALL_ORG_USERS: "Remove all org users",
+}
+
 export const ORG_USERS_OPTIONS = {
     TABLE: "Table",
-    CREATE_ORG_USER: "Create org user",
     EDIT_ORG_USER: "Edit org user",
 }
 
@@ -63,6 +68,12 @@ export const GROUP_ADMIN_OPTIONS = {
     GROUPS_MANAGED: "Groups Managed",
     DEVICES: "Orgs users",
     GROUP_MEMBERS: "Group members",
+}
+
+export const GROUPS_MANAGED_OPTIONS = {
+    TABLE: "Table",
+    CREATE_GROUP_MEMBERS: "Create group members",
+    REMOVE_ALL_GROUP_MEMBERS: "Remove all group members",
 }
 
 export const DEVICES_OPTIONS = {

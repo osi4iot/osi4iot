@@ -3,17 +3,17 @@ import { FC, useEffect, useState } from 'react'
 import styled from "styled-components";
 import { useAuthState } from '../../contexts/authContext';
 import { axiosAuth, getDomainName } from '../../tools/tools';
-import { ORGS_MANAGED_COLUMNS } from './TableColumns/organizationsManagedColumns';
-import TableWithPagination from './TableWithPagination';
 import Loader from "../Tools/Loader";
 import elaspsedTimeFormat from '../../tools/elapsedTimeFormat';
 import { ORG_ADMIN_OPTIONS } from './platformAssistantOptions';
-import { OrgUsersProvider } from '../../contexts/orgUsers';
+import { OrgUsersProvider } from '../../contexts/orgUsersOptions';
 import OrgUsersContainer from './OrgUsersContainer';
-import { GroupsProvider } from '../../contexts/groups';
+import { GroupsProvider } from '../../contexts/groupsOptions';
 import GroupsContainer from './GroupsContainer';
 import { IOrgUser } from './TableColumns/orgUsersColumns';
-import { usePlatformAssitantDispatch, useOrgsManagedTable, useOrgUsersTable, useGroupsTable, setOrgsManagedTable, setOrgUsersTable, setGroupsTable } from '../../contexts/platformAssistantContext';
+import { OrgsManagedProvider } from '../../contexts/orgsManagedOptions';
+import { usePlatformAssitantDispatch, useOrgsManagedTable, useOrgUsersTable, useGroupsTable, setOrgsManagedTable, setOrgUsersTable, setGroupsTable, useGlobalUsersTable, setGlobalUsersTable } from '../../contexts/platformAssistantContext';
+import OrgsManagedContainer from './OrgsManagedContainer';
 
 const OrganizationAdminOptionsContainer = styled.div`
 	display: flex;
@@ -92,9 +92,11 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const orgsManagedTable = useOrgsManagedTable();
     const orgUsersTable = useOrgUsersTable();
     const groupsTable = useGroupsTable();
+    const globalUsersTable = useGlobalUsersTable();
     const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
     const [orgUsersLoading, setOrgUsersLoading] = useState(true);
+    const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(ORG_ADMIN_OPTIONS.ORGS_MANAGED);
 
     const [reloadOrgsManaged, setReloadOrgsManaged] = useState(false);
@@ -184,6 +186,31 @@ const OrganizationAdminOptions: FC<{}> = () => {
         }
     }, [accessToken, plaformAssistantDispatch, reloadGroups, groupsTable.length]);
 
+    useEffect(() => {
+        if (globalUsersTable.length === 0 || reloadOrgUsers) {
+            const config = axiosAuth(accessToken);
+            const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
+            axios
+                .get(urlGlobalUsers, config)
+                .then((response) => {
+                    const globalUsers = response.data;
+                    globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
+                        user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
+                        user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
+                        return user;
+                    })
+                    setGlobalUsersTable(plaformAssistantDispatch, { globalUsers });
+                    setGlobalUsersLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setGlobalUsersLoading(false);
+        }
+
+    }, [accessToken, reloadOrgUsers, plaformAssistantDispatch, globalUsersTable.length]);
+
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
     }
@@ -202,17 +229,14 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
-                {(orgsManagedLoading || groupsLoading || orgUsersLoading) ?
+                {(orgsManagedLoading || groupsLoading || orgUsersLoading || globalUsersLoading) ?
                     <Loader />
                     :
                     <>
                         {optionToShow === ORG_ADMIN_OPTIONS.ORGS_MANAGED &&
-                            <TableWithPagination
-                                dataTable={orgsManagedTable}
-                                columnsTable={ORGS_MANAGED_COLUMNS}
-                                reloadTable={refreshOrgsManaged}
-                                componentName=""
-                            />
+                            <OrgsManagedProvider>
+                                <OrgsManagedContainer orgsManaged={orgsManagedTable} refreshOrgsManaged={refreshOrgsManaged} refreshOrgUsers={refreshOrgUsers} />
+                            </OrgsManagedProvider>
                         }
                         {optionToShow === ORG_ADMIN_OPTIONS.ORG_USERS &&
                             <OrgUsersProvider>

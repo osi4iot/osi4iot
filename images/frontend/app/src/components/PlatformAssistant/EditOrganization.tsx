@@ -14,7 +14,7 @@ import {
     useOrgRowIndexToEdit,
     setOrgsOptionToShow,
     useOrgIdToEdit
-} from '../../contexts/orgs';
+} from '../../contexts/orgsOptions';
 import { ORGS_OPTIONS } from './platformAssistantOptions';
 import { IOrganization } from './TableColumns/organizationsColumns';
 
