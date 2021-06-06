@@ -37,7 +37,7 @@ import {
 	getUsersIdByEmailsArray,
 	isUsersDataCorrect,
 	getOrganizationUsersWithGrafanaAdmin,
-	getOrganizationUsersByOrgManagedByUser,
+	getOrganizationUsersForOrgIdsArray,
 	getOrganizationUserWithGrafanaAdminByProp
 } from "../user/userDAL";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
@@ -46,7 +46,7 @@ import HttpException from "../../exceptions/HttpException";
 import CreateUsersArrayDto from "../user/interfaces/UsersArray.dto";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
-import { createGroup, defaultOrgGroupName, deleteGroup, getAllGroupsInOrganization, getDefaultOrgGroup, getGroupMemberByProp, getGroupMembers, getGroupsOfOrgIdWhereUserIdIsMember, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
+import { createGroup, defaultOrgGroupName, deleteGroup, getAllGroupsInOrganization, getDefaultOrgGroup, getGroupMemberByProp, getGroupMembers, getGroupsOfOrgIdWhereUserIdIsMember, getOrgsIdArrayForGroupsManagedByUserId, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
@@ -79,9 +79,14 @@ class OrganizationController implements IController {
 				this.getOrganizationsManagedByUser
 			)
 			.get(
-				`/organization_users/user_managed/`,
+				`/organization_users/user_orgs_managed/`,
 				userAuth,
-				this.getOrganizationsUserForOrgsManagedByUser
+				this.getOrganizationsUsersForOrgsManagedByUser
+			)
+			.get(
+				`/organization_users/user_groups_managed/`,
+				userAuth,
+				this.getOrganizationsUsersForOrgsWithGroupsManagedByUser
 			)
 			.get(
 				`${this.path}s/which_the_logged_user_is_user/`,
@@ -181,11 +186,28 @@ class OrganizationController implements IController {
 		}
 	};
 
-	private getOrganizationsUserForOrgsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getOrganizationsUsersForOrgsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const organizations = await this.organizationsManagedByUser(req.user);
 			const orgIdsArray = organizations.map(org => org.id);
-			const orgUsers = await getOrganizationUsersByOrgManagedByUser(orgIdsArray);
+			const orgUsers = await getOrganizationUsersForOrgIdsArray(orgIdsArray);
+			orgUsers.forEach(user => {
+				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
+			});
+			res.status(200).send(orgUsers);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getOrganizationsUsersForOrgsWithGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const organizations = await this.organizationsManagedByUser(req.user);
+			const orgIdsArrayForOrgsAdmin = organizations.map(org => org.id);
+			const orgsArrayForGroupsManagedByUser = await getOrgsIdArrayForGroupsManagedByUserId(req.user.id);
+			const orgsIdArrayForGroupsManagedByUser = orgsArrayForGroupsManagedByUser.map(item => item.orgId);
+			const orgIdsArray = [...new Set([...orgIdsArrayForOrgsAdmin ,...orgsIdArrayForGroupsManagedByUser])];
+			const orgUsers = await getOrganizationUsersForOrgIdsArray(orgIdsArray);
 			orgUsers.forEach(user => {
 				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			});

@@ -788,7 +788,7 @@
 				}
 			}
 		},
-		"/organization_users/user_managed/": {		
+		"/organization_users/user_orgs_managed/": {		
 			"get": {
 				"tags": ["Organization"],
 				"summary": "Get all organizations users for orgs managed by the logged user",
@@ -816,6 +816,34 @@
 				}
 			}
 		},
+		"/organization_users/user_groups_managed/": {		
+			"get": {
+				"tags": ["Organization"],
+				"summary": "Get all organizations users for orgs with groups managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/UsersOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/organizations/which_the_logged_user_is_user/": {		
 			"get": {
 				"tags": ["Organization"],

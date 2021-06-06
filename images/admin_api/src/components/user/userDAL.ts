@@ -10,7 +10,7 @@ import { sendUserRegistrationInvitationEmail } from "./userEmailFactory";
 import { passwordGenerator } from "../../utils/passwordGenerator";
 import UserProfileDto from "./interfaces/UserProfile.dto";
 import CreateGlobalUserDto from "./interfaces/GlobalUser.dto";
-
+import normalizeString from '../../utils/helpers/normalizeString';
 
 export const getUserLoginDatadByEmailOrLogin = async (emailOrLogin: string): Promise<IUserLoginData> => {
 	const response: QueryResult = await
@@ -58,8 +58,14 @@ export const createOrganizationUsers = async (orgId: number, usersData: CreateUs
 		if (!user.name || user.name === "") user.name = `${user.firstName} ${user.surname}`
 		if (!user.telegramId || user.telegramId === "") user.telegramId = user.name;
 		if (!user.OrgId) user.OrgId = orgId;
-		if (!user.login || user.login === "") user.login = `${user.firstName.replace(/ /g, ".").toLocaleLowerCase()}.${user.surname.replace(/ /g, ".").toLocaleLowerCase()}`;
-		if (!user.password || user.password === "") user.password = passwordGenerator(10);
+		if (!user.login || user.login === "") {
+			const username = `${user.firstName.replace(/ /g, ".").toLocaleLowerCase()}.${user.surname.replace(/ /g, ".").toLocaleLowerCase()}`;
+			user.login = normalizeString(username);
+		}
+		if (!user.password || user.password === "") {
+			const password = passwordGenerator(10);
+			user.password = normalizeString(password);
+		}
 	});
 	const msg_users = await grafanaApi.createUsers(usersData);
 	const numCreatedUsers = msg_users.filter(msg => msg.message === "User created").length;
@@ -105,7 +111,6 @@ export const createGlobalUsers = async (usersData: CreateUserDto[]) => {
 	return users_msg;
 }
 
-
 export const isThisUserOrgAdmin = async (userId: number, orgId: number): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org_user WHERE user_id = $1 AND org_id = $2 AND role = $3',
 		[userId, orgId, "Admin"]);
@@ -124,7 +129,7 @@ export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]>
 	return result.rows;
 };
 
-export const getOrganizationUsersByOrgManagedByUser = async (orgIdsArray: number[]): Promise<IUserInOrg[]> => {
+export const getOrganizationUsersForOrgIdsArray = async (orgIdsArray: number[]): Promise<IUserInOrg[]> => {
 	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
 					grafanadb.org_user.org_id as "orgId", role as "roleInOrg",
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
@@ -286,3 +291,4 @@ export const isUserProfileDataCorrect = async (userProfileData: UserProfileDto):
 
 	return true;
 };
+

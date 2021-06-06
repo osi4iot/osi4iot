@@ -19,6 +19,7 @@ const sendEmail = async (subject: string, mailTo: string[], bodyType: string, ma
 				html: mailBody
 			};
 		}
+
 		transporter.sendMail(mailOptions, (error, info) => {
 			if (error) {
 				const message = `Mail not sended.  ${error}`;

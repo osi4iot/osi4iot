@@ -1,5 +1,5 @@
 import bodyParser from "body-parser";
-import express, { Request, Response, NextFunction} from "express";
+import express, { Request, Response, NextFunction } from "express";
 import https from "https";
 import fs from "fs";
 import helmet from "helmet";

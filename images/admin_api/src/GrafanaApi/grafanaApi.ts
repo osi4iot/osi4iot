@@ -21,6 +21,8 @@ import IOptionsToken from "./interfaces/OptionsToken";
 import INotificationChannel from "./interfaces/NotificationChannel";
 import { updateNotificationChannelSettings } from "../components/group/groupDAL";
 import CreateUserDto from "../components/user/interfaces/User.dto";
+import sleep from "../utils/helpers/sleep";
+import wait from "../utils/helpers/wait";
 
 const GrafanaApiURL = "grafana:5000/api"
 const optionsBasicAuth = {
@@ -236,6 +238,9 @@ export default class GrafanaApi implements IDashboardApi {
 		const url = `${GrafanaApiURL}/admin/users`;
 		const usersCreationQueries = [];
 		for (let i = 0; i < users.length; i++) {
+			if (i % 25 === 0) {
+				await wait(1000);
+			}
 			usersCreationQueries[i] =
 				needle('post', url, users[i], optionsBasicAuth)
 					.then(res => res.body)

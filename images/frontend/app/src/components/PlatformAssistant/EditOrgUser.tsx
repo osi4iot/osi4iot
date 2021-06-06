@@ -158,6 +158,7 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
                                         name="roleInOrg"
                                         options={roleInOrgOptions}
                                         type='text'
+                                        autoFocus={true}
                                     />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

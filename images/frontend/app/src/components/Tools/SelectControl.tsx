@@ -66,6 +66,9 @@ const customStyles = {
     }),
     valueContainer: (provided: any, state: any) => ({
         ...provided,
+        "& > div > div": {
+            opacity: '0'
+        }
     }),
     indicatorsContainer: (provided: any, state: any) => ({
         ...provided,
@@ -98,7 +101,7 @@ interface DropDownProps extends FieldProps {
     placeholder?: string;
 }
 
-export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder }) => {
+export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder, ...rest }) => {
 
     const onChange = (option: ValueType<IOption, false>) => {
         form.setFieldValue(
@@ -125,6 +128,7 @@ export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder 
                 placeholder={placeholder}
                 options={options}
                 isMulti={false}
+                {...rest}
             />
         </SelectContainer>
     );
@@ -134,9 +138,10 @@ interface SelectControlProps {
     label: string;
     name: string;
     options: OptionsType<IOption>;
+    autoFocus: boolean;
 }
 
-const SelectControl: FC<SelectControlProps> = ({ label, name, options }) => {
+const SelectControl: FC<SelectControlProps> = ({ label, name, options,autoFocus=false, ...rest }) => {
     return (
         <DropDownContainer>
             {label!== "" && <label htmlFor={name}>{label}</label>}
@@ -146,6 +151,8 @@ const SelectControl: FC<SelectControlProps> = ({ label, name, options }) => {
                 component={DropDown}
                 placeholder="Select"
                 isMulti={false}
+                autoFocus={autoFocus}
+                {...rest}
             />
         </DropDownContainer>
     )

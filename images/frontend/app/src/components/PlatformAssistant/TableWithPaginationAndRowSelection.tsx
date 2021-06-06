@@ -107,6 +107,12 @@ const Pagination = styled.div`
             box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
         }
     }
+
+    & button {
+        &:hover {
+            cursor: pointer;
+        }
+    }
 `;
 
 

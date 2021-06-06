@@ -1,13 +1,14 @@
 import { Column } from 'react-table';
 
 export interface ISelectOrgUser {
+    orgId: number;
     userId: number;
     firstName: string;
     surname: string;
     email: string;
 }
 
-export const SELECT_GLOBAL_USERS: Column<ISelectOrgUser>[] = [
+export const SELECT_ORG_USERS: Column<ISelectOrgUser>[] = [
     {
         Header: "UserId",
         accessor: "userId",

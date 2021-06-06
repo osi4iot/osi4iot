@@ -3,9 +3,7 @@ import { FC, useEffect, useState } from 'react'
 import styled from "styled-components";
 import { useAuthState } from '../../contexts/authContext';
 import { axiosAuth, getDomainName } from '../../tools/tools';
-import TableWithPagination from './TableWithPagination';
 import Loader from "../Tools/Loader";
-import { GROUPS_MANAGED_COLUMNS } from './TableColumns/groupsManagedColumns';
 import { GROUP_ADMIN_OPTIONS } from './platformAssistantOptions';
 import DevicesContainer from './DevicesContainer';
 import GroupMembersContainer from './GroupMembersContainer';
@@ -16,10 +14,14 @@ import {
     useGroupsManagedTable,
     useDevicesTable,
     useGroupMembersTable,
+    useSelectOrgUsersTable,
     setGroupsManagedTable,
     setGroupMembersTable,
     setDevicesTable,
+    setSelectOrgUsersTable
 } from '../../contexts/platformAssistantContext';
+import { GroupsManagedProvider } from '../../contexts/groupsManagedOptions';
+import GroupsManagedContainer from './GroupsManagedContainer';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -99,9 +101,11 @@ const GroupAdminOptions: FC<{}> = () => {
     const groupsManagedTable = useGroupsManagedTable();
     const devicesTable = useDevicesTable();
     const groupMembersTable = useGroupMembersTable();
+    const selectOrgUsersTable = useSelectOrgUsersTable()
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
     const [deviceLoading, setDevicesLoading] = useState(true);
     const [groupMembersLoading, setGroupMembersLoading] = useState(true);
+    const [selectOrgUsersLoading, setSelectOrgUsersLoading] = useState(true);
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
     const [reloadGroupMembers, setReloadGroupMembers] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
@@ -189,6 +193,26 @@ const GroupAdminOptions: FC<{}> = () => {
         }
     }, [accessToken, plaformAssistantDispatch, reloadGroupMembers, groupMembersTable.length]);
 
+    useEffect(() => {
+        if (selectOrgUsersTable.length === 0 || reloadGroupsManaged) {
+            const config = axiosAuth(accessToken);
+            const urlGroupsManaged = `https://${domainName}/admin_api/organization_users/user_groups_managed/`;
+            axios
+                .get(urlGroupsManaged, config)
+                .then((response) => {
+                    const selectOrgUsers = response.data;
+                    setSelectOrgUsersTable(plaformAssistantDispatch, { selectOrgUsers });
+                    setSelectOrgUsersLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setSelectOrgUsersLoading(false);
+        }
+    }, [accessToken, plaformAssistantDispatch, reloadGroupsManaged, selectOrgUsersTable.length]);
+
+
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
     }
@@ -207,19 +231,18 @@ const GroupAdminOptions: FC<{}> = () => {
                 </OptionContainer>
             </GroupAdminOptionsContainer>
             <ContentContainer >
-                {(groupsManagedLoading || deviceLoading || groupMembersLoading) ?
+                {(groupsManagedLoading || deviceLoading || groupMembersLoading || selectOrgUsersLoading) ?
                     <Loader />
                     :
                     <>
-                        {
-                            optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED
-                            &&
-                            <TableWithPagination
-                                dataTable={groupsManagedTable}
-                                columnsTable={GROUPS_MANAGED_COLUMNS}
-                                reloadTable={refreshGroupsManaged}
-                                componentName=""
-                            />
+                        {optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED &&
+                            <GroupsManagedProvider>
+                                <GroupsManagedContainer
+                                    groupsManaged={groupsManagedTable}
+                                    refreshGroupsManaged={refreshGroupsManaged}
+                                    refreshGroupMembers={refreshGroupMembers}
+                                />
+                            </GroupsManagedProvider>
                         }
                         {optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS &&
                             <GroupMembersProvider>

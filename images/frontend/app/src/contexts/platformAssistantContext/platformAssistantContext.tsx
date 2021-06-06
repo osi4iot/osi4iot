@@ -3,7 +3,7 @@ import { IDevices } from '../../components/PlatformAssistant/TableColumns/device
 import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/globalUsersColumns';
 import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
 import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
-import { IGroupsManaged } from '../../components/PlatformAssistant/TableColumns/groupsManagedColumns';
+import { IGroupManaged } from '../../components/PlatformAssistant/TableColumns/groupsManagedColumns';
 import { IMembershipInGroups } from '../../components/PlatformAssistant/TableColumns/membershipInGroups';
 import { IMembershipInOrgs } from '../../components/PlatformAssistant/TableColumns/membershipInOrgs';
 import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
@@ -116,7 +116,7 @@ export const useGroupsTable = (): IGroup[] => {
 	return context.groups;
 }
 
-export const useGroupsManagedTable = (): IGroupsManaged[] => {
+export const useGroupsManagedTable = (): IGroupManaged[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
 		throw new Error('useGroupsManagedTable must be used within a PlatformAssitantProvider');

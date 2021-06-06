@@ -156,7 +156,7 @@ interface InitialValues {
     [key: string]: string;
 }
 
-const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect }) => {
+const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, ...rest }) => {
     const keyValueArray = nameArray.map(el => [el, ""]);
     const initialValues: InitialValues = Object.fromEntries(keyValueArray);
     return (
@@ -182,7 +182,7 @@ const InputArray: FC<InputArrayProps> = ({ name, label, labelArray, nameArray, t
                                             {labelArray.map((subitem, subIndex) => (
                                                 <FieldContainer key={`${name}_${index}_${subIndex}`}>
                                                     <label htmlFor={`${nameArray[subIndex]}`}>{`${labelArray[subIndex]}`}</label>
-                                                    <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} />
+                                                    <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} {...rest}/>
                                                     <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError} />
                                                 </FieldContainer>
                                             ))}

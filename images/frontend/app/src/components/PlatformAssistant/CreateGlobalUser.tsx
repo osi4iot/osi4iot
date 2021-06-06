@@ -127,7 +127,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting} >Create global user</FormTitle>
+            <FormTitle isSubmitting={isSubmitting} >Create global users</FormTitle>
             <FormContainer>
                 <Formik initialValues={initialGlobalUsersData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {

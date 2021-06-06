@@ -149,6 +149,10 @@ const Pagination = styled.div`
 
     & button {
         margin: 0px 1px;
+        
+        &:hover {
+            cursor: pointer;
+        }
     }
 `;
 

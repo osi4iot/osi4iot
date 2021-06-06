@@ -9,10 +9,11 @@ import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
-import { useOrgManagedIdToCreateOrgUsers } from '../../contexts/orgsManagedOptions';
+import { useOrgManagedIdToCreateOrgUsers, useOrgManagedRowIndex } from '../../contexts/orgsManagedOptions';
 import { IOrgUsersInput } from './OrgsManagedContainer';
 import SelectGlobalUsers from './SelectGlobalUsers';
 import { ISelectGlobalUser } from './TableColumns/selectGlobalUserColumns';
+import { useOrgsManagedTable } from '../../contexts/platformAssistantContext';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -97,11 +98,14 @@ const initialOrgUsersValues = {
 }
 
 const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, orgUsersInputData, setOrgUsersInputData }) => {
+    const orgsManagedTable = useOrgsManagedTable();
+    const orgManagedRowIndex = useOrgManagedRowIndex();
+    const orgAcronym = orgsManagedTable[orgManagedRowIndex].acronym;
+    const orgManagedId = useOrgManagedIdToCreateOrgUsers();
     const [showCreateOrgUsers, setShowCreateOrgUsers] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
     const { accessToken } = useAuthState();
-    const orgManagedId = useOrgManagedIdToCreateOrgUsers();
     const initialOrgUsersData = { ...orgUsersInputData };
     if (selectedUsersArray.length !== 0) {
         const newUsers = selectedUsersArray.map(user => {
@@ -121,8 +125,6 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
             initialOrgUsersData.users = [...initialOrgUsersData.users, ...newUsers];
         }
     }
-
-    console.log("CreateOrgUser")
 
     const validationSchema = Yup.object().shape({
         users: Yup.array()
@@ -177,7 +179,7 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
             {
                 showCreateOrgUsers ?
                     <>
-                        <FormTitle isSubmitting={isSubmitting} >Create org users</FormTitle>
+                        <FormTitle isSubmitting={isSubmitting} >Add users to org {orgAcronym}</FormTitle>
                         <FormContainer>
                             <Formik initialValues={initialOrgUsersData} validationSchema={validationSchema} onSubmit={onSubmit} >
                                 {

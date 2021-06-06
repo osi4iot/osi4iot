@@ -143,7 +143,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (orgUsersTable.length === 0 || reloadOrgUsers) {
             const config = axiosAuth(accessToken);
-            const urlOrganizationUsers = `https://${domainName}/admin_api/organization_users/user_managed/`;
+            const urlOrganizationUsers = `https://${domainName}/admin_api/organization_users/user_orgs_managed/`;
             axios
                 .get(urlOrganizationUsers, config)
                 .then((response) => {

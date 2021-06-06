@@ -2,7 +2,7 @@ import { IDevices } from "../../components/PlatformAssistant/TableColumns/device
 import { IGlobalUser } from "../../components/PlatformAssistant/TableColumns/globalUsersColumns";
 import { IGroupMember } from "../../components/PlatformAssistant/TableColumns/groupMemberColumns";
 import { IGroup } from "../../components/PlatformAssistant/TableColumns/groupsColumns";
-import { IGroupsManaged } from "../../components/PlatformAssistant/TableColumns/groupsManagedColumns";
+import { IGroupManaged } from "../../components/PlatformAssistant/TableColumns/groupsManagedColumns";
 import { IMembershipInGroups } from "../../components/PlatformAssistant/TableColumns/membershipInGroups";
 import { IMembershipInOrgs } from "../../components/PlatformAssistant/TableColumns/membershipInOrgs";
 import { IOrganization } from "../../components/PlatformAssistant/TableColumns/organizationsColumns";
@@ -29,7 +29,7 @@ export interface PlatformAssistantContextProps {
 	orgsManaged: IOrgManaged[];
 	orgUsers: IOrgUser[];
 	groups: IGroup[];
-	groupsManaged: IGroupsManaged[];
+	groupsManaged: IGroupManaged[];
 	groupMembers: IGroupMember[];
 	devices: IDevices[];
 	userProfile: IUserProfile;
@@ -50,7 +50,7 @@ export interface PlatformAssistantActionPayload {
 	orgsManaged: IOrgManaged[];
 	orgUsers: IOrgUser[];
 	groups: IGroup[];
-	groupsManaged: IGroupsManaged[];
+	groupsManaged: IGroupManaged[];
 	groupMembers: IGroupMember[];
 	devices: IDevices[];
 	userProfile: IUserProfile;
@@ -104,7 +104,7 @@ export interface IGroupsTable {
 }
 
 export interface IGroupsManagedTable {
-	groupsManaged: IGroupsManaged[];
+	groupsManaged: IGroupManaged[];
 }
 
 export interface IGroupMembersTable {

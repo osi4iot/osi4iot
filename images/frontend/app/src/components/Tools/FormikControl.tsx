@@ -22,9 +22,10 @@ interface FormikControlProps {
     selectLabel?: string;
     goToSelect?: () => void;
     options?: OptionsType<IOption>;
+    autoFocus?: boolean;
 }
 
-const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, options, ...rest }) => {
+const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, options, autoFocus, ...rest }) => {
     switch (control) {
         case 'input':
             return <Input label={label as string} name={name as string} type={type as string} {...rest} />
@@ -60,7 +61,7 @@ const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, lab
         case 'textarea':
             break;
         case 'select':
-            return <SelectControl label={label as string} name={name as string} options={options as OptionsType<IOption>} />
+            return <SelectControl label={label as string} name={name as string} options={options as OptionsType<IOption>} autoFocus={ autoFocus as boolean} {...rest} />
         case 'radio':
             break;
         case 'checkbox':

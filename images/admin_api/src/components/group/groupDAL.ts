@@ -229,6 +229,17 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 	return result.rows;
 }
 
+export const getOrgsIdArrayForGroupsManagedByUserId = async (userId: number): Promise<{ orgId: number}[]> => {
+	const query = `SELECT DISTINCT grafanadb.group.org_id AS "orgId"
+				FROM grafanadb.group
+				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
+				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2
+				ORDER BY grafanadb.group.org_id ASC;`;
+	const result = await pool.query(query, [userId, 4]);
+	return result.rows;
+}
+
 export const groupsWhichTheLoggedUserIsMember = async (userId: number): Promise<IMembershipInGroups[]> => {
 	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.group.org_id AS "orgId",
 	            grafanadb.group.name, grafanadb.group.acronym,

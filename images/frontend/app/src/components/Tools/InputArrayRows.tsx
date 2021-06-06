@@ -288,7 +288,8 @@ const InputArrayRows: FC<InputArrayRowsProps> = (
         addLabel,
         inputSelectOptions,
         selectLabel = "",
-        goToSelect = () => {}
+        goToSelect = () => { },
+        ...rest
     }
 ) => {
     const keyValueArray = nameArray.map((el, index) => {
@@ -384,11 +385,12 @@ const InputArrayRows: FC<InputArrayRowsProps> = (
                                                                     component={DropDown}
                                                                     placeholder="Select"
                                                                     isMulti={false}
+                                                                    {...rest}
                                                                 />
                                                             </DropDownContainer>
                                                             :
                                                             <FieldContainer type={typeArray[subIndex]}>
-                                                                <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} />
+                                                                <Field name={`${name}[${index}].${nameArray[subIndex]}`} type={typeArray[subIndex]} {...rest} />
                                                                 <ErrorMessage name={`${name}[${index}].${nameArray[subIndex]}`} component={TextError} />
                                                             </FieldContainer>
                                                     }

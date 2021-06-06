@@ -46,7 +46,7 @@ const StyledHeader = styled.div`
     width: 80px;
 `;
 
-export interface IGroupsManaged {
+export interface IGroupManaged {
     id: number;
     name: string;
     acronym: string;
@@ -56,17 +56,16 @@ export interface IGroupsManaged {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
-
 }
 
-interface IGroupsManagedColumn extends IGroupsManaged {
+interface IGroupManagedColumn extends IGroupManaged {
     addGroupMembers: string;
     removeAllGroupMembers: string;
     sslCerts: string;
     changeGroupHash: string;
 }
 
-export const GROUPS_MANAGED_COLUMNS: Column<IGroupsManagedColumn>[] = [
+export const GROUPS_MANAGED_COLUMNS: Column<IGroupManagedColumn>[] = [
     {
         Header: "OrgId",
         accessor: "orgId",

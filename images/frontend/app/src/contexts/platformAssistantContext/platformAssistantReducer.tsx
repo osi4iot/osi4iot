@@ -54,7 +54,7 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
         case "SELECT_ORG_USERS_TABLE":
             return {
                 ...initialState,
-                selectUsers: action.payload.selectOrgUsers
+                selectOrgUsers: action.payload.selectOrgUsers
             };
 
         case "ORGANIZATIONS_TABLE":

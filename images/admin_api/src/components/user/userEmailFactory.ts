@@ -1,6 +1,8 @@
 import sendEmail from "../../utils/sendEmail";
 import CreateUserDto from "./interfaces/User.dto";
 import jwt from "jsonwebtoken";
+import sleep from "../../utils/helpers/sleep";
+import wait from "../../utils/helpers/wait";
 
 export const sendUserRegistrationInvitationEmail = async (usersArray: CreateUserDto[]): Promise<void> => {
 	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
@@ -36,7 +38,9 @@ export const sendUserRegistrationInvitationEmail = async (usersArray: CreateUser
 				<p>Best regards.</p>
 				<p>${platformName}</p>
 			</div>`;
-		userRegisterInvitationEmailQuery[i] = sendEmail(subject, [mailTo], "html", mailBody);
+		// userRegisterInvitationEmailQuery[i] = sendEmail(subject, [mailTo], "html", mailBody);
+		userRegisterInvitationEmailQuery[i] = sleep(sendEmail, i * 20, subject, [mailTo], "html", mailBody);
 	}
 	await Promise.all(userRegisterInvitationEmailQuery);
 }
+
