@@ -3,7 +3,7 @@ import TableWithPagination from './TableWithPagination';
 import { GROUPS_MANAGED_OPTIONS } from './platformAssistantOptions';
 import { useGroupsManagedDispatch, useGroupsManagedOptionToShow, setGroupsManagedOptionToShow } from '../../contexts/groupsManagedOptions';
 import CreateGroupMember from './CreateGroupMember';
-import { IGroupManaged, GROUPS_MANAGED_COLUMNS } from './TableColumns/groupsManagedColumns';
+import { IGroupManaged, CREATE_GROUPS_MANAGED_COLUMNS } from './TableColumns/groupsManagedColumns';
 
 
 export interface IGroupMemberInput {
@@ -48,7 +48,7 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({ groupsManaged
             {groupsManagedOptionToShow === GROUPS_MANAGED_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={groupsManaged}
-                    columnsTable={GROUPS_MANAGED_COLUMNS}
+                    columnsTable={CREATE_GROUPS_MANAGED_COLUMNS(refreshGroupMembers, refreshGroupsManaged)}
                     reloadTable={refreshGroupsManaged}
                     componentName=""
                 />

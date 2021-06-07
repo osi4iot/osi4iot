@@ -44,7 +44,8 @@ const domainName = getDomainName();
 const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, groupId, userId, refreshGroupMembers }) => {
     const [isGroupMemberDeleted, setIsGroupMemberDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const component = "group member";
+    const title = "DELETE GROUP MEMBER";
+    const question = "Are you sure to delete this group member?";
     const consequences = "The member are going to be remove of the group but continues active in the org.";
     const { accessToken } = useAuthState();
 
@@ -76,7 +77,7 @@ const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, gro
                 hideModal();
             })
     }
-    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader);
+    const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader);
 
     return (
         <DeleteIcon action={showModal} rowIndex={rowIndex} />

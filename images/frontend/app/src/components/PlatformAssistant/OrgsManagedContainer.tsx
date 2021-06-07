@@ -2,7 +2,7 @@ import React, { FC, useState } from 'react'
 import TableWithPagination from './TableWithPagination';
 import { ORGS_MANAGED_OPTIONS } from './platformAssistantOptions';
 import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
-import { ORGS_MANAGED_COLUMNS } from './TableColumns/organizationsManagedColumns';
+import { CREATE_ORGS_MANAGED_COLUMNS } from './TableColumns/organizationsManagedColumns';
 import CreateOrgUser from './CreateOrgUser';
 import { useOrgsManagedDispatch, useOrgsManagedOptionToShow, setOrgsManagedOptionToShow } from '../../contexts/orgsManagedOptions';
 
@@ -51,7 +51,7 @@ const OrgsManagedContainer: FC<OrgsManagedContainerProps> = ({ orgsManaged, refr
             {orgsManageOptionToShow === ORGS_MANAGED_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={orgsManaged}
-                    columnsTable={ORGS_MANAGED_COLUMNS}
+                    columnsTable={CREATE_ORGS_MANAGED_COLUMNS(refreshOrgUsers)}
                     reloadTable={refreshOrgsManaged}
                     componentName=""
                 />

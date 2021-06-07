@@ -8,6 +8,7 @@ import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import ExChangeIcon from '../ExchangeIcon';
 import DeleteModal from '../../Tools/DeleteModal';
+import ChangeModal from '../../Tools/ChangeModal';
 import { DEVICES_OPTIONS } from '../platformAssistantOptions';
 import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devicesOptions';
 
@@ -41,8 +42,9 @@ const domainName = getDomainName();
 const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, deviceId, refreshDevices }) => {
     const [isDeviceDeleted, setIsDeviceDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const component = "device";
-    const consequences = "All measurements of this device and its mesurements are going to be lost.";
+    const title = "DELETE DEVICE";
+    const question = "Are you sure to delete this device?";
+    const consequences = "All measurements of this device and sensor mesurements are going to be lost.";
     const { accessToken } = useAuthState();
 
     const showLoader = () => {
@@ -74,7 +76,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
             })
     }
 
-    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader);
+    const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader);
 
     return (
         <DeleteIcon action={showModal} rowIndex={rowIndex} />
@@ -91,10 +93,10 @@ const EditDevice: FC<EditDeviceProps> = ({ rowIndex, deviceId }) => {
 
     const handleClick = () => {
         const deviceIdToEdit = { deviceIdToEdit: deviceId };
-        setDeviceIdToEdit(devicesDispatch , deviceIdToEdit);
+        setDeviceIdToEdit(devicesDispatch, deviceIdToEdit);
 
         const deviceRowIndexToEdit = { deviceRowIndexToEdit: rowIndex };
-        setDeviceRowIndexToEdit(devicesDispatch , deviceRowIndexToEdit);
+        setDeviceRowIndexToEdit(devicesDispatch, deviceRowIndexToEdit);
 
         const devicesOptionToShow = { devicesOptionToShow: DEVICES_OPTIONS.EDIT_DEVICE };
         setDevicesOptionToShow(devicesDispatch, devicesOptionToShow);
@@ -105,6 +107,58 @@ const EditDevice: FC<EditDeviceProps> = ({ rowIndex, deviceId }) => {
         <span onClick={handleClick}>
             <EditIcon rowIndex={rowIndex} />
         </span>
+    )
+}
+
+interface ChangeDeviceHashModalProps {
+    rowIndex: number;
+    groupId: number;
+    deviceId: number;
+    refreshDevices: () => void;
+}
+
+const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, groupId, deviceId, refreshDevices }) => {
+    const [isDeviceHashChanged, setIsDeviceHashChanged] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const title = "CHANGE DEVICE HASH";
+    const question = "Are you sure to change hash of this device?";
+    const consequences = "The mqtt topics of this device must be change to reference to new the hash. Device hash used in dashboards are going to be updated automatically.";
+    const width = 380;
+    const { accessToken } = useAuthState();
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
+
+    useEffect(() => {
+        if (isDeviceHashChanged) {
+            refreshDevices();
+        }
+    }, [isDeviceHashChanged, refreshDevices]);
+
+    const action = (hideModal: () => void) => {
+        const url = `https://${domainName}/admin_api/device/${groupId}/changeUid/${deviceId}`;
+        const config = axiosAuth(accessToken);
+        axios
+            .patch(url, null, config)
+            .then((response) => {
+                setIsDeviceHashChanged(true);
+                setIsSubmitting(false);
+                const data = response.data;
+                toast.success(data.message);
+                hideModal();
+            })
+            .catch((error) => {
+                const errorMessage = error.response.data.message;
+                toast.error(errorMessage);
+                hideModal();
+            })
+    }
+
+    const [showModal] = ChangeModal(title, question, consequences, action, isSubmitting, showLoader, width);
+
+    return (
+        <ExChangeIcon action={showModal} rowIndex={rowIndex} />
     )
 }
 
@@ -162,9 +216,10 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const deviceId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const groupId = props.rows[props.row.id as unknown as number]?.cells[1]?.value;
                 const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <ExChangeIcon id={groupId} rowIndex={parseInt(rowIndex, 10)} />
+                return <ChangeDeviceHashModal groupId={groupId} deviceId={deviceId} rowIndex={parseInt(rowIndex)} refreshDevices={refreshDevices} />
             }
         },
         {

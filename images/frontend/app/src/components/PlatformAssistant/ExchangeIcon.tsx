@@ -33,14 +33,14 @@ const IconContainer = styled.div<ExChangeProps>`
 `;
 
 interface ExChangeIconProps {
-    id: number;
+    action: any;
     rowIndex: number
 }
 
-const ExChangeIcon: FC<ExChangeIconProps> = ({ id, rowIndex }) => {
+const ExChangeIcon: FC<ExChangeIconProps> = ({ action, rowIndex }) => {
 
     const handleClick = (e: SyntheticEvent) => {
-        console.log("Click= ", id)
+        action();
     };
 
     return (

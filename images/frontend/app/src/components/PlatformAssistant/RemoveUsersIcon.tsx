@@ -33,14 +33,14 @@ const IconContainer = styled.div<FaUserSlashProps>`
 `;
 
 interface RemoveUsersIconProps {
-    id: number;
+    action: any;
     rowIndex: number
 }
 
-const RemoveUsersIcon: FC<RemoveUsersIconProps> = ({ id, rowIndex }) => {
+const RemoveUsersIcon: FC<RemoveUsersIconProps> = ({ action, rowIndex }) => {
 
     const handleClick = (e: SyntheticEvent) => {
-        console.log("Click= ", id)
+        action();
     };
 
     return (

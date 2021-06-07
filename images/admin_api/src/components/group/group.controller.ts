@@ -544,7 +544,7 @@ class GroupController implements IController {
 			const newGroupUid = await changeGroupUidByUid(req.group);
 			await updateDashboardsDataRawSqlOfGroup(req.group, newGroupUid, dashboards);
 			await updateGroupUidOfRawSqlAlertSettingOfGroup(req.group, newGroupUid);
-			const message = { newGroupUid };
+			const message = { message: "Group hash changed successfully" };
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

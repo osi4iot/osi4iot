@@ -30,7 +30,8 @@ const domainName = getDomainName();
 const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, refreshTokenId, refreshRefreshTokens }) => {
     const [isRefreshTokenDeleted, setIsRefreshTokenDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const component = "refresh token";
+    const title = "DELETE REFRESH TOKEN";
+    const question = "Are you sure to delete this refresh token?";
     const consequences = "The user are going to need to sign in again.";
     const { accessToken } = useAuthState();
 
@@ -63,7 +64,7 @@ const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, r
             })
     }
 
-    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader);
+    const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader);
 
     return (
         <DeleteIcon action={showModal} rowIndex={rowIndex} />

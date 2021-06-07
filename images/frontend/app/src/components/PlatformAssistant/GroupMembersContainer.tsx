@@ -31,9 +31,8 @@ const GroupMembersContainer: FC<GroupMembersContainerProps> = ({ groupMembers, r
                 <TableWithPagination
                     dataTable={groupMembers}
                     columnsTable={Create_GROUP_MEMBERS_COLUMNS(refreshGroupMembers)}
-                    componentName="group member"
+                    componentName=""
                     reloadTable={refreshGroupMembers}
-                    createComponent={() => setGroupMembersOptionToShow(groupMembersDispatch, { groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.CREATE_GROUP_MEMBER })}
                 />
             }
         </>

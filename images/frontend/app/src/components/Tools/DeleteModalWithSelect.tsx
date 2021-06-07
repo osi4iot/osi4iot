@@ -1,7 +1,84 @@
+import { useState } from 'react';
 import ReactModal from "react-modal";
 import { useModal } from "react-modal-hook";
 import styled from "styled-components";
 import MiniLoader from '../Tools/MiniLoader';
+import Select, { OptionsType, ValueType } from "react-select";
+
+const SelectContainer = styled.div`
+    width: 100%;
+`;
+
+const customStyles = {
+    option: (provided: any, state: any) => ({
+        ...provided,
+        borderBottom: '2px solid #2c3235',
+        color: 'white',
+        padding: 15,
+        fontSize: '14px',
+        backgroundColor: '#35383d',
+        "&:hover": {
+            cursor: 'pointer',
+            backgroundColor: '#0c0d0f',
+        }
+    }),
+    control: (provided: any, state: any) => ({
+        ...provided,
+        fontSize: '14px',
+        border: '2px solid #2c3235',
+        backgroundColor: '#0c0d0f',
+        margin: '0 auto',
+        width: '100%',
+        height: 30,
+        minHeight: 30,
+        borderRadius: 0,
+        "&:hover": {
+            boxShadow: 'rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px'
+        },
+        "& > div": {
+            height: 26,
+            minHeight: 26,
+            padding: '2px 0'
+        },
+        "& > div > div": {
+            padding: '5px'
+        }
+    }),
+    dropdownIndicator: (provided: any, state: any) => ({
+        ...provided,
+        color: 'white',
+    }),
+    valueContainer: (provided: any, state: any) => ({
+        ...provided,
+        "& > div > div": {
+            opacity: '0'
+        }
+    }),
+    indicatorsContainer: (provided: any, state: any) => ({
+        ...provided,
+        height: 26,
+        minHeight: 26,
+    }),
+    indicatorSeparator: (provided: any, state: any) => ({
+        ...provided,
+        backgroundColor: '#2c3235',
+        width: '2px'
+    }),
+    menu: (provided: any, state: any) => ({
+        ...provided,
+        backgroundColor: '#35383d',
+        width: 'calc(100% + 3px)',
+    }),
+    singleValue: (provided: any, state: any) => {
+        const color = 'white';
+        return { ...provided, color };
+    }
+}
+
+interface IOption {
+    value: string;
+    label: string;
+}
 
 const TitleContainer = styled.div`
 	display: flex;
@@ -39,7 +116,7 @@ const ConsequencesText = styled.p`
 
 
 const ButtonContainer = styled.div`
-    margin-top: 20px;
+    margin-top: 100px;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -95,16 +172,20 @@ const DeleteButton = styled.button`
     }
 `;
 
-const DeleteModal =
+const DeleteModalWithSelect =
     (
         title: string,
         question: string,
         consequences: string,
-        action: (hideModal: () => void) => void,
+        action: (hideModal: () => void, whoToRemove: string) => void,
         isSubmitting: boolean = false,
         showLoader: () => void,
-        width: number = 340
+        options: OptionsType<IOption>,
+        width: number = 370,
+        height: number = 380
     ) => {
+        const [selectedOption, setSelectedOption] = useState<IOption>(options[0]);
+
         const [showModal, hideModal] = useModal(() => (
             <ReactModal
                 isOpen
@@ -116,7 +197,7 @@ const DeleteModal =
                         top: '200px',
                         left: `calc(50% - ${width / 2}px)`,
                         right: `calc(50% - ${width / 2}px)`,
-                        bottom: "calc(100% - 480px)",
+                        bottom: `calc(100% - 200px - ${height}px)`,
                         border: '2px solid #3274d9',
                         borderRadius: '20px',
                         backgroundColor: 'rgb(32, 34, 38)',
@@ -133,19 +214,32 @@ const DeleteModal =
                     <ConsequencesText>{consequences}</ConsequencesText>
                     <ConsequencesText>{question}</ConsequencesText>
                 </ConsequencesContainer>
+                <SelectContainer>
+                    <Select
+                        styles={customStyles}
+                        value={selectedOption}
+                        onChange={onChange}
+                        options={options}
+                    />
+                </SelectContainer>
                 <ButtonContainer>
                     <CancelButton onClick={hideModal}>CANCEL</CancelButton>
                     <DeleteButton onClick={deleteHandler}>DELETE</DeleteButton>
                 </ButtonContainer>
             </ReactModal>
-        ), [isSubmitting]);
+        ), [isSubmitting, selectedOption]);
 
         const deleteHandler = () => {
             if (showLoader) showLoader();
-            action(hideModal);
+            action(hideModal, (selectedOption as IOption)?.value);
         }
+
+        const onChange = (option: ValueType<IOption, false>) => {
+            setSelectedOption(option as IOption);
+        };
+
 
         return [showModal, hideModal];
     }
 
-export default DeleteModal;
+export default DeleteModalWithSelect;

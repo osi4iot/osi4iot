@@ -39,7 +39,8 @@ const domainName = getDomainName();
 const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globalUserId, refreshGlobalUsers }) => {
     const [isGlobalUserDeleted, setIsGlobalUserDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const component = "global user";
+    const title = "DELETE GLOBAL USER";
+    const question = "Are you sure to delete this global user?";
     const consequences = "The user are going to be removed of the platform.";
     const { accessToken } = useAuthState();
 
@@ -72,7 +73,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
             })
     }
 
-    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader);
+    const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader);
 
     return (
         <DeleteIcon action={showModal} rowIndex={rowIndex} />

@@ -1,12 +1,23 @@
-import { FC } from 'react';
+import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
 import DownloadFileIcon from '../DownloadFileIcon';
 import ExChangeIcon from '../ExchangeIcon';
 import AddUsersIcon from '../AddUsersIcon';
 import RemoveUsersIcon from '../RemoveUsersIcon';
-import { setGroupManagedIdToCreateGroupMembers, setGroupManagedRowIndex, setGroupsManagedOptionToShow, useGroupsManagedDispatch } from '../../../contexts/groupsManagedOptions';
+import {
+    setGroupManagedIdToCreateGroupMembers,
+    setGroupManagedRowIndex,
+    setGroupsManagedOptionToShow,
+    useGroupsManagedDispatch
+} from '../../../contexts/groupsManagedOptions';
 import { GROUPS_MANAGED_OPTIONS } from '../platformAssistantOptions';
+import { toast } from 'react-toastify';
+import { axiosAuth, getDomainName } from '../../../tools/tools';
+import { useAuthState } from '../../../contexts/authContext';
+import axios from 'axios';
+import DeleteModal from '../../Tools/DeleteModal';
+import ChangeModal from '../../Tools/ChangeModal';
 
 
 interface AddGroupMembersProps {
@@ -33,6 +44,110 @@ const AddGroupMembers: FC<AddGroupMembersProps> = ({ rowIndex, groupManagedId })
         <span onClick={handleClick}>
             <AddUsersIcon rowIndex={rowIndex} />
         </span>
+    )
+}
+
+interface RemoveAllGroupMembersModalProps {
+    rowIndex: number;
+    groupId: number;
+    refreshGroupMembers: () => void;
+}
+
+const domainName = getDomainName();
+
+const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIndex, groupId, refreshGroupMembers }) => {
+    const [isGroupMembersRemoved, setIsGroupMembersRemoved] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const title = "REMOVE ALL GROUP MEMBERS";
+    const question = "Are you sure to remove all members of this group?";
+    const consequences = "All members with Viewer or Editor role are going to be remove of the group but continue active in the org.";
+    const width = 380;
+    const { accessToken } = useAuthState();
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
+
+    useEffect(() => {
+        if (isGroupMembersRemoved) {
+            refreshGroupMembers();
+        }
+    }, [isGroupMembersRemoved, refreshGroupMembers]);
+
+    const action = (hideModal: () => void) => {
+        const url = `https://${domainName}/admin_api/group/${groupId}/members`;
+        const config = axiosAuth(accessToken);
+        axios
+            .delete(url, config)
+            .then((response) => {
+                setIsGroupMembersRemoved(true);
+                setIsSubmitting(false);
+                const data = response.data;
+                toast.success(data.message);
+                hideModal();
+            })
+            .catch((error) => {
+                const errorMessage = error.response.data.message;
+                toast.error(errorMessage);
+                hideModal();
+            })
+    }
+
+    const [showModal] = DeleteModal(title, question, consequences, action, isSubmitting, showLoader, width);
+
+    return (
+        <RemoveUsersIcon action={showModal} rowIndex={rowIndex} />
+    )
+}
+
+interface ChangeGroupHashModalProps {
+    rowIndex: number;
+    groupId: number;
+    refreshGroupsManaged: () => void;
+}
+
+const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId, refreshGroupsManaged }) => {
+    const [isGroupHashChanged, setIsGroupHashChanged] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const title = "CHANGE GROUP HASH";
+    const question = "Are you sure to change the group hash?";
+    const consequences = "The mqtt topics of this group must be change to reference to new the hash. Group hash used in dashboards are going to be updated automatically.";
+    const width = 380;
+    const { accessToken } = useAuthState();
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
+
+    useEffect(() => {
+        if (isGroupHashChanged) {
+            refreshGroupsManaged();
+        }
+    }, [isGroupHashChanged, refreshGroupsManaged]);
+
+    const action = (hideModal: () => void) => {
+        const url = `https://${domainName}/admin_api/group/${groupId}/change_uid`;
+        const config = axiosAuth(accessToken);
+        axios
+            .patch(url, null, config)
+            .then((response) => {
+                setIsGroupHashChanged(true);
+                setIsSubmitting(false);
+                const data = response.data;
+                toast.success(data.message);
+                hideModal();
+            })
+            .catch((error) => {
+                const errorMessage = error.response.data.message;
+                toast.error(errorMessage);
+                hideModal();
+            })
+    }
+
+    const [showModal] = ChangeModal(title, question, consequences, action, isSubmitting, showLoader, width);
+
+    return (
+        <ExChangeIcon action={showModal} rowIndex={rowIndex} />
     )
 }
 
@@ -65,95 +180,97 @@ interface IGroupManagedColumn extends IGroupManaged {
     changeGroupHash: string;
 }
 
-export const GROUPS_MANAGED_COLUMNS: Column<IGroupManagedColumn>[] = [
-    {
-        Header: "OrgId",
-        accessor: "orgId",
-        filter: 'equals'
-    },
-    {
-        Header: "Id",
-        accessor: "id",
-        filter: 'equals'
-    },
-    {
-        Header: "Name",
-        accessor: "name"
-    },
-    {
-        Header: "Acronym",
-        accessor: "acronym"
-    },
-    {
-        Header: () => <div style={{ backgroundColor: '#202226' }}>Folder<br />permission</div>,
-        accessor: "folderPermission",
-        disableFilters: true
-    },
-    {
-        Header: "Group hash",
-        accessor: "groupUid",
-        disableFilters: true,
-        disableSortBy: true,
-    },
-    {
-        Header: "Telegram Invitation Link",
-        accessor: "telegramInvitationLink",
-        disableFilters: true,
-        disableSortBy: true,
-    },
-    {
-        Header: "ChatId",
-        accessor: "telegramChatId",
-        disableFilters: true,
-        disableSortBy: true,
-    },
-    {
-        Header: "Type",
-        accessor: "isOrgDefaultGroup",
-        disableFilters: true
-    },
-    {
-        Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />members</div>,
-        accessor: "addGroupMembers",
-        disableFilters: true,
-        disableSortBy: true,
-        Cell: props => {
-            const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-            return <AddGroupMembers rowIndex={parseInt(rowIndex, 10)} groupManagedId={parseInt(groupId, 10)} />
+export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, refreshGroupsManaged: () => void): Column<IGroupManagedColumn>[] => {
+    return [
+        {
+            Header: "OrgId",
+            accessor: "orgId",
+            filter: 'equals'
+        },
+        {
+            Header: "Id",
+            accessor: "id",
+            filter: 'equals'
+        },
+        {
+            Header: "Name",
+            accessor: "name"
+        },
+        {
+            Header: "Acronym",
+            accessor: "acronym"
+        },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Folder<br />permission</div>,
+            accessor: "folderPermission",
+            disableFilters: true
+        },
+        {
+            Header: "Group hash",
+            accessor: "groupUid",
+            disableFilters: true,
+            disableSortBy: true,
+        },
+        {
+            Header: "Telegram Invitation Link",
+            accessor: "telegramInvitationLink",
+            disableFilters: true,
+            disableSortBy: true,
+        },
+        {
+            Header: "ChatId",
+            accessor: "telegramChatId",
+            disableFilters: true,
+            disableSortBy: true,
+        },
+        {
+            Header: "Type",
+            accessor: "isOrgDefaultGroup",
+            disableFilters: true
+        },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />members</div>,
+            accessor: "addGroupMembers",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: props => {
+                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+                return <AddGroupMembers rowIndex={parseInt(rowIndex, 10)} groupManagedId={parseInt(groupId, 10)} />
+            }
+        },
+        {
+            Header: () => <StyledHeader><div>Remove</div><div>all members</div></StyledHeader>,
+            accessor: "removeAllGroupMembers",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: props => {
+                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+                return <RemoveAllGroupMembersModal groupId={groupId} rowIndex={parseInt(rowIndex, 10)} refreshGroupMembers={refreshGroupMembers} />
+            }
+        },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>SSL<br />certs</div>,
+            accessor: "sslCerts",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: props => {
+                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+                return <DownloadFileIcon id={groupId} rowIndex={parseInt(rowIndex, 10)} />
+            }
+        },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Change<br />hash</div>,
+            accessor: "changeGroupHash",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: props => {
+                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
+                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
+                return <ChangeGroupHashModal groupId={groupId} rowIndex={parseInt(rowIndex, 10)} refreshGroupsManaged={refreshGroupsManaged} />
+            }
         }
-    },
-    {
-        Header: () => <StyledHeader><div>Remove</div><div>all members</div></StyledHeader>,
-        accessor: "removeAllGroupMembers",
-        disableFilters: true,
-        disableSortBy: true,
-        Cell: props => {
-            const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-            return <RemoveUsersIcon id={groupId} rowIndex={parseInt(rowIndex, 10)} />
-        }
-    },
-    {
-        Header: () => <div style={{ backgroundColor: '#202226' }}>SSL<br />certs</div>,
-        accessor: "sslCerts",
-        disableFilters: true,
-        disableSortBy: true,
-        Cell: props => {
-            const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-            return <DownloadFileIcon id={groupId} rowIndex={parseInt(rowIndex, 10)} />
-        }
-    },
-    {
-        Header: () => <div style={{ backgroundColor: '#202226' }}>Change<br />hash</div>,
-        accessor: "changeGroupHash",
-        disableFilters: true,
-        disableSortBy: true,
-        Cell: props => {
-            const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-            const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-            return <ExChangeIcon id={groupId} rowIndex={parseInt(rowIndex, 10)} />
-        }
-    }
-]
+    ]
+}

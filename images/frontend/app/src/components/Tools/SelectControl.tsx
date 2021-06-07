@@ -1,8 +1,7 @@
 import { FC } from 'react';
 import styled from "styled-components";
 import { FieldProps, Field } from "formik";
-import Select from "react-select";
-import { OptionsType, ValueType } from "react-select";
+import Select, { OptionsType, ValueType } from "react-select";
 
 
 const DropDownContainer = styled.div`

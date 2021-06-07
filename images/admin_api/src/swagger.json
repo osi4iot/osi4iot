@@ -2293,7 +2293,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NewGroupUid"
+									"$ref": "#/definitions/Message"
 								}
 							}
 						}
@@ -2679,7 +2679,7 @@
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/NewDeviceUid"
+									"$ref": "#/definitions/Message"
 								}
 							}
 						}
@@ -3656,14 +3656,6 @@
 				}
 			}
 		},
-		"NewGroupUid": {
-			"type": "object",
-			"properties": {
-				"newGroupUid": {
-					"type": "string"
-				}
-			}
-		},
 		"DeviceInput": {
 			"properties": {
 				"name": {
@@ -3718,14 +3710,6 @@
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/DeviceOutput"
-			}
-		},
-		"NewDeviceUid": {
-			"type": "object",
-			"properties": {
-				"newDeviceUid": {
-					"type": "string"
-				}
 			}
 		}
 	}
