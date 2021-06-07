@@ -72,7 +72,7 @@ const Button = styled.button`
 	cursor: pointer;
 	box-shadow: 0 5px #173b70;
     font-size: 16px;
-    width: 20%;
+    width: 25%;
 
 	&:hover {
 		background-color: #2461c0;

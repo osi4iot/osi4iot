@@ -41,9 +41,14 @@ const domainName = getDomainName();
 
 const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs }) => {
     const [isOrgDeleted, setIsOrgDeleted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const component = "organization";
     const consequences = "All groups, devices and its measurements belonging to this org are going to be lost.";
     const { accessToken } = useAuthState();
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
 
     useEffect(() => {
         if (isOrgDeleted) {
@@ -58,6 +63,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
             .delete(url, config)
             .then((response) => {
                 setIsOrgDeleted(true);
+                setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
@@ -68,7 +74,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
                 hideModal();
             })
     }
-    const [showModal] = DeleteModal(component, consequences, action );
+    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader );
 
 
     return (

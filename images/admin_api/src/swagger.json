@@ -1392,7 +1392,7 @@
 			],
 			"delete": {
 				"tags": ["Organization"],
-				"summary": "Remove all user of the organization.",
+				"summary": "Remove all users of the organization.",
 				"responses": {
 					"200": {
 						"description": "OK",

@@ -23,7 +23,7 @@ export interface IGlobalUser {
 
 }
 
-interface IGlobalUserColumn extends IGlobalUser{
+interface IGlobalUserColumn extends IGlobalUser {
     edit: string;
     delete: string;
 }
@@ -38,9 +38,14 @@ const domainName = getDomainName();
 
 const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globalUserId, refreshGlobalUsers }) => {
     const [isGlobalUserDeleted, setIsGlobalUserDeleted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const component = "global user";
     const consequences = "The user are going to be removed of the platform.";
     const { accessToken } = useAuthState();
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
 
     useEffect(() => {
         if (isGlobalUserDeleted) {
@@ -55,6 +60,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
             .delete(url, config)
             .then((response) => {
                 setIsGlobalUserDeleted(true);
+                setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
@@ -66,7 +72,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
             })
     }
 
-    const [showModal] = DeleteModal(component, consequences, action);
+    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader);
 
     return (
         <DeleteIcon action={showModal} rowIndex={rowIndex} />
@@ -85,8 +91,8 @@ const EditGlobalUsers: FC<EditGlobalUsersProps> = ({ rowIndex, globalUserId }) =
         const globalUserIdToEdit = { globalUserIdToEdit: globalUserId };
         setGlobalUserIdToEdit(globalUsersDispatch, globalUserIdToEdit);
 
-        const globalUserRowIndexToEdit = { globalUserRowIndexToEdit: rowIndex};
-        setGlobalUserRowIndexToEdit(globalUsersDispatch, globalUserRowIndexToEdit);        
+        const globalUserRowIndexToEdit = { globalUserRowIndexToEdit: rowIndex };
+        setGlobalUserRowIndexToEdit(globalUsersDispatch, globalUserRowIndexToEdit);
 
         const globalUsersOptionToShow = { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.EDIT_GLOBAL_USER };
         setGlobalUsersOptionToShow(globalUsersDispatch, globalUsersOptionToShow);

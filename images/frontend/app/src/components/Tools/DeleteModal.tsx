@@ -1,6 +1,14 @@
 import ReactModal from "react-modal";
 import { useModal } from "react-modal-hook";
-import styled from "styled-components"
+import styled from "styled-components";
+import MiniLoader from '../Tools/MiniLoader';
+
+const TitleContainer = styled.div`
+	display: flex;
+    flex-direction: row;
+	justify-content: center;
+	align-items: center;
+`;
 
 const Title = styled.div`
     font-size: 20px;
@@ -87,8 +95,7 @@ const DeleteButton = styled.button`
     }
 `;
 
-const DeleteModal = (component: string, consequences: string, action: (hideModal: () => void,) => void) => {
-
+const DeleteModal = (component: string, consequences: string, action: (hideModal: () => void) => void, isSubmitting: boolean = false, showLoader: () => void) => {
     const [showModal, hideModal] = useModal(() => (
         <ReactModal
             isOpen
@@ -98,17 +105,20 @@ const DeleteModal = (component: string, consequences: string, action: (hideModal
                 },
                 content: {
                     top: '200px',
-                    left: 'calc(50% - 150px)',
-                    right: 'calc(50% - 150px)',
+                    left: 'calc(50% - 160px)',
+                    right: 'calc(50% - 160px)',
                     bottom: 'calc(100% - 480px)',
                     border: '2px solid #3274d9',
                     borderRadius: '20px',
                     backgroundColor: 'rgb(32, 34, 38)',
                 }
             }}
-            closeTimeoutMS={500}
+            closeTimeoutMS={1000}
         >
-            <Title>DELETE {component.toUpperCase()}</Title>
+            <TitleContainer>
+                <Title>DELETE {component.toUpperCase()}</Title>
+                {isSubmitting && <MiniLoader />}
+            </TitleContainer>
             <ConsequencesContainer>
                 <ConsequencesTitle>Consequences:</ConsequencesTitle>
                 <ConsequencesText>{consequences}</ConsequencesText>
@@ -119,9 +129,10 @@ const DeleteModal = (component: string, consequences: string, action: (hideModal
                 <DeleteButton onClick={deleteHandler}>DELETE</DeleteButton>
             </ButtonContainer>
         </ReactModal>
-    ));
+    ), [isSubmitting]);
 
     const deleteHandler = () => {
+        if (showLoader) showLoader();
         action(hideModal);
     }
 

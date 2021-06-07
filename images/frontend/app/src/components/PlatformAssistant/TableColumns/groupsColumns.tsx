@@ -43,9 +43,14 @@ const domainName = getDomainName();
 
 const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId, refreshGroups }) => {
     const [isGroupDeleted, setIsGroupDeleted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const component = "group";
     const consequences = "All teams, folders, devices and its measurements belonging to this group are going to be lost.";
     const { accessToken } = useAuthState();
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
 
     useEffect(() => {
         if (isGroupDeleted) {
@@ -60,6 +65,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
             .delete(url, config)
             .then((response) => {
                 setIsGroupDeleted(true);
+                setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
@@ -72,7 +78,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     }
 
 
-    const [showModal] = DeleteModal(component, consequences, action);
+    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader);
 
     return (
         <DeleteIcon action={showModal} rowIndex={rowIndex} />

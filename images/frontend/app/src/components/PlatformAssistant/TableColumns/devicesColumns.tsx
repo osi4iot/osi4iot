@@ -40,9 +40,14 @@ const domainName = getDomainName();
 
 const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, deviceId, refreshDevices }) => {
     const [isDeviceDeleted, setIsDeviceDeleted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const component = "device";
     const consequences = "All measurements of this device and its mesurements are going to be lost.";
     const { accessToken } = useAuthState();
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
 
     useEffect(() => {
         if (isDeviceDeleted) {
@@ -57,6 +62,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
             .delete(url, config)
             .then((response) => {
                 setIsDeviceDeleted(true);
+                setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
@@ -68,7 +74,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
             })
     }
 
-    const [showModal] = DeleteModal(component, consequences, action);
+    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader);
 
     return (
         <DeleteIcon action={showModal} rowIndex={rowIndex} />

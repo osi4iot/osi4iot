@@ -43,9 +43,14 @@ const domainName = getDomainName();
 
 const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, groupId, userId, refreshGroupMembers }) => {
     const [isGroupMemberDeleted, setIsGroupMemberDeleted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const component = "group member";
     const consequences = "The member are going to be remove of the group but continues active in the org.";
     const { accessToken } = useAuthState();
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
 
     useEffect(() => {
         if (isGroupMemberDeleted) {
@@ -59,7 +64,8 @@ const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, gro
         axios
             .delete(url, config)
             .then((response) => {
-                setIsGroupMemberDeleted(true)
+                setIsGroupMemberDeleted(true);
+                setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
@@ -70,7 +76,7 @@ const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, gro
                 hideModal();
             })
     }
-    const [showModal] = DeleteModal(component, consequences, action);
+    const [showModal] = DeleteModal(component, consequences, action, isSubmitting, showLoader);
 
     return (
         <DeleteIcon action={showModal} rowIndex={rowIndex} />
