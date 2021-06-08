@@ -118,7 +118,6 @@ const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
             .then((response) => {
                 const data = response.data;
                 const validityDays = data.validityDays;
-                console.log("Data=", data);
                 const message = `Ssl certs created successfully. These are valid for ${validityDays} days`;
                 var zip = new JSZip();
                 const fileName = `group_${groupId}_certs`;
