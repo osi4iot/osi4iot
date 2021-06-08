@@ -1,4 +1,4 @@
-import { FC, SyntheticEvent } from "react";
+import { FC } from "react";
 import { FaFileDownload } from "react-icons/fa";
 import styled from "styled-components";
 
@@ -33,18 +33,13 @@ const IconContainer = styled.div<FaFileDownloadProps>`
 `;
 
 interface DownloadFileIconProps {
-    id: number;
     rowIndex: number
 }
 
-const DownloadFileIcon: FC<DownloadFileIconProps> = ({ id, rowIndex }) => {
-
-    const handleClick = (e: SyntheticEvent) => {
-        console.log("Click= ", id)
-    };
+const DownloadFileIcon: FC<DownloadFileIconProps> = ({ rowIndex }) => {
 
     return (
-        <IconContainer onClick={handleClick} rowIndex={rowIndex}>
+        <IconContainer rowIndex={rowIndex}>
             <FaFileDownloadWrapper rowIndex={rowIndex} >
                 <FaFileDownloadStyled />
             </FaFileDownloadWrapper>

@@ -1,6 +1,8 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
+import { saveAs } from 'file-saver';
+import JSZip from 'jszip';
 import DownloadFileIcon from '../DownloadFileIcon';
 import ExChangeIcon from '../ExchangeIcon';
 import AddUsersIcon from '../AddUsersIcon';
@@ -24,7 +26,6 @@ interface AddGroupMembersProps {
     rowIndex: number;
     groupManagedId: number;
 }
-
 
 const AddGroupMembers: FC<AddGroupMembersProps> = ({ rowIndex, groupManagedId }) => {
     const groupsManagedDispatch = useGroupsManagedDispatch()
@@ -97,6 +98,50 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
 
     return (
         <RemoveUsersIcon action={showModal} rowIndex={rowIndex} />
+    )
+}
+
+
+interface DownLoadSslCertsProps {
+    rowIndex: number;
+    groupId: number;
+}
+
+const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
+    const { accessToken } = useAuthState();
+
+    const handleClick = () => {
+        const url = `https://${domainName}/admin_api/group/${groupId}/ssl_certs`;
+        const config = axiosAuth(accessToken);
+        axios
+            .get(url, config)
+            .then((response) => {
+                const data = response.data;
+                const validityDays = data.validityDays;
+                console.log("Data=", data);
+                const message = `Ssl certs created successfully. These are valid for ${validityDays} days`;
+                var zip = new JSZip();
+                const fileName = `group_${groupId}_certs`;
+                var group_certs = zip.folder(`${fileName}`);
+                group_certs?.file("ca.crt", data.caCert);
+                group_certs?.file(`group_${groupId}.crt`, data.clientCert);
+                group_certs?.file(`group_${groupId}.key`, data.clientKey);
+                zip.generateAsync({ type: "blob" })
+                    .then(function (content) {
+                        saveAs(content, `${fileName}.zip`);
+                    });
+                toast.success(message);
+            })
+            .catch((error) => {
+                const errorMessage = error.response.data.message;
+                toast.error(errorMessage);
+            })
+    };
+
+    return (
+        <span onClick={handleClick}>
+            <DownloadFileIcon rowIndex={rowIndex} />
+        </span>
     )
 }
 
@@ -258,7 +303,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             Cell: props => {
                 const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
                 const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <DownloadFileIcon id={groupId} rowIndex={parseInt(rowIndex, 10)} />
+                return <DownLoadSslCerts groupId={groupId} rowIndex={parseInt(rowIndex, 10)} />
             }
         },
         {

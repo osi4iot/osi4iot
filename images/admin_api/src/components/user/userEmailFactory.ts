@@ -39,7 +39,7 @@ export const sendUserRegistrationInvitationEmail = async (usersArray: CreateUser
 				<p>${platformName}</p>
 			</div>`;
 		// userRegisterInvitationEmailQuery[i] = sendEmail(subject, [mailTo], "html", mailBody);
-		userRegisterInvitationEmailQuery[i] = sleep(sendEmail, i * 1000, subject, [mailTo], "html", mailBody);
+		userRegisterInvitationEmailQuery[i] = sleep(sendEmail, i * 500, subject, [mailTo], "html", mailBody);
 	}
 	await Promise.all(userRegisterInvitationEmailQuery);
 }
