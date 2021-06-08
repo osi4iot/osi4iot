@@ -1,4 +1,4 @@
-import React, { FC } from 'react'
+import React, { FC, useCallback } from 'react'
 import TableWithPagination from './TableWithPagination';
 import { ORG_USERS_OPTIONS } from './platformAssistantOptions';
 import { IOrgUser, Create_ORG_USERS_COLUMNS } from './TableColumns/orgUsersColumns';
@@ -14,10 +14,10 @@ const OrgUsersContainer: FC<OrgUsersContainerProps> = ({ orgUsers, refreshOrgUse
     const orgUsersDispatch = useOrgUsersDispatch();
     const orgUsersOptionToShow = useOrgUsersOptionToShow();
 
-    const showOrgUsersTableOption = () => {
+    const showOrgUsersTableOption =    useCallback(() => {
         setOrgUsersOptionToShow(orgUsersDispatch, { orgUsersOptionToShow: ORG_USERS_OPTIONS.TABLE });
-    }
-
+    }, [orgUsersDispatch])
+        
     return (
         <>
             {orgUsersOptionToShow === ORG_USERS_OPTIONS.EDIT_ORG_USER &&

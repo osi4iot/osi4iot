@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react'
+import React, { FC, useState, useCallback } from 'react'
 import { IOrganization, Create_ORGANIZATIONS_COLUMNS } from './TableColumns/organizationsColumns';
 import TableWithPagination from './TableWithPagination';
 import CreateOrganization from './CreateOrganization';
@@ -62,11 +62,11 @@ const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) =
     const orgsOptionToShow = useOrgsOptionToShow();
     const [orgInputData, setOrgInputData] = useState<IOrgInputData>(initialOrgData)
 
-    const showOrgsTableOption = () => {
+    const showOrgsTableOption = useCallback(() => {
         setOrgsOptionToShow(orgsDispatch, { orgsOptionToShow: ORGS_OPTIONS.TABLE });
         setOrgInputData(initialOrgData);
-    }
-
+    }, [orgsDispatch]);
+    
     return (
         <>
             {orgsOptionToShow === ORGS_OPTIONS.CREATE_ORG &&

@@ -1,6 +1,6 @@
-import { FC, useEffect, useState } from 'react'
+import { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
-import { useAuthState } from '../../contexts/authContext';
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import Loader from "../Tools/Loader";
 import { GROUP_ADMIN_OPTIONS } from './platformAssistantOptions';
@@ -95,6 +95,7 @@ const domainName = getDomainName();
 
 const GroupAdminOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [optionToShow, setOptionToShow] = useState(GROUP_ADMIN_OPTIONS.GROUPS_MANAGED);
     const groupsManagedTable = useGroupsManagedTable();
@@ -109,29 +110,34 @@ const GroupAdminOptions: FC<{}> = () => {
     const [reloadGroupMembers, setReloadGroupMembers] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
 
-    const refreshGroupsManaged = () => {
+
+
+    const refreshGroupsManaged = useCallback(() => {
         setReloadGroupsManaged(true);
         setGroupsManagedLoading(true);
         setTimeout(() => setReloadGroupsManaged(false), 500);
-    }
+    }, []);
 
-    const refreshDevices = () => {
+
+    const refreshDevices = useCallback(() => {
         setReloadDevices(true);
         setDevicesLoading(true);
         setTimeout(() => setReloadDevices(false), 500);
-    }
+    }, [])
 
-    const refreshGroupMembers = () => {
+
+    const refreshGroupMembers = useCallback(() => {
         setReloadGroupMembers(true);
         setGroupMembersLoading(true);
         setTimeout(() => setReloadGroupMembers(false), 500);
-    }
+    }, [])
+
 
     useEffect(() => {
         if (groupsManagedTable.length === 0 || reloadGroupsManaged) {
             const config = axiosAuth(accessToken);
             const urlGroupsManaged = `https://${domainName}/admin_api/groups/user_managed`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlGroupsManaged, config)
                 .then((response) => {
                     const groupsManaged = response.data;
@@ -148,13 +154,13 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setGroupsManagedLoading(false);
         }
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
 
     useEffect(() => {
         if (devicesTable.length === 0 || reloadDevices) {
             const config = axiosAuth(accessToken);
             const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlDevices, config)
                 .then((response) => {
                     const devices = response.data;
@@ -171,13 +177,13 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setDevicesLoading(false);
         }
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
 
     useEffect(() => {
         if (groupMembersTable.length === 0 || reloadGroupMembers) {
             const config = axiosAuth(accessToken);
             const urlGroupMembers = `https://${domainName}/admin_api/group_members/user_managed`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlGroupMembers, config)
                 .then((response) => {
                     const groupMembers = response.data;
@@ -190,13 +196,13 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setGroupMembersLoading(false);
         }
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroupMembers, groupMembersTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupMembers, groupMembersTable.length]);
 
     useEffect(() => {
         if (selectOrgUsersTable.length === 0 || reloadGroupsManaged) {
             const config = axiosAuth(accessToken);
             const urlGroupsManaged = `https://${domainName}/admin_api/organization_users/user_groups_managed/`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlGroupsManaged, config)
                 .then((response) => {
                     const selectOrgUsers = response.data;
@@ -209,7 +215,7 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setSelectOrgUsersLoading(false);
         }
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroupsManaged, selectOrgUsersTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsManaged, selectOrgUsersTable.length]);
 
 
     const clickHandler = (optionToShow: string) => {

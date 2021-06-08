@@ -73,15 +73,17 @@ export const getPlatformAssistantPathForUserRole = (userRole: string) => {
 	return platformAssistantPath;
 }
 
-export const axiosInstance = (refreshToken: string): AxiosStatic => {
+export const axiosInstance = (refreshToken: string, authDispatch: any): AxiosStatic => {
     const domainName = getDomainName();
 
     const udpateTokenUrl = `https://${domainName}/admin_api/auth/update_token`;
     const config = axiosAuth(refreshToken);
     
     // Function that will be called to refresh authorization
-    const refreshAuthLogic = (failedRequest: any) => axios.patch(udpateTokenUrl, config).then(tokenRefreshResponse => {
-        localStorage.setItem('token', tokenRefreshResponse.data.accessToken);
+	const refreshAuthLogic = (failedRequest: any) => axios.patch(udpateTokenUrl, config).then(tokenRefreshResponse => {
+		const data = tokenRefreshResponse.data;
+		localStorage.setItem('iot_platform_auth', JSON.stringify(data));
+		authDispatch({ type: 'REFRESH_TOKEN', payload: data });
         failedRequest.response.config.headers['Authorization'] = 'Bearer ' + tokenRefreshResponse.data.accessToken;
         return Promise.resolve();
     });

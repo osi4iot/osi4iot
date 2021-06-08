@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react'
+import React, { FC, useState, useCallback } from 'react'
 import TableWithPagination from './TableWithPagination';
 import { GROUPS_MANAGED_OPTIONS } from './platformAssistantOptions';
 import { useGroupsManagedDispatch, useGroupsManagedOptionToShow, setGroupsManagedOptionToShow } from '../../contexts/groupsManagedOptions';
@@ -39,9 +39,9 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({ groupsManaged
     const groupsManagedOptionToShow = useGroupsManagedOptionToShow();
     const [groupMembersInputData, setGroupMembersInputData] = useState<IGroupMembersInput>(initialGroupsMembersData)
 
-    const showGroupsManagedTableOption = () => {
+    const showGroupsManagedTableOption = useCallback(() => {
         setGroupsManagedOptionToShow(groupsManagedDispatch, { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.TABLE });
-    }
+    }, [groupsManagedDispatch])
 
     return (
         <>

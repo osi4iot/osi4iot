@@ -1,7 +1,7 @@
-import React, { FC, useEffect, useState } from 'react'
+import React, { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
 import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
-import { useAuthState } from '../../contexts/authContext';
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import Loader from "../Tools/Loader";
 import TableWithPagination from './TableWithPagination';
 import { MEMBERSHIP_IN_ORGS } from './TableColumns/membershipInOrgs';
@@ -92,6 +92,7 @@ const domainName = getDomainName();
 
 const UserOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [optionToShow, setOptionToShow] = useState(USER_OPTIONS.USER_PROFILE);
 
@@ -107,29 +108,31 @@ const UserOptions: FC<{}> = () => {
     const [reloadOrgsMembership, setReloadOrgsMembership] = useState(false);
     const [reloadGroupsMembership, setReloadGroupsMembership] = useState(false);
 
-    const refreshUserProfile = () => {
+    const refreshUserProfile = useCallback(() => {
         setReloadUserProfile(true);
         setUserProfileLoading(true);
         setTimeout(() => setReloadUserProfile(false), 500);
-    }
+    }, []);
 
-    const refreshOrgsMembership = () => {
+    const refreshOrgsMembership = useCallback(() => {
         setReloadOrgsMembership(true);
         setLoadingOrgsMembership(true);
         setTimeout(() => setReloadOrgsMembership(false), 500);
-    }
+    }, []);
 
-    const refreshGroupsMembership = () => {
+
+    const refreshGroupsMembership = useCallback(() => {
         setReloadGroupsMembership(true);
         setLoadinGroupsMembership(true);
         setTimeout(() => setReloadGroupsMembership(false), 500);
-    }
-
+    }, []);
+    
+    
     useEffect(() => {
         if (userProfileTable.userId === 0 || reloadUserProfile) {
             const config = axiosAuth(accessToken);
             const urlUserProfile = `https://${domainName}/admin_api/auth/user_profile`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlUserProfile, config)
                 .then((response) => {
                     const userProfile = response.data;
@@ -143,14 +146,14 @@ const UserOptions: FC<{}> = () => {
             setUserProfileLoading(false);
         }
 
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadUserProfile, userProfileTable.userId]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadUserProfile, userProfileTable.userId]);
 
     useEffect(() => {
         if (orgsMembershipTable.length === 0 || reloadOrgsMembership) {
 
             const config = axiosAuth(accessToken);
             const urlMembershipInOrgs = `https://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInOrgs, config)
                 .then((response) => {
                     const orgsMembership = response.data;
@@ -164,13 +167,13 @@ const UserOptions: FC<{}> = () => {
             setLoadingOrgsMembership(false);
         }
 
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadOrgsMembership, orgsMembershipTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadOrgsMembership, orgsMembershipTable.length]);
 
     useEffect(() => {
         if (groupsMembershipTable.length === 0 || reloadGroupsMembership) {
             const config = axiosAuth(accessToken);
             const urlMembershipInGroups = `https://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInGroups, config)
                 .then((response) => {
                     const groupsMembership = response.data;
@@ -184,7 +187,7 @@ const UserOptions: FC<{}> = () => {
             setLoadinGroupsMembership(false);
         }
 
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroupsMembership, groupsMembershipTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsMembership, groupsMembershipTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);

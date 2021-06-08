@@ -1,4 +1,4 @@
-import React, { FC } from 'react'
+import React, { FC, useCallback } from 'react'
 import TableWithPagination from './TableWithPagination';
 import { GROUPS_OPTIONS } from './platformAssistantOptions';
 import CreateGroup from './CreateGroup';
@@ -16,9 +16,9 @@ const GroupsContainer: FC<GroupsContainerProps> = ({ groups, refreshGroups }) =>
     const groupsDispatch = useGroupsDispatch();
     const groupsOptionToShow = useGroupsOptionToShow();
 
-    const showGroupsTableOption = () => {
+    const showGroupsTableOption = useCallback(() => {
         setGroupsOptionToShow(groupsDispatch, { groupsOptionToShow: GROUPS_OPTIONS.TABLE });
-    }
+    }, [groupsDispatch])
 
     return (
         <>

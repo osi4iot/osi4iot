@@ -1,4 +1,4 @@
-import { FC, SyntheticEvent } from "react";
+import { FC, useCallback } from "react";
 import { FaUserSlash } from "react-icons/fa";
 import styled from "styled-components";
 
@@ -39,9 +39,9 @@ interface RemoveUsersIconProps {
 
 const RemoveUsersIcon: FC<RemoveUsersIconProps> = ({ action, rowIndex }) => {
 
-    const handleClick = (e: SyntheticEvent) => {
+    const handleClick = useCallback(() => {
         action();
-    };
+    }, [action]);
 
     return (
         <IconContainer onClick={handleClick} rowIndex={rowIndex}>

@@ -2,7 +2,7 @@ import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
-import { useAuthState } from '../../../contexts/authContext';
+import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
@@ -47,6 +47,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     const question = "Are you sure to delete this group?";
     const consequences = "All teams, folders, devices and sensor measurements belonging to this group are going to be lost.";
     const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -61,7 +62,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken)
+        axiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsGroupDeleted(true);

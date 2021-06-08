@@ -1,4 +1,4 @@
-import React, { FC } from 'react'
+import React, { FC, useCallback } from 'react'
 import TableWithPagination from './TableWithPagination';
 import { GROUP_MEMBERS_OPTIONS } from './platformAssistantOptions';
 import EditGroupMember from './EditGroupMember';
@@ -14,9 +14,9 @@ const GroupMembersContainer: FC<GroupMembersContainerProps> = ({ groupMembers, r
     const groupMembersDispatch = useGroupMembersDispatch();
     const groupMembersOptionToShow = useGroupMembersOptionToShow();
 
-    const showGroupMemberTableOption = () => {
+    const showGroupMemberTableOption = useCallback(() => {
         setGroupMembersOptionToShow(groupMembersDispatch, { groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.TABLE });
-    }
+    }, [groupMembersDispatch])
 
     return (
         <>

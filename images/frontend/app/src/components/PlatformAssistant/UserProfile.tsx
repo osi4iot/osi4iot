@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react'
+import React, { FC, useState, useCallback } from 'react'
 import styled from "styled-components";
 import ChangePassword from './ChangePassword';
 import EditUserProfile from './EditUserProfile';
@@ -87,10 +87,10 @@ interface UserProfileProps {
 const UserProfile: FC<UserProfileProps> = ({ userProfile, refreshUserProfile }) => {
     const [userProfileOptionToShow, setUserProfileOptionToShow] = useState(USER_PROFILE_OPTIONS.USER_PROFILE);
 
-    const changeUserProfileOptionToShow = (option: string) => {
+    const changeUserProfileOptionToShow = useCallback((option: string) => {
         setUserProfileOptionToShow(option);
-    }
-
+    }, []);
+    
     return (
         <>
             {

@@ -1,6 +1,6 @@
-import { FC, useEffect, useState } from 'react'
+import { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
-import { useAuthState } from '../../contexts/authContext';
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import Loader from "../Tools/Loader";
 import elaspsedTimeFormat from '../../tools/elapsedTimeFormat';
@@ -87,6 +87,7 @@ const domainName = getDomainName();
 
 const OrganizationAdminOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const orgsManagedTable = useOrgsManagedTable();
     const orgUsersTable = useOrgUsersTable();
@@ -102,29 +103,31 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const [reloadOrgUsers, setReloadOrgUsers] = useState(false);
     const [reloadGroups, setReloadGroups] = useState(false);
 
-    const refreshOrgsManaged = () => {
+    const refreshOrgsManaged = useCallback(() => {
         setReloadOrgsManaged(true);
         setOrgsManagedLoading(true);
         setTimeout(() => setReloadOrgsManaged(false), 500);
-    }
+    }, []);
 
-    const refreshOrgUsers = () => {
+
+    const refreshOrgUsers = useCallback(() => {
         setReloadOrgUsers(true);
         setOrgUsersLoading(true);
         setTimeout(() => setReloadOrgUsers(false), 500);
-    }
+    }, [])
 
-    const refreshGroups = () => {
+
+    const refreshGroups = useCallback(() => {
         setReloadGroups(true);
         setGroupsLoading(true);
         setTimeout(() => setReloadGroups(false), 500);
-    }
+    }, [])
 
     useEffect(() => {
         if (orgsManagedTable.length === 0 || reloadOrgsManaged) {
             const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsManaged, config)
                 .then((response) => {
                     const orgsManaged = response.data;
@@ -137,13 +140,13 @@ const OrganizationAdminOptions: FC<{}> = () => {
         } else {
             setOrgsManagedLoading(false);
         }
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadOrgsManaged, orgsManagedTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadOrgsManaged, orgsManagedTable.length]);
 
     useEffect(() => {
         if (orgUsersTable.length === 0 || reloadOrgUsers) {
             const config = axiosAuth(accessToken);
             const urlOrganizationUsers = `https://${domainName}/admin_api/organization_users/user_orgs_managed/`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizationUsers, config)
                 .then((response) => {
                     const orgUsers = response.data;
@@ -160,13 +163,13 @@ const OrganizationAdminOptions: FC<{}> = () => {
         } else {
             setOrgUsersLoading(false);
         }
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadOrgUsers, orgUsersTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadOrgUsers, orgUsersTable.length]);
 
     useEffect(() => {
         if (groupsTable.length === 0 || reloadGroups) {
             const config = axiosAuth(accessToken);
             const urlGroups = `https://${domainName}/admin_api/groups/user_managed`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlGroups, config)
                 .then((response) => {
                     const groups = response.data;
@@ -183,13 +186,13 @@ const OrganizationAdminOptions: FC<{}> = () => {
         } else {
             setGroupsLoading(false);
         }
-    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroups, groupsTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroups, groupsTable.length]);
 
     useEffect(() => {
         if (globalUsersTable.length === 0 || reloadOrgUsers) {
             const config = axiosAuth(accessToken);
             const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
                     const globalUsers = response.data;
@@ -208,7 +211,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             setGlobalUsersLoading(false);
         }
 
-    }, [accessToken, refreshToken, reloadOrgUsers, plaformAssistantDispatch, globalUsersTable.length]);
+    }, [accessToken, refreshToken, authDispatch, reloadOrgUsers, plaformAssistantDispatch, globalUsersTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);

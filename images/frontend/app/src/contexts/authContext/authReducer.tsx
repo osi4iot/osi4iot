@@ -58,6 +58,12 @@ export const AuthReducer = (initialState: AuthContextProps, action: AuthAction) 
 				loading: false,
 				errorMessage: action.error,
 			};
+		case "REFRESH_TOKEN":
+			return {
+				...initialState,
+				accessToken: action.payload.accessToken,
+				refreshToken: action.payload.refreshToken,
+			};
 		case "USER_ROLE":
 			return {
 				...initialState,

@@ -1,7 +1,7 @@
-import React, { FC, useEffect, useState } from 'react'
+import React, { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
 import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
-import { useAuthState } from '../../contexts/authContext';
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import TableWithPagination from './TableWithPagination';
 import Loader from "../Tools/Loader";
 import PlatformTools from './PlatformToolsOptions';
@@ -99,6 +99,7 @@ const domainName = getDomainName();
 
 const PlatformAdminOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const organizationsTable = useOrganizationsTable();
     const globalUsersTable = useGlobalUsersTable();
@@ -111,29 +112,32 @@ const PlatformAdminOptions: FC<{}> = () => {
     const [reloadGlobalUsers, setReloadGlobalUsers] = useState(false);
     const [reloadRefreshTokens, setReloadRefreshTokens] = useState(false);
 
-    const refreshOrgs = () => {
+
+    const refreshOrgs = useCallback(() => {
         setReloadOrgs(true);
         setOrgsLoading(true);
         setTimeout(() => setReloadOrgs(false), 500);
-    }
+    }, []);
 
-    const refreshGlobalUsers = () => {
+    const refreshGlobalUsers = useCallback(() => {
         setReloadGlobalUsers(true);
         setGlobalUsersLoading(true);
         setTimeout(() => setReloadGlobalUsers(false), 500);
-    }
+    }, []);
 
-    const refreshRefreshTokens = () => {
+
+    const refreshRefreshTokens = useCallback(() => {
         setReloadRefreshTokens(true);
         setRefreshTokensLoading(true);
         setTimeout(() => setReloadRefreshTokens(false), 500);
-    }
+    }, []);
+    
 
     useEffect(() => {
         if (organizationsTable.length === 0 || reloadOrgs) {
             const urlOrganizations = `https://${domainName}/admin_api/organizations`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizations, config)
                 .then((response) => {
                     const organizations = response.data;
@@ -144,17 +148,17 @@ const PlatformAdminOptions: FC<{}> = () => {
                 .catch((error) => {
                     console.log(error);
                 });
-    
+
         } else {
             setOrgsLoading(false);
         }
-    }, [accessToken, refreshToken, reloadOrgs, plaformAssistantDispatch, organizationsTable.length]);
+    }, [accessToken, refreshToken, authDispatch, reloadOrgs, plaformAssistantDispatch, organizationsTable.length]);
 
     useEffect(() => {
         if (globalUsersTable.length === 0 || reloadGlobalUsers) {
             const config = axiosAuth(accessToken);
             const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
                     const globalUsers = response.data;
@@ -173,13 +177,13 @@ const PlatformAdminOptions: FC<{}> = () => {
             setGlobalUsersLoading(false);
         }
 
-    }, [accessToken, refreshToken, reloadGlobalUsers, plaformAssistantDispatch, globalUsersTable.length]);
+    }, [accessToken, refreshToken, authDispatch, reloadGlobalUsers, plaformAssistantDispatch, globalUsersTable.length]);
 
     useEffect(() => {
         if (refreshTokensTable.length === 0 || reloadRefreshTokens) {
             const config = axiosAuth(accessToken);
             const urlRefreshTokens = `https://${domainName}/admin_api/auth/refresh_tokens`;
-            axiosInstance(refreshToken)
+            axiosInstance(refreshToken, authDispatch)
                 .get(urlRefreshTokens, config)
                 .then((response) => {
                     const refreshTokens = response.data;
@@ -197,7 +201,7 @@ const PlatformAdminOptions: FC<{}> = () => {
         } else {
             setRefreshTokensLoading(false);
         }
-    }, [accessToken, refreshToken, reloadRefreshTokens, plaformAssistantDispatch, refreshTokensTable.length]);
+    }, [accessToken, refreshToken, authDispatch, reloadRefreshTokens, plaformAssistantDispatch, refreshTokensTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);

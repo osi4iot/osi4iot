@@ -6,7 +6,7 @@ import { ORGS_MANAGED_OPTIONS } from '../platformAssistantOptions';
 import { useOrgsManagedDispatch, setOrgManagedIdToCreateOrgUsers, setOrgManagedRowIndex, setOrgsManagedOptionToShow } from '../../../contexts/orgsManagedOptions';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
-import { useAuthState } from '../../../contexts/authContext';
+import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import DeleteModalWithSelect from '../../Tools/DeleteModalWithSelect';
 
 interface AddOrgUsersProps {
@@ -58,6 +58,7 @@ const RemoveAllOrgUsersModal: FC<RemoveAllOrgUsersModalProps> = ({ rowIndex, org
     const width = 380;
     const height = 390;
     const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -72,7 +73,7 @@ const RemoveAllOrgUsersModal: FC<RemoveAllOrgUsersModalProps> = ({ rowIndex, org
     const action = (hideModal: () => void, whoToRemove: string) => {
         const url = `https://${domainName}/admin_api/organization/${orgId}/users/${whoToRemove}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken)
+        axiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsGroupMembersRemoved(true);

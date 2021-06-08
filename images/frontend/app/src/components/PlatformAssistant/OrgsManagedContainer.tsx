@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react'
+import React, { FC, useState, useCallback } from 'react'
 import TableWithPagination from './TableWithPagination';
 import { ORGS_MANAGED_OPTIONS } from './platformAssistantOptions';
 import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
@@ -42,9 +42,10 @@ const OrgsManagedContainer: FC<OrgsManagedContainerProps> = ({ orgsManaged, refr
     const orgsManageOptionToShow = useOrgsManagedOptionToShow();
     const [orgUsersInputData, setOrgUsersInputData] = useState<IOrgUsersInput>(initialOrgUsersData)
 
-    const showOrgsManagedTableOption = () => {
+    const showOrgsManagedTableOption = useCallback(() => {
         setOrgsManagedOptionToShow(orgsManagedDispatch, { orgsManagedOptionToShow: ORGS_MANAGED_OPTIONS.TABLE });
-    }
+    }, [orgsManagedDispatch]);
+
 
     return (
         <>

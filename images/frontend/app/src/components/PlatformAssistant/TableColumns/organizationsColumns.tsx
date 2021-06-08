@@ -5,7 +5,7 @@ import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
-import { useAuthState } from '../../../contexts/authContext';
+import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { ORGS_OPTIONS } from '../platformAssistantOptions';
 import { setOrgIdToEdit, setOrgRowIndexToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgsOptions';
 
@@ -45,6 +45,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
     const question = "Are you sure to delete this organization?";
     const consequences = "All groups, devices and sensor measurements belonging to this org are going to be lost.";
     const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -59,7 +60,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/organization/id/${orgId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken)
+        axiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsOrgDeleted(true);

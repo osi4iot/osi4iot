@@ -1,4 +1,4 @@
-import React, { FC } from 'react'
+import React, { FC, useCallback } from 'react'
 import { Create_GLOBAL_USERS_COLUMNS, IGlobalUser } from "./TableColumns/globalUsersColumns";
 import TableWithPagination from './TableWithPagination';
 import { GLOBAL_USERS_OPTIONS } from './platformAssistantOptions';
@@ -16,10 +16,10 @@ const GlobalUsersContainer: FC<GlobalUsersContainerProps> = ({ globalUsers, refr
     const globalUsersDispatch = useGlobalUsersDispatch();
     const globalUsersOptionToShow = useGlobalUsersOptionToShow();
 
-    const showGlobalUsersTableOption = () => {
+    const showGlobalUsersTableOption = useCallback(() => {
         setGlobalUsersOptionToShow(globalUsersDispatch, { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.TABLE });
-    }
-
+    }, [globalUsersDispatch]);
+        
     return (
         <>
 
