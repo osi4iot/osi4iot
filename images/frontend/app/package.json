@@ -15,6 +15,7 @@
     "@types/react-dom": "^17.0.0",
     "@types/react-router-dom": "^5.1.7",
     "axios": "^0.21.1",
+    "axios-auth-refresh": "^3.1.0",
     "file-saver": "^2.0.5",
     "formik": "^2.2.8",
     "jszip": "^3.6.0",

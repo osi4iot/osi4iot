@@ -1,9 +1,8 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState } from '../../../contexts/authContext';
-import axios from 'axios';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
@@ -47,7 +46,7 @@ const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, gro
     const title = "DELETE GROUP MEMBER";
     const question = "Are you sure to delete this group member?";
     const consequences = "The member are going to be remove of the group but continues active in the org.";
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -62,7 +61,7 @@ const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, gro
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/group/${groupId}/member/id/${userId}`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .delete(url, config)
             .then((response) => {
                 setIsGroupMemberDeleted(true);

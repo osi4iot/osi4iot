@@ -1,8 +1,7 @@
 import { FC, useEffect, useState } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import axios from 'axios';
-import { axiosAuth, getDomainName } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState } from '../../../contexts/authContext';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
@@ -42,7 +41,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
     const title = "DELETE GLOBAL USER";
     const question = "Are you sure to delete this global user?";
     const consequences = "The user are going to be removed of the platform.";
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -57,7 +56,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/application/global_user/id/${globalUserId}`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .delete(url, config)
             .then((response) => {
                 setIsGlobalUserDeleted(true);

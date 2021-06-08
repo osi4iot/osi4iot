@@ -1,8 +1,7 @@
-import axios from 'axios';
 import { FC, useEffect, useState } from 'react'
 import styled from "styled-components";
 import { useAuthState } from '../../contexts/authContext';
-import { axiosAuth, getDomainName } from '../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import Loader from "../Tools/Loader";
 import { GROUP_ADMIN_OPTIONS } from './platformAssistantOptions';
 import DevicesContainer from './DevicesContainer';
@@ -95,7 +94,7 @@ const ContentContainer = styled.div`
 const domainName = getDomainName();
 
 const GroupAdminOptions: FC<{}> = () => {
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [optionToShow, setOptionToShow] = useState(GROUP_ADMIN_OPTIONS.GROUPS_MANAGED);
     const groupsManagedTable = useGroupsManagedTable();
@@ -132,7 +131,7 @@ const GroupAdminOptions: FC<{}> = () => {
         if (groupsManagedTable.length === 0 || reloadGroupsManaged) {
             const config = axiosAuth(accessToken);
             const urlGroupsManaged = `https://${domainName}/admin_api/groups/user_managed`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlGroupsManaged, config)
                 .then((response) => {
                     const groupsManaged = response.data;
@@ -149,13 +148,13 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setGroupsManagedLoading(false);
         }
-    }, [accessToken, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
+    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
 
     useEffect(() => {
         if (devicesTable.length === 0 || reloadDevices) {
             const config = axiosAuth(accessToken);
             const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlDevices, config)
                 .then((response) => {
                     const devices = response.data;
@@ -172,13 +171,13 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setDevicesLoading(false);
         }
-    }, [accessToken, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
+    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
 
     useEffect(() => {
         if (groupMembersTable.length === 0 || reloadGroupMembers) {
             const config = axiosAuth(accessToken);
             const urlGroupMembers = `https://${domainName}/admin_api/group_members/user_managed`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlGroupMembers, config)
                 .then((response) => {
                     const groupMembers = response.data;
@@ -191,13 +190,13 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setGroupMembersLoading(false);
         }
-    }, [accessToken, plaformAssistantDispatch, reloadGroupMembers, groupMembersTable.length]);
+    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroupMembers, groupMembersTable.length]);
 
     useEffect(() => {
         if (selectOrgUsersTable.length === 0 || reloadGroupsManaged) {
             const config = axiosAuth(accessToken);
             const urlGroupsManaged = `https://${domainName}/admin_api/organization_users/user_groups_managed/`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlGroupsManaged, config)
                 .then((response) => {
                     const selectOrgUsers = response.data;
@@ -210,7 +209,7 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setSelectOrgUsersLoading(false);
         }
-    }, [accessToken, plaformAssistantDispatch, reloadGroupsManaged, selectOrgUsersTable.length]);
+    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroupsManaged, selectOrgUsersTable.length]);
 
 
     const clickHandler = (optionToShow: string) => {

@@ -1,8 +1,7 @@
-import axios from 'axios';
 import { FC, useEffect, useState } from 'react'
 import styled from "styled-components";
 import { useAuthState } from '../../contexts/authContext';
-import { axiosAuth, getDomainName } from '../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import Loader from "../Tools/Loader";
 import elaspsedTimeFormat from '../../tools/elapsedTimeFormat';
 import { ORG_ADMIN_OPTIONS } from './platformAssistantOptions';
@@ -87,7 +86,7 @@ const ContentContainer = styled.div`
 const domainName = getDomainName();
 
 const OrganizationAdminOptions: FC<{}> = () => {
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const orgsManagedTable = useOrgsManagedTable();
     const orgUsersTable = useOrgUsersTable();
@@ -125,7 +124,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         if (orgsManagedTable.length === 0 || reloadOrgsManaged) {
             const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
             const config = axiosAuth(accessToken);
-            axios
+            axiosInstance(refreshToken)
                 .get(urlOrgsManaged, config)
                 .then((response) => {
                     const orgsManaged = response.data;
@@ -138,13 +137,13 @@ const OrganizationAdminOptions: FC<{}> = () => {
         } else {
             setOrgsManagedLoading(false);
         }
-    }, [accessToken, plaformAssistantDispatch, reloadOrgsManaged, orgsManagedTable.length]);
+    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadOrgsManaged, orgsManagedTable.length]);
 
     useEffect(() => {
         if (orgUsersTable.length === 0 || reloadOrgUsers) {
             const config = axiosAuth(accessToken);
             const urlOrganizationUsers = `https://${domainName}/admin_api/organization_users/user_orgs_managed/`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlOrganizationUsers, config)
                 .then((response) => {
                     const orgUsers = response.data;
@@ -161,13 +160,13 @@ const OrganizationAdminOptions: FC<{}> = () => {
         } else {
             setOrgUsersLoading(false);
         }
-    }, [accessToken, plaformAssistantDispatch, reloadOrgUsers, orgUsersTable.length]);
+    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadOrgUsers, orgUsersTable.length]);
 
     useEffect(() => {
         if (groupsTable.length === 0 || reloadGroups) {
             const config = axiosAuth(accessToken);
             const urlGroups = `https://${domainName}/admin_api/groups/user_managed`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlGroups, config)
                 .then((response) => {
                     const groups = response.data;
@@ -184,13 +183,13 @@ const OrganizationAdminOptions: FC<{}> = () => {
         } else {
             setGroupsLoading(false);
         }
-    }, [accessToken, plaformAssistantDispatch, reloadGroups, groupsTable.length]);
+    }, [accessToken, refreshToken, plaformAssistantDispatch, reloadGroups, groupsTable.length]);
 
     useEffect(() => {
         if (globalUsersTable.length === 0 || reloadOrgUsers) {
             const config = axiosAuth(accessToken);
             const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
                     const globalUsers = response.data;
@@ -209,7 +208,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             setGlobalUsersLoading(false);
         }
 
-    }, [accessToken, reloadOrgUsers, plaformAssistantDispatch, globalUsersTable.length]);
+    }, [accessToken, refreshToken, reloadOrgUsers, plaformAssistantDispatch, globalUsersTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);

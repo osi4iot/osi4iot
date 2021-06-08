@@ -65,7 +65,7 @@ class AuthenticationController implements IController {
 		);
 
 		this.router.get(`${this.path}/refresh_tokens/`, superAdminAuth, this.getRefreshTokens);
-		this.router.patch(`${this.path}/update_refresh_token/`, this.refreshToken);
+		this.router.patch(`${this.path}/update_token/`, this.refreshToken);
 		this.router.delete(`${this.path}/disable_refresh_token/`, superAdminAuth, validationMiddleware<RefreshTokenToDisableDto>(RefreshTokenToDisableDto), this.disableRefreshToken);
 		this.router.delete(`${this.path}/disable_refresh_token_by_id/:refreshTokenId`, superAdminAuth, this.disableRefreshTokenById);
 		this.router.delete(`${this.path}/disable_user_refresh_tokens/:userId`, superAdminAuth, this.disableUsersRefreshToken);

@@ -1,7 +1,6 @@
 import React, { FC, useEffect, useState } from 'react'
 import styled from "styled-components";
-import { axiosAuth, getDomainName } from '../../tools/tools';
-import axios from 'axios';
+import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import { useAuthState } from '../../contexts/authContext';
 import TableWithPagination from './TableWithPagination';
 import Loader from "../Tools/Loader";
@@ -99,7 +98,7 @@ const ContentContainer = styled.div`
 const domainName = getDomainName();
 
 const PlatformAdminOptions: FC<{}> = () => {
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const organizationsTable = useOrganizationsTable();
     const globalUsersTable = useGlobalUsersTable();
@@ -134,7 +133,7 @@ const PlatformAdminOptions: FC<{}> = () => {
         if (organizationsTable.length === 0 || reloadOrgs) {
             const urlOrganizations = `https://${domainName}/admin_api/organizations`;
             const config = axiosAuth(accessToken);
-            axios
+            axiosInstance(refreshToken)
                 .get(urlOrganizations, config)
                 .then((response) => {
                     const organizations = response.data;
@@ -149,13 +148,13 @@ const PlatformAdminOptions: FC<{}> = () => {
         } else {
             setOrgsLoading(false);
         }
-    }, [accessToken, reloadOrgs, plaformAssistantDispatch, organizationsTable.length]);
+    }, [accessToken, refreshToken, reloadOrgs, plaformAssistantDispatch, organizationsTable.length]);
 
     useEffect(() => {
         if (globalUsersTable.length === 0 || reloadGlobalUsers) {
             const config = axiosAuth(accessToken);
             const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
                     const globalUsers = response.data;
@@ -174,13 +173,13 @@ const PlatformAdminOptions: FC<{}> = () => {
             setGlobalUsersLoading(false);
         }
 
-    }, [accessToken, reloadGlobalUsers, plaformAssistantDispatch, globalUsersTable.length]);
+    }, [accessToken, refreshToken, reloadGlobalUsers, plaformAssistantDispatch, globalUsersTable.length]);
 
     useEffect(() => {
         if (refreshTokensTable.length === 0 || reloadRefreshTokens) {
             const config = axiosAuth(accessToken);
             const urlRefreshTokens = `https://${domainName}/admin_api/auth/refresh_tokens`;
-            axios
+            axiosInstance(refreshToken)
                 .get(urlRefreshTokens, config)
                 .then((response) => {
                     const refreshTokens = response.data;
@@ -198,7 +197,7 @@ const PlatformAdminOptions: FC<{}> = () => {
         } else {
             setRefreshTokensLoading(false);
         }
-    }, [accessToken, reloadRefreshTokens, plaformAssistantDispatch, refreshTokensTable.length]);
+    }, [accessToken, refreshToken, reloadRefreshTokens, plaformAssistantDispatch, refreshTokensTable.length]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);

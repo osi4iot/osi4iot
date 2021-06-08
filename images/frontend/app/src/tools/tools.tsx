@@ -1,4 +1,6 @@
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/platformAssistantOptions";
+import axios, { AxiosStatic } from 'axios';
+import createAuthRefreshInterceptor from 'axios-auth-refresh';
 
 export const isRegistrationRequest = () => {
     let isRegistrationReq = false;
@@ -69,4 +71,22 @@ export const getPlatformAssistantPathForUserRole = (userRole: string) => {
 	else if (userRole === "GroupAdmin") platformAssistantPath = PLATFORM_ASSISTANT_ROUTES.GROUP_ADMIN;
 	else if (userRole === "User") platformAssistantPath = PLATFORM_ASSISTANT_ROUTES.USER;
 	return platformAssistantPath;
+}
+
+export const axiosInstance = (refreshToken: string): AxiosStatic => {
+    const domainName = getDomainName();
+
+    const udpateTokenUrl = `https://${domainName}/admin_api/auth/update_token`;
+    const config = axiosAuth(refreshToken);
+    
+    // Function that will be called to refresh authorization
+    const refreshAuthLogic = (failedRequest: any) => axios.patch(udpateTokenUrl, config).then(tokenRefreshResponse => {
+        localStorage.setItem('token', tokenRefreshResponse.data.accessToken);
+        failedRequest.response.config.headers['Authorization'] = 'Bearer ' + tokenRefreshResponse.data.accessToken;
+        return Promise.resolve();
+    });
+    
+    // Instantiate the interceptor (you can chain it as it returns the axios instance)
+    createAuthRefreshInterceptor(axios, refreshAuthLogic);
+    return axios;
 }

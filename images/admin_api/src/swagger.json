@@ -231,14 +231,14 @@
 				}
 			}
 		},
-		"/auth/update_refresh_token": {
+		"/auth/update_token": {
 			"patch": {
 				"tags": ["Authentication"],
 				"summary": "Update refresh token",
 				"produces": ["application/json"],
 				"responses": {
 					"200": {
-						"description": "Refresh token updated. Access and refresh token delivered",
+						"description": "Token updated. Access and refresh token delivered",
 						"content": {
 							"application/json": {
 								"schema": {

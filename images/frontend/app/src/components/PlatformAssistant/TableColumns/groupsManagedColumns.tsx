@@ -15,9 +15,8 @@ import {
 } from '../../../contexts/groupsManagedOptions';
 import { GROUPS_MANAGED_OPTIONS } from '../platformAssistantOptions';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState } from '../../../contexts/authContext';
-import axios from 'axios';
 import DeleteModal from '../../Tools/DeleteModal';
 import ChangeModal from '../../Tools/ChangeModal';
 
@@ -63,7 +62,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
     const question = "Are you sure to remove all members of this group?";
     const consequences = "All members with Viewer or Editor role are going to be remove of the group but continue active in the org.";
     const width = 380;
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -78,7 +77,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/group/${groupId}/members`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .delete(url, config)
             .then((response) => {
                 setIsGroupMembersRemoved(true);
@@ -108,12 +107,12 @@ interface DownLoadSslCertsProps {
 }
 
 const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const handleClick = () => {
         const url = `https://${domainName}/admin_api/group/${groupId}/ssl_certs`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .get(url, config)
             .then((response) => {
                 const data = response.data;
@@ -157,7 +156,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
     const question = "Are you sure to change the group hash?";
     const consequences = "The mqtt topics of this group must be change to reference to new the hash. Group hash used in dashboards are going to be updated automatically.";
     const width = 380;
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -172,7 +171,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/group/${groupId}/change_uid`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .patch(url, null, config)
             .then((response) => {
                 setIsGroupHashChanged(true);

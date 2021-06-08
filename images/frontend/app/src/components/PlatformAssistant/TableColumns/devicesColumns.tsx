@@ -1,9 +1,8 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState } from '../../../contexts/authContext';
-import axios from 'axios';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import ExChangeIcon from '../ExchangeIcon';
@@ -45,7 +44,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
     const title = "DELETE DEVICE";
     const question = "Are you sure to delete this device?";
     const consequences = "All measurements of this device and sensor mesurements are going to be lost.";
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -60,7 +59,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/device/${groupId}/id/${deviceId}`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .delete(url, config)
             .then((response) => {
                 setIsDeviceDeleted(true);
@@ -124,7 +123,7 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
     const question = "Are you sure to change hash of this device?";
     const consequences = "The mqtt topics of this device must be change to reference to new the hash. Device hash used in dashboards are going to be updated automatically.";
     const width = 380;
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -139,7 +138,7 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/device/${groupId}/changeUid/${deviceId}`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .patch(url, null, config)
             .then((response) => {
                 setIsDeviceHashChanged(true);

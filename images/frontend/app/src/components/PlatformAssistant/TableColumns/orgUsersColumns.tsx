@@ -1,9 +1,8 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState } from '../../../contexts/authContext';
-import axios from 'axios';
 import EditIcon from '../EditIcon';
 import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
@@ -49,7 +48,7 @@ const DeleteOrgUserModal: FC<DeleteOrgUserModalProps> = ({ rowIndex, orgId, user
     const title = "DELETE ORG USER";
     const question = "Are you sure to delete this org user?";
     const consequences = "The user are going be removed of all groups beloging to the org.";
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -64,7 +63,7 @@ const DeleteOrgUserModal: FC<DeleteOrgUserModalProps> = ({ rowIndex, orgId, user
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/organization/${orgId}/user/id/${userId}`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .delete(url, config)
             .then((response) => {
                 setIsOrgUserDeleted(true);

@@ -1,9 +1,8 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState } from '../../../contexts/authContext';
-import axios from 'axios';
 import DeleteIcon from '../DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 
@@ -33,7 +32,7 @@ const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, r
     const title = "DELETE REFRESH TOKEN";
     const question = "Are you sure to delete this refresh token?";
     const consequences = "The user are going to need to sign in again.";
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
 
     const showLoader = () => {
         setIsSubmitting(true);
@@ -44,11 +43,11 @@ const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, r
             refreshRefreshTokens();
         }
     }, [isRefreshTokenDeleted, refreshRefreshTokens]);
-    
+
     const action = (hideModal: () => void) => {
         const url = `https://${domainName}/admin_api/auth/disable_refresh_token_by_id/${refreshTokenId}`;
         const config = axiosAuth(accessToken);
-        axios
+        axiosInstance(refreshToken)
             .delete(url, config)
             .then((response) => {
                 setIsRefreshTokenDeleted(true);
