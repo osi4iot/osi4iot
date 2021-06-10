@@ -163,10 +163,10 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                // const orgpId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[1]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <EditGroup groupId={groupId} rowIndex={parseInt(rowIndex)} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const groupId = row?.cells[1]?.value;
+                return <EditGroup groupId={groupId} rowIndex={rowIndex} />
             }
         },
         {
@@ -175,10 +175,11 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const orgpId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[1]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <DeleteGroupModal orgId={orgpId} groupId={groupId} rowIndex={parseInt(rowIndex)} refreshGroups={refreshGroups} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const orgpId = row?.cells[0]?.value;
+                const groupId = row?.cells[1]?.value;
+                return <DeleteGroupModal orgId={orgpId} groupId={groupId} rowIndex={rowIndex} refreshGroups={refreshGroups} />
             }
         }
     ]

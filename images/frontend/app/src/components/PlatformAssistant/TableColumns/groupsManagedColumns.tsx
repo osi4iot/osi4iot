@@ -280,9 +280,10 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <AddGroupMembers rowIndex={parseInt(rowIndex, 10)} groupManagedId={parseInt(groupId, 10)} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const groupId = row?.cells[0]?.value;
+                return <AddGroupMembers rowIndex={rowIndex} groupManagedId={parseInt(groupId, 10)} />
             }
         },
         {
@@ -291,9 +292,10 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <RemoveAllGroupMembersModal groupId={groupId} rowIndex={parseInt(rowIndex, 10)} refreshGroupMembers={refreshGroupMembers} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const groupId = row?.cells[0]?.value;
+                return <RemoveAllGroupMembersModal groupId={groupId} rowIndex={rowIndex} refreshGroupMembers={refreshGroupMembers} />
             }
         },
         {
@@ -302,9 +304,10 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <DownLoadSslCerts groupId={groupId} rowIndex={parseInt(rowIndex, 10)} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const groupId = row?.cells[0]?.value;
+                return <DownLoadSslCerts groupId={groupId} rowIndex={rowIndex} />
             }
         },
         {
@@ -313,9 +316,10 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <ChangeGroupHashModal groupId={groupId} rowIndex={parseInt(rowIndex, 10)} refreshGroupsManaged={refreshGroupsManaged} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const groupId = row?.cells[0]?.value;
+                return <ChangeGroupHashModal groupId={groupId} rowIndex={rowIndex} refreshGroupsManaged={refreshGroupsManaged} />
             }
         }
     ]

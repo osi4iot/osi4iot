@@ -152,9 +152,10 @@ export const Create_GLOBAL_USERS_COLUMNS = (refreshGlobalUsers: () => void): Col
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <EditGlobalUsers globalUserId={globalUserId} rowIndex={parseInt(rowIndex)} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const globalUserId = row?.cells[0]?.value;
+                return <EditGlobalUsers globalUserId={globalUserId} rowIndex={rowIndex} />
             }
         },
         {
@@ -163,9 +164,10 @@ export const Create_GLOBAL_USERS_COLUMNS = (refreshGlobalUsers: () => void): Col
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const globalUserId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <DeleteGlobalUserModal globalUserId={globalUserId} rowIndex={parseInt(rowIndex)} refreshGlobalUsers={refreshGlobalUsers} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const globalUserId = row?.cells[0]?.value;
+                return <DeleteGlobalUserModal globalUserId={globalUserId} rowIndex={rowIndex} refreshGlobalUsers={refreshGlobalUsers} />
             }
         }
     ]

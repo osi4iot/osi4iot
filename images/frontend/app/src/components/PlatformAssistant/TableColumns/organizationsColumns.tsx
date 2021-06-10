@@ -167,9 +167,10 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const orgId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <EditOrg orgId={orgId} rowIndex={parseInt(rowIndex)} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const orgId = row?.cells[0]?.value;
+                return <EditOrg orgId={orgId} rowIndex={rowIndex} />
             }
         },
         {
@@ -178,9 +179,10 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const orgId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <DeleteOrgModal orgId={orgId} rowIndex={parseInt(rowIndex)} refreshOrgs={refreshOrgs} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const orgId = row?.cells[0]?.value;
+                return <DeleteOrgModal orgId={orgId} rowIndex={rowIndex} refreshOrgs={refreshOrgs} />
             }
         }
     ]

@@ -217,10 +217,11 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const deviceId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[1]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <ChangeDeviceHashModal groupId={groupId} deviceId={deviceId} rowIndex={parseInt(rowIndex)} refreshDevices={refreshDevices} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const deviceId = row?.cells[0]?.value;
+                const groupId = row?.cells[1]?.value;
+                return <ChangeDeviceHashModal groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} refreshDevices={refreshDevices} />
             }
         },
         {
@@ -229,9 +230,10 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const deviceId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <EditDevice deviceId={deviceId} rowIndex={parseInt(rowIndex)} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const deviceId = row?.cells[0]?.value;
+                return <EditDevice deviceId={deviceId} rowIndex={rowIndex} />
             }
         },
         {
@@ -240,10 +242,11 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableFilters: true,
             disableSortBy: true,
             Cell: props => {
-                const deviceId = props.rows[props.row.id as unknown as number]?.cells[0]?.value;
-                const groupId = props.rows[props.row.id as unknown as number]?.cells[1]?.value;
-                const rowIndex = props.rows[props.row.id as unknown as number]?.cells[0]?.row?.id;
-                return <DeleteDeviceModal groupId={groupId} deviceId={deviceId} rowIndex={parseInt(rowIndex)} refreshDevices={refreshDevices} />
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const deviceId = row?.cells[0]?.value;
+                const groupId = row?.cells[1]?.value;
+                return <DeleteDeviceModal groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} refreshDevices={refreshDevices} />
             }
         }
     ]
