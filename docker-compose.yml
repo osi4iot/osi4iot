@@ -159,7 +159,7 @@ services:
     container_name: ${PLATFORM_NAME}_admin_api
     networks:
       - internal_net
-    restart: always 
+    restart: unless-stopped
     volumes:
       - ./certs/domain_certs/iot_platform_cert.cer:/app/ssl_config/iot_platform_cert.cer
       - ./certs/domain_certs/iot_platform.key:/app/ssl_config/iot_platform.key
@@ -186,6 +186,7 @@ services:
       context: ./images/frontend
       dockerfile: Dockerfile
     container_name: ${PLATFORM_NAME}_frontend
+    restart: unless-stopped
     environment:
       PLATFORM_NAME: ${PLATFORM_NAME}
       DOMAIN_NAME: ${DOMAIN_NAME}    

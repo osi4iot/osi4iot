@@ -21,8 +21,6 @@ export interface IOrganization {
     country: string;
     latitude: number;
     longitude: number;
-    edit: string;
-    delete: string;
 }
 
 interface IOrganizationColumn extends IOrganization {
