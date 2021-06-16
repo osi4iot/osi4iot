@@ -28,7 +28,7 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 
 export const updateOrganizationById = async (orgId: number, orgData: CreateOrganizationDto): Promise<void> => {
 	await pool.query(`UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5,
-					 state = $6, country = $7, geolocation = $8 WHERE id = $9`,
+					 state = $6, country = $7, geolocation = $8, geodata = $9 WHERE id = $9`,
 		[
 			orgData.name,
 			orgData.acronym,
@@ -38,13 +38,14 @@ export const updateOrganizationById = async (orgId: number, orgData: CreateOrgan
 			orgData.state,
 			orgData.country,
 			giveGeolocationPoint(orgData.longitude, orgData.latitude),
+			orgData.geoJsonData,
 			orgId
 		]);
 };
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7,
-	geolocation = $8 WHERE ${propName} = $9;`;
+	geolocation = $8, geodata = $9  WHERE ${propName} = $9;`;
 	const queryArray =
 		[
 			orgData.name,
@@ -55,6 +56,7 @@ export const updateOrganizationByProp = async (propName: string, propValue: (str
 			orgData.state,
 			orgData.country,
 			giveGeolocationPoint(orgData.longitude, orgData.latitude),
+			orgData.geoJsonData,
 			propValue
 		];
 	await pool.query(query, queryArray);
@@ -73,7 +75,7 @@ export const insertOrganizationToken = async (orgId: number, apiKeyId: number, h
 
 export const getOrganizations = async (): Promise<IOrganization[]> => {
 	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode",
-					state, country, geolocation[0] AS longitude, geolocation[1] AS latitude
+					state, country, geolocation[0] AS longitude, geolocation[1] AS latitude, geodata AS "geoJsonData"
 					FROM grafanadb.org
 					ORDER BY id ASC;`;
 	const result = await pool.query(query);
@@ -88,7 +90,7 @@ export const getNumOrganizations = async (): Promise<number> => {
 
 export const getOrganizationByProp = async (propName: string, propValue: (string | number)): Promise<IOrganization> => {
 	const query = `SELECT id, org.name, acronym, address1 as adress, city, grafanadb.org.zip_code as "zipCode",
-					 state, country, geolocation[0] AS longitude, geolocation[1] AS latitude
+					 state, country, geolocation[0] AS longitude, geolocation[1] AS latitude, geodata AS "geoJsonData"
 					FROM grafanadb.org WHERE ${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
 	return result.rows[0];

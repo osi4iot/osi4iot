@@ -20,8 +20,14 @@ class CreateGroupDto {
 
 	public isOrgDefaultGroup?: boolean;
 
-	@IsEnum(FolderPermissionOptions, {message: " 'Editor' or 'Viewer' are the only valid options for folderPermission."})
+	@IsEnum(FolderPermissionOptions, { message: " 'Editor' or 'Viewer' are the only valid options for folderPermission." })
 	public folderPermission: FolderPermissionOption;
+
+	@IsString()
+	public geoJsonDataBase: string;
+
+	@IsString()
+	public geoJsonData: string;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)

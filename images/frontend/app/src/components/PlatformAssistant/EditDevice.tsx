@@ -11,7 +11,7 @@ import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
 import {  useDevicesDispatch, useDeviceIdToEdit, useDeviceRowIndexToEdit, setDevicesOptionToShow } from '../../contexts/devicesOptions';
 import { DEVICES_OPTIONS } from './platformAssistantOptions';
-import { IDevices } from './TableColumns/devicesColumns';
+import { IDevice } from './TableColumns/devicesColumns';
 
 
 const FormContainer = styled.div`
@@ -34,7 +34,7 @@ const ControlsContainer = styled.div`
 const domainName = getDomainName();
 
 interface EditDeviceProps {
-    devices: IDevices[];
+    devices: IDevice[];
     backToTable: () => void;
     refreshDevices: () => void;
 }

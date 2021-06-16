@@ -9,6 +9,7 @@ import { axiosAuth, getDomainName } from "../tools/tools";
 import axios from "axios";
 import { setUserRole } from "../contexts/platformAssistantContext";
 import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/platformAssistantOptions";
+import PlatformAssistantHomeOptions from '../components/PlatformAssistant/PlatformAssistantHomeOptions';
 
 
 const Container = styled.div`
@@ -59,6 +60,7 @@ const PlatformAssistantPage: FC<{}> = () => {
 					<PlatformAssistantMenu platformAssistantOptionToShow={PLATFORM_ASSISTANT_OPTION.HOME} />
 					<Container>
 						<Title>Platform assistant</Title>
+						<PlatformAssistantHomeOptions />
 					</Container>
 				</>
 			</Main>

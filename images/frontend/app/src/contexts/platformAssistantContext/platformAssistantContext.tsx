@@ -1,5 +1,5 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
-import { IDevices } from '../../components/PlatformAssistant/TableColumns/devicesColumns';
+import { IDevice } from '../../components/PlatformAssistant/TableColumns/devicesColumns';
 import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/globalUsersColumns';
 import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
 import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
@@ -132,7 +132,7 @@ export const useGroupMembersTable = (): IGroupMember[] => {
 	return context.groupMembers;
 }
 
-export const useDevicesTable = (): IDevices[] => {
+export const useDevicesTable = (): IDevice[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
 		throw new Error('useDevicesTable must be used within a PlatformAssitantProvider');

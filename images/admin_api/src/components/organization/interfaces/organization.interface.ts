@@ -9,6 +9,7 @@ export default interface IOrganization {
 	country: string;
 	latitude: number;
 	longitude: number;
+	geoJsonData: string;
 }
 
 export interface IOrganizationWichTheLoggedUserIsUser extends IOrganization {

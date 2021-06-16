@@ -1,5 +1,6 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
+import { FeatureCollection } from 'geojson';
 import AddUsersIcon from '../AddUsersIcon';
 import RemoveUsersIcon from '../RemoveUsersIcon';
 import { ORGS_MANAGED_OPTIONS } from '../platformAssistantOptions';
@@ -118,6 +119,7 @@ export interface IOrgManaged {
     country: string;
     latitude: number;
     longitude: number;
+    geoJsonData: FeatureCollection;
 }
 
 interface IOrgManagedColumn extends IOrgManaged {

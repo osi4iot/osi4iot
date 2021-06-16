@@ -47,6 +47,8 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 	const telegramInvitationLink = groupInput.telegramInvitationLink;
 	const telegramChatId = groupInput.telegramChatId;
 	const folderPermission = groupInput.folderPermission;
+	const geoJsonDataBase = groupInput.geoJsonDataBase;
+	const geoJsonData = groupInput.geoJsonData;
 
 	const permissionsArray: IFolderPermission[] = [{
 		teamId,
@@ -103,7 +105,9 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 		telegramChatId,
 		emailNotificationChannelId,
 		telegramNotificationChannelId,
-		isOrgDefaultGroup
+		isOrgDefaultGroup,
+		geoJsonDataBase,
+		geoJsonData
 	}
 
 	await createView(groupUid);
@@ -168,7 +172,9 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				geodatabase AS "geoJsonDataBase",
+				geodata AS "geoJsonData"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				ORDER BY id ASC;`;
@@ -194,7 +200,9 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				geodatabase AS "geoJsonDataBase",
+				geodata AS "geoJsonData"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
@@ -217,7 +225,9 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				geodatabase AS "geoJsonDataBase",
+				geodata AS "geoJsonData"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
@@ -407,8 +417,9 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					folder_uid, name, acronym, group_uid,
 					telegram_invitation_link, telegram_chatid,
 					email_notification_channel_id,
-					telegram_notification_channel_id, is_org_default_group)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+					telegram_notification_channel_id, is_org_default_group,
+					geodatabase, geodata)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
 					RETURNING *`,
 		[
 			group.orgId,
@@ -422,7 +433,9 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 			group.telegramChatId,
 			group.emailNotificationChannelId,
 			group.telegramNotificationChannelId,
-			group.isOrgDefaultGroup
+			group.isOrgDefaultGroup,
+			group.geoJsonDataBase,
+			group.geoJsonData
 		])
 	return response.rows[0];
 };
@@ -430,13 +443,17 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 export const updateGroupById = async (group: IGroup): Promise<void> => {
 	const query = `UPDATE grafanadb.group SET name = $1, acronym = $2,
 				telegram_invitation_link = $3,
-				telegram_chatid = $4
-				WHERE grafanadb.group.id = $5;`;
+				telegram_chatid = $4,
+				geodatabase = $5,
+				geodata = $6
+				WHERE grafanadb.group.id = $7;`;
 	const result = await pool.query(query, [
 		group.name,
 		group.acronym,
 		group.telegramInvitationLink,
 		group.telegramChatId,
+		group.geoJsonDataBase,
+		group.geoJsonData,
 		group.id
 	]);
 }

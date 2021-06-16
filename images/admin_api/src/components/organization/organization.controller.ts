@@ -272,7 +272,9 @@ class OrganizationController implements IController {
 					telegramChatId: organizationData.telegramChatId,
 					telegramInvitationLink: organizationData.telegramInvitationLink,
 					folderPermission: ("Viewer" as FolderPermissionOption),
-					groupAdminDataArray
+					groupAdminDataArray,
+					geoJsonDataBase: "{}",
+					geoJsonData: "{}"
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);

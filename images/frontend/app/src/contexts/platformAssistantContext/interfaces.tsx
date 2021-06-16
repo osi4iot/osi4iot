@@ -1,4 +1,4 @@
-import { IDevices } from "../../components/PlatformAssistant/TableColumns/devicesColumns";
+import { IDevice } from "../../components/PlatformAssistant/TableColumns/devicesColumns";
 import { IGlobalUser } from "../../components/PlatformAssistant/TableColumns/globalUsersColumns";
 import { IGroupMember } from "../../components/PlatformAssistant/TableColumns/groupMemberColumns";
 import { IGroup } from "../../components/PlatformAssistant/TableColumns/groupsColumns";
@@ -31,7 +31,7 @@ export interface PlatformAssistantContextProps {
 	groups: IGroup[];
 	groupsManaged: IGroupManaged[];
 	groupMembers: IGroupMember[];
-	devices: IDevices[];
+	devices: IDevice[];
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
 	groupsMembership: IMembershipInGroups[];
@@ -52,7 +52,7 @@ export interface PlatformAssistantActionPayload {
 	groups: IGroup[];
 	groupsManaged: IGroupManaged[];
 	groupMembers: IGroupMember[];
-	devices: IDevices[];
+	devices: IDevice[];
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
 	groupsMembership: IMembershipInGroups[];
@@ -112,7 +112,7 @@ export interface IGroupMembersTable {
 }
 
 export interface IDevicesTable {
-	devices: IDevices[];
+	devices: IDevice[];
 }
 
 export interface IUserProfileTable {

@@ -1,13 +1,13 @@
 import React, { FC } from 'react'
 import TableWithPagination from './TableWithPagination';
 import { DEVICES_OPTIONS } from './platformAssistantOptions';
-import { Create_DEVICES_COLUMNS, IDevices } from './TableColumns/devicesColumns';
+import { Create_DEVICES_COLUMNS, IDevice } from './TableColumns/devicesColumns';
 import { setDevicesOptionToShow, useDevicesDispatch, useDevicesOptionToShow } from '../../contexts/devicesOptions';
 import CreateDevice from './CreateDevice';
 import EditDevice from './EditDevice';
 
 interface DevicesContainerProps {
-    devices: IDevices[];
+    devices: IDevice[];
     refreshDevices: () => void;
 }
 

@@ -11,9 +11,9 @@ import ChangeModal from '../../Tools/ChangeModal';
 import { DEVICES_OPTIONS } from '../platformAssistantOptions';
 import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devicesOptions';
 
-export interface IDevices {
+export interface IDevice {
     orgId: number;
-    groupId: string;
+    groupId: number;
     id: number;
     name: string;
     description: string;
@@ -21,10 +21,11 @@ export interface IDevices {
     latitude: number;
     longitude: number;
     isDefaultGroupDevice: boolean;
-    changeDeviceHash: string;
 }
 
-interface IDevicesColumn extends IDevices {
+
+interface IDeviceColumn extends IDevice {
+    changeDeviceHash: string;
     edit: string;
     delete: string;
 }
@@ -163,7 +164,7 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
     )
 }
 
-export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevicesColumn>[] => {
+export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDeviceColumn>[] => {
     return [
         {
             Header: "OrgId",

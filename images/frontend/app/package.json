@@ -19,11 +19,13 @@
     "file-saver": "^2.0.5",
     "formik": "^2.2.8",
     "jszip": "^3.6.0",
+    "leaflet": "^1.7.1",
     "match-sorter": "^6.3.0",
     "paho-mqtt": "^1.1.0",
     "react": "^17.0.2",
     "react-dom": "^17.0.2",
     "react-icons": "^4.2.0",
+    "react-leaflet": "^3.2.0",
     "react-loader-spinner": "^4.0.0",
     "react-modal": "^3.13.1",
     "react-modal-hook": "^3.0.0",
@@ -51,22 +53,17 @@
       "react-app/jest"
     ]
   },
-  "browserslist": {
-    "production": [
-      ">0.2%",
-      "not dead",
-      "not op_mini all"
-    ],
-    "development": [
-      "last 1 chrome version",
-      "last 1 firefox version",
-      "last 1 safari version"
-    ]
-  },
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not op_mini all"
+  ],
   "devDependencies": {
     "@types/file-saver": "^2.0.2",
     "@types/jszip": "^3.4.1",
+    "@types/leaflet": "^1.7.2",
     "@types/paho-mqtt": "^1.0.4",
+    "@types/react-leaflet": "^2.8.1",
     "@types/react-modal": "^3.12.0",
     "@types/react-select": "^4.0.15",
     "@types/react-table": "^7.7.0",

@@ -14,6 +14,12 @@ export const PLATFORM_ASSISTANT_ROUTES = {
     PLATFORM_ADMIN: "/platform_assistant/admin",
 }
 
+export const PLATFORM_ASSISTANT_HOME_OPTIONS = {
+    GEOLOCATION: "Geolocation",
+    DIGITAL_TWINS: "Digital twins",
+    TUTORIAL: "Tutorial",
+}
+
 export const PLATFORM_ADMIN_OPTIONS = {
     ORGS: "Organizations",
     GLOBAL_USERS: "Global users",

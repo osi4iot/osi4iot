@@ -31,6 +31,9 @@ class CreateOrganizationDto {
 	@IsNumber()
 	public latitude: number;
 
+	@IsString()
+	public geoJsonData: string;
+
 	@ValidateIf((obj) => obj.telegramInvitationLink !== undefined)
 	@IsString()
 	public telegramInvitationLink?: string;

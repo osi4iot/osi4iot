@@ -3,6 +3,7 @@ import { Column } from 'react-table';
 import styled from "styled-components";
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
+import { FeatureCollection } from 'geojson';
 import DownloadFileIcon from '../DownloadFileIcon';
 import ExChangeIcon from '../ExchangeIcon';
 import AddUsersIcon from '../AddUsersIcon';
@@ -217,6 +218,8 @@ export interface IGroupManaged {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
+    geoJsonBase: FeatureCollection;
+    geoJsonData: FeatureCollection;
 }
 
 interface IGroupManagedColumn extends IGroupManaged {

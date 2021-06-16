@@ -80,6 +80,7 @@ export async function dataBaseInitialization() {
 
 		const queryString1c = `ALTER TABLE grafanadb.org
 								ADD COLUMN acronym varchar(20) UNIQUE,
+								ADD COLUMN geodata jsonb,
 								ADD COLUMN geolocation POINT`;
 		try {
 			await pool.query(queryString1c);
@@ -172,6 +173,8 @@ export async function dataBaseInitialization() {
 				email_notification_channel_id bigint,
 				telegram_notification_channel_id bigint,
 				is_org_default_group BOOLEAN DEFAULT true,
+				geodatabase jsonb,
+				geodata jsonb,
 				CONSTRAINT fk_org_id
 					FOREIGN KEY(org_id)
 						REFERENCES grafanadb.org(id)
@@ -210,7 +213,9 @@ export async function dataBaseInitialization() {
 				telegramChatId: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 				telegramInvitationLink: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 				folderPermission: ("Viewer" as FolderPermissionOption),
-				groupAdminDataArray: [mainOrgGroupAdmin]
+				groupAdminDataArray: [mainOrgGroupAdmin],
+				geoJsonDataBase: '{}',
+				geoJsonData: '{}'
 			}
 			group = await createGroup(1, defaultMainOrgGroup, process.env.MAIN_ORGANIZATION_NAME, true);
 			await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
