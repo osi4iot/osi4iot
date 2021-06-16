@@ -60,7 +60,6 @@ const GeoDevice: FC<GeoDeviceProps> = ({ deviceData, deviceSelected, selectDevic
     ]
 
     const clickHandler = () => {
-        console.log("Seleccionando device")
         selectDevice(deviceData);
     }
 

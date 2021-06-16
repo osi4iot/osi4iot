@@ -63,8 +63,6 @@ const GeoGroup: FC<GeoGroupProps> = ({ orgData, groupData, deviceDataArray, devi
     const geoJsonLayerGroupBase = useRef(null);
     const geoJsonLayerGroupData = useRef(null);
 
-    console.log("deviceDataArray=", deviceDataArray);
-
     const styleGeoJson = (geoJsonFeature: any) => {
         return setGroupStyle("OK");
     }
