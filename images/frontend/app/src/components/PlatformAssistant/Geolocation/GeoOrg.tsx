@@ -7,7 +7,7 @@ import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 
 
-const STATUS_OK = "#555555";
+const STATUS_OK = "#3e3f3b";
 const STATUS_ALERT = "#ff4040";
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
@@ -52,7 +52,6 @@ const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelecte
     const map = useMap();
     // const [orgStatus, setOrgStatus] = useState("OK");
     const orgStatus = "OK";
-    console.log("Entro en GeoOrg");
 
     useEffect(() => {
         let maxLongitude = -180;

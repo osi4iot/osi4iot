@@ -27,6 +27,9 @@ class UpdateOrganizationDto {
 
 	@IsNumber()
 	public latitude: number;
+
+	@IsString()
+	public geoJsonData: string;
 }
 
 export default UpdateOrganizationDto;

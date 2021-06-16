@@ -9,7 +9,6 @@ import IOrganizationGrafanaDTO from "../../GrafanaApi/interfaces/IOrganizationGr
 import grafanaApi from "../../GrafanaApi";
 import AlreadyExistingItemException from "../../exceptions/AlreadyExistingItemException";
 import {
-	updateOrganizationById,
 	getApiKeyIdByName,
 	insertOrganizationToken,
 	exitsOrganizationWithName,
@@ -242,7 +241,7 @@ class OrganizationController implements IController {
 				if (!(await isUsersDataCorrect(organizationData.orgAdminArray)))
 					throw new HttpException(400, "The same values of name, login, email and/or telegramId of some user already exists.")
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
-				await updateOrganizationById(newOrg.orgId, organizationData);
+				await updateOrganizationByProp("id", newOrg.orgId, organizationData);
 				const apyKeyName = `ApiKey_${organizationData.acronym}`
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
 				await grafanaApi.switchOrgContextForAdmin(newOrg.orgId);

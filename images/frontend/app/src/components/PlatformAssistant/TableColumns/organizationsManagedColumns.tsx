@@ -178,6 +178,11 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             disableFilters: true
         },
         {
+            Header: "Geojson Data",
+            accessor: "geoJsonData",
+            disableFilters: true
+        },        
+        {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />users</div>,
             accessor: "addOrgUsers",
             disableFilters: true,

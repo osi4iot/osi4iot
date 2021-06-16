@@ -68,7 +68,7 @@ export const getDeviceByProp = async (propName: string, propValue: (string | num
 	                                grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
-									grafanadb.device.geolocation[0] AS latitude,
+									grafanadb.device.geolocation[1] AS latitude,
 									grafanadb.device.is_default_group_device AS "isDefaultGroupDevice",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -82,7 +82,7 @@ export const getAllDevices = async (): Promise<IDevice[]> => {
 	                                grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
-									grafanadb.device.geolocation[0] AS latitude,
+									grafanadb.device.geolocation[1] AS latitude,
 									grafanadb.device.is_default_group_device AS "isDefaultGroupDevice",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -102,7 +102,7 @@ export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> =
 									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
-									grafanadb.device.geolocation[0] AS latitude,
+									grafanadb.device.geolocation[1] AS latitude,
 									grafanadb.device.is_default_group_device AS "isDefaultGroupDevice",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -116,7 +116,7 @@ export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promis
 									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
-									grafanadb.device.geolocation[0] AS latitude,
+									grafanadb.device.geolocation[1] AS latitude,
 									grafanadb.device.is_default_group_device AS "isDefaultGroupDevice",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -137,7 +137,7 @@ export const getDevicesByOrgId = async (orgId: number): Promise<IDevice[]> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
-									grafanadb.device.geolocation[0] AS latitude,
+									grafanadb.device.geolocation[1] AS latitude,
 									grafanadb.device.is_default_group_device AS "isDefaultGroupDevice",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device

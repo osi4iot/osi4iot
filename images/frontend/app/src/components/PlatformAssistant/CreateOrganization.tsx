@@ -59,6 +59,10 @@ const ControlsContainer = styled.div`
     div:first-child {
         margin-top: 0;
     }
+
+    div:last-child {
+        margin-bottom: 3px;
+    }
 `;
 
 
@@ -72,7 +76,7 @@ interface CreateOrganizationProps {
     setOrgInputData: (orgInputData: IOrgInputData) => void;
 }
 
-const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs,  orgInputData, setOrgInputData }) => {
+const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs, orgInputData, setOrgInputData }) => {
     const [showCreateOrg, setShowCreateOrg] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
@@ -92,7 +96,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
         });
         const lastOrgAdmin = initialOrgData.orgAdminArray[initialOrgData.orgAdminArray.length - 1];
         if (Object.values(lastOrgAdmin).filter(value => value !== "").length === 0) {
-            initialOrgData.orgAdminArray = [...initialOrgData.orgAdminArray.slice(0,-1), ...newOrgAdmins];
+            initialOrgData.orgAdminArray = [...initialOrgData.orgAdminArray.slice(0, -1), ...newOrgAdmins];
         } else {
             initialOrgData.orgAdminArray = [...initialOrgData.orgAdminArray, ...newOrgAdmins];
         }
@@ -125,13 +129,28 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 })
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied
-            .min(1, 'Must be at least one org amdin')
+            .min(1, 'Must be at least one org amdin'),
+        geoJsonData: Yup.string().required('Required'),
     });
 
     const onSubmit = (values: {}, actions: any) => {
         const url = `https://${domainName}/admin_api/organization`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
+
+        if (typeof (values as any).longitude === 'string') {
+            (values as any).longitude = parseFloat((values as any).longitude);
+        }
+        if (typeof (values as any).latitude === 'string') {
+            (values as any).latitude = parseFloat((values as any).latitude);
+        }
+
+        if ((values as any).geoJsonData.trim() === "") {
+            (values as any).geoJsonData = "{}";
+        }
+
+        console.log("(values as any).geoJsonData", (values as any).geoJsonData);
+
         axios
             .post(url, values, config)
             .then((response) => {
@@ -161,7 +180,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
 
     return (
         <>
-            { showCreateOrg ?
+            {showCreateOrg ?
                 <>
                     <FormTitle isSubmitting={isSubmitting} >Create org</FormTitle>
                     <FormContainer>
@@ -246,6 +265,11 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                                                 addLabel="org admim"
                                                 selectLabel="user"
                                                 goToSelect={() => goToSelect(formik.values)}
+                                            />
+                                            <FormikControl
+                                                control='textarea'
+                                                label='Geojson data'
+                                                name='geoJsonData'
                                             />
                                         </ControlsContainer>
                                         <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

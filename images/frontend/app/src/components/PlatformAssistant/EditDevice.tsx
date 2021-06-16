@@ -51,6 +51,16 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
         const url = `https://${domainName}/admin_api/device/${groupId}/id/${deviceId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
+
+        if (typeof (values as any).longitude === 'string') {
+            (values as any).longitude = parseFloat((values as any).longitude);
+        }
+        if (typeof (values as any).latitude === 'string') {
+            (values as any).latitude = parseFloat((values as any).latitude);
+        }
+
+        console.log("values=", values)
+
         axios
             .patch(url, values, config)
             .then((response) => {
@@ -79,8 +89,8 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
     const validationSchema = Yup.object().shape({
         name: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().required('Required'),
-        longitude: Yup.number().min(-180, "The minimum value of longitude is -180").min(180, "The maximum value of longitude is 180").required('Required'),
-        latitude: Yup.number().min(-90, "The minimum value of latitude is -90").min(90, "The maximum value of latitude is 90").required('Required'),
+        longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
+        latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -90,7 +100,7 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting} >Create device</FormTitle>
+            <FormTitle isSubmitting={isSubmitting} >Edit device</FormTitle>
             <FormContainer>
                 <Formik initialValues={initialDeviceData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {

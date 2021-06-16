@@ -1,6 +1,19 @@
-import { Pool } from 'pg';
+import { Pool, types } from 'pg';
 
-const pool = new Pool ({
+// data parsing
+types.setTypeParser(types.builtins.INT8, (value: string) => {
+	return parseInt(value, 10);
+});
+
+types.setTypeParser(types.builtins.FLOAT8, (value: string) => {
+	return parseFloat(value);
+});
+
+types.setTypeParser(types.builtins.NUMERIC, (value: string) => {
+	return parseFloat(value);
+})
+
+const pool = new Pool({
 	max: 20,
 	user: process.env.POSTGRES_USER,
 	host: "postgres",

@@ -21,6 +21,7 @@ export interface IOrganization {
     country: string;
     latitude: number;
     longitude: number;
+    geoJsonData: string;
 }
 
 interface IOrganizationColumn extends IOrganization {
@@ -159,6 +160,11 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             accessor: "latitude",
             disableFilters: true
         },
+        {
+            Header: "Geojson Data",
+            accessor: "geoJsonData",
+            disableFilters: true
+        },        
         {
             Header: "",
             accessor: "edit",

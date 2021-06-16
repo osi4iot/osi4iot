@@ -26,26 +26,10 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 	return result.rows[0].count !== "0";
 };
 
-export const updateOrganizationById = async (orgId: number, orgData: CreateOrganizationDto): Promise<void> => {
-	await pool.query(`UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5,
-					 state = $6, country = $7, geolocation = $8, geodata = $9 WHERE id = $9`,
-		[
-			orgData.name,
-			orgData.acronym,
-			orgData.address,
-			orgData.city,
-			orgData.zipCode,
-			orgData.state,
-			orgData.country,
-			giveGeolocationPoint(orgData.longitude, orgData.latitude),
-			orgData.geoJsonData,
-			orgId
-		]);
-};
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7,
-	geolocation = $8, geodata = $9  WHERE ${propName} = $9;`;
+	geolocation = $8, geodata = $9  WHERE ${propName} = $10;`;
 	const queryArray =
 		[
 			orgData.name,

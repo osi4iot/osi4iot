@@ -4,6 +4,7 @@ import InputArray from "./InputArray";
 import InputArrayRows from "./InputArrayRows";
 import SelectControl from "./SelectControl";
 import { OptionsType } from "react-select";
+import Textarea from "./Textarea";
 
 interface IOption {
     value: string | boolean;
@@ -59,18 +60,11 @@ const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, lab
                 />
             )
         case 'textarea':
-            break;
+            return <Textarea label={label as string} name={name as string} {...rest}/>
         case 'select':
             return <SelectControl label={label as string} name={name as string} options={options as OptionsType<IOption>} autoFocus={ autoFocus as boolean} {...rest} />
-        case 'radio':
-            break;
-        case 'checkbox':
-            break;
-        case 'date':
-            break;
         default: return null;
     }
-    return null;
 }
 
 export default FormikControl;

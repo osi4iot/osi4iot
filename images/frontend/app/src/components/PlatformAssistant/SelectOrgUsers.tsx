@@ -24,7 +24,7 @@ const TableContainer = styled.div`
     height: calc(100vh - 420px);
     width: 100%;
     padding: 0px 5px;
-    overflow-y: auto;
+    overflow: auto;
     /* width */
     ::-webkit-scrollbar {
         width: 10px;

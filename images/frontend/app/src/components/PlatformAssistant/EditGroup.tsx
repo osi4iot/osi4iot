@@ -65,7 +65,17 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
         const orgId = groups[groupRowIndex].orgId;
         const url = `https://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
         const config = axiosAuth(accessToken);
+
+        if ((values as any).geoJsonDataBase.trim() === "") {
+            (values as any).geoJsonDataBase = "{}";
+        }        
+
+        if ((values as any).geoJsonData.trim() === "") {
+            (values as any).geoJsonData = "{}";
+        }
+
         setIsSubmitting(true);
+
         axios
             .patch(url, values, config)
             .then((response) => {
@@ -90,6 +100,8 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
         folderPermission: groups[groupRowIndex].folderPermission,
         telegramInvitationLink: groups[groupRowIndex].telegramInvitationLink,
         telegramChatId: groups[groupRowIndex].telegramChatId,
+        geoJsonDataBase: JSON.stringify(groups[groupRowIndex].geoJsonDataBase),
+        geoJsonData: JSON.stringify(groups[groupRowIndex].geoJsonData)
     }
 
     const validationSchema = Yup.object().shape({
@@ -97,7 +109,9 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
         acronym: Yup.string().max(25,"The maximum number of characters allowed is 25").required('Required'),
         folderPermission: Yup.string().required('Required'),
         telegramInvitationLink: Yup.string().url("Enter a valid url").max(60,"The maximum number of characters allowed is 60").required('Required'),
-        telegramChatId: Yup.string().max(15,"The maximum number of characters allowed is 15").required('Required'),
+        telegramChatId: Yup.string().max(15, "The maximum number of characters allowed is 15").required('Required'),
+        geoJsonDataBase: Yup.string().required('Required'),
+        geoJsonData: Yup.string().required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -145,6 +159,16 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
                                         name='telegramChatId'
                                         type='text'
                                     />
+                                    <FormikControl
+                                        control='textarea'
+                                        label='Geojson data base'
+                                        name='geoJsonDataBase'
+                                    />
+                                    <FormikControl
+                                        control='textarea'
+                                        label='Geojson data'
+                                        name='geoJsonData'
+                                    />                                    
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

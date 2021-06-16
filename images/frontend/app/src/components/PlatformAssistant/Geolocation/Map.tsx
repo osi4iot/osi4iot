@@ -16,6 +16,10 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
 
 
+const MapContainerStyled = styled(MapContainer)`
+    background: #323232;
+`;
+
 let DefaultIcon = L.icon({
     iconUrl: icon,
     iconAnchor: [12, 41],
@@ -248,18 +252,34 @@ const GroupsControlContainer = styled.div`
 
 
 interface GroupsControlProps {
+    orgSelected: IOrgManaged;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     groupDataArray: IGroupManaged[];
 }
 
-const GroupsControl: FC<GroupsControlProps> = ({ groupSelected, selectGroup, groupDataArray }) => {
+interface IOption {
+    value: number;
+    label: string;
+}
 
-    const options = groupDataArray.map(groupData => {
+const findGroupsArrayForOrgId = (groupDataArray: IGroupManaged[], orgId: number): IGroupManaged[] => {
+    const groupDataFiltered = groupDataArray.filter(groupData => groupData.orgId === orgId);
+    return groupDataFiltered;
+}
+
+const giveOptions = (groupsArrayForOrgId: IGroupManaged[]): IOption[] => {
+    const options: IOption[] = groupsArrayForOrgId.map(groupData => {
         const option = { value: groupData.id, label: groupData.name };
         return option;
     });
     options.splice(0, 0, { value: 0, label: "Select group:" });
+    return options;
+}
+
+const GroupsControl: FC<GroupsControlProps> = ({ orgSelected, groupSelected, selectGroup, groupDataArray }) => {
+    const groupsArrayForOrgId = findGroupsArrayForOrgId(groupDataArray, orgSelected.id);
+    const options = giveOptions(groupsArrayForOrgId);
     const [selectedOption, setSelectedOption] = useState(0);
 
     useEffect(() => {
@@ -269,7 +289,7 @@ const GroupsControl: FC<GroupsControlProps> = ({ groupSelected, selectGroup, gro
 
     const onChange = (e: FormEvent<HTMLSelectElement>) => {
         const option = parseInt(e.currentTarget.value, 10);
-        const groupDataArrayFiltered = groupDataArray.filter(group => group.id === option);
+        const groupDataArrayFiltered = groupsArrayForOrgId.filter(group => group.id === option);
         selectGroup(groupDataArrayFiltered[0]);
         setSelectedOption(option);
     };
@@ -300,6 +320,7 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
     const [orgSelected, setOrgSelected] = useState<IOrgManaged | null>(null);
     const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
     const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
+    const [orgsManagedFiltered, setOrgsManagedFiltered] = useState<IOrgManaged[]>([]);
 
     const selectOrg = (org: IOrgManaged) => {
         setOrgSelected(org);
@@ -327,8 +348,11 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
         let minLongitude = 180;
         let maxLatitude = -90;
         let minLatitude = 90;
-        if (orgsManaged.length !== 0) {
-            const geoJsonDataArray = orgsManaged.map(org => org.geoJsonData);
+        const condition = (orgManaged: IOrgManaged) => !(orgManaged.geoJsonData === null || Object.keys(orgManaged.geoJsonData).length === 0);
+        const orgsManagedFiltered = orgsManaged.filter(condition);
+        setOrgsManagedFiltered(orgsManagedFiltered);
+        if (orgsManagedFiltered.length !== 0) {
+            const geoJsonDataArray = orgsManagedFiltered.map(org => org.geoJsonData);
             geoJsonDataArray.forEach(geoJsonData => {
                 if (geoJsonData.features && geoJsonData.features.length !== 0) {
                     const coordsArray = (geoJsonData.features[0].geometry as Polygon).coordinates[0];
@@ -343,20 +367,29 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
                 setOuterBounds(outerBounds);
             })
         } else {
-            const spainOuterBounds = [[35.55010533588552,-10.56884765625], [44.134913443750726, 1.42822265625]];
-            setOuterBounds(spainOuterBounds);
+            let minLatitude = 35.55010533588552;
+            let maxLatitude = 44.134913443750726;
+            let minLongitude = -10.56884765625;
+            let maxLongitude = 1.42822265625;
+            if (window._env_.MIN_LONGITUDE) {
+                minLongitude = window._env_.minLongitude;
+            }
+            if (window._env_.MAX_LONGITUDE) {
+                maxLongitude = window._env_.maxLongitude;
+            }
+            if (window._env_.MIN_LATITUDE) {
+                minLatitude = window._env_.minLatitude;
+            }
+            if (window._env_.MAX_LATITUDE) {
+                maxLatitude = window._env_.maxLatitude;
+            }
+            const outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
+            setOuterBounds(outerBounds);
         }
-
-        
     }, [orgsManaged])
 
     return (
-        <MapContainer center={[41.413786922165556, 2.2225694835034266]} zoom={17} maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
-            {/* <TileLayer
-                attribution='&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                maxZoom={19}
-            /> */}
+        <MapContainerStyled center={[41.413786922165556, 2.2225694835034266]} zoom={17} maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
             <TileLayer
                 attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
                 url='https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
@@ -364,7 +397,7 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
             />
             <GeoOrgs
                 outerBounds={outerBounds}
-                orgDataArray={orgsManaged}
+                orgDataArray={orgsManagedFiltered}
                 orgSelected={orgSelected}
                 selectOrg={selectOrg}
                 groupSelected={groupSelected}
@@ -380,11 +413,11 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
                     <OrgsControl orgDataArray={orgsManaged} orgSelected={orgSelected} selectOrg={selectOrg} />
                     {
                         orgSelected &&
-                        <GroupsControl groupDataArray={groupsManaged} groupSelected={groupSelected} selectGroup={selectGroup} />
+                        <GroupsControl orgSelected={orgSelected} groupDataArray={groupsManaged} groupSelected={groupSelected} selectGroup={selectGroup} />
                     }
                 </ComponentsControlContainer>
             </ControlsContainer>
-        </MapContainer >
+        </MapContainerStyled>
     )
 }
 

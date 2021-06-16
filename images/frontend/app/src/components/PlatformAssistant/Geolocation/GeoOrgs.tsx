@@ -21,8 +21,6 @@ const GeoOrgs: FC<GeoOrgsProps> = ({ outerBounds, orgDataArray, orgSelected, sel
         map.fitBounds(outerBounds as LatLngTuple[]);
     }, [map, outerBounds])
 
-    console.log("outerBounds=", outerBounds);
-
     return (
         <LayerGroup>
             {

@@ -16,7 +16,6 @@ import {
 import Map from './Geolocation/Map';
 import Tutorial from './Tutorial';
 import DigitalTwins from './DigitalTwins';
-import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -106,7 +105,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [reloadOrgsManaged, setReloadOrgsManaged] = useState(false);
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
-    const [orgsManagedFiltered, setOrgsManagedFiltered] = useState<IOrgManaged[]>([]);
 
 
     const refreshOrgsManaged = useCallback(() => {
@@ -139,8 +137,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                     const orgsManaged = response.data;
                     setOrgsManagedTable(plaformAssistantDispatch, { orgsManaged });
                     setOrgsManagedLoading(false);
-                    const orgsManagedFiltered = orgsManaged.filter((orgManaged: IOrgManaged) => orgManaged.geoJsonData !== null);
-                    setOrgsManagedFiltered(orgsManagedFiltered);
                 })
                 .catch((error) => {
                     console.log(error);
@@ -221,7 +217,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                         <>
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION &&
                                 <Map
-                                    orgsManaged={orgsManagedFiltered}
+                                    orgsManaged={orgsManagedTable}
                                     groupsManaged={groupsManagedTable}
                                     devices={devicesTable}
                                     refreshOrgsManaged={refreshOrgsManaged}

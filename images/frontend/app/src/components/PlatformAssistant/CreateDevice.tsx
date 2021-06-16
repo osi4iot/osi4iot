@@ -46,6 +46,14 @@ const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) =>
         const groupId = values.groupId;
         const url = `https://${domainName}/admin_api/device/${groupId}`;
         const config = axiosAuth(accessToken);
+
+        if (typeof (values as any).longitude === 'string') {
+            (values as any).longitude = parseFloat((values as any).longitude);
+        }
+        if (typeof (values as any).latitude === 'string') {
+            (values as any).latitude = parseFloat((values as any).latitude);
+        }
+
         const deviceData = {
             name: values.name,
             description: values.description,
@@ -83,8 +91,8 @@ const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) =>
         groupId: Yup.number().required('Required'),
         name: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().required('Required'),
-        longitude: Yup.number().min(-180, "The minimum value of longitude is -180").min(180, "The maximum value of longitude is 180").required('Required'),
-        latitude: Yup.number().min(-90, "The minimum value of latitude is -90").min(90, "The maximum value of latitude is 90").required('Required'),
+        longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
+        latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {

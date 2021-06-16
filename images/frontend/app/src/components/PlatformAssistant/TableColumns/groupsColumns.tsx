@@ -1,6 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
+import { FeatureCollection } from 'geojson';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../EditIcon';
@@ -24,6 +25,8 @@ export interface IGroup {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
+    geoJsonDataBase: FeatureCollection;
+    geoJsonData: FeatureCollection;
 }
 
 interface IGroupColumn extends IGroup {
@@ -157,6 +160,16 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             accessor: "isOrgDefaultGroup",
             disableFilters: true
         },
+        {
+            Header: "Geojson data base",
+            accessor: "geoJsonDataBase",
+            disableFilters: true
+        },
+        {
+            Header: "Geojson Data",
+            accessor: "geoJsonData",
+            disableFilters: true
+        },        
         {
             Header: "",
             accessor: "edit",

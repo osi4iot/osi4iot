@@ -7,9 +7,9 @@ import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
 // import { geoJsonGroupText } from "./geoJsonGroupText";
 
-const STATUS_OK = "#555555";
+const STATUS_OK = "#3e3f3b";
 const STATUS_ALERT = "#ff4040";
-const NORMAL = "#555555";
+const NORMAL = "#9c9a9a";
 const SELECTED = "#3274d9";
 
 const baseGroupStyle = () => {
@@ -63,6 +63,8 @@ const GeoGroup: FC<GeoGroupProps> = ({ orgData, groupData, deviceDataArray, devi
     const geoJsonLayerGroupBase = useRef(null);
     const geoJsonLayerGroupData = useRef(null);
 
+    console.log("deviceDataArray=", deviceDataArray);
+
     const styleGeoJson = (geoJsonFeature: any) => {
         return setGroupStyle("OK");
     }
@@ -72,35 +74,46 @@ const GeoGroup: FC<GeoGroupProps> = ({ orgData, groupData, deviceDataArray, devi
     }
 
     useEffect(() => {
-        const currenGeoJsonLayerGroupBase = geoJsonLayerGroupBase.current;
-        if (currenGeoJsonLayerGroupBase) {
-            (currenGeoJsonLayerGroupBase as any)
-                .clearLayers()
-                .addData(groupData.geoJsonBase)
-                .setStyle(baseGroupStyle());
+        if (Object.keys(groupData.geoJsonDataBase).length !== 0) {
+            const currenGeoJsonLayerGroupBase = geoJsonLayerGroupBase.current;
+            if (currenGeoJsonLayerGroupBase) {
+                (currenGeoJsonLayerGroupBase as any)
+                    .clearLayers()
+                    .addData(groupData.geoJsonDataBase)
+                    .setStyle(baseGroupStyle());
+            }
         }
 
-        const currenGeoJsonLayerGroupData = geoJsonLayerGroupData.current;
-        if (currenGeoJsonLayerGroupData) {
-            (currenGeoJsonLayerGroupData as any)
-                .clearLayers()
-                .addData(groupData.geoJsonData)
-                .setStyle(setGroupStyle("OK"));
+        if (Object.keys(groupData.geoJsonData).length !== 0) {
+            const currenGeoJsonLayerGroupData = geoJsonLayerGroupData.current;
+            if (currenGeoJsonLayerGroupData) {
+                (currenGeoJsonLayerGroupData as any)
+                    .clearLayers()
+                    .addData(groupData.geoJsonData)
+                    .setStyle(setGroupStyle("OK"));
+            }
         }
     }, [groupData]);
 
-
     return (
-        <LayerGroup>
-            <GeoJSON  data={groupData.geoJsonBase} style={styleGeoJsonBase} />
-            <GeoJSON  data={orgData.geoJsonData} style={styleGeoJson} />
-            <GeoJSON data={groupData.geoJsonData} style={styleGeoJson} >
-                <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
-            </GeoJSON>
+        <>
             {
-                deviceDataArray.map(deviceData => <GeoDevice key={deviceData.id} deviceData={deviceData} deviceSelected={deviceSelected} selectDevice={selectDevice} />)
+                (Object.keys(groupData.geoJsonDataBase).length !== 0 && Object.keys(groupData.geoJsonData).length !== 0) ?
+
+                    <LayerGroup>
+                        <GeoJSON data={groupData.geoJsonDataBase} style={styleGeoJsonBase} />
+                        <GeoJSON data={orgData.geoJsonData} style={styleGeoJson} />
+                        <GeoJSON data={groupData.geoJsonData} style={styleGeoJson} >
+                            <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
+                        </GeoJSON>
+                        {
+                            deviceDataArray.map(deviceData => <GeoDevice key={deviceData.id} deviceData={deviceData} deviceSelected={deviceSelected} selectDevice={selectDevice} />)
+                        }
+                    </LayerGroup >
+                    :
+                    null
             }
-        </LayerGroup>
+        </>
     )
 }
 

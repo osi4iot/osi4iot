@@ -350,7 +350,10 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({ dataTable, co
         {
             columns,
             data,
-            initialState: { pageIndex: 0 },
+            initialState: {
+                pageIndex: 0,
+                hiddenColumns: columns.filter((col: any) => (col.accessor === "geoJsonData" || col.accessor === "geoJsonDataBase")).map(col => col.id || col.accessor) as any
+            },
             defaultColumn, // Be sure to pass the defaultColumn option
             filterTypes,
         },
