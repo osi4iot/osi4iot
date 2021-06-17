@@ -390,10 +390,14 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
 
     return (
         <MapContainerStyled center={[41.413786922165556, 2.2225694835034266]} zoom={17} maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
-            <TileLayer
+            {/* <TileLayer
                 attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
                 url='https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
                 maxZoom={19}
+            /> */}
+            <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
             />
             <GeoOrgs
                 outerBounds={outerBounds}
