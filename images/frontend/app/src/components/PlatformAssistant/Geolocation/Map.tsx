@@ -1,4 +1,5 @@
-import React, { FC, useState, useEffect, FormEvent } from 'react'
+import { FC, useState, useEffect, FormEvent } from 'react'
+import 'react-rangeslider/lib/index.css'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
@@ -17,8 +18,14 @@ import { IDevice } from '../TableColumns/devicesColumns';
 
 
 const MapContainerStyled = styled(MapContainer)`
-    background: #323232;
+    background-color: #212121;
 `;
+
+
+const TileLayerStyled = styled(TileLayer)`
+    filter: grayscale(100%) invert(100%);
+`;
+
 
 let DefaultIcon = L.icon({
     iconUrl: icon,
@@ -41,11 +48,14 @@ const ControlsContainer = styled.div`
 
 const ZoomControlContainer = styled.div`
     margin: 10px;
+    padding: 10px 0;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
-    width: 35px;
+    border: 3px solid #2c3235;
+    border-radius: 15px;
+    background-color: #202226;
 `;
 
 const RiZoomInLineStyled = styled(RiZoomInLine)`
@@ -67,7 +77,8 @@ const MdZoomOutMapStyled = styled(MdZoomOutMap)`
 
 const ZoomControlItem = styled.div`
     background-color: #202226;
-    margin: 3px 0;
+    padding: 3px;
+    margin: 3px 5px;
     width: 35px;
     height: 35px;
     display: flex;
@@ -90,6 +101,7 @@ const ZoomControlItem = styled.div`
 		}
     }
 `;
+
 
 
 interface ZoomFrameControlProps {
@@ -390,12 +402,7 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
 
     return (
         <MapContainerStyled center={[41.413786922165556, 2.2225694835034266]} zoom={17} maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
-            {/* <TileLayer
-                attribution='&copy; <a href="https://stadiamaps.com/">Stadia Maps</a>, &copy; <a href="https://openmaptiles.org/">OpenMapTiles</a> &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors'
-                url='https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png'
-                maxZoom={19}
-            /> */}
-            <TileLayer
+            <TileLayerStyled
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
             />

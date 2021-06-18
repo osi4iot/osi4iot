@@ -114,7 +114,7 @@ export const createGlobalUsers = async (usersData: CreateUserDto[]) => {
 export const isThisUserOrgAdmin = async (userId: number, orgId: number): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org_user WHERE user_id = $1 AND org_id = $2 AND role = $3',
 		[userId, orgId, "Admin"]);
-	return result.rows[0].count !== "0";
+	return result.rows[0].count !== 0;
 };
 
 export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]> => {

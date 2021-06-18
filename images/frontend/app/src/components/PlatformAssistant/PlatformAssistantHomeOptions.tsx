@@ -106,7 +106,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
 
-
     const refreshOrgsManaged = useCallback(() => {
         setReloadOrgsManaged(true);
         setOrgsManagedLoading(true);

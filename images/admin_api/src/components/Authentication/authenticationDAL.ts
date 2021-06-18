@@ -13,7 +13,7 @@ export const insertRefreshToken = async (userId: number, refreshToken: string): 
 export const exitsRefreshToken = async (refreshToken: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.refresh_token WHERE token = $1',
 		[refreshToken]);
-	return result.rows[0].count !== "0";
+	return result.rows[0].count !== 0;
 };
 
 export const deleteRefreshToken = async (refreshToken: string): Promise<string> => {

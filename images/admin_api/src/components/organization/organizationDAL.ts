@@ -17,13 +17,13 @@ import IGroupMember from "../group/interfaces/GroupMember.interface";
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
 		[orgName]);
-	return result.rows[0].count !== "0";
+	return result.rows[0].count !== 0;
 };
 
 export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE acronym = $1',
 		[orgAcronym]);
-	return result.rows[0].count !== "0";
+	return result.rows[0].count !== 0;
 };
 
 
