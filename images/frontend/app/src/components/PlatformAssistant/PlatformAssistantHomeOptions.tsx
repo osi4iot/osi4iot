@@ -187,6 +187,27 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setOuterBounds(outerBounds);
     }
 
+    const selectOrg = (org: IOrgManaged) => {
+        setOrgSelected(org);
+        setGroupSelected(null);
+        setDeviceSelected(null);
+    }
+
+    const selectGroup = (group: IGroupManaged) => {
+        setGroupSelected(group);
+        setDeviceSelected(null);
+    }
+
+    const selectDevice = (device: IDevice) => {
+        setDeviceSelected(device);
+    }
+
+    const resetOrgSelection = () => {
+        setOrgSelected(null);;
+        setGroupSelected(null);
+        setDeviceSelected(null);
+    }
+
     useEffect(() => {
         if (orgsManagedTable.length !== 0) {
             const orgsManagedFiltered = filterOrgsManaged(orgsManagedTable);
@@ -297,17 +318,18 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     groupsManaged={groupsManagedTable}
                                     devices={devicesTable}
                                     orgSelected={orgSelected}
-                                    setOrgSelected={(orgSelected: IOrgManaged | null) => setOrgSelected(orgSelected)}
+                                    selectOrg={selectOrg}
                                     groupSelected={groupSelected}
-                                    setGroupSelected={(groupSelected: IGroupManaged | null) => setGroupSelected(groupSelected)}
+                                    selectGroup={selectGroup}
                                     deviceSelected={deviceSelected}
-                                    setDeviceSelected={(deviceSelected: IDevice | null) => setDeviceSelected(deviceSelected)}
+                                    selectDevice={selectDevice}
                                     refreshOrgsManaged={refreshOrgsManaged}
                                     refreshGroupsManaged={refreshGroupsManaged}
                                     refreshDevices={refreshDevices}
                                     initialOuterBounds={initialOuterBounds}
                                     outerBounds={outerBounds}
-                                    setNewOuterBounds={setNewOuterBounds}
+                                setNewOuterBounds={setNewOuterBounds}
+                                resetOrgSelection={resetOrgSelection}
                                 />
                             }
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS &&

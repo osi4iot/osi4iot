@@ -17,6 +17,11 @@ import { IDevice } from '../TableColumns/devicesColumns';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
+
+    &.leaflet-container {
+        background:  #212121;
+        outline: 0;
+    }
 `;
 
 
@@ -51,7 +56,8 @@ const ZoomControlContainer = styled.div`
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
-    border: 3px solid #2c3235;
+    // border: 3px solid #2c3235;
+    border: 2px solid #3274d9;
     border-radius: 15px;
     background-color: #202226;
 `;
@@ -149,10 +155,11 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgS
 
 
 const ComponentsControlContainer = styled.div`
-    width: 310px;
+    width: 350px;
     margin: 10px;
     padding: 0px 10px 10px;
-    border: 3px solid #2c3235;
+    // border: 3px solid #2c3235;
+    border: 2px solid #3274d9;
     border-radius: 15px;
     background-color: #202226;
     display: flex;
@@ -284,11 +291,11 @@ interface MapProps {
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
     orgSelected: IOrgManaged | null;
-    setOrgSelected: (orgSelected: IOrgManaged | null) => void;
+    selectOrg: (orgSelected: IOrgManaged) => void;
     groupSelected: IGroupManaged | null;
-    setGroupSelected: (groupSelected: IGroupManaged | null) => void;
+    selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
-    setDeviceSelected: (deviceSelected: IDevice | null) => void;
+    selectDevice: (deviceSelected: IDevice) => void;
     refreshOrgsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
@@ -297,6 +304,7 @@ interface MapProps {
     setNewOuterBounds: (outerBounds: number[][]) => void;
     selectOrgOption: () => void;
     selectGroupOption: () => void;
+    resetOrgSelection: () => void;
 }
 
 
@@ -306,11 +314,11 @@ const Map: FC<MapProps> = (
         groupsManaged,
         devices,
         orgSelected,
-        setOrgSelected,
+        selectOrg,
         groupSelected,
-        setGroupSelected,
+        selectGroup,
         deviceSelected,
-        setDeviceSelected,
+        selectDevice,
         refreshOrgsManaged,
         refreshGroupsManaged,
         refreshDevices,
@@ -318,29 +326,9 @@ const Map: FC<MapProps> = (
         outerBounds,
         setNewOuterBounds,
         selectOrgOption,
-        selectGroupOption
+        selectGroupOption,
+        resetOrgSelection
     }) => {
-
-    const selectOrg = (org: IOrgManaged) => {
-        setOrgSelected(org);
-        setGroupSelected(null);
-        setDeviceSelected(null);
-    }
-
-    const selectGroup = (group: IGroupManaged) => {
-        setGroupSelected(group);
-        setDeviceSelected(null);
-    }
-
-    const selectDevice = (device: IDevice) => {
-        setDeviceSelected(device);
-    }
-
-    const resetOrgSelection = () => {
-        setOrgSelected(null);;
-        setGroupSelected(null);
-        setDeviceSelected(null);
-    }
 
     return (
         <MapContainerStyled maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
