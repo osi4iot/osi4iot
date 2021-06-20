@@ -174,7 +174,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 .then((response) => {
                     const groups = response.data;
                     groups.map((group: { isOrgDefaultGroup: string; }) => {
-                        group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Yes" : "No";
+                        group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
                         return group;
                     })
                     setGroupsTable(plaformAssistantDispatch, { groups });

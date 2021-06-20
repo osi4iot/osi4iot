@@ -68,6 +68,7 @@ export const useSelectOrgUsersTable = (): ISelectOrgUser[] => {
 	return context.selectOrgUsers;
 }
 
+
 export const useOrganizationsTable = (): IOrganization[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {

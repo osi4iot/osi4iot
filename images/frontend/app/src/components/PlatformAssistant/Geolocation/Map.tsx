@@ -1,10 +1,8 @@
-import { FC, useState, useEffect, FormEvent } from 'react'
-import 'react-rangeslider/lib/index.css'
+import { FC } from 'react'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import styled from "styled-components";
-import { Polygon } from 'geojson';
 import { MdZoomOutMap } from "react-icons/md";
 import { RiZoomInLine, RiZoomOutLine } from "react-icons/ri";
 import { LatLngTuple } from 'leaflet';
@@ -103,13 +101,22 @@ const ZoomControlItem = styled.div`
 `;
 
 
+const findOuterBounds = (bounds: L.LatLngBounds) => {
+    const minLatitude = bounds.getSouthWest().lat;
+    const minLongitude = bounds.getSouthWest().lng;
+    const maxLatitude = bounds.getNorthEast().lat;
+    const maxLongitude = bounds.getNorthEast().lng;
+    const outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
+    return outerBounds;
+}
 
 interface ZoomFrameControlProps {
-    outerBounds: number[][];
+    initialOuterBounds: number[][];
     resetOrgSelection: () => void;
 }
 
-const ZoomControls: FC<ZoomFrameControlProps> = ({ outerBounds, resetOrgSelection }) => {
+
+const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgSelection }) => {
     const map = useMap();
 
     const clickZoomInHandler = () => {
@@ -121,7 +128,7 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ outerBounds, resetOrgSelectio
     }
 
     const clickZoomFrameHandler = () => {
-        map.fitBounds(outerBounds as LatLngTuple[]);
+        map.fitBounds(initialOuterBounds as LatLngTuple[]);
         resetOrgSelection();
     }
 
@@ -141,198 +148,178 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ outerBounds, resetOrgSelectio
 }
 
 
-const StyledSelect = styled.select`
-    font-size: 14px;
-    border: 2px solid #2c3235;
-    border-radius: 5px;
-    background-color: #0c0d0f;
-    color: white;
-    padding: 0 10px;
-    width: 100%;
-    height: 36px;
-    min-height: 36px;
-    cursor: pointer;
-    appearance: none;
-
-    &:hover {
-        box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
-    }
-
-    & option:first-child {
-        display: none;
-    }
-
-`;
-
 const ComponentsControlContainer = styled.div`
     width: 310px;
     margin: 10px;
+    padding: 0px 10px 10px;
+    border: 3px solid #2c3235;
+    border-radius: 15px;
+    background-color: #202226;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: center;
 `;
 
-const OrgsControlContainer = styled.div`
-    width: 300px;
-    position: relative;
-    display: grid;
-    grid-template-areas: "select";
-    align-items: center;
+const ComponentControlContainer = styled.div`
+    width: 100%;
     margin: 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+`;
 
-    &:after {
-        content: "";
-        width: 16px;
-        height: 8px;
-        background-color: white;
-        clip-path: polygon(100% 0%, 0 0%, 50% 100%);
-        justify-self: end;
-        margin-right: 4px;
-    }
+const ComponentSelection = styled.div`
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    margin: 5px;
+    width: 99%;
+`;
 
-    & ${StyledSelect},
-    &:after {
-        grid-area: select;
-    }
+const ComponentLabel = styled.div`
+    font-size: 14px;
+`;
 
+const SelectionButton = styled.button`
+    font-size: 14px;
+    border: 1px solid #2c3235;
+    border-radius: 10px;
+    background-color: #0c0d0f;
+    color: white;
+    cursor: pointer;
+    padding: 5px 20px;
+    width: 120px;
+
+    &:hover {
+		color: #3274d9;
+        border: 1px solid #3274d9;
+	}
+`;
+
+const ComponentName = styled.div`
+    height: 30px;
+    font-size: 14px;
+    background-color: #0c0d0f;
+    border: 2px solid #2c3235;
+    padding: 5px;
+    margin-left: 2px;
+    color: white;
+    width: 100%;
 `;
 
 
 interface OrgsControlProps {
     orgSelected: IOrgManaged | null;
-    selectOrg: (orgSelected: IOrgManaged) => void;
-    orgDataArray: IOrgManaged[];
-
+    selectOrgOption: () => void;
 }
 
-const OrgsControl: FC<OrgsControlProps> = ({ orgSelected, selectOrg, orgDataArray }) => {
-
-    const options = orgDataArray.map(orgData => {
-        const option = { value: orgData.id, label: orgData.name };
-        return option;
-    });
-    options.splice(0, 0, { value: 0, label: "Select org:" });
-    const [selectedOption, setSelectedOption] = useState(options[0].value);
-
-    useEffect(() => {
-        if (orgSelected) {
-            setSelectedOption(orgSelected.id);
-        } else setSelectedOption(0);
-    }, [orgSelected])
-
-    const onChange = (e: FormEvent<HTMLSelectElement>) => {
-        const option = parseInt(e.currentTarget.value, 10);
-        const orgDataArrayFiltered = orgDataArray.filter(org => org.id === option);
-        selectOrg(orgDataArrayFiltered[0]);
-        setSelectedOption(option);
+const OrgsControl: FC<OrgsControlProps> = ({ orgSelected, selectOrgOption }) => {
+    const clickHandler = () => {
+        selectOrgOption();
     };
 
-
     return (
-        <OrgsControlContainer >
-            <StyledSelect onChange={onChange} value={selectedOption} >
-                {
-                    options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)
-                }
-            </StyledSelect>
-        </OrgsControlContainer>
+        <ComponentControlContainer>
+            <ComponentSelection>
+                <ComponentLabel>Organization:</ComponentLabel>
+                <SelectionButton onClick={clickHandler} >Select org</SelectionButton>
+            </ComponentSelection>
+            <ComponentName>
+                {orgSelected ? orgSelected.name : ""}
+            </ComponentName>
+        </ComponentControlContainer>
     )
 }
-
-
-const GroupsControlContainer = styled.div`
-    width: 300px;
-    position: relative;
-    display: grid;
-    grid-template-areas: "select";
-    align-items: center;
-    margin: 10px;
-
-    &:after {
-        content: "";
-        width: 16px;
-        height: 8px;
-        background-color: white;
-        clip-path: polygon(100% 0%, 0 0%, 50% 100%);
-        justify-self: end;
-        margin-right: 4px;
-    }
-
-    & ${StyledSelect},
-    &:after {
-        grid-area: select;
-    }
-
-`;
-
 
 interface GroupsControlProps {
-    orgSelected: IOrgManaged;
     groupSelected: IGroupManaged | null;
-    selectGroup: (groupSelected: IGroupManaged) => void;
-    groupDataArray: IGroupManaged[];
+    selectGroupOption: () => void;
 }
 
-interface IOption {
-    value: number;
-    label: string;
-}
 
-const findGroupsArrayForOrgId = (groupDataArray: IGroupManaged[], orgId: number): IGroupManaged[] => {
-    const groupDataFiltered = groupDataArray.filter(groupData => groupData.orgId === orgId);
-    return groupDataFiltered;
-}
+const GroupsControl: FC<GroupsControlProps> = ({ groupSelected, selectGroupOption }) => {
 
-const giveOptions = (groupsArrayForOrgId: IGroupManaged[]): IOption[] => {
-    const options: IOption[] = groupsArrayForOrgId.map(groupData => {
-        const option = { value: groupData.id, label: groupData.name };
-        return option;
-    });
-    options.splice(0, 0, { value: 0, label: "Select group:" });
-    return options;
-}
-
-const GroupsControl: FC<GroupsControlProps> = ({ orgSelected, groupSelected, selectGroup, groupDataArray }) => {
-    const groupsArrayForOrgId = findGroupsArrayForOrgId(groupDataArray, orgSelected.id);
-    const options = giveOptions(groupsArrayForOrgId);
-    const [selectedOption, setSelectedOption] = useState(0);
-
-    useEffect(() => {
-        if (!groupSelected) setSelectedOption(0);
-    }, [groupSelected]);
-
-
-    const onChange = (e: FormEvent<HTMLSelectElement>) => {
-        const option = parseInt(e.currentTarget.value, 10);
-        const groupDataArrayFiltered = groupsArrayForOrgId.filter(group => group.id === option);
-        selectGroup(groupDataArrayFiltered[0]);
-        setSelectedOption(option);
+    const clickHandler = () => {
+        selectGroupOption();
     };
 
-
     return (
-        <GroupsControlContainer >
-            <StyledSelect onChange={onChange} value={selectedOption} >
-                {
-                    options.map(option => <option key={option.value} value={option.value}>{option.label}</option>)
-                }
-            </StyledSelect>
-        </GroupsControlContainer>
+        <ComponentControlContainer>
+            <ComponentSelection>
+                <ComponentLabel>Group:</ComponentLabel>
+                <SelectionButton onClick={clickHandler} >Select group</SelectionButton>
+            </ComponentSelection>
+            <ComponentName>
+                {groupSelected ? groupSelected.name : ""}
+            </ComponentName>
+        </ComponentControlContainer>
     )
+}
+
+interface MapEventProps {
+    setNewOuterBounds: (outerBounds: number[][]) => void;
+}
+
+const MapEvents: FC<MapEventProps> = ({ setNewOuterBounds }) => {
+    const map = useMapEvents({
+        zoomend: () => {
+            const bounds = map.getBounds();
+            const newOuterBounds = findOuterBounds(bounds);
+            setNewOuterBounds(newOuterBounds);
+        },
+        dragend: () => {
+            const bounds = map.getBounds();
+            const newOuterBounds = findOuterBounds(bounds);
+            setNewOuterBounds(newOuterBounds);
+        }
+    })
+    return null
 }
 
 interface MapProps {
     orgsManaged: IOrgManaged[];
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
+    orgSelected: IOrgManaged | null;
+    setOrgSelected: (orgSelected: IOrgManaged | null) => void;
+    groupSelected: IGroupManaged | null;
+    setGroupSelected: (groupSelected: IGroupManaged | null) => void;
+    deviceSelected: IDevice | null;
+    setDeviceSelected: (deviceSelected: IDevice | null) => void;
     refreshOrgsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
+    initialOuterBounds: number[][];
+    outerBounds: number[][];
+    setNewOuterBounds: (outerBounds: number[][]) => void;
+    selectOrgOption: () => void;
+    selectGroupOption: () => void;
 }
 
-const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsManaged, refreshGroupsManaged, refreshDevices }) => {
-    const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
-    const [orgSelected, setOrgSelected] = useState<IOrgManaged | null>(null);
-    const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
-    const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
-    const [orgsManagedFiltered, setOrgsManagedFiltered] = useState<IOrgManaged[]>([]);
+
+const Map: FC<MapProps> = (
+    {
+        orgsManaged,
+        groupsManaged,
+        devices,
+        orgSelected,
+        setOrgSelected,
+        groupSelected,
+        setGroupSelected,
+        deviceSelected,
+        setDeviceSelected,
+        refreshOrgsManaged,
+        refreshGroupsManaged,
+        refreshDevices,
+        initialOuterBounds,
+        outerBounds,
+        setNewOuterBounds,
+        selectOrgOption,
+        selectGroupOption
+    }) => {
 
     const selectOrg = (org: IOrgManaged) => {
         setOrgSelected(org);
@@ -355,60 +342,16 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
         setDeviceSelected(null);
     }
 
-    useEffect(() => {
-        let maxLongitude = -180;
-        let minLongitude = 180;
-        let maxLatitude = -90;
-        let minLatitude = 90;
-        const condition = (orgManaged: IOrgManaged) => !(orgManaged.geoJsonData === null || Object.keys(orgManaged.geoJsonData).length === 0);
-        const orgsManagedFiltered = orgsManaged.filter(condition);
-        setOrgsManagedFiltered(orgsManagedFiltered);
-        if (orgsManagedFiltered.length !== 0) {
-            const geoJsonDataArray = orgsManagedFiltered.map(org => org.geoJsonData);
-            geoJsonDataArray.forEach(geoJsonData => {
-                if (geoJsonData.features && geoJsonData.features.length !== 0) {
-                    const coordsArray = (geoJsonData.features[0].geometry as Polygon).coordinates[0];
-                    coordsArray.forEach(coords => {
-                        if (coords[0] > maxLongitude) maxLongitude = coords[0];
-                        if (coords[0] < minLongitude) minLongitude = coords[0];
-                        if (coords[1] > maxLatitude) maxLatitude = coords[1];
-                        if (coords[1] < minLatitude) minLatitude = coords[1];
-                    })
-                }
-                const outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
-                setOuterBounds(outerBounds);
-            })
-        } else {
-            let minLatitude = 35.55010533588552;
-            let maxLatitude = 44.134913443750726;
-            let minLongitude = -10.56884765625;
-            let maxLongitude = 1.42822265625;
-            if (window._env_.MIN_LONGITUDE) {
-                minLongitude = window._env_.minLongitude;
-            }
-            if (window._env_.MAX_LONGITUDE) {
-                maxLongitude = window._env_.maxLongitude;
-            }
-            if (window._env_.MIN_LATITUDE) {
-                minLatitude = window._env_.minLatitude;
-            }
-            if (window._env_.MAX_LATITUDE) {
-                maxLatitude = window._env_.maxLatitude;
-            }
-            const outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
-            setOuterBounds(outerBounds);
-        }
-    }, [orgsManaged])
-
     return (
-        <MapContainerStyled center={[41.413786922165556, 2.2225694835034266]} zoom={17} maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
+        <MapContainerStyled maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
             <TileLayerStyled
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
                 url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
             />
+            <MapEvents setNewOuterBounds={setNewOuterBounds} />
             <GeoOrgs
                 outerBounds={outerBounds}
-                orgDataArray={orgsManagedFiltered}
+                orgDataArray={orgsManaged}
                 orgSelected={orgSelected}
                 selectOrg={selectOrg}
                 groupSelected={groupSelected}
@@ -419,12 +362,18 @@ const Map: FC<MapProps> = ({ orgsManaged, groupsManaged, devices, refreshOrgsMan
 
             }
             <ControlsContainer>
-                <ZoomControls outerBounds={outerBounds} resetOrgSelection={resetOrgSelection} />
+                <ZoomControls initialOuterBounds={initialOuterBounds} resetOrgSelection={resetOrgSelection} />
                 <ComponentsControlContainer>
-                    <OrgsControl orgDataArray={orgsManaged} orgSelected={orgSelected} selectOrg={selectOrg} />
+                    <OrgsControl
+                        orgSelected={orgSelected}
+                        selectOrgOption={selectOrgOption}
+                    />
                     {
                         orgSelected &&
-                        <GroupsControl orgSelected={orgSelected} groupDataArray={groupsManaged} groupSelected={groupSelected} selectGroup={selectGroup} />
+                        <GroupsControl
+                            groupSelected={groupSelected}
+                            selectGroupOption={selectGroupOption}
+                        />
                     }
                 </ComponentsControlContainer>
             </ControlsContainer>

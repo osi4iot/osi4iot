@@ -1,4 +1,4 @@
-import { FC, SyntheticEvent, useState, useEffect } from 'react';
+import { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import FormTitle from "../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelection';
@@ -106,24 +106,9 @@ interface SelectOrgUsersProps {
 
 const SelectOrgUsers: FC<SelectOrgUsersProps> = ({ orgId, backToCreate, setSelectedUsersArray }) => {
     const [selectedUsers, setSelectedUsers] = useState<ISelectOrgUser[]>([]);
-    const [selectUsers, setSelectUsers] = useState<ISelectOrgUser[]>([]);
     const selectOrgUsersTable = useSelectOrgUsersTable();
+    const selectOrgUsers = useState<ISelectOrgUser[]>(selectOrgUsersTable.filter(user => user.orgId === orgId))[0];
 
-    useEffect(() => {
-        const selectUsers = selectOrgUsersTable.filter(user => user.orgId === orgId).map(user =>
-        {
-            const selectUser = {
-                orgId: user.orgId,
-                userId: user.userId,
-                firstName: user.firstName,
-                surname: user.surname,
-                email: user.email
-            }
-            return selectUser;
-        })
-        setSelectUsers(selectUsers);
-
-    }, [selectOrgUsersTable, orgId])
 
     const onSubmit = () => {
         setSelectedUsersArray(selectedUsers);
@@ -143,7 +128,7 @@ const SelectOrgUsers: FC<SelectOrgUsersProps> = ({ orgId, backToCreate, setSelec
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={selectUsers}
+                        dataTable={selectOrgUsers}
                         columnsTable={SELECT_ORG_USERS}
                         setSelectedUsers={(selectedUsers: ISelectOrgUser[]) => setSelectedUsers(selectedUsers)}
                     />

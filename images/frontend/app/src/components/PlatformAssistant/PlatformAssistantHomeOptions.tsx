@@ -1,5 +1,6 @@
-import React, { FC, useEffect, useState, useCallback } from 'react'
+import { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
+import { Polygon } from 'geojson';
 import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import Loader from "../Tools/Loader";
@@ -13,9 +14,12 @@ import {
     setGroupsManagedTable,
     setDevicesTable,
 } from '../../contexts/platformAssistantContext';
-import Map from './Geolocation/Map';
 import Tutorial from './Tutorial';
 import DigitalTwins from './DigitalTwins';
+import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
+import GeolocationContainer from './GeolocationContainer';
+import { IGroupManaged } from './TableColumns/groupsManagedColumns';
+import { IDevice } from './TableColumns/devicesColumns';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -88,6 +92,54 @@ const ContentContainer = styled.div`
 
 `;
 
+const filterOrgsManaged = (orgsManaged: IOrgManaged[]) => {
+    const condition = (orgManaged: IOrgManaged) => !(orgManaged.geoJsonData === null || Object.keys(orgManaged.geoJsonData).length === 0);
+    const orgsManagedFiltered = orgsManaged.filter(condition);
+    return orgsManagedFiltered;
+}
+
+const findBounds = (orgsManaged: IOrgManaged[]) => {
+    let outerBounds: number[][] = [[35.55010533588552, -10.56884765625], [44.134913443750726, 1.42822265625]];
+    let maxLongitude = -180;
+    let minLongitude = 180;
+    let maxLatitude = -90;
+    let minLatitude = 90;
+    if (orgsManaged.length !== 0) {
+        const geoJsonDataArray = orgsManaged.map(org => org.geoJsonData);
+        geoJsonDataArray.forEach(geoJsonData => {
+            if (geoJsonData.features && geoJsonData.features.length !== 0) {
+                const coordsArray = (geoJsonData.features[0].geometry as Polygon).coordinates[0];
+                coordsArray.forEach(coords => {
+                    if (coords[0] > maxLongitude) maxLongitude = coords[0];
+                    if (coords[0] < minLongitude) minLongitude = coords[0];
+                    if (coords[1] > maxLatitude) maxLatitude = coords[1];
+                    if (coords[1] < minLatitude) minLatitude = coords[1];
+                })
+            }
+            outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
+        })
+    } else {
+        let minMapLatitude = 35.55010533588552;
+        let maxMapLatitude = 44.134913443750726;
+        let minMapLongitude = -10.56884765625;
+        let maxMapLongitude = 1.42822265625;
+        if (window._env_.MIN_LONGITUDE) {
+            minMapLongitude = window._env_.minLongitude;
+        }
+        if (window._env_.MAX_LONGITUDE) {
+            maxMapLongitude = window._env_.maxLongitude;
+        }
+        if (window._env_.MIN_LATITUDE) {
+            minMapLatitude = window._env_.minLatitude;
+        }
+        if (window._env_.MAX_LATITUDE) {
+            maxMapLatitude = window._env_.maxLatitude;
+        }
+        outerBounds = [[minMapLatitude, minMapLongitude], [maxMapLatitude, maxMapLongitude]];
+    }
+
+    return outerBounds;
+}
 
 const domainName = getDomainName();
 
@@ -105,6 +157,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [reloadOrgsManaged, setReloadOrgsManaged] = useState(false);
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
+    const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
+    const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
+    const [orgsManagedFiltered, setOrgsManagedFiltered] = useState<IOrgManaged[]>([]);
+    const [orgSelected, setOrgSelected] = useState<IOrgManaged | null>(null);
+    const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
+    const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
 
     const refreshOrgsManaged = useCallback(() => {
         setReloadOrgsManaged(true);
@@ -125,6 +183,20 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setTimeout(() => setReloadDevices(false), 500);
     }, [])
 
+    const setNewOuterBounds = (outerBounds: number[][]) => {
+        setOuterBounds(outerBounds);
+    }
+
+    useEffect(() => {
+        if (orgsManagedTable.length !== 0) {
+            const orgsManagedFiltered = filterOrgsManaged(orgsManagedTable);
+            setOrgsManagedFiltered(orgsManagedFiltered);
+            const outerBounds = findBounds(orgsManagedFiltered);
+            setOuterBounds(outerBounds);
+            setInitialOuterBounds(outerBounds);
+        }
+    }, [orgsManagedTable]);
+
 
     useEffect(() => {
         if (orgsManagedTable.length === 0 || reloadOrgsManaged) {
@@ -136,6 +208,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                     const orgsManaged = response.data;
                     setOrgsManagedTable(plaformAssistantDispatch, { orgsManaged });
                     setOrgsManagedLoading(false);
+                    const orgsManagedFiltered = filterOrgsManaged(orgsManaged);
+                    setOrgsManagedFiltered(orgsManagedFiltered);
+                    const outerBounds = findBounds(orgsManagedFiltered);
+                    setOuterBounds(outerBounds);
+                    setInitialOuterBounds(outerBounds);
                 })
                 .catch((error) => {
                     console.log(error);
@@ -215,13 +292,22 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                         :
                         <>
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION &&
-                                <Map
-                                    orgsManaged={orgsManagedTable}
+                                <GeolocationContainer
+                                    orgsManaged={orgsManagedFiltered}
                                     groupsManaged={groupsManagedTable}
                                     devices={devicesTable}
+                                    orgSelected={orgSelected}
+                                    setOrgSelected={(orgSelected: IOrgManaged | null) => setOrgSelected(orgSelected)}
+                                    groupSelected={groupSelected}
+                                    setGroupSelected={(groupSelected: IGroupManaged | null) => setGroupSelected(groupSelected)}
+                                    deviceSelected={deviceSelected}
+                                    setDeviceSelected={(deviceSelected: IDevice | null) => setDeviceSelected(deviceSelected)}
                                     refreshOrgsManaged={refreshOrgsManaged}
                                     refreshGroupsManaged={refreshGroupsManaged}
                                     refreshDevices={refreshDevices}
+                                    initialOuterBounds={initialOuterBounds}
+                                    outerBounds={outerBounds}
+                                    setNewOuterBounds={setNewOuterBounds}
                                 />
                             }
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS &&

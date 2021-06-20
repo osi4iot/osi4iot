@@ -5,6 +5,7 @@ export interface ISelectGlobalUser {
     firstName: string;
     surname: string;
     email: string;
+    login: string;
 }
 
 export const SELECT_GLOBAL_USERS: Column<ISelectGlobalUser>[] = [
@@ -25,4 +26,8 @@ export const SELECT_GLOBAL_USERS: Column<ISelectGlobalUser>[] = [
         Header: "Email",
         accessor: "email"
     },
+    {
+        Header: "Username",
+        accessor: "login"
+    }, 
 ]

@@ -6,6 +6,7 @@ export interface ISelectOrgUser {
     firstName: string;
     surname: string;
     email: string;
+    login: string;
 }
 
 export const SELECT_ORG_USERS: Column<ISelectOrgUser>[] = [
@@ -26,4 +27,8 @@ export const SELECT_ORG_USERS: Column<ISelectOrgUser>[] = [
         Header: "Email",
         accessor: "email"
     },
+    {
+        Header: "Username",
+        accessor: "login"
+    },    
 ]

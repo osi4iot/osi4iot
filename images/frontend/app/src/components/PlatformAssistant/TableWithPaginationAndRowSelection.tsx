@@ -1,5 +1,5 @@
 import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy, useRowSelect } from 'react-table';
-import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject } from 'react';
+import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject, ChangeEvent } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
 import { matchSorter } from 'match-sorter';
@@ -53,8 +53,9 @@ const TableStyles = styled.div`
             min-width: 100px;
             max-width: 150px;
         }
+           
 
-        th:nth-child(5) {
+        th:nth-child(6) {
             padding: 10px 0px 10px 10px;
         }
   }
@@ -265,11 +266,13 @@ function fuzzyTextFilterFn(rows: row[], id: number, filterValue: string) {
     return matchSorter(rows, filterValue, { keys: [row => row.values[id]] })
 }
 
+
+
 interface Props {
     indeterminate?: boolean;
 }
 
-const IndeterminateCheckbox = forwardRef<HTMLInputElement, Props>(
+const IndeterminateCheckbox = forwardRef<HTMLInputElement, Props & Record<string, any>>(
     ({ indeterminate, ...rest }, ref: Ref<HTMLInputElement>) => {
         const defaultRef = useRef()
         const resolvedRef = ref || defaultRef
@@ -289,13 +292,73 @@ const IndeterminateCheckbox = forwardRef<HTMLInputElement, Props>(
     }
 )
 
+interface IndeterminateCheckboxUniqueSelectionProps {
+    indeterminate?: boolean;
+    isSelected?: boolean;
+    numRowsSelected: number;
+    toggleRowSelected: () => void;
+    uncheckAllRowsSelected: () => void;
+}
+
+const IndeterminateCheckboxUniqueSelection = forwardRef<HTMLInputElement, IndeterminateCheckboxUniqueSelectionProps & Record<string, any>>(
+    ({ indeterminate, isSelected, numRowsSelected, toggleRowSelected, uncheckAllRowsSelected, ...rest }, ref: Ref<HTMLInputElement>) => {
+        const defaultRef = useRef();
+        const resolvedRef = ref || defaultRef;
+
+        const handleClick = (e: ChangeEvent<HTMLInputElement>) => {
+            if (numRowsSelected === 0) {
+                toggleRowSelected();
+            } else {
+                if (!isSelected) {
+                    uncheckAllRowsSelected();
+                    toggleRowSelected();
+                } else {
+                    toggleRowSelected();
+                }
+            }
+        }
+
+        useEffect(() => {
+            if ((resolvedRef as MutableRefObject<HTMLInputElement>)?.current) {
+                (resolvedRef as MutableRefObject<HTMLInputElement>).current.indeterminate = indeterminate ?? false;
+                (resolvedRef as MutableRefObject<HTMLInputElement>).current.checked = !!isSelected;
+            }
+
+        }, [resolvedRef, indeterminate, isSelected])
+
+        return (
+            <>
+                <input
+                    type="checkbox"
+                    ref={resolvedRef as MutableRefObject<HTMLInputElement>}
+                    onChange={handleClick}
+                />
+            </>
+        )
+
+    }
+)
+
+
+
 type TableProps<T extends object> = {
     dataTable: T[];
     columnsTable: Column<T>[];
-    setSelectedUsers: (selectedUsers: never[]) => void;
+    setSelectedUsers?: (selectedUsers: never[]) => void;
+    setSelectedOrgManaged?: (selectedOrgManaged: never) => void;
+    setSelectedGroupManaged?: (selectedGroupManaged: never) => void;
+    multipleSelection?: boolean;
 }
 
-const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({ dataTable, columnsTable, setSelectedUsers }) => {
+const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
+    {
+        dataTable,
+        columnsTable,
+        setSelectedUsers,
+        setSelectedOrgManaged,
+        setSelectedGroupManaged,
+        multipleSelection = true
+    }) => {
     const columns = useMemo(() => columnsTable, [columnsTable]);
     const data = useMemo(() => dataTable, [dataTable]);
 
@@ -346,6 +409,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({ dataTable, co
         preGlobalFilteredRows,
         setGlobalFilter,
         selectedFlatRows,
+        toggleAllRowsSelected,
     } = useTable(
         {
             columns,
@@ -369,18 +433,40 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({ dataTable, co
                     id: 'selection',
                     // The header can use the table's getToggleAllRowsSelectedProps method
                     // to render a checkbox
-                    Header: ({ getToggleAllPageRowsSelectedProps }) => (
-                        <div>
-                            <IndeterminateCheckbox {...getToggleAllPageRowsSelectedProps()} />
-                        </div>
-                    ),
-                    // The cell can use the individual row's getToggleRowSelectedProps method
-                    // to the render a checkbox
-                    Cell: ({ row }) => (
-                        <div>
-                            <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
-                        </div>
-                    ),
+                    Header: ({ getToggleAllPageRowsSelectedProps }) => {
+                        if (multipleSelection) {
+                            return (
+                                <div>
+                                    <IndeterminateCheckbox
+                                        {...getToggleAllPageRowsSelectedProps()}
+                                    />
+                                </div>
+                            )
+                        } else {
+                            return <div></div>
+                        }
+                    },
+                    Cell: ({ row }) => {
+                        const numRowsSelected = page.filter((row) => row.isSelected).length;
+                        if (multipleSelection) {
+                            return (
+                                <div>
+                                    <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />
+                                </div>
+                            )
+                        } else {
+                            return (
+                                <div>
+                                    <IndeterminateCheckboxUniqueSelection
+                                        isSelected={row.isSelected}
+                                        toggleRowSelected={() => row.toggleRowSelected()}
+                                        numRowsSelected={numRowsSelected}
+                                        uncheckAllRowsSelected={() => toggleAllRowsSelected(false)}
+                                        {...row.getToggleRowSelectedProps()} />
+                                </div>
+                            );
+                        }
+                    }
                 },
                 ...columns,
             ])
@@ -391,9 +477,11 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({ dataTable, co
 
     useEffect(() => {
         const selectedRows = selectedFlatRows.map(d => d.original);
-        setSelectedUsers(selectedRows as never[]);
+        if (setSelectedUsers) setSelectedUsers(selectedRows as never[]);
+        else if (setSelectedOrgManaged) setSelectedOrgManaged(selectedRows[0] as never);
+        else if (setSelectedGroupManaged) setSelectedGroupManaged(selectedRows[0] as never);
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedFlatRows]);
 
 
@@ -426,7 +514,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({ dataTable, co
                             type="number"
                             defaultValue={pageIndex + 1}
                             min={1}
-                            max={pageOptions.length}                            
+                            max={pageOptions.length}
                             onChange={e => {
                                 const page = e.target.value ? Number(e.target.value) - 1 : 0
                                 gotoPage(page)
@@ -452,7 +540,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = ({ dataTable, co
                     setGlobalFilter={setGlobalFilter}
                 />
             </TableOptionsContainer>
-            <TableStyles>
+            <TableStyles >
                 <table {...getTableProps()}>
                     <thead>
                         {headerGroups.map(headerGroup => (
