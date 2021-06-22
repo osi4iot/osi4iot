@@ -7,6 +7,7 @@ import {
 	IGlobalUsersTable,
 	IRefreshTokensTable,
 	IOrgsManagedTable,
+	IOrgsOfGroupsManagedTable,
 	IGroupsTable,
 	IOrgUsersTable,
 	IDevicesTable,
@@ -45,6 +46,10 @@ export function setRefreshTokensTable(plaformAssistantDispatch: PlatformAssistan
 
 export function setOrgsManagedTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrgsManagedTable) {
 	plaformAssistantDispatch({ type: 'ORGS_MANAGED_TABLE', payload: data });
+}
+
+export function setOrgsOfGroupsManagedTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrgsOfGroupsManagedTable) {
+	plaformAssistantDispatch({ type: 'ORGS_OF_GROUPS_MANAGED_TABLE', payload: data });
 }
 
 export function setOrgUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrgUsersTable) {

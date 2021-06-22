@@ -349,8 +349,10 @@ type TableProps<T extends object> = {
     dataTable: T[];
     columnsTable: Column<T>[];
     setSelectedUsers?: (selectedUsers: never[]) => void;
-    setSelectedOrgManaged?: (selectedOrgManaged: never) => void;
+    setSelectedOrgOfGroupsManaged?: (selectedOrgOfGroupsManaged: never) => void;
     setSelectedGroupManaged?: (selectedGroupManaged: never) => void;
+    setSelectedDevice?: (selectedDevice: never) => void;
+    setSelectedDigitalTwin?: (selecteDigitalTwin: never) => void;
     multipleSelection?: boolean;
 }
 
@@ -359,8 +361,10 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
         dataTable,
         columnsTable,
         setSelectedUsers,
-        setSelectedOrgManaged,
+        setSelectedOrgOfGroupsManaged,
         setSelectedGroupManaged,
+        setSelectedDevice,
+        setSelectedDigitalTwin,
         multipleSelection = true
     }) => {
     const columns = useMemo(() => columnsTable, [columnsTable]);
@@ -482,8 +486,10 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
     useEffect(() => {
         const selectedRows = selectedFlatRows.map(d => d.original);
         if (setSelectedUsers) setSelectedUsers(selectedRows as never[]);
-        else if (setSelectedOrgManaged) setSelectedOrgManaged(selectedRows[0] as never);
+        else if (setSelectedOrgOfGroupsManaged) setSelectedOrgOfGroupsManaged(selectedRows[0] as never);
         else if (setSelectedGroupManaged) setSelectedGroupManaged(selectedRows[0] as never);
+        else if (setSelectedDevice) setSelectedDevice(selectedRows[0] as never);
+        else if (setSelectedDigitalTwin) setSelectedDigitalTwin(selectedRows[0] as never);
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedFlatRows]);

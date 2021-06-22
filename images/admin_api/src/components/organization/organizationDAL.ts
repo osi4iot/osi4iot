@@ -66,6 +66,16 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 	return result.rows;
 }
 
+export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promise<IOrganization[]> => {
+	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode",
+					state, country, geolocation[0] AS longitude, geolocation[1] AS latitude, geodata AS "geoJsonData"
+					FROM grafanadb.org
+					WHRE id = ANY($1::integer[])
+					ORDER BY id ASC;`;
+	const result = await pool.query(query, [orgIdsArray]);
+	return result.rows;
+}
+
 export const getNumOrganizations = async (): Promise<number> => {
 	const query = `SELECT COUNT(*) FROM grafanadb.org;`;
 	const result = await pool.query(query);
@@ -207,7 +217,7 @@ export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IU
 	const existentGroupMemberArray: IGroupMember[] = [
 		{
 			groupId: group.id,
-			userId:  user.userId,
+			userId: user.userId,
 			firstName: user.firstName,
 			surname: user.surname,
 			email: user.email,

@@ -3037,7 +3037,10 @@
 				},
 				"latitude": {
 					"type": "number"
-				},								
+				},
+				"geoJsonData": {
+					"type": "string"
+				},											
 				"orgAdminArray": {
 					"type": "array",
 					"items": {
@@ -3075,7 +3078,10 @@
 				},
 				"latitude": {
 					"type": "number"
-				}
+				},
+				"geoJsonData": {
+					"type": "string"
+				}				
 			}
 		},		
 		"OrgAdminInput": {
@@ -3130,6 +3136,9 @@
 				},
 				"latitude": {
 					"type": "number"
+				},
+				"geoJsonData": {
+					"type": "string"
 				}
 			}
 		},
@@ -3459,6 +3468,12 @@
 				"folderPermission": {
 					"type": "string"
 				},
+				"geoJsonDataBase": {
+					"type": "string"
+				},
+				"geoJsonData": {
+					"type": "string"
+				},							
 				"groupAdminDataArray": {
 					"type": "array",
 					"items": {
@@ -3483,7 +3498,13 @@
 				},				
 				"folderPermission": {
 					"type": "string"
-				}			
+				},
+				"geoJsonDataBase": {
+					"type": "string"
+				},
+				"geoJsonData": {
+					"type": "string"
+				}				
 			}
 		},
 		"GroupAdminInput": {
@@ -3496,7 +3517,7 @@
 				},				
 				"email": {
 					"type": "string"
-				}			
+				}				
 			}
 		},		
 		"GroupMemberInput": {
@@ -3557,21 +3578,54 @@
 		"GroupOutput": {
 			"type": "object",
 			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"teamId": {
+					"type": "number"
+				},
+				"folderId": {
+					"type": "number"
+				},
+				"folderUid": {
+					"type": "string"
+				},
+				"folderPermission":{
+					"type": "string"
+				},																				
 				"name": {
 					"type": "string"
 				},
 				"acronym": {
 					"type": "string"
 				},
-				"email": {
+				"groupUid": {
 					"type": "string"
 				},
-				"groupHash": {
+				"telegramInvitationLink": {
 					"type": "string"
 				},
-				"tableHash": {
+				"telegramChatId": {
 					"type": "string"
-				}
+				},
+				"emailNotificationChannelId": {
+					"type": "string"
+				},
+				"telegramNotificationChannelId": {
+					"type": "string"
+				},
+				"isOrgDefaultGroup": {
+					"type": "boolean"
+				},
+				"geoJsonDataBase": {
+					"type": "string"
+				},
+				"geoJsonData": {
+					"type": "string"
+				}									
 			}
 		},
 		"GroupCreationOutput": {

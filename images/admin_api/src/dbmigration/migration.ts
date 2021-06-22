@@ -333,6 +333,61 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Foreing key in table ${tableName7} couldd not be added: %s`, err.message);
 		}
 
+		const tableName8 = "grafanadb.topic";
+		const queryString8a = `
+			CREATE TABLE IF NOT EXISTS ${tableName8}(
+				id serial PRIMARY KEY,
+				device_id bigint,
+				sensor_name VARCHAR(190) UNIQUE,
+				description VARCHAR(190),
+				topic VARCHAR(190),
+				field_names TEXT[],
+				field_units TEXT[],
+				topic_uid VARCHAR(40) UNIQUE,
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
+				CONSTRAINT fk_device_id
+					FOREIGN KEY(device_id)
+						REFERENCES grafanadb.device(id)
+						ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_sensor_name
+			ON grafanadb.topic(name);`;
+
+		try {
+			await pool.query(queryString8a);
+			logger.log("info", `Table ${tableName8} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableName8} can not be created: %s`, err.message);
+		}
+
+		const tableName9 = "grafanadb.digital_twin";
+		const queryString9a = `
+			CREATE TABLE IF NOT EXISTS ${tableName9}(
+				id serial PRIMARY KEY,
+				device_id bigint,
+				name VARCHAR(190) UNIQUE,
+				type VARCHAR(20),
+				url VARCHAR(190),
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
+				CONSTRAINT fk_device_id
+					FOREIGN KEY(device_id)
+						REFERENCES grafanadb.device(id)
+						ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_digital_twin_name
+			ON grafanadb.digital_twin(name);`;
+
+		try {
+			await pool.query(queryString9a);
+			logger.log("info", `Table ${tableName9} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableName9} can not be created: %s`, err.message);
+		}
+
 		pool.end(() => {
 			logger.log("info", `Migration pool has ended`);
 		})

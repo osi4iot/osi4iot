@@ -24,6 +24,7 @@ export const initialState = {
     globalUsers: [],
     refreshTokens: [],
     orgsManaged: [],
+    orgsOfGroupsManaged: [],
     orgUsers: [],
     groups: [],
     groupsManaged: [],
@@ -79,6 +80,12 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
             return {
                 ...initialState,
                 orgsManaged: action.payload.orgsManaged
+            };
+
+        case "ORGS_OF_GROUPS_MANAGED_TABLE":
+            return {
+                ...initialState,
+                orgsOfGroupsManaged: action.payload.orgsOfGroupsManaged
             };
 
         case "ORGS_USERS_TABLE":

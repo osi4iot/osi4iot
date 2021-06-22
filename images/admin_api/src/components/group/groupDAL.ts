@@ -330,7 +330,9 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				geodatabase AS "geoJsonDataBase",
+				geodata AS "geoJsonData"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = $1
@@ -351,7 +353,9 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				geodatabase AS "geoJsonDataBase",
+				geodata AS "geoJsonData"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = ANY($1::bigint[])
@@ -371,7 +375,9 @@ export const getGroupByWithFolderPermissionProp = async (propName: string, propV
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				geodatabase AS "geoJsonDataBase",
+				geodata AS "geoJsonData"				
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.${propName} = $1;`;
@@ -389,7 +395,9 @@ export const getGroupByProp = async (propName: string, propValue: (string | numb
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				geodatabase AS "geoJsonDataBase",
+				geodata AS "geoJsonData"
 				FROM grafanadb.group
 				WHERE grafanadb.group.${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
@@ -404,7 +412,9 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				telegram_chatid AS "telegramChatId",
 				email_notification_channel_id AS "emailNotificationChannelId",
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
-				is_org_default_group AS "isOrgDefaultGroup"
+				is_org_default_group AS "isOrgDefaultGroup",
+				geodatabase AS "geoJsonDataBase",
+				geodata AS "geoJsonData"
 				FROM grafanadb.group
 				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
 	const result = await pool.query(query, [orgId, true]);

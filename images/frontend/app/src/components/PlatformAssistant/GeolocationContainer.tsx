@@ -3,8 +3,10 @@ import Map from './Geolocation/Map'
 import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
 import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 import { IDevice } from './TableColumns/devicesColumns';
-import SelectOrgManaged from './SelectOrgManaged';
 import SelectGroupManaged from './SelectGroupManaged';
+import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
+import SelectOrgOfGroupsManaged from './SelectOrgOfGroupsManaged';
+import SelectDevice from './SelectDevice';
 
 
 export const GEOLOCATION_OPTIONS = {
@@ -17,7 +19,7 @@ export const GEOLOCATION_OPTIONS = {
 
 
 interface GeolocationContainerProps {
-    orgsManaged: IOrgManaged[];
+    orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
     orgSelected: IOrgManaged | null;
@@ -26,7 +28,7 @@ interface GeolocationContainerProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
-    refreshOrgsManaged: () => void;
+    refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
     initialOuterBounds: number[][];
@@ -37,7 +39,7 @@ interface GeolocationContainerProps {
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
     {
-        orgsManaged,
+        orgsOfGroupsManaged,
         groupsManaged,
         devices,
         orgSelected,
@@ -46,7 +48,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         selectGroup,
         deviceSelected,
         selectDevice,
-        refreshOrgsManaged,
+        refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
         initialOuterBounds,
@@ -54,6 +56,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setNewOuterBounds,
         resetOrgSelection
     }) => {
+
     const [geolocationOptionToShow, setGeolocationOptionToShow] = useState(GEOLOCATION_OPTIONS.MAP);
 
     const backToMap = () => {
@@ -76,7 +79,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
     }
 
-    const giveOrgManagedSelected = (orgSelected: IOrgManaged) => {
+    const giveOrgOfGroupsManagedSelected = (orgSelected: IOrgOfGroupsManaged) => {
         selectOrg(orgSelected);
     }
 
@@ -84,11 +87,15 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         selectGroup(groupSelected);
     }
 
+    const giveDeviceSelected = (deviceSelected: IDevice) => {
+        selectDevice(deviceSelected);
+    }
+
     return (
         <>
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.MAP &&
                 <Map
-                    orgsManaged={orgsManaged}
+                    orgsOfGroupsManaged={orgsOfGroupsManaged}
                     groupsManaged={groupsManaged}
                     devices={devices}
                     orgSelected={orgSelected}
@@ -97,7 +104,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectGroup={selectGroup}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}
-                    refreshOrgsManaged={refreshOrgsManaged}
+                    refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
                     refreshGroupsManaged={refreshGroupsManaged}
                     refreshDevices={refreshDevices}
                     initialOuterBounds={initialOuterBounds}
@@ -111,9 +118,9 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_ORG &&
-                <SelectOrgManaged
+                <SelectOrgOfGroupsManaged
                     backToMap={backToMap}
-                    giveOrgManagedSelected={giveOrgManagedSelected}
+                    giveOrgOfGroupsManagedSelected={giveOrgOfGroupsManagedSelected}
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_GROUP &&
@@ -123,6 +130,13 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     giveGroupManagedSelected={giveGroupManagedSelected}
                 />
             }
+            {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_DEVICE &&
+                <SelectDevice
+                    groupId={(groupSelected as IGroupManaged).id}
+                    backToMap={backToMap}
+                    giveDeviceSelected={giveDeviceSelected}
+                />
+            }            
         </>
     )
 }

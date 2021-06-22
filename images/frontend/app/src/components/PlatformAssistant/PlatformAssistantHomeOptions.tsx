@@ -9,10 +9,10 @@ import {
     usePlatformAssitantDispatch,
     useGroupsManagedTable,
     useDevicesTable,
-    useOrgsManagedTable,
-    setOrgsManagedTable,
     setGroupsManagedTable,
     setDevicesTable,
+    useOrgsOfGroupsManagedTable,
+    setOrgsOfGroupsManagedTable,
 } from '../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import DigitalTwins from './DigitalTwins';
@@ -20,6 +20,7 @@ import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
 import GeolocationContainer from './GeolocationContainer';
 import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 import { IDevice } from './TableColumns/devicesColumns';
+import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -92,10 +93,10 @@ const ContentContainer = styled.div`
 
 `;
 
-const filterOrgsManaged = (orgsManaged: IOrgManaged[]) => {
-    const condition = (orgManaged: IOrgManaged) => !(orgManaged.geoJsonData === null || Object.keys(orgManaged.geoJsonData).length === 0);
-    const orgsManagedFiltered = orgsManaged.filter(condition);
-    return orgsManagedFiltered;
+const filterOrgsOfGroupsManaged = (orgsOfGroupsManaged: IOrgOfGroupsManaged[]) => {
+    const condition = (org: IOrgOfGroupsManaged) => !(org.geoJsonData === null || Object.keys(org.geoJsonData).length === 0);
+    const orgsOfGroupsManagedFiltered = orgsOfGroupsManaged.filter(condition);
+    return orgsOfGroupsManagedFiltered;
 }
 
 const findBounds = (orgsManaged: IOrgManaged[]) => {
@@ -147,27 +148,27 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
-    const orgsManagedTable = useOrgsManagedTable();
+    const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
     const groupsManagedTable = useGroupsManagedTable();
     const devicesTable = useDevicesTable();
-    const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
+    const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
     const [deviceLoading, setDevicesLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
-    const [reloadOrgsManaged, setReloadOrgsManaged] = useState(false);
+    const [reloadOrgsOfGroupsManaged, setReloadOrgsOfGroupsManaged] = useState(false);
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
     const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
     const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
-    const [orgsManagedFiltered, setOrgsManagedFiltered] = useState<IOrgManaged[]>([]);
+    const [orgsOfGroupsManagedFiltered, setOrgsOfGroupsManagedFiltered] = useState<IOrgOfGroupsManaged[]>([]);
     const [orgSelected, setOrgSelected] = useState<IOrgManaged | null>(null);
     const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
     const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
 
-    const refreshOrgsManaged = useCallback(() => {
-        setReloadOrgsManaged(true);
-        setOrgsManagedLoading(true);
-        setTimeout(() => setReloadOrgsManaged(false), 500);
+    const refreshOrgsOfGroupsManaged = useCallback(() => {
+        setReloadOrgsOfGroupsManaged(true);
+        setOrgsOfGroupsManagedLoading(true);
+        setTimeout(() => setReloadOrgsOfGroupsManaged(false), 500);
     }, [])
 
     const refreshGroupsManaged = useCallback(() => {
@@ -208,30 +209,32 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setDeviceSelected(null);
     }
 
+
     useEffect(() => {
-        if (orgsManagedTable.length !== 0) {
-            const orgsManagedFiltered = filterOrgsManaged(orgsManagedTable);
-            setOrgsManagedFiltered(orgsManagedFiltered);
-            const outerBounds = findBounds(orgsManagedFiltered);
+        if (orgsOfGroupsManagedTable.length !== 0) {
+            const orgsOfGroupsManagedFiltered = filterOrgsOfGroupsManaged(orgsOfGroupsManagedTable);
+            setOrgsOfGroupsManagedFiltered(orgsOfGroupsManagedFiltered);
+            const outerBounds = findBounds(orgsOfGroupsManagedFiltered);
             setOuterBounds(outerBounds);
             setInitialOuterBounds(outerBounds);
         }
-    }, [orgsManagedTable]);
+    }, [orgsOfGroupsManagedTable]);
 
 
     useEffect(() => {
-        if (orgsManagedTable.length === 0 || reloadOrgsManaged) {
-            const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
+        if (orgsOfGroupsManagedTable.length === 0 || reloadOrgsOfGroupsManaged) {
+            // const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
+            const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_groups_managed/`; 
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsManaged, config)
                 .then((response) => {
-                    const orgsManaged = response.data;
-                    setOrgsManagedTable(plaformAssistantDispatch, { orgsManaged });
-                    setOrgsManagedLoading(false);
-                    const orgsManagedFiltered = filterOrgsManaged(orgsManaged);
-                    setOrgsManagedFiltered(orgsManagedFiltered);
-                    const outerBounds = findBounds(orgsManagedFiltered);
+                    const orgsOfGroupsManaged = response.data;
+                    setOrgsOfGroupsManagedTable(plaformAssistantDispatch, { orgsOfGroupsManaged });
+                    setOrgsOfGroupsManagedLoading(false);
+                    const orgsOfGroupsManagedFiltered = filterOrgsOfGroupsManaged(orgsOfGroupsManaged);
+                    setOrgsOfGroupsManagedFiltered(orgsOfGroupsManagedFiltered);
+                    const outerBounds = findBounds(orgsOfGroupsManagedFiltered);
                     setOuterBounds(outerBounds);
                     setInitialOuterBounds(outerBounds);
                 })
@@ -239,9 +242,16 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                     console.log(error);
                 });
         } else {
-            setOrgsManagedLoading(false);
+            setOrgsOfGroupsManagedLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadOrgsManaged, orgsManagedTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadOrgsOfGroupsManaged,
+        orgsOfGroupsManagedTable.length
+    ]);
 
     useEffect(() => {
         if (groupsManagedTable.length === 0 || reloadGroupsManaged) {
@@ -308,13 +318,13 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
             </PlatformAssistantHomeOptionsContainer>
             <ContentContainer >
                 <>
-                    {(orgsManagedLoading || groupsManagedLoading || deviceLoading) ?
+                    {(orgsOfGroupsManagedLoading || groupsManagedLoading || deviceLoading) ?
                         <Loader />
                         :
                         <>
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION &&
                                 <GeolocationContainer
-                                    orgsManaged={orgsManagedFiltered}
+                                    orgsOfGroupsManaged={orgsOfGroupsManagedFiltered}
                                     groupsManaged={groupsManagedTable}
                                     devices={devicesTable}
                                     orgSelected={orgSelected}
@@ -323,7 +333,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     selectGroup={selectGroup}
                                     deviceSelected={deviceSelected}
                                     selectDevice={selectDevice}
-                                    refreshOrgsManaged={refreshOrgsManaged}
+                                    refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
                                     refreshGroupsManaged={refreshGroupsManaged}
                                     refreshDevices={refreshDevices}
                                     initialOuterBounds={initialOuterBounds}

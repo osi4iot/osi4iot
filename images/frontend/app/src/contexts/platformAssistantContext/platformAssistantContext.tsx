@@ -8,6 +8,7 @@ import { IMembershipInGroups } from '../../components/PlatformAssistant/TableCol
 import { IMembershipInOrgs } from '../../components/PlatformAssistant/TableColumns/membershipInOrgs';
 import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
 import { IOrgManaged } from '../../components/PlatformAssistant/TableColumns/organizationsManagedColumns';
+import { IOrgOfGroupsManaged } from '../../components/PlatformAssistant/TableColumns/orgsOfGroupsManagedColumns';
 import { IOrgUser } from '../../components/PlatformAssistant/TableColumns/orgUsersColumns';
 import { IRefreshToken } from '../../components/PlatformAssistant/TableColumns/refreshTokensColumns';
 import { ISelectOrgUser } from '../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns';
@@ -99,6 +100,14 @@ export const useOrgsManagedTable = (): IOrgManaged[] => {
 		throw new Error('useOrgsManagedTable must be used within a PlatformAssitantProvider');
 	}
 	return context.orgsManaged;
+}
+
+export const useOrgsOfGroupsManagedTable = (): IOrgOfGroupsManaged[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useOrgsOfGroupsManagedTable must be used within a PlatformAssitantProvider');
+	}
+	return context.orgsOfGroupsManaged;
 }
 
 export const useOrgUsersTable = (): IOrgUser[] => {

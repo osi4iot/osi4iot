@@ -7,6 +7,7 @@ import { IMembershipInGroups } from "../../components/PlatformAssistant/TableCol
 import { IMembershipInOrgs } from "../../components/PlatformAssistant/TableColumns/membershipInOrgs";
 import { IOrganization } from "../../components/PlatformAssistant/TableColumns/organizationsColumns";
 import { IOrgManaged } from "../../components/PlatformAssistant/TableColumns/organizationsManagedColumns";
+import { IOrgOfGroupsManaged } from "../../components/PlatformAssistant/TableColumns/orgsOfGroupsManagedColumns";
 import { IOrgUser } from "../../components/PlatformAssistant/TableColumns/orgUsersColumns";
 import { IRefreshToken } from "../../components/PlatformAssistant/TableColumns/refreshTokensColumns";
 import { ISelectOrgUser } from "../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns";
@@ -27,6 +28,7 @@ export interface PlatformAssistantContextProps {
 	globalUsers: IGlobalUser[];
 	refreshTokens: IRefreshToken[];
 	orgsManaged: IOrgManaged[];
+	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
 	orgUsers: IOrgUser[];
 	groups: IGroup[];
 	groupsManaged: IGroupManaged[];
@@ -48,6 +50,7 @@ export interface PlatformAssistantActionPayload {
 	globalUsers: IGlobalUser[];
 	refreshTokens: IRefreshToken[];
 	orgsManaged: IOrgManaged[];
+	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
 	orgUsers: IOrgUser[];
 	groups: IGroup[];
 	groupsManaged: IGroupManaged[];
@@ -93,6 +96,10 @@ export interface IRefreshTokensTable {
 
 export interface IOrgsManagedTable {
 	orgsManaged: IOrgManaged[];
+}
+
+export interface IOrgsOfGroupsManagedTable {
+	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
 }
 
 export interface IOrgUsersTable {

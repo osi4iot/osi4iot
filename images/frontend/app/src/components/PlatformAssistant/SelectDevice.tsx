@@ -2,10 +2,9 @@ import { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import FormTitle from "../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelection';
-import { useOrgsManagedTable } from '../../contexts/platformAssistantContext';
-import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
-import { ISelectOrgManaged, SELECT_ORG_MANAGED_COLUMNS } from './TableColumns/selectOrgManagedColumns';
-
+import { useDevicesTable } from '../../contexts/platformAssistantContext';
+import { IDevice } from './TableColumns/devicesColumns';
+import { ISelectDevice, SELECT_DEVICE_COLUMNS } from './TableColumns/selectedDeviceColumns';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -98,40 +97,41 @@ const Button = styled.button`
 `;
 
 
-interface SelectOrgManagedProps {
+interface SelectDeviceProps {
+    groupId: number;
     backToMap: () => void;
-    giveOrgManagedSelected: (orgManaged: IOrgManaged) => void;
+    giveDeviceSelected: (device: IDevice) => void;
 }
 
-const SelectOrgManaged: FC<SelectOrgManagedProps> = ({ backToMap, giveOrgManagedSelected }) => {
-    const [selectedOrgManaged, setSelectedOrgManaged] = useState<ISelectOrgManaged | null>(null);
-    const orgsManagedTable = useOrgsManagedTable();
-
+const SelectDevice: FC<SelectDeviceProps> = ({ groupId, backToMap, giveDeviceSelected }) => {
+    const [selectedDevice, setSelectedDevice] = useState<ISelectDevice | null>(null);
+    const devicesTable = useDevicesTable();
+    const selectDevice = useState(devicesTable.filter(device => device.groupId === groupId))[0];
 
     const onSubmit = () => {
-        if (selectedOrgManaged) {  
-            const orgsManagedTableFiltered = orgsManagedTable.filter(orgManaged => orgManaged.id === selectedOrgManaged.id);
-            giveOrgManagedSelected(orgsManagedTableFiltered[0]);
+        if (selectedDevice) {  
+            const devicesTableFiltered = devicesTable.filter(device => device.id === selectedDevice.id);
+            giveDeviceSelected(devicesTableFiltered[0]);
         }
         backToMap();
     }
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setSelectedOrgManaged(null);
+        setSelectedDevice(null);
         backToMap();
     };
 
 
     return (
         <>
-            <FormTitle>Select organization</FormTitle>
+            <FormTitle>Select device</FormTitle>
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={orgsManagedTable}
-                        columnsTable={SELECT_ORG_MANAGED_COLUMNS}
-                        setSelectedOrgManaged={(selectedOrgManaged: ISelectOrgManaged) => setSelectedOrgManaged(selectedOrgManaged)}
+                        dataTable={selectDevice}
+                        columnsTable={SELECT_DEVICE_COLUMNS}
+                        setSelectedGroupManaged={(selectedDevice: ISelectDevice) => setSelectedDevice(selectedDevice)}
                         multipleSelection={false}
                     />
                 </TableContainer>
@@ -148,4 +148,4 @@ const SelectOrgManaged: FC<SelectOrgManagedProps> = ({ backToMap, giveOrgManaged
     )
 }
 
-export default SelectOrgManaged;
+export default SelectDevice;

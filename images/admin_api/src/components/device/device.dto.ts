@@ -1,5 +1,4 @@
-import { Type } from "class-transformer";
-import { IsNumber, IsString, ValidateIf } from "class-validator";
+import { IsNumber, IsString } from "class-validator";
 
 class CreateDeviceDto {
 	@IsString()

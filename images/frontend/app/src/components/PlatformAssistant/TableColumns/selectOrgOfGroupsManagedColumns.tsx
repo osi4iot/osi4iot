@@ -1,7 +1,7 @@
 import { Column } from 'react-table';
 
 
-export interface ISelectOrgManaged {
+export interface ISelectOrgOfGroupsManaged {
     id: number;
     name: string;
     acronym: string;
@@ -9,7 +9,7 @@ export interface ISelectOrgManaged {
     country: string;
 }
 
-export const SELECT_ORG_MANAGED_COLUMNS: Column<ISelectOrgManaged>[] = [
+export const SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS: Column<ISelectOrgOfGroupsManaged>[] = [
     {
         Header: "OrgId",
         accessor: "id",

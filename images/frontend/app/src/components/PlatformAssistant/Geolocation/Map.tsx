@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
 import styled from "styled-components";
 import { MdZoomOutMap } from "react-icons/md";
 import { RiZoomInLine, RiZoomOutLine } from "react-icons/ri";
+import { FaRedo } from "react-icons/fa";
 import { LatLngTuple } from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
@@ -13,6 +14,7 @@ import GeoGroup from './GeoGroup';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
+import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 
 
 const MapContainerStyled = styled(MapContainer)`
@@ -77,6 +79,12 @@ const MdZoomOutMapStyled = styled(MdZoomOutMap)`
     color: white;
 `;
 
+const FaRedoStyled = styled(FaRedo)`
+    font-size: 22px;
+    color: white;
+`;
+
+
 
 const ZoomControlItem = styled.div`
     background-color: #202226;
@@ -102,6 +110,10 @@ const ZoomControlItem = styled.div`
         & ${MdZoomOutMapStyled} {
 			color: #3274d9;
 		}
+
+        & ${FaRedoStyled} {
+			color: #3274d9;
+		}
     }
 `;
 
@@ -118,10 +130,11 @@ const findOuterBounds = (bounds: L.LatLngBounds) => {
 interface ZoomFrameControlProps {
     initialOuterBounds: number[][];
     resetOrgSelection: () => void;
+    refreshAll: () => void;
 }
 
 
-const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgSelection }) => {
+const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgSelection, refreshAll }) => {
     const map = useMap();
 
     const clickZoomInHandler = () => {
@@ -137,6 +150,12 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgS
         resetOrgSelection();
     }
 
+    const clickReloadHandler = () => {
+        refreshAll();
+        map.fitBounds(initialOuterBounds as LatLngTuple[]);
+        resetOrgSelection();
+    }
+
     return (
         <ZoomControlContainer>
             <ZoomControlItem onClick={clickZoomInHandler}>
@@ -148,6 +167,9 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgS
             <ZoomControlItem onClick={clickZoomFrameHandler}>
                 <MdZoomOutMapStyled />
             </ZoomControlItem>
+            <ZoomControlItem onClick={clickReloadHandler}>
+                <FaRedoStyled />
+            </ZoomControlItem>            
         </ZoomControlContainer>
     )
 }
@@ -310,7 +332,7 @@ const MapEvents: FC<MapEventProps> = ({ setNewOuterBounds }) => {
 }
 
 interface MapProps {
-    orgsManaged: IOrgManaged[];
+    orgsOfGroupsManaged: IOrgOfGroupsManaged[]
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
     orgSelected: IOrgManaged | null;
@@ -319,7 +341,7 @@ interface MapProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
-    refreshOrgsManaged: () => void;
+    refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
     initialOuterBounds: number[][];
@@ -335,7 +357,7 @@ interface MapProps {
 
 const Map: FC<MapProps> = (
     {
-        orgsManaged,
+        orgsOfGroupsManaged,
         groupsManaged,
         devices,
         orgSelected,
@@ -344,7 +366,7 @@ const Map: FC<MapProps> = (
         selectGroup,
         deviceSelected,
         selectDevice,
-        refreshOrgsManaged,
+        refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
         initialOuterBounds,
@@ -356,6 +378,12 @@ const Map: FC<MapProps> = (
         selectDigitalTwinOption,
         resetOrgSelection
     }) => {
+    
+    const refreshAll = () => {
+        refreshOrgsOfGroupsManaged();
+        refreshGroupsManaged();
+        refreshDevices();
+    }
 
     return (
         <MapContainerStyled maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
@@ -366,7 +394,7 @@ const Map: FC<MapProps> = (
             <MapEvents setNewOuterBounds={setNewOuterBounds} />
             <GeoOrgs
                 outerBounds={outerBounds}
-                orgDataArray={orgsManaged}
+                orgDataArray={orgsOfGroupsManaged}
                 orgSelected={orgSelected}
                 selectOrg={selectOrg}
                 groupSelected={groupSelected}
@@ -377,7 +405,7 @@ const Map: FC<MapProps> = (
 
             }
             <ControlsContainer>
-                <ZoomControls initialOuterBounds={initialOuterBounds} resetOrgSelection={resetOrgSelection} />
+                <ZoomControls initialOuterBounds={initialOuterBounds} refreshAll={refreshAll} resetOrgSelection={resetOrgSelection} />
                 <ComponentsControlContainer>
                     <OrgsControl
                         orgSelected={orgSelected}

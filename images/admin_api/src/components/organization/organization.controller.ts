@@ -23,7 +23,8 @@ import {
 	addUsersToOrganizationAndMembersToDefaultOrgGroup,
 	getOrganizationsManagedByUserId,
 	updateOrgUserRoleInDefaultOrgGroup,
-	organizationsWhichTheLoggedUserIsUser
+	organizationsWhichTheLoggedUserIsUser,
+	getOrganizationsWithIdsArray
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -45,7 +46,7 @@ import HttpException from "../../exceptions/HttpException";
 import CreateUsersArrayDto from "../user/interfaces/UsersArray.dto";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
-import { createGroup, defaultOrgGroupName, deleteGroup, getAllGroupsInOrganization, getDefaultOrgGroup, getGroupMemberByProp, getGroupMembers, getGroupsOfOrgIdWhereUserIdIsMember, getOrgsIdArrayForGroupsManagedByUserId, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
+import { createGroup, defaultOrgGroupName, deleteGroup, getAllGroupsInOrganization, getDefaultOrgGroup, getGroupMemberByProp, getGroupMembers, getGroupsManagedByUserId, getGroupsOfOrgIdWhereUserIdIsMember, getOrgsIdArrayForGroupsManagedByUserId, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
@@ -76,6 +77,11 @@ class OrganizationController implements IController {
 				`${this.path}s/user_managed/`,
 				userAuth,
 				this.getOrganizationsManagedByUser
+			)
+			.get(
+				`${this.path}s/user_groups_managed/`,
+				userAuth,
+				this.getOrganizationsOfGroupsManagedByUser
 			)
 			.get(
 				`/organization_users/user_orgs_managed/`,
@@ -185,6 +191,35 @@ class OrganizationController implements IController {
 		}
 	};
 
+
+	private organizationsOfGroupsManagedByUser = async (user: IUser): Promise<IOrganization[]> => {
+		let organizations: IOrganization[];
+		if (user.isGrafanaAdmin) {
+			organizations = await getOrganizations();
+		} else {
+			organizations = await getOrganizationsManagedByUserId(user.id);
+			const orgsManagedIdArray = organizations.map(org => org.id);
+			const groups = await getGroupsManagedByUserId(user.id);
+			if (groups.length !== 0) {
+				const orgIdsArray = groups.map(group => group.orgId);
+				const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray)
+				orgsOfGroupsManaged.forEach(org => {
+					if (orgsManagedIdArray.indexOf(org.id) === -1) organizations.push(org);
+				})
+			}
+		}
+		return organizations;
+	}
+
+	private getOrganizationsOfGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const organizations = await this.organizationsOfGroupsManagedByUser(req.user);
+			res.status(200).send(organizations);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private getOrganizationsUsersForOrgsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const organizations = await this.organizationsManagedByUser(req.user);
@@ -205,7 +240,7 @@ class OrganizationController implements IController {
 			const orgIdsArrayForOrgsAdmin = organizations.map(org => org.id);
 			const orgsArrayForGroupsManagedByUser = await getOrgsIdArrayForGroupsManagedByUserId(req.user.id);
 			const orgsIdArrayForGroupsManagedByUser = orgsArrayForGroupsManagedByUser.map(item => item.orgId);
-			const orgIdsArray = [...new Set([...orgIdsArrayForOrgsAdmin ,...orgsIdArrayForGroupsManagedByUser])];
+			const orgIdsArray = [...new Set([...orgIdsArrayForOrgsAdmin, ...orgsIdArrayForGroupsManagedByUser])];
 			const orgUsers = await getOrganizationUsersForOrgIdsArray(orgIdsArray);
 			orgUsers.forEach(user => {
 				user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
