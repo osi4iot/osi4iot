@@ -141,7 +141,7 @@ const SelectGroupManaged: FC<SelectGroupManagedProps> = ({ orgId, backToMap, giv
                         Cancel
                     </Button>
                     <Button type='button' onClick={onSubmit}>
-                        Set group org
+                        Accept
                     </Button>
                 </ButtonsContainer>
             </FormContainer>

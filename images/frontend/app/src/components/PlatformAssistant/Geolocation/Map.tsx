@@ -40,17 +40,16 @@ L.Marker.prototype.options.icon = DefaultIcon;
 
 
 const ControlsContainer = styled.div`
-    position: relative;
-    z-index: 800;
-    display: flex;
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: flex-start;
+    background-color: green;
     width: 100%;
 `;
 
 const ZoomControlContainer = styled.div`
-    margin: 10px;
+    position: absolute;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    margin: 15px;
     padding: 10px 0;
     display: flex;
     flex-direction: column;
@@ -155,10 +154,13 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgS
 
 
 const ComponentsControlContainer = styled.div`
+    position: absolute;
+    z-index: 1000;
+    right: 0;
+    top: 0;
     width: 350px;
-    margin: 10px;
+    margin: 15px;
     padding: 0px 10px 10px;
-    // border: 3px solid #2c3235;
     border: 2px solid #3274d9;
     border-radius: 15px;
     background-color: #202226;
@@ -169,40 +171,38 @@ const ComponentsControlContainer = styled.div`
 `;
 
 const ComponentControlContainer = styled.div`
-    width: 100%;
     margin: 10px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
     align-items: flex-start;
+    width: 100%;
 `;
 
 const ComponentSelection = styled.div`
     display: flex;
-    flex-direction: row;
     justify-content: space-between;
-    align-items: center;
-    margin: 5px;
-    width: 99%;
+    width: 100%;
 `;
 
 const ComponentLabel = styled.div`
+    margin: 0 0 2px 6px;
     font-size: 14px;
+    width: calc(100% - 6px);
 `;
 
 const SelectionButton = styled.button`
     font-size: 14px;
-    border: 1px solid #2c3235;
+    border: 2px solid #2c3235;
     border-radius: 10px;
     background-color: #0c0d0f;
     color: white;
     cursor: pointer;
     padding: 5px 20px;
-    width: 120px;
-
+    width: 80px;
     &:hover {
 		color: #3274d9;
-        border: 1px solid #3274d9;
+        border: 2px solid #3274d9;
 	}
 `;
 
@@ -214,7 +214,7 @@ const ComponentName = styled.div`
     padding: 5px;
     margin-left: 2px;
     color: white;
-    width: 100%;
+    width: 240px;
 `;
 
 
@@ -230,13 +230,13 @@ const OrgsControl: FC<OrgsControlProps> = ({ orgSelected, selectOrgOption }) => 
 
     return (
         <ComponentControlContainer>
+            <ComponentLabel>Organization:</ComponentLabel>
             <ComponentSelection>
-                <ComponentLabel>Organization:</ComponentLabel>
-                <SelectionButton onClick={clickHandler} >Select org</SelectionButton>
+                <ComponentName>
+                    {orgSelected ? orgSelected.acronym : ""}
+                </ComponentName>
+                <SelectionButton onClick={clickHandler} >Select</SelectionButton>
             </ComponentSelection>
-            <ComponentName>
-                {orgSelected ? orgSelected.name : ""}
-            </ComponentName>
         </ComponentControlContainer>
     )
 }
@@ -246,7 +246,6 @@ interface GroupsControlProps {
     selectGroupOption: () => void;
 }
 
-
 const GroupsControl: FC<GroupsControlProps> = ({ groupSelected, selectGroupOption }) => {
 
     const clickHandler = () => {
@@ -255,13 +254,37 @@ const GroupsControl: FC<GroupsControlProps> = ({ groupSelected, selectGroupOptio
 
     return (
         <ComponentControlContainer>
+            <ComponentLabel>Group:</ComponentLabel>
             <ComponentSelection>
-                <ComponentLabel>Group:</ComponentLabel>
-                <SelectionButton onClick={clickHandler} >Select group</SelectionButton>
+                <ComponentName>
+                    {groupSelected ? groupSelected.acronym : ""}
+                </ComponentName>
+                <SelectionButton onClick={clickHandler} >Select</SelectionButton>
             </ComponentSelection>
-            <ComponentName>
-                {groupSelected ? groupSelected.name : ""}
-            </ComponentName>
+        </ComponentControlContainer>
+    )
+}
+
+interface DevicesControlProps {
+    deviceSelected: IDevice | null;
+    selectDeviceOption: () => void;
+}
+
+const DevicesControl: FC<DevicesControlProps> = ({ deviceSelected, selectDeviceOption }) => {
+
+    const clickHandler = () => {
+        selectDeviceOption();
+    };
+
+    return (
+        <ComponentControlContainer>
+            <ComponentLabel>Device:</ComponentLabel>
+            <ComponentSelection>
+                <ComponentName>
+                    {deviceSelected ? deviceSelected.name : ""}
+                </ComponentName>
+                <SelectionButton onClick={clickHandler} >Select</SelectionButton>
+            </ComponentSelection>
         </ComponentControlContainer>
     )
 }
@@ -304,6 +327,8 @@ interface MapProps {
     setNewOuterBounds: (outerBounds: number[][]) => void;
     selectOrgOption: () => void;
     selectGroupOption: () => void;
+    selectDeviceOption: () => void;
+    selectDigitalTwinOption: () => void;
     resetOrgSelection: () => void;
 }
 
@@ -327,6 +352,8 @@ const Map: FC<MapProps> = (
         setNewOuterBounds,
         selectOrgOption,
         selectGroupOption,
+        selectDeviceOption,
+        selectDigitalTwinOption,
         resetOrgSelection
     }) => {
 
@@ -363,6 +390,13 @@ const Map: FC<MapProps> = (
                             selectGroupOption={selectGroupOption}
                         />
                     }
+                    {
+                        (orgSelected && groupSelected) &&
+                        <DevicesControl
+                            deviceSelected={deviceSelected}
+                            selectDeviceOption={selectDeviceOption}
+                        />
+                    }                    
                 </ComponentsControlContainer>
             </ControlsContainer>
         </MapContainerStyled>

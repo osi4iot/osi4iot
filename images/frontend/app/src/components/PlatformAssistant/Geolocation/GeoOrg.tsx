@@ -17,7 +17,7 @@ const setOrgStyle = (orgStatus: string, isSelected: boolean) => {
         return {
             stroke: true,
             color: isSelected ? SELECTED : NON_SELECTED,
-            weight: isSelected ? 3 : 2,
+            weight: 3,
             opacity: 1,
             fill: true,
             fillColor: STATUS_ALERT,
@@ -28,7 +28,7 @@ const setOrgStyle = (orgStatus: string, isSelected: boolean) => {
         return {
             stroke: true,
             color: isSelected ? SELECTED : NON_SELECTED,
-            weight: isSelected ? 3 : 2,
+            weight: 3,
             opacity: 1,
             fill: true,
             fillColor: STATUS_OK,

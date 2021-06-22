@@ -11,6 +11,8 @@ export const GEOLOCATION_OPTIONS = {
     MAP: "Map",
     SELECT_ORG: "Select org",
     SELECT_GROUP: "Select group",
+    SELECT_DEVICE: "Select device",
+    SELECT_DIGITAL_TWIN: "Select digital twin",
 }
 
 
@@ -66,6 +68,14 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_GROUP);
     }
 
+    const selectDeviceOption = () => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DEVICE);
+    }
+
+    const selectDigitalTwinOption = () => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
+    }
+
     const giveOrgManagedSelected = (orgSelected: IOrgManaged) => {
         selectOrg(orgSelected);
     }
@@ -95,6 +105,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     setNewOuterBounds={setNewOuterBounds}
                     selectOrgOption={selectOrgOption}
                     selectGroupOption={selectGroupOption}
+                    selectDeviceOption={selectDeviceOption}
+                    selectDigitalTwinOption={selectDigitalTwinOption}
                     resetOrgSelection={resetOrgSelection}
                 />
             }

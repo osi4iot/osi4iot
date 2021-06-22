@@ -140,7 +140,7 @@ const SelectOrgManaged: FC<SelectOrgManagedProps> = ({ backToMap, giveOrgManaged
                         Cancel
                     </Button>
                     <Button type='button' onClick={onSubmit}>
-                        Set selected org
+                        Accept
                     </Button>
                 </ButtonsContainer>
             </FormContainer>

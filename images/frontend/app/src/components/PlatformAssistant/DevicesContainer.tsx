@@ -27,7 +27,7 @@ const DevicesContainer: FC<DevicesContainerProps> = ({ devices, refreshDevices }
                 <TableWithPagination
                     dataTable={devices}
                     columnsTable={Create_DEVICES_COLUMNS(refreshDevices)}
-                    componentName="devices"
+                    componentName="device"
                     reloadTable={refreshDevices}
                     createComponent={() => setDevicesOptionToShow(devicesDispatch, { devicesOptionToShow: DEVICES_OPTIONS.CREATE_DEVICE })}
                 />

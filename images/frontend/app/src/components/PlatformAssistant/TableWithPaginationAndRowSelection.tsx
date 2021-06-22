@@ -45,6 +45,10 @@ const TableStyles = styled.div`
             width: 50px;
             min-width: 50px;
             max-width: 50px;
+
+            div input[type=checkbox]:hover {
+                cursor: pointer;
+            }
         }
 
         tr td:nth-child(2),
