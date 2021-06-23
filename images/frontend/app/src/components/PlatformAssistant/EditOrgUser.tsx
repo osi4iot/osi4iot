@@ -2,9 +2,8 @@ import { FC, SyntheticEvent,useState } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -88,7 +87,8 @@ interface EditOrgUserProps {
 
 const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUsers }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const orgsUsersDispatch = useOrgUsersDispatch();
     const orgId = useOrgUserOrgIdToEdit()
     const userId = useOrgUserUserIdToEdit();
@@ -106,7 +106,7 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
         const url = `https://${domainName}/admin_api/organization/${orgId}/user/id/${userId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response) => {
                 const data = response.data;

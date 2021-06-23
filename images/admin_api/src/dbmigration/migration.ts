@@ -31,8 +31,7 @@ export async function dataBaseInitialization() {
 		logger.log("error", `Table ${tableName1} can not found: %s`, err.message);
 	}
 
-	if (result0.rows[0].count !== "0") {
-
+	if (result0.rows[0].count !== 0) {
 		const tableUser = "grafanadb.user";
 		const queryStringUser = `ALTER TABLE grafanadb.user
 								ADD COLUMN first_name varchar(127),
@@ -275,9 +274,9 @@ export async function dataBaseInitialization() {
 					ON UPDATE CASCADE,
 				ADD CONSTRAINT fk_device_uid
 				FOREIGN KEY(device_uid)
-					REFERENCES grafanadb.device(device_uid)
-						ON DELETE CASCADE
-						ON UPDATE CASCADE;`;
+				REFERENCES grafanadb.device(device_uid)
+					ON DELETE CASCADE
+					ON UPDATE CASCADE;`;
 
 		try {
 			await pool.query(queryString5a);
@@ -340,9 +339,7 @@ export async function dataBaseInitialization() {
 				device_id bigint,
 				sensor_name VARCHAR(190) UNIQUE,
 				description VARCHAR(190),
-				topic VARCHAR(190),
-				field_names TEXT[],
-				field_units TEXT[],
+				payload_format json,
 				topic_uid VARCHAR(40) UNIQUE,
 				created TIMESTAMPTZ,
 				updated TIMESTAMPTZ,
@@ -353,7 +350,7 @@ export async function dataBaseInitialization() {
 			);
 
 			CREATE INDEX IF NOT EXISTS idx_sensor_name
-			ON grafanadb.topic(name);`;
+			ON grafanadb.topic(sensor_name);`;
 
 		try {
 			await pool.query(queryString8a);

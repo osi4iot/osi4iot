@@ -49,7 +49,11 @@
 		{
 			"name": "Device",
 			"description": "Management of devices in groups of an organization of the IOT Platform - Default role required: Group_Admin"
-		}
+		},
+		{
+			"name": "Topic",
+			"description": "Management of topics of devices of the IOT Platform - Default role required: Group_Admin"
+		}		
 	],
 	"consumes": ["application/json"],
 	"produces": ["application/json"],
@@ -2764,7 +2768,519 @@
 					}
 				}
 			}
-		}							
+		},
+		"/topics/user_managed": {
+			"get": {
+				"tags": ["Topic"],
+				"summary": "Get all Topics managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Topics"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}          
+				}
+			}
+		},		
+		"/topics_in_org/{orgId}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": ["Topic"],
+				"summary": "Get all Topics in the organization - Role required: Organization_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Topics"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
+								}
+							}
+						}
+					}              
+				}
+			}
+		},
+		"/topics_in_group/{groupId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": ["Topic"],
+				"summary": "Get all Topics in a group of the platform - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Topics"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}              
+				}
+			}
+		},
+		"/topic/{groupId}/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id, name or TopicUid of the Topic",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "Topic property value",
+					"type": "string"
+				}				
+			],
+			"get": {
+				"tags": ["Topic"],
+				"summary": "Get Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/TopicOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/topic/{groupId}/{deviceId}/{topicId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "string"
+				},
+				{
+					"name": "topicId",
+					"in": "path",
+					"required": true,
+					"description": "Topic id",
+					"type": "number"
+				}				
+			],
+			"get": {
+				"tags": ["Topic"],
+				"summary": "Get Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/TopicOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": ["Topic"],
+				"summary": "Update Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/TopicInput"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},			
+			"delete": {
+				"tags": ["Topic"],
+				"summary": "Delete Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
+		"/topic_information/{groupId}/{topicId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "TopicId",
+					"in": "path",
+					"required": true,
+					"description": "Topic Id",
+					"type": "string"
+				}				
+			],
+			"post": {
+				"tags": ["Topic"],
+				"summary": "Get Topic by id - Role required: Group_Admin with basic auth", 
+				"security": [],
+				"requestBody": {
+					"description": "User credentials",
+					"required": true,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/Login"
+							}
+						}
+					}
+				},					
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/TopicOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "User credentials not correct.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group or Topic not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
+		"/topic/{groupId}/{topicId}/changeUid/": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "topicId",
+					"in": "path",
+					"required": true,
+					"description": "Topic id",
+					"type": "number"
+				}			
+			],
+			"patch": {
+				"tags": ["Topic"],
+				"summary": "Change TopicUid by topicId  - Role required: Group_Admin",			
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/topic/{groupId}/{deviceId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "number"
+				}		
+			],
+			"post": {
+				"tags": ["Topic"],
+				"summary": "Create Topic in a group  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/TopicInput"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		}										
 	},
 	"definitions": {
 		"UserRegister": {
@@ -3765,7 +4281,57 @@
 			"items": {
 				"$ref": "#/definitions/DeviceOutput"
 			}
-		}
+		},
+		"TopicInput": {
+			"properties": {
+				"sensorName": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"payloadFormat": {
+					"type": "string"
+				}	
+			}
+		},		
+		"TopicOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"groupId": {
+					"type": "number"
+				},
+				"deviceId": {
+					"type": "number"
+				},														
+				"sensorName": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"payloadFormat": {
+					"type": "string"
+				},
+				"created": {
+					"type": "string"
+				},										
+				"updated": {
+					"type": "string"
+				}	
+			}
+		},
+		"Topics": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/TopicOutput"
+			}
+		}		
 	}
 }
   

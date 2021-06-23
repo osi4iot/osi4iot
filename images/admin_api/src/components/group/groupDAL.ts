@@ -239,7 +239,7 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 	return result.rows;
 }
 
-export const getOrgsIdArrayForGroupsManagedByUserId = async (userId: number): Promise<{ orgId: number}[]> => {
+export const getOrgsIdArrayForGroupsManagedByUserId = async (userId: number): Promise<{ orgId: number }[]> => {
 	const query = `SELECT DISTINCT grafanadb.group.org_id AS "orgId"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -377,7 +377,7 @@ export const getGroupByWithFolderPermissionProp = async (propName: string, propV
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				geodatabase AS "geoJsonDataBase",
-				geodata AS "geoJsonData"				
+				geodata AS "geoJsonData"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.${propName} = $1;`;
@@ -660,7 +660,7 @@ export const haveThisUserGroupAdminPermissions = async (userId: number, group: I
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND user_id = $2 AND permission = $3',
 		[teamId, userId, 4]);
 
-	if (result.rows[0].count === "0") {
+	if (result.rows[0].count === 0) {
 		havePermissions = await isThisUserOrgAdmin(userId, orgId);
 	} else {
 		havePermissions = true;
@@ -750,7 +750,7 @@ export const addMembersToGroup = async (group: IGroup, groupMembersArray: Create
 	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
 	let oldAddressesArray = oldNotificationEmailSettings.addresses.split(",");
 	oldAddressesArray = oldAddressesArray.filter(address => address !== "");
-	const newAddress = [...oldAddressesArray,  groupMembersAddedArray.map(member => member.email)].join();
+	const newAddress = [...oldAddressesArray, groupMembersAddedArray.map(member => member.email)].join();
 	const newSettings = { addresses: newAddress };
 	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
 

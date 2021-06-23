@@ -2,9 +2,8 @@ import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -80,7 +79,8 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
     const [showCreateOrg, setShowCreateOrg] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const orgsDispatch = useOrgsDispatch();
     const initialOrgData = { ...orgInputData };
     if (selectedUsersArray.length !== 0) {
@@ -151,7 +151,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
 
         console.log("(values as any).geoJsonData", (values as any).geoJsonData);
 
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
             .then((response) => {
                 const data = response.data;

@@ -11,6 +11,7 @@ import OrganizationController from "./components/organization/organization.contr
 import ApplicationController from "./components/application/application.controller";
 import GroupController from "./components/group/group.controller";
 import DeviceController from "./components/device/device.controller";
+import TopicController from "./components/topic/topic.controller";
 
 
 async function main(): Promise<void> {
@@ -23,7 +24,8 @@ async function main(): Promise<void> {
 			new ApplicationController(),
 			new OrganizationController(),
 			new GroupController(),
-			new DeviceController()
+			new DeviceController(),
+			new TopicController()
 		]);
 		app.listen();
 	} catch (error) {

@@ -8,13 +8,7 @@ class CreateTopicDto {
 	public description: string;
 
 	@IsString()
-	public topic: string;
-
-	@IsString({each: true})
-	public fieldNames: string[];
-
-	@IsString({each: true})
-	public fieldUnits: string[];
+	public payloadFormat: string;
 }
 
 export default CreateTopicDto;

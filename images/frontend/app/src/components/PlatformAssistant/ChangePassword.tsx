@@ -3,9 +3,8 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import FormikControl from "../Tools/FormikControl";
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import { toast } from "react-toastify";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle"
@@ -32,7 +31,8 @@ interface IChangePassword {
 }
 
 const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const validationSchema = Yup.object({
         oldPassword: Yup.string().required('Required'),
@@ -46,7 +46,7 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
         const config = axiosAuth(accessToken);
         const passwordData = { oldPassword: values.oldPassword, newPassword: values.newPassword }
         setIsSubmitting(true);
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .patch(url, passwordData, config)
             .then((response) => {
                 const data = response.data;

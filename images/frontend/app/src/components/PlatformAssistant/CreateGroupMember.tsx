@@ -2,9 +2,8 @@ import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -106,7 +105,8 @@ const CreateGroupMember: FC<CreateGroupMemberProps> = ({ refreshGroupMembers, ba
     const [showAddGroupMembers, setShowAddGroupMembers] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectOrgUser[]>([]);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const initialGroupMembersData = { ...groupMembersInputData };
     if (selectedUsersArray.length !== 0) {
         const newMembers = selectedUsersArray.map(user => {
@@ -144,7 +144,7 @@ const CreateGroupMember: FC<CreateGroupMemberProps> = ({ refreshGroupMembers, ba
         const url = `https://${domainName}/admin_api/group/${groupManagedId}/members`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
             .then((response) => {
                 const data = response.data;

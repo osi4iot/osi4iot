@@ -2,9 +2,8 @@ import { FC, useState, useEffect, SyntheticEvent } from "react";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -29,7 +28,8 @@ interface EditUserProfileProps {
 const domainName = getDomainName();
 
 const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refreshUserProfile, backToUserProfile }) => {
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [userProfileUpdated, setUserProfileUpdated] = useState(false);
     const validationSchema = Yup.object({
@@ -48,7 +48,7 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
         const url = `https://${domainName}/admin_api/auth/user_profile`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response) => {
                 const data = response.data;

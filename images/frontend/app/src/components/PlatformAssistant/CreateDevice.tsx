@@ -2,9 +2,8 @@ import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -39,7 +38,8 @@ interface CreateDeviceProps {
 
 const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const devicesDispatch = useDevicesDispatch();
 
     const onSubmit = (values: any, actions: any) => {
@@ -61,7 +61,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) =>
             latitude: values.latitude
         }
         setIsSubmitting(true);
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .post(url, deviceData, config)
             .then((response) => {
                 const data = response.data;

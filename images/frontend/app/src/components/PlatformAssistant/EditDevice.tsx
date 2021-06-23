@@ -2,9 +2,8 @@ import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -41,7 +40,8 @@ interface EditDeviceProps {
 
 const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const devicesDispatch = useDevicesDispatch();
     const deviceId = useDeviceIdToEdit();
     const deviceRowIndex = useDeviceRowIndexToEdit();
@@ -61,7 +61,7 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
 
         console.log("values=", values)
 
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response) => {
                 const data = response.data;

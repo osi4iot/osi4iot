@@ -2,9 +2,8 @@ import { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -76,7 +75,8 @@ interface EditOrganizationProps {
 const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrgs, backToTable }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const orgsDispatch = useOrgsDispatch();
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const orgRowIndex = useOrgRowIndexToEdit();
     const orgId = useOrgIdToEdit();
 
@@ -122,7 +122,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
             (values as any).geoJsonData = "{}";
         }        
 
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response) => {
                 const data = response.data;

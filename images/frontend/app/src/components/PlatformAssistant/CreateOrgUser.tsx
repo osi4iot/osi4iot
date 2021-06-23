@@ -2,9 +2,8 @@ import React, { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -105,7 +104,8 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
     const [showCreateOrgUsers, setShowCreateOrgUsers] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const initialOrgUsersData = { ...orgUsersInputData };
     if (selectedUsersArray.length !== 0) {
         const newUsers = selectedUsersArray.map(user => {
@@ -147,7 +147,7 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
         const url = `https://${domainName}/admin_api/organization/${orgManagedId}/users`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
             .then((response) => {
                 const data = response.data;

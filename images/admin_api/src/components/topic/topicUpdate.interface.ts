@@ -3,10 +3,8 @@ export default interface ITopicUpdate {
 	deviceId: number;
 	sensorName: string;
 	description: string;
-	topic: string;
 	topicUid: string;
-	fieldNames: string[];
-	fieldUnits: string[];
+	payloadFormat: string;
 	created?: string;
 	updated?: string;
 }
