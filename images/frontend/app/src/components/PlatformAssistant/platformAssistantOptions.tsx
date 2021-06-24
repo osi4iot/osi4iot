@@ -74,6 +74,9 @@ export const GROUP_ADMIN_OPTIONS = {
     GROUPS_MANAGED: "Groups Managed",
     DEVICES: "Orgs users",
     GROUP_MEMBERS: "Group members",
+    TOPICS: "Topics",
+    MESUREMENTS: "Mesurements",
+    DIGITAL_TWINS: "Digital twins"
 }
 
 export const GROUPS_MANAGED_OPTIONS = {
@@ -86,6 +89,18 @@ export const DEVICES_OPTIONS = {
     TABLE: "Table",
     CREATE_DEVICE: "Create device",
     EDIT_DEVICE: "Edit device",
+}
+
+export const TOPICS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_TOPIC: "Create topic",
+    EDIT_TOPIC: "Edit topic",
+}
+
+export const DIGITAL_TWINS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_DIGITAL_TWIN: "Create digital twin",
+    EDIT_DIGITAL_TWIN: "Edit digital twin",
 }
 
 export const GROUP_MEMBERS_OPTIONS = {

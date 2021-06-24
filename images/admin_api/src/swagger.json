@@ -3162,7 +3162,7 @@
 				}
 			}
 		},		
-		"/topic/{groupId}/{topicId}/changeUid/": {
+		"/topic/{groupId}/changeUid/{topicId}": {
 			"parameters": [
 				{
 					"name": "groupId",

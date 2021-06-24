@@ -1,4 +1,5 @@
 import { IDevice } from "../../components/PlatformAssistant/TableColumns/devicesColumns";
+import { IDigitalTwin } from "../../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
 import { IGlobalUser } from "../../components/PlatformAssistant/TableColumns/globalUsersColumns";
 import { IGroupMember } from "../../components/PlatformAssistant/TableColumns/groupMemberColumns";
 import { IGroup } from "../../components/PlatformAssistant/TableColumns/groupsColumns";
@@ -11,6 +12,7 @@ import { IOrgOfGroupsManaged } from "../../components/PlatformAssistant/TableCol
 import { IOrgUser } from "../../components/PlatformAssistant/TableColumns/orgUsersColumns";
 import { IRefreshToken } from "../../components/PlatformAssistant/TableColumns/refreshTokensColumns";
 import { ISelectOrgUser } from "../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns";
+import { ITopic } from "../../components/PlatformAssistant/TableColumns/topicsColumns";
 import { IUserProfile } from "../../components/PlatformAssistant/UserProfile";
 
 export interface PlatformAssistantDispatch {
@@ -34,6 +36,8 @@ export interface PlatformAssistantContextProps {
 	groupsManaged: IGroupManaged[];
 	groupMembers: IGroupMember[];
 	devices: IDevice[];
+	topics: ITopic[];
+	digitalTwins: IDigitalTwin[];
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
 	groupsMembership: IMembershipInGroups[];
@@ -56,6 +60,8 @@ export interface PlatformAssistantActionPayload {
 	groupsManaged: IGroupManaged[];
 	groupMembers: IGroupMember[];
 	devices: IDevice[];
+	topics: ITopic[];
+	digitalTwins: IDigitalTwin[];
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
 	groupsMembership: IMembershipInGroups[];
@@ -133,6 +139,16 @@ export interface IOrgsMembershipTable {
 export interface IGroupsMembershipTable {
 	groupsMembership: IMembershipInGroups[];
 }
+
+export interface ITopicsTable {
+	topics: ITopic[];
+}
+
+export interface IDigitalTwinsTable {
+	digitalTwins: IDigitalTwin[];
+}
+
+
 
 
 

@@ -365,6 +365,7 @@ export async function dataBaseInitialization() {
 				id serial PRIMARY KEY,
 				device_id bigint,
 				name VARCHAR(190) UNIQUE,
+				description VARCHAR(190),
 				type VARCHAR(20),
 				url VARCHAR(190),
 				created TIMESTAMPTZ,

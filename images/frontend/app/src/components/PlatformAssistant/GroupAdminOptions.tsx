@@ -17,10 +17,18 @@ import {
     setGroupsManagedTable,
     setGroupMembersTable,
     setDevicesTable,
-    setSelectOrgUsersTable
+    setSelectOrgUsersTable,
+    useTopicsTable,
+    useDigitalTwinsTable,
+    setTopicsTable,
+    setDigitalTwinsTable
 } from '../../contexts/platformAssistantContext';
 import { GroupsManagedProvider } from '../../contexts/groupsManagedOptions';
 import GroupsManagedContainer from './GroupsManagedContainer';
+import { TopicsProvider } from '../../contexts/topicsOptions';
+import TopicsContainer from './TopicsContainer';
+import { DigitalTwinsProvider } from '../../contexts/digitalTwinsOptions';
+import DigitalTwinsContainer from './DigitalTwinsContainer';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -101,15 +109,20 @@ const GroupAdminOptions: FC<{}> = () => {
     const groupsManagedTable = useGroupsManagedTable();
     const devicesTable = useDevicesTable();
     const groupMembersTable = useGroupMembersTable();
-    const selectOrgUsersTable = useSelectOrgUsersTable()
+    const selectOrgUsersTable = useSelectOrgUsersTable();
+    const topicsTable = useTopicsTable();
+    const digitalTwinsTable = useDigitalTwinsTable();
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
-    const [deviceLoading, setDevicesLoading] = useState(true);
+    const [devicesLoading, setDevicesLoading] = useState(true);
+    const [topicsLoading, setTopicsLoading] = useState(true);
+    const [digitalTwinsLoading, setDigitalTwinsLoading] = useState(true);
     const [groupMembersLoading, setGroupMembersLoading] = useState(true);
     const [selectOrgUsersLoading, setSelectOrgUsersLoading] = useState(true);
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
     const [reloadGroupMembers, setReloadGroupMembers] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
-
+    const [reloadTopics, setReloadTopics] = useState(false);
+    const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
 
 
     const refreshGroupsManaged = useCallback(() => {
@@ -130,6 +143,18 @@ const GroupAdminOptions: FC<{}> = () => {
         setReloadGroupMembers(true);
         setGroupMembersLoading(true);
         setTimeout(() => setReloadGroupMembers(false), 500);
+    }, [])
+
+    const refreshTopics = useCallback(() => {
+        setReloadTopics(true);
+        setTopicsLoading(true);
+        setTimeout(() => setReloadTopics(false), 500);
+    }, [])
+
+    const refreshDigitalTwins = useCallback(() => {
+        setReloadDigitalTwins(true);
+        setDigitalTwinsLoading(true);
+        setTimeout(() => setReloadDigitalTwins(false), 500);
     }, [])
 
 
@@ -155,29 +180,6 @@ const GroupAdminOptions: FC<{}> = () => {
             setGroupsManagedLoading(false);
         }
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
-
-    useEffect(() => {
-        if (devicesTable.length === 0 || reloadDevices) {
-            const config = axiosAuth(accessToken);
-            const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
-            axiosInstance(refreshToken, authDispatch)
-                .get(urlDevices, config)
-                .then((response) => {
-                    const devices = response.data;
-                    devices.map((device: { isDefaultGroupDevice: string; }) => {
-                        device.isDefaultGroupDevice = device.isDefaultGroupDevice ? "Default" : "Generic";
-                        return device;
-                    })
-                    setDevicesTable(plaformAssistantDispatch, { devices });
-                    setDevicesLoading(false);
-                })
-                .catch((error) => {
-                    console.log(error);
-                });
-        } else {
-            setDevicesLoading(false);
-        }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
 
     useEffect(() => {
         if (groupMembersTable.length === 0 || reloadGroupMembers) {
@@ -217,6 +219,73 @@ const GroupAdminOptions: FC<{}> = () => {
         }
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsManaged, selectOrgUsersTable.length]);
 
+    useEffect(() => {
+        if (devicesTable.length === 0 || reloadDevices) {
+            const config = axiosAuth(accessToken);
+            const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlDevices, config)
+                .then((response) => {
+                    const devices = response.data;
+                    devices.map((device: { isDefaultGroupDevice: string; }) => {
+                        device.isDefaultGroupDevice = device.isDefaultGroupDevice ? "Default" : "Generic";
+                        return device;
+                    })
+                    setDevicesTable(plaformAssistantDispatch, { devices });
+                    setDevicesLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setDevicesLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
+
+
+    useEffect(() => {
+        if (topicsTable.length === 0 || reloadTopics) {
+            const config = axiosAuth(accessToken);
+            const urlTopics = `https://${domainName}/admin_api/topics/user_managed`;
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlTopics, config)
+                .then((response) => {
+                    const topics = response.data;
+                    topics.map((topic: { payloadFormat: Object; }) => {
+                        topic.payloadFormat = JSON.stringify(topic.payloadFormat);
+                        return topic;
+                    })                    
+                    setTopicsTable(plaformAssistantDispatch, { topics });
+                    setTopicsLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setTopicsLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadTopics, topicsTable.length]);
+
+    useEffect(() => {
+        if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
+            const config = axiosAuth(accessToken);
+            const urlDigitalTwins = `https://${domainName}/admin_api/topics/user_managed`;
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlDigitalTwins, config)
+                .then((response) => {
+                    const digitalTwins = response.data;
+                    setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
+                    setDigitalTwinsLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setDigitalTwinsLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDigitalTwins, digitalTwinsTable.length]);
+
+
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
@@ -234,9 +303,18 @@ const GroupAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DEVICES} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DEVICES)}>
                     Devices
                 </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.TOPICS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.TOPICS)}>
+                    Topics
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MESUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.MESUREMENTS)}>
+                    Mesurements
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DIGITAL_TWINS)}>
+                    Digital twins
+                </OptionContainer>                
             </GroupAdminOptionsContainer>
             <ContentContainer >
-                {(groupsManagedLoading || deviceLoading || groupMembersLoading || selectOrgUsersLoading) ?
+                {(groupsManagedLoading || devicesLoading || groupMembersLoading || selectOrgUsersLoading || topicsLoading || digitalTwinsLoading) ?
                     <Loader />
                     :
                     <>
@@ -259,6 +337,16 @@ const GroupAdminOptions: FC<{}> = () => {
                                 <DevicesContainer devices={devicesTable} refreshDevices={refreshDevices} />
                             </DevicesProvider>
                         }
+                        {optionToShow === GROUP_ADMIN_OPTIONS.TOPICS &&
+                            <TopicsProvider>
+                                <TopicsContainer topics={topicsTable} refreshTopics={refreshTopics} />
+                            </TopicsProvider>
+                        }
+                        {optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS &&
+                            <DigitalTwinsProvider>
+                                <DigitalTwinsContainer digitalTwins={digitalTwinsTable} refreshDigitalTwins={refreshDigitalTwins} />
+                            </DigitalTwinsProvider>
+                        }                        
                     </>
                 }
             </ContentContainer>

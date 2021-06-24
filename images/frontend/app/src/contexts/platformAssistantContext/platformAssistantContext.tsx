@@ -1,5 +1,6 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
 import { IDevice } from '../../components/PlatformAssistant/TableColumns/devicesColumns';
+import { IDigitalTwin } from '../../components/PlatformAssistant/TableColumns/digitalTwinsColumns';
 import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/globalUsersColumns';
 import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
 import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
@@ -12,6 +13,7 @@ import { IOrgOfGroupsManaged } from '../../components/PlatformAssistant/TableCol
 import { IOrgUser } from '../../components/PlatformAssistant/TableColumns/orgUsersColumns';
 import { IRefreshToken } from '../../components/PlatformAssistant/TableColumns/refreshTokensColumns';
 import { ISelectOrgUser } from '../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns';
+import { ITopic } from '../../components/PlatformAssistant/TableColumns/topicsColumns';
 import { IUserProfile } from '../../components/PlatformAssistant/UserProfile';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { PlatformAssistantContextProps } from './interfaces'
@@ -148,6 +150,22 @@ export const useDevicesTable = (): IDevice[] => {
 		throw new Error('useDevicesTable must be used within a PlatformAssitantProvider');
 	}
 	return context.devices;
+}
+
+export const useTopicsTable = (): ITopic[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useTopicsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.topics;
+}
+
+export const useDigitalTwinsTable = (): IDigitalTwin[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useTopicsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.digitalTwins;
 }
 
 export const useUserProfileTable = (): IUserProfile => {

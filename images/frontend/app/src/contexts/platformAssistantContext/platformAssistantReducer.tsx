@@ -30,6 +30,8 @@ export const initialState = {
     groupsManaged: [],
     groupMembers: [],
     devices: [],
+    topics: [],
+    digitalTwins: [],
     userProfile: initialUserProfile,
     orgsMembership: [],
     groupsMembership: [],
@@ -116,6 +118,18 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
             return {
                 ...initialState,
                 devices: action.payload.devices
+            };
+
+        case "TOPICS_TABLE":
+            return {
+                ...initialState,
+                topics: action.payload.topics
+            };
+
+        case "DIGITAL_TWIN_TABLE":
+            return {
+                ...initialState,
+                digitalTwins: action.payload.digitalTwins
             };
 
         case "USER_PROFILE_TABLE":

@@ -2,13 +2,14 @@ import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
+import axios from "axios";
+import { axiosAuth, getDomainName } from "../../tools/tools";
+import { useAuthState } from "../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
-import {  useDevicesDispatch, useDeviceIdToEdit, useDeviceRowIndexToEdit, setDevicesOptionToShow } from '../../contexts/devicesOptions';
+import { useDevicesDispatch, useDeviceIdToEdit, useDeviceRowIndexToEdit, setDevicesOptionToShow } from '../../contexts/devicesOptions';
 import { DEVICES_OPTIONS } from './platformAssistantOptions';
 import { IDevice } from './TableColumns/devicesColumns';
 
@@ -40,8 +41,7 @@ interface EditDeviceProps {
 
 const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { accessToken, refreshToken } = useAuthState();
-    const authDispatch = useAuthDispatch();
+    const { accessToken } = useAuthState();
     const devicesDispatch = useDevicesDispatch();
     const deviceId = useDeviceIdToEdit();
     const deviceRowIndex = useDeviceRowIndexToEdit();
@@ -61,7 +61,7 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
 
         console.log("values=", values)
 
-        axiosInstance(refreshToken, authDispatch)
+        axios
             .patch(url, values, config)
             .then((response) => {
                 const data = response.data;
@@ -87,7 +87,7 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
     }
 
     const validationSchema = Yup.object().shape({
-        name: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
+        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
@@ -109,8 +109,8 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
                                 <ControlsContainer>
                                     <FormikControl
                                         control='input'
-                                        label='Device name'
-                                        name='name'
+                                        label='Sensor name'
+                                        name='sensorName'
                                         type='text'
                                     />
                                     <FormikControl
@@ -120,16 +120,9 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
                                         type='text'
                                     />
                                     <FormikControl
-                                        control='input'
-                                        label='Longitude'
-                                        name='longitude'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Latitude'
-                                        name='latitude'
-                                        type='text'
+                                        control='textarea'
+                                        label='Payload format'
+                                        name='payloadFormat'
                                     />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

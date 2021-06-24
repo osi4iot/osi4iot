@@ -103,7 +103,9 @@ const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelecte
             null
             :
             <GeoJSON ref={geoJsonLayer} data={orgData.geoJsonData} style={styleGeoJson} eventHandlers={{ click: clickHandler }}>
-                <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} />
+                <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} >
+                    <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
+                </Marker>
                 <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
             </GeoJSON >
     )

@@ -47,7 +47,7 @@ class TopicController implements IController {
 				this.getTopicsInGroup
 			)
 			.patch(
-				`${this.path}/:groupId/:topicId/changeUid/`,
+				`${this.path}/:groupId/changeUid/:topicId`,
 				groupExists,
 				groupAdminAuth,
 				this.changeTopicUid

@@ -91,7 +91,23 @@ const TableStyles = styled.div<TableStylesProps>`
             min-width: ${(props) => props.columnsWidth[5]};
             max-width: ${(props) => props.columnsMaxWidth[5]};
             word-wrap: break-word;
-        } 
+        }
+        
+        tr td:nth-child(7),
+        th td:nth-child(7) {
+            width: ${(props) => props.columnsWidth[6]};
+            min-width: ${(props) => props.columnsWidth[6]};
+            max-width: ${(props) => props.columnsMaxWidth[6]};
+            word-wrap: break-word;
+        }
+        
+        tr td:nth-child(8),
+        th td:nth-child(8) {
+            width: ${(props) => props.columnsWidth[7]};
+            min-width: ${(props) => props.columnsWidth[7]};
+            max-width: ${(props) => props.columnsMaxWidth[7]};
+            word-wrap: break-word;
+        }         
 
   }
 `
@@ -370,6 +386,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
         if (typeof column.Header !== 'function') {
             const headerName = (column.Header as string);
             if (headerName.slice(-2) === "Id" && headerName !== "TelegramId") return "100px"
+            else if (headerName === "Payload format") return "450px";
             else if (headerName === "Refresh tokens") return "1200px";
             else return "auto"
         } else return "auto";
