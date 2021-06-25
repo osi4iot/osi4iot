@@ -13,6 +13,8 @@ import {
     setDevicesTable,
     useOrgsOfGroupsManagedTable,
     setOrgsOfGroupsManagedTable,
+    useDigitalTwinsTable,
+    setDigitalTwinsTable,
 } from '../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import DigitalTwins from './DigitalTwins';
@@ -21,6 +23,7 @@ import GeolocationContainer from './GeolocationContainer';
 import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 import { IDevice } from './TableColumns/devicesColumns';
 import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
+import { IDigitalTwin } from './TableColumns/digitalTwinsColumns';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -151,19 +154,23 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
     const groupsManagedTable = useGroupsManagedTable();
     const devicesTable = useDevicesTable();
+    const digitalTwinsTable = useDigitalTwinsTable();
     const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
     const [deviceLoading, setDevicesLoading] = useState(true);
+    const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
     const [reloadOrgsOfGroupsManaged, setReloadOrgsOfGroupsManaged] = useState(false);
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
+    const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
     const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
     const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
     const [orgsOfGroupsManagedFiltered, setOrgsOfGroupsManagedFiltered] = useState<IOrgOfGroupsManaged[]>([]);
     const [orgSelected, setOrgSelected] = useState<IOrgManaged | null>(null);
     const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
     const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
+    const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
 
     const refreshOrgsOfGroupsManaged = useCallback(() => {
         setReloadOrgsOfGroupsManaged(true);
@@ -184,6 +191,13 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setTimeout(() => setReloadDevices(false), 500);
     }, [])
 
+    const refreshDigitalTwins = useCallback(() => {
+        setReloadDigitalTwins(true);
+        setDigitalTwinsLoading(true);
+        setTimeout(() => setReloadDigitalTwins(false), 500);
+    }, [])
+
+
     const setNewOuterBounds = (outerBounds: number[][]) => {
         setOuterBounds(outerBounds);
     }
@@ -201,6 +215,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
     const selectDevice = (device: IDevice) => {
         setDeviceSelected(device);
+    }
+
+    const selectDigitalTwin = (digitalTwin: IDigitalTwin) => {
+        setDigitalTwinSelected(digitalTwin);
     }
 
     const resetOrgSelection = () => {
@@ -224,7 +242,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     useEffect(() => {
         if (orgsOfGroupsManagedTable.length === 0 || reloadOrgsOfGroupsManaged) {
             // const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
-            const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_groups_managed/`; 
+            const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_groups_managed/`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsManaged, config)
@@ -299,6 +317,25 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         }
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
 
+    useEffect(() => {
+        if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
+            const config = axiosAuth(accessToken);
+            const urlDevices = `https://${domainName}/admin_api/digital_twins/user_managed`;
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlDevices, config)
+                .then((response) => {
+                    const digitalTwins = response.data;
+                    setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
+                    setDigitalTwinsLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setDigitalTwinsLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDigitalTwins, digitalTwinsTable.length]);
+
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
     }
@@ -318,7 +355,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
             </PlatformAssistantHomeOptionsContainer>
             <ContentContainer >
                 <>
-                    {(orgsOfGroupsManagedLoading || groupsManagedLoading || deviceLoading) ?
+                    {(orgsOfGroupsManagedLoading || groupsManagedLoading || deviceLoading || digitalTwinLoading) ?
                         <Loader />
                         :
                         <>
@@ -327,19 +364,23 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     orgsOfGroupsManaged={orgsOfGroupsManagedFiltered}
                                     groupsManaged={groupsManagedTable}
                                     devices={devicesTable}
+                                    digitalTwins={digitalTwinsTable}
                                     orgSelected={orgSelected}
                                     selectOrg={selectOrg}
                                     groupSelected={groupSelected}
                                     selectGroup={selectGroup}
                                     deviceSelected={deviceSelected}
                                     selectDevice={selectDevice}
+                                    digitalTwinSelected={digitalTwinSelected}
+                                    selectDigitalTwin={selectDigitalTwin}
                                     refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
                                     refreshGroupsManaged={refreshGroupsManaged}
                                     refreshDevices={refreshDevices}
+                                    refreshDigitalTwins={refreshDigitalTwins}
                                     initialOuterBounds={initialOuterBounds}
                                     outerBounds={outerBounds}
-                                setNewOuterBounds={setNewOuterBounds}
-                                resetOrgSelection={resetOrgSelection}
+                                    setNewOuterBounds={setNewOuterBounds}
+                                    resetOrgSelection={resetOrgSelection}
                                 />
                             }
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS &&

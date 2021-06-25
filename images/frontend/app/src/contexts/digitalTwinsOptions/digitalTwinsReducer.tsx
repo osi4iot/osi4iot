@@ -27,7 +27,7 @@ export const DigitalTwinsReducer = (initialState: DigitalTwinsContextProps, acti
         case "DIGITAL_TWIN_ROW_INDEX_TO_EDIT":
             return {
                 ...initialState,
-                deviceRowIndexToEdit: action.payload.digitalTwinRowIndexToEdit
+                digitalTwinRowIndexToEdit: action.payload.digitalTwinRowIndexToEdit
             };
         default:
             throw new Error(`Unhandled action type: ${action.type}`);

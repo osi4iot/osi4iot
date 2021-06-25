@@ -59,8 +59,6 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
             (values as any).latitude = parseFloat((values as any).latitude);
         }
 
-        console.log("values=", values)
-
         axios
             .patch(url, values, config)
             .then((response) => {
@@ -109,8 +107,8 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
                                 <ControlsContainer>
                                     <FormikControl
                                         control='input'
-                                        label='Sensor name'
-                                        name='sensorName'
+                                        label='Device name'
+                                        name='name'
                                         type='text'
                                     />
                                     <FormikControl
@@ -120,9 +118,16 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
                                         type='text'
                                     />
                                     <FormikControl
-                                        control='textarea'
-                                        label='Payload format'
-                                        name='payloadFormat'
+                                        control='input'
+                                        label='Longitude'
+                                        name='longitude'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Latitude'
+                                        name='latitude'
+                                        type='text'
                                     />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

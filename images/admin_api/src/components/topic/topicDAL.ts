@@ -76,7 +76,9 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									ORDER BY grafanadb.topic.id  ASC;`);
+									ORDER BY grafanadb.device.org_id ASC,
+											grafanadb.device.group_id ASC,
+											grafanadb.topic.id  ASC;`);
 	return response.rows;
 }
 
@@ -96,7 +98,9 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									WHERE grafanadb.device.group_id = $1
-									ORDER BY grafanadb.topic.id  ASC`, [groupId]);
+									ORDER BY grafanadb.device.org_id ASC,
+											grafanadb.device.group_id ASC,
+											grafanadb.topic.id  ASC`, [groupId]);
 	return response.rows;
 };
 
@@ -110,7 +114,9 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									WHERE grafanadb.device.group_id = $1
-									ORDER BY grafanadb.topic.id  ASC`, [groupsIdArray]);
+									ORDER BY grafanadb.device.org_id ASC,
+											grafanadb.device.group_id ASC,
+											grafanadb.topic.id  ASC`, [groupsIdArray]);
 	return response.rows;
 };
 
@@ -132,6 +138,8 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									WHERE grafanadb.device.org_id = $1
-									ORDER BY grafanadb.topic.id  ASC`, [orgId]);
+									ORDER BY grafanadb.device.org_id ASC,
+											grafanadb.device.group_id ASC,
+											grafanadb.topic.id  ASC`, [orgId]);
 	return response.rows;
 };

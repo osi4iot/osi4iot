@@ -15,7 +15,7 @@ import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
-
+import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -169,7 +169,7 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgS
             </ZoomControlItem>
             <ZoomControlItem onClick={clickReloadHandler}>
                 <FaRedoStyled />
-            </ZoomControlItem>            
+            </ZoomControlItem>
         </ZoomControlContainer>
     )
 }
@@ -335,15 +335,19 @@ interface MapProps {
     orgsOfGroupsManaged: IOrgOfGroupsManaged[]
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
+    digitalTwins: IDigitalTwin[];
     orgSelected: IOrgManaged | null;
     selectOrg: (orgSelected: IOrgManaged) => void;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
+    digitalTwinSelected: IDigitalTwin | null;
+    selectDigitalTwin: (digitalTwinsSelected: IDigitalTwin) => void;
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
+    refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
     outerBounds: number[][];
     setNewOuterBounds: (outerBounds: number[][]) => void;
@@ -360,15 +364,19 @@ const Map: FC<MapProps> = (
         orgsOfGroupsManaged,
         groupsManaged,
         devices,
+        digitalTwins,
         orgSelected,
         selectOrg,
         groupSelected,
         selectGroup,
         deviceSelected,
         selectDevice,
+        digitalTwinSelected,
+        selectDigitalTwin,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
+        refreshDigitalTwins,
         initialOuterBounds,
         outerBounds,
         setNewOuterBounds,
@@ -378,11 +386,12 @@ const Map: FC<MapProps> = (
         selectDigitalTwinOption,
         resetOrgSelection
     }) => {
-    
+
     const refreshAll = () => {
         refreshOrgsOfGroupsManaged();
         refreshGroupsManaged();
         refreshDevices();
+        refreshDigitalTwins();
     }
 
     return (
@@ -401,8 +410,16 @@ const Map: FC<MapProps> = (
             />
             {
                 (orgSelected && groupSelected) &&
-                <GeoGroup orgData={orgSelected} groupData={groupSelected} deviceDataArray={devices} deviceSelected={deviceSelected} selectDevice={selectDevice} />
-
+                <GeoGroup
+                    orgData={orgSelected}
+                    groupData={groupSelected}
+                    deviceDataArray={devices}
+                    deviceSelected={deviceSelected}
+                    selectDevice={selectDevice}
+                    digitalTwins={digitalTwins}
+                    digitalTwinSelected={digitalTwinSelected}
+                    selectDigitalTwin={selectDigitalTwin}
+                />
             }
             <ControlsContainer>
                 <ZoomControls initialOuterBounds={initialOuterBounds} refreshAll={refreshAll} resetOrgSelection={resetOrgSelection} />
@@ -424,7 +441,7 @@ const Map: FC<MapProps> = (
                             deviceSelected={deviceSelected}
                             selectDeviceOption={selectDeviceOption}
                         />
-                    }                    
+                    }
                 </ComponentsControlContainer>
             </ControlsContainer>
         </MapContainerStyled>

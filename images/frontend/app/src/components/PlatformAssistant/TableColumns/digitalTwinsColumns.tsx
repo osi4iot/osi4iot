@@ -121,7 +121,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
         },
         {
             Header: "DeviceId",
-            accessor: "id",
+            accessor: "deviceId",
             filter: 'equals'
         },
         {
@@ -165,8 +165,8 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const digitalTwinId = row?.cells[0]?.value;
-                const groupId = row?.cells[2]?.value;
-                const deviceId = row?.cells[3]?.value;
+                const groupId = row?.cells[1]?.value;
+                const deviceId = row?.cells[2]?.value;
                 return <DeleteDigitalTwinModal digitalTwinId={digitalTwinId} groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} refreshDigitalTwins={refreshDigitalTwins} />
             }
         }

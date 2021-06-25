@@ -80,9 +80,15 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         const url = `https://${domainName}/admin_api/topic/${groupId}/${deviceId}`;
         const config = axiosAuth(accessToken);
 
+        const topicData = {
+            sensorName: values.sensorName,
+            description: values.description,
+            payloadFormat: values.payloadFormat,
+        }
+
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)
-            .post(url, values, config)
+            .post(url, topicData, config)
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);

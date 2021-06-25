@@ -7,6 +7,7 @@ import SelectGroupManaged from './SelectGroupManaged';
 import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
 import SelectOrgOfGroupsManaged from './SelectOrgOfGroupsManaged';
 import SelectDevice from './SelectDevice';
+import { IDigitalTwin } from './TableColumns/digitalTwinsColumns';
 
 
 export const GEOLOCATION_OPTIONS = {
@@ -22,15 +23,19 @@ interface GeolocationContainerProps {
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
+    digitalTwins: IDigitalTwin[];
     orgSelected: IOrgManaged | null;
     selectOrg: (orgSelected: IOrgManaged) => void;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
+    digitalTwinSelected: IDigitalTwin | null;
+    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
+    refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
     outerBounds: number[][];
     setNewOuterBounds: (outerBounds: number[][]) => void;
@@ -42,15 +47,19 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         orgsOfGroupsManaged,
         groupsManaged,
         devices,
+        digitalTwins,
         orgSelected,
         selectOrg,
         groupSelected,
         selectGroup,
         deviceSelected,
         selectDevice,
+        selectDigitalTwin,
+        digitalTwinSelected,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
+        refreshDigitalTwins,
         initialOuterBounds,
         outerBounds,
         setNewOuterBounds,
@@ -98,15 +107,19 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     orgsOfGroupsManaged={orgsOfGroupsManaged}
                     groupsManaged={groupsManaged}
                     devices={devices}
+                    digitalTwins={digitalTwins}
                     orgSelected={orgSelected}
                     selectOrg={selectOrg}
                     groupSelected={groupSelected}
                     selectGroup={selectGroup}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}
+                    selectDigitalTwin={selectDigitalTwin}
+                    digitalTwinSelected={digitalTwinSelected}
                     refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
                     refreshGroupsManaged={refreshGroupsManaged}
                     refreshDevices={refreshDevices}
+                    refreshDigitalTwins={refreshDigitalTwins}
                     initialOuterBounds={initialOuterBounds}
                     outerBounds={outerBounds}
                     setNewOuterBounds={setNewOuterBounds}
@@ -136,7 +149,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     backToMap={backToMap}
                     giveDeviceSelected={giveDeviceSelected}
                 />
-            }            
+            }
         </>
     )
 }

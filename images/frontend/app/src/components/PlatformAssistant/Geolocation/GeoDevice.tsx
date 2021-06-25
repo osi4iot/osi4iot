@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef } from "react";
+import { FC, useEffect, useRef, useMemo } from "react";
 import { SVGOverlay, Circle, useMap } from 'react-leaflet';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { LatLngTuple } from 'leaflet';
@@ -53,32 +53,27 @@ const setDeviceCircleColor = (deviceId: number, deviceSelected: IDevice | null):
     return color;
 }
 
+const deviceSize = 0.00002;
+const radius = 0.00003;
 
 const GeoDevice: FC<GeoDeviceProps> = ({ deviceData, deviceSelected, selectDevice }) => {
     const geoJsonLayer = useRef(null);
     const map = useMap();
-    const deviceSize = 0.00002;
-    const radius = 0.00003;
+
     const bounds = [
         [deviceData.latitude - deviceSize * 0.5, deviceData.longitude - deviceSize * 0.5],
         [deviceData.latitude + deviceSize * 0.5, deviceData.longitude + deviceSize * 0.5],
     ];
 
-    const outerBounds = [
+    const outerBounds = useMemo(() => [
         [deviceData.latitude - radius * 0.5, deviceData.longitude - radius * 0.5],
         [deviceData.latitude + radius * 0.5, deviceData.longitude + radius * 0.5],
-    ]
+    ], [deviceData]);
 
     const clickHandler = () => {
         map.fitBounds(outerBounds as LatLngTuple[]);
         selectDevice(deviceData);
     }
-
-    // const styleGeoJson = (geoJsonFeature: any) => {
-    //     const isSelected = deviceData.id === deviceSelected;
-    //     return setDeviceStyle("OK", isSelected);
-    // }
-
 
     useEffect(() => {
         const currenGeoJsonLayer = geoJsonLayer.current;
@@ -89,6 +84,10 @@ const GeoDevice: FC<GeoDeviceProps> = ({ deviceData, deviceSelected, selectDevic
                 .setStyle(setDeviceStyle("OK", isSelected));
         }
     }, [deviceData, deviceSelected]);
+
+    useEffect(() => {
+        if (deviceSelected?.id === deviceData.id) map.fitBounds(outerBounds as LatLngTuple[]);
+    }, [deviceSelected, deviceData.id, outerBounds, map]);
 
     return (
         <Circle

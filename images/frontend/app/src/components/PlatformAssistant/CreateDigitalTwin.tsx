@@ -77,12 +77,19 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
         const deviceId = values.deviceId;
-        const url = `https://${domainName}/admin_api/topic/${groupId}/${deviceId}`;
+        const url = `https://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}`;
         const config = axiosAuth(accessToken);
+
+        const digitalTwinData = {
+            name: values.name,
+            description: values.description,
+            type: values.type,
+            url: values.url
+        }
 
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)
-            .post(url, values, config)
+            .post(url, digitalTwinData, config)
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);

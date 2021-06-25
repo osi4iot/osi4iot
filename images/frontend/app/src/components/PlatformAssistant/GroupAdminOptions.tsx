@@ -269,7 +269,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
             const config = axiosAuth(accessToken);
-            const urlDigitalTwins = `https://${domainName}/admin_api/topics/user_managed`;
+            const urlDigitalTwins = `https://${domainName}/admin_api/digital_twins/user_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwins, config)
                 .then((response) => {

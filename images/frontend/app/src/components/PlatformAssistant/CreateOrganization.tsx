@@ -149,8 +149,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
             (values as any).geoJsonData = "{}";
         }
 
-        console.log("(values as any).geoJsonData", (values as any).geoJsonData);
-
         axiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
             .then((response) => {

@@ -5,6 +5,8 @@ import { StyledTooltip as Tooltip } from './Tooltip';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
+import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
+import GeoDigitalTwins from "./GeoDigitalTwins";
 // import { geoJsonGroupText } from "./geoJsonGroupText";
 
 const STATUS_OK = "#3e3f3b";
@@ -57,11 +59,26 @@ interface GeoGroupProps {
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
+    digitalTwins: IDigitalTwin[];
+    digitalTwinSelected: IDigitalTwin | null;
+    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
 }
 
-const GeoGroup: FC<GeoGroupProps> = ({ orgData, groupData, deviceDataArray, deviceSelected, selectDevice }) => {
+const GeoGroup: FC<GeoGroupProps> = (
+    {
+        orgData,
+        groupData,
+        deviceDataArray,
+        deviceSelected,
+        selectDevice,
+        digitalTwins,
+        digitalTwinSelected,
+        selectDigitalTwin
+    }) => {
     const geoJsonLayerGroupBase = useRef(null);
     const geoJsonLayerGroupData = useRef(null);
+
+    const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
 
     const styleGeoJson = (geoJsonFeature: any) => {
         return setGroupStyle("OK");
@@ -105,7 +122,22 @@ const GeoGroup: FC<GeoGroupProps> = ({ orgData, groupData, deviceDataArray, devi
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
                         {
-                            deviceDataArray.map(deviceData => <GeoDevice key={deviceData.id} deviceData={deviceData} deviceSelected={deviceSelected} selectDevice={selectDevice} />)
+                            deviceDataArray.map(deviceData =>
+                                <GeoDevice
+                                    key={deviceData.id}
+                                    deviceData={deviceData}
+                                    deviceSelected={deviceSelected}
+                                    selectDevice={selectDevice}
+                                />
+                            )
+                        }
+                        {deviceSelected &&
+                            <GeoDigitalTwins
+                                deviceSelected={deviceSelected}
+                                digitalTwins={digitalTwinsFiltered}
+                                digitalTwinSelected={digitalTwinSelected}
+                                selectDigitalTwin={selectDigitalTwin}
+                            />
                         }
                     </LayerGroup >
                     :
