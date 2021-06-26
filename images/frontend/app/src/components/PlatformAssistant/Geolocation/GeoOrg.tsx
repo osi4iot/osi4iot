@@ -2,7 +2,7 @@ import { FC, useEffect, useState, useRef } from "react";
 import { GeoJSON, Marker, useMap } from 'react-leaflet';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { LatLngTuple } from 'leaflet';
-import {  Polygon } from 'geojson';
+import { Polygon } from 'geojson';
 import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 
@@ -44,9 +44,11 @@ interface GeoOrgProps {
     orgSelected: IOrgManaged | null;
     selectOrg: (orgSelected: IOrgManaged) => void;
     groupSelected: IGroupManaged | null;
+    groupsManaged: IGroupManaged[];
+    selectGroup: (groupSelected: IGroupManaged) => void;
 }
 
-const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelected }) => {
+const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelected, groupsManaged, selectGroup }) => {
     const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
     const geoJsonLayer = useRef(null);
     const map = useMap();
@@ -79,11 +81,15 @@ const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelecte
     const clickHandler = () => {
         map.fitBounds(outerBounds as LatLngTuple[]);
         selectOrg(orgData);
+        const groupsFiltered = groupsManaged.filter(group => group.orgId === orgData.id);
+        if (groupsFiltered.length === 1) {
+            selectGroup(groupsFiltered[0]);
+        }
     }
 
 
     const styleGeoJson = (geoJsonFeature: any) => {
-        const isSelected =  orgSelected?.id === orgData.id;
+        const isSelected = orgSelected?.id === orgData.id;
         return setOrgStyle(orgStatus, isSelected);
     }
 

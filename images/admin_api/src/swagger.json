@@ -53,7 +53,11 @@
 		{
 			"name": "Topic",
 			"description": "Management of topics of devices of the IOT Platform - Default role required: Group_Admin"
-		}		
+		},
+		{
+			"name": "Digital twin",
+			"description": "Management of digital twin of devices of the IOT Platform - Default role required: Group_Admin"
+		}				
 	],
 	"consumes": ["application/json"],
 	"produces": ["application/json"],
@@ -2976,42 +2980,6 @@
 					"type": "number"
 				}				
 			],
-			"get": {
-				"tags": ["Topic"],
-				"summary": "Get Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/definitions/TopicOutput"
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "No auth token or invalid token",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/definitions/Credentials_rejected"
-								}
-							}
-						}
-					},
-					"404": {
-						"description": "Group not found",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/definitions/GroupNotFoundMessage"
-								}
-							}
-						}
-					}
-				}
-			},
 			"patch": {
 				"tags": ["Topic"],
 				"summary": "Update Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
@@ -3280,7 +3248,363 @@
 					}
 				}
 			}
-		}										
+		},
+		"/digital_twins/user_managed": {
+			"get": {
+				"tags": ["Digital twin"],
+				"summary": "Get all digital twins managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwins"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}          
+				}
+			}
+		},		
+		"/digital_twins_in_org/{orgId}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": ["Digital twin"],
+				"summary": "Get all digital twins in the organization - Role required: Organization_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwins"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
+								}
+							}
+						}
+					}              
+				}
+			}
+		},
+		"/digital_twins_in_group/{groupId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": ["Digital twin"],
+				"summary": "Get all digital twins in a group of the platform - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwins"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}              
+				}
+			}
+		},
+		"/digital_twin/{groupId}/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id or name of the digital twin",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "Digital twin property value",
+					"type": "string"
+				}				
+			],
+			"get": {
+				"tags": ["Digital twin"],
+				"summary": "Get digital twin by propName: id or name  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwinsOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/digital_twin/{groupId}/{deviceId}/{digitalTwinId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "string"
+				},
+				{
+					"name": "digitalTwinId",
+					"in": "path",
+					"required": true,
+					"description": "Digital twin id",
+					"type": "number"
+				}				
+			],
+			"patch": {
+				"tags": ["Digital twin"],
+				"summary": "Update digital twin by id  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/DigitalTwinInput"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},			
+			"delete": {
+				"tags": ["Digital twin"],
+				"summary": "Delete digital twin by id - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
+		"/digital_twin/{groupId}/{deviceId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "number"
+				}		
+			],
+			"post": {
+				"tags": ["Digital twin"],
+				"summary": "Create digital twin for a device in a group  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/DigitalTwinInput"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		}				
 	},
 	"definitions": {
 		"UserRegister": {
@@ -4331,7 +4655,63 @@
 			"items": {
 				"$ref": "#/definitions/TopicOutput"
 			}
-		}		
+		},
+		"DigitalTwinInput": {
+			"properties": {
+				"name": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"type": {
+					"type": "string"
+				},
+				"url": {
+					"type": "string"
+				}
+			}
+		},		
+		"DigitalTwinOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"groupId": {
+					"type": "number"
+				},
+				"deviceId": {
+					"type": "number"
+				},														
+				"name": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"type": {
+					"type": "string"
+				},
+				"url": {
+					"type": "string"
+				},
+				"created": {
+					"type": "string"
+				},										
+				"updated": {
+					"type": "string"
+				}	
+			}
+		},
+		"DigitalTwins": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/DigitalTwinOutput"
+			}
+		}			
 	}
 }
   

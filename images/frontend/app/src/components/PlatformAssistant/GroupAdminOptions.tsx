@@ -310,7 +310,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     Mesurements
                 </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DIGITAL_TWINS)}>
-                    Digital twins
+                    Digital twins management
                 </OptionContainer>                
             </GroupAdminOptionsContainer>
             <ContentContainer >

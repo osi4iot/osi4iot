@@ -407,6 +407,8 @@ const Map: FC<MapProps> = (
                 orgSelected={orgSelected}
                 selectOrg={selectOrg}
                 groupSelected={groupSelected}
+                groupsManaged={groupsManaged}
+                selectGroup={selectGroup}
             />
             {
                 (orgSelected && groupSelected) &&

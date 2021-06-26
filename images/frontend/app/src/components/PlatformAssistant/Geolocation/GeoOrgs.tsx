@@ -12,9 +12,11 @@ interface GeoOrgsProps {
     orgSelected: IOrgManaged | null;
     selectOrg: (orgSelected: IOrgManaged) => void;
     groupSelected: IGroupManaged | null;
+    groupsManaged: IGroupManaged[];
+    selectGroup: (groupSelected: IGroupManaged) => void;
 }
 
-const GeoOrgs: FC<GeoOrgsProps> = ({ outerBounds, orgDataArray, orgSelected, selectOrg, groupSelected }) => {
+const GeoOrgs: FC<GeoOrgsProps> = ({ outerBounds, orgDataArray, orgSelected, selectOrg, groupSelected, groupsManaged, selectGroup }) => {
     const map = useMap();
 
     useEffect(() => {
@@ -25,7 +27,15 @@ const GeoOrgs: FC<GeoOrgsProps> = ({ outerBounds, orgDataArray, orgSelected, sel
         <LayerGroup>
             {
                 orgDataArray.map(orgData =>
-                    <GeoOrg key={orgData.id} orgData={orgData} orgSelected={orgSelected} selectOrg={selectOrg} groupSelected={groupSelected} />
+                    <GeoOrg
+                        key={orgData.id}
+                        orgData={orgData}
+                        orgSelected={orgSelected}
+                        selectOrg={selectOrg}
+                        groupSelected={groupSelected}
+                        groupsManaged={groupsManaged}
+                        selectGroup={selectGroup}
+                    />
                 )
 
             }

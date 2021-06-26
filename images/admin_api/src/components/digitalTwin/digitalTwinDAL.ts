@@ -114,7 +114,7 @@ export const getNumDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[])
 }
 
 export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(`ELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
 									grafanadb.digital_twin.name, grafanadb.digital_twin.description,
 									grafanadb.digital_twin.type, grafanadb.digital_twin.url,
