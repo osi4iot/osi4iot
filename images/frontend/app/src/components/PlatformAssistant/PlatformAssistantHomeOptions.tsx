@@ -302,10 +302,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                 .get(urlDevices, config)
                 .then((response) => {
                     const devices = response.data;
-                    devices.map((device: { isDefaultGroupDevice: string; }) => {
-                        device.isDefaultGroupDevice = device.isDefaultGroupDevice ? "Default" : "Generic";
-                        return device;
-                    })
                     setDevicesTable(plaformAssistantDispatch, { devices });
                     setDevicesLoading(false);
                 })

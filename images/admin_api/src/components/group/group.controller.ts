@@ -46,6 +46,8 @@ import sslCerticatesGenerator from "./sslCerticatesGenerator";
 import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
+import { createTopic, demoTopicSensorName } from "../topic/topicDAL";
+import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -255,14 +257,62 @@ class GroupController implements IController {
 				});
 			}
 			const groupCreated = await createGroup(orgId, groupInput, req.organization.name);
-			const defaultGroupDeviceData = {
-				name: defaultGroupDeviceName(groupCreated),
-				description: `Default device of the group ${groupCreated.name}`,
-				latitude: req.organization.longitude,
-				longitude: req.organization.longitude
-			};
-			const device = await createDevice(groupCreated, defaultGroupDeviceData, true);
-			await createDemoDashboards(req.organization.acronym, groupCreated, device);
+			const defaultGroupDeviceData = [
+				{
+					name: defaultGroupDeviceName(groupCreated, "Generic"),
+					description: `Default generic device of the group ${groupCreated.name}`,
+					latitude: req.organization.longitude,
+					longitude: req.organization.longitude,
+					type: "Generic"
+				},
+				{
+					name: defaultGroupDeviceName(groupCreated, "Mobile"),
+					description: `Default mobile device of the group ${groupCreated.name}`,
+					latitude: req.organization.longitude,
+					longitude: req.organization.longitude,
+					type: "Mobile"
+				}
+			];
+			const device1 = await createDevice(groupCreated, defaultGroupDeviceData[0]);
+			const device2 = await createDevice(groupCreated, defaultGroupDeviceData[1]);
+
+			const defaultDeviceTopicsData = [
+				{
+					sensorName: demoTopicSensorName(groupCreated, device1, "Temperature"),
+					description: `Temperature sensor for default generic device of the group ${groupCreated.acronym}`,
+					sensorType: "Temperature",
+					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
+				},
+				{
+					sensorName: demoTopicSensorName(groupCreated, device2, "Accelerometer"),
+					description: `Accelerometer for default mobile device of the group ${groupCreated.acronym}`,
+					sensorType: "Accelerometer",
+					payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+				},
+			];
+			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
+			const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
+
+			const digitalTwinsUrl = await createDemoDashboards(req.organization.acronym, groupCreated, [device1, device2], [topic1, topic2]);
+
+			const defaultDeviceDigitalTwinsData = [
+				{
+					name: demoDigitalTwinName(groupCreated, "Generic"),
+					description: `Demo digital twin for default generic device of the group ${groupCreated.acronym}`,
+					type: "Grafana",
+					url: digitalTwinsUrl[0]
+				},
+				{
+					name: demoDigitalTwinName(groupCreated, "Mobile"),
+					description: `Demo digital twin for default mobile device of the group ${groupCreated.acronym}`,
+					type: "Grafana",
+					url: digitalTwinsUrl[1]
+				},
+			];
+
+			await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
+			await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
+
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;
 			const isOrgDefaultGroup = false;

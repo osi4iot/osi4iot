@@ -42,8 +42,10 @@ client.on("connect", async function () {
 
 	try {
 		const deviceInfo = await getDeviceInformation();
+		const topicInfo = await getTopicInformation();
 		const GroupHash = `Group_${deviceInfo.groupUid}`;
 		const DeviceHash = `Device_${deviceInfo.deviceUid}`;
+		const TopicHash = `Topic_${topicInfo.topicUid}`;
 
 		interval = setInterval(() => {
 			var currentTime = new Date();
@@ -59,7 +61,7 @@ client.on("connect", async function () {
 					temperature: tempReaded,
 				};
 
-				const topic = `dev2pdb/${GroupHash}/${DeviceHash}/temperature`;
+				const topic = `dev2pdb/${GroupHash}/${DeviceHash}/${TopicHash}`;
 				client.publish(topic, JSON.stringify(data2Send), { qos: 2 }, function () {
 					console.log("Message published: ", data2Send);
 				});
@@ -90,8 +92,25 @@ async function getDeviceInformation() {
 
 	const device = await needle("post", url, userData, options)
 		.then((res) => res.body)
-		.catch((err) => console.log("error", "Device information could not be obtainded: %s", err.message));
+		.catch((err) => console.log("error", "Device information could not be obtained: %s", err.message));
 	return device;
+}
+
+async function getTopicInformation() {
+	const url = `https://${config.host}/admin_api/topic_information/${config.groupId}/${config.topicId}`;
+	options = {
+		rejectUnauthorized: false,
+		json: true,
+	};
+	const userData = {
+		emailOrLogin: config.userLogin,
+		password: config.userPassword,
+	};
+
+	const topic = await needle("post", url, userData, options)
+		.then((res) => res.body)
+		.catch((err) => console.log("error", "Topic information could not be obtained: %s", err.message));
+	return topic;
 }
 
 function EndProcess() {

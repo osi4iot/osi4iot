@@ -1,8 +1,16 @@
 import pool from "../../config/dbconfig";
+import IGroup from "../group/interfaces/Group.interface";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinUpdate from "./digitalTwinUpdate.interface";
 
+
+export const demoDigitalTwinName =  (group: IGroup, deviceType: string): string => {
+	let digitalTwinName: string;
+	if (deviceType === "Mobile") digitalTwinName = `${group.acronym.replace(/ /g, "_")}_mobile_default_DT`;
+	else digitalTwinName = `${group.acronym.replace(/ /g, "_")}_generic_default_DT`;
+	return digitalTwinName;
+}
 
 export const insertDigitalTwin = async (digitalTwinData: IDigitalTwinUpdate): Promise<IDigitalTwinUpdate> => {
 	const result = await pool.query(`INSERT INTO grafanadb.digital_twin (device_id,

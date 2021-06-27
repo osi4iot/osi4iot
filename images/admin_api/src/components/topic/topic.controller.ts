@@ -9,9 +9,9 @@ import organizationExists from "../../middleware/organizationExists.middleware";
 import CreateTopicDto from "./topic.dto";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
-import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfDevice } from "../group/dashboardDAL";
+import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfTopic } from "../group/dashboardDAL";
 import LoginDto from "../Authentication/login.dto";
-import { updateDeviceUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
+import {  updateTopicUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import ITopic from "./topic.interface";
 import { getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
@@ -214,8 +214,8 @@ class TopicController implements IController {
 			if (!topic) throw new ItemNotFoundException("The topic", "id", topicId);
 			const dashboards = await getDashboardsDataWithRawSqlOfGroup(req.group);
 			const newTopicUid = await changeTopicUidByUid(topic);
-			// await updateDashboardsDataRawSqlOfDevice(topic, newDeviceUid, dashboards);
-			//  await updateDeviceUidRawSqlAlertSettingOfGroup(req.group, topic.topicUid, newDeviceUid);
+			await updateDashboardsDataRawSqlOfTopic(topic, newTopicUid, dashboards);
+			await updateTopicUidRawSqlAlertSettingOfGroup(req.group, topic.topicUid, newTopicUid);
 			const message = { newTopicUid };
 			res.status(200).json(message);
 		} catch (error) {

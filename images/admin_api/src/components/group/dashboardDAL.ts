@@ -1,6 +1,9 @@
 import { v4 as uuidv4 } from "uuid";
 import pool from "../../config/dbconfig";
+import getDomainUrl from "../../utils/helpers/getDomainUrl";
 import IDevice from "../device/device.interface";
+import ITopic from "../topic/topic.interface";
+import ITopicUpdate from "../topic/topicUpdate.interface";
 import { createAlert } from "./alertDAL";
 import { getDataSourceByProp } from "./datasourceDAL";
 import { accelDashboardJson } from "./defaultDashboards/accelDashboardJson";
@@ -89,6 +92,27 @@ export const updateDashboardsDataRawSqlOfDevice = async (device: IDevice, newDev
 	await Promise.all(updateRawSqlQueries);
 };
 
+export const updateDashboardsDataRawSqlOfTopic = async (topic: ITopic, newTopicUid: string, dashboardsWithRawSql: IDashboardData[]): Promise<void> => {
+	const updateRawSqlQueries: any[] = [];
+	dashboardsWithRawSql.forEach(dashboard => {
+		const data = JSON.parse(dashboard.data);
+		for (const panel of data.panels) {
+			if (panel.datasource) {
+				const targets = panel.targets;
+				for (const target of targets) {
+					if (target.rawSql !== "" && target.rawSql.search(topic.topicUid) !== -1) {
+						target.rawSql = target.rawSql.replace(topic.topicUid, newTopicUid);
+					}
+				}
+			}
+		}
+		const now = new Date();
+		const query = pool.query('UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3', [now, data, dashboard.id]);
+		updateRawSqlQueries.push(query);
+	});
+	await Promise.all(updateRawSqlQueries);
+};
+
 export const updateDashboardData = async (dashboardId: number, data: any): Promise<void> => {
 	const now = new Date();
 	await pool.query('UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3', [now, data, dashboardId]);
@@ -114,7 +138,7 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 	await insertPreference(orgId, response.id);
 };
 
-export const createDemoDashboards = async (orgAcronym: string, group: IGroup, device: IDevice): Promise<void> => {
+export const createDemoDashboards = async (orgAcronym: string, group: IGroup, devices: IDevice[], topics: ITopicUpdate[]): Promise<string[]> => {
 	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").toLowerCase()}_db`;
 	const dataSource = await getDataSourceByProp("name", dataSourceName);
 	const grouAcronym = group.acronym;
@@ -123,8 +147,9 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	tempDashboard.uid = uuidv4();
 	tempDashboard.title = titleTempDashboard;
 	const tableHash = `Table_${group.groupUid}`;
-	const deviceHash = `Device_${device.deviceUid}`;
-	const rawSqlTemp = `SELECT timestamp AS \"time\", CAST(payload->>'temperature' AS DOUBLE PRECISION) AS \"Temperature\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/temperature' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	const device1Hash = `Device_${devices[0].deviceUid}`;
+	const topic1Hash = `Topic_${topics[0].topicUid}`;
+	const rawSqlTemp = `SELECT timestamp AS \"time\", CAST(payload->>'temperature' AS DOUBLE PRECISION) AS \"Temperature\" FROM  iot_datasource.${tableHash} WHERE topic = '${device1Hash}/${topic1Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	for (let i = 0; i < 3; i++) {
 		tempDashboard.panels[i].targets[0].rawSql = rawSqlTemp;
 		tempDashboard.panels[i].datasource = dataSourceName;
@@ -133,24 +158,29 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	tempDashboard.panels[0].alert.notifications[0].uid = emailNotificationChannelUid;
 	const telegramNotificationChannelUid = await getNotificationChannelUid(group.telegramNotificationChannelId);
 	tempDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
-	const responseTemp = await insertDashboard(group.orgId, group.folderId, titleTempDashboard, tempDashboard);
+	const tempDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleTempDashboard, tempDashboard);
+	const tempDashboardUrl = `${getDomainUrl()}/grafana/d/${tempDashboardCreated.uid}/${titleTempDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=1s`
 
 	const tempAlertData = JSON.parse(tempAlertJson);
 	tempAlertData.conditions[0].query.datasourceId = dataSource.id;
 	tempAlertData.conditions[0].query.model.rawSql = rawSqlTemp;
 	tempAlertData.notifications[0].uid = emailNotificationChannelUid;
 	tempAlertData.notifications[1].uid = telegramNotificationChannelUid;
-	const tempAlert = createTempDemoAlert(group.orgId, responseTemp.id, 2, tempAlertData);
+	const tempAlert = createTempDemoAlert(group.orgId, tempDashboardCreated.id, 2, tempAlertData);
 	await createAlert(tempAlert);
 
 	const accelDashboard = JSON.parse(accelDashboardJson);
-	const titleTempAccelDashboard = `${grouAcronym.replace(/ /g, "_")}_Accel_demo`;
+	const titleAccelDashboard = `${grouAcronym.replace(/ /g, "_")}_Accel_demo`;
 	accelDashboard.uid = uuidv4();
-	accelDashboard.title = titleTempAccelDashboard;
+	accelDashboard.title = titleAccelDashboard;
 	accelDashboard.panels[0].datasource = dataSourceName;
-	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->>'ax' AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->>'ay' AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->>'az' AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/accelerations' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	const device2Hash = `Device_${devices[1].deviceUid}`;
+	const topic2Hash = `Topic_${topics[1].topicUid}`;
+	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->>'ax' AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->>'ay' AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->>'az' AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${device2Hash}/${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
-	await insertDashboard(group.orgId, group.folderId, titleTempAccelDashboard, accelDashboard);
+	const accelDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleAccelDashboard, accelDashboard);
+	const accelDashboarddUrl = `${getDomainUrl()}/grafana/d/${accelDashboardCreated.uid}/${titleAccelDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=200ms`
+	return [tempDashboardUrl, accelDashboarddUrl];
 };
 
 

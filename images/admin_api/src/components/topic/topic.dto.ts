@@ -8,6 +8,9 @@ class CreateTopicDto {
 	public description: string;
 
 	@IsString()
+	public sensorType: string;
+
+	@IsString()
 	public payloadFormat: string;
 }
 

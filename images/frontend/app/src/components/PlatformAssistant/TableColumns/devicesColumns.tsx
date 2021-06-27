@@ -12,15 +12,15 @@ import { DEVICES_OPTIONS } from '../platformAssistantOptions';
 import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devicesOptions';
 
 export interface IDevice {
+    id: number;
     orgId: number;
     groupId: number;
-    id: number;
     name: string;
     description: string;
-    deviceUid: string;
+    type: string;
     latitude: number;
     longitude: number;
-    isDefaultGroupDevice: boolean;
+    deviceUid: string;
 }
 
 
@@ -167,6 +167,11 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
 export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDeviceColumn>[] => {
     return [
         {
+            Header: "DeviceId",
+            accessor: "id",
+            filter: 'equals'
+        },
+        {
             Header: "OrgId",
             accessor: "orgId",
             filter: 'equals'
@@ -174,11 +179,6 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
         {
             Header: "GroupId",
             accessor: "groupId",
-            filter: 'equals'
-        },
-        {
-            Header: "DeviceId",
-            accessor: "id",
             filter: 'equals'
         },
         {
@@ -190,10 +190,9 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             accessor: "description"
         },
         {
-            Header: "Device hash",
-            accessor: "deviceUid",
-            disableFilters: true,
-            disableSortBy: true
+            Header: "Type",
+            accessor: "type",
+            disableFilters: true
         },
         {
             Header: "Longitude",
@@ -208,9 +207,10 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableSortBy: true
         },
         {
-            Header: "Type",
-            accessor: "isDefaultGroupDevice",
-            disableFilters: true
+            Header: "Device hash",
+            accessor: "deviceUid",
+            disableFilters: true,
+            disableSortBy: true
         },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Change<br />hash</div>,
@@ -221,7 +221,7 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const deviceId = row?.cells[0]?.value;
-                const groupId = row?.cells[1]?.value;
+                const groupId = row?.cells[2]?.value;
                 return <ChangeDeviceHashModal groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} refreshDevices={refreshDevices} />
             }
         },
@@ -246,7 +246,7 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const deviceId = row?.cells[0]?.value;
-                const groupId = row?.cells[1]?.value;
+                const groupId = row?.cells[2]?.value;
                 return <DeleteDeviceModal groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} refreshDevices={refreshDevices} />
             }
         }

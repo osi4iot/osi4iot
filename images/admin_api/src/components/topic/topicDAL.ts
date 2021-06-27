@@ -1,15 +1,24 @@
 import { nanoid } from "nanoid";
 import pool from "../../config/dbconfig";
+import IDevice from "../device/device.interface";
+import IGroup from "../group/interfaces/Group.interface";
 import CreateTopicDto from './topic.dto';
 import ITopic from "./topic.interface";
 import ITopicUpdate from "./topicUpdate.interface";
 
+export const demoTopicSensorName = (group: IGroup, device: IDevice, sensorType: string): string => {
+	let sensorName: string;
+	if (device.type === "Mobile") sensorName = `${group.acronym.replace(/ /g, "_")}_mobile_default_${sensorType.replace(/ /g, "_")}`;
+	else sensorName = `${group.acronym.replace(/ /g, "_")}_generic_default_${sensorType.replace(/ /g, "_")}`;
+	return sensorName;
+}
+
 
 export const insertTopic = async (topicData: ITopicUpdate): Promise<ITopicUpdate> => {
 	const result = await pool.query(`INSERT INTO grafanadb.topic (device_id,
-					sensor_name, description, payload_format, topic_uid,
+					sensor_name, description, sensor_type, payload_format, topic_uid,
 					created, updated)
-					VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+					VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 					RETURNING  id, device_id AS "deviceId", description,
 					payload_format AS "payloadFormat", topic_uid AS "topicUid",
 					created, updated`,
@@ -17,6 +26,7 @@ export const insertTopic = async (topicData: ITopicUpdate): Promise<ITopicUpdate
 			topicData.deviceId,
 			topicData.sensorName,
 			topicData.description,
+			topicData.sensorType,
 			topicData.payloadFormat,
 			topicData.topicUid
 		]);
@@ -25,11 +35,12 @@ export const insertTopic = async (topicData: ITopicUpdate): Promise<ITopicUpdate
 
 export const updateTopicById = async (topicId: number, topic: ITopic): Promise<void> => {
 	const query = `UPDATE grafanadb.topic SET sensor_name = $1, description = $2,
-					payload_format = $3, updated = NOW()
+					sensor_type = $2, payload_format = $4, updated = NOW()
 					WHERE grafanadb.topic.id = $4;`;
 	const result = await pool.query(query, [
 		topic.sensorName,
 		topic.description,
+		topic.sensorType,
 		topic.payloadFormat,
 		topicId
 	]);
@@ -58,7 +69,7 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
                                     grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
 	                                grafanadb.topic.sensor_name AS "sensorName", grafanadb.topic.description,
-									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.sensor_type AS "sensorType", grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -71,7 +82,7 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
 									grafanadb.topic.sensor_name AS "sensorName", grafanadb.topic.description,
-									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.sensor_type AS "sensorType", grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -92,7 +103,7 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
 									grafanadb.topic.sensor_name AS "sensorName", grafanadb.topic.description,
-									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.sensor_type AS "sensorType", grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -108,7 +119,7 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
 									grafanadb.topic.sensor_name AS "sensorName", grafanadb.topic.description,
-									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.sensor_type AS "sensorType", grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -132,7 +143,7 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
 									grafanadb.topic.sensor_name AS "sensorName", grafanadb.topic.description,
-									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.sensor_type AS "sensorType", grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic

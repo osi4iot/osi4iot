@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS iot_data.thingData(
   timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   group_uid varchar(42) NOT NULL,
   device_uid varchar(42) NOT NULL,
+  topic_uid varchar(42) NOT NULL,
   topic varchar(1024) NOT NULL,
   payload json NOT NULL,
   deleted  SMALLINT NOT NULL

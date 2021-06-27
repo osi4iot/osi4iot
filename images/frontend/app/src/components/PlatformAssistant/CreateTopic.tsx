@@ -83,6 +83,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         const topicData = {
             sensorName: values.sensorName,
             description: values.description,
+            sensorType: values.sensorType,
             payloadFormat: values.payloadFormat,
         }
 
@@ -110,6 +111,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         deviceId: "",
         sensorName: "",
         description: "",
+        sensorType: "",
         payloadFormat: "{}"
     }
 
@@ -117,7 +119,8 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         groupId: Yup.number().required('Required'),
         deviceId: Yup.number().required('Required'),
         sensorName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        description: Yup.string().required('Required'),
+        description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        sensorType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         payloadFormat: Yup.string().required('Required'),
     });
 
@@ -159,6 +162,12 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                         name='description'
                                         type='text'
                                     />
+                                    <FormikControl
+                                        control='input'
+                                        label='Sensor type'
+                                        name='sensorType'
+                                        type='text'
+                                    />                                    
                                     <FormikControl
                                         control='textarea'
                                         label='Payload format'

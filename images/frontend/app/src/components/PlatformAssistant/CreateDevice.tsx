@@ -28,6 +28,16 @@ const ControlsContainer = styled.div`
     }
 `;
 
+const deviceTypeOptions = [
+    {
+        label: "Generic",
+        value: "Generic"
+    },
+    {
+        label: "Mobile",
+        value: "Mobile"
+    }
+];
 
 const domainName = getDomainName();
 
@@ -58,7 +68,8 @@ const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) =>
             name: values.name,
             description: values.description,
             longitude: values.longitude,
-            latitude: values.latitude
+            latitude: values.latitude,
+            type: values.type
         }
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)
@@ -83,6 +94,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) =>
         groupId: "",
         name: "",
         description: "",
+        type: "Generic",
         longitude: 0,
         latitude: 0,
     }
@@ -90,7 +102,8 @@ const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) =>
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
         name: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
-        description: Yup.string().required('Required'),
+        description: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
+        type: Yup.string().required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
     });
@@ -127,6 +140,13 @@ const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) =>
                                         name='description'
                                         type='text'
                                     />
+                                    <FormikControl
+                                        control='select'
+                                        label='Type'
+                                        name="type"
+                                        options={deviceTypeOptions}
+                                        type='text'
+                                    />                                    
                                     <FormikControl
                                         control='input'
                                         label='Longitude'

@@ -5,7 +5,7 @@ export interface ISelectDevice {
     id: number;
     name: string;
     description: string;
-    isDefaultGroupDevice: boolean;
+    type: string;
     groupId: number;
 }
 
@@ -25,7 +25,7 @@ export const SELECT_DEVICE_COLUMNS: Column<ISelectDevice>[] = [
     },
     {
         Header: "Type",
-        accessor: "isDefaultGroupDevice",
+        accessor: "type",
         disableFilters: true
     },
     {

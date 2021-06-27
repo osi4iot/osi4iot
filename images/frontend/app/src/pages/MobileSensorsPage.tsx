@@ -1,7 +1,6 @@
 import axios from "axios";
 import React, { ChangeEvent, FC, SyntheticEvent, useEffect, useState } from "react";
 import styled from "styled-components";
-import { nanoid } from "nanoid";
 import Paho from "paho-mqtt";
 import Alert from "../components/Tools/Alert";
 import Header from "../components/Layout/Header";
@@ -13,6 +12,7 @@ import { getDomainName, isValidNumber, isValidText } from "../tools/tools";
 import ReadAccelerations from "../tools/ReadingAccelerations";
 import MqttConnection from "../tools/MqttConnection";
 import ProgresBar from "../components/Tools/ProgressBar";
+import { ITopic } from "../components/PlatformAssistant/TableColumns/topicsColumns";
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -43,8 +43,8 @@ const Form = styled.form`
 	margin: 0 5px;
 	color: white;
 	margin: 10px 0;
-	padding: 20px 20px 90px 20px;
-	width: 300px;
+	padding: 10px 12px 90px 12px;
+	width: 310px;
 	border: 2px solid #3274d9;
 	border-radius: 15px;
 `;
@@ -180,34 +180,53 @@ const areReadingParameterOK = (readingParameters: ReadingParameters): boolean =>
 
 const initialFormValues = {
 	deviceSelectedIndex: 0,
-	topic: "accelerations",
+	topicSelectedIndex: 0,
 	totalReadingTime: 20,
 	samplingFrequency: 25,
 };
 
-let mqttClient: (Paho.Client | null ) = null;
+let mqttClient: (Paho.Client | null) = null;
 
 const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
-	const [devicesManaged, setDevicesManaged] = useState([]);
+	const [devicesManaged, setDevicesManaged] = useState<IDevice[]>([]);
+	const [topicsManaged, setTopicsManaged] = useState<ITopic[]>([]);
+	const [topicsSelect, setTopicsSelect] = useState<ITopic[]>([]);
+	const [topicOptionSelected, setTopicOptionSelected] = useState(0);
 	const [isValidationRequired, setIsValidationRequired] = useState(false);
 	const [isMqttConnected, setIsMqttConnected] = useState(false);
 	const [formValues, setFormValues] = useState(initialFormValues);
 	const [readingProgress, setReadingProgress] = useState(0);
 	const [isSensorReading, setIsSensorReadings] = useState(false);
-	const { deviceSelectedIndex, topic, totalReadingTime, samplingFrequency } = formValues;
+	const { deviceSelectedIndex, topicSelectedIndex, totalReadingTime, samplingFrequency } = formValues;
 
 	const { accessToken, loading, errorMessage } = useAuthState();
 
 	useEffect(() => {
-		const url = `https://${domainName}/admin_api/devices/user_managed`;
+		const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
+		const urlTopics = `https://${domainName}/admin_api/topics/user_managed`;
 		const config = {
 			headers: { Authorization: `Bearer ${accessToken}` },
 		};
 		axios
-			.get(url, config)
+			.get(urlDevices, config)
 			.then((response) => {
-				const devices = response.data;
-				setDevicesManaged(devices);
+				const devices: IDevice[] = response.data;
+				const devicesManaged = devices.filter(device => device.type === "Mobile");
+				const devicesManagesIdsArray = devicesManaged.map(device => device.id);
+				setDevicesManaged(devicesManaged);
+				axios
+					.get(urlTopics, config)
+					.then((response) => {
+						const topics: ITopic[] = response.data;
+						const topicsManaged = topics.filter(topic => devicesManagesIdsArray.indexOf(topic.deviceId) !== -1);
+						setTopicsManaged(topicsManaged);
+						const topicsSelect = topicsManaged.filter(topic => topic.deviceId === devicesManaged[0].id);
+						setTopicsSelect(topicsSelect);
+					})
+					.catch((error) => {
+						console.log(error);
+					});
+
 			})
 			.catch((error) => {
 				console.log(error);
@@ -226,10 +245,32 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 		setFormValues(changedFormValues);
 	};
 
-	const handleSelectChange = (e: React.FormEvent<HTMLSelectElement>) => {
+	const handleDeviceSelectChange = (e: React.FormEvent<HTMLSelectElement>) => {
+		const deviceSelectedIndex = parseInt(e.currentTarget.value, 10);
+		const selectedDevice = devicesManaged[deviceSelectedIndex];
+		const topicsSelect = topicsManaged.filter(topic => topic.deviceId === selectedDevice.id);
+		setTopicsSelect(topicsSelect);
 		const changedFormValues = {
 			...formValues,
-			deviceSelectedIndex: parseInt(e.currentTarget.value, 10),
+			deviceSelectedIndex,
+		};
+		setFormValues(changedFormValues);
+	};
+
+	const handleTopicSelectChange = (e: React.FormEvent<HTMLSelectElement>) => {
+		const topicOptionSelected = parseInt(e.currentTarget.value, 10);
+		setTopicOptionSelected(topicOptionSelected);
+		const selectedTopic = topicsSelect[topicOptionSelected];
+		let topicSelectedIndex = 0;
+		for (let index = 0; index < topicsManaged.length; index++) {
+			if (topicsManaged[index].id === selectedTopic.id) {
+				topicSelectedIndex = index;
+				break;
+			}
+		}
+		const changedFormValues = {
+			...formValues,
+			topicSelectedIndex,
 		};
 		setFormValues(changedFormValues);
 	};
@@ -245,9 +286,10 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 			if (!areReadingParameterOK(readingParameter)) {
 				setIsValidationRequired(true);
 			} else {
-				const GroupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
-				const DeviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
-				const mqttTopic = `dev2pdb/Group_${GroupHash}/Device_${DeviceHash}/${topic}`;
+				const groupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
+				const deviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
+				const topicHash = (topicsManaged[topicSelectedIndex] as ITopic).topicUid;
+				const mqttTopic = `dev2pdb/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
 				ReadAccelerations(mqttClient as Paho.Client, mqttTopic, readingParameter, setIsSensorReadings, setReadingProgress);
 			}
 		}
@@ -268,32 +310,38 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 							<Select
 								name="deviceSelected"
 								isValidationRequired={isValidationRequired}
-								onChange={handleSelectChange}
+								onChange={handleDeviceSelectChange}
 								value={deviceSelectedIndex}
 								disabled={loading}
 							>
 								{devicesManaged.map((device_i, index) => {
 									const device = device_i as IDevice;
 									return (
-										<option value={index} key={nanoid()}>
-											{device.name}, OrgId= {device.orgId}, GroupId= {device.groupId}
+										<option value={index} key={device.id}>
+											{device.name}, GroupId= {device.groupId}
 										</option>
 									);
 								})}
 							</Select>
 						</ItemContainer>
-
 						<ItemContainer>
-							<Label>Topic:</Label>
-							<Input
-								type="text"
-								name="topic"
+							<Label>Sensor name:</Label>
+							<Select
+								name="topicSelected"
 								isValidationRequired={isValidationRequired}
-								onChange={handleInputChange}
-								value={topic}
+								onChange={handleTopicSelectChange}
+								value={topicOptionSelected}
 								disabled={loading}
-							/>
-							{isValidationRequired && !isValidText(topic) && <Alert alertText="Topic is required" />}
+							>
+								{topicsSelect.map((topic_i, index) => {
+									const topic = topic_i as ITopic;
+									return (
+										<option value={index} key={topic.id}>
+											{topic.sensorName}
+										</option>
+									);
+								})}
+							</Select>
 						</ItemContainer>
 
 						<ItemContainer>

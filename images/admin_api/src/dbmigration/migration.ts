@@ -10,6 +10,8 @@ import { createDevice, defaultGroupDeviceName } from "../components/device/devic
 import { giveDefaultGeolocation } from "../utils/geolocation.ts/geolocation";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
+import { createTopic, demoTopicSensorName } from "../components/topic/topicDAL";
+import { createDigitalTwin, demoDigitalTwinName } from "../components/digitalTwin/digitalTwinDAL";
 
 
 export async function dataBaseInitialization() {
@@ -79,7 +81,7 @@ export async function dataBaseInitialization() {
 
 		const queryString1c = `ALTER TABLE grafanadb.org
 								ADD COLUMN acronym varchar(20) UNIQUE,
-								ADD COLUMN geodata jsonb,
+								ADD COLUMN geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
 								ADD COLUMN geolocation POINT`;
 		try {
 			await pool.query(queryString1c);
@@ -172,8 +174,8 @@ export async function dataBaseInitialization() {
 				email_notification_channel_id bigint,
 				telegram_notification_channel_id bigint,
 				is_org_default_group BOOLEAN DEFAULT true,
-				geodatabase jsonb,
-				geodata jsonb,
+				geodatabase jsonb NOT NULL DEFAULT '{}'::jsonb,
+				geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
 				CONSTRAINT fk_org_id
 					FOREIGN KEY(org_id)
 						REFERENCES grafanadb.org(id)
@@ -238,10 +240,10 @@ export async function dataBaseInitialization() {
 				org_id bigint,
 				group_id bigint,
 				name VARCHAR(190) UNIQUE,
-				description TEXT,
+				description VARCHAR(190),
 				device_uid VARCHAR(40) UNIQUE,
 				geolocation POINT,
-				is_default_group_device BOOLEAN,
+				type VARCHAR(40),
 				created TIMESTAMPTZ,
 				updated TIMESTAMPTZ,
 				CONSTRAINT fk_org_id
@@ -264,81 +266,14 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Table ${tableName4} can not be created: %s`, err.message);
 		}
 
-		const tableName5 = "iot_data.thingData";
+		const tableName5 = "grafanadb.topic";
 		const queryString5a = `
-			ALTER TABLE iot_data.thingData
-				ADD CONSTRAINT fk_group_uid
-				FOREIGN KEY(group_uid)
-				REFERENCES grafanadb.group(group_uid)
-					ON DELETE CASCADE
-					ON UPDATE CASCADE,
-				ADD CONSTRAINT fk_device_uid
-				FOREIGN KEY(device_uid)
-				REFERENCES grafanadb.device(device_uid)
-					ON DELETE CASCADE
-					ON UPDATE CASCADE;`;
-
-		try {
-			await pool.query(queryString5a);
-			const defaultGroupDeviceData = {
-				name: defaultGroupDeviceName(group),
-				description: `Default device of the group ${mainOrgGroupAcronym}`,
-				latitude: 0,
-				longitude: 0
-			};
-			const device = await createDevice(group, defaultGroupDeviceData, true);
-			await createDemoDashboards(orgAcronym, group, device);
-			logger.log("info", `Foreing key in table ${tableName5} has been created sucessfully`);
-		} catch (err) {
-			logger.log("error", `Foreing key in table ${tableName5} could not be created: %s`, err.message);
-		}
-
-		const tableName6 = "grafanadb.refresh_token";
-		const queryString6a = `
-			CREATE TABLE IF NOT EXISTS ${tableName6}(
-				id serial PRIMARY KEY,
-				user_id bigint,
-				token TEXT UNIQUE,
-				created TIMESTAMPTZ,
-				updated TIMESTAMPTZ,
-				CONSTRAINT fk_user_id
-					FOREIGN KEY(user_id)
-						REFERENCES grafanadb.user(id)
-						ON DELETE CASCADE
-			);
-
-			CREATE INDEX IF NOT EXISTS idx_refresh_token
-			ON grafanadb.refresh_token(token);`;
-
-		try {
-			await pool.query(queryString6a);
-			logger.log("info", `Table ${tableName6} has been created sucessfully`);
-		} catch (err) {
-			logger.log("error", `Table ${tableName6} can not be created: %s`, err.message);
-		}
-
-		const tableName7 = "grafanadb.alert_notification";
-		const queryString7a = `
-				ALTER TABLE grafanadb.alert_notification
-					ADD CONSTRAINT fk_org_id
-					FOREIGN KEY(org_id)
-					REFERENCES grafanadb.org(id)
-						ON DELETE CASCADE;`;
-
-		try {
-			await pool.query(queryString7a);
-			logger.log("info", `Foreing key in table ${tableName7} has been added sucessfully`);
-		} catch (err) {
-			logger.log("error", `Foreing key in table ${tableName7} couldd not be added: %s`, err.message);
-		}
-
-		const tableName8 = "grafanadb.topic";
-		const queryString8a = `
-			CREATE TABLE IF NOT EXISTS ${tableName8}(
+			CREATE TABLE IF NOT EXISTS ${tableName5}(
 				id serial PRIMARY KEY,
 				device_id bigint,
 				sensor_name VARCHAR(190) UNIQUE,
 				description VARCHAR(190),
+				sensor_type VARCHAR(40),
 				payload_format json,
 				topic_uid VARCHAR(40) UNIQUE,
 				created TIMESTAMPTZ,
@@ -353,15 +288,15 @@ export async function dataBaseInitialization() {
 			ON grafanadb.topic(sensor_name);`;
 
 		try {
-			await pool.query(queryString8a);
-			logger.log("info", `Table ${tableName8} has been created sucessfully`);
+			await pool.query(queryString5a);
+			logger.log("info", `Table ${tableName5} has been created sucessfully`);
 		} catch (err) {
-			logger.log("error", `Table ${tableName8} can not be created: %s`, err.message);
+			logger.log("error", `Table ${tableName5} can not be created: %s`, err.message);
 		}
 
-		const tableName9 = "grafanadb.digital_twin";
-		const queryString9a = `
-			CREATE TABLE IF NOT EXISTS ${tableName9}(
+		const tableName6 = "grafanadb.digital_twin";
+		const queryString6a = `
+			CREATE TABLE IF NOT EXISTS ${tableName6}(
 				id serial PRIMARY KEY,
 				device_id bigint,
 				name VARCHAR(190) UNIQUE,
@@ -380,10 +315,132 @@ export async function dataBaseInitialization() {
 			ON grafanadb.digital_twin(name);`;
 
 		try {
-			await pool.query(queryString9a);
-			logger.log("info", `Table ${tableName9} has been created sucessfully`);
+			await pool.query(queryString6a);
+			logger.log("info", `Table ${tableName6} has been created sucessfully`);
 		} catch (err) {
-			logger.log("error", `Table ${tableName9} can not be created: %s`, err.message);
+			logger.log("error", `Table ${tableName6} can not be created: %s`, err.message);
+		}
+
+		const tableName7 = "iot_data.thingData";
+		const queryString7a = `
+			ALTER TABLE iot_data.thingData
+				ADD CONSTRAINT fk_group_uid
+				FOREIGN KEY(group_uid)
+				REFERENCES grafanadb.group(group_uid)
+					ON DELETE CASCADE
+					ON UPDATE CASCADE,
+				ADD CONSTRAINT fk_device_uid
+				FOREIGN KEY(device_uid)
+				REFERENCES grafanadb.device(device_uid)
+					ON DELETE CASCADE
+					ON UPDATE CASCADE,
+				ADD CONSTRAINT fk_topic_uid
+				FOREIGN KEY(topic_uid)
+				REFERENCES grafanadb.topic(topic_uid)
+					ON DELETE CASCADE
+					ON UPDATE CASCADE;`;
+
+		try {
+			await pool.query(queryString7a);
+			const defaultGroupDevicesData = [
+				{
+					name: defaultGroupDeviceName(group, "Generic"),
+					description: `Default generic device of the group ${mainOrgGroupAcronym}`,
+					latitude: 0,
+					longitude: 0,
+					type: "Generic"
+				},
+				{
+					name: defaultGroupDeviceName(group, "Mobile"),
+					description: `Default mobile device of the group ${mainOrgGroupAcronym}`,
+					latitude: 0,
+					longitude: 0,
+					type: "Mobile"
+				},
+			];
+			const device1 = await createDevice(group, defaultGroupDevicesData[0]);
+			const device2 = await createDevice(group, defaultGroupDevicesData[1]);
+
+			const defaultDeviceTopicsData = [
+				{
+					sensorName: demoTopicSensorName(group, device1, "Temperature"),
+					description: `Temperature sensor for default generic device of the group ${mainOrgGroupAcronym}`,
+					sensorType: "Tempeature",
+					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
+				},
+				{
+					sensorName: demoTopicSensorName(group, device2, "Accelerometer"),
+					description: `Accelerometer for default mobile device of the group ${mainOrgGroupAcronym}`,
+					sensorType: "Accelerometer",
+					payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+				},
+			];
+			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
+			const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
+
+			const digitalTwinsUrl = await createDemoDashboards(orgAcronym, group, [device1, device2], [topic1, topic2]);
+
+			const defaultDeviceDigitalTwinsData = [
+				{
+					name: demoDigitalTwinName(group, "Generic"),
+					description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
+					type: "Grafana",
+					url: digitalTwinsUrl[0]
+				},
+				{
+					name: demoDigitalTwinName(group, "Mobile"),
+					description: `Demo digital twin for default mobile device of the group ${mainOrgGroupAcronym}`,
+					type: "Grafana",
+					url: digitalTwinsUrl[1]
+				},
+			];
+
+			await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
+			await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
+
+			logger.log("info", `Foreing key in table ${tableName6} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Foreing key in table ${tableName6} could not be created: %s`, err.message);
+		}
+
+
+		const tableName8 = "grafanadb.refresh_token";
+		const queryString8a = `
+			CREATE TABLE IF NOT EXISTS ${tableName8}(
+				id serial PRIMARY KEY,
+				user_id bigint,
+				token TEXT UNIQUE,
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
+				CONSTRAINT fk_user_id
+					FOREIGN KEY(user_id)
+						REFERENCES grafanadb.user(id)
+						ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_refresh_token
+			ON grafanadb.refresh_token(token);`;
+
+		try {
+			await pool.query(queryString8a);
+			logger.log("info", `Table ${tableName8} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableName8} can not be created: %s`, err.message);
+		}
+
+		const tableName9 = "grafanadb.alert_notification";
+		const queryString9a = `
+				ALTER TABLE grafanadb.alert_notification
+					ADD CONSTRAINT fk_org_id
+					FOREIGN KEY(org_id)
+					REFERENCES grafanadb.org(id)
+						ON DELETE CASCADE;`;
+
+		try {
+			await pool.query(queryString9a);
+			logger.log("info", `Foreing key in table ${tableName9} has been added sucessfully`);
+		} catch (err) {
+			logger.log("error", `Foreing key in table ${tableName9} couldd not be added: %s`, err.message);
 		}
 
 		pool.end(() => {

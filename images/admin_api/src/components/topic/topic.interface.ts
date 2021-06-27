@@ -5,6 +5,7 @@ export default interface ITopic {
 	deviceId: number;
 	sensorName: string;
 	description: string;
+	sensorType: string;
 	topicUid: string;
 	payloadFormat: string;
 	created?: string;

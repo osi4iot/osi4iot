@@ -4583,8 +4583,8 @@
 				"description": {
 					"type": "string"
 				},
-				"isDefaultGroupDevice": {
-					"type": "boolean"
+				"type": {
+					"type": "string"
 				},				
 				"longitude": {
 					"type": "number"
@@ -4614,6 +4614,9 @@
 				"description": {
 					"type": "string"
 				},
+				"sensorType": {
+					"type": "string"
+				},				
 				"payloadFormat": {
 					"type": "string"
 				}	
@@ -4639,6 +4642,9 @@
 				"description": {
 					"type": "string"
 				},
+				"sensorType": {
+					"type": "string"
+				},				
 				"payloadFormat": {
 					"type": "string"
 				},

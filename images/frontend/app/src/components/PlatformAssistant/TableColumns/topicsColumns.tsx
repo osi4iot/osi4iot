@@ -23,8 +23,9 @@ export interface ITopic {
     deviceId: number;
     sensorName: string;
     description: string;
-    topicUid: string;
+    sensorType: string;
     payloadFormat: string;
+    topicUid: string;
 }
 
 interface ITopicColumn extends ITopic {
@@ -200,14 +201,18 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             accessor: "description"
         },
         {
-            Header: "Topic hash",
-            accessor: "topicUid",
-            disableFilters: true,
-            disableSortBy: true
+            Header: "Sensor type",
+            accessor: "sensorType"
         },
         {
             Header: "Payload format",
             accessor: "payloadFormat",
+            disableFilters: true,
+            disableSortBy: true
+        },
+        {
+            Header: "Topic hash",
+            accessor: "topicUid",
             disableFilters: true,
             disableSortBy: true
         },
