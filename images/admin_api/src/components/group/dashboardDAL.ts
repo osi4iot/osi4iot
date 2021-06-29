@@ -35,6 +35,11 @@ export const getDashboardsDataOfGroup = async (group: IGroup): Promise<IDashboar
 	return response.rows;
 };
 
+export const getDashboardDataByUid = async (orgId: number, uid: string): Promise<IDashboardData> => {
+	const response = await pool.query(`SELECT id, data FROM grafanadb.dashboard WHERE org_id=$1 AND uid= $2`, [orgId, uid]);
+	return response.rows[0];
+};
+
 export const getDashboardsDataWithRawSqlOfGroup = async (group: IGroup): Promise<IDashboardData[]> => {
 	const dashboards = await getDashboardsDataOfGroup(group);
 	const dashboardsWithRawSql: IDashboardData[] = [];
@@ -180,7 +185,7 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
 	const accelDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleAccelDashboard, accelDashboard);
 	const accelDashboarddUrl = `${getDomainUrl()}/grafana/d/${accelDashboardCreated.uid}/${titleAccelDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=200ms`
-	return [tempDashboardUrl, accelDashboarddUrl];
+	return [tempDashboardCreated.uid, tempDashboardUrl, accelDashboardCreated.uid, accelDashboarddUrl];
 };
 
 

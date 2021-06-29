@@ -7,10 +7,13 @@ import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoDigitalTwins from "./GeoDigitalTwins";
+import { IDigitalTwinState } from "../GeolocationContainer";
+import { findOutStatus } from "./statusTools";
 // import { geoJsonGroupText } from "./geoJsonGroupText";
 
 const STATUS_OK = "#3e3f3b";
-const STATUS_ALERT = "#ff4040";
+const STATUS_ALERTING = "#ff4040";
+const STATUS_PENDING = "#f79520";
 const NORMAL = "#9c9a9a";
 const SELECTED = "#3274d9";
 
@@ -26,31 +29,33 @@ const baseGroupStyle = () => {
     }
 }
 
-const setGroupStyle = (groupStatus: string) => {
-    if (groupStatus !== "OK") {
-        return {
-            stroke: true,
-            color: SELECTED,
-            weight: 3,
-            opacity: 1,
-            fill: true,
-            fillColor: STATUS_ALERT,
-            fillOpacity: 0.2
-        }
-
-    } else {
-        return {
-            stroke: true,
-            color: SELECTED,
-            weight: 3,
-            opacity: 1,
-            fill: true,
-            fillColor: STATUS_OK,
-            fillOpacity: 0.2
-        }
+const orgStyle =  () => {
+    return {
+        stroke: true,
+        color: SELECTED,
+        weight: 3,
+        opacity: 1,
+        fill: true,
+        fillColor: STATUS_OK,
+        fillOpacity: 0.2
     }
 }
 
+const setGroupStyle = (groupStatus: string) => {
+    let fillColor = STATUS_OK;
+    if (groupStatus === "pending") fillColor = STATUS_PENDING;
+    else if (groupStatus === "alerting") fillColor = STATUS_ALERTING;
+    
+    return {
+        stroke: true,
+        color: SELECTED,
+        weight: 3,
+        opacity: 1,
+        fill: true,
+        fillColor,
+        fillOpacity: 0.5
+    }
+}
 
 
 interface GeoGroupProps {
@@ -62,6 +67,7 @@ interface GeoGroupProps {
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
+    digitalTwinsState: IDigitalTwinState[];
 }
 
 const GeoGroup: FC<GeoGroupProps> = (
@@ -73,19 +79,26 @@ const GeoGroup: FC<GeoGroupProps> = (
         selectDevice,
         digitalTwins,
         digitalTwinSelected,
-        selectDigitalTwin
+        selectDigitalTwin,
+        digitalTwinsState
     }) => {
     const geoJsonLayerGroupBase = useRef(null);
     const geoJsonLayerGroupData = useRef(null);
 
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
 
-    const styleGeoJson = (geoJsonFeature: any) => {
-        return setGroupStyle("OK");
+    const styleGeoGroupJson = (geoJsonFeature: any) => {
+        const groupsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.groupId === groupData.id);
+        const status = findOutStatus(groupsStateFiltered);
+        return setGroupStyle(status);
     }
 
-    const styleGeoJsonBase = (geoJsonFeature: any) => {
+    const styleGeoGroupJsonBase = (geoJsonFeature: any) => {
         return baseGroupStyle();
+    }
+
+    const styleGeoOrgJson = (geoJsonFeature: any) => {
+        return orgStyle();
     }
 
     useEffect(() => {
@@ -114,11 +127,10 @@ const GeoGroup: FC<GeoGroupProps> = (
         <>
             {
                 (Object.keys(groupData.geoJsonDataBase).length !== 0 && Object.keys(groupData.geoJsonData).length !== 0) ?
-
                     <LayerGroup>
-                        <GeoJSON data={groupData.geoJsonDataBase} style={styleGeoJsonBase} />
-                        <GeoJSON data={orgData.geoJsonData} style={styleGeoJson} />
-                        <GeoJSON data={groupData.geoJsonData} style={styleGeoJson} >
+                        <GeoJSON data={groupData.geoJsonDataBase} style={styleGeoGroupJsonBase} />
+                        <GeoJSON data={orgData.geoJsonData} style={styleGeoOrgJson} />
+                        <GeoJSON data={groupData.geoJsonData} style={styleGeoGroupJson} >
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
                         {
@@ -128,15 +140,18 @@ const GeoGroup: FC<GeoGroupProps> = (
                                     deviceData={deviceData}
                                     deviceSelected={deviceSelected}
                                     selectDevice={selectDevice}
+                                    digitalTwinsState={digitalTwinsState}
                                 />
                             )
                         }
-                        {deviceSelected &&
+                        {
+                            deviceSelected &&
                             <GeoDigitalTwins
                                 deviceSelected={deviceSelected}
                                 digitalTwins={digitalTwinsFiltered}
                                 digitalTwinSelected={digitalTwinSelected}
                                 selectDigitalTwin={selectDigitalTwin}
+                                digitalTwinsState={digitalTwinsState}
                             />
                         }
                     </LayerGroup >

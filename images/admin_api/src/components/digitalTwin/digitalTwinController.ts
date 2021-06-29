@@ -12,8 +12,10 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
-import { createDigitalTwin, deleteDigitalTwinById, getAllDigitalTwins, getDigitalTwinByProp, getDigitalTwinsByGroupId, getDigitalTwinsByGroupsIdArray, getDigitalTwinsByOrgId, updateDigitalTwinById } from "./digitalTwinDAL";
+import { createDigitalTwin, deleteDigitalTwinById, getAllDigitalTwins, getDigitalTwinByProp, getDigitalTwinsByGroupId, getDigitalTwinsByGroupsIdArray, getDigitalTwinsByOrgId, getStateOfAllDigitalTwins, getStateOfDigitalTwinsByGroupsIdArray, updateDigitalTwinById } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
+import IDigitalTwinState from "./digitalTwinState.interface";
+import HttpException from "../../exceptions/HttpException";
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
@@ -30,6 +32,11 @@ class DigitalTwinController implements IController {
 				`${this.path}s/user_managed/`,
 				userAuth,
 				this.getDigitalTwinsManagedByUser
+			)
+			.get(
+				`${this.path}s_state/user_managed/`,
+				userAuth,
+				this.getStateOfDigitalTwinsManagedByUser
 			)
 			.get(
 				`${this.path}s_in_org/:orgId/`,
@@ -89,6 +96,28 @@ class DigitalTwinController implements IController {
 				}
 			}
 			res.status(200).send(digitalTwins);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getStateOfDigitalTwinsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let digitalTwinsState: IDigitalTwinState[] = [];
+			if (req.user.isGrafanaAdmin) {
+				digitalTwinsState = await getStateOfAllDigitalTwins();
+			} else {
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					digitalTwinsState = await getStateOfDigitalTwinsByGroupsIdArray(groupsIdArray);
+				}
+			}
+			res.status(200).send(digitalTwinsState);
 		} catch (error) {
 			next(error);
 		}
@@ -183,8 +212,12 @@ class DigitalTwinController implements IController {
 			let message: { message: string };
 			const existDigitalTwin = await getDigitalTwinByProp("name", digitalTwinData.name)
 			if (!existDigitalTwin) {
-				await createDigitalTwin(deviceId, digitalTwinData);
-				message = { message: `A new digital twin has been created` };
+				const digitalTwin = await createDigitalTwin(req.group.orgId, deviceId, digitalTwinData);
+				if (digitalTwin) {
+					message = { message: `A new digital twin has been created` };
+				} else {
+					throw new HttpException(400, "The dashboardUid inputted is not correct");
+				}
 			} else {
 				message = { message: `A digital twin with name: ${digitalTwinData.name} already exist` };
 			}

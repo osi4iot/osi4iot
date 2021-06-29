@@ -1,5 +1,6 @@
 import { FC } from "react";
 import { LayerGroup } from 'react-leaflet';
+import { IDigitalTwinState } from "../GeolocationContainer";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoDigitalTwin from "./GeoDigitalTwin";
@@ -10,10 +11,10 @@ interface GeoDigitalTwinsProps {
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
+    digitalTwinsState: IDigitalTwinState[];
 }
 
-const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({ deviceSelected, digitalTwins, digitalTwinSelected, selectDigitalTwin }) => {
-
+const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({ deviceSelected, digitalTwins, digitalTwinSelected, selectDigitalTwin, digitalTwinsState }) => {
     return (
         <LayerGroup>
             {
@@ -25,6 +26,7 @@ const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({ deviceSelected, digitalTwin
                         digitalTwinData={digitalTwin}
                         digitalTwinSelected={digitalTwinSelected}
                         selectDigitalTwin={selectDigitalTwin}
+                        digitalTwinsState={digitalTwinsState}
                     />
                 )
             }

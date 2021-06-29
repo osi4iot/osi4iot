@@ -1,11 +1,13 @@
 import pool from "../../config/dbconfig";
+import { getDashboardDataByUid } from "../group/dashboardDAL";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import IDigitalTwin from "./digitalTwin.interface";
+import IDigitalTwinState from "./digitalTwinState.interface";
 import IDigitalTwinUpdate from "./digitalTwinUpdate.interface";
 
 
-export const demoDigitalTwinName =  (group: IGroup, deviceType: string): string => {
+export const demoDigitalTwinName = (group: IGroup, deviceType: string): string => {
 	let digitalTwinName: string;
 	if (deviceType === "Mobile") digitalTwinName = `${group.acronym.replace(/ /g, "_")}_mobile_default_DT`;
 	else digitalTwinName = `${group.acronym.replace(/ /g, "_")}_generic_default_DT`;
@@ -14,16 +16,17 @@ export const demoDigitalTwinName =  (group: IGroup, deviceType: string): string 
 
 export const insertDigitalTwin = async (digitalTwinData: IDigitalTwinUpdate): Promise<IDigitalTwinUpdate> => {
 	const result = await pool.query(`INSERT INTO grafanadb.digital_twin (device_id,
-					name, description, type, url, created, updated)
-					VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+					name, description, type, url, dashboard_id, created, updated)
+					VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 					RETURNING  id, device_id AS "deviceId", name, description,
-					type, url, created, updated`,
+					type, url, dashboard_id AS "dashboardid", created, updated`,
 		[
 			digitalTwinData.deviceId,
 			digitalTwinData.name,
 			digitalTwinData.description,
 			digitalTwinData.type,
-			digitalTwinData.url
+			digitalTwinData.url,
+			digitalTwinData.dashboardId
 		]);
 	return result.rows[0];
 };
@@ -45,16 +48,21 @@ export const deleteDigitalTwinById = async (digitalTwinId: number): Promise<void
 	await pool.query(`DELETE FROM grafanadb.digital_twin WHERE grafanadb.digital_twin.id = $1`, [digitalTwinId]);
 };
 
-export const createDigitalTwin = async (deviceId: number, digitalTwinInput: CreateDigitalTwinDto): Promise<IDigitalTwinUpdate> => {
-	const digitalTwinUpdated: IDigitalTwinUpdate = { ...digitalTwinInput, deviceId };
-	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
+export const createDigitalTwin = async (orgId: number, deviceId: number, digitalTwinInput: CreateDigitalTwinDto): Promise<IDigitalTwinUpdate | null> => {
+	const dashboardData = await getDashboardDataByUid(orgId, digitalTwinInput.dashboardUid);
+	let digitalTwin = null;
+	if (dashboardData) {
+		const dashboardId = dashboardData.id;
+		const digitalTwinUpdated: IDigitalTwinUpdate = { ...digitalTwinInput, deviceId, dashboardId };
+		digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
+	}
 	return digitalTwin;
 };
 
 export const getDigitalTwinByProp = async (propName: string, propValue: (string | number)): Promise<IDigitalTwin> => {
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
-                                    grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
-	                                grafanadb.digital_twin.name, grafanadb.digital_twin.description,
+									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
+									grafanadb.digital_twin.name, grafanadb.digital_twin.description,
 									grafanadb.digital_twin.type, grafanadb.digital_twin.url,
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -71,8 +79,22 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
+									ORDER BY grafanadb.digital_twin.id ASC,
+											grafanadb.device.org_id ASC,
+											grafanadb.device.group_id ASC;`);
+	return response.rows;
+}
+
+export const getStateOfAllDigitalTwins = async (): Promise<IDigitalTwinState[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.device.org_id AS "orgId",
+									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
+									grafanadb.alert.state
+									FROM grafanadb.digital_twin
+									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
+									INNER JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_id
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
+											grafanadb.device.id ASC,
 											grafanadb.digital_twin.id ASC;`);
 	return response.rows;
 }
@@ -92,9 +114,9 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
 									WHERE grafanadb.device.group_id = $1
-									ORDER BY grafanadb.device.org_id ASC,
-											grafanadb.device.group_id ASC,
-											grafanadb.digital_twin.id ASC`, [groupId]);
+									ORDER BY grafanadb.digital_twin.id ASC,
+										grafanadb.device.org_id ASC,
+										grafanadb.device.group_id ASC`, [groupId]);
 	return response.rows;
 };
 
@@ -106,12 +128,28 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
-									WHERE grafanadb.device.group_id = $1
+									WHERE grafanadb.device.group_id = ANY($1::bigint[])
+									ORDER BY grafanadb.digital_twin.id ASC,
+										grafanadb.device.org_id ASC,
+										grafanadb.device.group_id ASC`, [groupsIdArray]);
+	return response.rows;
+};
+
+export const getStateOfDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwinState[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.device.org_id AS "orgId",
+									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
+									grafanadb.alert.state
+									FROM grafanadb.digital_twin
+									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
+									INNER JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_id
+									WHERE grafanadb.device.group_id = ANY($1::bigint[])
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
+											grafanadb.device.id ASC,
 											grafanadb.digital_twin.id ASC`, [groupsIdArray]);
 	return response.rows;
 };
+
 
 
 export const getNumDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<number> => {
@@ -130,8 +168,8 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
 									WHERE grafanadb.device.org_id = $1
-									ORDER BY grafanadb.device.org_id ASC,
-											grafanadb.device.group_id ASC,
-											grafanadb.digital_twin.id ASC`, [orgId]);
+									ORDER BY grafanadb.digital_twin.id ASC,
+										grafanadb.device.org_id ASC,
+										grafanadb.device.group_id ASC`, [orgId]);
 	return response.rows;
 };

@@ -147,6 +147,7 @@ const findBounds = (orgsManaged: IOrgManaged[]) => {
 
 const domainName = getDomainName();
 
+
 const PlatformAssistantHomeOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -316,9 +317,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     useEffect(() => {
         if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
             const config = axiosAuth(accessToken);
-            const urlDevices = `https://${domainName}/admin_api/digital_twins/user_managed`;
+            const urlDigitalTwins = `https://${domainName}/admin_api/digital_twins/user_managed`;
             axiosInstance(refreshToken, authDispatch)
-                .get(urlDevices, config)
+                .get(urlDigitalTwins, config)
                 .then((response) => {
                     const digitalTwins = response.data;
                     setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });

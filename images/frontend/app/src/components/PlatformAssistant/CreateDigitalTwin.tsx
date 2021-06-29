@@ -14,11 +14,11 @@ import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../cont
 
 const FormContainer = styled.div`
 	font-size: 12px;
-    padding: 30px 10px 30px 20px;
+    padding: 30px 20px 30px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
     width: 400px;
-    height: calc(100vh - 405px);
+    height: calc(100vh - 340px);
 
     form > div:nth-child(2) {
         margin-right: 10px;
@@ -26,7 +26,7 @@ const FormContainer = styled.div`
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 540px);
+    height: calc(100vh - 475px);
     width: 100%;
     padding: 0px 5px;
     overflow-y: auto;
@@ -84,7 +84,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             name: values.name,
             description: values.description,
             type: values.type,
-            url: values.url
+            url: values.url,
+            dashboardUid: values.dashboardUid
         }
 
         setIsSubmitting(true);
@@ -122,6 +123,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 190").required('Required'),
         url: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        dashboardUid:  Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -173,7 +175,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         label='Url'
                                         name='url'
                                         type='text'
-                                    />                                    
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Dashboard uid'
+                                        name='dashboardUid'
+                                        type='text'
+                                    />                                       
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

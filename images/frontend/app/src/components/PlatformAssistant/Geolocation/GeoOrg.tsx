@@ -5,38 +5,25 @@ import { LatLngTuple } from 'leaflet';
 import { Polygon } from 'geojson';
 import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
+import { IconAlertingMarker, IconMarker, IconPendingMarker } from "./IconMarker";
+import { IDigitalTwinState } from "../GeolocationContainer";
+import { findOutStatus } from "./statusTools";
 
 
-const STATUS_OK = "#3e3f3b";
-const STATUS_ALERT = "#ff4040";
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
 
-const setOrgStyle = (orgStatus: string, isSelected: boolean) => {
-    if (orgStatus !== "OK") {
-        return {
-            stroke: true,
-            color: isSelected ? SELECTED : NON_SELECTED,
-            weight: 3,
-            opacity: 1,
-            fill: true,
-            fillColor: STATUS_ALERT,
-            fillOpacity: 0.2
-        }
-
-    } else {
-        return {
-            stroke: true,
-            color: isSelected ? SELECTED : NON_SELECTED,
-            weight: 3,
-            opacity: 1,
-            fill: true,
-            fillColor: STATUS_OK,
-            fillOpacity: 0.2
-        }
+const setOrgStyle = (isSelected: boolean) => {
+    return {
+        stroke: true,
+        color: isSelected ? SELECTED : NON_SELECTED,
+        weight: 3,
+        opacity: 1,
+        fill: true,
+        fillColor: "#3e3f3b",
+        fillOpacity: 0.2
     }
 }
-
 
 
 interface GeoOrgProps {
@@ -46,14 +33,15 @@ interface GeoOrgProps {
     groupSelected: IGroupManaged | null;
     groupsManaged: IGroupManaged[];
     selectGroup: (groupSelected: IGroupManaged) => void;
+    digitalTwinsState: IDigitalTwinState[];
 }
 
-const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelected, groupsManaged, selectGroup }) => {
+const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelected, groupsManaged, selectGroup, digitalTwinsState }) => {
     const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
     const geoJsonLayer = useRef(null);
     const map = useMap();
-    // const [orgStatus, setOrgStatus] = useState("OK");
-    const orgStatus = "OK";
+    const orgsStateFiltered = digitalTwinsState.filter(item => item.digitalTwinId === orgData.id);
+    const orgStatus = findOutStatus(orgsStateFiltered);
 
     useEffect(() => {
         let maxLongitude = -180;
@@ -90,7 +78,7 @@ const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelecte
 
     const styleGeoJson = (geoJsonFeature: any) => {
         const isSelected = orgSelected?.id === orgData.id;
-        return setOrgStyle(orgStatus, isSelected);
+        return setOrgStyle(isSelected);
     }
 
     useEffect(() => {
@@ -100,7 +88,7 @@ const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelecte
             (currenGeoJsonLayer as any)
                 .clearLayers()
                 .addData(orgData.geoJsonData)
-                .setStyle(setOrgStyle(orgStatus, isSelected));
+                .setStyle(setOrgStyle(isSelected));
         }
     }, [orgData, orgSelected, orgStatus]);
 
@@ -109,9 +97,21 @@ const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelecte
             null
             :
             <GeoJSON ref={geoJsonLayer} data={orgData.geoJsonData} style={styleGeoJson} eventHandlers={{ click: clickHandler }}>
-                <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} >
-                    <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
-                </Marker>
+                {orgStatus === "ok" &&
+                    <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconMarker} >
+                        <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
+                    </Marker>
+                }
+                {orgStatus === "pending" &&
+                    <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconPendingMarker} >
+                        <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
+                    </Marker>
+                }
+                {orgStatus === "alerting" &&
+                    <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconAlertingMarker} >
+                        <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
+                    </Marker>
+                }                 
                 <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
             </GeoJSON >
     )

@@ -8,6 +8,9 @@ import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
 import SelectOrgOfGroupsManaged from './SelectOrgOfGroupsManaged';
 import SelectDevice from './SelectDevice';
 import { IDigitalTwin } from './TableColumns/digitalTwinsColumns';
+import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
+import { useAuthDispatch, useAuthState } from '../../contexts/authContext';
+import useInterval from '../../tools/useInterval';
 
 
 export const GEOLOCATION_OPTIONS = {
@@ -18,6 +21,16 @@ export const GEOLOCATION_OPTIONS = {
     SELECT_DIGITAL_TWIN: "Select digital twin",
 }
 
+const domainName = getDomainName();
+const urlDigitalTwinsState = `https://${domainName}/admin_api/digital_twins_state/user_managed`;
+
+export interface IDigitalTwinState {
+    orgId: number;
+    groupId: number;
+    deviceId: number;
+    digitalTwinId: number;
+    state: string;
+}
 
 interface GeolocationContainerProps {
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
@@ -65,8 +78,23 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setNewOuterBounds,
         resetOrgSelection
     }) => {
-
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const [geolocationOptionToShow, setGeolocationOptionToShow] = useState(GEOLOCATION_OPTIONS.MAP);
+    const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
+    
+    useInterval(() => {
+        const config = axiosAuth(accessToken);
+        axiosInstance(refreshToken, authDispatch)
+            .get(urlDigitalTwinsState, config)
+            .then((response) => {
+                const digitalTwinsState = response.data;
+                setDigitalTwinsState(digitalTwinsState);
+            })
+            .catch((error) => {
+                console.log(error);
+            });
+    }, 10000);
 
     const backToMap = () => {
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.MAP);
@@ -128,6 +156,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectDeviceOption={selectDeviceOption}
                     selectDigitalTwinOption={selectDigitalTwinOption}
                     resetOrgSelection={resetOrgSelection}
+                    digitalTwinsState={digitalTwinsState}
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_ORG &&

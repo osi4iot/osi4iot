@@ -293,25 +293,31 @@ class GroupController implements IController {
 			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
 			const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
 
-			const digitalTwinsUrl = await createDemoDashboards(req.organization.acronym, groupCreated, [device1, device2], [topic1, topic2]);
+			const dashboardUid: string[] = [];
+			const digitalTwinsUrl: string[] = [];
+
+			[dashboardUid[0], digitalTwinsUrl[0], dashboardUid[1], digitalTwinsUrl[1]] =
+				await createDemoDashboards(req.organization.acronym, groupCreated, [device1, device2], [topic1, topic2]);
 
 			const defaultDeviceDigitalTwinsData = [
 				{
 					name: demoDigitalTwinName(groupCreated, "Generic"),
 					description: `Demo digital twin for default generic device of the group ${groupCreated.acronym}`,
 					type: "Grafana",
-					url: digitalTwinsUrl[0]
+					url: digitalTwinsUrl[0],
+					dashboardUid: dashboardUid[0]
 				},
 				{
 					name: demoDigitalTwinName(groupCreated, "Mobile"),
 					description: `Demo digital twin for default mobile device of the group ${groupCreated.acronym}`,
 					type: "Grafana",
-					url: digitalTwinsUrl[1]
+					url: digitalTwinsUrl[1],
+					dashboardUid: dashboardUid[1]
 				},
 			];
 
-			await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
-			await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
+			await createDigitalTwin(orgId, device1.id, defaultDeviceDigitalTwinsData[0]);
+			await createDigitalTwin(orgId, device2.id, defaultDeviceDigitalTwinsData[1]);
 
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;

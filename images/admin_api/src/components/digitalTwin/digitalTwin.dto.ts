@@ -12,6 +12,9 @@ class CreateDigitalTwinDto {
 
 	@IsString()
 	public url: string;
+
+	@IsString()
+	public dashboardUid: string;
 }
 
 export default CreateDigitalTwinDto;

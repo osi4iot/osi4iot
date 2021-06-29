@@ -16,6 +16,7 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
+import { IDigitalTwinState } from '../GeolocationContainer';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -356,6 +357,7 @@ interface MapProps {
     selectDeviceOption: () => void;
     selectDigitalTwinOption: () => void;
     resetOrgSelection: () => void;
+    digitalTwinsState: IDigitalTwinState[];
 }
 
 
@@ -384,7 +386,8 @@ const Map: FC<MapProps> = (
         selectGroupOption,
         selectDeviceOption,
         selectDigitalTwinOption,
-        resetOrgSelection
+        resetOrgSelection,
+        digitalTwinsState
     }) => {
 
     const refreshAll = () => {
@@ -409,6 +412,7 @@ const Map: FC<MapProps> = (
                 groupSelected={groupSelected}
                 groupsManaged={groupsManaged}
                 selectGroup={selectGroup}
+                digitalTwinsState={digitalTwinsState}
             />
             {
                 (orgSelected && groupSelected) &&
@@ -421,6 +425,7 @@ const Map: FC<MapProps> = (
                     digitalTwins={digitalTwins}
                     digitalTwinSelected={digitalTwinSelected}
                     selectDigitalTwin={selectDigitalTwin}
+                    digitalTwinsState={digitalTwinsState}
                 />
             }
             <ControlsContainer>

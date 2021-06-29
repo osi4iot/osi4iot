@@ -5,6 +5,7 @@ export default interface IDigitalTwinUpdate {
 	description: string;
 	type: string;
 	url: string;
+	dashboardId: number;
 	created?: string;
 	updated?: string;
 }

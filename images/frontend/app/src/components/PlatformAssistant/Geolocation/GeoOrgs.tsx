@@ -4,6 +4,7 @@ import { LatLngTuple } from 'leaflet';
 import GeoOrg from './GeoOrg';
 import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
+import { IDigitalTwinState } from "../GeolocationContainer";
 
 
 interface GeoOrgsProps {
@@ -14,9 +15,10 @@ interface GeoOrgsProps {
     groupSelected: IGroupManaged | null;
     groupsManaged: IGroupManaged[];
     selectGroup: (groupSelected: IGroupManaged) => void;
+    digitalTwinsState: IDigitalTwinState[];
 }
 
-const GeoOrgs: FC<GeoOrgsProps> = ({ outerBounds, orgDataArray, orgSelected, selectOrg, groupSelected, groupsManaged, selectGroup }) => {
+const GeoOrgs: FC<GeoOrgsProps> = ({ outerBounds, orgDataArray, orgSelected, selectOrg, groupSelected, groupsManaged, selectGroup, digitalTwinsState }) => {
     const map = useMap();
 
     useEffect(() => {
@@ -35,6 +37,7 @@ const GeoOrgs: FC<GeoOrgsProps> = ({ outerBounds, orgDataArray, orgSelected, sel
                         groupSelected={groupSelected}
                         groupsManaged={groupsManaged}
                         selectGroup={selectGroup}
+                        digitalTwinsState={digitalTwinsState}
                     />
                 )
 

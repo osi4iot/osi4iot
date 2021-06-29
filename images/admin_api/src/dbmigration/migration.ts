@@ -303,11 +303,16 @@ export async function dataBaseInitialization() {
 				description VARCHAR(190),
 				type VARCHAR(20),
 				url VARCHAR(190),
+				dashboard_id bigint,
 				created TIMESTAMPTZ,
 				updated TIMESTAMPTZ,
 				CONSTRAINT fk_device_id
 					FOREIGN KEY(device_id)
 						REFERENCES grafanadb.device(id)
+						ON DELETE CASCADE,
+				CONSTRAINT fk_dashboard_id
+					FOREIGN KEY(dashboard_id)
+						REFERENCES grafanadb.dashboard(id)
 						ON DELETE CASCADE
 			);
 
@@ -323,7 +328,7 @@ export async function dataBaseInitialization() {
 
 		const tableName7 = "iot_data.thingData";
 		const queryString7a = `
-			ALTER TABLE iot_data.thingData
+			ALTER TABLE ${tableName7}
 				ADD CONSTRAINT fk_group_uid
 				FOREIGN KEY(group_uid)
 				REFERENCES grafanadb.group(group_uid)
@@ -378,25 +383,31 @@ export async function dataBaseInitialization() {
 			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
 			const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
 
-			const digitalTwinsUrl = await createDemoDashboards(orgAcronym, group, [device1, device2], [topic1, topic2]);
+			const dashboardUid: string[] = [];
+			const digitalTwinsUrl: string[] = [];
+
+			[dashboardUid[0], digitalTwinsUrl[0], dashboardUid[1], digitalTwinsUrl[1]] =
+				await createDemoDashboards(orgAcronym, group, [device1, device2], [topic1, topic2]);
 
 			const defaultDeviceDigitalTwinsData = [
 				{
 					name: demoDigitalTwinName(group, "Generic"),
 					description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
 					type: "Grafana",
-					url: digitalTwinsUrl[0]
+					url: digitalTwinsUrl[0],
+					dashboardUid: dashboardUid[0]
 				},
 				{
 					name: demoDigitalTwinName(group, "Mobile"),
 					description: `Demo digital twin for default mobile device of the group ${mainOrgGroupAcronym}`,
 					type: "Grafana",
-					url: digitalTwinsUrl[1]
+					url: digitalTwinsUrl[1],
+					dashboardUid: dashboardUid[1]
 				},
 			];
 
-			await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
-			await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
+			await createDigitalTwin(1, device1.id, defaultDeviceDigitalTwinsData[0]);
+			await createDigitalTwin(1, device2.id, defaultDeviceDigitalTwinsData[1]);
 
 			logger.log("info", `Foreing key in table ${tableName6} has been created sucessfully`);
 		} catch (err) {

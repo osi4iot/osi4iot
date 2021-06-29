@@ -137,7 +137,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             accessor: "url",
             disableFilters: true,
             disableSortBy: true
-        },
+        },      
         {
             Header: "Type",
             accessor: "type",
