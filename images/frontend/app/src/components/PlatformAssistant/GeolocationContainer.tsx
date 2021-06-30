@@ -13,6 +13,17 @@ import { useAuthDispatch, useAuthState } from '../../contexts/authContext';
 import useInterval from '../../tools/useInterval';
 
 
+const objectsEqual = (o1: any, o2: any): boolean => {
+    return typeof o1 === 'object' && Object.keys(o1).length > 0
+        ? Object.keys(o1).length === Object.keys(o2).length
+        && Object.keys(o1).every(p => objectsEqual(o1[p], o2[p]))
+        : o1 === o2;
+}
+
+const arraysEqual = (a1: any, a2: any) => {
+    return a1.length === a2.length && a1.every((o: any, idx: number) => objectsEqual(o, a2[idx]));
+}
+
 export const GEOLOCATION_OPTIONS = {
     MAP: "Map",
     SELECT_ORG: "Select org",
@@ -82,14 +93,16 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
     const authDispatch = useAuthDispatch();
     const [geolocationOptionToShow, setGeolocationOptionToShow] = useState(GEOLOCATION_OPTIONS.MAP);
     const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
-    
+
     useInterval(() => {
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .get(urlDigitalTwinsState, config)
             .then((response) => {
-                const digitalTwinsState = response.data;
-                setDigitalTwinsState(digitalTwinsState);
+                const newDigitalTwinsState = response.data;
+                if (!arraysEqual(newDigitalTwinsState, digitalTwinsState)) {
+                    setDigitalTwinsState(newDigitalTwinsState);
+                }
             })
             .catch((error) => {
                 console.log(error);

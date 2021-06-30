@@ -110,7 +110,9 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({ deviceData, digitalTwinIndex,
                 state === "alerting" && <DigitanTwinSvgImage fillColor={STATUS_ALERTING} bounds={bounds as LatLngTuple[]} />
             }
             <Tooltip sticky>
-                Digital twin<br />Name: {digitalTwinData.name}<br />Description: {digitalTwinData.description}
+                <span style={{ fontWeight: 'bold' }}>Digital twin</span><br />
+                Name: {deviceData.name}<br />
+                Status: <span style={{ fontWeight: 'bold' }}>{state.charAt(0).toUpperCase() + state.slice(1)}</span>
             </Tooltip>
         </Circle >
     )

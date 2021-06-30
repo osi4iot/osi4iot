@@ -86,7 +86,9 @@ const GeoDevice: FC<GeoDeviceProps> = ({ deviceData, deviceSelected, selectDevic
                 status === "alerting" && <DeviceSvgImage fillColor={STATUS_ALERTING} bounds={bounds as LatLngTuple[]} />
             }
             <Tooltip sticky>
-                Device<br />Name: {deviceData.name}<br />Description: {deviceData.description}
+                <span style={{ fontWeight: 'bold' }}>Device</span><br />
+                Name: {deviceData.name}<br />
+                Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
             </Tooltip>
         </Circle >
     )
