@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react'
+import React, { FC, useCallback, useEffect, useState } from 'react'
 import Map from './Geolocation/Map'
 import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
 import { IGroupManaged } from './TableColumns/groupsManagedColumns';
@@ -94,6 +94,21 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
     const [geolocationOptionToShow, setGeolocationOptionToShow] = useState(GEOLOCATION_OPTIONS.MAP);
     const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
 
+    useEffect(() => {
+        const config = axiosAuth(accessToken);
+        axiosInstance(refreshToken, authDispatch)
+            .get(urlDigitalTwinsState, config)
+            .then((response) => {
+                const digitalTwinsState = response.data;
+                setDigitalTwinsState(digitalTwinsState);
+            })
+            .catch((error) => {
+                console.log(error);
+            });
+    }, [accessToken, refreshToken, authDispatch]);
+
+    console.log("Paso por aqui...")
+
     useInterval(() => {
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
@@ -109,37 +124,45 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
             });
     }, 10000);
 
-    const backToMap = () => {
-        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.MAP);
-    }
-
-    const selectOrgOption = () => {
-        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_ORG);
-    }
-
-    const selectGroupOption = () => {
-        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_GROUP);
-    }
-
-    const selectDeviceOption = () => {
-        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DEVICE);
-    }
-
-    const selectDigitalTwinOption = () => {
+    useCallback(() => {
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
-    }
+    }, []);
 
-    const giveOrgOfGroupsManagedSelected = (orgSelected: IOrgOfGroupsManaged) => {
+
+    const backToMap = useCallback(() => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.MAP);
+    }, [])
+
+
+    const selectOrgOption = useCallback(() => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_ORG);
+    }, []);
+
+
+    const selectGroupOption = useCallback(() => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_GROUP);
+    }, []);
+
+    const selectDeviceOption = useCallback(() => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DEVICE);
+    }, []);
+
+    const selectDigitalTwinOption = useCallback(() => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
+    }, []);
+
+
+    const giveOrgOfGroupsManagedSelected = useCallback((orgSelected: IOrgOfGroupsManaged) => {
         selectOrg(orgSelected);
-    }
+    }, [selectOrg]);
 
-    const giveGroupManagedSelected = (groupSelected: IGroupManaged) => {
+    const giveGroupManagedSelected = useCallback((groupSelected: IGroupManaged) => {
         selectGroup(groupSelected);
-    }
+    }, [selectGroup]);
 
-    const giveDeviceSelected = (deviceSelected: IDevice) => {
+    const giveDeviceSelected = useCallback((deviceSelected: IDevice) => {
         selectDevice(deviceSelected);
-    }
+    }, [selectDevice]);
 
     return (
         <>
