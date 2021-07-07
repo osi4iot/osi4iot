@@ -13,6 +13,7 @@ import GroupController from "./components/group/group.controller";
 import DeviceController from "./components/device/device.controller";
 import TopicController from "./components/topic/topic.controller";
 import DigitalTwinController from "./components/digitalTwin/digitalTwinController";
+import BuildingController from "./components/building/building.controller";
 
 
 async function main(): Promise<void> {
@@ -24,6 +25,7 @@ async function main(): Promise<void> {
 			new AuthenticationController(),
 			new ApplicationController(),
 			new OrganizationController(),
+			new BuildingController(),
 			new GroupController(),
 			new DeviceController(),
 			new TopicController(),

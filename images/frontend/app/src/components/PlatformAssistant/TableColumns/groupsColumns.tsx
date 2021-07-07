@@ -25,6 +25,7 @@ export interface IGroup {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
+    floorNumber: number;
     geoJsonDataBase: FeatureCollection;
     geoJsonData: FeatureCollection;
 }
@@ -161,8 +162,8 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             disableFilters: true
         },
         {
-            Header: "Geojson data base",
-            accessor: "geoJsonDataBase",
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Floor<br />number</div>,
+            accessor: "floorNumber",
             disableFilters: true
         },
         {

@@ -22,6 +22,8 @@ export const PLATFORM_ASSISTANT_HOME_OPTIONS = {
 
 export const PLATFORM_ADMIN_OPTIONS = {
     ORGS: "Organizations",
+    BUILDINGS: "Buildings",
+    FLOORS: "Floors",
     GLOBAL_USERS: "Global users",
     REFRESH_TOKENS: "Refresh tokens",
     TOOLS: "Tools",
@@ -31,6 +33,18 @@ export const ORGS_OPTIONS = {
     TABLE: "Table",
     CREATE_ORG: "Create org",
     EDIT_ORG: "Edit org",
+}
+
+export const BUILDINGS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_BUILDING: "Create building",
+    EDIT_BUILDING: "Edit building",
+}
+
+export const FLOORS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_FLOOR: "Create floor",
+    EDIT_FLOOR: "Edit floor",
 }
 
 export const GLOBAL_USERS_OPTIONS = {

@@ -10,6 +10,9 @@ import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
 import { useGroupsDispatch, setGroupsOptionToShow } from '../../contexts/groupsOptions';
 import { GROUPS_OPTIONS } from './platformAssistantOptions';
+import { IGroupInputData } from './GroupsContainer';
+import { ISelectOrgUser } from './TableColumns/selectOrgUsersColumns';
+import SelectOrgUsersOfOrgManaged from './SelectOrgUsersOfOrgManaged';
 
 
 const FormContainer = styled.div`
@@ -17,7 +20,7 @@ const FormContainer = styled.div`
     padding: 30px 10px 30px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
-    width: 400px;
+    width: 420px;
     height: calc(100vh - 290px);
 
     form > div:nth-child(2) {
@@ -73,22 +76,47 @@ const folderPermissionOptions = [
 interface CreateGroupProps {
     backToTable: () => void;
     refreshGroups: () => void;
+    groupInputData: IGroupInputData;
+    setGroupInputData: (groupInputData: IGroupInputData) => void;
+
 }
 
-const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups }) => {
+const floorNumberWarning = "Floor number must an integer greater or equal to 0";
+
+const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupInputData, setGroupInputData }) => {
+    const [selectedOrgId, setSelectedOrgId] = useState(1);
+    const [showCreateGroup, setShowCreateGroup] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectOrgUser[]>([]);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const groupsDispatch = useGroupsDispatch();
+    const initialGroupData = { ...groupInputData, orgId: selectedOrgId };
+    if (selectedUsersArray.length !== 0) {
+        const newGroupAdmins = selectedUsersArray.map(user => {
+            const groupAdminData = {
+                firstName: user.firstName,
+                surname: user.surname,
+                email: user.email,
+            };
+            return groupAdminData;
+        });
+        const lastOrgAdmin = initialGroupData.groupAdminDataArray[initialGroupData.groupAdminDataArray.length - 1];
+        if (Object.values(lastOrgAdmin).filter(value => value !== "").length === 0) {
+            initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray.slice(0, -1), ...newGroupAdmins];
+        } else {
+            initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray, ...newGroupAdmins];
+        }
+    }
 
     const onSubmit = (values: any, actions: any) => {
         const orgId = values.orgId;
         const url = `https://${domainName}/admin_api/group/${orgId}`;
         const config = axiosAuth(accessToken);
-        
-        if ((values as any).geoJsonDataBase.trim() === "") {
-            (values as any).geoJsonDataBase = "{}";
-        }        
+
+        if (typeof (values as any).floorNumber === 'string') {
+            (values as any).floorNumber = parseInt((values as any).floorNumber, 10);
+        }
 
         if ((values as any).geoJsonData.trim() === "") {
             (values as any).geoJsonData = "{}";
@@ -101,8 +129,8 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups }) => {
             telegramChatId: values.telegramChatId,
             folderPermission: values.folderPermission,
             groupAdminDataArray: [...values.groupAdminDataArray],
-            geoJsonDataBase: values.geoJsonDataBase,
-            geoJsonData: values.geoJsonData
+            floorNumber: values.floorNumber,
+            geoJsonData: values.geoJsonData,
         }
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)
@@ -122,23 +150,6 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups }) => {
             })
     }
 
-
-    const initialGroupData = {
-        orgId: 1,
-        name: "",
-        acronym: "",
-        folderPermission: "Viewer",
-        telegramInvitationLink: "",
-        telegramChatId: "",
-        groupAdminDataArray: [
-            {
-                firstName: "",
-                surname: "",
-                email: "",
-            }
-        ]
-    }
-
     const validationSchema = Yup.object().shape({
         orgId: Yup.number().required('Required'),
         name: Yup.string().max(190, "The maximum number of characters allowed is 200").required('Required'),
@@ -156,7 +167,7 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups }) => {
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied
             .min(1, 'Must be at least one org amdin'),
-        geoJsonDataBase: Yup.string().required('Required'),
+        floorNumber: Yup.number().integer(floorNumberWarning).moreThan(-1,floorNumberWarning).required('Required'),
         geoJsonData: Yup.string().required('Required'),
     });
 
@@ -165,79 +176,101 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups }) => {
         backToTable();
     };
 
+    const goToSelect = (groupInputData: IGroupInputData) => {
+        setGroupInputData(groupInputData);
+        setShowCreateGroup(false);
+    }
+
     return (
+
         <>
-            <FormTitle isSubmitting={isSubmitting}>Create group</FormTitle>
-            <FormContainer>
-                <Formik initialValues={initialGroupData} validationSchema={validationSchema} onSubmit={onSubmit} >
-                    {
-                        formik => (
-                            <Form>
-                                <ControlsContainer>
-                                    <FormikControl
-                                        control='input'
-                                        label='OrgId'
-                                        name='orgId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Group name'
-                                        name='name'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Group acronym'
-                                        name='acronym'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='select'
-                                        label='Folder permission'
-                                        name="folderPermission"
-                                        options={folderPermissionOptions}
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Telegram invitation link'
-                                        name='telegramInvitationLink'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Telegram chat id'
-                                        name='telegramChatId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='inputArray'
-                                        label='Group admins'
-                                        name='groupAdminDataArray'
-                                        labelArray={['First name', 'Surname', 'Email']}
-                                        nameArray={['firstName', 'surname', 'email']}
-                                        typeArray={['text', 'text', 'email']}
-                                        addLabel="group admim"
-                                    />
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Geojson data base'
-                                        name='geoJsonDataBase'
-                                    />
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Geojson data'
-                                        name='geoJsonData'
-                                    />                                       
-                                </ControlsContainer>
-                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
-                            </Form>
-                        )
-                    }
-                </Formik>
-            </FormContainer>
+            {
+                showCreateGroup ?
+                    <>
+                        <FormTitle isSubmitting={isSubmitting}>Create group</FormTitle>
+                        <FormContainer>
+                            <Formik initialValues={initialGroupData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                                {
+                                    formik => (
+                                        <Form>
+                                            <ControlsContainer>
+                                                <FormikControl
+                                                    control='input'
+                                                    label='OrgId'
+                                                    name='orgId'
+                                                    type='text'
+                                                    onChange={(e: any) => { formik.handleChange(e); setSelectedOrgId(parseInt(e.target.value,10));}}
+                                                />
+                                                <FormikControl
+                                                    control='input'
+                                                    label='Group name'
+                                                    name='name'
+                                                    type='text'
+                                                />
+                                                <FormikControl
+                                                    control='input'
+                                                    label='Group acronym'
+                                                    name='acronym'
+                                                    type='text'
+                                                />
+                                                <FormikControl
+                                                    control='select'
+                                                    label='Folder permission'
+                                                    name="folderPermission"
+                                                    options={folderPermissionOptions}
+                                                    type='text'
+                                                />
+                                                <FormikControl
+                                                    control='input'
+                                                    label='Telegram invitation link'
+                                                    name='telegramInvitationLink'
+                                                    type='text'
+                                                />
+                                                <FormikControl
+                                                    control='input'
+                                                    label='Telegram chat id'
+                                                    name='telegramChatId'
+                                                    type='text'
+                                                />
+                                                <FormikControl
+                                                    control='input'
+                                                    label='Floor number'
+                                                    name='floorNumber'
+                                                    type='text'
+                                                />                                                
+                                                <FormikControl
+                                                    control='textarea'
+                                                    label='Geojson data'
+                                                    name='geoJsonData'
+                                                />
+                                                <FormikControl
+                                                    control='inputArray'
+                                                    label='Group admins'
+                                                    name='groupAdminDataArray'
+                                                    labelArray={['First name', 'Surname', 'Email']}
+                                                    nameArray={['firstName', 'surname', 'email']}
+                                                    typeArray={['text', 'text', 'email']}
+                                                    addLabel="group admim"
+                                                    selectLabel="user"
+                                                    goToSelect={() => goToSelect(formik.values)}
+                                                />                                                
+                                            </ControlsContainer>
+                                            <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                                        </Form>
+                                    )
+                                }
+                            </Formik>
+                        </FormContainer>
+                    </>
+                    :
+                    <SelectOrgUsersOfOrgManaged
+                        orgId={selectedOrgId}
+                        backToCreate={() => setShowCreateGroup(true)}
+                        setSelectedUsersArray={(selectedUsers: ISelectOrgUser[]) => setSelectedUsersArray(selectedUsers)}
+                    />
+            }
         </>
+
     )
 }
 

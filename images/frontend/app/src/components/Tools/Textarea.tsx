@@ -27,7 +27,7 @@ const InputStyled = styled.div`
         margin-left: 2px;
         color: white;
         width: 100%;
-        height: 200px;
+        height: 290px;
         resize: none;
         overflow-y: auto;
 

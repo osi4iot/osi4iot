@@ -110,8 +110,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
         zipCode: Yup.string().max(50, "The maximum number of characters allowed is 50").required('Required'),
         state: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
         country: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
-        longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
-        latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
+        buildingId: Yup.number().positive().integer().required('Required'),
         telegramInvitationLink: Yup.string().url("Enter a valid url").max(60, "The maximum number of characters allowed is 60").required('Required'),
         telegramChatId: Yup.string().max(15, "The maximum number of characters allowed is 15").required('Required'),
         orgAdminArray: Yup.array()
@@ -130,7 +129,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied
             .min(1, 'Must be at least one org amdin'),
-        geoJsonData: Yup.string().required('Required'),
     });
 
     const onSubmit = (values: {}, actions: any) => {
@@ -229,18 +227,12 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                                                 name='country'
                                                 type='text'
                                             />
-                                            <FormikControl
+                                             <FormikControl
                                                 control='input'
-                                                label='Longitude'
-                                                name='longitude'
+                                                label='Building Id'
+                                                name='buildingId'
                                                 type='text'
-                                            />
-                                            <FormikControl
-                                                control='input'
-                                                label='Latitude'
-                                                name='latitude'
-                                                type='text'
-                                            />
+                                            />                                              
                                             <FormikControl
                                                 control='input'
                                                 label='Telegram invitation link'
@@ -263,12 +255,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                                                 addLabel="org admim"
                                                 selectLabel="user"
                                                 goToSelect={() => goToSelect(formik.values)}
-                                            />
-                                            <FormikControl
-                                                control='textarea'
-                                                label='Geojson data'
-                                                name='geoJsonData'
-                                            />
+                                            />                                            
                                         </ControlsContainer>
                                         <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                                     </Form>

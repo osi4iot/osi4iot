@@ -138,6 +138,7 @@ const TableOptionsContainer = styled.div`
 
 const Pagination = styled.div`
     margin-left: 18px;
+    margin-right: 20px;
     background-color: #202226;
     display: flex;
     justify-content: flex-start;
@@ -192,6 +193,7 @@ const ReloadContainer = styled.div`
 
 
 const NewComponentButton = styled.button`
+    margin-left: 30px;
 	background-color: #3274d9;
 	padding: 10px;
 	color: white;
@@ -275,13 +277,14 @@ const SearchIcon = styled(FaSearch)`
 const GlobalSearchIcon = styled(FaSearch)`
     position: absolute;
     top: 8px;
-    left: 7px;
+    left: 38px;
 	font-size: 12px;
 	color: #3274d9;
     background-color: #0c0d0f;
 `;
 
 const SearchGlobal = styled.div`
+    margin-left: 30px;
     background-color: #202226;
     width: 250px;
 

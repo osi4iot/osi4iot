@@ -13,6 +13,6 @@ export default interface IGroup {
 	emailNotificationChannelId: number;
 	telegramNotificationChannelId: number;
 	isOrgDefaultGroup: boolean;
-	geoJsonDataBase: string;
 	geoJsonData: string;
+	floorNumber: number;
 }

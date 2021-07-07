@@ -1,5 +1,7 @@
+import { IBuilding } from "../../components/PlatformAssistant/TableColumns/buildingsColumns";
 import { IDevice } from "../../components/PlatformAssistant/TableColumns/devicesColumns";
 import { IDigitalTwin } from "../../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
+import { IFloor } from "../../components/PlatformAssistant/TableColumns/floorsColumns";
 import { IGlobalUser } from "../../components/PlatformAssistant/TableColumns/globalUsersColumns";
 import { IGroupMember } from "../../components/PlatformAssistant/TableColumns/groupMemberColumns";
 import { IGroup } from "../../components/PlatformAssistant/TableColumns/groupsColumns";
@@ -27,6 +29,8 @@ export interface PlatformAssistantContextProps {
 	platformAssitantOptionToShow: string;
 	selectOrgUsers: ISelectOrgUser[];
 	organizations: IOrganization[];
+	buildings: IBuilding[];
+	floors: IFloor[];
 	globalUsers: IGlobalUser[];
 	refreshTokens: IRefreshToken[];
 	orgsManaged: IOrgManaged[];
@@ -51,6 +55,8 @@ export interface PlatformAssistantActionPayload {
 	platformAssitantOptionToShow: string;
 	selectOrgUsers: ISelectOrgUser[];
 	organizations: IOrganization[];
+	buildings: IBuilding[];
+	floors: IFloor[];
 	globalUsers: IGlobalUser[];
 	refreshTokens: IRefreshToken[];
 	orgsManaged: IOrgManaged[];
@@ -94,6 +100,14 @@ export interface IOrganizationsTable {
 
 export interface IGlobalUsersTable {
 	globalUsers: IGlobalUser[];
+}
+
+export interface IBuildingsTable {
+	buildings: IBuilding[];
+}
+
+export interface IFloorsTable {
+	floors: IFloor[];
 }
 
 export interface IRefreshTokensTable {

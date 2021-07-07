@@ -3,8 +3,8 @@ import styled from "styled-components";
 import FormTitle from "../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelection';
 import { useOrgsOfGroupsManagedTable } from '../../contexts/platformAssistantContext';
-import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
 import { ISelectOrgOfGroupsManaged, SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS } from './TableColumns/selectOrgOfGroupsManagedColumns';
+import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
 
 
 const FormContainer = styled.div`
@@ -100,7 +100,7 @@ const Button = styled.button`
 
 interface SelectOrgOfGroupsManagedProps {
     backToMap: () => void;
-    giveOrgOfGroupsManagedSelected: (orgManaged: IOrgManaged) => void;
+    giveOrgOfGroupsManagedSelected: (orgManaged: IOrgOfGroupsManaged) => void;
 }
 
 const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = ({ backToMap, giveOrgOfGroupsManagedSelected }) => {

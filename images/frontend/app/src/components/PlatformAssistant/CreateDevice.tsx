@@ -60,6 +60,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({ backToTable, refreshDevices }) =>
         if (typeof (values as any).longitude === 'string') {
             (values as any).longitude = parseFloat((values as any).longitude);
         }
+        
         if (typeof (values as any).latitude === 'string') {
             (values as any).latitude = parseFloat((values as any).latitude);
         }

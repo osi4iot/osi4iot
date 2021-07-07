@@ -20,8 +20,16 @@ import {
     setOrganizationsTable,
     setGlobalUsersTable,
     setRefreshTokensTable,
+    useBuildingsTable,
+    useFloorsTable,
+    setBuildingsTable,
+    setFloorsTable,
 
 } from '../../contexts/platformAssistantContext';
+import { BuildingsProvider } from '../../contexts/buildingsOptions';
+import BuildingsContainer from './BuildingsContainer';
+import { FloorsProvider } from '../../contexts/floorsOptions';
+import FloorsContainer from './FloorsContainer';
 // import mockOrganizations from "./mockOrganizations";
 
 const PlatformAdminOptionsContainer = styled.div`
@@ -102,21 +110,38 @@ const PlatformAdminOptions: FC<{}> = () => {
     const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const organizationsTable = useOrganizationsTable();
+    const buildingsTable = useBuildingsTable();
+    const floorsTable = useFloorsTable();
     const globalUsersTable = useGlobalUsersTable();
     const refreshTokensTable = useRefreshTokensTable();
     const [orgsLoading, setOrgsLoading] = useState(true);
+    const [buildingsLoading, setBuildingsLoading] = useState(true);
+    const [floorsLoading, setFloorsLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
     const [refreshTokensLoading, setRefreshTokensLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ADMIN_OPTIONS.ORGS);
     const [reloadOrgs, setReloadOrgs] = useState(false);
+    const [reloadBuildings, setReloadBuildings] = useState(false);
+    const [reloadFloors, setReloadFloors] = useState(false);
     const [reloadGlobalUsers, setReloadGlobalUsers] = useState(false);
     const [reloadRefreshTokens, setReloadRefreshTokens] = useState(false);
-
 
     const refreshOrgs = useCallback(() => {
         setReloadOrgs(true);
         setOrgsLoading(true);
         setTimeout(() => setReloadOrgs(false), 500);
+    }, []);
+
+    const refreshBuildings = useCallback(() => {
+        setReloadBuildings(true);
+        setBuildingsLoading(true);
+        setTimeout(() => setReloadBuildings(false), 500);
+    }, []);
+
+    const refreshFloors = useCallback(() => {
+        setReloadFloors(true);
+        setFloorsLoading(true);
+        setTimeout(() => setReloadFloors(false), 500);
     }, []);
 
     const refreshGlobalUsers = useCallback(() => {
@@ -153,6 +178,46 @@ const PlatformAdminOptions: FC<{}> = () => {
             setOrgsLoading(false);
         }
     }, [accessToken, refreshToken, authDispatch, reloadOrgs, plaformAssistantDispatch, organizationsTable.length]);
+
+    useEffect(() => {
+        if (buildingsTable.length === 0 || reloadBuildings) {
+            const urlBuildings = `https://${domainName}/admin_api/buildings`;
+            const config = axiosAuth(accessToken);
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlBuildings, config)
+                .then((response) => {
+                    const buildings = response.data;
+                    setBuildingsTable(plaformAssistantDispatch, { buildings });
+                    setBuildingsLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+
+        } else {
+            setBuildingsLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, reloadBuildings, plaformAssistantDispatch, buildingsTable.length]);
+
+    useEffect(() => {
+        if (floorsTable.length === 0 || reloadFloors) {
+            const urlFloors = `https://${domainName}/admin_api/building_floors`;
+            const config = axiosAuth(accessToken);
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlFloors, config)
+                .then((response) => {
+                    const floors = response.data;
+                    setFloorsTable(plaformAssistantDispatch, { floors });
+                    setFloorsLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+
+        } else {
+            setFloorsLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, reloadFloors, plaformAssistantDispatch, floorsTable.length]);
 
     useEffect(() => {
         if (globalUsersTable.length === 0 || reloadGlobalUsers) {
@@ -213,6 +278,12 @@ const PlatformAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.ORGS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.ORGS)}>
                     Organizations
                 </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.BUILDINGS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.BUILDINGS)}>
+                    Buildings
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.FLOORS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.FLOORS)}>
+                    Floors
+                </OptionContainer>                
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS)}>
                     Global users
                 </OptionContainer>
@@ -225,7 +296,7 @@ const PlatformAdminOptions: FC<{}> = () => {
             </PlatformAdminOptionsContainer>
             <ContentContainer >
                 <>
-                    {(orgsLoading || globalUsersLoading || refreshTokensLoading) ?
+                    {(orgsLoading || buildingsLoading || floorsLoading || globalUsersLoading || refreshTokensLoading) ?
                         <Loader />
                         :
                         <>
@@ -234,6 +305,16 @@ const PlatformAdminOptions: FC<{}> = () => {
                                     <OrgsContainer organizations={organizationsTable} refreshOrgs={refreshOrgs} />
                                 </OrgsProvider>
                             }
+                           {optionToShow === PLATFORM_ADMIN_OPTIONS.BUILDINGS &&
+                                <BuildingsProvider>
+                                    <BuildingsContainer buildings={buildingsTable} refreshBuildings={refreshBuildings} />
+                                </BuildingsProvider>
+                            }
+                           {optionToShow === PLATFORM_ADMIN_OPTIONS.FLOORS &&
+                                <FloorsProvider>
+                                    <FloorsContainer floors={floorsTable} refreshFloors={refreshFloors} />
+                                </FloorsProvider>
+                            }                             
                             {optionToShow === PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS &&
                                 <GlobalUsersProvider>
                                     <GlobalUsersContainer globalUsers={globalUsersTable} refreshGlobalUsers={refreshGlobalUsers} />

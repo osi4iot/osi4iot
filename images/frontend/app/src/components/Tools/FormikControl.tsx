@@ -24,6 +24,7 @@ interface FormikControlProps {
     goToSelect?: () => void;
     options?: OptionsType<IOption>;
     autoFocus?: boolean;
+    onChange?: (e: any) => void;
 }
 
 const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, options, autoFocus, ...rest }) => {

@@ -5,6 +5,8 @@ import {
 	ISelectOrgUsersTable,
 	IOrganizationsTable,
 	IGlobalUsersTable,
+	IBuildingsTable,
+	IFloorsTable,
 	IRefreshTokensTable,
 	IOrgsManagedTable,
 	IOrgsOfGroupsManagedTable,
@@ -35,6 +37,14 @@ export function setSelectOrgUsersTable(plaformAssistantDispatch: PlatformAssista
 
 export function setOrganizationsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrganizationsTable) {
 	plaformAssistantDispatch({ type: 'ORGANIZATIONS_TABLE', payload: data });
+}
+
+export function setBuildingsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IBuildingsTable) {
+	plaformAssistantDispatch({ type: 'BUILDINGS_TABLE', payload: data });
+}
+
+export function setFloorsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IFloorsTable) {
+	plaformAssistantDispatch({ type: 'FLOORS_TABLE', payload: data });
 }
 
 export function setGlobalUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IGlobalUsersTable) {

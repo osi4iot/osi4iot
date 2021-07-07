@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsEnum, IsString } from "class-validator";
+import { IsEnum, IsNumber, IsString } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 
 class UpdateGroupDto {
@@ -19,10 +19,10 @@ class UpdateGroupDto {
 	public folderPermission: FolderPermissionOption;
 
 	@IsString()
-	public geoJsonDataBase: string;
-
-	@IsString()
 	public geoJsonData: string;
+
+	@IsNumber()
+	public floorNumber: number;
 }
 
 export default UpdateGroupDto;

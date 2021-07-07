@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsEmail, IsEnum, IsString, ValidateIf, ValidateNested } from "class-validator";
+import { IsEmail, IsEnum, IsNumber, IsString, ValidateIf, ValidateNested } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 import CreateGroupAdminDto from "./groupAdmin.dto";
 
@@ -24,10 +24,10 @@ class CreateGroupDto {
 	public folderPermission: FolderPermissionOption;
 
 	@IsString()
-	public geoJsonDataBase: string;
-
-	@IsString()
 	public geoJsonData: string;
+
+	@IsNumber()
+	public floorNumber: number;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)

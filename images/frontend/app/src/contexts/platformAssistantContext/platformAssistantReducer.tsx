@@ -21,6 +21,8 @@ export const initialState = {
     platformAssitantOptionToShow: PLATFORM_ASSISTANT_OPTION.HOME,
     selectOrgUsers: [],
     organizations: [],
+    buildings: [],
+    floors: [],
     globalUsers: [],
     refreshTokens: [],
     orgsManaged: [],
@@ -64,6 +66,18 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
             return {
                 ...initialState,
                 organizations: action.payload.organizations
+            };
+
+        case "BUILDINGS_TABLE":
+            return {
+                ...initialState,
+                buildings: action.payload.buildings
+            };
+
+        case "FLOORS_TABLE":
+            return {
+                ...initialState,
+                floors: action.payload.floors
             };
 
         case "GLOBAL_USERS_TABLE":

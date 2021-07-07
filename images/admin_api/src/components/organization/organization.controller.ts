@@ -309,7 +309,7 @@ class OrganizationController implements IController {
 					telegramInvitationLink: organizationData.telegramInvitationLink,
 					folderPermission: ("Viewer" as FolderPermissionOption),
 					groupAdminDataArray,
-					geoJsonDataBase: "{}",
+					floorNumber: 0,
 					geoJsonData: "{}"
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
@@ -321,15 +321,15 @@ class OrganizationController implements IController {
 					{
 						name: defaultGroupDeviceName(group, "Generic"),
 						description: `Default generic device of the group ${defaultOrgGroupAcronym}`,
-						latitude: organizationData.longitude,
-						longitude: organizationData.longitude,
+						latitude: 0,
+						longitude: 0,
 						type: "Generic"
 					},
 					{
 						name: defaultGroupDeviceName(group, "Mobile"),
 						description: `Default mobile device of the group ${defaultOrgGroupAcronym}`,
-						latitude: organizationData.longitude,
-						longitude: organizationData.longitude,
+						latitude: 0,
+						longitude: 0,
 						type: "Mobile"
 					}
 				];

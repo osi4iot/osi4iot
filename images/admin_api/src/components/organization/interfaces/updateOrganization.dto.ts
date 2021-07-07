@@ -1,4 +1,4 @@
-import { IsNumber, IsString, ValidateIf } from "class-validator";
+import { IsBoolean, IsNumber, IsString, ValidateIf } from "class-validator";
 
 class UpdateOrganizationDto {
 	@IsString()
@@ -30,6 +30,9 @@ class UpdateOrganizationDto {
 
 	@IsString()
 	public geoJsonData: string;
+
+	@IsNumber()
+	public floorOrgId: number;
 }
 
 export default UpdateOrganizationDto;

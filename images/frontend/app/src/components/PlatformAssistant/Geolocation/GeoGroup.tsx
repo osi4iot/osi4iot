@@ -86,6 +86,7 @@ const GeoGroup: FC<GeoGroupProps> = (
     const geoJsonLayerGroupData = useRef(null);
 
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
+    const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
 
     const styleGeoGroupJson = (geoJsonFeature: any) => {
         const groupsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.groupId === groupData.id);
@@ -100,6 +101,7 @@ const GeoGroup: FC<GeoGroupProps> = (
     const styleGeoOrgJson = (geoJsonFeature: any) => {
         return orgStyle();
     }
+
 
     useEffect(() => {
         if (Object.keys(groupData.geoJsonDataBase).length !== 0) {
@@ -129,12 +131,12 @@ const GeoGroup: FC<GeoGroupProps> = (
                 (Object.keys(groupData.geoJsonDataBase).length !== 0 && Object.keys(groupData.geoJsonData).length !== 0) ?
                     <LayerGroup>
                         <GeoJSON data={groupData.geoJsonDataBase} style={styleGeoGroupJsonBase} />
-                        <GeoJSON data={orgData.geoJsonData} style={styleGeoOrgJson} />
+                        {/* <GeoJSON data={orgData.geoJsonData} style={styleGeoOrgJson} /> */}
                         <GeoJSON data={groupData.geoJsonData} style={styleGeoGroupJson} >
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
                         {
-                            deviceDataArray.map(deviceData =>
+                            deviceDataArrayFiltered.map(deviceData =>
                                 <GeoDevice
                                     key={deviceData.id}
                                     deviceData={deviceData}

@@ -1,6 +1,5 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
-import { FeatureCollection } from 'geojson';
 import AddUsersIcon from '../AddUsersIcon';
 import RemoveUsersIcon from '../RemoveUsersIcon';
 import { ORGS_MANAGED_OPTIONS } from '../platformAssistantOptions';
@@ -117,9 +116,7 @@ export interface IOrgManaged {
     zipCode: string;
     state: string;
     country: string;
-    latitude: number;
-    longitude: number;
-    geoJsonData: FeatureCollection;
+    buildingId: number;
 }
 
 interface IOrgManagedColumn extends IOrgManaged {
@@ -168,20 +165,10 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             disableFilters: true
         },
         {
-            Header: "Longitude",
-            accessor: "longitude",
+            Header: "Building Id",
+            accessor: "buildingId",
             disableFilters: true
-        },
-        {
-            Header: "Latitude",
-            accessor: "latitude",
-            disableFilters: true
-        },
-        {
-            Header: "Geojson Data",
-            accessor: "geoJsonData",
-            disableFilters: true
-        },        
+        },         
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />users</div>,
             accessor: "addOrgUsers",

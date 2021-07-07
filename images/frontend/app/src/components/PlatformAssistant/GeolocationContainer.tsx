@@ -11,6 +11,8 @@ import { IDigitalTwin } from './TableColumns/digitalTwinsColumns';
 import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import { useAuthDispatch, useAuthState } from '../../contexts/authContext';
 import useInterval from '../../tools/useInterval';
+import { IBuilding } from './TableColumns/buildingsColumns';
+import { IFloor } from './TableColumns/floorsColumns';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -44,10 +46,14 @@ export interface IDigitalTwinState {
 }
 
 interface GeolocationContainerProps {
+    buildings: IBuilding[];
+    floors: IFloor[];
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
     digitalTwins: IDigitalTwin[];
+    buildingSelected: IBuilding | null;
+    floorSelected: IFloor | null;
     orgSelected: IOrgManaged | null;
     selectOrg: (orgSelected: IOrgManaged) => void;
     groupSelected: IGroupManaged | null;
@@ -56,6 +62,8 @@ interface GeolocationContainerProps {
     selectDevice: (deviceSelected: IDevice) => void;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
+    refreshBuildings: () => void;
+    refreshFloors: () => void;
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
@@ -68,10 +76,14 @@ interface GeolocationContainerProps {
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
     {
+        buildings,
+        floors,
         orgsOfGroupsManaged,
         groupsManaged,
         devices,
         digitalTwins,
+        buildingSelected,
+        floorSelected,
         orgSelected,
         selectOrg,
         groupSelected,
@@ -80,6 +92,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         selectDevice,
         selectDigitalTwin,
         digitalTwinSelected,
+        refreshBuildings,
+        refreshFloors,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
@@ -106,8 +120,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                 console.log(error);
             });
     }, [accessToken, refreshToken, authDispatch]);
-
-    console.log("Paso por aqui...")
 
     useInterval(() => {
         const config = axiosAuth(accessToken);
@@ -168,6 +180,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         <>
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.MAP &&
                 <Map
+                    buildings={buildings}
+                    floors={floors}
                     orgsOfGroupsManaged={orgsOfGroupsManaged}
                     groupsManaged={groupsManaged}
                     devices={devices}

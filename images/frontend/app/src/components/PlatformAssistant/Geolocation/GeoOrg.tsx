@@ -43,23 +43,23 @@ const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelecte
     const orgsStateFiltered = digitalTwinsState.filter(item => item.digitalTwinId === orgData.id);
     const orgStatus = findOutStatus(orgsStateFiltered);
 
-    useEffect(() => {
-        let maxLongitude = -180;
-        let minLongitude = 180;
-        let maxLatitude = -90;
-        let minLatitude = 90;
-        if (orgData.geoJsonData.features && orgData.geoJsonData.features.length !== 0) {
-            const coordsArray = (orgData.geoJsonData.features[0].geometry as Polygon).coordinates[0];
-            coordsArray.forEach(coords => {
-                if (coords[0] > maxLongitude) maxLongitude = coords[0];
-                if (coords[0] < minLongitude) minLongitude = coords[0];
-                if (coords[1] > maxLatitude) maxLatitude = coords[1];
-                if (coords[1] < minLatitude) minLatitude = coords[1];
-            })
-        }
-        const outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
-        setOuterBounds(outerBounds);
-    }, [orgData.geoJsonData])
+    // useEffect(() => {
+    //     let maxLongitude = -180;
+    //     let minLongitude = 180;
+    //     let maxLatitude = -90;
+    //     let minLatitude = 90;
+    //     if (orgData.geoJsonData.features && orgData.geoJsonData.features.length !== 0) {
+    //         const coordsArray = (orgData.geoJsonData.features[0].geometry as Polygon).coordinates[0];
+    //         coordsArray.forEach(coords => {
+    //             if (coords[0] > maxLongitude) maxLongitude = coords[0];
+    //             if (coords[0] < minLongitude) minLongitude = coords[0];
+    //             if (coords[1] > maxLatitude) maxLatitude = coords[1];
+    //             if (coords[1] < minLatitude) minLatitude = coords[1];
+    //         })
+    //     }
+    //     const outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
+    //     setOuterBounds(outerBounds);
+    // }, [orgData.geoJsonData])
 
     useEffect(() => {
         if (orgSelected?.id === orgData.id) map.fitBounds(outerBounds as LatLngTuple[]);
@@ -81,39 +81,40 @@ const GeoOrg: FC<GeoOrgProps> = ({ orgData, orgSelected, selectOrg, groupSelecte
         return setOrgStyle(isSelected);
     }
 
-    useEffect(() => {
-        const currenGeoJsonLayer = geoJsonLayer.current;
-        const isSelected = orgSelected?.id === orgData.id;
-        if (currenGeoJsonLayer) {
-            (currenGeoJsonLayer as any)
-                .clearLayers()
-                .addData(orgData.geoJsonData)
-                .setStyle(setOrgStyle(isSelected));
-        }
-    }, [orgData, orgSelected, orgStatus]);
+    // useEffect(() => {
+    //     const currenGeoJsonLayer = geoJsonLayer.current;
+    //     const isSelected = orgSelected?.id === orgData.id;
+    //     if (currenGeoJsonLayer) {
+    //         (currenGeoJsonLayer as any)
+    //             .clearLayers()
+    //             .addData(orgData.geoJsonData)
+    //             .setStyle(setOrgStyle(isSelected));
+    //     }
+    // }, [orgData, orgSelected, orgStatus]);
 
     return (
         groupSelected ?
             null
             :
-            <GeoJSON ref={geoJsonLayer} data={orgData.geoJsonData} style={styleGeoJson} eventHandlers={{ click: clickHandler }}>
-                {orgStatus === "ok" &&
-                    <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconMarker} >
-                        <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
-                    </Marker>
-                }
-                {orgStatus === "pending" &&
-                    <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconPendingMarker} >
-                        <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
-                    </Marker>
-                }
-                {orgStatus === "alerting" &&
-                    <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconAlertingMarker} >
-                        <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
-                    </Marker>
-                }                 
-                <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
-            </GeoJSON >
+            // <GeoJSON ref={geoJsonLayer} data={orgData.geoJsonData} style={styleGeoJson} eventHandlers={{ click: clickHandler }}>
+            //     {orgStatus === "ok" &&
+            //         <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconMarker} >
+            //             <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
+            //         </Marker>
+            //     }
+            //     {orgStatus === "pending" &&
+            //         <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconPendingMarker} >
+            //             <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
+            //         </Marker>
+            //     }
+            //     {orgStatus === "alerting" &&
+            //         <Marker position={[orgData.latitude, orgData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconAlertingMarker} >
+            //             <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
+            //         </Marker>
+            //     }
+            //     <Tooltip sticky>Org: {orgData.acronym}</Tooltip>
+            // </GeoJSON>
+            <div>HOla</div>
     )
 }
 

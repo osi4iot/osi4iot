@@ -88,28 +88,29 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         zipCode: organizations[orgRowIndex].zipCode,
         state: organizations[orgRowIndex].state,
         country: organizations[orgRowIndex].country,
-        longitude: organizations[orgRowIndex].longitude,
-        latitude: organizations[orgRowIndex].latitude,
-        geoJsonData: JSON.stringify(organizations[orgRowIndex].geoJsonData)
+        buildingId: organizations[orgRowIndex].buildingId,
     }
-    
+
     const validationSchema = Yup.object().shape({
-        name: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
-        acronym: Yup.string().max(20,"The maximum number of characters allowed is 20").required('Required'),
-        address: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
-        city: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
-        zipCode: Yup.string().max(50,"The maximum number of characters allowed is 50").required('Required'),
-        state: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
-        country: Yup.string().max(255,"The maximum number of characters allowed is 255").required('Required'),
-        longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
-        latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
-        geoJsonData: Yup.string().required('Required'),
+        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        acronym: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
+        address: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        city: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        zipCode: Yup.string().max(50, "The maximum number of characters allowed is 50").required('Required'),
+        state: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        country: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        buildingId: Yup.number().integer().positive().required('Required'),
     });
 
     const onSubmit = (values: {}, actions: any) => {
         const url = `https://${domainName}/admin_api/organization/id/${orgId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
+
+        if (typeof (values as any).numFloors === 'string') {
+            (values as any).numFloors = parseInt((values as any).numFloors, 10);
+        }
+
         if (typeof (values as any).longitude === 'string') {
             (values as any).longitude = parseFloat((values as any).longitude);
         }
@@ -120,7 +121,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
 
         if ((values as any).geoJsonData.trim() === "") {
             (values as any).geoJsonData = "{}";
-        }        
+        }
 
         axiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
@@ -197,20 +198,9 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                     />
                                     <FormikControl
                                         control='input'
-                                        label='Longitude'
-                                        name='longitude'
+                                        label='Building Id'
+                                        name='buildingId'
                                         type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Latitude'
-                                        name='latitude'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Geojson data'
-                                        name='geoJsonData'
                                     />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

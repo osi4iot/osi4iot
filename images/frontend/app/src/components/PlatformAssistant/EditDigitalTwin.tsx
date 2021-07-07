@@ -92,7 +92,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting} >Edit topic</FormTitle>
+            <FormTitle isSubmitting={isSubmitting} >Edit digital twin</FormTitle>
             <FormContainer>
                 <Formik initialValues={initialTopicData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {

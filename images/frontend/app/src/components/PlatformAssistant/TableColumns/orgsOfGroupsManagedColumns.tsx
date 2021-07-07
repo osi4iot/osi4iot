@@ -15,6 +15,7 @@ export interface IOrgOfGroupsManaged {
     latitude: number;
     longitude: number;
     geoJsonData: FeatureCollection;
+    buildingId: number;
 }
 
 
@@ -58,18 +59,8 @@ export const ORGS_OF_GROUPS_MANAGED_COLUMNS: Column<IOrgOfGroupsManaged>[] = [
         disableFilters: true
     },
     {
-        Header: "Longitude",
-        accessor: "longitude",
-        disableFilters: true
-    },
-    {
-        Header: "Latitude",
-        accessor: "latitude",
-        disableFilters: true
-    },
-    {
-        Header: "Geojson Data",
-        accessor: "geoJsonData",
+        Header: "Building Id",
+        accessor: "buildingId",
         disableFilters: true
     }
 ];

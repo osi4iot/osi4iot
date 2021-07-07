@@ -1,6 +1,8 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
+import { IBuilding } from '../../components/PlatformAssistant/TableColumns/buildingsColumns';
 import { IDevice } from '../../components/PlatformAssistant/TableColumns/devicesColumns';
 import { IDigitalTwin } from '../../components/PlatformAssistant/TableColumns/digitalTwinsColumns';
+import { IFloor } from '../../components/PlatformAssistant/TableColumns/floorsColumns';
 import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/globalUsersColumns';
 import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
 import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
@@ -78,6 +80,22 @@ export const useOrganizationsTable = (): IOrganization[] => {
 		throw new Error('useOrganizationsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.organizations;
+}
+
+export const useBuildingsTable = (): IBuilding[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useBuildingsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.buildings;
+}
+
+export const useFloorsTable = (): IFloor[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useFloorsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.floors;
 }
 
 export const useGlobalUsersTable = (): IGlobalUser[] => {

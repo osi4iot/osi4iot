@@ -89,8 +89,8 @@ const FieldContainer = styled.div`
 const AddButtonsContainer = styled.div`
     display: flex;
     margin: 10px 0 10px;
-    flex-direction: column;
-    justify-content: center;
+    flex-direction: row;
+    justify-content: space-between;
 	align-items: center;
     background-color: #202226;
     width: 100%;
@@ -99,7 +99,7 @@ const AddButtonsContainer = styled.div`
 const AddButton = styled.button`
 	background-color: #3274d9;
 	padding: 5px 10px;
-    margin: 10px 0;
+    margin: 10px 10px;
 	color: white;
 	border: 1px solid #2c3235;
 	border-radius: 10px;

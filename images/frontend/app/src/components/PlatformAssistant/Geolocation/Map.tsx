@@ -17,6 +17,9 @@ import { IDevice } from '../TableColumns/devicesColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { IDigitalTwinState } from '../GeolocationContainer';
+import GeoBuildings from './GeoBuildings';
+import { IBuilding } from '../TableColumns/buildingsColumns';
+import { IFloor } from '../TableColumns/floorsColumns';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -183,7 +186,7 @@ const ComponentsControlContainer = styled.div`
     top: 0;
     width: 350px;
     margin: 15px;
-    padding: 0px 10px 10px;
+    padding: 10px;
     border: 2px solid #3274d9;
     border-radius: 15px;
     background-color: #202226;
@@ -194,7 +197,7 @@ const ComponentsControlContainer = styled.div`
 `;
 
 const ComponentControlContainer = styled.div`
-    margin: 10px;
+    margin: 7px 10px;
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -333,7 +336,9 @@ const MapEvents: FC<MapEventProps> = ({ setNewOuterBounds }) => {
 }
 
 interface MapProps {
-    orgsOfGroupsManaged: IOrgOfGroupsManaged[]
+    buildings: IBuilding[];
+    floors: IFloor[];
+    orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
     digitalTwins: IDigitalTwin[];
@@ -363,6 +368,8 @@ interface MapProps {
 
 const Map: FC<MapProps> = (
     {
+        buildings,
+        floors,
         orgsOfGroupsManaged,
         groupsManaged,
         devices,
@@ -404,6 +411,12 @@ const Map: FC<MapProps> = (
                 url='https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
             />
             <MapEvents setNewOuterBounds={setNewOuterBounds} />
+            <GeoBuildings
+                outerBounds={outerBounds}
+                buildings={buildings}
+                orgSelected={orgSelected}
+                digitalTwinsState={digitalTwinsState}
+            />
             <GeoOrgs
                 outerBounds={outerBounds}
                 orgDataArray={orgsOfGroupsManaged}

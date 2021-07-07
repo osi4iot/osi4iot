@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsNumber, IsString, ValidateIf, ValidateNested } from "class-validator";
+import { IsBoolean, IsNumber, IsString, ValidateIf, ValidateNested } from "class-validator";
 import CreateUserDto from "../../user/interfaces/User.dto";
 
 
@@ -26,13 +26,7 @@ class CreateOrganizationDto {
 	public country: string;
 
 	@IsNumber()
-	public longitude: number;
-
-	@IsNumber()
-	public latitude: number;
-
-	@IsString()
-	public geoJsonData: string;
+	public buildingId: number;
 
 	@ValidateIf((obj) => obj.telegramInvitationLink !== undefined)
 	@IsString()

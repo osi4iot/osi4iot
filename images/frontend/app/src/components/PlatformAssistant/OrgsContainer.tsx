@@ -28,8 +28,7 @@ export interface IOrgInputData {
     zipCode: string;
     state: string;
     country: string;
-    latitude: number;
-    longitude: number;
+    buildingId: number;
     orgAdminArray: IOrgAdminData[];
 }
 
@@ -42,8 +41,7 @@ const initialOrgData = {
     zipCode: "",
     state: "",
     country: "",
-    longitude: 0,
-    latitude: 0,
+    buildingId: 1,
     telegramInvitationLink: "",
     telegramChatId: "",
     orgAdminArray: [

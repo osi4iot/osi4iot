@@ -14,7 +14,7 @@ import {
     useGroupsDispatch,
     useGroupRowIndexToEdit
 } from '../../contexts/groupsOptions';
-import {  GROUPS_OPTIONS } from './platformAssistantOptions';
+import { GROUPS_OPTIONS } from './platformAssistantOptions';
 import { IGroup } from './TableColumns/groupsColumns';
 
 
@@ -23,7 +23,7 @@ const FormContainer = styled.div`
     padding: 30px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
-    width: 400px;
+    width: 420px;
 `;
 
 const ControlsContainer = styled.div`
@@ -46,6 +46,7 @@ const folderPermissionOptions = [
 ];
 
 const domainName = getDomainName();
+const floorNumberWarning = "Floor number must an integer greater or equal to 0";
 
 interface EditGroupProps {
     groups: IGroup[];
@@ -68,7 +69,7 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
 
         if ((values as any).geoJsonDataBase.trim() === "") {
             (values as any).geoJsonDataBase = "{}";
-        }        
+        }
 
         if ((values as any).geoJsonData.trim() === "") {
             (values as any).geoJsonData = "{}";
@@ -100,17 +101,17 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
         folderPermission: groups[groupRowIndex].folderPermission,
         telegramInvitationLink: groups[groupRowIndex].telegramInvitationLink,
         telegramChatId: groups[groupRowIndex].telegramChatId,
-        geoJsonDataBase: JSON.stringify(groups[groupRowIndex].geoJsonDataBase),
+        floorNumber: groups[groupRowIndex].floorNumber,
         geoJsonData: JSON.stringify(groups[groupRowIndex].geoJsonData)
     }
 
     const validationSchema = Yup.object().shape({
-        name: Yup.string().max(190,"The maximum number of characters allowed is 200").required('Required'),
-        acronym: Yup.string().max(25,"The maximum number of characters allowed is 25").required('Required'),
+        name: Yup.string().max(190, "The maximum number of characters allowed is 200").required('Required'),
+        acronym: Yup.string().max(25, "The maximum number of characters allowed is 25").required('Required'),
         folderPermission: Yup.string().required('Required'),
-        telegramInvitationLink: Yup.string().url("Enter a valid url").max(60,"The maximum number of characters allowed is 60").required('Required'),
+        telegramInvitationLink: Yup.string().url("Enter a valid url").max(60, "The maximum number of characters allowed is 60").required('Required'),
         telegramChatId: Yup.string().max(15, "The maximum number of characters allowed is 15").required('Required'),
-        geoJsonDataBase: Yup.string().required('Required'),
+        floorNumber: Yup.number().integer(floorNumberWarning).moreThan(-1, floorNumberWarning).required('Required'),
         geoJsonData: Yup.string().required('Required'),
     });
 
@@ -146,7 +147,7 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
                                         name="folderPermission"
                                         options={folderPermissionOptions}
                                         type='text'
-                                    />                                  
+                                    />
                                     <FormikControl
                                         control='input'
                                         label='Telegram invitation link'
@@ -160,15 +161,16 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
                                         type='text'
                                     />
                                     <FormikControl
-                                        control='textarea'
-                                        label='Geojson data base'
-                                        name='geoJsonDataBase'
+                                        control='input'
+                                        label='Floor number'
+                                        name='floorNumber'
+                                        type='text'
                                     />
                                     <FormikControl
                                         control='textarea'
                                         label='Geojson data'
                                         name='geoJsonData'
-                                    />                                    
+                                    />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>
