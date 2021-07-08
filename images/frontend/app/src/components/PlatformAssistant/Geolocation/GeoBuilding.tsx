@@ -96,9 +96,11 @@ const GeoBuilding: FC<GeoBuildingProps> = (
         selectBuilding(buildingData);
         if (orgsInBuilding.length === 1) {
             selectOrg(orgsInBuilding[0]);
-            if (floorsData.length === 1) {
-                selectFloor(floorsData[0]);
-                const groupsFiltered = groupsManaged.filter(group => group.orgId === orgsInBuilding[0].id);
+            const groupsFiltered = groupsManaged.filter(group => group.orgId === orgsInBuilding[0].id);
+            const floorNumbersArray = Array.from(new Set(groupsFiltered.map(group => group.floorNumber)));
+            if (floorNumbersArray.length === 1) {
+                const floorsFiltered = floorsData.filter(floor => floor.floorNumber ===  floorNumbersArray[0])
+                selectFloor(floorsFiltered[0]);
                 if (groupsFiltered.length === 1) {
                     selectGroup(groupsFiltered[0]);
                 }

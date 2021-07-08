@@ -1,12 +1,14 @@
 import { Column } from 'react-table';
+import { StatusLed } from '../Geolocation/StatusLed';
 
 
 export interface ISelectDevice {
     id: number;
+    groupId: number;
     name: string;
     description: string;
     type: string;
-    groupId: number;
+    state: string;
 }
 
 export const SELECT_DEVICE_COLUMNS: Column<ISelectDevice>[] = [
@@ -16,7 +18,11 @@ export const SELECT_DEVICE_COLUMNS: Column<ISelectDevice>[] = [
         filter: 'equals'
     },
     {
-        Header: "Name",
+        Header: "GroupId",
+        accessor: "groupId"
+    },
+    {
+        Header: "Device name",
         accessor: "name",
     },
     {
@@ -29,7 +35,15 @@ export const SELECT_DEVICE_COLUMNS: Column<ISelectDevice>[] = [
         disableFilters: true
     },
     {
-        Header: "GroupId",
-        accessor: "groupId"
-    },    
+        Header: "Status",
+        accessor: "state",
+        disableFilters: true,
+        Cell: props => {
+            const rowIndex = parseInt(props.row.id, 10);
+            const row = props.rows.filter(row => row.index === rowIndex)[0];
+            const status = row?.cells[6]?.value;
+            return <StatusLed status={status} size="12px"/>
+        }
+    }
+   
 ]

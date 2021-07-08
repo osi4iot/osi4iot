@@ -463,7 +463,7 @@ const Map: FC<MapProps> = (
                 (buildingSelected && orgSelected && floorSelected) &&
                 <GeoGroups
                     floorData={floorSelected}
-                    groupsInSelectedOrg={groupsManaged.filter(group => group.orgId === orgSelected.id)}
+                    groupsInSelectedOrg={groupsManaged.filter(group => group.orgId === orgSelected.id && group.floorNumber === floorSelected.floorNumber)}
                     groupSelected={groupSelected}
                     selectGroup={selectGroup}
                     deviceDataArray={devices}
@@ -487,7 +487,7 @@ const Map: FC<MapProps> = (
                         selectOrgOption={selectOrgOption}
                     />
                     {
-                        (buildingSelected && orgSelected && !floorSelected) &&
+                        (buildingSelected && orgSelected) &&
                         <FloorsControl
                             floorSelected={floorSelected}
                             selectFloorOption={selectFloorOption}

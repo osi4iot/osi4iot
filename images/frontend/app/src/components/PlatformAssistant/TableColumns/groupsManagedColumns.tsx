@@ -218,7 +218,7 @@ export interface IGroupManaged {
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
-    geoJsonDataBase: FeatureCollection;
+    floorNumber: number;
     geoJsonData: FeatureCollection;
 }
 
@@ -278,10 +278,10 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableFilters: true
         },
         {
-            Header: "Geojson data base",
-            accessor: "geoJsonDataBase",
+            Header: "Floor Number",
+            accessor: "floorNumber",
             disableFilters: true
-        },
+        },   
         {
             Header: "Geojson Data",
             accessor: "geoJsonData",

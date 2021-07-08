@@ -107,22 +107,6 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 
-        if (typeof (values as any).numFloors === 'string') {
-            (values as any).numFloors = parseInt((values as any).numFloors, 10);
-        }
-
-        if (typeof (values as any).longitude === 'string') {
-            (values as any).longitude = parseFloat((values as any).longitude);
-        }
-
-        if (typeof (values as any).latitude === 'string') {
-            (values as any).latitude = parseFloat((values as any).latitude);
-        }
-
-        if ((values as any).geoJsonData.trim() === "") {
-            (values as any).geoJsonData = "{}";
-        }
-
         axiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response) => {

@@ -15,7 +15,7 @@ export interface IFloor {
     id: number;
     buildingId: number;
     buildingName: number;
-    floorNumber: string;
+    floorNumber: number;
     geoJsonData: FeatureCollection;
     timeFromCreation: string;
     timeFromLastUpdate: string;

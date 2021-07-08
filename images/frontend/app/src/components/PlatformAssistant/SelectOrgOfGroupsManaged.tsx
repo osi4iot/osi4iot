@@ -7,6 +7,9 @@ import { ISelectOrgOfGroupsManaged, SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS } from 
 import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
 import { IFloor } from './TableColumns/floorsColumns';
 import { IBuilding } from './TableColumns/buildingsColumns';
+import { IDigitalTwinState } from './GeolocationContainer';
+import { findOutStatus } from './Geolocation/statusTools';
+import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 
 
 const FormContainer = styled.div`
@@ -107,6 +110,9 @@ interface SelectOrgOfGroupsManagedProps {
     giveBuildingSelected: (buildingSelected: IBuilding) => void;
     floors: IFloor[];
     giveFloorSelected: (floorSelected: IFloor) => void;
+    groupsManaged: IGroupManaged[];
+    giveGroupManagedSelected: (groupSelected: IGroupManaged) => void;
+    digitalTwinsState: IDigitalTwinState[];
 }
 
 const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
@@ -116,11 +122,20 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
         buildings,
         giveBuildingSelected,
         floors,
-        giveFloorSelected
+        giveFloorSelected,
+        groupsManaged,
+        giveGroupManagedSelected,
+        digitalTwinsState
     }
 ) => {
     const [selectedOrgOfGroupsManaged, setSelectedOrgOfGroupsManaged] = useState<ISelectOrgOfGroupsManaged | null>(null);
     const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
+    const orgsOfGroupsManagedTableWithStatus = orgsOfGroupsManagedTable.map(org => {
+        const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === org.id);
+        const status = findOutStatus(digitalTwinsStateFiltered);
+        return { ...org, status }; 
+    });
+    const selectOrgsTable = useState(orgsOfGroupsManagedTableWithStatus)[0];
 
 
     const onSubmit = () => {
@@ -130,9 +145,14 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
             const buildingId = orgsOfGroupsManagedTableFiltered[0].buildingId;
             const buildingsFiltered = buildings.filter(building => building.id === buildingId);
             giveBuildingSelected(buildingsFiltered[0]);
-            const floorsFiltered = floors.filter(floor => floor.buildingId === buildingId);
-            if (floorsFiltered.length === 1) {
+            const groupsFiltered = groupsManaged.filter(group => group.orgId === selectedOrgOfGroupsManaged.id);
+            const floorNumbersArray = Array.from(new Set(groupsFiltered.map(group => group.floorNumber)));
+            if (floorNumbersArray.length === 1) {
+                const floorsFiltered = floors.filter(floor => floor.buildingId === buildingId && floor.floorNumber ===  floorNumbersArray[0])
                 giveFloorSelected(floorsFiltered[0]);
+                if (groupsFiltered.length === 1) {
+                    giveGroupManagedSelected(groupsFiltered[0]);
+                }
             }
         }
         backToMap();
@@ -151,7 +171,7 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={orgsOfGroupsManagedTable}
+                        dataTable={selectOrgsTable}
                         columnsTable={SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS}
                         setSelectedOrgOfGroupsManaged={(selectedOrgOfGroupsManaged: ISelectOrgOfGroupsManaged) => setSelectedOrgOfGroupsManaged(selectedOrgOfGroupsManaged)}
                         multipleSelection={false}

@@ -67,6 +67,10 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
         const url = `https://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
         const config = axiosAuth(accessToken);
 
+        if (typeof (values as any).floorNumber === 'string') {
+            (values as any).floorNumber = parseInt((values as any).floorNumber, 10);
+        }
+
         if ((values as any).geoJsonData.trim() === "") {
             (values as any).geoJsonData = "{}";
         }

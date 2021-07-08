@@ -5,6 +5,9 @@ import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelec
 import { useGroupsManagedTable } from '../../contexts/platformAssistantContext';
 import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 import { SELECT_GROUP_MANAGED_COLUMNS, ISelectGroupManaged } from './TableColumns/selectGroupManagedColumns';
+import { IDigitalTwinState } from './GeolocationContainer';
+import { IDevice } from './TableColumns/devicesColumns';
+import { findOutStatus } from './Geolocation/statusTools';
 
 
 const FormContainer = styled.div`
@@ -97,17 +100,36 @@ const Button = styled.button`
     }
 `;
 
+const addStateToGroupManaged = (groupsManaged: IGroupManaged, devices: IDevice[], digitalTwinsState: IDigitalTwinState[]) => {
+    const devicesFiltered = devices.filter(device => device.groupId === groupsManaged.id);
+    const devicesIdArray = devicesFiltered.map(device => device.id);
+    const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwinState => devicesIdArray.indexOf(digitalTwinState.deviceId) !== -1);
+    const state = findOutStatus(digitalTwinsStateFiltered);
+    return { ...groupsManaged, state };
+}
 
 interface SelectGroupManagedProps {
     orgId: number;
+    floorNumber: number;
     backToMap: () => void;
     giveGroupManagedSelected: (groupManaged: IGroupManaged) => void;
+    devices: IDevice[];
+    digitalTwinsState: IDigitalTwinState[];
 }
 
-const SelectGroupManaged: FC<SelectGroupManagedProps> = ({ orgId, backToMap, giveGroupManagedSelected }) => {
+const SelectGroupManaged: FC<SelectGroupManagedProps> = (
+    {
+        orgId,
+        floorNumber,
+        backToMap,
+        giveGroupManagedSelected,
+        devices,
+        digitalTwinsState
+    }) => {
     const [selectedGroupManaged, setSelectedGroupManaged] = useState<ISelectGroupManaged | null>(null);
     const groupsManagedTable = useGroupsManagedTable();
-    const selectGroupsManaged = useState(groupsManagedTable.filter(group => group.orgId === orgId))[0];
+    const groupsManagedFiltered = groupsManagedTable.filter(group => group.orgId === orgId && group.floorNumber === floorNumber);
+    const selectGroupsManaged = useState(groupsManagedFiltered.map(group => addStateToGroupManaged(group, devices, digitalTwinsState)))[0];
 
     const onSubmit = () => {
         if (selectedGroupManaged) {  

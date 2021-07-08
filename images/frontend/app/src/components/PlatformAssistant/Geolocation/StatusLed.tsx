@@ -2,7 +2,8 @@ import styled from "styled-components";
 import { STATUS_OK, STATUS_PENDING, STATUS_ALERTING } from "./statusTools";
 
 interface StatusLedProps {
-    readonly status: string;
+	readonly status: string;
+	readonly size: string;
 }
 
 export const StatusLed = styled.span<StatusLedProps>`
@@ -11,8 +12,8 @@ export const StatusLed = styled.span<StatusLedProps>`
         else if (props.status === "pending") return STATUS_PENDING;
         else if (props.status === "alertingnding") return STATUS_ALERTING;
     }};
-	width: 8px;
-	height: 8px;
+	width: ${(props) => props.size};
+	height: ${(props) => props.size};
 	margin: 1px 5px;
 	border-radius: 50%;
 	border: 1px solid #ffffff;

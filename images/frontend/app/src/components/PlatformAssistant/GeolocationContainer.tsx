@@ -237,27 +237,37 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     giveBuildingSelected={giveBuildingSelected}
                     floors={floors}
                     giveFloorSelected={giveFloorSelected}
+                    groupsManaged={groupsManaged}
+                    giveGroupManagedSelected={giveGroupManagedSelected}
+                    digitalTwinsState={digitalTwinsState}
                 />
             }
-            {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_FLOOR &&
+            {(geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_FLOOR && orgSelected) &&
                 <SelectFloor
                     buildingId={(buildingSelected as IBuilding).id}
                     backToMap={backToMap}
                     giveFloorSelected={giveFloorSelected}
+                    digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
+                    groupsData={groupsManaged.filter(group => group.orgId === orgSelected.id)}
                 />
             }
-            {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_GROUP &&
+            {(geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_GROUP && orgSelected && floorSelected) &&
                 <SelectGroupManaged
                     orgId={(orgSelected as IOrgManaged).id}
+                    floorNumber={floorSelected.floorNumber}
                     backToMap={backToMap}
                     giveGroupManagedSelected={giveGroupManagedSelected}
+                    devices={devices.filter(device => device.orgId === orgSelected.id)}
+                    digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
                 />
             }
-            {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_DEVICE &&
+            {(geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_DEVICE && groupSelected) &&
                 <SelectDevice
                     groupId={(groupSelected as IGroupManaged).id}
                     backToMap={backToMap}
                     giveDeviceSelected={giveDeviceSelected}
+                    digitalTwins={digitalTwins.filter(digitalTwin => (digitalTwin.groupId === groupSelected.id))}
+                    digitalTwinsState={digitalTwinsState.filter(digitalTwinState => (digitalTwinState.groupId === groupSelected.id))}
                 />
             }
         </>

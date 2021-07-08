@@ -5,6 +5,9 @@ import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelec
 import { useDevicesTable } from '../../contexts/platformAssistantContext';
 import { IDevice } from './TableColumns/devicesColumns';
 import { ISelectDevice, SELECT_DEVICE_COLUMNS } from './TableColumns/selectedDeviceColumns';
+import { IDigitalTwinState } from './GeolocationContainer';
+import { IDigitalTwin } from './TableColumns/digitalTwinsColumns';
+import { findOutStatus } from './Geolocation/statusTools';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -96,17 +99,27 @@ const Button = styled.button`
     }
 `;
 
+const addStateToDevice = (device: IDevice, digitalTwins: IDigitalTwin[], digitalTwinsState: IDigitalTwinState[]) => {
+    const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === device.id);
+    const digitalTwinsIdArray = digitalTwinsFiltered.map(digitalTwin => digitalTwin.id);
+    const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwinState => digitalTwinsIdArray.indexOf(digitalTwinState.digitalTwinId) !== -1);
+    const state = findOutStatus(digitalTwinsStateFiltered);
+    return { ...device, state };
+}
 
 interface SelectDeviceProps {
     groupId: number;
     backToMap: () => void;
     giveDeviceSelected: (device: IDevice) => void;
+    digitalTwins: IDigitalTwin[];
+    digitalTwinsState: IDigitalTwinState[];
 }
 
-const SelectDevice: FC<SelectDeviceProps> = ({ groupId, backToMap, giveDeviceSelected }) => {
+const SelectDevice: FC<SelectDeviceProps> = ({ groupId, backToMap, giveDeviceSelected, digitalTwins, digitalTwinsState }) => {
     const [selectedDevice, setSelectedDevice] = useState<ISelectDevice | null>(null);
     const devicesTable = useDevicesTable();
-    const selectDevice = useState(devicesTable.filter(device => device.groupId === groupId))[0];
+    const devicesFiltered = devicesTable.filter(device => device.groupId === groupId);
+    const selectDevice = useState(devicesFiltered.map(device => addStateToDevice(device, digitalTwins, digitalTwinsState)))[0];
 
     const onSubmit = () => {
         if (selectedDevice) {  

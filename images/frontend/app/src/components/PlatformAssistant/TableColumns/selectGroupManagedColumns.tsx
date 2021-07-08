@@ -1,12 +1,13 @@
 import { Column } from 'react-table';
+import { StatusLed } from '../Geolocation/StatusLed';
 
 
 export interface ISelectGroupManaged {
     id: number;
     name: string;
     acronym: string;
-    folderPermission: string;
     isOrgDefaultGroup: boolean;
+    state: boolean;
 }
 
 export const SELECT_GROUP_MANAGED_COLUMNS: Column<ISelectGroupManaged>[] = [
@@ -24,13 +25,19 @@ export const SELECT_GROUP_MANAGED_COLUMNS: Column<ISelectGroupManaged>[] = [
         accessor: "acronym"
     },
     {
-        Header: () => <div style={{ backgroundColor: '#202226' }}>Folder<br />permission</div>,
-        accessor: "folderPermission",
-        disableFilters: true
-    },
-    {
         Header: "Type",
         accessor: "isOrgDefaultGroup",
         disableFilters: true
-    },    
+    },
+    {
+        Header: "Status",
+        accessor: "state",
+        disableFilters: true,
+        Cell: props => {
+            const rowIndex = parseInt(props.row.id, 10);
+            const row = props.rows.filter(row => row.index === rowIndex)[0];
+            const status = row?.cells[5]?.value;
+            return <StatusLed status={status} size="12px"/>
+        }
+    },
 ]

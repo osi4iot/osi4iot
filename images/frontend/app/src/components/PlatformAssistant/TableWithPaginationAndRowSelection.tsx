@@ -44,7 +44,7 @@ const TableStyles = styled.div`
         th td:nth-child(1) {
             width: 50px;
             min-width: 50px;
-            max-width: 50px;
+            max-width: 100px;
 
             div input[type=checkbox]:hover {
                 cursor: pointer;
@@ -54,8 +54,15 @@ const TableStyles = styled.div`
         tr td:nth-child(2),
         th td:nth-child(2) {
             width: 100px;
-            min-width: 100px;
+            min-width: 120px;
             max-width: 150px;
+        }
+
+        tr td:nth-child(3),
+        th td:nth-child(3) {
+            width: auto;
+            min-width: 100px;
+            max-width: auto;
         }
            
 
@@ -355,6 +362,7 @@ type TableProps<T extends object> = {
     setSelectedDevice?: (selectedDevice: never) => void;
     setSelectedDigitalTwin?: (selecteDigitalTwin: never) => void;
     multipleSelection?: boolean;
+    isGlobalFilterRequired?: boolean;
 }
 
 const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
@@ -367,7 +375,8 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
         setSelectedDevice,
         setSelectedFloor,
         setSelectedDigitalTwin,
-        multipleSelection = true
+        multipleSelection = true.valueOf,
+        isGlobalFilterRequired = true
     }) => {
     const columns = useMemo(() => columnsTable, [columnsTable]);
     const data = useMemo(() => dataTable, [dataTable]);
@@ -426,7 +435,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
             data,
             initialState: {
                 pageIndex: 0,
-                hiddenColumns: columns.filter((col: any) => (col.accessor === "geoJsonData" || col.accessor === "geoJsonDataBase")).map(col => col.id || col.accessor) as any
+                hiddenColumns: columns.filter((col: any) => (col.accessor === "geoJsonData" || col.Header === "FloorId")).map(col => col.id || col.accessor) as any
             },
             defaultColumn, // Be sure to pass the defaultColumn option
             filterTypes,
@@ -547,11 +556,15 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
                         ))}
                     </select>
                 </Pagination>
-                <GlobalFilter
-                    preGlobalFilteredRows={preGlobalFilteredRows}
-                    globalFilter={globalFilter}
-                    setGlobalFilter={setGlobalFilter}
-                />
+                {
+                    isGlobalFilterRequired &&
+                    <GlobalFilter
+                        preGlobalFilteredRows={preGlobalFilteredRows}
+                        globalFilter={globalFilter}
+                        setGlobalFilter={setGlobalFilter}
+                    />
+                }
+
             </TableOptionsContainer>
             <TableStyles >
                 <table {...getTableProps()}>
