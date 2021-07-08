@@ -3,52 +3,32 @@ import { GeoJSON, LayerGroup } from 'react-leaflet';
 import GeoDevice from './GeoDevice';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
-import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoDigitalTwins from "./GeoDigitalTwins";
 import { IDigitalTwinState } from "../GeolocationContainer";
 import { findOutStatus } from "./statusTools";
-// import { geoJsonGroupText } from "./geoJsonGroupText";
+import { IFloor } from "../TableColumns/floorsColumns";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";
 const STATUS_PENDING = "#f79520";
-const NORMAL = "#9c9a9a";
 const SELECTED = "#3274d9";
+const NORMAL = "#9c9a9a";
 
-const baseGroupStyle = () => {
-    return {
-        stroke: true,
-        color: NORMAL,
-        weight: 3,
-        opacity: 1,
-        fill: true,
-        fillColor: STATUS_OK,
-        fillOpacity: 0.2
-    }
-}
 
-const orgStyle =  () => {
-    return {
-        stroke: true,
-        color: SELECTED,
-        weight: 3,
-        opacity: 1,
-        fill: true,
-        fillColor: STATUS_OK,
-        fillOpacity: 0.2
-    }
-}
 
-const setGroupStyle = (groupStatus: string) => {
+const setGroupStyle = (groupStatus: string, isSelected: boolean) => {
     let fillColor = STATUS_OK;
     if (groupStatus === "pending") fillColor = STATUS_PENDING;
     else if (groupStatus === "alerting") fillColor = STATUS_ALERTING;
+
+    let color = NORMAL;
+    if (isSelected) color = SELECTED;
     
     return {
         stroke: true,
-        color: SELECTED,
+        color,
         weight: 3,
         opacity: 1,
         fill: true,
@@ -57,10 +37,19 @@ const setGroupStyle = (groupStatus: string) => {
     }
 }
 
+const findOutIfGroupIsSelected = (groupData: IGroupManaged, groupSelected: IGroupManaged | null) => {
+    let isGroupSelected = false;
+    if (groupSelected) {
+        isGroupSelected = groupSelected.id === groupData.id;
+    }
+    return isGroupSelected;
+}
 
 interface GeoGroupProps {
-    orgData: IOrgManaged;
+    floorData: IFloor;
     groupData: IGroupManaged;
+    groupSelected: IGroupManaged | null;
+    selectGroup: (groupSelected: IGroupManaged) => void;
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
@@ -72,8 +61,10 @@ interface GeoGroupProps {
 
 const GeoGroup: FC<GeoGroupProps> = (
     {
-        orgData,
+        floorData,
         groupData,
+        groupSelected,
+        selectGroup,
         deviceDataArray,
         deviceSelected,
         selectDevice,
@@ -82,57 +73,40 @@ const GeoGroup: FC<GeoGroupProps> = (
         selectDigitalTwin,
         digitalTwinsState
     }) => {
-    const geoJsonLayerGroupBase = useRef(null);
     const geoJsonLayerGroupData = useRef(null);
 
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
     const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
+    const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
 
     const styleGeoGroupJson = (geoJsonFeature: any) => {
         const groupsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.groupId === groupData.id);
         const status = findOutStatus(groupsStateFiltered);
-        return setGroupStyle(status);
+        return setGroupStyle(status, isGroupSelected);
     }
-
-    const styleGeoGroupJsonBase = (geoJsonFeature: any) => {
-        return baseGroupStyle();
-    }
-
-    const styleGeoOrgJson = (geoJsonFeature: any) => {
-        return orgStyle();
-    }
-
 
     useEffect(() => {
-        if (Object.keys(groupData.geoJsonDataBase).length !== 0) {
-            const currenGeoJsonLayerGroupBase = geoJsonLayerGroupBase.current;
-            if (currenGeoJsonLayerGroupBase) {
-                (currenGeoJsonLayerGroupBase as any)
-                    .clearLayers()
-                    .addData(groupData.geoJsonDataBase)
-                    .setStyle(baseGroupStyle());
-            }
-        }
-
         if (Object.keys(groupData.geoJsonData).length !== 0) {
             const currenGeoJsonLayerGroupData = geoJsonLayerGroupData.current;
             if (currenGeoJsonLayerGroupData) {
                 (currenGeoJsonLayerGroupData as any)
                     .clearLayers()
                     .addData(groupData.geoJsonData)
-                    .setStyle(setGroupStyle("OK"));
+                    .setStyle(setGroupStyle("OK", isGroupSelected));
             }
         }
-    }, [groupData]);
+    }, [groupData, isGroupSelected]);
+
+    const clickHandler = () => {
+        selectGroup(groupData);
+    }
 
     return (
         <>
             {
-                (Object.keys(groupData.geoJsonDataBase).length !== 0 && Object.keys(groupData.geoJsonData).length !== 0) ?
+                (Object.keys(groupData.geoJsonData).length !== 0) ?
                     <LayerGroup>
-                        <GeoJSON data={groupData.geoJsonDataBase} style={styleGeoGroupJsonBase} />
-                        {/* <GeoJSON data={orgData.geoJsonData} style={styleGeoOrgJson} /> */}
-                        <GeoJSON data={groupData.geoJsonData} style={styleGeoGroupJson} >
+                        <GeoJSON data={groupData.geoJsonData} style={styleGeoGroupJson} eventHandlers={{ click: clickHandler }} >
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
                         {

@@ -236,6 +236,15 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setOuterBounds(outerBounds);
     }
 
+    const selectBuilding = (building: IBuilding) => {
+        setBuildingSelected(building);
+    }
+
+
+    const selectFloor = (floor: IFloor) => {
+        setFloorSelected(floor);
+    }
+
     const selectOrg = (org: IOrgManaged) => {
         setOrgSelected(org);
         setGroupSelected(null);
@@ -255,7 +264,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setDigitalTwinSelected(digitalTwin);
     }
 
-    const resetOrgSelection = () => {
+    const resetBuildingSelection = () => {
+        setBuildingSelected(null);
+        setFloorSelected(null);
         setOrgSelected(null);;
         setGroupSelected(null);
         setDeviceSelected(null);
@@ -271,6 +282,13 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
             setInitialOuterBounds(outerBounds);
         }
     }, [buildingsTable]);
+
+    useEffect(() => {
+        if (floorsTable.length !== 0) {
+            const floorsFiltered = filterFloors(floorsTable);
+            setFloorsFiltered(floorsFiltered);
+        }
+    }, [floorsTable]);
 
 
     useEffect(() => {
@@ -450,10 +468,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     groupsManaged={groupsManagedTable}
                                     devices={devicesTable}
                                     digitalTwins={digitalTwinsTable}
+                                    buildingSelected={buildingSelected}
+                                    selectBuilding={selectBuilding}
+                                    floorSelected={floorSelected}
+                                    selectFloor={selectFloor}
                                     orgSelected={orgSelected}
                                     selectOrg={selectOrg}
-                                    buildingSelected={buildingSelected}
-                                    floorSelected={floorSelected}
                                     groupSelected={groupSelected}
                                     selectGroup={selectGroup}
                                     deviceSelected={deviceSelected}
@@ -469,7 +489,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     initialOuterBounds={initialOuterBounds}
                                     outerBounds={outerBounds}
                                     setNewOuterBounds={setNewOuterBounds}
-                                    resetOrgSelection={resetOrgSelection}
+                                    resetBuildingSelection={resetBuildingSelection}
                                 />
                             }
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS &&

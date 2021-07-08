@@ -13,6 +13,7 @@ import { useAuthDispatch, useAuthState } from '../../contexts/authContext';
 import useInterval from '../../tools/useInterval';
 import { IBuilding } from './TableColumns/buildingsColumns';
 import { IFloor } from './TableColumns/floorsColumns';
+import SelectFloor from './SelectFloor';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -29,6 +30,7 @@ const arraysEqual = (a1: any, a2: any) => {
 export const GEOLOCATION_OPTIONS = {
     MAP: "Map",
     SELECT_ORG: "Select org",
+    SELECT_FLOOR: "Select floor",
     SELECT_GROUP: "Select group",
     SELECT_DEVICE: "Select device",
     SELECT_DIGITAL_TWIN: "Select digital twin",
@@ -53,7 +55,9 @@ interface GeolocationContainerProps {
     devices: IDevice[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
+    selectBuilding: (buildingSelected: IBuilding) => void;
     floorSelected: IFloor | null;
+    selectFloor: (floorSelected: IFloor) => void;
     orgSelected: IOrgManaged | null;
     selectOrg: (orgSelected: IOrgManaged) => void;
     groupSelected: IGroupManaged | null;
@@ -71,7 +75,7 @@ interface GeolocationContainerProps {
     initialOuterBounds: number[][];
     outerBounds: number[][];
     setNewOuterBounds: (outerBounds: number[][]) => void;
-    resetOrgSelection: () => void;
+    resetBuildingSelection: () => void;
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
@@ -83,7 +87,9 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         devices,
         digitalTwins,
         buildingSelected,
+        selectBuilding,
         floorSelected,
+        selectFloor,
         orgSelected,
         selectOrg,
         groupSelected,
@@ -101,7 +107,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         initialOuterBounds,
         outerBounds,
         setNewOuterBounds,
-        resetOrgSelection
+        resetBuildingSelection
     }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -145,11 +151,13 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.MAP);
     }, [])
 
-
     const selectOrgOption = useCallback(() => {
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_ORG);
     }, []);
 
+    const selectFloorOption = useCallback(() => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_FLOOR);
+    }, []);
 
     const selectGroupOption = useCallback(() => {
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_GROUP);
@@ -163,10 +171,17 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
     }, []);
 
+    const giveBuildingSelected = useCallback((buildingSelected: IBuilding) => {
+        selectBuilding(buildingSelected);
+    }, [selectBuilding]);
 
     const giveOrgOfGroupsManagedSelected = useCallback((orgSelected: IOrgOfGroupsManaged) => {
         selectOrg(orgSelected);
     }, [selectOrg]);
+
+    const giveFloorSelected = useCallback((floorSelected: IFloor) => {
+        selectFloor(floorSelected);
+    }, [selectFloor]);
 
     const giveGroupManagedSelected = useCallback((groupSelected: IGroupManaged) => {
         selectGroup(groupSelected);
@@ -186,6 +201,10 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     groupsManaged={groupsManaged}
                     devices={devices}
                     digitalTwins={digitalTwins}
+                    buildingSelected={buildingSelected}
+                    selectBuilding={selectBuilding}
+                    floorSelected={floorSelected}
+                    selectFloor={selectFloor}
                     orgSelected={orgSelected}
                     selectOrg={selectOrg}
                     groupSelected={groupSelected}
@@ -201,11 +220,12 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     initialOuterBounds={initialOuterBounds}
                     outerBounds={outerBounds}
                     setNewOuterBounds={setNewOuterBounds}
+                    selectFloorOption={selectFloorOption}
                     selectOrgOption={selectOrgOption}
                     selectGroupOption={selectGroupOption}
                     selectDeviceOption={selectDeviceOption}
                     selectDigitalTwinOption={selectDigitalTwinOption}
-                    resetOrgSelection={resetOrgSelection}
+                    resetBuildingSelection={resetBuildingSelection}
                     digitalTwinsState={digitalTwinsState}
                 />
             }
@@ -213,6 +233,17 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                 <SelectOrgOfGroupsManaged
                     backToMap={backToMap}
                     giveOrgOfGroupsManagedSelected={giveOrgOfGroupsManagedSelected}
+                    buildings={buildings}
+                    giveBuildingSelected={giveBuildingSelected}
+                    floors={floors}
+                    giveFloorSelected={giveFloorSelected}
+                />
+            }
+            {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_FLOOR &&
+                <SelectFloor
+                    buildingId={(buildingSelected as IBuilding).id}
+                    backToMap={backToMap}
+                    giveFloorSelected={giveFloorSelected}
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_GROUP &&

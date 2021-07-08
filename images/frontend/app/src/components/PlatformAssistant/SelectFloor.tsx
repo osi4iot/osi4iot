@@ -2,12 +2,9 @@ import { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import FormTitle from "../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelection';
-import { useOrgsOfGroupsManagedTable } from '../../contexts/platformAssistantContext';
-import { ISelectOrgOfGroupsManaged, SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS } from './TableColumns/selectOrgOfGroupsManagedColumns';
-import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
+import { useFloorsTable } from '../../contexts/platformAssistantContext';
 import { IFloor } from './TableColumns/floorsColumns';
-import { IBuilding } from './TableColumns/buildingsColumns';
-
+import { ISelectFloor, SELECT_FLOORS_COLUMNS } from './TableColumns/selectFloorColumns';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -100,60 +97,41 @@ const Button = styled.button`
 `;
 
 
-interface SelectOrgOfGroupsManagedProps {
+interface SelectFloorProps {
+    buildingId: number;
     backToMap: () => void;
-    giveOrgOfGroupsManagedSelected: (orgManaged: IOrgOfGroupsManaged) => void;
-    buildings: IBuilding[];
-    giveBuildingSelected: (buildingSelected: IBuilding) => void;
-    floors: IFloor[];
-    giveFloorSelected: (floorSelected: IFloor) => void;
+    giveFloorSelected: (floor: IFloor) => void;
 }
 
-const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
-    {
-        backToMap,
-        giveOrgOfGroupsManagedSelected,
-        buildings,
-        giveBuildingSelected,
-        floors,
-        giveFloorSelected
-    }
-) => {
-    const [selectedOrgOfGroupsManaged, setSelectedOrgOfGroupsManaged] = useState<ISelectOrgOfGroupsManaged | null>(null);
-    const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
-
+const SelectFloor: FC<SelectFloorProps> = ({ buildingId, backToMap, giveFloorSelected }) => {
+    const [selectedFloor, setSelectedFloor] = useState<ISelectFloor | null>(null);
+    const floorsTable = useFloorsTable();
+    const selectFloor = useState(floorsTable.filter(floor => floor.buildingId === buildingId))[0];
 
     const onSubmit = () => {
-        if (selectedOrgOfGroupsManaged) {
-            const orgsOfGroupsManagedTableFiltered = orgsOfGroupsManagedTable.filter(org => org.id === selectedOrgOfGroupsManaged.id);
-            giveOrgOfGroupsManagedSelected(orgsOfGroupsManagedTableFiltered[0]);
-            const buildingId = orgsOfGroupsManagedTableFiltered[0].buildingId;
-            const buildingsFiltered = buildings.filter(building => building.id === buildingId);
-            giveBuildingSelected(buildingsFiltered[0]);
-            const floorsFiltered = floors.filter(floor => floor.buildingId === buildingId);
-            if (floorsFiltered.length === 1) {
-                giveFloorSelected(floorsFiltered[0]);
-            }
+        if (selectedFloor) {  
+            const floorsTableFiltered = floorsTable.filter(floor => floor.id === selectedFloor.id);
+            giveFloorSelected(floorsTableFiltered[0]);
         }
         backToMap();
     }
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setSelectedOrgOfGroupsManaged(null);
+        setSelectedFloor(null);
         backToMap();
     };
 
 
     return (
         <>
-            <FormTitle>Select organization</FormTitle>
+            <FormTitle>Select floor number</FormTitle>
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={orgsOfGroupsManagedTable}
-                        columnsTable={SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS}
-                        setSelectedOrgOfGroupsManaged={(selectedOrgOfGroupsManaged: ISelectOrgOfGroupsManaged) => setSelectedOrgOfGroupsManaged(selectedOrgOfGroupsManaged)}
+                        dataTable={selectFloor}
+                        columnsTable={SELECT_FLOORS_COLUMNS}
+                        setSelectedFloor={(selectedFloor: ISelectFloor) => setSelectedFloor(selectedFloor)}
                         multipleSelection={false}
                     />
                 </TableContainer>
@@ -170,4 +148,4 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
     )
 }
 
-export default SelectOrgOfGroupsManaged;
+export default SelectFloor;

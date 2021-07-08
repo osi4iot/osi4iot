@@ -261,15 +261,15 @@ class GroupController implements IController {
 				{
 					name: defaultGroupDeviceName(groupCreated, "Generic"),
 					description: `Default generic device of the group ${groupCreated.name}`,
-					latitude: req.organization.longitude,
-					longitude: req.organization.longitude,
+					latitude: 0,
+					longitude: 0,
 					type: "Generic"
 				},
 				{
 					name: defaultGroupDeviceName(groupCreated, "Mobile"),
 					description: `Default mobile device of the group ${groupCreated.name}`,
-					latitude: req.organization.longitude,
-					longitude: req.organization.longitude,
+					latitude: 0,
+					longitude: 0,
 					type: "Mobile"
 				}
 			];

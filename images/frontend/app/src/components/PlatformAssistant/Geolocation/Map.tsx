@@ -1,4 +1,4 @@
-import { FC } from 'react'
+import { FC, useCallback } from 'react'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
@@ -9,8 +9,6 @@ import { FaRedo } from "react-icons/fa";
 import { LatLngTuple } from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-import GeoOrgs from './GeoOrgs';
-import GeoGroup from './GeoGroup';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
@@ -20,6 +18,7 @@ import { IDigitalTwinState } from '../GeolocationContainer';
 import GeoBuildings from './GeoBuildings';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
+import GeoGroups from './GeoGroups';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -133,12 +132,12 @@ const findOuterBounds = (bounds: L.LatLngBounds) => {
 
 interface ZoomFrameControlProps {
     initialOuterBounds: number[][];
-    resetOrgSelection: () => void;
+    resetBuildingSelection: () => void;
     refreshAll: () => void;
 }
 
 
-const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgSelection, refreshAll }) => {
+const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetBuildingSelection, refreshAll }) => {
     const map = useMap();
 
     const clickZoomInHandler = () => {
@@ -151,13 +150,13 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetOrgS
 
     const clickZoomFrameHandler = () => {
         map.fitBounds(initialOuterBounds as LatLngTuple[]);
-        resetOrgSelection();
+        resetBuildingSelection();
     }
 
     const clickReloadHandler = () => {
         refreshAll();
         map.fitBounds(initialOuterBounds as LatLngTuple[]);
-        resetOrgSelection();
+        resetBuildingSelection();
     }
 
     return (
@@ -267,6 +266,29 @@ const OrgsControl: FC<OrgsControlProps> = ({ orgSelected, selectOrgOption }) => 
     )
 }
 
+interface FloorsControlProps {
+    floorSelected: IFloor | null;
+    selectFloorOption: () => void;
+}
+
+const FloorsControl: FC<FloorsControlProps> = ({ floorSelected, selectFloorOption }) => {
+    const clickHandler = () => {
+        selectFloorOption();
+    };
+
+    return (
+        <ComponentControlContainer>
+            <ComponentLabel>Floor number:</ComponentLabel>
+            <ComponentSelection>
+                <ComponentName>
+                    {floorSelected ? floorSelected.floorNumber : ""}
+                </ComponentName>
+                <SelectionButton onClick={clickHandler} >Select</SelectionButton>
+            </ComponentSelection>
+        </ComponentControlContainer>
+    )
+}
+
 interface GroupsControlProps {
     groupSelected: IGroupManaged | null;
     selectGroupOption: () => void;
@@ -342,6 +364,10 @@ interface MapProps {
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
     digitalTwins: IDigitalTwin[];
+    buildingSelected: IBuilding | null;
+    selectBuilding: (buildingSelected: IBuilding) => void;
+    floorSelected: IFloor | null;
+    selectFloor: (floorSelected: IFloor) => void;
     orgSelected: IOrgManaged | null;
     selectOrg: (orgSelected: IOrgManaged) => void;
     groupSelected: IGroupManaged | null;
@@ -358,10 +384,11 @@ interface MapProps {
     outerBounds: number[][];
     setNewOuterBounds: (outerBounds: number[][]) => void;
     selectOrgOption: () => void;
+    selectFloorOption: () => void;
     selectGroupOption: () => void;
     selectDeviceOption: () => void;
     selectDigitalTwinOption: () => void;
-    resetOrgSelection: () => void;
+    resetBuildingSelection: () => void;
     digitalTwinsState: IDigitalTwinState[];
 }
 
@@ -374,6 +401,10 @@ const Map: FC<MapProps> = (
         groupsManaged,
         devices,
         digitalTwins,
+        buildingSelected,
+        selectBuilding,
+        floorSelected,
+        selectFloor,
         orgSelected,
         selectOrg,
         groupSelected,
@@ -390,19 +421,20 @@ const Map: FC<MapProps> = (
         outerBounds,
         setNewOuterBounds,
         selectOrgOption,
+        selectFloorOption,
         selectGroupOption,
         selectDeviceOption,
         selectDigitalTwinOption,
-        resetOrgSelection,
+        resetBuildingSelection,
         digitalTwinsState
     }) => {
 
-    const refreshAll = () => {
+    const refreshAll = useCallback(() => {
         refreshOrgsOfGroupsManaged();
         refreshGroupsManaged();
         refreshDevices();
         refreshDigitalTwins();
-    }
+    }, [refreshOrgsOfGroupsManaged, refreshGroupsManaged, refreshDevices, refreshDigitalTwins])
 
     return (
         <MapContainerStyled maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
@@ -414,12 +446,12 @@ const Map: FC<MapProps> = (
             <GeoBuildings
                 outerBounds={outerBounds}
                 buildings={buildings}
-                orgSelected={orgSelected}
-                digitalTwinsState={digitalTwinsState}
-            />
-            <GeoOrgs
-                outerBounds={outerBounds}
-                orgDataArray={orgsOfGroupsManaged}
+                orgsData={orgsOfGroupsManaged}
+                buildingSelected={buildingSelected}
+                selectBuilding={selectBuilding}
+                floors={floors}
+                floorSelected={floorSelected}
+                selectFloor={selectFloor}
                 orgSelected={orgSelected}
                 selectOrg={selectOrg}
                 groupSelected={groupSelected}
@@ -428,10 +460,12 @@ const Map: FC<MapProps> = (
                 digitalTwinsState={digitalTwinsState}
             />
             {
-                (orgSelected && groupSelected) &&
-                <GeoGroup
-                    orgData={orgSelected}
-                    groupData={groupSelected}
+                (buildingSelected && orgSelected && floorSelected) &&
+                <GeoGroups
+                    floorData={floorSelected}
+                    groupsInSelectedOrg={groupsManaged.filter(group => group.orgId === orgSelected.id)}
+                    groupSelected={groupSelected}
+                    selectGroup={selectGroup}
                     deviceDataArray={devices}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}
@@ -442,21 +476,32 @@ const Map: FC<MapProps> = (
                 />
             }
             <ControlsContainer>
-                <ZoomControls initialOuterBounds={initialOuterBounds} refreshAll={refreshAll} resetOrgSelection={resetOrgSelection} />
+                <ZoomControls
+                    initialOuterBounds={initialOuterBounds}
+                    refreshAll={refreshAll}
+                    resetBuildingSelection={resetBuildingSelection}
+                />
                 <ComponentsControlContainer>
                     <OrgsControl
                         orgSelected={orgSelected}
                         selectOrgOption={selectOrgOption}
                     />
                     {
-                        orgSelected &&
+                        (buildingSelected && orgSelected && !floorSelected) &&
+                        <FloorsControl
+                            floorSelected={floorSelected}
+                            selectFloorOption={selectFloorOption}
+                        />
+                    }
+                    {
+                        (buildingSelected && orgSelected && floorSelected) &&
                         <GroupsControl
                             groupSelected={groupSelected}
                             selectGroupOption={selectGroupOption}
                         />
                     }
                     {
-                        (orgSelected && groupSelected) &&
+                        (orgSelected && floorSelected && groupSelected) &&
                         <DevicesControl
                             deviceSelected={deviceSelected}
                             selectDeviceOption={selectDeviceOption}

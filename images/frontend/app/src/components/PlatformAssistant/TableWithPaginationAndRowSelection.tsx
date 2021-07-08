@@ -350,6 +350,7 @@ type TableProps<T extends object> = {
     columnsTable: Column<T>[];
     setSelectedUsers?: (selectedUsers: never[]) => void;
     setSelectedOrgOfGroupsManaged?: (selectedOrgOfGroupsManaged: never) => void;
+    setSelectedFloor?: (selectedFloor: never) => void;
     setSelectedGroupManaged?: (selectedGroupManaged: never) => void;
     setSelectedDevice?: (selectedDevice: never) => void;
     setSelectedDigitalTwin?: (selecteDigitalTwin: never) => void;
@@ -364,6 +365,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
         setSelectedOrgOfGroupsManaged,
         setSelectedGroupManaged,
         setSelectedDevice,
+        setSelectedFloor,
         setSelectedDigitalTwin,
         multipleSelection = true
     }) => {
@@ -487,6 +489,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
         const selectedRows = selectedFlatRows.map(d => d.original);
         if (setSelectedUsers) setSelectedUsers(selectedRows as never[]);
         else if (setSelectedOrgOfGroupsManaged) setSelectedOrgOfGroupsManaged(selectedRows[0] as never);
+        else if (setSelectedFloor) setSelectedFloor(selectedRows[0] as never);
         else if (setSelectedGroupManaged) setSelectedGroupManaged(selectedRows[0] as never);
         else if (setSelectedDevice) setSelectedDevice(selectedRows[0] as never);
         else if (setSelectedDigitalTwin) setSelectedDigitalTwin(selectedRows[0] as never);

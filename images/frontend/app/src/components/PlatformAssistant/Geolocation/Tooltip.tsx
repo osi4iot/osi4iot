@@ -5,6 +5,7 @@ import { Tooltip } from 'react-leaflet';
 export const StyledTooltip = styled(Tooltip)`
     &.leaflet-tooltip {
         background: #202226;
+        opacity: 1;
         color: white;
         border: 1px solid #202226;
     }

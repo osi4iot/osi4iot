@@ -135,18 +135,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
         const url = `https://${domainName}/admin_api/organization`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
-
-        if (typeof (values as any).longitude === 'string') {
-            (values as any).longitude = parseFloat((values as any).longitude);
-        }
-        if (typeof (values as any).latitude === 'string') {
-            (values as any).latitude = parseFloat((values as any).latitude);
-        }
-
-        if ((values as any).geoJsonData.trim() === "") {
-            (values as any).geoJsonData = "{}";
-        }
-
         axiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
             .then((response) => {

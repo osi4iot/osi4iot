@@ -175,7 +175,8 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 export const organizationsWhichTheLoggedUserIsUser = async (userId: number): Promise<IOrganizationWichTheLoggedUserIsUser[]> => {
 	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, address1 as address, city,
 					grafanadb.org.zip_code as "zipCode", state, country,
-					grafanadb.org.building_id AS "buildingId"
+					grafanadb.org.building_id AS "buildingId",
+					grafanadb.org_user.role AS "roleInOrg"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
 					WHERE grafanadb.org_user.user_id = $1

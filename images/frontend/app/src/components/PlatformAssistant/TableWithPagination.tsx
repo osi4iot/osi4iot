@@ -451,7 +451,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             data,
             initialState: {
                 pageIndex: 0,
-                hiddenColumns: columns.filter((col: any) => (col.accessor === "geoJsonData" || col.accessor === "geoJsonDataBase")).map(col => col.id || col.accessor) as any
+                hiddenColumns: columns.filter((col: any) => (col.accessor === "geoJsonData" || col.Header === "Building_Id")).map(col => col.id || col.accessor) as any
             },
             defaultColumn, // Be sure to pass the defaultColumn option
             filterTypes,

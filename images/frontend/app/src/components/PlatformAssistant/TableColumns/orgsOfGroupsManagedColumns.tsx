@@ -59,7 +59,7 @@ export const ORGS_OF_GROUPS_MANAGED_COLUMNS: Column<IOrgOfGroupsManaged>[] = [
         disableFilters: true
     },
     {
-        Header: "Building Id",
+        Header: "Building_Id",
         accessor: "buildingId",
         disableFilters: true
     }

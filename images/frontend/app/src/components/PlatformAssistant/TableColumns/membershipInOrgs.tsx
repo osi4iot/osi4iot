@@ -9,8 +9,6 @@ export interface IMembershipInOrgs {
 	zipCode: string;
 	state: string;
 	country: string;
-	latitude: number;
-    longitude: number;
     roleInOrg: string;
 }
 
@@ -51,16 +49,6 @@ export const MEMBERSHIP_IN_ORGS: Column<IMembershipInOrgs>[] = [
     {
         Header: "Country",
         accessor: "country",
-        disableFilters: true
-    },
-    {
-        Header: "Longitude",
-        accessor: "longitude",
-        disableFilters: true
-    },
-    {
-        Header: "Latitude",
-        accessor: "latitude",
         disableFilters: true
     },
     {

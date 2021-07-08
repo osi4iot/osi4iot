@@ -228,7 +228,7 @@ class BuildingController implements IController {
 			}
 			const updatedFloor = { ...existFloor, ...FloorData };
 			const existUpdatedFloor = await getFloorByBuildingIdAndFloorNumber(updatedFloor.buildingId, updatedFloor.floorNumber);
-			if (existUpdatedFloor) {
+			if (existFloor.id !== existUpdatedFloor.id) {
 				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [updatedFloor.buildingId.toString(), updatedFloor.floorNumber.toString()]);
 			}
 			const response = await updateFloorById(parseInt(floorId, 10), updatedFloor);

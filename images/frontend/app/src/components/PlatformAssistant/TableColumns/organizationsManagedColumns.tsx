@@ -165,7 +165,7 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             disableFilters: true
         },
         {
-            Header: "Building Id",
+            Header: "Building_Id",
             accessor: "buildingId",
             disableFilters: true
         },         

@@ -454,7 +454,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 	const query = `UPDATE grafanadb.group SET name = $1, acronym = $2,
 				telegram_invitation_link = $3,
 				telegram_chatid = $4,
-				geodatabase = $5,
+				floor_number = $5,
 				geodata = $6
 				WHERE grafanadb.group.id = $7;`;
 	const result = await pool.query(query, [
