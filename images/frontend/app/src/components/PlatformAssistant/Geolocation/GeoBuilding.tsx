@@ -1,7 +1,6 @@
-import { FC, useEffect, useState, useRef } from "react";
+import { FC, useRef } from "react";
 import { GeoJSON, Marker, useMap } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
-import { Polygon } from 'geojson';
 import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IconAlertingMarker, IconMarker, IconPendingMarker } from "./IconMarker";
@@ -35,6 +34,7 @@ interface GeoBuildingProps {
     orgsInBuilding: IOrgManaged[];
     buildingSelected: IBuilding | null;
     selectBuilding: (buildingSelected: IBuilding) => void;
+    floorSelected: IFloor | null;
     orgSelected: IOrgManaged | null;
     selectOrg: (orgSelected: IOrgManaged) => void;
     groupsManaged: IGroupManaged[];
@@ -49,6 +49,7 @@ const GeoBuilding: FC<GeoBuildingProps> = (
         orgsInBuilding,
         floorsData,
         selectFloor,
+        floorSelected,
         buildingSelected,
         selectBuilding,
         orgSelected,
@@ -58,7 +59,6 @@ const GeoBuilding: FC<GeoBuildingProps> = (
         selectGroup,
         digitalTwinsState
     }) => {
-    const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
     const geoJsonLayer = useRef(null);
     const map = useMap();
     const digitalTwinsStateFiltered = digitalTwinsState.filter(item => orgsInBuilding.findIndex(org => org.id === item.orgId) !== -1);
@@ -68,31 +68,8 @@ const GeoBuilding: FC<GeoBuildingProps> = (
         return { ...org, state };
     });
 
-    useEffect(() => {
-        let maxLongitude = -180;
-        let minLongitude = 180;
-        let maxLatitude = -90;
-        let minLatitude = 90;
-        if (buildingData.geoJsonData.features && buildingData.geoJsonData.features.length !== 0) {
-            const coordsArray = (buildingData.geoJsonData.features[0].geometry as Polygon).coordinates[0];
-            coordsArray.forEach(coords => {
-                if (coords[0] > maxLongitude) maxLongitude = coords[0];
-                if (coords[0] < minLongitude) minLongitude = coords[0];
-                if (coords[1] > maxLatitude) maxLatitude = coords[1];
-                if (coords[1] < minLatitude) minLatitude = coords[1];
-            })
-        }
-        const outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
-        setOuterBounds(outerBounds);
-    }, [buildingData.geoJsonData])
-
-    useEffect(() => {
-        if (buildingSelected?.id === buildingData.id) map.fitBounds(outerBounds as LatLngTuple[]);
-    }, [buildingSelected, buildingData.id, outerBounds, map]);
-
-
     const clickHandler = () => {
-        map.fitBounds(outerBounds as LatLngTuple[]);
+        map.fitBounds(buildingData.outerBounds as LatLngTuple[]);
         selectBuilding(buildingData);
         if (orgsInBuilding.length === 1) {
             selectOrg(orgsInBuilding[0]);
@@ -107,7 +84,6 @@ const GeoBuilding: FC<GeoBuildingProps> = (
             }
         }
     }
-
 
     const styleGeoJson = (geoJsonFeature: any) => {
         const isSelected = orgSelected?.buildingId === buildingData.id;
@@ -128,27 +104,27 @@ const GeoBuilding: FC<GeoBuildingProps> = (
     return (
         <GeoJSON ref={geoJsonLayer} data={buildingData.geoJsonData} style={styleGeoJson} eventHandlers={{ click: clickHandler }}>
             {
-                (orgsInBuilding.length !== 0 && !orgSelected) &&
+                (orgsInBuilding.length !== 0 && !floorSelected) &&
                 <>
                     {buildingStatus === "ok" &&
                         <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconMarker} >
-                            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} />
+                        <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
                         </Marker>
                     }
                     {buildingStatus === "pending" &&
                         <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconPendingMarker} >
-                            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} />
+                        <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
                         </Marker>
                     }
                     {buildingStatus === "alerting" &&
                         <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconAlertingMarker} >
-                            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} />
+                            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
                         </Marker>
                     }
                 </>
             }
 
-            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} />
+            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
         </GeoJSON >
     )
 }

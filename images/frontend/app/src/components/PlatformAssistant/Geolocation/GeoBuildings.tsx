@@ -58,6 +58,7 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
                         buildingData={building}
                         floorsData={floors.filter(floor => floor.buildingId === building.id)}
                         selectFloor={selectFloor}
+                        floorSelected={floorSelected}
                         buildingSelected={buildingSelected}
                         selectBuilding={selectBuilding}
                         orgSelected={orgSelected}

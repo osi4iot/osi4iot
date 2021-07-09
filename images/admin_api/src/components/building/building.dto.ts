@@ -12,6 +12,8 @@ class CreateBuildingDto {
 
 	@IsString()
 	public geoJsonData: string;
+
+	public outerBounds?: number[][];
 }
 
 export default CreateBuildingDto;

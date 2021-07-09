@@ -14,5 +14,6 @@ export default interface IGroup {
 	telegramNotificationChannelId: number;
 	isOrgDefaultGroup: boolean;
 	geoJsonData: string;
+	outerBounds: number[][];
 	floorNumber: number;
 }

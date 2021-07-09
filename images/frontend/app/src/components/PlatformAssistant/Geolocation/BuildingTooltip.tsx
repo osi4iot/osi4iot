@@ -21,18 +21,25 @@ const Ul = styled.ul`
 interface BuildingTooltipProps {
     buildingName: string;
     orgsInBuilding: IOrgManagedWithStatus[];
+    orgSelected: IOrgManaged | null;
 }
 
-const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuilding }) => {
+const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuilding, orgSelected }) => {
+    let orgAcronym = orgsInBuilding[0]?.acronym;
+    let orgStatus = orgsInBuilding[0]?.state;
+    if (orgSelected) {
+        orgAcronym = orgSelected.acronym;
+        orgStatus = orgsInBuilding.filter(org => org.id === orgSelected.id)[0]?.state
+    }
 
     return (
         <>
             {
-                orgsInBuilding.length === 1 ?
+                (orgsInBuilding.length === 1 || orgSelected) ?
                     <Tooltip sticky opacity={1}>
                         <div>
                             <span style={{ fontWeight: 'bold' }}>Org:</span>
-                            {" "}<StatusLed status={orgsInBuilding[0].state} size="8px" />{` ${orgsInBuilding[0].acronym}`}
+                            {" "}<StatusLed status={orgStatus} size="8px" />{` ${orgAcronym}`}
                         </div>
                     </Tooltip>
                     :

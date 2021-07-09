@@ -4,6 +4,7 @@ export default interface IFloor {
 	buildingName?: string;
 	floorNumber: number;
 	geoJsonData: string;
+	outerBounds: number[][];
 	timeFromCreation?: string;
 	timeFromLastUpdate?: string;
 }

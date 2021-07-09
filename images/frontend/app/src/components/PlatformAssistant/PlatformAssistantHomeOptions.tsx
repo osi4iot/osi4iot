@@ -1,6 +1,5 @@
 import { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
-import { Polygon } from 'geojson';
 import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import Loader from "../Tools/Loader";
@@ -120,17 +119,12 @@ const findBounds = (buildings: IBuilding[]) => {
     let maxLatitude = -90;
     let minLatitude = 90;
     if (buildings.length !== 0) {
-        const geoJsonDataArray = buildings.map(building => building.geoJsonData);
-        geoJsonDataArray.forEach(geoJsonData => {
-            if (geoJsonData.features && geoJsonData.features.length !== 0) {
-                const coordsArray = (geoJsonData.features[0].geometry as Polygon).coordinates[0];
-                coordsArray.forEach(coords => {
-                    if (coords[0] > maxLongitude) maxLongitude = coords[0];
-                    if (coords[0] < minLongitude) minLongitude = coords[0];
-                    if (coords[1] > maxLatitude) maxLatitude = coords[1];
-                    if (coords[1] < minLatitude) minLatitude = coords[1];
-                })
-            }
+        const buildingsOuterBounds = buildings.map(building => building.outerBounds);
+        buildingsOuterBounds.forEach(buildingOuterBounds => {
+            if (buildingOuterBounds[1][1] > maxLongitude) maxLongitude = buildingOuterBounds[1][1] ;
+            if (buildingOuterBounds[0][1] < minLongitude) minLongitude = buildingOuterBounds[0][1];
+            if (buildingOuterBounds[1][0] > maxLatitude) maxLatitude = buildingOuterBounds[1][0];
+            if (buildingOuterBounds[0][0] < minLatitude) minLatitude = buildingOuterBounds[0][0];
             outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
         })
     } else {

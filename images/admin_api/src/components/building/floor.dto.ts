@@ -9,6 +9,8 @@ class CreateFloorDto {
 
 	@IsString()
 	public geoJsonData: string;
+
+	public outerBounds?: number[][];
 }
 
 export default CreateFloorDto;

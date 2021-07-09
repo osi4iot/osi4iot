@@ -28,6 +28,7 @@ export interface IGroup {
     floorNumber: number;
     geoJsonDataBase: FeatureCollection;
     geoJsonData: FeatureCollection;
+    outerBounds: number[][];
 }
 
 interface IGroupColumn extends IGroup {
@@ -170,7 +171,12 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Header: "Geojson Data",
             accessor: "geoJsonData",
             disableFilters: true
-        },        
+        },
+        {
+            Header: "outerBounds",
+            accessor: "outerBounds",
+            disableFilters: true
+        },
         {
             Header: "",
             accessor: "edit",

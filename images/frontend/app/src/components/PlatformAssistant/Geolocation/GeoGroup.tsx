@@ -1,5 +1,6 @@
 import { FC, useEffect, useRef } from "react";
-import { GeoJSON, LayerGroup } from 'react-leaflet';
+import { GeoJSON, LayerGroup, useMap } from 'react-leaflet';
+import { LatLngTuple } from 'leaflet';
 import GeoDevice from './GeoDevice';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
@@ -15,7 +16,6 @@ const STATUS_ALERTING = "#ff4040";
 const STATUS_PENDING = "#f79520";
 const SELECTED = "#3274d9";
 const NORMAL = "#9c9a9a";
-
 
 
 const setGroupStyle = (groupStatus: string, isSelected: boolean) => {
@@ -73,8 +73,8 @@ const GeoGroup: FC<GeoGroupProps> = (
         selectDigitalTwin,
         digitalTwinsState
     }) => {
+    const map = useMap();
     const geoJsonLayerGroupData = useRef(null);
-
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
     const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
@@ -97,8 +97,10 @@ const GeoGroup: FC<GeoGroupProps> = (
         }
     }, [groupData, isGroupSelected]);
 
+
     const clickHandler = () => {
         selectGroup(groupData);
+        map.fitBounds(groupData.outerBounds as LatLngTuple[]);
     }
 
     return (

@@ -106,6 +106,7 @@ interface SelectFloorProps {
     giveFloorSelected: (floor: IFloor) => void;
     digitalTwinsState: IDigitalTwinState[];
     groupsData: IGroupManaged[];
+    giveGroupManagedSelected: (groupManagedSelected: IGroupManaged) => void;
 }
 
 interface IFloorWithState extends IFloor {
@@ -120,7 +121,16 @@ const addStateToFloor = (floor: IFloor, groupsData: IGroupManaged[], digitalTwin
     return { ...floor, state };
 }
 
-const SelectFloor: FC<SelectFloorProps> = ({ buildingId, backToMap, giveFloorSelected, digitalTwinsState, groupsData }) => {
+const SelectFloor: FC<SelectFloorProps> = (
+    {
+        buildingId,
+        backToMap,
+        giveFloorSelected,
+        digitalTwinsState,
+        groupsData,
+        giveGroupManagedSelected
+    }
+) => {
     const [selectedFloor, setSelectedFloor] = useState<ISelectFloor | null>(null);
     const floorsTable = useFloorsTable();
     const groupsFloorNumber = groupsData.map(group => group.floorNumber);
@@ -128,9 +138,13 @@ const SelectFloor: FC<SelectFloorProps> = ({ buildingId, backToMap, giveFloorSel
     const selectFloor = useState(floorsOfGroups.map(floor => addStateToFloor(floor, groupsData, digitalTwinsState)))[0];
 
     const onSubmit = () => {
-        if (selectedFloor) {  
+        if (selectedFloor) {
             const floorsTableFiltered = floorsTable.filter(floor => floor.id === selectedFloor.id);
             giveFloorSelected(floorsTableFiltered[0]);
+            const groupsInFloorSelected = groupsData.filter(group => group.floorNumber === selectedFloor.floorNumber);
+            if (groupsInFloorSelected.length === 1) {
+                giveGroupManagedSelected(groupsInFloorSelected[0]);
+            }
         }
         backToMap();
     }

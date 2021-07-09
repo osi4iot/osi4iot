@@ -4,6 +4,7 @@ export default interface IBuiliding {
 	longitude: number;
 	latitude: number;
 	geoJsonData: string;
+	outerBounds: number[][];
 	timeFromCreation?: string;
 	timeFromLastUpdate?: string;
 }

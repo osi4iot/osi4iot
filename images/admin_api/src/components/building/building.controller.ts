@@ -14,6 +14,7 @@ import IBuiliding from "./building.interface";
 import { getGroupsManagedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId, getOrganizationsWithIdsArray } from "../organization/organizationDAL";
 import IFloor from "./floor.interface";
+import { findBuildingBounds, findFloorOrGroupBounds } from "../../utils/geolocation.ts/geolocation";
 
 class BuildingController implements IController {
 	public path = "/building";
@@ -66,7 +67,6 @@ class BuildingController implements IController {
 				superAdminAuth,
 				this.removeFloorById
 			);
-
 
 		this.router.get(`${this.path}s`, superAdminAuth, this.getAllBuildings);
 
@@ -158,6 +158,9 @@ class BuildingController implements IController {
 			if (existBuilding) {
 				throw new AlreadyExistingItemException("A", "building", ["name"], [buildingData.name]);
 			}
+			if (buildingData.geoJsonData) {
+				buildingData.outerBounds  = findBuildingBounds(buildingData.geoJsonData);
+			}
 			const building = await createBuilding(buildingData);
 			if (!building) throw new HttpException(500, "Could not be created a new building");
 			const message = { message: "A new building has been created" };
@@ -173,9 +176,9 @@ class BuildingController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			const FloorData: CreateFloorDto = req.body;
-			const buildingId = FloorData.buildingId;
-			const floorNumber = FloorData.floorNumber;
+			const floorData: CreateFloorDto = req.body;
+			const buildingId = floorData.buildingId;
+			const floorNumber = floorData.floorNumber;
 			const existBuilding = await getBuildingByProp("id", buildingId);
 			if (!existBuilding) {
 				throw new ItemNotFoundException("The building", "id", buildingId.toString());
@@ -184,7 +187,10 @@ class BuildingController implements IController {
 			if (existFloor) {
 				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [buildingId.toString(), floorNumber.toString()]);
 			}
-			const Floor = await createFloor(FloorData);
+			if (floorData.geoJsonData) {
+				floorData.outerBounds  = findFloorOrGroupBounds(floorData.geoJsonData);
+			}
+			const Floor = await createFloor(floorData);
 			if (!Floor) throw new HttpException(500, "Could not be created a new building floor");
 			const message = { message: "A new building floor has been created" };
 			res.status(200).send(message);
@@ -231,6 +237,7 @@ class BuildingController implements IController {
 			if (existFloor.id !== existUpdatedFloor.id) {
 				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [updatedFloor.buildingId.toString(), updatedFloor.floorNumber.toString()]);
 			}
+			updatedFloor.outerBounds  = findFloorOrGroupBounds(updatedFloor.geoJsonData);
 			const response = await updateFloorById(parseInt(floorId, 10), updatedFloor);
 			if (!response) throw new HttpException(500, "The building floor could not be updated");
 			const message = { message: `Building floor updated succesfully.` }
@@ -306,6 +313,7 @@ class BuildingController implements IController {
 				throw new ItemNotFoundException("The building", "id", buildingId);
 			}
 			const updatedBuilding = { ...existBuilding, ...buildingData };
+			updatedBuilding.outerBounds  = findBuildingBounds(updatedBuilding.geoJsonData);
 			const response = await updateBuildingById(parseInt(buildingId, 10), updatedBuilding);
 			if (!response) throw new HttpException(500, "The building could not be updated");
 			const message = { message: `Building updated succesfully.` }

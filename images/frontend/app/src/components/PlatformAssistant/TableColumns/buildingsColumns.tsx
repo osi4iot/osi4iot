@@ -17,6 +17,7 @@ export interface IBuilding {
     latitude: number;
     longitude: number;
     geoJsonData: FeatureCollection;
+    outerBounds: number[][];
     timeFromCreation: string;
     timeFromLastUpdate: string;
 }
@@ -133,6 +134,11 @@ export const Create_BUILDINGS_COLUMNS = (refreshBuildings: () => void): Column<I
         {
             Header: "Geojson Data",
             accessor: "geoJsonData",
+            disableFilters: true
+        },
+        {
+            Header: "outerBounds",
+            accessor: "outerBounds",
             disableFilters: true
         },
         {

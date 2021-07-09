@@ -6,13 +6,14 @@ import IFloor from "./floor.interface";
 
 export const createBuilding = async (buildingInput: CreateBuildingDto): Promise<IBuiliding> => {
 	const result = await pool.query(`INSERT INTO grafanadb.building (name, geodata, geolocation, created, updated)
-        VALUES ($1, $2, $3,  NOW(), NOW())
-        RETURNING  id, name, geodata AS "geoJsonData",
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
+        RETURNING  id, name, geodata AS "geoJsonData", outer_bounds AS "outerBounds",
         geolocation[0] AS longitude, geolocation[0] AS latitude,
         created, updated`,
 		[
 			buildingInput.name,
 			buildingInput.geoJsonData,
+			buildingInput.outerBounds,
 			`(${buildingInput.longitude},${buildingInput.latitude})`
 		]);
 	return result.rows[0];
@@ -20,6 +21,7 @@ export const createBuilding = async (buildingInput: CreateBuildingDto): Promise<
 
 export const getBuildingByProp = async (propName: string, propValue: (string | number)): Promise<IBuiliding> => {
 	const response = await pool.query(`SELECT id, name, geodata AS "geoJsonData",
+									outer_bounds[1:2][1:2] AS "outerBounds",
 									geolocation[0] AS longitude, geolocation[1] AS latitude,
 									AGE(NOW(), created) AS "timeFromCreation",
 									AGE(NOW(), updated) AS "timeFromLastUpdate"
@@ -33,6 +35,7 @@ export const getFloorByBuildingIdAndFloorNumber = async (buildingId: number, flo
 									grafanadb.building.name AS "buildingName",
 									grafanadb.floor.floor_number AS "floorNumber",
 									grafanadb.floor.geodata AS "geoJsonData",
+									grafanadb.floor.outer_bounds AS "outerBounds",
 									AGE(NOW(), grafanadb.floor.created) AS "timeFromCreation",
 									AGE(NOW(), grafanadb.floor.updated) AS "timeFromLastUpdate"
 									FROM grafanadb.floor
@@ -44,6 +47,7 @@ export const getFloorByBuildingIdAndFloorNumber = async (buildingId: number, flo
 export const getFloorById = async (floorId: number): Promise<IFloor> => {
 	const response = await pool.query(`SELECT id, building_id AS "buildingId", floor_number AS "floorNumber",
 									geodata AS "geoJsonData",
+									outer_bounds AS "outerBounds",
 									AGE(NOW(), created) AS "timeFromCreation",
 									AGE(NOW(), updated) AS "timeFromLastUpdate"
 									FROM grafanadb.floor
@@ -51,15 +55,16 @@ export const getFloorById = async (floorId: number): Promise<IFloor> => {
 	return response.rows[0];
 };
 
-export const createFloor = async (FloorInput: CreateFloorDto): Promise<IFloor> => {
+export const createFloor = async (floorInput: CreateFloorDto): Promise<IFloor> => {
 	const result = await pool.query(`INSERT INTO grafanadb.floor (building_id, floor_number, geodata, created, updated)
-        VALUES ($1, $2, $3,  NOW(), NOW())
+        VALUES ($1, $2, $3, $4, NOW(), NOW())
         RETURNING  id, building_id AS "buildingId", floor_number AS "floorNumber", geodata AS "geoJsonData",
-        created, updated`,
+        outer_bounds[1:2][1:2] AS "outerBounds", created, updated`,
 		[
-			FloorInput.buildingId,
-			FloorInput.floorNumber,
-			FloorInput.geoJsonData
+			floorInput.buildingId,
+			floorInput.floorNumber,
+			floorInput.geoJsonData,
+			floorInput.outerBounds
 		]);
 	return result.rows[0];
 };
@@ -76,12 +81,13 @@ export const deleteFloorById = async (floorId: number): Promise<IFloor> => {
 
 export const updateBuildingById = async (buildingId: number, building: IBuiliding): Promise<IBuiliding> => {
 	const query = `UPDATE grafanadb.building SET name = $1, geodata= $2,
-				geolocation = $3, updated = NOW()
-				WHERE id = $4
+				outer_bounds = $3, geolocation = $4, updated = NOW()
+				WHERE id = $5
 				RETURNING *;`;
 	const response = await pool.query(query, [
 		building.name,
 		building.geoJsonData,
+		building.outerBounds,
 		`(${building.longitude},${building.latitude})`,
 		buildingId
 	]);
@@ -90,13 +96,14 @@ export const updateBuildingById = async (buildingId: number, building: IBuilidin
 
 export const updateFloorById = async (floorId: number, floor: IFloor): Promise<IFloor> => {
 	const query = `UPDATE grafanadb.floor SET building_id = $1,
-				floor_number = $2, geodata= $3, updated = NOW()
-				WHERE id = $4
+				floor_number = $2, geodata= $3, outer_bounds = $4, updated = NOW()
+				WHERE id = $5
 				RETURNING *;`;
 	const response = await pool.query(query, [
 		floor.buildingId,
 		floor.floorNumber,
 		floor.geoJsonData,
+		floor.outerBounds,
 		floorId
 	]);
 	return response.rows[0];
@@ -106,6 +113,7 @@ export const getAllBuildings = async (): Promise<IBuiliding[]> => {
 	const response = await pool.query(`SELECT id, name,
 									geolocation[0] AS longitude, geolocation[1] AS latitude,
 									geodata AS "geoJsonData",
+									outer_bounds[1:2][1:2] AS "outerBounds",
 									AGE(NOW(), created) AS "timeFromCreation",
 									AGE(NOW(), updated) AS "timeFromLastUpdate"
 									FROM grafanadb.building
@@ -116,6 +124,7 @@ export const getAllBuildings = async (): Promise<IBuiliding[]> => {
 export const getBuildingsFromOrgIdArray = async (orgIdArray: number[]): Promise<IBuiliding[]> => {
 	const response = await pool.query(`SELECT DISTINCT grafanadb.building.id, grafanadb.building.name,
 									grafanadb.building.geodata AS "geoJsonData",
+									grafanadb.building.outer_bounds AS "outerBounds",
 									grafanadb.building.geolocation[0] AS longitude, grafanadb.building.geolocation[1] AS latitude,
 									grafanadb.building.created, grafanadb.building.updated
 									AGE(NOW(), created) AS "timeFromCreation",
@@ -132,6 +141,7 @@ export const getAllFloors = async (): Promise<IFloor[]> => {
 									grafanadb.building.name AS "buildingName",
 									grafanadb.floor.floor_number AS "floorNumber",
 									grafanadb.floor.geodata AS "geoJsonData",
+									grafanadb.floor.outer_bounds AS "outerBounds",
 									AGE(NOW(), grafanadb.floor.created) AS "timeFromCreation",
 									AGE(NOW(), grafanadb.floor.updated) AS "timeFromLastUpdate"
 									FROM grafanadb.floor
@@ -148,6 +158,7 @@ export const getAllFloorsFromOrgIdArray = async (orgIdArray: number[]): Promise<
 									grafanadb.building.name AS "buildingName",
 									grafanadb.floor.floor_number AS "floorNumber",
 									grafanadb.floor.geodata AS "geoJsonData",
+									grafanadb.floor.outer_bounds AS "outerBounds",
 									AGE(NOW(), created) AS "timeFromCreation",
 									AGE(NOW(), updated) AS "timeFromLastUpdate"
 									FROM grafanadb.floor

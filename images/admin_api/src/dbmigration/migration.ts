@@ -41,6 +41,7 @@ export async function dataBaseInitialization() {
 				name VARCHAR(190) UNIQUE,
 				geolocation POINT,
 				geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
+				outer_bounds float8[2][2],
 				created TIMESTAMPTZ,
 				updated TIMESTAMPTZ
 			);
@@ -71,6 +72,7 @@ export async function dataBaseInitialization() {
 				building_id bigint,
 				floor_number integer,
 				geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
+				outer_bounds float8[2][2],
 				created TIMESTAMPTZ,
 				updated TIMESTAMPTZ,
 				CONSTRAINT fk_building_id
@@ -239,6 +241,7 @@ export async function dataBaseInitialization() {
 				telegram_notification_channel_id bigint,
 				is_org_default_group BOOLEAN DEFAULT true,
 				geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
+				outer_bounds float8[2][2],
 				floor_number integer NOT NULL DEFAULT 0,
 				CONSTRAINT fk_org_id
 					FOREIGN KEY(org_id)

@@ -376,6 +376,8 @@ interface MapProps {
     selectDevice: (deviceSelected: IDevice) => void;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinsSelected: IDigitalTwin) => void;
+    refreshBuildings: () => void;
+    refreshFloors: () => void;
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
@@ -413,6 +415,8 @@ const Map: FC<MapProps> = (
         selectDevice,
         digitalTwinSelected,
         selectDigitalTwin,
+        refreshBuildings,
+        refreshFloors,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
@@ -430,11 +434,20 @@ const Map: FC<MapProps> = (
     }) => {
 
     const refreshAll = useCallback(() => {
+        refreshBuildings();
+        refreshFloors();
         refreshOrgsOfGroupsManaged();
         refreshGroupsManaged();
         refreshDevices();
         refreshDigitalTwins();
-    }, [refreshOrgsOfGroupsManaged, refreshGroupsManaged, refreshDevices, refreshDigitalTwins])
+    }, [
+        refreshBuildings,
+        refreshFloors,
+        refreshOrgsOfGroupsManaged,
+        refreshGroupsManaged,
+        refreshDevices,
+        refreshDigitalTwins
+    ])
 
     return (
         <MapContainerStyled maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
@@ -463,6 +476,8 @@ const Map: FC<MapProps> = (
                 (buildingSelected && orgSelected && floorSelected) &&
                 <GeoGroups
                     floorData={floorSelected}
+                    orgSelected={orgSelected}
+                    selectOrg={selectOrg}
                     groupsInSelectedOrg={groupsManaged.filter(group => group.orgId === orgSelected.id && group.floorNumber === floorSelected.floorNumber)}
                     groupSelected={groupSelected}
                     selectGroup={selectGroup}

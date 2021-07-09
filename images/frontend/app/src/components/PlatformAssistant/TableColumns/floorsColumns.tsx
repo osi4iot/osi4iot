@@ -17,6 +17,7 @@ export interface IFloor {
     buildingName: number;
     floorNumber: number;
     geoJsonData: FeatureCollection;
+    outerBounds: number[][];
     timeFromCreation: string;
     timeFromLastUpdate: string;
 }
@@ -129,6 +130,11 @@ export const Create_FLOORS_COLUMNS = (refreshFloors: () => void): Column<IFloorC
         {
             Header: "Geojson Data",
             accessor: "geoJsonData",
+            disableFilters: true
+        },
+        {
+            Header: "outerBounds",
+            accessor: "outerBounds",
             disableFilters: true
         },
         {

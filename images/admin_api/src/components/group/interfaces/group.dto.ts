@@ -26,6 +26,8 @@ class CreateGroupDto {
 	@IsString()
 	public geoJsonData: string;
 
+	public outerBounds?: number[][];
+
 	@IsNumber()
 	public floorNumber: number;
 

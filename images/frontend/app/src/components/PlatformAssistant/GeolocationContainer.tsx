@@ -213,6 +213,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectDevice={selectDevice}
                     selectDigitalTwin={selectDigitalTwin}
                     digitalTwinSelected={digitalTwinSelected}
+                    refreshBuildings={refreshBuildings}
+                    refreshFloors={refreshFloors}
                     refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
                     refreshGroupsManaged={refreshGroupsManaged}
                     refreshDevices={refreshDevices}
@@ -249,6 +251,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     giveFloorSelected={giveFloorSelected}
                     digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
                     groupsData={groupsManaged.filter(group => group.orgId === orgSelected.id)}
+                    giveGroupManagedSelected={giveGroupManagedSelected}
                 />
             }
             {(geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_GROUP && orgSelected && floorSelected) &&

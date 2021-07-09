@@ -1,16 +1,19 @@
 import { FC } from "react";
-import { GeoJSON, LayerGroup } from 'react-leaflet';
+import { GeoJSON, LayerGroup, useMap } from 'react-leaflet';
+import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IDigitalTwinState } from "../GeolocationContainer";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoGroup from "./GeoGroup";
+import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
+
 
 const STATUS_OK = "#3e3f3b";
 const NORMAL = "#9c9a9a";
 
-const floorStyle =  () => {
+const floorStyle = () => {
     return {
         stroke: true,
         color: NORMAL,
@@ -24,6 +27,8 @@ const floorStyle =  () => {
 
 interface GeoGroupsProps {
     floorData: IFloor;
+    orgSelected: IOrgManaged | null;
+    selectOrg: (orgSelected: IOrgManaged) => void;
     groupsInSelectedOrg: IGroupManaged[];
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
@@ -41,6 +46,8 @@ const GeoGroups: FC<GeoGroupsProps> = (
     {
         floorData,
         groupsInSelectedOrg,
+        orgSelected,
+        selectOrg,
         groupSelected,
         selectGroup,
         deviceDataArray,
@@ -52,14 +59,20 @@ const GeoGroups: FC<GeoGroupsProps> = (
         digitalTwinsState
     }
 ) => {
+    const map = useMap();
 
     const styleGeoFloorJson = (geoJsonFeature: any) => {
         return floorStyle();
     }
 
+    const clickHandler = () => {
+        map.fitBounds(floorData.outerBounds as LatLngTuple[]);
+        if (orgSelected) selectOrg(orgSelected);
+    }
+
     return (
         <LayerGroup>
-            <GeoJSON data={floorData.geoJsonData} style={styleGeoFloorJson} />
+            <GeoJSON data={floorData.geoJsonData} style={styleGeoFloorJson} eventHandlers={{ click: clickHandler }} />
             {
                 groupsInSelectedOrg.map(group =>
                     <GeoGroup
