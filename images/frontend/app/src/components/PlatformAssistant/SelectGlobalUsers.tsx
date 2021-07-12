@@ -135,7 +135,7 @@ const SelectGlobalUsers: FC<SelectGlobalUsersProps> = ({ backToCreate, setSelect
                         Cancel
                     </Button>
                     <Button type='button' onClick={onSubmit}>
-                        Add selected users
+                        Accept
                     </Button>
                 </ButtonsContainer>
             </FormContainer>

@@ -441,9 +441,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION} onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION)}>
                     Geolocation
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)}>
+                {/* <OptionContainer isOptionActive={optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)}>
                     Digital twins
-                </OptionContainer>
+                </OptionContainer> */}
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.TUTORIAL} onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.TUTORIAL)}>
                     Tutorial
                 </OptionContainer>

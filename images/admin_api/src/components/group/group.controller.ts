@@ -279,13 +279,13 @@ class GroupController implements IController {
 			const defaultDeviceTopicsData = [
 				{
 					sensorName: demoTopicSensorName(groupCreated, device1, "Temperature"),
-					description: `Temperature sensor for default generic device of the group ${groupCreated.acronym}`,
+					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
 					sensorType: "Temperature",
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
 				},
 				{
 					sensorName: demoTopicSensorName(groupCreated, device2, "Accelerometer"),
-					description: `Accelerometer for default mobile device of the group ${groupCreated.acronym}`,
+					description: `Accelerometer for ${defaultGroupDeviceName(groupCreated, "Mobile")} device`,
 					sensorType: "Accelerometer",
 					payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
 				},

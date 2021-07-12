@@ -80,7 +80,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
     const initialDeviceData = {
         buildingId: floors[floorRowIndex].buildingId,
         floorNumber: floors[floorRowIndex].floorNumber,
-        geoJsonData: JSON.stringify(floors[floorRowIndex].geoJsonData)
+        geoJsonData: JSON.stringify(floors[floorRowIndex].geoJsonData, null, 4)
     }
 
     const validationSchema = Yup.object().shape({

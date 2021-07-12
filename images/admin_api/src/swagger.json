@@ -59,6 +59,10 @@
 			"description": "Management of topics of devices of the IOT Platform - Default role required: Group_Admin"
 		},
 		{
+			"name": "Measurement",
+			"description": "Management of measurements of sensors of the IOT Platform - Default role required: Group_Admin"
+		},
+		{
 			"name": "Digital twin",
 			"description": "Management of digital twin of devices of the IOT Platform - Default role required: Group_Admin"
 		}				
@@ -3623,6 +3627,354 @@
 				}
 			}
 		},
+		"/measurement/{groupId}/{topic}/{timestamp}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "topic",
+					"in": "path",
+					"required": true,
+					"description": "Topic",
+					"type": "string"
+				},
+				{
+					"name": "timestamp",
+					"in": "path",
+					"required": true,
+					"description": "Timestamp",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": ["Measurement"],
+				"summary": "Get measurement by groupId, topic and timestamp - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/MeasurementOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}              
+				}
+			},
+			"patch": {
+				"tags": ["Measurement"],
+				"summary": "Update measurement by groupId, topic and timestamp  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "New payload",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/MeasurementInput"
+							}
+						}
+					}
+				},				
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},			
+			"delete": {
+				"tags":["Measurement"],
+				"summary": "Delete measurement by groupId, topic and timestamp - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"measurements_last/{groupId}/{topic}/{count}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "topic",
+					"in": "path",
+					"required": true,
+					"description": "Topic",
+					"type": "string"
+				},
+				{
+					"name": "count",
+					"in": "path",
+					"required": true,
+					"description": "Number of measurements to show",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": ["Measurement"],
+				"summary": "Get last count measurements by groupId and timestamp  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Measurements"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
+		"measurements_pagination/{groupId}/{topic}/{start}/{end}/{page}/{itemsPerPage}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "topic",
+					"in": "path",
+					"required": true,
+					"description": "Topic",
+					"type": "string"
+				},
+				{
+					"name": "start",
+					"in": "path",
+					"required": true,
+					"description": "Start timestamp of the measurements to show",
+					"type": "string"
+				},
+				{
+					"name": "end",
+					"in": "path",
+					"required": true,
+					"description": "End timestamp of the measurements to show",
+					"type": "string"
+				},
+				{
+					"name": "page",
+					"in": "path",
+					"required": true,
+					"description": "Page number of the measurements request to show",
+					"type": "number"
+				},
+				{
+					"name": "itemsPerPage",
+					"in": "path",
+					"required": true,
+					"description": "Number of items per page to show",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": ["Measurement"],
+				"summary": "Get measurements with pagination by groupId and topic  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Measurements"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"measurements_before_date/{groupId}/{topic}/{deleteDate}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "topic",
+					"in": "path",
+					"required": true,
+					"description": "Topic",
+					"type": "string"
+				},
+				{
+					"name": "deleteDate",
+					"in": "path",
+					"required": true,
+					"description": "Timestamp of the date from which the measurements will be deleted",
+					"type": "string"
+				}
+			],
+			"delete": {
+				"tags":["Measurement"],
+				"summary": "Delete measurements before the indicated timestamp by groupId and topic - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/digital_twins/user_managed": {
 			"get": {
 				"tags": ["Digital twin"],
@@ -5085,6 +5437,32 @@
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/TopicOutput"
+			}
+		},
+		"MeasurementInput": {
+			"properties": {			
+				"payload": {
+					"type": "string"
+				}	
+			}
+		},
+		"MeasurementOutput": {
+			"properties": {												
+				"timestamp": {
+					"type": "string"
+				},
+				"topic": {
+					"type": "string"
+				},				
+				"payload": {
+					"type": "string"
+				}
+			}
+		},
+		"Measurements": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/MeasurementOutput"
 			}
 		},
 		"DigitalTwinInput": {

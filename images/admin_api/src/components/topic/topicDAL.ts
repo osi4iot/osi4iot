@@ -35,8 +35,8 @@ export const insertTopic = async (topicData: ITopicUpdate): Promise<ITopicUpdate
 
 export const updateTopicById = async (topicId: number, topic: ITopic): Promise<void> => {
 	const query = `UPDATE grafanadb.topic SET sensor_name = $1, description = $2,
-					sensor_type = $2, payload_format = $4, updated = NOW()
-					WHERE grafanadb.topic.id = $4;`;
+					sensor_type = $3, payload_format = $4, updated = NOW()
+					WHERE grafanadb.topic.id = $5;`;
 	const result = await pool.query(query, [
 		topic.sensorName,
 		topic.description,

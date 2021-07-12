@@ -2,8 +2,8 @@ import { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import FormTitle from "../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelection';
-import { useOrgUsersTable } from '../../contexts/platformAssistantContext';
-import { ISelectOrgUser, SELECT_ORG_USERS } from './TableColumns/selectOrgUsersColumns';
+import { SELECT_TOPIC_COLUMNS, ISelectTopic  } from './TableColumns/selectTopicColumns';
+import { useTopicsTable } from '../../contexts/platformAssistantContext';
 
 
 
@@ -24,7 +24,7 @@ const TableContainer = styled.div`
     height: calc(100vh - 420px);
     width: 100%;
     padding: 0px 5px;
-    overflow: auto;
+    overflow-y: auto;
     /* width */
     ::-webkit-scrollbar {
         width: 10px;
@@ -98,52 +98,37 @@ const Button = styled.button`
 `;
 
 
-interface SelectOrgUsersOfOrgManagedProps {
-    orgId: number;
-    backToCreate: () => void;
-    setSelectedUsersArray: (selectedUsers: ISelectOrgUser[]) => void;
+interface SelectTopicProps {
+    backToTable: () => void;
+    giveSelectedTopic: (selectedTopic: ISelectTopic | null) => void;
 }
 
-const SelectOrgUsersOfOrgManaged: FC<SelectOrgUsersOfOrgManagedProps> = ({ orgId, backToCreate, setSelectedUsersArray }) => {
-    const [selectedUsers, setSelectedUsers] = useState<ISelectOrgUser[]>([]);
-    const orgUsersTable = useOrgUsersTable();
-    const selectOrgUsers = useState<ISelectOrgUser[]>(
-        orgUsersTable.filter(user => user.orgId === orgId)
-        .map(user => {
-            const selectOrgUser = {
-                orgId: user.orgId,
-                userId: user.userId,
-                firstName: user.firstName,
-                surname: user.surname,
-                email: user.email,
-                login: user.login
-            }
-            return selectOrgUser
-        }
-        ))[0];
-
+const SelectTopic: FC<SelectTopicProps> = ({  backToTable, giveSelectedTopic }) => {
+    const topicsTable = useTopicsTable();
+    const [selectedTopic, setSelectedTopic] = useState<ISelectTopic | null>(null);
 
     const onSubmit = () => {
-        setSelectedUsersArray(selectedUsers);
-        backToCreate();
+        giveSelectedTopic(selectedTopic as ISelectTopic);
+        backToTable();
     }
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setSelectedUsersArray([]);
-        backToCreate();
+        giveSelectedTopic(null);
+        backToTable();
     };
 
 
     return (
         <>
-            <FormTitle>Select users</FormTitle>
+            <FormTitle>Select topic</FormTitle>
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={selectOrgUsers}
-                        columnsTable={SELECT_ORG_USERS}
-                        setSelectedUsers={(selectedUsers: ISelectOrgUser[]) => setSelectedUsers(selectedUsers)}
+                        dataTable={topicsTable}
+                        columnsTable={SELECT_TOPIC_COLUMNS}
+                        setSelectedTopic={(selectedTopic: ISelectTopic) => setSelectedTopic(selectedTopic)}
+                        multipleSelection={false}
                     />
                 </TableContainer>
                 <ButtonsContainer>
@@ -159,4 +144,4 @@ const SelectOrgUsersOfOrgManaged: FC<SelectOrgUsersOfOrgManagedProps> = ({ orgId
     )
 }
 
-export default SelectOrgUsersOfOrgManaged;
+export default SelectTopic;

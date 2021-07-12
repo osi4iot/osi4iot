@@ -360,6 +360,7 @@ type TableProps<T extends object> = {
     setSelectedFloor?: (selectedFloor: never) => void;
     setSelectedGroupManaged?: (selectedGroupManaged: never) => void;
     setSelectedDevice?: (selectedDevice: never) => void;
+    setSelectedTopic?: (selectedTopic: never) => void;
     setSelectedDigitalTwin?: (selecteDigitalTwin: never) => void;
     multipleSelection?: boolean;
     isGlobalFilterRequired?: boolean;
@@ -374,6 +375,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
         setSelectedGroupManaged,
         setSelectedDevice,
         setSelectedFloor,
+        setSelectedTopic,
         setSelectedDigitalTwin,
         multipleSelection = true.valueOf,
         isGlobalFilterRequired = true
@@ -501,6 +503,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
         else if (setSelectedFloor) setSelectedFloor(selectedRows[0] as never);
         else if (setSelectedGroupManaged) setSelectedGroupManaged(selectedRows[0] as never);
         else if (setSelectedDevice) setSelectedDevice(selectedRows[0] as never);
+        else if (setSelectedTopic) setSelectedTopic(selectedRows[0] as never);
         else if (setSelectedDigitalTwin) setSelectedDigitalTwin(selectedRows[0] as never);
 
         // eslint-disable-next-line react-hooks/exhaustive-deps

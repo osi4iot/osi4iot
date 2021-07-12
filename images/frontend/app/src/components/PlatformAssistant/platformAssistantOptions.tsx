@@ -89,7 +89,7 @@ export const GROUP_ADMIN_OPTIONS = {
     DEVICES: "Orgs users",
     GROUP_MEMBERS: "Group members",
     TOPICS: "Topics",
-    MESUREMENTS: "Mesurements",
+    MEASUREMENTS: "Measurements",
     DIGITAL_TWINS: "Digital twins"
 }
 
@@ -109,6 +109,12 @@ export const TOPICS_OPTIONS = {
     TABLE: "Table",
     CREATE_TOPIC: "Create topic",
     EDIT_TOPIC: "Edit topic",
+}
+
+export const MEASUREMENTS_OPTIONS = {
+    TABLE: "Table",
+    SELECT_TOPIC: "Select topic",
+    EDIT_MEASUREMENT: "Edit measurement",
 }
 
 export const DIGITAL_TWINS_OPTIONS = {

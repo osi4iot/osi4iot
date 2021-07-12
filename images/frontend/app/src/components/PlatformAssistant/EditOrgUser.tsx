@@ -138,11 +138,11 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
                                 <ControlsContainer>
                                     <FieldContainer>
                                         <label>First Name</label>
-                                        <div>{orgUsers[orgsUsersRowIndex].firstName}</div>
+                                        <div>{orgUsers[orgsUsersRowIndex].firstName || ""}</div>
                                     </FieldContainer>
                                     <FieldContainer>
                                         <label>Surname</label>
-                                        <div>{orgUsers[orgsUsersRowIndex].surname}</div>
+                                        <div>{orgUsers[orgsUsersRowIndex].surname  || ""}</div>
                                     </FieldContainer>                                    
                                     <FieldContainer>
                                         <label>Email</label>

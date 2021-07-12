@@ -436,13 +436,13 @@ export async function dataBaseInitialization() {
 			const defaultDeviceTopicsData = [
 				{
 					sensorName: demoTopicSensorName(group, device1, "Temperature"),
-					description: `Temperature sensor for default generic device of the group ${mainOrgGroupAcronym}`,
+					description: `Temperature sensor for ${defaultGroupDeviceName(group, "Generic")} device`,
 					sensorType: "Tempeature",
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
 				},
 				{
 					sensorName: demoTopicSensorName(group, device2, "Accelerometer"),
-					description: `Accelerometer for default mobile device of the group ${mainOrgGroupAcronym}`,
+					description: `Accelerometer for ${defaultGroupDeviceName(group, "Mobile")} device`,
 					sensorType: "Accelerometer",
 					payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
 				},

@@ -91,7 +91,7 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
         login: globalUsers[globalUserRowIndex].login,
         password: "",
         telegramId: globalUsers[globalUserRowIndex].telegramId,
-        isGrafanaAdmin: false
+        isGrafanaAdmin: globalUsers[globalUserRowIndex].roleInPlatform === "Admin" ? true : false
     }
 
     const validationSchema = Yup.object().shape({

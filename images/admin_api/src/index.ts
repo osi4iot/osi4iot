@@ -14,6 +14,7 @@ import DeviceController from "./components/device/device.controller";
 import TopicController from "./components/topic/topic.controller";
 import DigitalTwinController from "./components/digitalTwin/digitalTwinController";
 import BuildingController from "./components/building/building.controller";
+import MeasurementController from "./components/mesurement/measurement.controller";
 
 
 async function main(): Promise<void> {
@@ -29,6 +30,7 @@ async function main(): Promise<void> {
 			new GroupController(),
 			new DeviceController(),
 			new TopicController(),
+			new MeasurementController(),
 			new DigitalTwinController(),
 		]);
 		app.listen();

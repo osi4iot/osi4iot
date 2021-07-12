@@ -138,7 +138,7 @@ const SelectOrgUsers: FC<SelectOrgUsersProps> = ({ orgId, backToCreate, setSelec
                         Cancel
                     </Button>
                     <Button type='button' onClick={onSubmit}>
-                        Add selected users
+                        Accept
                     </Button>
                 </ButtonsContainer>
             </FormContainer>

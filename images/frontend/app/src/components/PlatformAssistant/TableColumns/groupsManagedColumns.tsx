@@ -233,13 +233,13 @@ interface IGroupManagedColumn extends IGroupManaged {
 export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, refreshGroupsManaged: () => void): Column<IGroupManagedColumn>[] => {
     return [
         {
-            Header: "OrgId",
-            accessor: "orgId",
+            Header: "GroupId",
+            accessor: "id",
             filter: 'equals'
         },
         {
-            Header: "Id",
-            accessor: "id",
+            Header: "OrgId",
+            accessor: "orgId",
             filter: 'equals'
         },
         {

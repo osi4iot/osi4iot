@@ -102,7 +102,7 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
         telegramInvitationLink: groups[groupRowIndex].telegramInvitationLink,
         telegramChatId: groups[groupRowIndex].telegramChatId,
         floorNumber: groups[groupRowIndex].floorNumber,
-        geoJsonData: JSON.stringify(groups[groupRowIndex].geoJsonData)
+        geoJsonData: JSON.stringify(groups[groupRowIndex].geoJsonData, null, 4)
     }
 
     const validationSchema = Yup.object().shape({

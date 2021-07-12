@@ -29,6 +29,8 @@ import { TopicsProvider } from '../../contexts/topicsOptions';
 import TopicsContainer from './TopicsContainer';
 import { DigitalTwinsProvider } from '../../contexts/digitalTwinsOptions';
 import DigitalTwinsContainer from './DigitalTwinsContainer';
+import { MeasurementsProvider } from '../../contexts/measurementsOptions';
+import MeasurementsContainer from './MeasurementsContainer';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -250,7 +252,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     topics.map((topic: { payloadFormat: Object; }) => {
                         topic.payloadFormat = JSON.stringify(topic.payloadFormat);
                         return topic;
-                    })                    
+                    })
                     setTopicsTable(plaformAssistantDispatch, { topics });
                     setTopicsLoading(false);
                 })
@@ -302,12 +304,12 @@ const GroupAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.TOPICS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.TOPICS)}>
                     Topics
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MESUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.MESUREMENTS)}>
-                    Mesurements
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.MEASUREMENTS)}>
+                    Measurements
                 </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DIGITAL_TWINS)}>
                     Digital twins management
-                </OptionContainer>                
+                </OptionContainer>
             </GroupAdminOptionsContainer>
             <ContentContainer >
                 {(groupsManagedLoading || devicesLoading || groupMembersLoading || selectOrgUsersLoading || topicsLoading || digitalTwinsLoading) ?
@@ -338,11 +340,16 @@ const GroupAdminOptions: FC<{}> = () => {
                                 <TopicsContainer topics={topicsTable} refreshTopics={refreshTopics} />
                             </TopicsProvider>
                         }
+                        {optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS &&
+                            <MeasurementsProvider>
+                                <MeasurementsContainer topics={topicsTable} devices={devicesTable} />
+                            </MeasurementsProvider>
+                        }
                         {optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS &&
                             <DigitalTwinsProvider>
                                 <DigitalTwinsContainer digitalTwins={digitalTwinsTable} refreshDigitalTwins={refreshDigitalTwins} />
                             </DigitalTwinsProvider>
-                        }                        
+                        }
                     </>
                 }
             </ContentContainer>

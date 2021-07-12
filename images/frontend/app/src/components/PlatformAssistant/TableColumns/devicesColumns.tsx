@@ -44,7 +44,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE DEVICE";
     const question = "Are you sure to delete this device?";
-    const consequences = "All measurements of this device and sensor mesurements are going to be lost.";
+    const consequences = "All measurements of this device and sensor measurements are going to be lost.";
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
 

@@ -16,8 +16,8 @@ import {
 } from '../../../contexts/groupsOptions';
 
 export interface IGroup {
-    orgId: number;
     id: number;
+    orgId: number;
     name: string;
     acronym: string;
     folderPermission: string;
@@ -120,13 +120,13 @@ const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId }) => {
 export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupColumn>[] => {
     return [
         {
-            Header: "OrgId",
-            accessor: "orgId",
+            Header: "GroupId",
+            accessor: "id",
             filter: 'equals'
         },
         {
-            Header: "GroupId",
-            accessor: "id",
+            Header: "OrgId",
+            accessor: "orgId",
             filter: 'equals'
         },
         {
@@ -185,7 +185,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const groupId = row?.cells[1]?.value;
+                const groupId = row?.cells[0]?.value;
                 return <EditGroup groupId={groupId} rowIndex={rowIndex} />
             }
         },
@@ -197,8 +197,8 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const orgpId = row?.cells[0]?.value;
-                const groupId = row?.cells[1]?.value;
+                const groupId = row?.cells[2]?.value;
+                const orgpId = row?.cells[1]?.value;
                 return <DeleteGroupModal orgId={orgpId} groupId={groupId} rowIndex={rowIndex} refreshGroups={refreshGroups} />
             }
         }

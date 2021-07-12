@@ -86,7 +86,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
         name: buildings[buildingRowIndex].name,
         longitude: buildings[buildingRowIndex].longitude,
         latitude: buildings[buildingRowIndex].latitude,
-        geoJsonData: JSON.stringify(buildings[buildingRowIndex].geoJsonData)
+        geoJsonData: JSON.stringify(buildings[buildingRowIndex].geoJsonData, null, 4)
     }
 
     const validationSchema = Yup.object().shape({
