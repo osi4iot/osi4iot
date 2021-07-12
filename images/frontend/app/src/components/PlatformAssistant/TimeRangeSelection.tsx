@@ -131,20 +131,20 @@ const timeRangeOptions = [
         value: "Last 12 hours"
     },
     {
-        label: "Last day",
-        value: "Last day"
+        label: "Last 24 hours",
+        value: "Last 24 hours"
     },
     {
-        label: "Last week",
-        value: "Last week"
+        label: "Last 7 days",
+        value: "Last 7 days"
     },
     {
-        label: "Last month",
-        value: "Last month"
+        label: "Last 30 days",
+        value: "Last 30 days"
     },
     {
-        label: "Last 2 months",
-        value: "Last 2 months"
+        label: "Last 90 days",
+        value: "Last 90 days"
     },
     {
         label: "Last 6 months",
