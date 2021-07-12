@@ -35,15 +35,17 @@ export const findFloorOrGroupBounds = (geoJsonDataString: any): number[][] => {
 	let outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
 	const geoJsonData = JSON.parse(geoJsonDataString);
 	const features = geoJsonData.features;
-	features.forEach((feature: any) => {
-		const coordsArray = feature.geometry.coordinates[0];
-		coordsArray.forEach((coords: number[]) => {
-			if (coords[0] > maxLongitude) maxLongitude = coords[0];
-			if (coords[0] < minLongitude) minLongitude = coords[0];
-			if (coords[1] > maxLatitude) maxLatitude = coords[1];
-			if (coords[1] < minLatitude) minLatitude = coords[1];
+	if (features && features.length !== 0) {
+		features.forEach((feature: any) => {
+			const coordsArray = feature.geometry.coordinates[0];
+			coordsArray.forEach((coords: number[]) => {
+				if (coords[0] > maxLongitude) maxLongitude = coords[0];
+				if (coords[0] < minLongitude) minLongitude = coords[0];
+				if (coords[1] > maxLatitude) maxLatitude = coords[1];
+				if (coords[1] < minLatitude) minLatitude = coords[1];
+			})
+			outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
 		})
-		outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
-	})
+	}
 	return outerBounds;
 }

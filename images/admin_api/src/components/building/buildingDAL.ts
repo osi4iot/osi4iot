@@ -5,7 +5,7 @@ import CreateFloorDto from "./floor.dto";
 import IFloor from "./floor.interface";
 
 export const createBuilding = async (buildingInput: CreateBuildingDto): Promise<IBuiliding> => {
-	const result = await pool.query(`INSERT INTO grafanadb.building (name, geodata, geolocation, created, updated)
+	const result = await pool.query(`INSERT INTO grafanadb.building (name, geodata, outer_bounds, geolocation, created, updated)
         VALUES ($1, $2, $3, $4, NOW(), NOW())
         RETURNING  id, name, geodata AS "geoJsonData", outer_bounds AS "outerBounds",
         geolocation[0] AS longitude, geolocation[0] AS latitude,
