@@ -1,9 +1,6 @@
-import { useTable, usePagination, useFilters, useSortBy } from 'react-table';
-import { FC, useEffect, useMemo } from 'react';
-import { Column } from 'react-table';
+import { useTable, usePagination, Column } from 'react-table';
+import { FC, useEffect } from 'react';
 import styled from "styled-components";
-import { matchSorter } from 'match-sorter';
-import { FaSearch } from "react-icons/fa";
 import { ITopic } from './TableColumns/topicsColumns';
 import TopicSelection from './TopicSelection';
 import { TimeRangeSelection } from './TimeRangeSelection';
@@ -98,6 +95,7 @@ const Pagination = styled.div`
         border: 2px solid #2c3235;
         padding: 3px;
         margin-left: 2px;
+        margin-right: 4px;
         color: white;
         width: 100px;
 
@@ -120,30 +118,7 @@ const Pagination = styled.div`
     }
 `;
 
-const SearchColumn = styled.div`
-    background-color: #202226;
 
-    & input {
-        font-size: 14px;
-        background-color: #0c0d0f;
-        border: 2px solid #2c3235;
-        margin-top: 3px;
-        padding: 3px 3px 3px 20px;
-        color: white;
-
-        &:focus {
-            outline: none;
-            box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
-        }
-    }
-`;
-
-const ArrowIcon = styled.span`
-    font-size: 14px;
-    background-color: #202226;
-    color: #3274d9;
-    margin-left: 5px;
-`;
 
 const HeaderContainer = styled.div`
     background-color: #202226;
@@ -158,44 +133,6 @@ const HeaderTtileContainer = styled.div`
     align-items: center;
 `;
 
-const SearchContainer = styled.div`
-    background-color: #202226;
-    position: relative;
-`;
-
-const SearchIcon = styled(FaSearch)`
-    position: absolute;
-    top: 10px;
-    left: 5px;
-	font-size: 12px;
-	color: #3274d9;
-    background-color: #0c0d0f;
-`;
-
-type DefaultColumnFilterProps = {
-    column: {
-        filterValue: any,
-        preFilteredRows: any,
-        setFilter: any,
-    }
-}
-
-// Define a default UI for filtering
-const DefaultColumnFilter = ({
-    column: { filterValue, preFilteredRows, setFilter },
-}: DefaultColumnFilterProps) => {
-
-    return (
-        <input
-            value={filterValue || ''}
-            onChange={e => {
-                setFilter(e.target.value || undefined) // Set undefined to remove the filter entirely
-            }}
-            placeholder={`Search`}
-            style={{ width: '100%' }}
-        />
-    )
-}
 
 const hiddenColumnCondition = (col: any) => {
     const condition =
@@ -203,18 +140,10 @@ const hiddenColumnCondition = (col: any) => {
     return condition;
 }
 
-type row = {
-    values: string[];
-}
-
-function fuzzyTextFilterFn(rows: row[], id: number, filterValue: string) {
-    return matchSorter(rows, filterValue, { keys: [row => row.values[id]] })
-}
 
 type TableProps<T extends object> = {
-    dataTable: T[];
-    columnsTable: Column<T>[];
-    componentName: string;
+    data: T[];
+    columns: Column<T>[];
     fetchData: (pageIndex: number, itemsPerPage: number) => void;
     loading: boolean;
     pageCount: number;
@@ -228,11 +157,9 @@ type TableProps<T extends object> = {
 
 const TableWithPaginationAsync: FC<TableProps<any>> = (
     {
-        dataTable,
-        columnsTable,
-        componentName,
+        data,
+        columns,
         fetchData,
-        loading,
         pageCount: controlledPageCount,
         showMeasurementSelectionTable,
         selectedTopic,
@@ -241,36 +168,6 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
         setStartDate,
         setEndDate
     }) => {
-    const columns = useMemo(() => columnsTable, [columnsTable]);
-    const data = useMemo(() => dataTable, [dataTable]);
-    const filterTypes = useMemo(
-        () => ({
-            // Add a new fuzzyTextFilterFn filter type.
-            fuzzyText: fuzzyTextFilterFn,
-            // Or, override the default text filter to use
-            // "startWith"
-            text: (rows: row[], id: number, filterValue: string) => {
-                return rows.filter(row => {
-                    const rowValue = row.values[id]
-                    return rowValue !== undefined
-                        ? String(rowValue)
-                            .toLowerCase()
-                            .startsWith(String(filterValue).toLowerCase())
-                        : true
-                })
-            },
-        }),
-        []
-    )
-
-    const defaultColumn = useMemo(
-        () => ({
-            // Let's set up our default Filter UI
-            Filter: DefaultColumnFilter,
-        }),
-        []
-    )
-
     const {
         getTableProps,
         getTableBodyProps,
@@ -294,11 +191,9 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                 pageIndex: 0,
                 hiddenColumns: columns.filter((col: any) => hiddenColumnCondition(col)).map(col => col.id || col.accessor) as any
             },
-            defaultColumn, // Be sure to pass the defaultColumn option
-            filterTypes,
+            manualPagination: true,
+            pageCount: controlledPageCount,
         },
-        useFilters, // useFilters!
-        useSortBy,
         usePagination
     )
 
@@ -375,22 +270,11 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                         {headerGroups.map(headerGroup => (
                             <tr {...headerGroup.getHeaderGroupProps()}>
                                 {headerGroup.headers.map(column => (
-                                    <th {...column.getHeaderProps(column.getSortByToggleProps())}>
+                                    <th {...column.getHeaderProps()}>
                                         <HeaderContainer>
                                             <HeaderTtileContainer>
                                                 {column.render('Header')}
-                                                <ArrowIcon>
-                                                    {column.isSorted
-                                                        ? column.isSortedDesc
-                                                            ? ' ▼'
-                                                            : ' ▲'
-                                                        : ''}
-                                                </ArrowIcon>
                                             </HeaderTtileContainer>
-                                            <SearchContainer>
-                                                {column.canFilter ? <SearchIcon /> : null}
-                                                <SearchColumn>{column.canFilter ? column.render('Filter') : null}</SearchColumn>
-                                            </SearchContainer>
                                         </HeaderContainer>
                                     </th>
                                 ))}

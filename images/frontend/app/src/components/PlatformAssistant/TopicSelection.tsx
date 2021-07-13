@@ -6,7 +6,7 @@ const TopicSelectionContainer = styled.div`
     border: 3px solid #2c3235;
     border-radius: 10px;
     padding: 10px;
-    margin: 0 auto 10px auto;
+    margin: 0 auto 20px auto;
     display: flex;
     flex-direction: row;
     justify-content: flex-start;

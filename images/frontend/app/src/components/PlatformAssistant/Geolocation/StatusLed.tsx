@@ -10,7 +10,7 @@ export const StatusLed = styled.span<StatusLedProps>`
 	background-color: ${(props) => {
 		if (props.status === "ok") return STATUS_OK;
 		else if (props.status === "pending") return STATUS_PENDING;
-		else if (props.status === "alertingnding") return STATUS_ALERTING;
+		else if (props.status === "alerting") return STATUS_ALERTING;
 	}};
 	width: ${(props) => props.size};
 	height: ${(props) => props.size};

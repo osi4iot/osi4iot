@@ -1,4 +1,4 @@
-import React, { FC, useCallback, useState } from 'react'
+import React, { FC, useCallback, useMemo, useState } from 'react'
 import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import { axiosAuth, getDomainName, axiosInstance } from '../../tools/tools';
 import { MEASUREMENTS_OPTIONS } from './platformAssistantOptions';
@@ -40,20 +40,16 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
     const [measurementsTable, setMeasurementsTable] = useState<IMeasurement[]>([]);
     const [measurementsLoading, setMeasurementsLoading] = useState(false);
     const [pageCount, setPageCount] = useState(0);
-    const [initialStartDate, initialEndDate] = timeRangeCalculator("Last 15 minutes");
+    const [initialStartDate, initialEndDate] = useMemo(() => timeRangeCalculator("Last 15 minutes"), []);
     const [startDate, setStartDate] = useState(initialStartDate);
     const [endDate, setEndDate] = useState(initialEndDate);
     const [selectedTimeRange, setSelectedTimeRange] = useState("Last 15 minutes");
 
     const groupId = selectedTopic.groupId;
-    const measurementTopic = giveMeasurementTopic(devices, selectedTopic);
+    const measurementTopic = useMemo(() => giveMeasurementTopic(devices, selectedTopic), [devices, selectedTopic]);
 
     const updateMeasurementsTable = (measurementsTable: IMeasurement[]) => {
         setMeasurementsTable(measurementsTable);
-    }
-
-    const refreshMeasurements = () => {
-        fetchMeasurements(0, 10);
     }
 
     const fetchMeasurements = useCallback(
@@ -88,15 +84,32 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
                 .catch((error) => {
                     console.log(error);
                 });
-        }, [accessToken, refreshToken, authDispatch, startDate, endDate, groupId, measurementTopic])
+        }, [accessToken, refreshToken, authDispatch, startDate, endDate, groupId, measurementTopic]);
 
-    const showMeasurementsTableOption = () => {
+    const refreshMeasurements = useCallback(() => {
+        fetchMeasurements(0, 10);
+    }, [fetchMeasurements]);
+
+    const showMeasurementsTableOption = useCallback(() => {
         setMeasurementsOptionToShow(measurementsDispatch, { measurementsOptionToShow: MEASUREMENTS_OPTIONS.TABLE });
-    }
+    }, [measurementsDispatch])
 
-    const showMeasurementSelectionTable = () => {
+    const showMeasurementSelectionTable = useCallback(() => {
         setMeasurementsOptionToShow(measurementsDispatch, { measurementsOptionToShow: MEASUREMENTS_OPTIONS.SELECT_TOPIC });
-    }
+    }, [measurementsDispatch]);
+
+    const giveStartDate = useCallback((startDateString: string) => {
+        setStartDate(startDateString)
+    }, []);
+
+    const giveEndDate = useCallback((endDateString: string) => {
+        setEndDate(endDateString);
+    }, []);
+
+    const giveSelectedTimeRange = useCallback((selectedTimeRange: string) => {
+        setSelectedTimeRange(selectedTimeRange);
+    }, []);
+
 
     const giveSelectedTopic = (selectedTopic: ISelectTopic | null) => {
         if (selectedTopic) {
@@ -104,6 +117,11 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
             setSelectedTopic(topicsFiltered[0])
         }
     }
+
+    const columnsTable = useMemo(() => Create_MEASUREMENTS_COLUMNS(selectedTopic.groupId, measurementTopic, refreshMeasurements),
+        [selectedTopic.groupId, measurementTopic, refreshMeasurements]);
+
+    const dataTable = useMemo(() => measurementsTable, [measurementsTable]);
 
     return (
         <>
@@ -124,18 +142,17 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
             }
             {measurementsOptionToShow === MEASUREMENTS_OPTIONS.TABLE &&
                 <TableWithPaginationAsync
-                    dataTable={measurementsTable}
-                    columnsTable={Create_MEASUREMENTS_COLUMNS(selectedTopic.groupId, measurementTopic, refreshMeasurements)}
-                    componentName="measurement"
+                    data={dataTable}
+                    columns={columnsTable}
                     fetchData={fetchMeasurements}
                     loading={measurementsLoading}
                     pageCount={pageCount}
                     showMeasurementSelectionTable={showMeasurementSelectionTable}
                     selectedTopic={selectedTopic}
                     selectedTimeRange={selectedTimeRange}
-                    setSelectedTimeRange={(selectedTimeRange: string) => setSelectedTimeRange(selectedTimeRange)}
-                    setStartDate={(startDateString: string) => setStartDate(startDateString)}
-                    setEndDate={(endDateString: string) => setEndDate(endDateString)}
+                    setSelectedTimeRange={giveSelectedTimeRange}
+                    setStartDate={giveStartDate}
+                    setEndDate={giveEndDate}
                 />
             }
         </>

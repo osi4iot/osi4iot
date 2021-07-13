@@ -151,6 +151,7 @@ const Pagination = styled.div`
         border: 2px solid #2c3235;
         padding: 3px;
         margin-left: 2px;
+        margin-right: 4px;
         color: white;
         width: 100px;
 
