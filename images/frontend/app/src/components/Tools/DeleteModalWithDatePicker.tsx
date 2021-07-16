@@ -87,6 +87,12 @@ const DatePickerContainer = styled.div`
         }
     }
 
+    .react-datepicker__day--selected {
+        &:hover {
+            color: white;
+        } 
+    }
+
     .react-datepicker__time-list-item {
         width: 70px;
         &:hover {
@@ -239,6 +245,7 @@ const DeleteModalWithDatePicker =
                         showTimeSelect
                         inline
                         timeIntervals={15}
+                        fixedHeight
                     />
                 </DatePickerContainer>
                 <ButtonContainer>
