@@ -16,9 +16,10 @@ import {
 	updateMeasurement
 } from "./measurementDAL";
 import HttpException from "../../exceptions/HttpException";
-import DeleteMeasurementDto from "./measurementDelete.dto";
-import MeasurementsWithPaginationDto from "./measurementsWithPagination";
+import MeasurementRequestBodyDto from "./measurementRequestBody.dto";
+import MeasurementsWithPaginationDto from "./measurementsWithPagination.dto";
 import DeleteMeasurementsBeforeDateDto from "./deleteMeasurementsBeforeDate.dto";
+import LastMeasurementsDto from "./lastMeasurementsDto";
 
 class MeasurementController implements IController {
 	public path = "/measurement";
@@ -31,16 +32,18 @@ class MeasurementController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-			.get(
-				`${this.path}/:groupId/:topic/:timestamp`,
+			.post(
+				`${this.path}/:groupId`,
 				groupExists,
 				groupAdminAuth,
+				validationMiddleware<MeasurementRequestBodyDto>(MeasurementRequestBodyDto),
 				this.getMeasurement
 			)
-			.get(
-				`${this.path}s_last/:groupId/:topic/:count`,
+			.post(
+				`${this.path}s_last/:groupId`,
 				groupExists,
 				groupAdminAuth,
+				validationMiddleware<LastMeasurementsDto>(LastMeasurementsDto),
 				this.getLastMeasurements
 			)
 			.post(
@@ -61,7 +64,7 @@ class MeasurementController implements IController {
 				`${this.path}/:groupId`,
 				groupExists,
 				groupAdminAuth,
-				validationMiddleware<DeleteMeasurementDto>(DeleteMeasurementDto),
+				validationMiddleware<MeasurementRequestBodyDto>(MeasurementRequestBodyDto),
 				this.deleteMeasurement
 			)
 			.delete(
@@ -82,7 +85,7 @@ class MeasurementController implements IController {
 	): Promise<void> => {
 		try {
 			const groupUid = req.group.groupUid;
-			const { topic, timestamp } = req.params;
+			const { topic, timestamp } = req.body;
 			const measurement = await getMeasurement(groupUid, topic, timestamp);
 			res.status(200).send(measurement);
 		} catch (error) {
@@ -97,8 +100,8 @@ class MeasurementController implements IController {
 	): Promise<void> => {
 		try {
 			const groupUid = req.group.groupUid;
-			const topic = req.params.topic;
-			const count = parseInt(req.params.count, 10);
+			const topic = req.body.topic;
+			const count = parseInt(req.body.count, 10);
 			const measurement = await getLastMeasurements(groupUid, topic, count);
 			res.status(200).send(measurement);
 		} catch (error) {

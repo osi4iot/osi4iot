@@ -53,7 +53,7 @@ export const getLastMeasurements = async (groupUid: string, topic: string, count
 									WHERE group_uid = $1 AND
 									topic = $2
 									ORDER BY timestamp DESC
-									LIMIT = $3;`, [groupUid, topic, count]);
+									LIMIT $3;`, [groupUid, topic, count]);
 	return response.rows;
 };
 

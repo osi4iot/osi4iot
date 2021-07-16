@@ -1,6 +1,6 @@
 import { IsString } from "class-validator";
 
-class DeleteMeasurementDto {
+class MeasurementRequestBodyDto {
 	@IsString()
 	public timestamp: string;
 
@@ -8,4 +8,4 @@ class DeleteMeasurementDto {
 	public topic: string;
 }
 
-export default DeleteMeasurementDto;
+export default MeasurementRequestBodyDto;

@@ -3627,7 +3627,7 @@
 				}
 			}
 		},
-		"/measurement/{groupId}/{topic}/{timestamp}": {
+		"/measurement/{groupId}": {
 			"parameters": [
 				{
 					"name": "groupId",
@@ -3635,25 +3635,22 @@
 					"required": true,
 					"description": "Group id",
 					"type": "number"
-				},
-				{
-					"name": "topic",
-					"in": "path",
-					"required": true,
-					"description": "Topic",
-					"type": "string"
-				},
-				{
-					"name": "timestamp",
-					"in": "path",
-					"required": true,
-					"description": "Timestamp",
-					"type": "string"
 				}
 			],
-			"get": {
+			"post": {
 				"tags": ["Measurement"],
 				"summary": "Get measurement by groupId, topic and timestamp - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Measurement request body",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/MeasurementRequestBody"
+							}
+						}
+					}
+				},				
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3696,7 +3693,7 @@
 					"content": {
 						"application/json": {
 							"schema": {
-								"$ref": "#/definitions/MeasurementInput"
+								"$ref": "#/definitions/MeasurementUpdateBody"
 							}
 						}
 					}
@@ -3737,6 +3734,17 @@
 			"delete": {
 				"tags":["Measurement"],
 				"summary": "Delete measurement by groupId, topic and timestamp - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Measurement request body",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/MeasurementRequestBody"
+							}
+						}
+					}
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3771,7 +3779,7 @@
 				}
 			}
 		},
-		"measurements_last/{groupId}/{topic}/{count}": {
+		"/measurements_last/{groupId}": {
 			"parameters": [
 				{
 					"name": "groupId",
@@ -3779,25 +3787,22 @@
 					"required": true,
 					"description": "Group id",
 					"type": "number"
-				},
-				{
-					"name": "topic",
-					"in": "path",
-					"required": true,
-					"description": "Topic",
-					"type": "string"
-				},
-				{
-					"name": "count",
-					"in": "path",
-					"required": true,
-					"description": "Number of measurements to show",
-					"type": "string"
 				}
 			],
-			"get": {
+			"post": {
 				"tags": ["Measurement"],
 				"summary": "Get last count measurements by groupId and timestamp  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Last measurements request body",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/LastMeasurementsBody"
+							}
+						}
+					}
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3832,7 +3837,7 @@
 				}
 			}
 		},		
-		"measurements_pagination/{groupId}/{topic}/{start}/{end}/{page}/{itemsPerPage}": {
+		"/measurements_pagination/{groupId}": {
 			"parameters": [
 				{
 					"name": "groupId",
@@ -3840,46 +3845,22 @@
 					"required": true,
 					"description": "Group id",
 					"type": "number"
-				},
-				{
-					"name": "topic",
-					"in": "path",
-					"required": true,
-					"description": "Topic",
-					"type": "string"
-				},
-				{
-					"name": "start",
-					"in": "path",
-					"required": true,
-					"description": "Start timestamp of the measurements to show",
-					"type": "string"
-				},
-				{
-					"name": "end",
-					"in": "path",
-					"required": true,
-					"description": "End timestamp of the measurements to show",
-					"type": "string"
-				},
-				{
-					"name": "page",
-					"in": "path",
-					"required": true,
-					"description": "Page number of the measurements request to show",
-					"type": "number"
-				},
-				{
-					"name": "itemsPerPage",
-					"in": "path",
-					"required": true,
-					"description": "Number of items per page to show",
-					"type": "number"
 				}
 			],
-			"get": {
+			"post": {
 				"tags": ["Measurement"],
 				"summary": "Get measurements with pagination by groupId and topic  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Measurements with pagination request body",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/MeasurementsWithPaginationBody"
+							}
+						}
+					}
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3914,7 +3895,7 @@
 				}
 			}
 		},
-		"measurements_before_date/{groupId}/{topic}/{deleteDate}": {
+		"/measurements_before_date/{groupId}": {
 			"parameters": [
 				{
 					"name": "groupId",
@@ -3922,25 +3903,22 @@
 					"required": true,
 					"description": "Group id",
 					"type": "number"
-				},
-				{
-					"name": "topic",
-					"in": "path",
-					"required": true,
-					"description": "Topic",
-					"type": "string"
-				},
-				{
-					"name": "deleteDate",
-					"in": "path",
-					"required": true,
-					"description": "Timestamp of the date from which the measurements will be deleted",
-					"type": "string"
 				}
 			],
 			"delete": {
 				"tags":["Measurement"],
 				"summary": "Delete measurements before the indicated timestamp by groupId and topic - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Delete measurements before date request body",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/MeasurementsDeleteBeforeDateBody"
+							}
+						}
+					}
+				},				
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -5447,7 +5425,7 @@
 			}
 		},
 		"MeasurementOutput": {
-			"properties": {												
+			"properties": {
 				"timestamp": {
 					"type": "string"
 				},
@@ -5459,6 +5437,68 @@
 				}
 			}
 		},
+		"MeasurementsWithPaginationBody": {
+			"properties": {
+				"topic": {
+					"type": "string"
+				},
+				"startDate": {
+					"type": "string"
+				},
+				"endDate": {
+					"type": "string"
+				},						
+				"pageIndex": {
+					"type": "number"
+				},
+				"itemsPerPage": {
+					"type": "number"
+				}				
+			}
+		},
+		"MeasurementRequestBody": {
+			"properties": {
+				"timestamp": {
+					"type": "string"
+				},
+				"topic": {
+					"type": "string"
+				}
+			}
+		},
+		"LastMeasurementsBody": {
+			"properties": {
+				"topic": {
+					"type": "string"
+				},
+				"count": {
+					"type": "number"
+				}
+			}
+		},		
+		"MeasurementUpdateBody": {
+			"properties": {
+				"timestamp": {
+					"type": "string"
+				},
+				"topic": {
+					"type": "string"
+				},				
+				"updatedPayload": {
+					"type": "string"
+				}
+			}
+		},
+		"MeasurementsDeleteBeforeDateBody": {
+			"properties": {
+				"topic": {
+					"type": "string"
+				},
+				"deleteDate": {
+					"type": "string"
+				}
+			}
+		},				
 		"Measurements": {
 			"type": "array",
 			"items": {
