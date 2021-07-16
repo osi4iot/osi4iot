@@ -69,6 +69,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }

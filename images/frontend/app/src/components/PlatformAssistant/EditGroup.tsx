@@ -16,6 +16,7 @@ import {
 } from '../../contexts/groupsOptions';
 import { GROUPS_OPTIONS } from './platformAssistantOptions';
 import { IGroup } from './TableColumns/groupsColumns';
+import geojsonValidation from '../../tools/geojsonValidation';
 
 
 const FormContainer = styled.div`
@@ -75,6 +76,8 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
             (values as any).geoJsonData = "{}";
         }
 
+        values.geoJsonData = JSON.stringify(JSON.parse(values.geoJsonData));
+
         setIsSubmitting(true);
 
         axiosInstance(refreshToken, authDispatch)
@@ -112,7 +115,7 @@ const EditGroup: FC<EditGroupProps> = ({ groups, backToTable, refreshGroups }) =
         telegramInvitationLink: Yup.string().url("Enter a valid url").max(60, "The maximum number of characters allowed is 60").required('Required'),
         telegramChatId: Yup.string().max(15, "The maximum number of characters allowed is 15").required('Required'),
         floorNumber: Yup.number().integer(floorNumberWarning).moreThan(-1, floorNumberWarning).required('Required'),
-        geoJsonData: Yup.string().required('Required'),
+        geoJsonData: Yup.string().test(`test-geojson`, '', geojsonValidation).required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {

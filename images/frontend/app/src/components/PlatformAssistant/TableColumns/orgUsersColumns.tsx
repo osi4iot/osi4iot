@@ -76,6 +76,7 @@ const DeleteOrgUserModal: FC<DeleteOrgUserModalProps> = ({ rowIndex, orgId, user
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }

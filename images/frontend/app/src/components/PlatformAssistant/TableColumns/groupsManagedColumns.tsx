@@ -91,6 +91,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }
@@ -187,6 +188,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }

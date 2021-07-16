@@ -17,6 +17,7 @@ import {
     useBuildingsDispatch,
     setBuildingsOptionToShow
 } from '../../contexts/buildingsOptions';
+import geojsonValidation from '../../tools/geojsonValidation';
 
 
 const FormContainer = styled.div`
@@ -65,6 +66,8 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
             (values as any).latitude = parseFloat((values as any).latitude);
         }
 
+        values.geoJsonData = JSON.stringify(JSON.parse(values.geoJsonData));
+
         axios
             .patch(url, values, config)
             .then((response) => {
@@ -93,7 +96,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
-        geoJsonData: Yup.string().required('Required'),
+        geoJsonData: Yup.string().test(`test-geojson`, '', geojsonValidation).required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {

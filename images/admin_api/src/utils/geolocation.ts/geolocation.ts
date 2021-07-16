@@ -15,7 +15,12 @@ export const findBuildingBounds = (geoJsonDataString: any): number[][] => {
 	let minLatitude = 90;
 	const geoJsonData = JSON.parse(geoJsonDataString);
 	if (geoJsonData.features && geoJsonData.features.length !== 0) {
-		const coordsArray = (geoJsonData.features[0].geometry).coordinates[0];
+		let coordsArray: number[][];
+		if (geoJsonData.features[0].geometry.type === "Polygon") {
+			coordsArray = (geoJsonData.features[0].geometry).coordinates[0];
+		} else if (geoJsonData.features[0].geometry.type === "MultiPolygon") {
+			coordsArray = (geoJsonData.features[0].geometry).coordinates[0][0];
+		}
 		coordsArray.forEach((coords: number[]) => {
 			if (coords[0] > maxLongitude) maxLongitude = coords[0];
 			if (coords[0] < minLongitude) minLongitude = coords[0];
@@ -37,7 +42,12 @@ export const findFloorOrGroupBounds = (geoJsonDataString: any): number[][] => {
 	const features = geoJsonData.features;
 	if (features && features.length !== 0) {
 		features.forEach((feature: any) => {
-			const coordsArray = feature.geometry.coordinates[0];
+			let coordsArray: number[][];
+			if (feature.geometry.type === "Polygon") {
+				coordsArray = feature.geometry.coordinates[0];
+			} else if (feature.geometry.type === "MultiPolygon") {
+				coordsArray = feature.geometry.coordinates[0][0];
+			}
 			coordsArray.forEach((coords: number[]) => {
 				if (coords[0] > maxLongitude) maxLongitude = coords[0];
 				if (coords[0] < minLongitude) minLongitude = coords[0];

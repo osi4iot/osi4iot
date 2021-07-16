@@ -78,6 +78,7 @@ const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, device
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }
@@ -158,6 +159,7 @@ const ChangeTopicHashModal: FC<ChangeTopicHashModalProps> = ({ rowIndex, groupId
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }
@@ -215,7 +217,7 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             accessor: "topicUid",
             disableFilters: true,
             disableSortBy: true
-        },
+        },       
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Change<br />hash</div>,
             accessor: "changeTopicHash",

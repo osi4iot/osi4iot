@@ -30,6 +30,7 @@ const InputStyled = styled.div`
         height: 290px;
         resize: none;
         overflow-y: auto;
+        cursor: auto;
 
         /* width */
         ::-webkit-scrollbar {

@@ -30,7 +30,6 @@ import { BuildingsProvider } from '../../contexts/buildingsOptions';
 import BuildingsContainer from './BuildingsContainer';
 import { FloorsProvider } from '../../contexts/floorsOptions';
 import FloorsContainer from './FloorsContainer';
-// import mockOrganizations from "./mockOrganizations";
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;
@@ -275,14 +274,14 @@ const PlatformAdminOptions: FC<{}> = () => {
     return (
         <>
             <PlatformAdminOptionsContainer>
-                <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.ORGS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.ORGS)}>
-                    Organizations
-                </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.BUILDINGS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.BUILDINGS)}>
                     Buildings
                 </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.FLOORS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.FLOORS)}>
                     Floors
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.ORGS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.ORGS)}>
+                    Organizations
                 </OptionContainer>                
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS)}>
                     Global users

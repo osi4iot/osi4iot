@@ -85,6 +85,7 @@ const RemoveAllOrgUsersModal: FC<RemoveAllOrgUsersModalProps> = ({ rowIndex, org
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }

@@ -12,6 +12,7 @@ import FormTitle from "../Tools/FormTitle";
 import { FLOORS_OPTIONS } from './platformAssistantOptions';
 import { IFloor } from './TableColumns/floorsColumns';
 import { useFloorIdToEdit, useFloorRowIndexToEdit, useFloorsDispatch, setFloorsOptionToShow } from '../../contexts/floorsOptions';
+import geojsonValidation from '../../tools/geojsonValidation';
 
 
 const FormContainer = styled.div`
@@ -50,6 +51,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
     const onSubmit = (values: any, actions: any) => {
         const url = `https://${domainName}/admin_api/building_floor/${floorId}`;
         const config = axiosAuth(accessToken);
+
         setIsSubmitting(true);
 
         if (typeof (values as any).buildingId === 'string') {
@@ -59,6 +61,8 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
         if (typeof (values as any).floorNumber === 'string') {
             (values as any).floorNumber = parseInt((values as any).floorNumber, 10);
         }
+
+        values.geoJsonData = JSON.stringify(JSON.parse(values.geoJsonData));
 
         axios
             .patch(url, values, config)
@@ -86,7 +90,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
     const validationSchema = Yup.object().shape({
         buildingId: Yup.number().integer().positive().required('Required'),
         floorNumber: Yup.number().integer().required('Required'),
-        geoJsonData: Yup.string().required('Required'),
+        geoJsonData: Yup.string().test(`test-geojson`, '', geojsonValidation).required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -103,7 +107,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
                         formik => (
                             <Form>
                                 <ControlsContainer>
-                                <FormikControl
+                                    <FormikControl
                                         control='input'
                                         label='Building Id'
                                         name='buildingId'

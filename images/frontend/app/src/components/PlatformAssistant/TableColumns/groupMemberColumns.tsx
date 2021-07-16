@@ -74,6 +74,7 @@ const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, gro
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }

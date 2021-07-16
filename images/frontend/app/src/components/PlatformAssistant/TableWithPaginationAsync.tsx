@@ -1,9 +1,12 @@
 import { useTable, usePagination, Column } from 'react-table';
-import { FC, useEffect } from 'react';
+import { FC,  useEffect } from 'react';
 import styled from "styled-components";
 import { ITopic } from './TableColumns/topicsColumns';
 import TopicSelection from './TopicSelection';
 import { TimeRangeSelection } from './TimeRangeSelection';
+import DeleteMeasurementsIcon from './DeleteMeasurementsIcon';
+
+
 
 const TableStyles = styled.div`
   padding: 1rem;
@@ -119,7 +122,6 @@ const Pagination = styled.div`
 `;
 
 
-
 const HeaderContainer = styled.div`
     background-color: #202226;
     display: flex;
@@ -145,6 +147,8 @@ type TableProps<T extends object> = {
     data: T[];
     columns: Column<T>[];
     fetchData: (pageIndex: number, itemsPerPage: number) => void;
+    refreshMeasurements: () => void;
+    measurementTopic: string;
     loading: boolean;
     pageCount: number;
     showMeasurementSelectionTable: () => void;
@@ -160,8 +164,10 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
         data,
         columns,
         fetchData,
+        refreshMeasurements,
         pageCount: controlledPageCount,
         showMeasurementSelectionTable,
+        measurementTopic,
         selectedTopic,
         selectedTimeRange,
         setSelectedTimeRange,
@@ -256,6 +262,11 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                             </option>
                         ))}
                     </select>
+                    <DeleteMeasurementsIcon
+                        measurementTopic={measurementTopic}
+                        selectedTopic={selectedTopic}
+                        refreshMeasurements={refreshMeasurements}
+                    />
                 </Pagination>
                 <TimeRangeSelection
                     selectedTimeRange={selectedTimeRange}

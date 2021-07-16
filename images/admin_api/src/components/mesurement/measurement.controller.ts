@@ -18,6 +18,7 @@ import {
 import HttpException from "../../exceptions/HttpException";
 import DeleteMeasurementDto from "./measurementDelete.dto";
 import MeasurementsWithPaginationDto from "./measurementsWithPagination";
+import DeleteMeasurementsBeforeDateDto from "./deleteMeasurementsBeforeDate.dto";
 
 class MeasurementController implements IController {
 	public path = "/measurement";
@@ -64,9 +65,10 @@ class MeasurementController implements IController {
 				this.deleteMeasurement
 			)
 			.delete(
-				`${this.path}s_before_date/:groupId/:topic/:deleteDate`,
+				`${this.path}s_before_date/:groupId`,
 				groupExists,
 				groupAdminAuth,
+				validationMiddleware<DeleteMeasurementsBeforeDateDto>(DeleteMeasurementsBeforeDateDto),
 				this.deleteMeasurementsBeforeDate
 			)
 
@@ -153,11 +155,10 @@ class MeasurementController implements IController {
 		try {
 			const groupUid = req.group.groupUid;
 			const { topic, timestamp } = req.body;
-			console.log("groupUid, topic, timestamp=", groupUid, topic, timestamp);
 			const existMeasurement = await getMeasurement(groupUid, topic, timestamp);
 			if (!existMeasurement) throw new ItemNotFoundException("The measurement", "timestamp", timestamp);
 			const response = await deleteMeasurement(groupUid, topic, timestamp);
-			if (!response) throw new HttpException(500, "The measurement could not be deleted");
+			if (!response) throw new HttpException(500, "Any measurement has been deleted");
 			const message = { message: `Measurement deleted succesfully` }
 			res.status(200).json(message);
 		} catch (error) {
@@ -172,9 +173,9 @@ class MeasurementController implements IController {
 	): Promise<void> => {
 		try {
 			const groupUid = req.group.groupUid;
-			const { topic, deleteDate } = req.params;
+			const { topic, deleteDate } = req.body;
 			const response = await deleteMeasurementsBeforeDate(groupUid, topic, deleteDate);
-			if (!response) throw new HttpException(500, "The measurements could not be deleted");
+			if (!response) throw new HttpException(500, "Any measurement has been deleted");
 			const message = { message: `Measurements deleted succesfully` }
 			res.status(200).json(message);
 		} catch (error) {

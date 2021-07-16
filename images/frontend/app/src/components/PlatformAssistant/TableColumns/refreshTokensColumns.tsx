@@ -60,6 +60,7 @@ const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, r
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }

@@ -73,6 +73,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }
@@ -153,6 +154,7 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
             .catch((error) => {
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
+                setIsSubmitting(false);
                 hideModal();
             })
     }
