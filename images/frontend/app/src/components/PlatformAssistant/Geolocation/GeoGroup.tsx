@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef } from "react";
+import { FC, useRef } from "react";
 import { GeoJSON, LayerGroup, useMap } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import GeoDevice from './GeoDevice';
@@ -74,7 +74,7 @@ const GeoGroup: FC<GeoGroupProps> = (
         digitalTwinsState
     }) => {
     const map = useMap();
-    const geoJsonLayerGroupData = useRef(null);
+    const geoJsonLayerGroupRef = useRef(null);
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
     const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
@@ -84,19 +84,6 @@ const GeoGroup: FC<GeoGroupProps> = (
         const status = findOutStatus(groupsStateFiltered);
         return setGroupStyle(status, isGroupSelected);
     }
-
-    useEffect(() => {
-        if (Object.keys(groupData.geoJsonData).length !== 0) {
-            const currenGeoJsonLayerGroupData = geoJsonLayerGroupData.current;
-            if (currenGeoJsonLayerGroupData) {
-                (currenGeoJsonLayerGroupData as any)
-                    .clearLayers()
-                    .addData(groupData.geoJsonData)
-                    .setStyle(setGroupStyle("OK", isGroupSelected));
-            }
-        }
-    }, [groupData, isGroupSelected]);
-
 
     const clickHandler = () => {
         selectGroup(groupData);
@@ -108,7 +95,12 @@ const GeoGroup: FC<GeoGroupProps> = (
             {
                 (Object.keys(groupData.geoJsonData).length !== 0) ?
                     <LayerGroup>
-                        <GeoJSON data={groupData.geoJsonData} style={styleGeoGroupJson} eventHandlers={{ click: clickHandler }} >
+                        <GeoJSON
+                            ref={geoJsonLayerGroupRef}
+                            data={groupData.geoJsonData}
+                            style={styleGeoGroupJson}
+                            eventHandlers={{ click: clickHandler }}
+                        >
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
                         {
