@@ -1,6 +1,5 @@
 import React, { FC, useCallback, useEffect, useState } from 'react'
 import Map from './Geolocation/Map'
-import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
 import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 import { IDevice } from './TableColumns/devicesColumns';
 import SelectGroupManaged from './SelectGroupManaged';
@@ -13,7 +12,7 @@ import { useAuthDispatch, useAuthState } from '../../contexts/authContext';
 import useInterval from '../../tools/useInterval';
 import { IBuilding } from './TableColumns/buildingsColumns';
 import { IFloor } from './TableColumns/floorsColumns';
-import SelectFloor from './SelectFloor';
+import SelectFloorWithState from './SelectFloorWithState';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -58,8 +57,8 @@ interface GeolocationContainerProps {
     selectBuilding: (buildingSelected: IBuilding) => void;
     floorSelected: IFloor | null;
     selectFloor: (floorSelected: IFloor) => void;
-    orgSelected: IOrgManaged | null;
-    selectOrg: (orgSelected: IOrgManaged) => void;
+    orgSelected: IOrgOfGroupsManaged | null;
+    selectOrg: (orgSelected: IOrgOfGroupsManaged) => void;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
@@ -240,14 +239,16 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     floors={floors}
                     giveFloorSelected={giveFloorSelected}
                     groupsManaged={groupsManaged}
+                    orgSelected={orgSelected}
                     giveGroupManagedSelected={giveGroupManagedSelected}
                     digitalTwinsState={digitalTwinsState}
                 />
             }
             {(geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_FLOOR && orgSelected) &&
-                <SelectFloor
+                <SelectFloorWithState
                     buildingId={(buildingSelected as IBuilding).id}
                     backToMap={backToMap}
+                    floorSelected={floorSelected}
                     giveFloorSelected={giveFloorSelected}
                     digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
                     groupsData={groupsManaged.filter(group => group.orgId === orgSelected.id)}
@@ -256,9 +257,10 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
             }
             {(geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_GROUP && orgSelected && floorSelected) &&
                 <SelectGroupManaged
-                    orgId={(orgSelected as IOrgManaged).id}
+                    orgId={(orgSelected as IOrgOfGroupsManaged).id}
                     floorNumber={floorSelected.floorNumber}
                     backToMap={backToMap}
+                    groupSelected={groupSelected}
                     giveGroupManagedSelected={giveGroupManagedSelected}
                     devices={devices.filter(device => device.orgId === orgSelected.id)}
                     digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
@@ -268,6 +270,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                 <SelectDevice
                     groupId={(groupSelected as IGroupManaged).id}
                     backToMap={backToMap}
+                    deviceSelected={deviceSelected}
                     giveDeviceSelected={giveDeviceSelected}
                     digitalTwins={digitalTwins.filter(digitalTwin => (digitalTwin.groupId === groupSelected.id))}
                     digitalTwinsState={digitalTwinsState.filter(digitalTwinState => (digitalTwinState.groupId === groupSelected.id))}

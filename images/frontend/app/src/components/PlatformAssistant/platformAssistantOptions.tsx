@@ -81,8 +81,14 @@ export const GROUPS_OPTIONS = {
     TABLE: "Table",
     CREATE_GROUP: "Create group",
     EDIT_GROUP: "Edit group",
+    SELECT_SPACE: "Select space"
 }
 
+export const GROUPS_PREVIOUS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_GROUP: "Create group",
+    EDIT_GROUP: "Edit group"
+}
 
 export const GROUP_ADMIN_OPTIONS = {
     GROUPS_MANAGED: "Groups Managed",

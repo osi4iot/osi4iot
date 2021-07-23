@@ -1,3 +1,5 @@
+import IFloor from "../../components/building/floor.interface";
+
 export const giveGeolocationPoint = (longitude: number, latitude: number): string => {
 	const geolocation = `(${longitude},${latitude})`;
 	return geolocation;
@@ -58,4 +60,34 @@ export const findFloorOrGroupBounds = (geoJsonDataString: any): number[][] => {
 		})
 	}
 	return outerBounds;
+}
+
+export const findGroupGeojsonData = (floor: IFloor, featureIndex: number): string => {
+	const floorGeoJsonData = floor.geoJsonData;
+	if (Object.keys(floorGeoJsonData).length !== 0) {
+		const features = (floorGeoJsonData as any).features;
+		let featureCoordinates: number[][][] = [];
+		if (features[featureIndex].geometry.type === "Polygon") {
+			featureCoordinates = features[featureIndex].geometry.coordinates;
+		} else if (features[featureIndex].geometry.type === "MultiPolygon") {
+			featureCoordinates = features[featureIndex].geometry.coordinates[0];
+		}
+		const polygonFeature = {
+			type: "FeatureCollection",
+			features: [
+				{
+					type: "Feature",
+					properties: {
+						id: featureIndex
+					},
+					geometry: {
+						type: "Polygon",
+						coordinates: featureCoordinates
+					}
+				}
+			]
+		}
+		return JSON.stringify(polygonFeature);
+
+	} else return "{}";
 }

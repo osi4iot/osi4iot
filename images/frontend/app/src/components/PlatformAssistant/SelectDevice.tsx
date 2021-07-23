@@ -110,12 +110,20 @@ const addStateToDevice = (device: IDevice, digitalTwins: IDigitalTwin[], digital
 interface SelectDeviceProps {
     groupId: number;
     backToMap: () => void;
+    deviceSelected: IDevice | null;
     giveDeviceSelected: (device: IDevice) => void;
     digitalTwins: IDigitalTwin[];
     digitalTwinsState: IDigitalTwinState[];
 }
 
-const SelectDevice: FC<SelectDeviceProps> = ({ groupId, backToMap, giveDeviceSelected, digitalTwins, digitalTwinsState }) => {
+const SelectDevice: FC<SelectDeviceProps> = ({
+    groupId,
+    backToMap,
+    deviceSelected,
+    giveDeviceSelected,
+    digitalTwins,
+    digitalTwinsState
+}) => {
     const [selectedDevice, setSelectedDevice] = useState<ISelectDevice | null>(null);
     const devicesTable = useDevicesTable();
     const devicesFiltered = devicesTable.filter(device => device.groupId === groupId);
@@ -144,7 +152,8 @@ const SelectDevice: FC<SelectDeviceProps> = ({ groupId, backToMap, giveDeviceSel
                     <TableWithPaginationAndRowSelection
                         dataTable={selectDevice}
                         columnsTable={SELECT_DEVICE_COLUMNS}
-                        setSelectedGroupManaged={(selectedDevice: ISelectDevice) => setSelectedDevice(selectedDevice)}
+                        selectedItem={deviceSelected}
+                        setSelectedItem={(selectedDevice: ISelectDevice) => setSelectedDevice(selectedDevice)}
                         multipleSelection={false}
                     />
                 </TableContainer>

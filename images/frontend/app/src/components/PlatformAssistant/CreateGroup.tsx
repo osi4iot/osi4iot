@@ -1,4 +1,4 @@
-import { FC, useState, SyntheticEvent } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -8,11 +8,13 @@ import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
-import { useGroupsDispatch, setGroupsOptionToShow } from '../../contexts/groupsOptions';
-import { GROUPS_OPTIONS } from './platformAssistantOptions';
-import { IGroupInputData } from './GroupsContainer';
+import { useGroupsDispatch, setGroupsOptionToShow, setGroupBuildingId, setGroupsPreviousOption } from '../../contexts/groupsOptions';
+import { GROUPS_OPTIONS, GROUPS_PREVIOUS_OPTIONS } from './platformAssistantOptions';
 import { ISelectOrgUser } from './TableColumns/selectOrgUsersColumns';
 import SelectOrgUsersOfOrgManaged from './SelectOrgUsersOfOrgManaged';
+import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
+import { IFloor } from './TableColumns/floorsColumns';
+import { IGroupInputData } from '../../contexts/groupsOptions/interfaces';
 
 
 const FormContainer = styled.div`
@@ -60,6 +62,52 @@ const ControlsContainer = styled.div`
     }
 `;
 
+const GroupLocationTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const GroupLocationContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+    margin-bottom: 15px;
+`;
+
+const SelectGroupLocationButtonContainer = styled.div`
+    display: flex;
+    margin: 10px 0 10px;
+    flex-direction: row;
+    justify-content: center;
+	align-items: center;
+    background-color: #202226;
+    width: 100%;
+`;
+
+const SelectSpaceButton = styled.button`
+	background-color: #3274d9;
+	padding: 5px 10px;
+    margin: 5px 10px;
+	color: white;
+	border: 1px solid #2c3235;
+	border-radius: 10px;
+	outline: none;
+	cursor: pointer;
+	box-shadow: 0 5px #173b70;
+    font-size: 14px;
+    width: 40%;
+
+	&:hover {
+		background-color: #2461c0;
+	}
+
+	&:active {
+		background-color: #2461c0;
+		box-shadow: 0 2px #173b70;
+		transform: translateY(4px);
+	}
+`;
+
 const domainName = getDomainName();
 
 const folderPermissionOptions = [
@@ -74,17 +122,28 @@ const folderPermissionOptions = [
 ];
 
 interface CreateGroupProps {
+    orgsManagedTable: IOrgManaged[];
     backToTable: () => void;
+    selectSpaceOption: () => void;
     refreshGroups: () => void;
     groupInputData: IGroupInputData;
     setGroupInputData: (groupInputData: IGroupInputData) => void;
-
+    floorSelected: IFloor | null;
 }
 
 const floorNumberWarning = "Floor number must an integer greater or equal to 0";
+const featureIndexWarning = "Feature index must an integer greater or equal to 0";
 
-const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupInputData, setGroupInputData }) => {
-    const [selectedOrgId, setSelectedOrgId] = useState(1);
+const CreateGroup: FC<CreateGroupProps> = ({
+    orgsManagedTable,
+    backToTable,
+    selectSpaceOption,
+    refreshGroups,
+    groupInputData,
+    setGroupInputData,
+    floorSelected
+}) => {
+    const [selectedOrgId, setSelectedOrgId] = useState(orgsManagedTable[0].id);
     const [showCreateGroup, setShowCreateGroup] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectOrgUser[]>([]);
@@ -101,13 +160,20 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupIn
             };
             return groupAdminData;
         });
-        const lastOrgAdmin = initialGroupData.groupAdminDataArray[initialGroupData.groupAdminDataArray.length - 1];
-        if (Object.values(lastOrgAdmin).filter(value => value !== "").length === 0) {
-            initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray.slice(0, -1), ...newGroupAdmins];
-        } else {
-            initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray, ...newGroupAdmins];
+        if (initialGroupData.groupAdminDataArray) {
+            const lastOrgAdmin = initialGroupData.groupAdminDataArray[initialGroupData.groupAdminDataArray.length - 1];
+            if (Object.values(lastOrgAdmin).filter(value => value !== "").length === 0) {
+                initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray.slice(0, -1), ...newGroupAdmins];
+            } else {
+                initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray, ...newGroupAdmins];
+            }
         }
     }
+
+    useEffect(() => {
+        const groupsPreviousOption = { groupsPreviousOption: GROUPS_PREVIOUS_OPTIONS.CREATE_GROUP };
+        setGroupsPreviousOption(groupsDispatch, groupsPreviousOption)
+    }, [groupsDispatch]);
 
     const onSubmit = (values: any, actions: any) => {
         const orgId = values.orgId;
@@ -118,8 +184,8 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupIn
             (values as any).floorNumber = parseInt((values as any).floorNumber, 10);
         }
 
-        if ((values as any).geoJsonData.trim() === "") {
-            (values as any).geoJsonData = "{}";
+        if (typeof (values as any).featureIndex === 'string') {
+            (values as any).featureIndex = parseInt((values as any).featureIndex, 10);
         }
 
         const groupData = {
@@ -130,7 +196,7 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupIn
             folderPermission: values.folderPermission,
             groupAdminDataArray: [...values.groupAdminDataArray],
             floorNumber: values.floorNumber,
-            geoJsonData: values.geoJsonData,
+            featureIndex: values.featureIndex,
         }
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)
@@ -167,8 +233,8 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupIn
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied
             .min(1, 'Must be at least one org amdin'),
-        floorNumber: Yup.number().integer(floorNumberWarning).moreThan(-1,floorNumberWarning).required('Required'),
-        geoJsonData: Yup.string().required('Required'),
+        floorNumber: Yup.number().integer(floorNumberWarning).moreThan(-1, floorNumberWarning).required('Required'),
+        featureIndex: Yup.number().integer(featureIndexWarning).moreThan(-1, featureIndexWarning).required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -181,8 +247,19 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupIn
         setShowCreateGroup(false);
     }
 
-    return (
+    const defineGroupOrgId = (orgId: number) => {
+        setSelectedOrgId(orgId);
+    }
 
+    const selectSpace = (groupInputData: IGroupInputData) => {
+        setGroupInputData(groupInputData);
+        const buildingId = orgsManagedTable.filter(org => org.id === selectedOrgId)[0].buildingId;
+        const groupBuildingId = { groupBuildingId: buildingId };
+        setGroupBuildingId(groupsDispatch, groupBuildingId);
+        selectSpaceOption();
+    }
+
+    return (
         <>
             {
                 showCreateGroup ?
@@ -199,7 +276,7 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupIn
                                                     label='OrgId'
                                                     name='orgId'
                                                     type='text'
-                                                    onChange={(e: any) => { formik.handleChange(e); setSelectedOrgId(parseInt(e.target.value,10));}}
+                                                    onChange={(e: any) => { formik.handleChange(e); defineGroupOrgId(parseInt(e.target.value, 10)); }}
                                                 />
                                                 <FormikControl
                                                     control='input'
@@ -232,17 +309,26 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupIn
                                                     name='telegramChatId'
                                                     type='text'
                                                 />
-                                                <FormikControl
-                                                    control='input'
-                                                    label='Floor number'
-                                                    name='floorNumber'
-                                                    type='text'
-                                                />                                                
-                                                <FormikControl
-                                                    control='textarea'
-                                                    label='Geojson data'
-                                                    name='geoJsonData'
-                                                />
+                                                <GroupLocationTitle>Group location</GroupLocationTitle>
+                                                <GroupLocationContainer>
+                                                    <FormikControl
+                                                        control='input'
+                                                        label='Floor number'
+                                                        name='floorNumber'
+                                                        type='text'
+                                                    />
+                                                    <FormikControl
+                                                        control='input'
+                                                        label='Feature index'
+                                                        name='featureIndex'
+                                                        type='text'
+                                                    />
+                                                    <SelectGroupLocationButtonContainer >
+                                                        <SelectSpaceButton type='button' onClick={() => selectSpace(formik.values)}>
+                                                            Select space
+                                                        </SelectSpaceButton>
+                                                    </SelectGroupLocationButtonContainer>
+                                                </GroupLocationContainer>
                                                 <FormikControl
                                                     control='inputArray'
                                                     label='Group admins'
@@ -253,7 +339,7 @@ const CreateGroup: FC<CreateGroupProps> = ({ backToTable, refreshGroups, groupIn
                                                     addLabel="group admim"
                                                     selectLabel="user"
                                                     goToSelect={() => goToSelect(formik.values)}
-                                                />                                                
+                                                />
                                             </ControlsContainer>
                                             <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                                         </Form>

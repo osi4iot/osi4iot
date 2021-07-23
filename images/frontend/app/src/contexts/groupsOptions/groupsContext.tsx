@@ -1,12 +1,10 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
-import { GroupsContextProps } from './interfaces'
+import { GroupsContextProps, IGroupInputData } from './interfaces'
 import { initialState, GroupsReducer } from './groupsReducer';
-
 
 const GroupsStateContext = createContext<GroupsContextProps>(initialState);
 const GroupsDispatchContext = createContext<any>({});
-
 
 export function useGroupsDispatch() {
 	const context = React.useContext(GroupsDispatchContext);
@@ -38,6 +36,14 @@ export const useGroupsOptionToShow = (): string => {
 	return context.groupsOptionToShow;
 }
 
+export const useGroupsPreviousOption = (): string => {
+	const context = useContext(GroupsStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupsPreviousOption must be used within a GroupsProvider');
+	}
+	return context.groupsPreviousOption;
+}
+
 export const useGroupIdToEdit = (): number => {
 	const context = useContext(GroupsStateContext);
 	if (context === undefined) {
@@ -53,3 +59,20 @@ export const useGroupRowIndexToEdit = (): number => {
 	}
 	return context.groupRowIndexToEdit;
 }
+
+export const useGroupBuildingId = (): number => {
+	const context = useContext(GroupsStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupBuildingId must be used within a GroupsProvider');
+	}
+	return context.groupBuildingId;
+}
+
+export const useGroupInputData = (): IGroupInputData => {
+	const context = useContext(GroupsStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupEditInputData must be used within a GroupsProvider');
+	}
+	return context.groupInputFormData;
+}
+

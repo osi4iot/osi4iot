@@ -2,13 +2,12 @@ import { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import FormTitle from "../Tools/FormTitle";
 import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelection';
-import { useGroupsManagedTable } from '../../contexts/platformAssistantContext';
-import { IGroupManaged } from './TableColumns/groupsManagedColumns';
-import { SELECT_GROUP_MANAGED_COLUMNS, ISelectGroupManaged } from './TableColumns/selectGroupManagedColumns';
+import { useFloorsTable } from '../../contexts/platformAssistantContext';
+import { IFloor } from './TableColumns/floorsColumns';
+import { ISelectFloorWithState, SELECT_FLOORS_WITH_STATE_COLUMNS } from './TableColumns/selectFloorWithStateColumns';
 import { IDigitalTwinState } from './GeolocationContainer';
-import { IDevice } from './TableColumns/devicesColumns';
+import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 import { findOutStatus } from './Geolocation/statusTools';
-
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -100,65 +99,77 @@ const Button = styled.button`
     }
 `;
 
-const addStateToGroupManaged = (groupsManaged: IGroupManaged, devices: IDevice[], digitalTwinsState: IDigitalTwinState[]) => {
-    const devicesFiltered = devices.filter(device => device.groupId === groupsManaged.id);
-    const devicesIdArray = devicesFiltered.map(device => device.id);
-    const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwinState => devicesIdArray.indexOf(digitalTwinState.deviceId) !== -1);
-    const state = findOutStatus(digitalTwinsStateFiltered);
-    return { ...groupsManaged, state };
-}
 
-interface SelectGroupManagedProps {
-    orgId: number;
-    floorNumber: number;
+interface SelectFloorWithStateProps {
+    buildingId: number;
     backToMap: () => void;
-    groupSelected: IGroupManaged | null;
-    giveGroupManagedSelected: (groupManaged: IGroupManaged) => void;
-    devices: IDevice[];
+    floorSelected: IFloor | null;
+    giveFloorSelected: (floor: IFloor) => void;
     digitalTwinsState: IDigitalTwinState[];
+    groupsData: IGroupManaged[];
+    giveGroupManagedSelected: (groupManagedSelected: IGroupManaged) => void;
 }
 
-const SelectGroupManaged: FC<SelectGroupManagedProps> = (
+interface IFloorWithState extends IFloor {
+    state: string;
+}
+
+const addStateToFloor = (floor: IFloor, groupsData: IGroupManaged[], digitalTwinsState: IDigitalTwinState[]): IFloorWithState => {
+    const groupsFiltered = groupsData.filter(group => group.floorNumber === floor.floorNumber);
+    const groupsIdArray = groupsFiltered.map(group => group.id);
+    const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwinState => groupsIdArray.indexOf(digitalTwinState.groupId) !== -1);
+    const state = findOutStatus(digitalTwinsStateFiltered);
+    return { ...floor, state };
+}
+
+const SelectFloorWithState: FC<SelectFloorWithStateProps> = (
     {
-        orgId,
-        floorNumber,
+        buildingId,
         backToMap,
-        groupSelected,
+        floorSelected,
+        giveFloorSelected,
+        digitalTwinsState,
+        groupsData,
         giveGroupManagedSelected,
-        devices,
-        digitalTwinsState
-    }) => {
-    const [selectedGroupManaged, setSelectedGroupManaged] = useState<ISelectGroupManaged | null>(null);
-    const groupsManagedTable = useGroupsManagedTable();
-    const groupsManagedFiltered = groupsManagedTable.filter(group => group.orgId === orgId && group.floorNumber === floorNumber);
-    const selectGroupsManaged = useState(groupsManagedFiltered.map(group => addStateToGroupManaged(group, devices, digitalTwinsState)))[0];
+    }
+) => {
+    const [selectedFloor, setSelectedFloor] = useState<ISelectFloorWithState | null>(null);
+    const floorsTable = useFloorsTable();
+    const groupsFloorNumber = groupsData.map(group => group.floorNumber);
+    const floorsOfGroups = floorsTable.filter(floor => (floor.buildingId === buildingId && groupsFloorNumber.indexOf(floor.floorNumber) !== -1));
+    const selectFloors = useState(floorsOfGroups.map(floor => addStateToFloor(floor, groupsData, digitalTwinsState)))[0];
 
     const onSubmit = () => {
-        if (selectedGroupManaged) {  
-            const groupsManagedTableFiltered = groupsManagedTable.filter(groupManaged => groupManaged.id === selectedGroupManaged.id);
-            giveGroupManagedSelected(groupsManagedTableFiltered[0]);
+        if (selectedFloor) {
+            const floorsTableFiltered = floorsTable.filter(floor => floor.id === selectedFloor.id);
+            giveFloorSelected(floorsTableFiltered[0]);
+            const groupsInFloorSelected = groupsData.filter(group => group.floorNumber === selectedFloor.floorNumber);
+            if (groupsInFloorSelected.length === 1) {
+                giveGroupManagedSelected(groupsInFloorSelected[0]);
+            }
         }
         backToMap();
     }
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setSelectedGroupManaged(null);
+        setSelectedFloor(null);
         backToMap();
     };
 
 
     return (
         <>
-            <FormTitle>Select group</FormTitle>
+            <FormTitle>Select floor number</FormTitle>
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={selectGroupsManaged}
-                        columnsTable={SELECT_GROUP_MANAGED_COLUMNS}
-                        selectedItem={groupSelected}
-                        setSelectedItem={(selectedGroupManaged: ISelectGroupManaged) => setSelectedGroupManaged(selectedGroupManaged)}
+                        dataTable={selectFloors}
+                        columnsTable={SELECT_FLOORS_WITH_STATE_COLUMNS}
+                        selectedItem={floorSelected}
+                        setSelectedItem={(selectedFloor: ISelectFloorWithState) => setSelectedFloor(selectedFloor)}
                         multipleSelection={false}
+                        isGlobalFilterRequired={false}
                     />
                 </TableContainer>
                 <ButtonsContainer>
@@ -174,4 +185,4 @@ const SelectGroupManaged: FC<SelectGroupManagedProps> = (
     )
 }
 
-export default SelectGroupManaged;
+export default SelectFloorWithState;

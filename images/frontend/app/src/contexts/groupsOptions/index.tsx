@@ -1,19 +1,35 @@
-import { setGroupsOptionToShow, setGroupIdToEdit, setGroupRowIndexToEdit } from './groupsAction';
+import {
+    setGroupsOptionToShow,
+    setGroupsPreviousOption,
+    setGroupIdToEdit,
+    setGroupRowIndexToEdit,
+    setGroupBuildingId,
+    setGroupInputData
+} from './groupsAction';
 import {
     GroupsProvider,
     useGroupsDispatch,
     useGroupsOptionToShow,
+    useGroupsPreviousOption,
     useGroupIdToEdit,
-    useGroupRowIndexToEdit
+    useGroupRowIndexToEdit,
+    useGroupBuildingId,
+    useGroupInputData
 } from './groupsContext';
 
 export {
     GroupsProvider,
     useGroupsDispatch,
     useGroupsOptionToShow,
+    useGroupsPreviousOption,
     useGroupIdToEdit,
     useGroupRowIndexToEdit,
     setGroupsOptionToShow,
+    setGroupsPreviousOption,
     setGroupIdToEdit,
-    setGroupRowIndexToEdit
+    setGroupRowIndexToEdit,
+    useGroupBuildingId,
+    setGroupBuildingId,
+    useGroupInputData,
+    setGroupInputData
 };

@@ -23,7 +23,8 @@ import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import UpdateGroupDto from "./interfaces/group_update.dto";
 import INotificationChannel from "./interfaces/NotificationChannel";
 import IMembershipInGroups from "./interfaces/MembershipInGroups.interface";
-import { findFloorOrGroupBounds } from "../../utils/geolocation.ts/geolocation";
+import { findFloorOrGroupBounds, findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
+import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
@@ -49,7 +50,9 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 	const telegramChatId = groupInput.telegramChatId;
 	const folderPermission = groupInput.folderPermission;
 	const floorNumber = groupInput.floorNumber;
-	const geoJsonData = groupInput.geoJsonData;
+	const featureIndex = groupInput.featureIndex;
+	const floorData = await getFloorByOrgIdAndFloorNumber(orgId, floorNumber);
+	const geoJsonData = findGroupGeojsonData(floorData, featureIndex);
 	const outerBounds = findFloorOrGroupBounds(geoJsonData);
 
 	const permissionsArray: IFolderPermission[] = [{
@@ -109,7 +112,7 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 		telegramNotificationChannelId,
 		isOrgDefaultGroup,
 		floorNumber,
-		geoJsonData,
+		featureIndex,
 		outerBounds
 	}
 
@@ -124,7 +127,10 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: IGroup): Promise<void> => {
 	if (newGroupData.acronym) newGroupData.acronym = newGroupData.acronym.replace(/ /g, "_").toUpperCase();
 	const groupData: IGroup = { ...existentGroup, ...newGroupData };
-	groupData.outerBounds = findFloorOrGroupBounds(groupData.geoJsonData);
+	const featureIndex = groupData.featureIndex;
+	const floorData = await getFloorByOrgIdAndFloorNumber(groupData.orgId, groupData.floorNumber);
+	const geoJsonData =  findGroupGeojsonData(floorData, featureIndex)
+	groupData.outerBounds = findFloorOrGroupBounds(geoJsonData);
 	await updateGroupById(groupData);
 	let hasGroupChange = false;
 	if (groupData.folderPermission && (groupData.folderPermission !== existentGroup.folderPermission)) {
@@ -178,7 +184,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
-				geodata AS "geoJsonData",
+				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -207,7 +213,7 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
-				geodata AS "geoJsonData",
+				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -233,7 +239,7 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
-				geodata AS "geoJsonData",
+				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -339,7 +345,7 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
-				geodata AS "geoJsonData",
+				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -363,7 +369,7 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
-				geodata AS "geoJsonData",
+				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -386,7 +392,7 @@ export const getGroupByWithFolderPermissionProp = async (propName: string, propV
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
-				geodata AS "geoJsonData",
+				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
@@ -407,7 +413,7 @@ export const getGroupByProp = async (propName: string, propValue: (string | numb
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
-				geodata AS "geoJsonData",
+				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds"
 				FROM grafanadb.group
 				WHERE grafanadb.group.${propName} = $1;`;
@@ -425,7 +431,7 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				telegram_notification_channel_id AS "telegramNotificationChannelId",
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
-				geodata AS "geoJsonData",
+				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds"
 				FROM grafanadb.group
 				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
@@ -440,7 +446,7 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					telegram_invitation_link, telegram_chatid,
 					email_notification_channel_id,
 					telegram_notification_channel_id, is_org_default_group,
-					floor_number, geodata, outer_bounds)
+					floor_number, feature_index, outer_bounds)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 					RETURNING *`,
 		[
@@ -457,7 +463,7 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 			group.telegramNotificationChannelId,
 			group.isOrgDefaultGroup,
 			group.floorNumber,
-			group.geoJsonData,
+			group.featureIndex,
 			group.outerBounds
 		])
 	return response.rows[0];
@@ -468,7 +474,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 				telegram_invitation_link = $3,
 				telegram_chatid = $4,
 				floor_number = $5,
-				geodata = $6,
+				feature_index = $6,
 				outer_bounds = $7
 				WHERE grafanadb.group.id = $8;`;
 	const result = await pool.query(query, [
@@ -477,7 +483,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 		group.telegramInvitationLink,
 		group.telegramChatId,
 		group.floorNumber,
-		group.geoJsonData,
+		group.featureIndex,
 		group.outerBounds,
 		group.id
 	]);

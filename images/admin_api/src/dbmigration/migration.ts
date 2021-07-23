@@ -240,9 +240,9 @@ export async function dataBaseInitialization() {
 				email_notification_channel_id bigint,
 				telegram_notification_channel_id bigint,
 				is_org_default_group BOOLEAN DEFAULT true,
-				geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
-				outer_bounds float8[2][2],
 				floor_number integer NOT NULL DEFAULT 0,
+				feature_index integer NOT NULL DEFAULT 0,
+				outer_bounds float8[2][2],
 				CONSTRAINT fk_org_id
 					FOREIGN KEY(org_id)
 						REFERENCES grafanadb.org(id)
@@ -283,7 +283,7 @@ export async function dataBaseInitialization() {
 				folderPermission: ("Viewer" as FolderPermissionOption),
 				groupAdminDataArray: [mainOrgGroupAdmin],
 				floorNumber: 0,
-				geoJsonData: '{}'
+				featureIndex: 0,
 			}
 			group = await createGroup(1, defaultMainOrgGroup, process.env.MAIN_ORGANIZATION_NAME, true);
 			await createHomeDashboard(1, orgAcronym, orgName, group.folderId);

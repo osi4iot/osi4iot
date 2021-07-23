@@ -5,9 +5,6 @@ import TableWithPaginationAndRowSelection from './TableWithPaginationAndRowSelec
 import { useFloorsTable } from '../../contexts/platformAssistantContext';
 import { IFloor } from './TableColumns/floorsColumns';
 import { ISelectFloor, SELECT_FLOORS_COLUMNS } from './TableColumns/selectFloorColumns';
-import { IDigitalTwinState } from './GeolocationContainer';
-import { IGroupManaged } from './TableColumns/groupsManagedColumns';
-import { findOutStatus } from './Geolocation/statusTools';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -103,48 +100,28 @@ const Button = styled.button`
 interface SelectFloorProps {
     buildingId: number;
     backToMap: () => void;
+    floorSelected: IFloor | null;
     giveFloorSelected: (floor: IFloor) => void;
-    digitalTwinsState: IDigitalTwinState[];
-    groupsData: IGroupManaged[];
-    giveGroupManagedSelected: (groupManagedSelected: IGroupManaged) => void;
 }
 
-interface IFloorWithState extends IFloor {
-    state: string;
-}
 
-const addStateToFloor = (floor: IFloor, groupsData: IGroupManaged[], digitalTwinsState: IDigitalTwinState[]): IFloorWithState => {
-    const groupsFiltered = groupsData.filter(group => group.floorNumber === floor.floorNumber);
-    const groupsIdArray = groupsFiltered.map(group => group.id);
-    const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwinState => groupsIdArray.indexOf(digitalTwinState.groupId) !== -1);
-    const state = findOutStatus(digitalTwinsStateFiltered);
-    return { ...floor, state };
-}
 
 const SelectFloor: FC<SelectFloorProps> = (
     {
         buildingId,
         backToMap,
+        floorSelected,
         giveFloorSelected,
-        digitalTwinsState,
-        groupsData,
-        giveGroupManagedSelected
     }
 ) => {
     const [selectedFloor, setSelectedFloor] = useState<ISelectFloor | null>(null);
     const floorsTable = useFloorsTable();
-    const groupsFloorNumber = groupsData.map(group => group.floorNumber);
-    const floorsOfGroups = floorsTable.filter(floor => (floor.buildingId === buildingId && groupsFloorNumber.indexOf(floor.floorNumber) !== -1));
-    const selectFloor = useState(floorsOfGroups.map(floor => addStateToFloor(floor, groupsData, digitalTwinsState)))[0];
+    const selectFloors = useState(floorsTable.filter(floor => floor.buildingId === buildingId))[0];
 
     const onSubmit = () => {
         if (selectedFloor) {
             const floorsTableFiltered = floorsTable.filter(floor => floor.id === selectedFloor.id);
             giveFloorSelected(floorsTableFiltered[0]);
-            const groupsInFloorSelected = groupsData.filter(group => group.floorNumber === selectedFloor.floorNumber);
-            if (groupsInFloorSelected.length === 1) {
-                giveGroupManagedSelected(groupsInFloorSelected[0]);
-            }
         }
         backToMap();
     }
@@ -162,9 +139,10 @@ const SelectFloor: FC<SelectFloorProps> = (
             <FormContainer>
                 <TableContainer>
                     <TableWithPaginationAndRowSelection
-                        dataTable={selectFloor}
+                        dataTable={selectFloors}
                         columnsTable={SELECT_FLOORS_COLUMNS}
-                        setSelectedFloor={(selectedFloor: ISelectFloor) => setSelectedFloor(selectedFloor)}
+                        selectedItem={floorSelected}
+                        setSelectedItem={(selectedFloor: ISelectFloor) => setSelectedFloor(selectedFloor)}
                         multipleSelection={false}
                         isGlobalFilterRequired={false}
                     />

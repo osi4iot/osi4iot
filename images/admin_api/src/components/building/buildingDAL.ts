@@ -55,8 +55,25 @@ export const getFloorById = async (floorId: number): Promise<IFloor> => {
 	return response.rows[0];
 };
 
+export const getFloorByOrgIdAndFloorNumber = async (orgId: number, floorNumber: number): Promise<IFloor> => {
+	const response = await pool.query(`SELECT grafanadb.floor.id,
+									grafanadb.floor.building_id AS "buildingId",
+									grafanadb.floor.floor_number AS "floorNumber",
+									grafanadb.floor.geodata AS "geoJsonData",
+									grafanadb.floor.outer_bounds AS "outerBounds",
+									AGE(NOW(), grafanadb.floor.created) AS "timeFromCreation",
+									AGE(NOW(), grafanadb.floor.updated) AS "timeFromLastUpdate"
+									FROM grafanadb.floor
+									INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
+									INNER JOIN grafanadb.org ON grafanadb.floor.building_id = grafanadb.org.building_id
+									WHERE grafanadb.org.id = $1
+									AND grafanadb.floor.floor_number = $2`, [orgId, floorNumber]);
+	return response.rows[0];
+};
+
+
 export const createFloor = async (floorInput: CreateFloorDto): Promise<IFloor> => {
-	const result = await pool.query(`INSERT INTO grafanadb.floor (building_id, floor_number, geodata, created, updated)
+	const result = await pool.query(`INSERT INTO grafanadb.floor (building_id, floor_number, geodata, outer_bounds, created, updated)
         VALUES ($1, $2, $3, $4, NOW(), NOW())
         RETURNING  id, building_id AS "buildingId", floor_number AS "floorNumber", geodata AS "geoJsonData",
         outer_bounds[1:2][1:2] AS "outerBounds", created, updated`,

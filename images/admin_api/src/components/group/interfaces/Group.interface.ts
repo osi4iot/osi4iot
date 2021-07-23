@@ -13,7 +13,7 @@ export default interface IGroup {
 	emailNotificationChannelId: number;
 	telegramNotificationChannelId: number;
 	isOrgDefaultGroup: boolean;
-	geoJsonData: string;
 	outerBounds: number[][];
 	floorNumber: number;
+	featureIndex: number;
 }

@@ -1,4 +1,4 @@
-import { FC, useCallback } from 'react'
+import { FC, useCallback } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet';
@@ -368,8 +368,8 @@ interface MapProps {
     selectBuilding: (buildingSelected: IBuilding) => void;
     floorSelected: IFloor | null;
     selectFloor: (floorSelected: IFloor) => void;
-    orgSelected: IOrgManaged | null;
-    selectOrg: (orgSelected: IOrgManaged) => void;
+    orgSelected: IOrgOfGroupsManaged | null;
+    selectOrg: (orgSelected: IOrgOfGroupsManaged) => void;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;

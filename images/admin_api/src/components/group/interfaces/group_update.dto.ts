@@ -15,14 +15,14 @@ class UpdateGroupDto {
 	@IsString()
 	public telegramChatId?: string;
 
-	@IsEnum(FolderPermissionOptions, {message: " 'Editor' or 'Viewer' are the only valid options for folderPermission."})
+	@IsEnum(FolderPermissionOptions, { message: " 'Editor' or 'Viewer' are the only valid options for folderPermission." })
 	public folderPermission: FolderPermissionOption;
-
-	@IsString()
-	public geoJsonData: string;
 
 	@IsNumber()
 	public floorNumber: number;
+
+	@IsNumber()
+	public featureIndex: number;
 }
 
 export default UpdateGroupDto;

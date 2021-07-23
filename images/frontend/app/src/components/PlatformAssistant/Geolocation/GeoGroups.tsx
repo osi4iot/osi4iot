@@ -7,7 +7,7 @@ import { IFloor } from "../TableColumns/floorsColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoGroup from "./GeoGroup";
-import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
+import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 
 
 const STATUS_OK = "#3e3f3b";
@@ -27,8 +27,8 @@ const floorStyle = () => {
 
 interface GeoGroupsProps {
     floorData: IFloor;
-    orgSelected: IOrgManaged | null;
-    selectOrg: (orgSelected: IOrgManaged) => void;
+    orgSelected: IOrgOfGroupsManaged | null;
+    selectOrg: (orgSelected: IOrgOfGroupsManaged) => void;
     groupsInSelectedOrg: IGroupManaged[];
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;

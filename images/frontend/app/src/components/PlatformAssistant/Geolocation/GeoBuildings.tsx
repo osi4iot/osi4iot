@@ -1,12 +1,12 @@
 import { FC, useEffect } from "react";
 import { useMap, LayerGroup } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
-import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IDigitalTwinState } from "../GeolocationContainer";
 import { IBuilding } from "../TableColumns/buildingsColumns";
-import GeoBuilding from "./GeoBuilding";
 import { IFloor } from "../TableColumns/floorsColumns";
+import GeoBuildingWithState from "./GeoBuildingWithState";
+import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 
 
 interface GeoBuildingsProps {
@@ -17,9 +17,9 @@ interface GeoBuildingsProps {
     floors: IFloor[];
     floorSelected: IFloor | null;
     selectFloor: (floorSelected: IFloor) => void;
-    orgSelected: IOrgManaged | null;
-    orgsData: IOrgManaged[];
-    selectOrg: (orgSelected: IOrgManaged) => void;
+    orgSelected: IOrgOfGroupsManaged | null;
+    orgsData: IOrgOfGroupsManaged[];
+    selectOrg: (orgSelected: IOrgOfGroupsManaged) => void;
     groupSelected: IGroupManaged | null;
     groupsManaged: IGroupManaged[];
     selectGroup: (groupSelected: IGroupManaged) => void;
@@ -52,7 +52,7 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
         <LayerGroup>
             {
                 buildings.map(building => 
-                    <GeoBuilding
+                    <GeoBuildingWithState
                         key={building.id}
                         orgsInBuilding={orgsData.filter(org => org.buildingId === building.id)}
                         buildingData={building}

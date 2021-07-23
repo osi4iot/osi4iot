@@ -143,7 +143,7 @@ const SelectOrgUsersOfOrgManaged: FC<SelectOrgUsersOfOrgManagedProps> = ({ orgId
                     <TableWithPaginationAndRowSelection
                         dataTable={selectOrgUsers}
                         columnsTable={SELECT_ORG_USERS}
-                        setSelectedUsers={(selectedUsers: ISelectOrgUser[]) => setSelectedUsers(selectedUsers)}
+                        setSelectedItems={(selectedUsers: ISelectOrgUser[]) => setSelectedUsers(selectedUsers)}
                     />
                 </TableContainer>
                 <ButtonsContainer>

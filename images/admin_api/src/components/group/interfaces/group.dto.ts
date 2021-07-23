@@ -23,13 +23,13 @@ class CreateGroupDto {
 	@IsEnum(FolderPermissionOptions, { message: " 'Editor' or 'Viewer' are the only valid options for folderPermission." })
 	public folderPermission: FolderPermissionOption;
 
-	@IsString()
-	public geoJsonData: string;
-
 	public outerBounds?: number[][];
 
 	@IsNumber()
 	public floorNumber: number;
+
+	@IsNumber()
+	public featureIndex: number;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)

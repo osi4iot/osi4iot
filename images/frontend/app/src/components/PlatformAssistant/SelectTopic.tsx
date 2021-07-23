@@ -127,7 +127,8 @@ const SelectTopic: FC<SelectTopicProps> = ({  backToTable, giveSelectedTopic }) 
                     <TableWithPaginationAndRowSelection
                         dataTable={topicsTable}
                         columnsTable={SELECT_TOPIC_COLUMNS}
-                        setSelectedTopic={(selectedTopic: ISelectTopic) => setSelectedTopic(selectedTopic)}
+                        selectedItem={selectedTopic}
+                        setSelectedItem={(selectedTopic: ISelectTopic) => setSelectedTopic(selectedTopic)}
                         multipleSelection={false}
                     />
                 </TableContainer>

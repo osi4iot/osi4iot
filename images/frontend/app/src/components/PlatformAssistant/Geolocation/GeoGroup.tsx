@@ -1,5 +1,6 @@
-import { FC, useRef } from "react";
+import { FC, useRef, useState } from "react";
 import { GeoJSON, LayerGroup, useMap } from 'react-leaflet';
+import { FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 import { LatLngTuple } from 'leaflet';
 import GeoDevice from './GeoDevice';
 import { StyledTooltip as Tooltip } from './Tooltip';
@@ -10,6 +11,7 @@ import GeoDigitalTwins from "./GeoDigitalTwins";
 import { IDigitalTwinState } from "../GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
+import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";
@@ -78,6 +80,7 @@ const GeoGroup: FC<GeoGroupProps> = (
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
     const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
+    const groupGeoJsonData = useState(findGroupGeojsonData(floorData, groupData.featureIndex))[0]
 
     const styleGeoGroupJson = (geoJsonFeature: any) => {
         const groupsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.groupId === groupData.id);
@@ -93,11 +96,11 @@ const GeoGroup: FC<GeoGroupProps> = (
     return (
         <>
             {
-                (Object.keys(groupData.geoJsonData).length !== 0) ?
+                (Object.keys(groupGeoJsonData).length !== 0) ?
                     <LayerGroup>
                         <GeoJSON
                             ref={geoJsonLayerGroupRef}
-                            data={groupData.geoJsonData}
+                            data={groupGeoJsonData as FeatureCollection<Geometry, GeoJsonProperties>}
                             style={styleGeoGroupJson}
                             eventHandlers={{ click: clickHandler }}
                         >

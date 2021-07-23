@@ -11,8 +11,19 @@ import { GroupsProvider } from '../../contexts/groupsOptions';
 import GroupsContainer from './GroupsContainer';
 import { IOrgUser } from './TableColumns/orgUsersColumns';
 import { OrgsManagedProvider } from '../../contexts/orgsManagedOptions';
-import { usePlatformAssitantDispatch, useOrgsManagedTable, useOrgUsersTable, useGroupsTable, setOrgsManagedTable, setOrgUsersTable, setGroupsTable, useGlobalUsersTable, setGlobalUsersTable } from '../../contexts/platformAssistantContext';
+import {
+    usePlatformAssitantDispatch,
+    useOrgsManagedTable,
+    useOrgUsersTable,
+    useGroupsTable,
+    setOrgsManagedTable,
+    setOrgUsersTable,
+    setGroupsTable,
+    useGlobalUsersTable,
+    setGlobalUsersTable,
+} from '../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
+
 
 const OrganizationAdminOptionsContainer = styled.div`
 	display: flex;
@@ -213,9 +224,11 @@ const OrganizationAdminOptions: FC<{}> = () => {
 
     }, [accessToken, refreshToken, authDispatch, reloadOrgUsers, plaformAssistantDispatch, globalUsersTable.length]);
 
+
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
     }
+
 
     return (
         <>
@@ -231,7 +244,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
-                {(orgsManagedLoading || groupsLoading || orgUsersLoading || globalUsersLoading) ?
+                {(orgsManagedLoading || groupsLoading || orgUsersLoading || globalUsersLoading ) ?
                     <Loader />
                     :
                     <>
@@ -247,7 +260,10 @@ const OrganizationAdminOptions: FC<{}> = () => {
                         }
                         {optionToShow === ORG_ADMIN_OPTIONS.GROUPS &&
                             <GroupsProvider>
-                                <GroupsContainer groups={groupsTable} refreshGroups={refreshGroups} />
+                                <GroupsContainer
+                                    groups={groupsTable}
+                                    refreshGroups={refreshGroups}
+                                />
                             </GroupsProvider>
                         }
                     </>

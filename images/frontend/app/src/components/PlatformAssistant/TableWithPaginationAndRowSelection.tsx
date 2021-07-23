@@ -279,7 +279,6 @@ function fuzzyTextFilterFn(rows: row[], id: number, filterValue: string) {
 }
 
 
-
 interface Props {
     indeterminate?: boolean;
 }
@@ -351,18 +350,16 @@ const IndeterminateCheckboxUniqueSelection = forwardRef<HTMLInputElement, Indete
     }
 )
 
-
+interface ISelectedRow {
+    [key: string]: boolean;
+}
 
 type TableProps<T extends object> = {
     dataTable: T[];
     columnsTable: Column<T>[];
-    setSelectedUsers?: (selectedUsers: never[]) => void;
-    setSelectedOrgOfGroupsManaged?: (selectedOrgOfGroupsManaged: never) => void;
-    setSelectedFloor?: (selectedFloor: never) => void;
-    setSelectedGroupManaged?: (selectedGroupManaged: never) => void;
-    setSelectedDevice?: (selectedDevice: never) => void;
-    setSelectedTopic?: (selectedTopic: never) => void;
-    setSelectedDigitalTwin?: (selecteDigitalTwin: never) => void;
+    selectedItem?: any | null;
+    setSelectedItem?: (selectedItem: never) => void;
+    setSelectedItems?: (selectedItems: never[]) => void;
     multipleSelection?: boolean;
     isGlobalFilterRequired?: boolean;
 }
@@ -371,18 +368,26 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
     {
         dataTable,
         columnsTable,
-        setSelectedUsers,
-        setSelectedOrgOfGroupsManaged,
-        setSelectedGroupManaged,
-        setSelectedDevice,
-        setSelectedFloor,
-        setSelectedTopic,
-        setSelectedDigitalTwin,
+        selectedItem = null,
+        setSelectedItem,
+        setSelectedItems,
         multipleSelection = true.valueOf,
         isGlobalFilterRequired = true
     }) => {
     const columns = useMemo(() => columnsTable, [columnsTable]);
     const data = useMemo(() => dataTable, [dataTable]);
+    let selectedRowId: ISelectedRow = {};
+    if (!multipleSelection && selectedItem) {
+        let rowId = -1;
+        for (let irow = 0; irow < data.length; irow++) {
+            if (data[irow].id === (selectedItem as any).id) {
+                rowId = irow;
+                break;
+            }
+        }
+        selectedRowId[rowId] = true;
+    }
+    const selectedRowIds = useState(selectedRowId)[0];
 
     const filterTypes = useMemo(
         () => ({
@@ -412,7 +417,6 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
         []
     )
 
-
     const {
         getTableProps,
         getTableBodyProps,
@@ -438,7 +442,8 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
             data,
             initialState: {
                 pageIndex: 0,
-                hiddenColumns: columns.filter((col: any) => (col.accessor === "geoJsonData" || col.Header === "FloorId")).map(col => col.id || col.accessor) as any
+                hiddenColumns: columns.filter((col: any) => (col.accessor === "geoJsonData" || col.Header === "FloorId")).map(col => col.id || col.accessor) as any,
+                selectedRowIds
             },
             defaultColumn, // Be sure to pass the defaultColumn option
             filterTypes,
@@ -499,14 +504,8 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
 
     useEffect(() => {
         const selectedRows = selectedFlatRows.map(d => d.original);
-        if (setSelectedUsers) setSelectedUsers(selectedRows as never[]);
-        else if (setSelectedOrgOfGroupsManaged) setSelectedOrgOfGroupsManaged(selectedRows[0] as never);
-        else if (setSelectedFloor) setSelectedFloor(selectedRows[0] as never);
-        else if (setSelectedGroupManaged) setSelectedGroupManaged(selectedRows[0] as never);
-        else if (setSelectedDevice) setSelectedDevice(selectedRows[0] as never);
-        else if (setSelectedTopic) setSelectedTopic(selectedRows[0] as never);
-        else if (setSelectedDigitalTwin) setSelectedDigitalTwin(selectedRows[0] as never);
-
+        if (setSelectedItem) setSelectedItem(selectedRows[0] as never);
+        else if (setSelectedItems) setSelectedItems(selectedRows as never);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedFlatRows]);
 

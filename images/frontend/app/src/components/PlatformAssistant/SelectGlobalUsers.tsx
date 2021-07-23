@@ -127,7 +127,7 @@ const SelectGlobalUsers: FC<SelectGlobalUsersProps> = ({ backToCreate, setSelect
                     <TableWithPaginationAndRowSelection
                         dataTable={globalUsersTable}
                         columnsTable={SELECT_GLOBAL_USERS}
-                        setSelectedUsers={(selectedUsers: ISelectGlobalUser[]) => setSelectedUsers(selectedUsers)}
+                        setSelectedItems={(selectedUsers: ISelectGlobalUser[]) => setSelectedUsers(selectedUsers)}
                     />
                 </TableContainer>
                 <ButtonsContainer>

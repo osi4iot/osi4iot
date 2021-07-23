@@ -21,13 +21,15 @@ import {
 } from '../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import DigitalTwins from './DigitalTwins';
-import { IOrgManaged } from './TableColumns/organizationsManagedColumns';
 import GeolocationContainer from './GeolocationContainer';
 import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 import { IDevice } from './TableColumns/devicesColumns';
 import { IDigitalTwin } from './TableColumns/digitalTwinsColumns';
 import { IBuilding } from './TableColumns/buildingsColumns';
 import { IFloor } from './TableColumns/floorsColumns';
+import { filterBuildings } from '../../tools/filterBuildings';
+import { filterFloors } from '../../tools/filterFloors';
+import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -100,17 +102,7 @@ const ContentContainer = styled.div`
 
 `;
 
-const filterBuildings = (buildings: IBuilding[]) => {
-    const condition = (building: IBuilding) => !(building.geoJsonData === null || Object.keys(building.geoJsonData).length === 0);
-    const buildingsFiltered = buildings.filter(condition);
-    return buildingsFiltered;
-}
 
-const filterFloors = (floors: IFloor[]) => {
-    const condition = (floor: IFloor) => !(floor.geoJsonData === null || Object.keys(floor.geoJsonData).length === 0);
-    const floorsFiltered = floors.filter(condition);
-    return floorsFiltered;
-}
 
 const findBounds = (buildings: IBuilding[]) => {
     let outerBounds: number[][] = [[35.55010533588552, -10.56884765625], [44.134913443750726, 1.42822265625]];
@@ -182,7 +174,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
     const [buildingSelected, setBuildingSelected] = useState<IBuilding | null>(null);
     const [floorSelected, setFloorSelected] = useState<IFloor | null>(null);
-    const [orgSelected, setOrgSelected] = useState<IOrgManaged | null>(null);
+    const [orgSelected, setOrgSelected] = useState<IOrgOfGroupsManaged | null>(null);
     const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
     const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
     const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
@@ -239,7 +231,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setFloorSelected(floor);
     }
 
-    const selectOrg = (org: IOrgManaged) => {
+    const selectOrg = (org: IOrgOfGroupsManaged) => {
         setOrgSelected(org);
         setGroupSelected(null);
         setDeviceSelected(null);

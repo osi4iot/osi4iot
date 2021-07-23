@@ -3,7 +3,6 @@ import { Column } from 'react-table';
 import styled from "styled-components";
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
-import { FeatureCollection } from 'geojson';
 import DownloadFileIcon from '../DownloadFileIcon';
 import ExChangeIcon from '../ExchangeIcon';
 import AddUsersIcon from '../AddUsersIcon';
@@ -218,10 +217,9 @@ export interface IGroupManaged {
     folderPermission: string;
     groupUid: string;
     telegramInvitationLink: string;
-    telegramChatId: string;
     isOrgDefaultGroup: boolean;
     floorNumber: number;
-    geoJsonData: FeatureCollection;
+    featureIndex: number;
     outerBounds: number[][];
 }
 
@@ -270,12 +268,6 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableSortBy: true,
         },
         {
-            Header: "ChatId",
-            accessor: "telegramChatId",
-            disableFilters: true,
-            disableSortBy: true,
-        },
-        {
             Header: "Type",
             accessor: "isOrgDefaultGroup",
             disableFilters: true
@@ -284,10 +276,10 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             Header: "Floor Number",
             accessor: "floorNumber",
             disableFilters: true
-        },   
+        },
         {
-            Header: "Geojson Data",
-            accessor: "geoJsonData",
+            Header: "featureIndex",
+            accessor: "featureIndex",
             disableFilters: true
         },
         {

@@ -60,7 +60,6 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
 
     const action = (hideModal: () => void, selectedDate: Date) => {
         const deleteDate = selectedDate.toISOString();
-        console.log("deleteDate=", deleteDate)
 
         const payload = {
             deleteDate,

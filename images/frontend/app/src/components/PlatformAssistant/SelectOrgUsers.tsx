@@ -130,7 +130,7 @@ const SelectOrgUsers: FC<SelectOrgUsersProps> = ({ orgId, backToCreate, setSelec
                     <TableWithPaginationAndRowSelection
                         dataTable={selectOrgUsers}
                         columnsTable={SELECT_ORG_USERS}
-                        setSelectedUsers={(selectedUsers: ISelectOrgUser[]) => setSelectedUsers(selectedUsers)}
+                        setSelectedItems={(selectedUsers: ISelectOrgUser[]) => setSelectedUsers(selectedUsers)}
                     />
                 </TableContainer>
                 <ButtonsContainer>

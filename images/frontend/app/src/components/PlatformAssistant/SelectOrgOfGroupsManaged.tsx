@@ -105,6 +105,7 @@ const Button = styled.button`
 
 interface SelectOrgOfGroupsManagedProps {
     backToMap: () => void;
+    orgSelected: IOrgOfGroupsManaged | null;
     giveOrgOfGroupsManagedSelected: (orgManaged: IOrgOfGroupsManaged) => void;
     buildings: IBuilding[];
     giveBuildingSelected: (buildingSelected: IBuilding) => void;
@@ -124,6 +125,7 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
         floors,
         giveFloorSelected,
         groupsManaged,
+        orgSelected,
         giveGroupManagedSelected,
         digitalTwinsState
     }
@@ -173,7 +175,8 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
                     <TableWithPaginationAndRowSelection
                         dataTable={selectOrgsTable}
                         columnsTable={SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS}
-                        setSelectedOrgOfGroupsManaged={(selectedOrgOfGroupsManaged: ISelectOrgOfGroupsManaged) => setSelectedOrgOfGroupsManaged(selectedOrgOfGroupsManaged)}
+                        selectedItem={orgSelected}
+                        setSelectedItem={(selectedOrgOfGroupsManaged: ISelectOrgOfGroupsManaged) => setSelectedOrgOfGroupsManaged(selectedOrgOfGroupsManaged)}
                         multipleSelection={false}
                     />
                 </TableContainer>

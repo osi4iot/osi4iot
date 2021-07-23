@@ -12,8 +12,10 @@ import {
     setGroupIdToEdit,
     setGroupRowIndexToEdit,
     setGroupsOptionToShow,
+    setGroupInputData,
     useGroupsDispatch
 } from '../../../contexts/groupsOptions';
+import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
 
 export interface IGroup {
     id: number;
@@ -26,7 +28,7 @@ export interface IGroup {
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
     floorNumber: number;
-    geoJsonDataBase: FeatureCollection;
+    featureIndex: number;
     geoJsonData: FeatureCollection;
     outerBounds: number[][];
 }
@@ -95,9 +97,10 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
 interface EditGroupProps {
     rowIndex: number;
     groupId: number;
+    groupInputData: IGroupInputData;
 }
 
-const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId }) => {
+const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId, groupInputData }) => {
     const groupsDispatch = useGroupsDispatch()
 
     const handleClick = () => {
@@ -106,6 +109,9 @@ const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId }) => {
 
         const groupRowIndexToEdit = { groupRowIndexToEdit: rowIndex };
         setGroupRowIndexToEdit(groupsDispatch, groupRowIndexToEdit);
+
+        const groupInputFormData = { groupInputFormData: groupInputData }
+        setGroupInputData(groupsDispatch, groupInputFormData );
 
         const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.EDIT_GROUP };
         setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
@@ -169,8 +175,8 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             disableFilters: true
         },
         {
-            Header: "Geojson Data",
-            accessor: "geoJsonData",
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Feature<br />index</div>,
+            accessor: "featureIndex",
             disableFilters: true
         },
         {
@@ -187,7 +193,15 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
-                return <EditGroup groupId={groupId} rowIndex={rowIndex} />
+                const name = row?.cells[2]?.value;
+                const acronym = row?.cells[3]?.value;
+                const folderPermission = row?.cells[4]?.value;
+                const telegramInvitationLink = row?.cells[6]?.value;
+                const telegramChatId = row?.cells[7]?.value;
+                const floorNumber = row?.cells[9]?.value;
+                const featureIndex = row?.cells[10]?.value;
+                const groupInputData = { name, acronym, folderPermission, telegramInvitationLink, telegramChatId, floorNumber, featureIndex }
+                return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />
             }
         },
         {

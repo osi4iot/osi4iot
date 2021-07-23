@@ -362,8 +362,9 @@ const hiddenColumnCondition = (col: any) => {
     const condition =
         col.accessor === "geoJsonData" ||
         col.accessor === "outerBounds" ||
+        col.accessor === "payloadFormat" ||
         col.Header === "Building_Id" ||
-        col.accessor === "payloadFormat"
+        col.Header === "featureIndex"
     return condition;
 }
 
