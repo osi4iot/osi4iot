@@ -310,7 +310,7 @@ class OrganizationController implements IController {
 					folderPermission: ("Viewer" as FolderPermissionOption),
 					groupAdminDataArray,
 					floorNumber: 0,
-					geoJsonData: "{}"
+					featureIndex: 0
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);

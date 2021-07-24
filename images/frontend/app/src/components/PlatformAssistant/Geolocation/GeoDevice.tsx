@@ -40,8 +40,8 @@ const setDeviceCircleColor = (deviceId: number, deviceSelected: IDevice | null):
     return color;
 }
 
-const deviceSize = 0.00002;
-const radius = 0.00003;
+const deviceSize = 0.000015;
+const radius = 0.000025;
 
 const GeoDevice: FC<GeoDeviceProps> = ({ deviceData, deviceSelected, selectDevice, digitalTwinsState }) => {
     const devicesStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.deviceId === deviceData.id);
@@ -73,7 +73,7 @@ const GeoDevice: FC<GeoDeviceProps> = ({ deviceData, deviceSelected, selectDevic
         <Circle
             center={[deviceData.latitude, deviceData.longitude]}
             pathOptions={{ color: setDeviceCircleColor(deviceData.id, deviceSelected), fillColor: "#555555", fillOpacity: 1 }}
-            radius={2}
+            radius={1.5}
             eventHandlers={{ click: clickHandler }}
         >
             {

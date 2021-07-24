@@ -3,9 +3,13 @@ import { Field, ErrorMessage } from 'formik';
 import styled from "styled-components";
 import TextError from "./TextError";
 
+interface InputStyledProps {
+    textAreaSize: string;
+}
 
-const InputStyled = styled.div`
-    margin: 20px 0;
+
+const InputStyled = styled.div<InputStyledProps>`
+    margin: ${props => props.textAreaSize === "Large"  ? '20px 0' : '20px 0 15px 0'};
 
     display: flex;
     flex-direction: column;
@@ -27,7 +31,7 @@ const InputStyled = styled.div`
         margin-left: 2px;
         color: white;
         width: 100%;
-        height: 290px;
+        height: ${props => props.textAreaSize === "Large"  ? '235px' : '174px'};
         resize: none;
         overflow-y: auto;
         cursor: auto;
@@ -90,11 +94,12 @@ const InputStyled = styled.div`
 interface TextareaProps {
     label: string;
     name: string;
+    textAreaSize: string;
 }
 
-const Textarea: FC<TextareaProps> = ({ label, name, ...rest }) => {
+const Textarea: FC<TextareaProps> = ({ label, name, textAreaSize= "Large", ...rest }) => {
     return (
-        <InputStyled>
+        <InputStyled textAreaSize={textAreaSize}>
             <label htmlFor={name}>{label}</label>
             <Field as='textarea' id={name} name={name} {...rest} />
             <ErrorMessage name={name} component={TextError}/>

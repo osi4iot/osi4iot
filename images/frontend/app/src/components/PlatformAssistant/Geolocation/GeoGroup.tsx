@@ -90,7 +90,11 @@ const GeoGroup: FC<GeoGroupProps> = (
 
     const clickHandler = () => {
         selectGroup(groupData);
-        map.fitBounds(groupData.outerBounds as LatLngTuple[]);
+        let groupOuterBounds = groupData.outerBounds;
+        if (!groupOuterBounds) {
+            groupOuterBounds = floorData.outerBounds;
+        }
+        map.fitBounds(groupOuterBounds as LatLngTuple[]);
     }
 
     return (

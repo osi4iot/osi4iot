@@ -118,7 +118,7 @@ const PlatformAdminOptions: FC<{}> = () => {
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
     const [refreshTokensLoading, setRefreshTokensLoading] = useState(true);
-    const [optionToShow, setOptionToShow] = useState(PLATFORM_ADMIN_OPTIONS.ORGS);
+    const [optionToShow, setOptionToShow] = useState(PLATFORM_ADMIN_OPTIONS.BUILDINGS);
     const [reloadOrgs, setReloadOrgs] = useState(false);
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadFloors] = useState(false);

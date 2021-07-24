@@ -212,7 +212,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const groupId = row?.cells[2]?.value;
+                const groupId = row?.cells[0]?.value;
                 const orgpId = row?.cells[1]?.value;
                 return <DeleteGroupModal orgId={orgpId} groupId={groupId} rowIndex={rowIndex} refreshGroups={refreshGroups} />
             }

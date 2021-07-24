@@ -14,7 +14,7 @@ import IBuiliding from "./building.interface";
 import { getGroupsManagedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId, getOrganizationsWithIdsArray } from "../organization/organizationDAL";
 import IFloor from "./floor.interface";
-import { findBuildingBounds, findFloorOrGroupBounds } from "../../utils/geolocation.ts/geolocation";
+import { findBuildingBounds, findFloorBounds } from "../../utils/geolocation.ts/geolocation";
 
 class BuildingController implements IController {
 	public path = "/building";
@@ -40,7 +40,7 @@ class BuildingController implements IController {
 
 		this.router
 			.post(
-				`${this.path}_floor/`,
+				`${this.path}_floor`,
 				superAdminAuth,
 				validationMiddleware<CreateFloorDto>(CreateFloorDto),
 				this.addFloorToBuilding
@@ -176,6 +176,7 @@ class BuildingController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		try {
+			console.log("Paso por aqui 1");
 			const floorData: CreateFloorDto = req.body;
 			const buildingId = floorData.buildingId;
 			const floorNumber = floorData.floorNumber;
@@ -188,7 +189,7 @@ class BuildingController implements IController {
 				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [buildingId.toString(), floorNumber.toString()]);
 			}
 			if (floorData.geoJsonData) {
-				floorData.outerBounds  = findFloorOrGroupBounds(floorData.geoJsonData);
+				floorData.outerBounds  = findFloorBounds(floorData);
 			}
 			const Floor = await createFloor(floorData);
 			if (!Floor) throw new HttpException(500, "Could not be created a new building floor");
@@ -237,7 +238,7 @@ class BuildingController implements IController {
 			if (existFloor.id !== existUpdatedFloor.id) {
 				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [updatedFloor.buildingId.toString(), updatedFloor.floorNumber.toString()]);
 			}
-			updatedFloor.outerBounds  = findFloorOrGroupBounds(updatedFloor.geoJsonData);
+			updatedFloor.outerBounds  = findFloorBounds(updatedFloor);
 			const response = await updateFloorById(parseInt(floorId, 10), updatedFloor);
 			if (!response) throw new HttpException(500, "The building floor could not be updated");
 			const message = { message: `Building floor updated succesfully.` }

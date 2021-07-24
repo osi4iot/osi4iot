@@ -23,8 +23,8 @@ import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import UpdateGroupDto from "./interfaces/group_update.dto";
 import INotificationChannel from "./interfaces/NotificationChannel";
 import IMembershipInGroups from "./interfaces/MembershipInGroups.interface";
-import { findFloorOrGroupBounds, findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
-import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
+import { findGroupBounds, findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
+import { getBuildingByOrgId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
@@ -32,7 +32,12 @@ export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string
 	return groupName;
 };
 
-export const createGroup = async (orgId: number, groupInput: CreateGroupDto, orgName: string, isOrgDefaultGroup: boolean = false): Promise<IGroup> => {
+export const createGroup = async (
+	orgId: number,
+	groupInput: CreateGroupDto,
+	orgName: string,
+	isOrgDefaultGroup: boolean = false
+): Promise<IGroup> => {
 	let group: IGroup;
 	const groupUid = uuidv4().replace(/-/g, "_");
 	if (!groupInput.telegramInvitationLink) groupInput.telegramInvitationLink = "";
@@ -52,8 +57,14 @@ export const createGroup = async (orgId: number, groupInput: CreateGroupDto, org
 	const floorNumber = groupInput.floorNumber;
 	const featureIndex = groupInput.featureIndex;
 	const floorData = await getFloorByOrgIdAndFloorNumber(orgId, floorNumber);
-	const geoJsonData = findGroupGeojsonData(floorData, featureIndex);
-	const outerBounds = findFloorOrGroupBounds(geoJsonData);
+	let outerBounds: number[][];
+	if (floorData) {
+		const geoJsonData = findGroupGeojsonData(floorData, featureIndex);
+		outerBounds = findGroupBounds(geoJsonData, floorData);
+	} else {
+		const building = await getBuildingByOrgId(orgId);
+		outerBounds = building.outerBounds;
+	}
 
 	const permissionsArray: IFolderPermission[] = [{
 		teamId,
@@ -129,8 +140,8 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 	const groupData: IGroup = { ...existentGroup, ...newGroupData };
 	const featureIndex = groupData.featureIndex;
 	const floorData = await getFloorByOrgIdAndFloorNumber(groupData.orgId, groupData.floorNumber);
-	const geoJsonData =  findGroupGeojsonData(floorData, featureIndex)
-	groupData.outerBounds = findFloorOrGroupBounds(geoJsonData);
+	const geoJsonData = findGroupGeojsonData(floorData, featureIndex)
+	groupData.outerBounds = findGroupBounds(geoJsonData, floorData);
 	await updateGroupById(groupData);
 	let hasGroupChange = false;
 	if (groupData.folderPermission && (groupData.folderPermission !== existentGroup.folderPermission)) {

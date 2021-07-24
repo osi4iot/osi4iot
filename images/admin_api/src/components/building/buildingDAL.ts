@@ -30,6 +30,20 @@ export const getBuildingByProp = async (propName: string, propValue: (string | n
 	return response.rows[0];
 };
 
+export const getBuildingByOrgId = async (orgId: number): Promise<IBuiliding> => {
+	const response = await pool.query(`SELECT grafanadb.building.id, grafanadb.building.name,
+									grafanadb.building.geodata AS "geoJsonData",
+									grafanadb.building.outer_bounds[1:2][1:2] AS "outerBounds",
+									grafanadb.building.geolocation[0] AS longitude,
+									grafanadb.building.geolocation[1] AS latitude,
+									AGE(NOW(), grafanadb.building.created) AS "timeFromCreation",
+									AGE(NOW(), grafanadb.building.updated) AS "timeFromLastUpdate"
+									FROM grafanadb.building
+									INNER JOIN grafanadb.org ON grafanadb.building.id = grafanadb.org.building_id
+									WHERE grafanadb.org.building_id = $1`, [orgId]);
+	return response.rows[0];
+};
+
 export const getFloorByBuildingIdAndFloorNumber = async (buildingId: number, floorNumber: number): Promise<IFloor> => {
 	const response = await pool.query(`SELECT grafanadb.floor.id, grafanadb.floor.building_id AS "buildingId",
 									grafanadb.building.name AS "buildingName",

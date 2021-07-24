@@ -1,12 +1,11 @@
 import { useTable, usePagination, Column } from 'react-table';
-import { FC,  useEffect } from 'react';
+import { FC, useEffect } from 'react';
 import styled from "styled-components";
 import { ITopic } from './TableColumns/topicsColumns';
 import TopicSelection from './TopicSelection';
 import { TimeRangeSelection } from './TimeRangeSelection';
 import DeleteMeasurementsIcon from './DeleteMeasurementsIcon';
-
-
+import Loader from "../Tools/Loader";
 
 const TableStyles = styled.div`
   padding: 1rem;
@@ -168,6 +167,7 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
         pageCount: controlledPageCount,
         showMeasurementSelectionTable,
         measurementTopic,
+        loading,
         selectedTopic,
         selectedTimeRange,
         setSelectedTimeRange,
@@ -209,6 +209,7 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
     useEffect(() => {
         fetchData(pageIndex, pageSize)
     }, [fetchData, pageIndex, pageSize])
+
 
     // Render the UI for your table
     return (
@@ -275,37 +276,43 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                     setEndDate={setEndDate}
                 />
             </TableOptionsContainer>
-            <TableStyles >
-                <table {...getTableProps()}>
-                    <thead>
-                        {headerGroups.map(headerGroup => (
-                            <tr {...headerGroup.getHeaderGroupProps()}>
-                                {headerGroup.headers.map(column => (
-                                    <th {...column.getHeaderProps()}>
-                                        <HeaderContainer>
-                                            <HeaderTtileContainer>
-                                                {column.render('Header')}
-                                            </HeaderTtileContainer>
-                                        </HeaderContainer>
-                                    </th>
+            {
+                loading ?
+                    <Loader />
+                    :
+                    <TableStyles >
+                        <table {...getTableProps()}>
+                            <thead>
+                                {headerGroups.map(headerGroup => (
+                                    <tr {...headerGroup.getHeaderGroupProps()}>
+                                        {headerGroup.headers.map(column => (
+                                            <th {...column.getHeaderProps()}>
+                                                <HeaderContainer>
+                                                    <HeaderTtileContainer>
+                                                        {column.render('Header')}
+                                                    </HeaderTtileContainer>
+                                                </HeaderContainer>
+                                            </th>
+                                        ))}
+                                    </tr>
                                 ))}
-                            </tr>
-                        ))}
-                    </thead>
-                    <tbody {...getTableBodyProps()}>
-                        {page.map((row, i) => {
-                            prepareRow(row)
-                            return (
-                                <tr {...row.getRowProps()}>
-                                    {row.cells.map(cell => {
-                                        return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
-                                    })}
-                                </tr>
-                            )
-                        })}
-                    </tbody>
-                </table>
-            </TableStyles>
+                            </thead>
+                            <tbody {...getTableBodyProps()}>
+                                {page.map((row, i) => {
+                                    prepareRow(row)
+                                    return (
+                                        <tr {...row.getRowProps()}>
+                                            {row.cells.map(cell => {
+                                                return <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
+                                            })}
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+                    </TableStyles>
+            }
+
         </TableContainer>
     )
 }

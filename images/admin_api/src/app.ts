@@ -50,7 +50,8 @@ class App {
 	}
 
 	private initializeMiddlewares(): void {
-		this.app.use(bodyParser.json());
+		this.app.use(bodyParser.json({limit: '100mb'}));
+		this.app.use(bodyParser.urlencoded({limit: '100mb', extended: true}));
 		this.app.set("json spaces", 4);
 		this.app.use(helmet());
 		this.app.use(compression());

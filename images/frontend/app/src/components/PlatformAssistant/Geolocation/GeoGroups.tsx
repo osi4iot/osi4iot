@@ -8,6 +8,7 @@ import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoGroup from "./GeoGroup";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
+import { isGeoJSONObject } from "../../../tools/geojsonValidation";
 
 
 const STATUS_OK = "#3e3f3b";
@@ -70,9 +71,13 @@ const GeoGroups: FC<GeoGroupsProps> = (
         if (orgSelected) selectOrg(orgSelected);
     }
 
+
     return (
         <LayerGroup>
-            <GeoJSON data={floorData.geoJsonData} style={styleGeoFloorJson} eventHandlers={{ click: clickHandler }} />
+            {
+                isGeoJSONObject(floorData.geoJsonData) &&
+                <GeoJSON data={floorData.geoJsonData} style={styleGeoFloorJson} eventHandlers={{ click: clickHandler }} />
+            }
             {
                 groupsInSelectedOrg.map(group =>
                     <GeoGroup

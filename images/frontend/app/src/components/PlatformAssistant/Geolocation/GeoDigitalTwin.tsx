@@ -60,13 +60,13 @@ const setDigitalTwinCircleColor = (digitalTwinId: number, digitalTwinSelected: I
 
 const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({ deviceData, digitalTwinIndex, digitalTwinData, digitalTwinSelected, selectDigitalTwin, digitalTwinsState }) => {
     const geoJsonLayer = useRef(null);
-    const deviceCircleRadius = 0.000015;
+    const deviceCircleRadius = 0.000011;
     const alpha = 2.0 * Math.PI * digitalTwinIndex / 12;
     const positionRadius = deviceCircleRadius * 0.95;
     const longitudeFact = 1.0 / Math.cos(deviceData.latitude * Math.PI / 180.0);
     const centerLongitude = deviceData.longitude + positionRadius * Math.sin(alpha) * longitudeFact;
     const centerLatitude = deviceData.latitude + positionRadius * Math.cos(alpha);
-    const digitalTwinSize = 0.0000015;
+    const digitalTwinSize = 0.00000125;
     const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.digitalTwinId === digitalTwinData.id);
     const state = findOutStatus(digitalTwinsStateFiltered);
 

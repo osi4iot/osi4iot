@@ -63,6 +63,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
                 pageIndex,
                 itemsPerPage
             }
+            setMeasurementsLoading(true);
             axiosInstance(refreshToken, authDispatch)
                 .post(urlMeasurements, paginationData, config)
                 .then((response) => {

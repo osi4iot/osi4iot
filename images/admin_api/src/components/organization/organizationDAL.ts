@@ -10,7 +10,6 @@ import { addMembersToGroup, getDefaultOrgGroup, udpateRoleMemberInGroup } from "
 import CreateGroupMemberDto from "../group/interfaces/groupMember.dto";
 import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import IMessage from "../../GrafanaApi/interfaces/Message";
-import { giveGeolocationPoint } from "../../utils/geolocation.ts/geolocation";
 import IUserInOrg from "../user/interfaces/UserInOrg.interface";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 

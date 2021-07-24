@@ -28,8 +28,8 @@ class UpdateOrganizationDto {
 	@IsNumber()
 	public latitude: number;
 
-	@IsString()
-	public geoJsonData: string;
+	@IsNumber()
+	public buildingId: number;
 
 	@IsNumber()
 	public floorOrgId: number;
