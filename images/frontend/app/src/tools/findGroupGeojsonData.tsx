@@ -27,28 +27,30 @@ export interface IFloorSpaces {
 export const findGroupGeojsonData = (floor: IFloor, featureId: number): FeatureCollection<Geometry, GeoJsonProperties> | {} => {
     if (Object.keys(floor.geoJsonData).length !== 0) {
         const features = floor.geoJsonData.features;
-        let featureCoordinates: number[][][] = [];
-        if (features[featureId].geometry.type === "Polygon") {
-            featureCoordinates = (features[featureId].geometry as Polygon).coordinates;
-        } else if (features[featureId].geometry.type === "MultiPolygon") {
-            featureCoordinates = (features[featureId].geometry as MultiPolygon).coordinates[0];
-        }
-        const polygonFeature: IFeatureCollection = {
-            type: "FeatureCollection",
-            features: [
-                {
-                    type: "Feature",
-                    properties: {
-                        id: featureId
-                    },
-                    geometry: {
-                        type: "Polygon",
-                        coordinates: featureCoordinates
+        if (featureId < features.length) {
+            let featureCoordinates: number[][][] = [];
+            if (features[featureId].geometry.type === "Polygon") {
+                featureCoordinates = (features[featureId].geometry as Polygon).coordinates;
+            } else if (features[featureId].geometry.type === "MultiPolygon") {
+                featureCoordinates = (features[featureId].geometry as MultiPolygon).coordinates[0];
+            }
+            const polygonFeature: IFeatureCollection = {
+                type: "FeatureCollection",
+                features: [
+                    {
+                        type: "Feature",
+                        properties: {
+                            id: featureId
+                        },
+                        geometry: {
+                            type: "Polygon",
+                            coordinates: featureCoordinates
+                        }
                     }
-                }
-            ]
-        }
-        return polygonFeature;
+                ]
+            }
+            return polygonFeature;
+        } else return {};
 
     } else return {};
 }

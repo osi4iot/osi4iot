@@ -23,6 +23,10 @@ const StyledToastContainer = styled(ToastContainer)`
 		background-color: inherit;
 		color: white;
 	}
+
+	.Toastify__toast--warning {
+		background-color: #ff8a23;
+	}
   
 `;
 
@@ -36,7 +40,6 @@ const AppRouter: FC<{}> = () => {
 					<PrivateRoute exact path="/mobile_sensors" component={MobileSensorsPage} />
 
 					<Route exact path="/" component={HomePage} />
-					{/* <Route path="/platform_assistant" component={PlatformAssistanceRoute} />		 */}
 
 					<PrivateRoute exact path="/platform_assistant" component={PlatformAssistantPage} />
 

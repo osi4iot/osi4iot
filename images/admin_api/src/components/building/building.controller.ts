@@ -176,7 +176,6 @@ class BuildingController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			console.log("Paso por aqui 1");
 			const floorData: CreateFloorDto = req.body;
 			const buildingId = floorData.buildingId;
 			const floorNumber = floorData.floorNumber;

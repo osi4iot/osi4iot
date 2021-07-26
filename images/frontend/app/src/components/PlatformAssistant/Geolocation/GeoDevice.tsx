@@ -5,6 +5,7 @@ import { LatLngTuple } from 'leaflet';
 import { IDevice } from '../TableColumns/devicesColumns';
 import { IDigitalTwinState } from "../GeolocationContainer";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
+import calcGeoBounds from "../../../tools/calcGeoBounds";
 
 
 interface DeviceSvgImageProps {
@@ -40,30 +41,24 @@ const setDeviceCircleColor = (deviceId: number, deviceSelected: IDevice | null):
     return color;
 }
 
-const deviceSize = 0.000015;
-const radius = 0.000025;
+
+const deviceRadio = 0.0006;
+const circleRadio = 0.0020;
 
 const GeoDevice: FC<GeoDeviceProps> = ({ deviceData, deviceSelected, selectDevice, digitalTwinsState }) => {
     const devicesStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.deviceId === deviceData.id);
     const status = findOutStatus(devicesStateFiltered);
     const map = useMap();
 
-    const bounds = useMemo(() => [
-        [deviceData.latitude - deviceSize * 0.5, deviceData.longitude - deviceSize * 0.5],
-        [deviceData.latitude + deviceSize * 0.5, deviceData.longitude + deviceSize * 0.5],
-    ], [deviceData]);
-
-
-    const outerBounds = useMemo(() => [
-        [deviceData.latitude - radius * 0.5, deviceData.longitude - radius * 0.5],
-        [deviceData.latitude + radius * 0.5, deviceData.longitude + radius * 0.5],
-    ], [deviceData]);
+    const bounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceRadio), [deviceData]);
+    const outerBounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, circleRadio), [deviceData]);
 
 
     const clickHandler = () => {
         map.fitBounds(outerBounds as LatLngTuple[]);
         selectDevice(deviceData);
     }
+
 
     useEffect(() => {
         if (deviceSelected?.id === deviceData.id) map.fitBounds(outerBounds as LatLngTuple[]);

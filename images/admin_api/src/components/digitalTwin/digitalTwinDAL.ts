@@ -104,6 +104,13 @@ export const getNumDigitalTwins = async (): Promise<number> => {
 	return parseInt(result.rows[0].count, 10);
 }
 
+export const getNumDigitalTwinsByDeviceId = async (deviceId: number): Promise<number> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.digital_twin
+									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
+									WHERE grafanadb.device.id = $1`, [deviceId]);
+	return parseInt(result.rows[0].count, 10);
+}
+
 
 export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigitalTwin[]> => {
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",

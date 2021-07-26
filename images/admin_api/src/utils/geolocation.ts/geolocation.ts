@@ -71,7 +71,8 @@ export const findFloorBounds = (floorData: IFloor | CreateFloorDto): number[][] 
 	let maxLatitude = -90;
 	let minLatitude = 90;
 	let outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
-	const features = (floorData.geoJsonData as any).features;
+	const geoJsonData = JSON.parse(floorData.geoJsonData);
+	const features = geoJsonData.features;
 	if (features && features.length !== 0) {
 		features.forEach((feature: any) => {
 			let coordsArray: number[][];
@@ -88,8 +89,6 @@ export const findFloorBounds = (floorData: IFloor | CreateFloorDto): number[][] 
 			})
 			outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
 		})
-	} else {
-		outerBounds = floorData.outerBounds;
 	}
 	return outerBounds;
 }

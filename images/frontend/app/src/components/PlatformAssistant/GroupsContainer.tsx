@@ -1,5 +1,6 @@
 import React, { FC, useCallback, useEffect, useState } from 'react';
 import Loader from "../Tools/Loader";
+import { toast } from 'react-toastify';
 import TableWithPagination from './TableWithPagination';
 import { GROUPS_OPTIONS, GROUPS_PREVIOUS_OPTIONS } from './platformAssistantOptions';
 import CreateGroup from './CreateGroup';
@@ -191,8 +192,13 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
     }, [groupsDispatch, previousOption]);
 
     const showSelectSpaceOption = useCallback(() => {
-        setGroupsOptionToShow(groupsDispatch, { groupsOptionToShow: GROUPS_OPTIONS.SELECT_SPACE });
-    }, [groupsDispatch])
+        if (buildingsFiltered.length !== 0 && floorsFiltered.length !== 0) {
+            setGroupsOptionToShow(groupsDispatch, { groupsOptionToShow: GROUPS_OPTIONS.SELECT_SPACE });
+        } else {
+            const warningMessage = "To select an space for the group, building and floor geodata must be already entered"
+            toast.warning(warningMessage);
+        }
+    }, [groupsDispatch, buildingsFiltered.length, floorsFiltered.length])
 
     const selectFloor = (floor: IFloor) => {
         setFloorSelected(floor);
@@ -232,19 +238,20 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
             }
             {groupsOptionToShow === GROUPS_OPTIONS.SELECT_SPACE &&
                 <>
-                    {(buildingsLoading || floorsLoading) ?
-                        <Loader />
-                        :
-                        <GroupLocationContainer
-                            buildings={buildingsFiltered}
-                            floors={floorsFiltered}
-                            floorSelected={floorSelected}
-                            selectFloor={selectFloor}
-                            refreshBuildings={refreshBuildings}
-                            refreshFloors={refreshFloors}
-                            backToOption={backToOption}
-                            setGroupLocationData={(floorNumber: number, featureIndex: number) => setGroupLocationData(floorNumber, featureIndex)}
-                        />
+                    {
+                        (buildingsLoading || floorsLoading) ?
+                            <Loader />
+                            :
+                            <GroupLocationContainer
+                                buildings={buildingsFiltered}
+                                floors={floorsFiltered}
+                                floorSelected={floorSelected}
+                                selectFloor={selectFloor}
+                                refreshBuildings={refreshBuildings}
+                                refreshFloors={refreshFloors}
+                                backToOption={backToOption}
+                                setGroupLocationData={(floorNumber: number, featureIndex: number) => setGroupLocationData(floorNumber, featureIndex)}
+                            />
                     }
                 </>
             }

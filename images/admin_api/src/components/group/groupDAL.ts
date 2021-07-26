@@ -25,6 +25,8 @@ import INotificationChannel from "./interfaces/NotificationChannel";
 import IMembershipInGroups from "./interfaces/MembershipInGroups.interface";
 import { findGroupBounds, findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { getBuildingByOrgId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
+import arrayCompare from "../../utils/helpers/arrayCompare";
+import { updateGroupDevicesLocation } from "../device/deviceDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
@@ -140,9 +142,12 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 	const groupData: IGroup = { ...existentGroup, ...newGroupData };
 	const featureIndex = groupData.featureIndex;
 	const floorData = await getFloorByOrgIdAndFloorNumber(groupData.orgId, groupData.floorNumber);
-	const geoJsonData = findGroupGeojsonData(floorData, featureIndex)
-	groupData.outerBounds = findGroupBounds(geoJsonData, floorData);
+	const geoJsonDataString = findGroupGeojsonData(floorData, featureIndex)
+	groupData.outerBounds = findGroupBounds(geoJsonDataString, floorData);
 	await updateGroupById(groupData);
+	if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
+		await updateGroupDevicesLocation(geoJsonDataString, groupData);
+	}
 	let hasGroupChange = false;
 	if (groupData.folderPermission && (groupData.folderPermission !== existentGroup.folderPermission)) {
 		await updateFolderPermissionsForTeam(groupData);

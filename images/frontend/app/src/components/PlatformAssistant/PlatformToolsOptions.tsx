@@ -46,6 +46,10 @@ const PlatformTools: FC<{}> = () => {
 	const handleLinkClick = (path: string) => {
 		const url = `https://${domainName}${path}`;
 		window.open(url, "_blank");
+    };
+    
+    const handleExternalLinkClick = (url: string) => {
+		window.open(url, "_blank");
 	};
 
     return (
@@ -61,6 +65,9 @@ const PlatformTools: FC<{}> = () => {
             </ImageContainer>
             <ImageContainer onClick={() => handleLinkClick("/admin_api/swagger/")}>
                 <ToolImage src="../images/platformTools/swagger.png" alt="Swagger" />
+            </ImageContainer>
+            <ImageContainer onClick={() => handleExternalLinkClick("https://geojson.io/")}>
+                <ToolImage src="../images/platformTools/geojson-io.png" alt="geoson.io" />
             </ImageContainer>
         </PlatformToolsContainer>
     )

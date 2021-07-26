@@ -12,7 +12,7 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
-import { createDigitalTwin, deleteDigitalTwinById, getAllDigitalTwins, getDigitalTwinByProp, getDigitalTwinsByGroupId, getDigitalTwinsByGroupsIdArray, getDigitalTwinsByOrgId, getStateOfAllDigitalTwins, getStateOfDigitalTwinsByGroupsIdArray, updateDigitalTwinById } from "./digitalTwinDAL";
+import { createDigitalTwin, deleteDigitalTwinById, getAllDigitalTwins, getDigitalTwinByProp, getDigitalTwinsByGroupId, getDigitalTwinsByGroupsIdArray, getDigitalTwinsByOrgId, getNumDigitalTwinsByDeviceId, getStateOfAllDigitalTwins, getStateOfDigitalTwinsByGroupsIdArray, updateDigitalTwinById } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import HttpException from "../../exceptions/HttpException";
@@ -212,6 +212,10 @@ class DigitalTwinController implements IController {
 			let message: { message: string };
 			const existDigitalTwin = await getDigitalTwinByProp("name", digitalTwinData.name)
 			if (!existDigitalTwin) {
+				const numDigitalTwinsInDevice = await getNumDigitalTwinsByDeviceId(deviceId);
+				if (numDigitalTwinsInDevice === 12) {
+					throw new HttpException(400, "The maximun number of digital twins by device is 12.");
+				}
 				const digitalTwin = await createDigitalTwin(req.group.orgId, deviceId, digitalTwinData);
 				if (digitalTwin) {
 					message = { message: `A new digital twin has been created` };

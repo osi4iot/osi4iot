@@ -114,6 +114,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         description: "",
         type: "",
         url: "",
+        dashboardUid: ""
     }
 
     const validationSchema = Yup.object().shape({
@@ -123,7 +124,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 190").required('Required'),
         url: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        dashboardUid:  Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
+        dashboardUid: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {

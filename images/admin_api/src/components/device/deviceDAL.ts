@@ -1,4 +1,8 @@
 import { nanoid } from "nanoid";
+import pointOnFeature from '@turf/point-on-feature';
+import rhumbDestination from '@turf/rhumb-destination';
+import { point } from '@turf/helpers';
+import { polygon } from '@turf/helpers';
 import pool from "../../config/dbconfig";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateDeviceDto from "./device.dto";
@@ -57,11 +61,11 @@ export const deleteDeviceByProp = async (propName: string, propValue: (string | 
 	await pool.query(`DELETE FROM grafanadb.device WHERE ${propName} = $1`, [propValue]);
 };
 
-export const createDevice =  async (group: IGroup, deviceInput: CreateDeviceDto): Promise<IDevice> => {
+export const createDevice = async (group: IGroup, deviceInput: CreateDeviceDto): Promise<IDevice> => {
 	const deviceUid = nanoid().replace(/-/g, "x");
 	const orgId = group.orgId;
 	const groupId = group.id;
-	const deviceUpdated: IDevice = {...deviceInput, orgId, groupId, deviceUid};
+	const deviceUpdated: IDevice = { ...deviceInput, orgId, groupId, deviceUid };
 	const device = await insertDevice(deviceUpdated);
 	return device;
 };
@@ -143,6 +147,36 @@ export const getDevicesByOrgId = async (orgId: number): Promise<IDevice[]> => {
 									WHERE grafanadb.device.org_id = $1`, [orgId]);
 	return response.rows;
 };
+
+export const updateGroupDevicesLocation = async (geoJsonDataString: string, group: IGroup): Promise<void> => {
+	const groupDevices = await getDevicesByGroupId(group.id);
+	if (groupDevices.length !== 0) {
+		const geojsonObj = JSON.parse(geoJsonDataString);
+		const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+		const center = pointOnFeature(geoPolygon);
+		const centerLongitude = center.geometry.coordinates[0];
+		const centerLatitude = center.geometry.coordinates[1];
+		const interDeviceDistance = 0.005;
+		const totalLongitude = (groupDevices.length - 1) * interDeviceDistance;
+		const devicesLocationQueries = []
+		const pt = point([centerLongitude, centerLatitude]);
+
+		for (let i = 0; i < groupDevices.length; i++) {
+			let bearing: number;
+			const distance = - totalLongitude * 0.5 + i * interDeviceDistance;
+			if (distance > 0) bearing = -90;
+			else bearing = 90;
+			const positionCoords = rhumbDestination(pt, Math.abs(distance), bearing);
+			const deviceLongitude = positionCoords.geometry.coordinates[0];
+			const deviceLatitude = positionCoords.geometry.coordinates[1];
+			const deviceId = groupDevices[i].id;
+			const query = pool.query(`UPDATE grafanadb.device SET geolocation = $1, updated = NOW() WHERE id = $2;`,
+				[`(${deviceLongitude},${deviceLatitude})`, deviceId]);
+			devicesLocationQueries.push(query);
+		}
+		await Promise.all(devicesLocationQueries)
+	}
+}
 
 
 

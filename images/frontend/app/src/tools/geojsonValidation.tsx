@@ -305,42 +305,42 @@ const isFeatureCollection = (featureCollection: any, trace = false) => {
     return _done(trace, errors)
 }
 
-
-
-
 export const isGeoJSONObject = (geoJSONObject: any, trace = false) => {
-
     let errors: string[] = []
-    if (geoJSONObject === "{}") return _done(trace, errors);
 
-    try {
-        geoJSONObject = JSON.parse(geoJSONObject);
-        if (!isObject(geoJSONObject)) {
-            return _done(trace, ['Must be a JSON Object'])
-        } else {
-            if ('type' in geoJSONObject) {
-                if (geoJSONObject.type === "FeatureCollection") return isFeatureCollection(geoJSONObject, trace)
-                else {
-                    errors.push("Type must be one of: 'FeatureCollection'")
-                }
-            } else {
-                errors.push('Must have a member with the name "type"')
+    if (!isObject(geoJSONObject)) {
+        return _done(trace, ['Must be a JSON Object'])
+    } else {
+        if ('type' in geoJSONObject) {
+            if (geoJSONObject.type === "FeatureCollection") return isFeatureCollection(geoJSONObject, trace)
+            else {
+                errors.push("Type must be one of: 'FeatureCollection'")
             }
-
-            // run custom checks
-            errors = errors.concat(_customDefinitions('GeoJSONObject', geoJSONObject))
-            return _done(trace, errors)
+        } else {
+            errors.push('Must have a member with the name "type"')
         }
+
+        // run custom checks
+        errors = errors.concat(_customDefinitions('GeoJSONObject', geoJSONObject))
+        return _done(trace, errors)
+    }
+}
+
+export const isGeoJSONString = (geoJSONString: string, trace = false) => {
+    let errors: string[] = []
+    if (geoJSONString === "{}") return _done(trace, errors);
+    try {
+        const geoJSONObject = JSON.parse(geoJSONString);
+        return isGeoJSONObject(geoJSONObject, trace);
     } catch (e) {
         return _done(trace, ['Must be a JSON Object'])
     }
-
-
 }
 
-function geojsonValidation( this: Yup.TestContext<Record<string, any>>, value: any)  {
+function geojsonValidation(this: Yup.TestContext<Record<string, any>>, value: any) {
     const { path, createError } = this;
-    const errorsArray = isGeoJSONObject(value, true);
+    const errorsArray = isGeoJSONString(value, true);
+
     let aditionalErrorMessage = ""
     if ((errorsArray as string[]).length !== 0) aditionalErrorMessage += (errorsArray as string[]).join(".");
     return (

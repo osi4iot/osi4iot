@@ -1,4 +1,4 @@
-import { FC } from "react";
+import { FC, useState } from "react";
 import { GeoJSON, LayerGroup, useMap } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
@@ -61,6 +61,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
     }
 ) => {
     const map = useMap();
+    const isValidGeoJsonData = useState(isGeoJSONObject(floorData.geoJsonData))[0];
 
     const styleGeoFloorJson = (geoJsonFeature: any) => {
         return floorStyle();
@@ -71,11 +72,10 @@ const GeoGroups: FC<GeoGroupsProps> = (
         if (orgSelected) selectOrg(orgSelected);
     }
 
-
     return (
         <LayerGroup>
             {
-                isGeoJSONObject(floorData.geoJsonData) &&
+                isValidGeoJsonData &&
                 <GeoJSON data={floorData.geoJsonData} style={styleGeoFloorJson} eventHandlers={{ click: clickHandler }} />
             }
             {

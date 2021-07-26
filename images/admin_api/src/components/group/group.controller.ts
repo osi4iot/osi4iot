@@ -1,4 +1,6 @@
 import { Router, NextFunction, Request, Response } from "express";
+import pointOnFeature from '@turf/point-on-feature';
+import { polygon } from '@turf/helpers';
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
@@ -48,6 +50,8 @@ import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic, demoTopicSensorName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
+import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
+import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -257,19 +261,27 @@ class GroupController implements IController {
 				});
 			}
 			const groupCreated = await createGroup(orgId, groupInput, req.organization.name);
+			const floorData = await getFloorByOrgIdAndFloorNumber(groupCreated.orgId, groupCreated.floorNumber);
+			const geoJsonDataString = findGroupGeojsonData(floorData, groupCreated.featureIndex)
+			const geojsonObj = JSON.parse(geoJsonDataString);
+			const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+			const center = pointOnFeature(geoPolygon);
+			const centerLongitude = center.geometry.coordinates[0];
+			const centerLatitude = center.geometry.coordinates[1];
+			const devicesDistance = 0.00002;
 			const defaultGroupDeviceData = [
 				{
 					name: defaultGroupDeviceName(groupCreated, "Generic"),
 					description: `Default generic device of the group ${groupCreated.name}`,
-					latitude: 0,
-					longitude: 0,
+					latitude: centerLatitude,
+					longitude: (centerLongitude - devicesDistance),
 					type: "Generic"
 				},
 				{
 					name: defaultGroupDeviceName(groupCreated, "Mobile"),
 					description: `Default mobile device of the group ${groupCreated.name}`,
-					latitude: 0,
-					longitude: 0,
+					latitude: centerLatitude,
+					longitude: (centerLongitude + devicesDistance),
 					type: "Mobile"
 				}
 			];

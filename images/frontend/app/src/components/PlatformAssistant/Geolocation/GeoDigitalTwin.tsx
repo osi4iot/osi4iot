@@ -1,11 +1,14 @@
-import { FC, useEffect, useMemo, useRef } from "react";
+import { FC, useMemo } from "react";
 import { SVGOverlay, Circle } from 'react-leaflet';
+import rhumbDestination from '@turf/rhumb-destination';
+import { point } from '@turf/helpers';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { LatLngTuple } from 'leaflet';
 import { IDevice } from '../TableColumns/devicesColumns';
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import { IDigitalTwinState } from "../GeolocationContainer";
+import calcGeoBounds from "../../../tools/calcGeoBounds";
 
 
 interface DigitanTwinSvgImageProps {
@@ -27,18 +30,6 @@ const DigitanTwinSvgImage: FC<DigitanTwinSvgImageProps> = ({ fillColor, bounds }
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
 
-const setDigitalTwinStyle = (isSelected: boolean) => {
-    return {
-        stroke: true,
-        color: isSelected ? SELECTED : NON_SELECTED,
-        weight: isSelected ? 3 : 2,
-        opacity: 1,
-        fill: true,
-        fillColor: "#555555",
-        fillOpacity: 0.2
-    }
-}
-
 
 interface GeoDigitalTwinProps {
     deviceData: IDevice;
@@ -57,41 +48,33 @@ const setDigitalTwinCircleColor = (digitalTwinId: number, digitalTwinSelected: I
     return color;
 }
 
+const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, distance: number, angle: number): number[] => {
+    const pt = point([pointLongitude, pointLatitude]);
+    let bearing: number = angle;
+    if (angle > 180) {
+        bearing = angle - 360;
+    }
+    const position = rhumbDestination(pt, distance, bearing);
+    return [position.geometry.coordinates[0], position.geometry.coordinates[1]];
+}
 
 const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({ deviceData, digitalTwinIndex, digitalTwinData, digitalTwinSelected, selectDigitalTwin, digitalTwinsState }) => {
-    const geoJsonLayer = useRef(null);
-    const deviceCircleRadius = 0.000011;
-    const alpha = 2.0 * Math.PI * digitalTwinIndex / 12;
-    const positionRadius = deviceCircleRadius * 0.95;
-    const longitudeFact = 1.0 / Math.cos(deviceData.latitude * Math.PI / 180.0);
-    const centerLongitude = deviceData.longitude + positionRadius * Math.sin(alpha) * longitudeFact;
-    const centerLatitude = deviceData.latitude + positionRadius * Math.cos(alpha);
-    const digitalTwinSize = 0.00000125;
+    const angle = 360 * digitalTwinIndex / 12;
+    const positionRadius = 0.00115;
+    const [centerLongitude, centerLatitude] = calcGeoPointPosition(deviceData.longitude, deviceData.latitude, positionRadius, angle);
+
+    const digitalTwinRadio = 0.00012;
     const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.digitalTwinId === digitalTwinData.id);
     const state = findOutStatus(digitalTwinsStateFiltered);
 
+    const bounds = useMemo(() => calcGeoBounds(centerLongitude, centerLatitude, digitalTwinRadio), [centerLongitude, centerLatitude]);
 
-    const bounds = useMemo(() => [
-        [centerLatitude - digitalTwinSize, centerLongitude - digitalTwinSize],
-        [centerLatitude + digitalTwinSize, centerLongitude + digitalTwinSize],
-    ], [digitalTwinSize, centerLatitude, centerLongitude]);
 
-    
     const clickHandler = () => {
         selectDigitalTwin(digitalTwinData);
         const url = digitalTwinData.url;
         window.open(url, "_blank");
     }
-
-    useEffect(() => {
-        const currenGeoJsonLayer = geoJsonLayer.current;
-        const isSelected = digitalTwinSelected?.id === digitalTwinData.id;
-        if (currenGeoJsonLayer) {
-            (currenGeoJsonLayer as any)
-                .clearLayers()
-                .setStyle(setDigitalTwinStyle(isSelected));
-        }
-    }, [digitalTwinData, digitalTwinSelected]);
 
     return (
         <Circle
@@ -111,7 +94,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({ deviceData, digitalTwinIndex,
             }
             <Tooltip sticky>
                 <span style={{ fontWeight: 'bold' }}>Digital twin</span><br />
-                Name: {deviceData.name}<br />
+                Name: {digitalTwinData.name}<br />
                 Status: <span style={{ fontWeight: 'bold' }}>{state.charAt(0).toUpperCase() + state.slice(1)}</span>
             </Tooltip>
         </Circle >
