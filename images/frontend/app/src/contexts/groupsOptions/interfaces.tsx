@@ -20,7 +20,6 @@ export interface IGroupInputData {
     groupAdminDataArray?: IGroupAdminData[];
 }
 
-
 export interface IGroupInputFormData {
 	groupInputFormData: IGroupInputData;
 }

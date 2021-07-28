@@ -109,6 +109,13 @@ export const DEVICES_OPTIONS = {
     TABLE: "Table",
     CREATE_DEVICE: "Create device",
     EDIT_DEVICE: "Edit device",
+    SELECT_LOCATION: "Select location"
+}
+
+export const DEVICES_PREVIOUS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_DEVICE: "Create device",
+    EDIT_DEVICE: "Edit device",
 }
 
 export const TOPICS_OPTIONS = {

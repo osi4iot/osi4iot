@@ -1,4 +1,4 @@
-import { FC, useState, SyntheticEvent } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -9,9 +9,12 @@ import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
-import { useDevicesDispatch, useDeviceIdToEdit, useDeviceRowIndexToEdit, setDevicesOptionToShow } from '../../contexts/devicesOptions';
-import { DEVICES_OPTIONS } from './platformAssistantOptions';
+import { useDevicesDispatch, useDeviceIdToEdit, useDeviceRowIndexToEdit, setDevicesOptionToShow, useDeviceInputData } from '../../contexts/devicesOptions';
+import { DEVICES_OPTIONS, DEVICES_PREVIOUS_OPTIONS } from './platformAssistantOptions';
 import { IDevice } from './TableColumns/devicesColumns';
+import { IDeviceInputData } from '../../contexts/devicesOptions/interfaces';
+import { setDeviceBuildingId, setDeviceGroupId, setDeviceInputData, setDevicesPreviousOption } from '../../contexts/devicesOptions/devicesAction';
+import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
 
 
 const FormContainer = styled.div`
@@ -30,6 +33,52 @@ const ControlsContainer = styled.div`
     }
 `;
 
+const DeviceLocationTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const DeviceLocationContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+    margin-bottom: 15px;
+`;
+
+const SelectDeviceLocationButtonContainer = styled.div`
+    display: flex;
+    margin: 10px 0 10px;
+    flex-direction: row;
+    justify-content: center;
+	align-items: center;
+    background-color: #202226;
+    width: 100%;
+`;
+
+const SelectLocationButton = styled.button`
+	background-color: #3274d9;
+	padding: 5px 10px;
+    margin: 5px 10px;
+	color: white;
+	border: 1px solid #2c3235;
+	border-radius: 10px;
+	outline: none;
+	cursor: pointer;
+	box-shadow: 0 5px #173b70;
+    font-size: 14px;
+    width: 60%;
+
+	&:hover {
+		background-color: #2461c0;
+	}
+
+	&:active {
+		background-color: #2461c0;
+		box-shadow: 0 2px #173b70;
+		transform: translateY(4px);
+	}
+`;
+
 const deviceTypeOptions = [
     {
         label: "Generic",
@@ -41,21 +90,44 @@ const deviceTypeOptions = [
     }
 ];
 
+const deviceInitInputFormData = {
+    groupId: 0,
+    name: "",
+    description: "",
+    type: "Generic",
+    longitude: 0,
+    latitude: 0,
+}
 
 const domainName = getDomainName();
 
+
 interface EditDeviceProps {
+    orgsOfGroupManaged: IOrgOfGroupsManaged[];
     devices: IDevice[];
     backToTable: () => void;
+    selectLocationOption: () => void;
     refreshDevices: () => void;
 }
 
-const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices }) => {
+const EditDevice: FC<EditDeviceProps> = ({
+    orgsOfGroupManaged,
+    devices,
+    backToTable,
+    selectLocationOption,
+    refreshDevices
+}) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken } = useAuthState();
     const devicesDispatch = useDevicesDispatch();
     const deviceId = useDeviceIdToEdit();
     const deviceRowIndex = useDeviceRowIndexToEdit();
+    const initialDeviceData = useDeviceInputData();
+
+    useEffect(() => {
+        const devicesPreviousOption = { devicesPreviousOption:  DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE };
+        setDevicesPreviousOption(devicesDispatch, devicesPreviousOption)
+    }, [devicesDispatch])
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = devices[deviceRowIndex].groupId;
@@ -70,8 +142,18 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
             (values as any).latitude = parseFloat((values as any).latitude);
         }
 
+        const deviceEditData = {
+            name: values.name,
+            description: values.description,
+            longitude: values.longitude,
+            latitude: values.latitude
+        }
+
+        const deviceInputFormData = {  deviceInputFormData: deviceInitInputFormData };
+        setDeviceInputData(devicesDispatch, deviceInputFormData);
+
         axios
-            .patch(url, values, config)
+            .patch(url, deviceEditData, config)
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);
@@ -79,6 +161,7 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
                 setIsSubmitting(false);
                 setDevicesOptionToShow(devicesDispatch, devicesOptionToShow);
                 refreshDevices();
+
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
@@ -87,17 +170,9 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
             })
     }
 
-    const initialDeviceData = {
-        name: devices[deviceRowIndex].name,
-        description: devices[deviceRowIndex].description,
-        type: devices[deviceRowIndex].type,
-        longitude: devices[deviceRowIndex].longitude,
-        latitude: devices[deviceRowIndex].latitude,
-    }
-
     const validationSchema = Yup.object().shape({
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        description: Yup.string().max(190,"The maximum number of characters allowed is 190").required('Required'),
+        description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         type: Yup.string().required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
@@ -105,8 +180,23 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
+        const deviceInputFormData = {  deviceInputFormData: deviceInitInputFormData };
+        setDeviceInputData(devicesDispatch, deviceInputFormData);
         backToTable();
     };
+
+    const selectLocation = (deviceInputData: IDeviceInputData) => {
+        const orgId = devices[deviceRowIndex].orgId;
+        const deviceInputFormData = {  deviceInputFormData: deviceInputData };
+        setDeviceInputData(devicesDispatch, deviceInputFormData);
+        const buildingId =  orgsOfGroupManaged.filter(org => org.id === orgId)[0].buildingId;
+        const deviceBuildingId = { deviceBuildingId: buildingId };
+        setDeviceBuildingId(devicesDispatch, deviceBuildingId);
+        const groupId = devices[deviceRowIndex].groupId;
+        const deviceGroupId = { deviceGroupId: groupId };
+        setDeviceGroupId(devicesDispatch, deviceGroupId);
+        selectLocationOption();
+    }
 
     return (
         <>
@@ -135,19 +225,27 @@ const EditDevice: FC<EditDeviceProps> = ({ devices, backToTable, refreshDevices 
                                         name="type"
                                         options={deviceTypeOptions}
                                         type='text'
-                                    />                                   
-                                    <FormikControl
-                                        control='input'
-                                        label='Longitude'
-                                        name='longitude'
-                                        type='text'
                                     />
-                                    <FormikControl
-                                        control='input'
-                                        label='Latitude'
-                                        name='latitude'
-                                        type='text'
-                                    />
+                                    <DeviceLocationTitle>Device location</DeviceLocationTitle>
+                                    <DeviceLocationContainer>
+                                        <FormikControl
+                                            control='input'
+                                            label='Longitude'
+                                            name='longitude'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Latitude'
+                                            name='latitude'
+                                            type='text'
+                                        />
+                                        <SelectDeviceLocationButtonContainer >
+                                            <SelectLocationButton type='button' onClick={() => selectLocation(formik.values)}>
+                                                Select location
+                                            </SelectLocationButton>
+                                        </SelectDeviceLocationButtonContainer>
+                                    </DeviceLocationContainer>
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

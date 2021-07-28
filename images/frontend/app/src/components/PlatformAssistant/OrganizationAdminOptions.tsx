@@ -21,8 +21,16 @@ import {
     setGroupsTable,
     useGlobalUsersTable,
     setGlobalUsersTable,
+    useBuildingsTable,
+    useFloorsTable,
+    setBuildingsTable,
+    setFloorsTable,
 } from '../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
+import { filterBuildings } from '../../tools/filterBuildings';
+import { IBuilding } from './TableColumns/buildingsColumns';
+import { IFloor } from './TableColumns/floorsColumns';
+import { filterFloors } from '../../tools/filterFloors';
 
 
 const OrganizationAdminOptionsContainer = styled.div`
@@ -100,16 +108,24 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
+    const buildingsTable = useBuildingsTable();
+    const floorsTable = useFloorsTable();
     const orgsManagedTable = useOrgsManagedTable();
     const orgUsersTable = useOrgUsersTable();
     const groupsTable = useGroupsTable();
     const globalUsersTable = useGlobalUsersTable();
+    const [buildingsLoading, setBuildingsLoading] = useState(true);
+    const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
     const [orgUsersLoading, setOrgUsersLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(ORG_ADMIN_OPTIONS.ORGS_MANAGED);
-
+    const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
+    const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
+    
+    const [reloadBuildings, setReloadBuildings] = useState(false);
+    const [reloadFloors, setReloadloors] = useState(false);
     const [reloadOrgsManaged, setReloadOrgsManaged] = useState(false);
     const [reloadOrgUsers, setReloadOrgUsers] = useState(false);
     const [reloadGroups, setReloadGroups] = useState(false);
@@ -133,6 +149,89 @@ const OrganizationAdminOptions: FC<{}> = () => {
         setGroupsLoading(true);
         setTimeout(() => setReloadGroups(false), 500);
     }, [])
+
+    const refreshBuildings = useCallback(() => {
+        setReloadBuildings(true);
+        setBuildingsLoading(true);
+        setTimeout(() => setReloadBuildings(false), 500);
+    }, []);
+
+    const refreshFloors = useCallback(() => {
+        setReloadloors(true);
+        setFloorsLoading(true);
+        setTimeout(() => setReloadloors(false), 500);
+    }, []);
+
+    useEffect(() => {
+        if (buildingsTable.length === 0 || reloadBuildings) {
+            const urlBuildings = `https://${domainName}/admin_api/buildings/user_groups_managed/`;
+            const config = axiosAuth(accessToken);
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlBuildings, config)
+                .then((response) => {
+                    const buildings = response.data;
+                    setBuildingsTable(plaformAssistantDispatch, { buildings });
+                    setBuildingsLoading(false);
+                    const buildingsFiltered = filterBuildings(buildings);
+                    setBuildingsFiltered(buildingsFiltered);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setBuildingsLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadBuildings,
+        buildingsTable.length
+    ]);
+
+    useEffect(() => {
+        if (floorsTable.length === 0 || reloadFloors) {
+            const urlFloors = `https://${domainName}/admin_api/building_floors/user_groups_managed/`;
+            const config = axiosAuth(accessToken);
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlFloors, config)
+                .then((response) => {
+                    const floors = response.data;
+                    setFloorsTable(plaformAssistantDispatch, { floors });
+                    setFloorsLoading(false);
+                    const floorsFiltered = filterFloors(floors);
+                    setFloorsFiltered(floorsFiltered);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setFloorsLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadFloors,
+        floorsTable.length
+    ]);
+
+    useEffect(() => {
+        if (buildingsTable.length !== 0) {
+            const buildingsFiltered = filterBuildings(buildingsTable);
+            setBuildingsFiltered(buildingsFiltered);
+        }
+    }, [buildingsTable]);
+
+    useEffect(() => {
+        if (floorsTable.length !== 0) {
+            const floorsFiltered = filterFloors(floorsTable);
+            setFloorsFiltered(floorsFiltered);
+        }
+    }, [floorsTable]);
+
 
     useEffect(() => {
         if (orgsManagedTable.length === 0 || reloadOrgsManaged) {
@@ -244,7 +343,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
-                {(orgsManagedLoading || groupsLoading || orgUsersLoading || globalUsersLoading ) ?
+                {(buildingsLoading || floorsLoading || orgsManagedLoading || groupsLoading || orgUsersLoading || globalUsersLoading) ?
                     <Loader />
                     :
                     <>
@@ -261,8 +360,12 @@ const OrganizationAdminOptions: FC<{}> = () => {
                         {optionToShow === ORG_ADMIN_OPTIONS.GROUPS &&
                             <GroupsProvider>
                                 <GroupsContainer
+                                    buildingsFiltered={buildingsFiltered}
+                                    floorsFiltered={floorsFiltered}
                                     groups={groupsTable}
                                     refreshGroups={refreshGroups}
+                                    refreshBuildings={refreshBuildings}
+                                    refreshFloors={refreshFloors}
                                 />
                             </GroupsProvider>
                         }

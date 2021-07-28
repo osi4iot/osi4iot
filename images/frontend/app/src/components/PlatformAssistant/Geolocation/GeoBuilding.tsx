@@ -18,9 +18,10 @@ const setBuildingStyle = () => {
 interface GeoBuildingProps {
     outerBounds: number[][];
     buildingData: IBuilding;
+    isNecessaryToFitBounds?: boolean
 }
 
-const GeoBuilding: FC<GeoBuildingProps> = ({ outerBounds, buildingData }) => {
+const GeoBuilding: FC<GeoBuildingProps> = ({ outerBounds, buildingData, isNecessaryToFitBounds= true }) => {
     const styleGeoJson = (geoJsonFeature: any) => {
         return setBuildingStyle();
     }
@@ -28,8 +29,10 @@ const GeoBuilding: FC<GeoBuildingProps> = ({ outerBounds, buildingData }) => {
     const map = useMap();
 
     useEffect(() => {
-        map.fitBounds(outerBounds as LatLngTuple[]);
-    }, [map, outerBounds])
+        if (isNecessaryToFitBounds) {
+            map.fitBounds(outerBounds as LatLngTuple[]);
+        }
+    }, [map, outerBounds, isNecessaryToFitBounds])
 
     return (
         <GeoJSON data={buildingData.geoJsonData} style={styleGeoJson} />

@@ -1,13 +1,24 @@
 import { DevicesContextProps, DevicesAction } from "./interfaces";
 import {
-    DEVICES_OPTIONS
+    DEVICES_OPTIONS, DEVICES_PREVIOUS_OPTIONS
 } from "../../components/PlatformAssistant/platformAssistantOptions";
 
 
 export const initialState = {
     devicesOptionToShow: DEVICES_OPTIONS.TABLE,
+    devicesPreviousOption: DEVICES_PREVIOUS_OPTIONS.TABLE,
     deviceIdToEdit: 0,
-    deviceRowIndexToEdit: 0
+    deviceRowIndexToEdit: 0,
+    deviceBuildingId: 0,
+    deviceGroupId: 0,
+    deviceInputFormData: {
+        groupId: 0,
+        name: "",
+        description: "",
+        type: "Generic",
+        longitude: 0,
+        latitude: 0,
+    }
 };
 
 export const DevicesReducer = (initialState: DevicesContextProps, action: DevicesAction) => {
@@ -18,17 +29,42 @@ export const DevicesReducer = (initialState: DevicesContextProps, action: Device
                 devicesOptionToShow: action.payload.devicesOptionToShow
             };
 
+        case "DEVICES_PREVIOUS_OPTION":
+            return {
+                ...initialState,
+                devicesPreviousOption: action.payload.devicesPreviousOption
+            };
+
         case "DEVICE_ID_TO_EDIT":
             return {
                 ...initialState,
                 deviceIdToEdit: action.payload.deviceIdToEdit
             };
-        
+
+        case "DEVICE_BUILDING_ID":
+            return {
+                ...initialState,
+                deviceBuildingId: action.payload.deviceBuildingId
+            };
+
+        case "DEVICE_GROUP_ID":
+            return {
+                ...initialState,
+                deviceGroupId: action.payload.deviceGroupId
+            };
+
         case "DEVICE_ROW_INDEX_TO_EDIT":
             return {
                 ...initialState,
                 deviceRowIndexToEdit: action.payload.deviceRowIndexToEdit
             };
+
+        case "DEVICE_INPUT_DATA":
+            return {
+                ...initialState,
+                deviceInputFormData: action.payload.deviceInputFormData
+            };
+        
         default:
             throw new Error(`Unhandled action type: ${action.type}`);
     }

@@ -21,7 +21,13 @@ import {
     useTopicsTable,
     useDigitalTwinsTable,
     setTopicsTable,
-    setDigitalTwinsTable
+    setDigitalTwinsTable,
+    useBuildingsTable,
+    useFloorsTable,
+    setBuildingsTable,
+    setFloorsTable,
+    useOrgsOfGroupsManagedTable,
+    setOrgsOfGroupsManagedTable
 } from '../../contexts/platformAssistantContext';
 import { GroupsManagedProvider } from '../../contexts/groupsManagedOptions';
 import GroupsManagedContainer from './GroupsManagedContainer';
@@ -31,6 +37,10 @@ import { DigitalTwinsProvider } from '../../contexts/digitalTwinsOptions';
 import DigitalTwinsContainer from './DigitalTwinsContainer';
 import { MeasurementsProvider } from '../../contexts/measurementsOptions';
 import MeasurementsContainer from './MeasurementsContainer';
+import { filterBuildings } from '../../tools/filterBuildings';
+import { IBuilding } from './TableColumns/buildingsColumns';
+import { IFloor } from './TableColumns/floorsColumns';
+import { filterFloors } from '../../tools/filterFloors';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -108,23 +118,34 @@ const GroupAdminOptions: FC<{}> = () => {
     const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [optionToShow, setOptionToShow] = useState(GROUP_ADMIN_OPTIONS.GROUPS_MANAGED);
+    const buildingsTable = useBuildingsTable();
+    const floorsTable = useFloorsTable();
+    const orgsOfGroupManagedTable = useOrgsOfGroupsManagedTable();
     const groupsManagedTable = useGroupsManagedTable();
     const devicesTable = useDevicesTable();
     const groupMembersTable = useGroupMembersTable();
     const selectOrgUsersTable = useSelectOrgUsersTable();
     const topicsTable = useTopicsTable();
     const digitalTwinsTable = useDigitalTwinsTable();
+    const [buildingsLoading, setBuildingsLoading] = useState(true);
+    const [floorsLoading, setFloorsLoading] = useState(true);
+    const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
     const [devicesLoading, setDevicesLoading] = useState(true);
     const [topicsLoading, setTopicsLoading] = useState(true);
     const [digitalTwinsLoading, setDigitalTwinsLoading] = useState(true);
     const [groupMembersLoading, setGroupMembersLoading] = useState(true);
     const [selectOrgUsersLoading, setSelectOrgUsersLoading] = useState(true);
+
+    const [reloadBuildings, setReloadBuildings] = useState(false);
+    const [reloadFloors, setReloadloors] = useState(false);
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
     const [reloadGroupMembers, setReloadGroupMembers] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
     const [reloadTopics, setReloadTopics] = useState(false);
     const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
+    const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
+    const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
 
 
     const refreshGroupsManaged = useCallback(() => {
@@ -159,6 +180,107 @@ const GroupAdminOptions: FC<{}> = () => {
         setTimeout(() => setReloadDigitalTwins(false), 500);
     }, [])
 
+    const refreshBuildings = useCallback(() => {
+        setReloadBuildings(true);
+        setBuildingsLoading(true);
+        setTimeout(() => setReloadBuildings(false), 500);
+    }, []);
+
+    const refreshFloors = useCallback(() => {
+        setReloadloors(true);
+        setFloorsLoading(true);
+        setTimeout(() => setReloadloors(false), 500);
+    }, []);
+
+    useEffect(() => {
+        if (buildingsTable.length === 0 || reloadBuildings) {
+            const urlBuildings = `https://${domainName}/admin_api/buildings/user_groups_managed/`;
+            const config = axiosAuth(accessToken);
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlBuildings, config)
+                .then((response) => {
+                    const buildings = response.data;
+                    setBuildingsTable(plaformAssistantDispatch, { buildings });
+                    setBuildingsLoading(false);
+                    const buildingsFiltered = filterBuildings(buildings);
+                    setBuildingsFiltered(buildingsFiltered);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setBuildingsLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadBuildings,
+        buildingsTable.length
+    ]);
+
+    useEffect(() => {
+        if (floorsTable.length === 0 || reloadFloors) {
+            const urlFloors = `https://${domainName}/admin_api/building_floors/user_groups_managed/`;
+            const config = axiosAuth(accessToken);
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlFloors, config)
+                .then((response) => {
+                    const floors = response.data;
+                    setFloorsTable(plaformAssistantDispatch, { floors });
+                    setFloorsLoading(false);
+                    const floorsFiltered = filterFloors(floors);
+                    setFloorsFiltered(floorsFiltered);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setFloorsLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadFloors,
+        floorsTable.length
+    ]);
+
+    useEffect(() => {
+        if (buildingsTable.length !== 0) {
+            const buildingsFiltered = filterBuildings(buildingsTable);
+            setBuildingsFiltered(buildingsFiltered);
+        }
+    }, [buildingsTable]);
+
+    useEffect(() => {
+        if (floorsTable.length !== 0) {
+            const floorsFiltered = filterFloors(floorsTable);
+            setFloorsFiltered(floorsFiltered);
+        }
+    }, [floorsTable]);
+
+
+    useEffect(() => {
+        if (orgsOfGroupManagedTable.length === 0) {
+            const config = axiosAuth(accessToken);
+            const urlOrgsOfGroupsManaged = `https://${domainName}/admin_api/organization/user_groups_managed`;
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlOrgsOfGroupsManaged, config)
+                .then((response) => {
+                    const orgsOfGroupsManaged = response.data;
+                    setOrgsOfGroupsManagedTable(plaformAssistantDispatch, { orgsOfGroupsManaged });
+                    setOrgsOfGroupsManagedLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setOrgsOfGroupsManagedLoading(false);
+        }
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, orgsOfGroupManagedTable.length]);
 
     useEffect(() => {
         if (groupsManagedTable.length === 0 || reloadGroupsManaged) {
@@ -312,45 +434,65 @@ const GroupAdminOptions: FC<{}> = () => {
                 </OptionContainer>
             </GroupAdminOptionsContainer>
             <ContentContainer >
-                {(groupsManagedLoading || devicesLoading || groupMembersLoading || selectOrgUsersLoading || topicsLoading || digitalTwinsLoading) ?
-                    <Loader />
-                    :
-                    <>
-                        {optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED &&
-                            <GroupsManagedProvider>
-                                <GroupsManagedContainer
+                {
+                    (buildingsLoading ||
+                        floorsLoading ||
+                        orgsOfGroupsManagedLoading ||
+                        groupsManagedLoading ||
+                        devicesLoading ||
+                        groupMembersLoading ||
+                        selectOrgUsersLoading ||
+                        topicsLoading ||
+                        digitalTwinsLoading
+                    ) ?
+                        <Loader />
+                        :
+                        <>
+                            {optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED &&
+                                <GroupsManagedProvider>
+                                    <GroupsManagedContainer
+                                        groupsManaged={groupsManagedTable}
+                                        refreshGroupsManaged={refreshGroupsManaged}
+                                        refreshGroupMembers={refreshGroupMembers}
+                                    />
+                                </GroupsManagedProvider>
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS &&
+                                <GroupMembersProvider>
+                                    <GroupMembersContainer groupMembers={groupMembersTable} refreshGroupMembers={refreshGroupMembers} />
+                                </GroupMembersProvider>
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.DEVICES &&
+                                <DevicesProvider>
+                                    <DevicesContainer
+                                    orgsOfGroupManaged={orgsOfGroupManagedTable}
                                     groupsManaged={groupsManagedTable}
-                                    refreshGroupsManaged={refreshGroupsManaged}
-                                    refreshGroupMembers={refreshGroupMembers}
-                                />
-                            </GroupsManagedProvider>
-                        }
-                        {optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS &&
-                            <GroupMembersProvider>
-                                <GroupMembersContainer groupMembers={groupMembersTable} refreshGroupMembers={refreshGroupMembers} />
-                            </GroupMembersProvider>
-                        }
-                        {optionToShow === GROUP_ADMIN_OPTIONS.DEVICES &&
-                            <DevicesProvider>
-                                <DevicesContainer devices={devicesTable} refreshDevices={refreshDevices} />
-                            </DevicesProvider>
-                        }
-                        {optionToShow === GROUP_ADMIN_OPTIONS.TOPICS &&
-                            <TopicsProvider>
-                                <TopicsContainer topics={topicsTable} refreshTopics={refreshTopics} />
-                            </TopicsProvider>
-                        }
-                        {optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS &&
-                            <MeasurementsProvider>
-                                <MeasurementsContainer topics={topicsTable} devices={devicesTable} />
-                            </MeasurementsProvider>
-                        }
-                        {optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS &&
-                            <DigitalTwinsProvider>
-                                <DigitalTwinsContainer digitalTwins={digitalTwinsTable} refreshDigitalTwins={refreshDigitalTwins} />
-                            </DigitalTwinsProvider>
-                        }
-                    </>
+                                        buildingsFiltered={buildingsFiltered}
+                                        floorsFiltered={floorsFiltered}
+                                        devices={devicesTable}
+                                        refreshDevices={refreshDevices}
+                                        refreshGroups={refreshGroupsManaged}
+                                        refreshBuildings={refreshBuildings}
+                                        refreshFloors={refreshFloors}
+                                    />
+                                </DevicesProvider>
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.TOPICS &&
+                                <TopicsProvider>
+                                    <TopicsContainer topics={topicsTable} refreshTopics={refreshTopics} />
+                                </TopicsProvider>
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS &&
+                                <MeasurementsProvider>
+                                    <MeasurementsContainer topics={topicsTable} devices={devicesTable} />
+                                </MeasurementsProvider>
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS &&
+                                <DigitalTwinsProvider>
+                                    <DigitalTwinsContainer digitalTwins={digitalTwinsTable} refreshDigitalTwins={refreshDigitalTwins} />
+                                </DigitalTwinsProvider>
+                            }
+                        </>
                 }
             </ContentContainer>
         </>
