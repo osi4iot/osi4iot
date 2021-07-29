@@ -103,7 +103,7 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
         }
     }, [groupsDispatch, buildingsFiltered.length, floorsFiltered.length])
 
-    const selectFloor = (floor: IFloor) => {
+    const selectFloor = (floor: IFloor | null) => {
         setFloorSelected(floor);
     }
 

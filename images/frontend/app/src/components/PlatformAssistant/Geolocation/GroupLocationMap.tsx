@@ -1,4 +1,4 @@
-import { FC, useMemo, useCallback, useState, useEffect } from 'react'
+import { FC, useMemo, useCallback, useEffect } from 'react'
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, GeoJSON, useMap, useMapEvents } from 'react-leaflet';
@@ -146,6 +146,7 @@ interface ControlProps {
     refreshAll: () => void;
     backToOption: () => void;
     floorSelected: IFloor | null;
+    giveFloorSelected: (floorSelected: IFloor | null) => void;
     spaceSelected: IFeatureCollection | null;
     setGroupLocationData: (floorNumber: number, featureIndex: number) => void;
 }
@@ -156,6 +157,7 @@ const Controls: FC<ControlProps> = ({
     refreshAll,
     backToOption,
     floorSelected,
+    giveFloorSelected,
     spaceSelected,
     setGroupLocationData
 }) => {
@@ -178,6 +180,7 @@ const Controls: FC<ControlProps> = ({
     }
 
     const clickExitHandler = () => {
+        giveFloorSelected(null);
         backToOption();
     }
 
@@ -344,7 +347,7 @@ interface GroupLocationMapProps {
     building: IBuilding;
     floors: IFloor[];
     floorSelected: IFloor | null;
-    giveFloorSelected: (floorSelected: IFloor) => void;
+    giveFloorSelected: (floorSelected: IFloor | null) => void;
     spaceSelected: IFeatureCollection | null;
     giveSpaceSelected: (spaceSelected: IFeatureCollection) => void;
     refreshBuildings: () => void;
@@ -379,14 +382,16 @@ const GroupLocationMap: FC<GroupLocationMapProps> = (
     }, [floors, floorSelected]);
     const editGroupInputData = useGroupInputData();
     const previousOption = useGroupsPreviousOption();
-    
+
     useEffect(() => {
         if (previousOption === GROUPS_PREVIOUS_OPTIONS.EDIT_GROUP) {
-            const floorNumber = editGroupInputData.floorNumber;
-            const featureIndex = editGroupInputData.featureIndex;
-            const filteredFloor = floors.filter(floor => floor.floorNumber === floorNumber)[0];
-            giveFloorSelected(filteredFloor);
+            if (!floorSelected) {
+                const floorNumber = editGroupInputData.floorNumber;
+                const filteredFloor = floors.filter(floor => floor.floorNumber === floorNumber)[0];
+                giveFloorSelected(filteredFloor);
+            }
             if (floorSpaces) {
+                const featureIndex = editGroupInputData.featureIndex;
                 const floorSpacesFiltered = floorSpaces.filter(space => space.features[0].properties.index === featureIndex)[0];
                 giveSpaceSelected(floorSpacesFiltered);
             }
@@ -395,15 +400,8 @@ const GroupLocationMap: FC<GroupLocationMapProps> = (
                 giveFloorSelected(floors[0]);
             }
         }
-    
-    }, [previousOption, editGroupInputData, floors, giveFloorSelected, floorSpaces, giveSpaceSelected ])
 
-
-    const floorOutlineData = useState< IFeatureCollection| null>(floorOutline)[0];
-
-    const styleGeoFloorJson = (geoJsonFeature: any) => {
-        return floorStyle();
-    }
+    }, [previousOption, editGroupInputData, floors, floorSelected, giveFloorSelected, floorSpaces, giveSpaceSelected])
 
     const refreshAll = useCallback(() => {
         refreshBuildings();
@@ -417,9 +415,10 @@ const GroupLocationMap: FC<GroupLocationMapProps> = (
         <MapContainerStyled maxZoom={30} scrollWheelZoom={true} zoomControl={false} doubleClickZoom={false} >
             <MapEvents setNewOuterBounds={setNewOuterBounds} />
             <GeoBuilding outerBounds={outerBounds} buildingData={building} />
-            {floorOutlineData &&
-                <GeoJSON data={floorOutlineData} style={styleGeoFloorJson} />
+            {floorOutline &&
+                <GeoJSON data={floorOutline} style={(geoJsonFeature: any) => floorStyle()} />
             }
+
             {
                 floorSpaces &&
                 floorSpaces.map(floorSpace =>
@@ -438,6 +437,7 @@ const GroupLocationMap: FC<GroupLocationMapProps> = (
                     refreshAll={refreshAll}
                     backToOption={backToOption}
                     floorSelected={floorSelected}
+                    giveFloorSelected={giveFloorSelected}
                     spaceSelected={spaceSelected}
                     setGroupLocationData={setGroupLocationData}
                 />

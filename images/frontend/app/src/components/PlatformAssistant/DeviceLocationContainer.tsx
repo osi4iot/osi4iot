@@ -16,6 +16,7 @@ interface DeviceLocationContainerProps {
     refreshBuildings: () => void;
     refreshFloors: () => void;
     refreshGroups: () => void;
+    refreshDevices: () => void;
     backToOption: () => void;
     setDeviceLocationData: (deviceLong: number, deviceLat: number) => void;
 }
@@ -29,6 +30,7 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
         refreshBuildings,
         refreshFloors,
         refreshGroups,
+        refreshDevices,
         backToOption,
         setDeviceLocationData
     }) => {
@@ -56,6 +58,7 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
             refreshBuildings={refreshBuildings}
             refreshFloors={refreshFloors}
             refreshGroups={refreshGroups}
+            refreshDevices={refreshDevices}
             setNewOuterBounds={setNewOuterBounds}
             backToOption={backToOption}
             setDeviceLocationData={setDeviceLocationData}

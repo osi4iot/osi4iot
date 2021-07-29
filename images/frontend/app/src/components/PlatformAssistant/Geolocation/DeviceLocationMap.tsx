@@ -1,5 +1,7 @@
 import { FC, useMemo, useCallback, useState, useEffect, useRef } from 'react'
 import L, { LeafletMouseEvent, LatLngExpression } from 'leaflet';
+import centerOfMass from '@turf/center-of-mass';
+import { polygon } from '@turf/helpers';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, GeoJSON, useMap, Circle, LayerGroup, useMapEvents, SVGOverlay } from 'react-leaflet';
 import styled from "styled-components";
@@ -9,6 +11,7 @@ import { FaRedo, FaRegTimesCircle, FaRegCheckCircle } from "react-icons/fa";
 import { LatLngTuple } from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
+import { StyledTooltip as Tooltip } from './Tooltip';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoBuilding from './GeoBuilding';
@@ -19,14 +22,7 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { DeviceSvgImage } from './GeoDevice';
 import calcGeoBounds from '../../../tools/calcGeoBounds';
 import { DEVICES_PREVIOUS_OPTIONS } from '../platformAssistantOptions';
-import { calcLeftmostGeoCoordinates } from '../../../tools/calcLeftmostGeoCoordinates';
 
-
-declare module "react" {
-    function forwardRef<T, P = {}>(
-        render: (props: P, ref: React.Ref<T>) => React.ReactElement | null
-    ): (props: P & React.RefAttributes<T>) => React.ReactElement | null;
-}
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -258,11 +254,12 @@ const DEVICE_COLOR = "#e0e0dc";
 const deviceRadio = 0.0006;
 
 interface NonDraggableDeviceCircleProps {
+    deviceName: string;
     devicePosition: LatLngExpression;
 }
 
 
-const NonDraggableDeviceCircle: FC<NonDraggableDeviceCircleProps> = ({ devicePosition }) => {
+const NonDraggableDeviceCircle: FC<NonDraggableDeviceCircleProps> = ({ devicePosition, deviceName }) => {
     const bounds = useState(calcGeoBounds((devicePosition as number[])[1], (devicePosition as number[])[0], deviceRadio))[0];
     return (
         <>
@@ -270,13 +267,19 @@ const NonDraggableDeviceCircle: FC<NonDraggableDeviceCircleProps> = ({ devicePos
                 center={devicePosition}
                 pathOptions={{ color: NORMAL, fillColor: "#555555", fillOpacity: 0.5 }}
                 radius={1.5}
-            />
+            >
+                <Tooltip sticky>
+                    <span style={{ fontWeight: 'bold' }}>Device</span><br />
+                    Name: {deviceName}<br />
+                </Tooltip>
+            </Circle>
             <DeviceSvgImage fillColor={DEVICE_COLOR} bounds={bounds as LatLngTuple[]} />
         </>
     )
 };
 
 interface DraggableDeviceCircleProps {
+    deviceName: string;
     devicePosition: LatLngExpression;
     setDevicePosition: (devicePosition: LatLngExpression) => void;
     deviceDragging: boolean;
@@ -285,6 +288,7 @@ interface DraggableDeviceCircleProps {
 
 
 const DraggableDeviceCircle: FC<DraggableDeviceCircleProps> = ({
+    deviceName,
     devicePosition,
     setDevicePosition,
     deviceDragging,
@@ -333,14 +337,20 @@ const DraggableDeviceCircle: FC<DraggableDeviceCircleProps> = ({
                         pathOptions={{ color: SELECTED, fillColor: "#555555", fillOpacity: 0.5 }}
                         radius={1.5}
                         eventHandlers={evenstHandlerCircle}
-                    />
+                    >
+                    </CircleStyledDragging>
                     :
                     <CircleStyledNoDragging
                         center={devicePosition}
                         pathOptions={{ color: SELECTED, fillColor: "#555555", fillOpacity: 0.5 }}
                         radius={1.5}
                         eventHandlers={evenstHandlerCircle}
-                    />
+                    >
+                        <Tooltip sticky>
+                            <span style={{ fontWeight: 'bold' }}>Device</span><br />
+                            Name: {deviceName}<br />
+                        </Tooltip>
+                    </CircleStyledNoDragging>
             }
             <SVGOverlay ref={imageRef as any} attributes={{ viewBox: "0 0 512 512", fill: DEVICE_COLOR }} bounds={bounds as LatLngTuple[]}>
                 <path d="M311.4 32.82C279.9 53.58 259 89.29 259 129.8c0 39.9 20.3 75.2 51.1 96.1l8.1-16.2c-25-17.8-41.2-46.9-41.2-79.9 0-33.59 16.8-63.17 42.5-80.82l-8.1-16.16zm127.2 0l-8.1 16.16C456.2 66.63 473 96.21 473 129.8c0 33-16.2 62.1-41.2 79.9l8.1 16.2c30.8-20.9 51.1-56.2 51.1-96.1 0-40.51-20.9-76.22-52.4-96.98zm-110 34.35C309.4 81.41 297 104.2 297 129.8c0 25 11.9 47.3 30.3 61.6l8.2-16.4c-12.6-11-20.5-27.1-20.5-45.2 0-18.7 8.5-35.3 21.8-46.29l-8.2-16.34zm92.8 0l-8.2 16.34C426.5 94.5 435 111.1 435 129.8c0 18.1-7.9 34.2-20.5 45.2l8.2 16.4c18.4-14.3 30.3-36.6 30.3-61.6 0-25.6-12.4-48.39-31.6-62.63zm-75.3 35.03c-6.9 7.2-11.2 16.9-11.2 27.6 0 10.1 3.8 19.3 10 26.4l9.4-18.7c-.9-2.4-1.4-5-1.4-7.7 0-3.5.8-6.7 2.2-9.6l-9-18zm57.8 0l-9 18c1.4 2.9 2.2 6.1 2.2 9.6 0 2.7-.5 5.3-1.4 7.7l9.4 18.7c6.2-7.1 10-16.3 10-26.4 0-10.7-4.3-20.4-11.2-27.6zM366 144v183h18V144h-18zM25 345v110h462V345H25zm55 39a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm48 0a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm48 0a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zM73 473v16h46v-16H73zm320 0v16h46v-16h-46z" />
@@ -453,6 +463,7 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                         return (
                             <DraggableDeviceCircle
                                 key={device.id}
+                                deviceName={device.name}
                                 devicePosition={devicePosition}
                                 setDevicePosition={(devicePosition: LatLngExpression) => setDevicePosition(devicePosition)}
                                 deviceDragging={deviceDragging}
@@ -461,7 +472,11 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                         )
                     } else {
                         return (
-                            <NonDraggableDeviceCircle key={device.id} devicePosition={[device.latitude, device.longitude]} />
+                            <NonDraggableDeviceCircle
+                                key={device.id}
+                                deviceName={device.name}
+                                devicePosition={[device.latitude, device.longitude]}
+                            />
                         )
                     }
                 })
@@ -469,6 +484,7 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
             {
                 (devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.CREATE_DEVICE) &&
                 <DraggableDeviceCircle
+                    deviceName={`New device for group ${group.acronym}`}
                     devicePosition={devicePosition}
                     setDevicePosition={(devicePosition: LatLngExpression) => setDevicePosition(devicePosition)}
                     deviceDragging={deviceDragging}
@@ -491,8 +507,9 @@ const calcInitialDevicePosition = (
     if (floorSpaces) {
         const floorSpace = floorSpaces.filter(space => space.features[0].properties.index === featureIndex)[0];
         if (devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.CREATE_DEVICE) {
-            const leftMostCoordinates = calcLeftmostGeoCoordinates(floorSpace);
-            devicePosition = [leftMostCoordinates[1], leftMostCoordinates[0]]
+            const geoPolygon = polygon(floorSpace.features[0].geometry.coordinates);
+            const center = centerOfMass(geoPolygon);
+            devicePosition = [center.geometry.coordinates[1], center.geometry.coordinates[0]]
         } else if (devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE) {
             const deviceToEdit = devicesInGroup.filter(device => device.id === deviceIdToEdit)[0];
             devicePosition = [deviceToEdit.latitude, deviceToEdit.longitude]
@@ -512,6 +529,7 @@ interface DeviceLocationMapProps {
     refreshBuildings: () => void;
     refreshFloors: () => void;
     refreshGroups: () => void;
+    refreshDevices: () => void;
     backToOption: () => void;
     setDeviceLocationData: (deviceLong: number, deviceLat: number) => void;
 }
@@ -529,6 +547,7 @@ const DeviceLocationMap: FC<DeviceLocationMapProps> = (
         refreshBuildings,
         refreshFloors,
         refreshGroups,
+        refreshDevices,
         backToOption,
         setDeviceLocationData,
     }) => {
@@ -548,10 +567,12 @@ const DeviceLocationMap: FC<DeviceLocationMapProps> = (
         refreshBuildings();
         refreshFloors();
         refreshGroups();
+        refreshDevices();
     }, [
         refreshBuildings,
         refreshFloors,
         refreshGroups,
+        refreshDevices
     ])
 
     return (

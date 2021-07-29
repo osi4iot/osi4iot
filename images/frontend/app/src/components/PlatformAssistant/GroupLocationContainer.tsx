@@ -16,7 +16,7 @@ interface GroupLocationContainerProps {
     buildings: IBuilding[];
     floors: IFloor[];
     floorSelected: IFloor | null;
-    selectFloor: (floorSelected: IFloor) => void;
+    selectFloor: (floorSelected: IFloor | null) => void;
     refreshBuildings: () => void;
     refreshFloors: () => void;
     backToOption: () => void;
@@ -54,7 +54,7 @@ const GroupLocationContainer: FC<GroupLocationContainerProps> = (
     }, []);
 
 
-    const giveFloorSelected = useCallback((floorSelected: IFloor) => {
+    const giveFloorSelected = useCallback((floorSelected: IFloor | null) => {
         selectFloor(floorSelected);
     }, [selectFloor]);
 

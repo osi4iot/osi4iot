@@ -188,7 +188,7 @@ class BuildingController implements IController {
 				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [buildingId.toString(), floorNumber.toString()]);
 			}
 			if (floorData.geoJsonData) {
-				floorData.outerBounds  = findFloorBounds(floorData);
+				floorData.outerBounds = findFloorBounds(floorData);
 			}
 			const Floor = await createFloor(floorData);
 			if (!Floor) throw new HttpException(500, "Could not be created a new building floor");

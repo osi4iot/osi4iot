@@ -804,6 +804,34 @@
 				}
 			}
 		},
+		"/organizations/user_groups_managed": {		
+			"get": {
+				"tags": ["Organization"],
+				"summary": "Get organizations of groups managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Organizations"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/organization_users/user_orgs_managed/": {		
 			"get": {
 				"tags": ["Organization"],
@@ -4648,6 +4676,9 @@
 				"address": {
 					"type": "string"
 				},
+				"city": {
+					"type": "string"
+				},
 				"zipCode": {
 					"type": "string"
 				},
@@ -4656,6 +4687,9 @@
 				},
 				"country": {
 					"type": "string"
+				},
+				"buildingId": {
+					"type": "number"
 				}
 			}
 		},
@@ -4681,6 +4715,9 @@
 				"address": {
 					"type": "string"
 				},
+				"city": {
+					"type": "string"
+				},
 				"zipCode": {
 					"type": "string"
 				},
@@ -4690,6 +4727,9 @@
 				"country": {
 					"type": "string"
 				},
+				"buildingId": {
+					"type": "number"
+				},				
 				"roleInOrg": {
 					"type": "string"
 				}	

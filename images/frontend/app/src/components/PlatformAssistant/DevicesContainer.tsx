@@ -116,6 +116,7 @@ const DevicesContainer: FC<DevicesContainerProps> = ({
                     refreshBuildings={refreshBuildings}
                     refreshFloors={refreshFloors}
                     refreshGroups={refreshGroups}
+                    refreshDevices={refreshDevices}
                     backToOption={backToOption}
                     setDeviceLocationData={setDeviceLocationData}
                 />

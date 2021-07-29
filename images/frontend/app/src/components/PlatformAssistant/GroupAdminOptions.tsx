@@ -465,8 +465,8 @@ const GroupAdminOptions: FC<{}> = () => {
                             {optionToShow === GROUP_ADMIN_OPTIONS.DEVICES &&
                                 <DevicesProvider>
                                     <DevicesContainer
-                                    orgsOfGroupManaged={orgsOfGroupManagedTable}
-                                    groupsManaged={groupsManagedTable}
+                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
+                                        groupsManaged={groupsManagedTable}
                                         buildingsFiltered={buildingsFiltered}
                                         floorsFiltered={floorsFiltered}
                                         devices={devicesTable}
