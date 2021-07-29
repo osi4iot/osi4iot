@@ -1,13 +1,18 @@
+import { useWindowWidth } from '@react-hook/window-size';
 import { FC } from 'react';
 import styled from "styled-components";
 import MiniLoader from './MiniLoader';
 
-const TitleContainer = styled.div`
+interface TitleContainerProps {
+	isMobile: boolean;
+}
+
+const TitleContainer = styled.div<TitleContainerProps>`
 	display: flex;
     flex-direction: row;
 	justify-content: center;
 	align-items: center;
-	margin-top: 30px;
+	margin-top: ${(props) => (props.isMobile ? '10px' : '30px')};
 	margin-bottom: 10px;
 `;
 
@@ -23,8 +28,10 @@ interface FormTitleProp {
 }
 
 const FormTitle: FC<FormTitleProp> = ({ isSubmitting = false, children }) => {
+	const windowWidth = useWindowWidth();
+	const isMobile = windowWidth < 768;
 	return (
-		<TitleContainer>
+		<TitleContainer isMobile={isMobile}>
 			<Title>
 				{children}
 			</Title>

@@ -121,18 +121,6 @@ const folderPermissionOptions = [
 ];
 
 
-// const initialEditGroupData = (group: IGroup) => {
-//     return {
-//         name: group.name,
-//         acronym: group.acronym,
-//         folderPermission: group.folderPermission,
-//         telegramInvitationLink: group.telegramInvitationLink,
-//         telegramChatId: group.telegramChatId,
-//         floorNumber: group.floorNumber,
-//         featureIndex: group.featureIndex,
-//     }
-// }
-
 const domainName = getDomainName();
 const floorNumberWarning = "Floor number must an integer greater or equal to 0";
 const featureIndexWarning = "Feature index must an integer greater or equal to 0";

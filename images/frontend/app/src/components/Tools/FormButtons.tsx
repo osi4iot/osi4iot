@@ -1,12 +1,14 @@
+import { useWindowWidth } from "@react-hook/window-size";
 import { FC, SyntheticEvent } from "react";
 import styled from "styled-components";
 
 interface ButtonsContainerProps {
     isWideForm: boolean;
+    isMobile: boolean;
 }
 
 const ButtonsContainer = styled.div<ButtonsContainerProps>`
-    margin-top: 30px;
+    margin-top: ${props => props.isMobile  ? '20px' : '30px'};
     display: flex;
     flex-direction: row;
     justify-content: ${props => props.isWideForm  ? 'space-around' : 'space-between'};
@@ -61,8 +63,10 @@ interface FormButtonsProps {
 }
 
 const FormButtons: FC<FormButtonsProps> = ({ onCancel, isValid, isSubmitting, isWideForm = false }) => {
+    const windowWidth = useWindowWidth();
+	const isMobile = windowWidth < 768;
     return (
-        <ButtonsContainer isWideForm={isWideForm}>
+        <ButtonsContainer isWideForm={isWideForm} isMobile={isMobile}>
             <Button isWideForm={isWideForm} onClick={onCancel}>
                 Cancel
             </Button>

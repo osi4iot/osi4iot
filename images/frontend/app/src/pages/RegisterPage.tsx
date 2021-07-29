@@ -1,98 +1,44 @@
-import { FC, SyntheticEvent, ChangeEvent, useState, useEffect } from "react";
-import {Redirect } from "react-router-dom";
+import { FC, SyntheticEvent, useState, useEffect } from "react";
+import { useHistory } from "react-router-dom";
 import axios from "axios";
 import styled from "styled-components";
+import * as Yup from 'yup';
 import Header from "../components/Layout/Header";
-import Alert from "../components/Tools/Alert";
-import { axiosAuth, getDomainName, isValidEmail, isValidPassword, isValidText } from "../tools/tools";
+import { axiosAuth, getDomainName } from "../tools/tools";
 import ErrorPage from "./ErrorPage";
 import Main from "../components/Layout/Main";
+import { toast } from "react-toastify";
+import FormTitle from "../components/Tools/FormTitle";
+import { Form, Formik } from "formik";
+import FormikControl from "../components/Tools/FormikControl";
+import FormButtons from "../components/Tools/FormButtons";
 
-
-const Title = styled.h2`
-	font-size: 20px;
-	margin-top: 10px;
-	font-weight: 400;
-	text-align: center;
-	color: white;
-	width: 300px;
-`;
-
-const Form = styled.form`
-	margin: 0 10px;
-	color: white;
-	width: 300px;
-`;
-
-const Label = styled.div`
+const FormContainer = styled.div`
 	font-size: 12px;
-	margin-bottom: 5px;
+    padding: 20px 10px 20px 20px;
+    border: 3px solid #3274d9;
+    border-radius: 20px;
+    width: 300px;
+	background-color: #202226;
+	margin-bottom: 20px;
+
+    form > div:nth-child(2) {
+        margin-right: 10px;
+    }
 `;
 
-interface InputProps {
-	readonly isValidationRequired: boolean;
-}
+const ControlsContainer = styled.div`
+    width: 100%;
+    padding: 0px 5px;
+    div:first-child {
+        margin-top: 0;
+    }
 
-const Input = styled.input<InputProps>`
-	background-color: #0b0c0e;
-	padding: 8px 5px;
-	font-size: 14px;
-	margin-bottom: 5px;
-	color: white;
-	width: 100%;
-	border-width: 1px;
-	border-style: solid;
-	border-color: ${(props) => {
-		let color = "#2c3235";
-		if (props.isValidationRequired) {
-			if (props.type === "text" && !isValidText(props.value as string)) color = "#e02f44";
-			if (props.type === "password" && !isValidPassword(props.value as string)) color = "#e02f44";
-			if (props.type === "email" && !isValidEmail(props.value as string)) color = "#e02f44";
-		}
-		return color;
-	}};
-	outline: none;
-
-	&:focus {
-		box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
-	}
+    div:last-child {
+        margin-bottom: 3px;
+    }
 `;
 
-const SubmitContainer = styled.div`
-	width: 100%;
-	margin-top: 20px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-`;
-
-const ItemContainer = styled.div`
-	margin-top: 15px;
-	width: 100%;
-`;
-
-const Submit = styled.input`
-	width: 150px;
-	background-color: #3274d9;
-	padding: 8px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-	box-shadow: 0 5px #173b70;
-	margin-bottom: 15px;
-
-	&:hover {
-		background-color: #2461c0;
-	}
-
-	&:active {
-		background-color: #2461c0;
-		box-shadow: 0 2px #173b70;
-		transform: translateY(4px);
-	}
-`;
 
 const getToken = () => {
 	let token: string | null = null;
@@ -101,26 +47,6 @@ const getToken = () => {
 		token = searchParams.get("token");
 	}
 	return token;
-};
-
-interface IUserRegistrationData {
-	firstName: string;
-	surname: string;
-	login: string;
-	email: string;
-	password: string;
-	telegramId: string;
-}
-
-const areRegisterDataOK = (userData: IUserRegistrationData): boolean => {
-	let areOK = true;
-	if (userData.firstName.trim() === "") areOK = false;
-	if (userData.surname.trim() === "") areOK = false;
-	if (userData.login.trim() === "") areOK = false;
-	if (!isValidEmail(userData.email)) areOK = false;
-	if (!isValidPassword(userData.password)) areOK = false;
-
-	return areOK;
 };
 
 
@@ -137,10 +63,32 @@ const initialFormValues = {
 
 const RegisterPage: FC<{}> = () => {
 	const [isValidToken, setIsValidToken] = useState(true);
-	const [isUserRegistered, setIsUserRegistered] = useState(false);
-	const [isValidationRequired, setIsValidationRequired] = useState(false);
-	const [formValues, setFormValues] = useState(initialFormValues);
-	const { firstName, surname, login, email, password, telegramId } = formValues;
+	const [initialRegistrationValues, setInitialRegistrationValues] = useState(initialFormValues);
+	const [isSubmitting, setIsSubmitting] = useState(false);
+	const history = useHistory();
+
+	const onSubmit = (values: any, actions: any) => {
+		const url = `https://${domainName}/admin_api/auth/register`;
+		const token = getToken();
+		const config = axiosAuth(token as string);
+
+		setIsSubmitting(true);
+		axios
+			.patch(url, values, config)
+			.then((response) => {
+				setIsSubmitting(false);
+				const data = response.data;
+				toast.success(data.message);
+				if (data.message === "User registered successfully") {
+					history.push("/");
+				}
+			})
+			.catch((error) => {
+				const errorMessage = error.response.data.message;
+				toast.error(errorMessage);
+			})
+	}
+
 
 	useEffect(() => {
 		const url = `https://${domainName}/admin_api/auth/user_data_for_register`;
@@ -150,13 +98,14 @@ const RegisterPage: FC<{}> = () => {
 			axios
 				.get(url, config)
 				.then((response) => {
+					const data = response.data;
 					const changedFormValues = {
 						...initialFormValues,
-						firstName: response.data.firstName,
-						surname: response.data.surname,
-						email: response.data.email,
+						firstName: data.firstName,
+						surname: data.surname,
+						email: data.email,
 					};
-					setFormValues(changedFormValues);
+					setInitialRegistrationValues(changedFormValues);
 				})
 				.catch((error) => {
 					setIsValidToken(false);
@@ -165,40 +114,18 @@ const RegisterPage: FC<{}> = () => {
 		} else setIsValidToken(false);
 	}, []);
 
-	const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-		const changedFormValues = {
-			...formValues,
-			[e.target.name]: e.target.value,
-		};
-		setFormValues(changedFormValues);
-	};
+	const validationSchema = Yup.object().shape({
+		firstName: Yup.string().required('Required'),
+		surname: Yup.string().required('Required'),
+		login: Yup.string().required('Required'),
+		email: Yup.string().email().required('Required'),
+		password: Yup.string().min(4, "At least 4 characters are required").required('Required'),
+		telegramId: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
+	});
 
-	const handleSubmit = (e: SyntheticEvent) => {
+	const onCancel = (e: SyntheticEvent) => {
 		e.preventDefault();
-		const registerData = {
-			firstName,
-			surname,
-			login,
-			email,
-			password,
-			telegramId,
-		};
-		if (!areRegisterDataOK(registerData)) {
-			setIsValidationRequired(true);
-		} else {
-			const token = getToken();
-			const config = axiosAuth(token as string);
-
-			const url = `https://${domainName}/admin_api/auth/register`;
-			axios
-				.patch(url, registerData, config)
-				.then((response) => {
-					if (response.data.message === "User registered successfully") {
-						setIsUserRegistered(true);
-					} else console.log(response.data.message);
-				})
-				.catch((error) => console.log(error.response));
-		}
+		history.push("/");
 	};
 
 	if (!isValidToken) {
@@ -208,91 +135,67 @@ const RegisterPage: FC<{}> = () => {
 			<>
 				<Header />
 				<Main>
-					{!isUserRegistered ? (
-						<>
-							<Title>User registration</Title>
-							<Form onSubmit={handleSubmit}>
-								<ItemContainer>
-									<Label>First name:</Label>
-									<Input
-										type="text"
-										name="firstName"
-										isValidationRequired={isValidationRequired}
-										onChange={handleInputChange}
-										value={firstName}
-									/>
-									{isValidationRequired && firstName.trim() === "" && <Alert alertText="Firstname is required" />}
-								</ItemContainer>
-
-								<ItemContainer>
-									<Label>Surname:</Label>
-									<Input
-										type="text"
-										name="surname"
-										isValidationRequired={isValidationRequired}
-										onChange={handleInputChange}
-										value={surname}
-									/>
-									{isValidationRequired && surname.trim() === "" && <Alert alertText="Surname is required" />}
-								</ItemContainer>
-
-								<ItemContainer>
-									<Label>Username:</Label>
-									<Input
-										type="text"
-										name="login"
-										isValidationRequired={isValidationRequired}
-										onChange={handleInputChange}
-										value={login}
-									/>
-									{isValidationRequired && login.trim() === "" && <Alert alertText="Username is required" />}
-								</ItemContainer>
-
-								<ItemContainer>
-									<Label>Email:</Label>
-									<Input
-										type="email"
-										name="email"
-										isValidationRequired={isValidationRequired}
-										onChange={handleInputChange}
-										value={email}
-									/>
-									{isValidationRequired && !isValidEmail(email) && <Alert alertText="Email is required" />}
-								</ItemContainer>
-
-								<ItemContainer>
-									<Label>Password:</Label>
-									<Input
-										type="password"
-										name="password"
-										isValidationRequired={isValidationRequired}
-										onChange={handleInputChange}
-										value={password}
-									/>
-									{isValidationRequired && !isValidPassword(password) && (
-										<Alert alertText="Password is required and must contain at least 4 characters" />
-									)}
-								</ItemContainer>
-
-								<ItemContainer>
-									<Label>TelegramId:</Label>
-									<Input
-										type="text"
-										name="telegramId"
-										isValidationRequired={false}
-										onChange={handleInputChange}
-										value={telegramId}
-									/>
-								</ItemContainer>
-
-								<SubmitContainer>
-									<Submit type="submit" value="SUBMIT" />
-								</SubmitContainer>
-							</Form>
-						</>
-					) : (
-						<Redirect to="/" />
-					)}
+					<>
+						<FormTitle isSubmitting={isSubmitting}>User registration</FormTitle>
+						<FormContainer>
+							<Formik
+								enableReinitialize
+								initialValues={initialRegistrationValues}
+								validationSchema={validationSchema}
+								onSubmit={onSubmit}
+							>
+								{
+									formik => (
+										<Form>
+											<ControlsContainer>
+												<FormikControl
+													control='input'
+													label='First name'
+													name='firstName'
+													type='text'
+												/>
+												<FormikControl
+													control='input'
+													label='Surname'
+													name='surname'
+													type='text'
+												/>
+												<FormikControl
+													control='input'
+													label='Username'
+													name='login'
+													type='text'
+												/>
+												<FormikControl
+													control='input'
+													label='Email'
+													name='email'
+													type='email'
+												/>
+												<FormikControl
+													control='input'
+													label='Password'
+													name='password'
+													type='password'
+												/>
+												<FormikControl
+													control='input'
+													label='TelegramId'
+													name='telegramId'
+													type='text'
+												/>
+											</ControlsContainer>
+											<FormButtons
+												onCancel={onCancel}
+												isValid={formik.isValid}
+												isSubmitting={formik.isSubmitting}
+											/>
+										</Form>
+									)
+								}
+							</Formik>
+						</FormContainer>
+					</>
 				</Main>
 			</>
 		);
