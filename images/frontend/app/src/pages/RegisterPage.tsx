@@ -15,7 +15,7 @@ import FormButtons from "../components/Tools/FormButtons";
 
 const FormContainer = styled.div`
 	font-size: 12px;
-    padding: 20px 10px 20px 20px;
+    padding: 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
     width: 300px;
