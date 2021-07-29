@@ -28,6 +28,10 @@ const Form = styled.form`
 	width: 300px;
 	border: 2px solid #3274d9;
 	border-radius: 15px;
+
+	& > div:first-child {
+		margin-top: 10px;
+	}
 `;
 
 const Label = styled.div`
@@ -43,7 +47,7 @@ const Input = styled.input<InputProps>`
 	background-color: #0b0c0e;
 	padding: 8px 5px;
 	font-size: 14px;
-	margin-bottom: 20px;
+	// margin-bottom: 20px;
 	color: white;
 	width: 100%;
 	border-width: 1px;
@@ -65,14 +69,14 @@ const Input = styled.input<InputProps>`
 
 const SubmitContainer = styled.div`
 	width: 100%;
-	margin-top: 20px;
+	margin-top: 30px;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 `;
 
 const ItemContainer = styled.div`
-	margin-top: 15px;
+	margin-top: 35px;
 	width: 100%;
 `;
 
