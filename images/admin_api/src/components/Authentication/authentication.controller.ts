@@ -162,6 +162,9 @@ class AuthenticationController implements IController {
 				const errorMessage = "The email indicated not match with the user email in database";
 				throw new HttpException(400, errorMessage);
 			}
+			if (registerDto.telegramId === "") {
+				registerDto.telegramId = user.telegramId;
+			}
 			registerDto.userId = user.id;
 			const { message } = await this.grafanaRepository.changeUserPassword(user.id, registerDto.password);
 			await updateOrganizationUser(registerDto);
@@ -174,6 +177,7 @@ class AuthenticationController implements IController {
 				res.status(200).json({ message: okMessage });
 			}
 		} catch (error) {
+			console.log("Error=", error)
 			return next(error);
 		}
 

@@ -198,7 +198,9 @@ export const updateOrganizationUser = async (userData: IUserInOrg | UserRegister
 			name,
 			userData.firstName,
 			userData.surname,
+			userData.login,
 			userData.email,
+			userData.telegramId,
 			userData.userId
 		]);
 };

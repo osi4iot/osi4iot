@@ -109,7 +109,9 @@ class BuildingController implements IController {
 					})
 				}
 				const orgsIdArray = organizations.map(org => org.id);
-				buildings = await getBuildingsFromOrgIdArray(orgsIdArray);
+				if (orgsIdArray.length !== 0) {
+					buildings = await getBuildingsFromOrgIdArray(orgsIdArray);
+				}
 			}
 			buildings.forEach(building => {
 				building.timeFromCreation = generateLastSeenAtAgeString(building.timeFromCreation);
@@ -132,13 +134,17 @@ class BuildingController implements IController {
 				const groups = await getGroupsManagedByUserId(req.user.id);
 				if (groups.length !== 0) {
 					const orgIdsArray = groups.map(group => group.orgId);
-					const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray)
-					orgsOfGroupsManaged.forEach(org => {
-						if (orgsManagedIdArray.indexOf(org.id) === -1) organizations.push(org);
-					})
+					if (orgIdsArray.length !== 0) {
+						const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray)
+						orgsOfGroupsManaged.forEach(org => {
+							if (orgsManagedIdArray.indexOf(org.id) === -1) organizations.push(org);
+						})
+					}
 				}
 				const orgsIdArray = organizations.map(org => org.id);
-				floors = await getAllFloorsFromOrgIdArray(orgsIdArray);
+				if (orgsIdArray.length !== 0) {
+					floors = await getAllFloorsFromOrgIdArray(orgsIdArray);
+				}
 			}
 			floors.forEach(floor => {
 				floor.timeFromCreation = generateLastSeenAtAgeString(floor.timeFromCreation);
@@ -159,7 +165,7 @@ class BuildingController implements IController {
 				throw new AlreadyExistingItemException("A", "building", ["name"], [buildingData.name]);
 			}
 			if (buildingData.geoJsonData) {
-				buildingData.outerBounds  = findBuildingBounds(buildingData.geoJsonData);
+				buildingData.outerBounds = findBuildingBounds(buildingData.geoJsonData);
 			}
 			const building = await createBuilding(buildingData);
 			if (!building) throw new HttpException(500, "Could not be created a new building");
@@ -237,7 +243,7 @@ class BuildingController implements IController {
 			if (existFloor.id !== existUpdatedFloor.id) {
 				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [updatedFloor.buildingId.toString(), updatedFloor.floorNumber.toString()]);
 			}
-			updatedFloor.outerBounds  = findFloorBounds(updatedFloor);
+			updatedFloor.outerBounds = findFloorBounds(updatedFloor);
 			const response = await updateFloorById(parseInt(floorId, 10), updatedFloor);
 			if (!response) throw new HttpException(500, "The building floor could not be updated");
 			const message = { message: `Building floor updated succesfully.` }
@@ -313,7 +319,7 @@ class BuildingController implements IController {
 				throw new ItemNotFoundException("The building", "id", buildingId);
 			}
 			const updatedBuilding = { ...existBuilding, ...buildingData };
-			updatedBuilding.outerBounds  = findBuildingBounds(updatedBuilding.geoJsonData);
+			updatedBuilding.outerBounds = findBuildingBounds(updatedBuilding.geoJsonData);
 			const response = await updateBuildingById(parseInt(buildingId, 10), updatedBuilding);
 			if (!response) throw new HttpException(500, "The building could not be updated");
 			const message = { message: `Building updated succesfully.` }
