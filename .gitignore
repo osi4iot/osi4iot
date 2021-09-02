@@ -16,7 +16,6 @@ volumes/nodered/*
 !volumes/nodered/flows.json
 !volumes/nodered/flows_cred.json
 !volumes/nodered/settings.js
-!volumes/nodered/.config.nodes.json
 !volumes/nodered/package.json
 volumes/nodered/.gitkeep
 volumes/pgdata/*
