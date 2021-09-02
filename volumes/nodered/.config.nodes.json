@@ -1,7 +1,7 @@
 {
     "node-red": {
         "name": "node-red",
-        "version": "2.0.4",
+        "version": "2.0.5",
         "local": false,
         "user": false,
         "nodes": {
@@ -406,7 +406,7 @@
     },
     "node-red-contrib-re-postgres": {
         "name": "node-red-contrib-re-postgres",
-        "version": "0.3.2",
+        "version": "0.3.3",
         "local": false,
         "user": false,
         "nodes": {
