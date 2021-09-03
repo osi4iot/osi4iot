@@ -278,6 +278,7 @@ class OrganizationController implements IController {
 				if (!(await isUsersDataCorrect(organizationData.orgAdminArray)))
 					throw new HttpException(400, "The same values of name, login, email and/or telegramId of some user already exists.")
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
+				await grafanaApi.createOrgApiAdminUser(newOrg.orgId);
 				await updateOrganizationByProp("id", newOrg.orgId, organizationData);
 				const apyKeyName = `ApiKey_${organizationData.acronym}`
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
@@ -651,6 +652,7 @@ class OrganizationController implements IController {
 			const organization = await getOrganizationByProp(propName, propValue);
 			if (!organization) throw new ItemNotFoundException("The Organization", propName, propValue);
 			if (organization.id === 1) throw new HttpException(400, "Main organization can not be deleted");
+			await grafanaApi.deleteOrgApiAdminUser(organization.id);
 			const defaultOrgGroup = await getDefaultOrgGroup(organization.id);
 			const orgKey = await getOrganizationKey(organization.id);
 			await deleteGroup(defaultOrgGroup, orgKey);

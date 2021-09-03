@@ -250,6 +250,11 @@ export const isUsersDataCorrect = async (usersInputData: (CreateUserDto | Create
 	if ((loginArray.length !== 0 || telegramIdArray.length !== 0) && (namesArray.length !== loginArray.length && namesArray.length !== telegramIdArray.length)) {
 		throw new Error('Each user must have the same amount of data');
 	}
+	const forbiddenUserNames = loginArray.filter(username => username.slice(-9) === "api_admin")
+	if (forbiddenUserNames.length !== 0) {
+		throw new Error('Usernames ending with "api_admin" are forbidden');
+	}
+
 	const response: QueryResult =
 		await pool.query(`SELECT id, name, login, email, telegram_id FROM grafanadb.user
 						WHERE name =  ANY($1::varchar(225)[])

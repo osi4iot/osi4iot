@@ -123,12 +123,8 @@ export async function dataBaseInitialization() {
 			telegramId: process.env.PLATFORM_ADMIN_TELEGRAM_ID,
 			OrgId: 1
 		}
-		const grafanaAdminBasicAuthOptions = {
-			username: 'admin',
-			password: process.env.GRAFANA_ADMIN_PASSWORD,
-			json: true
-		}
-		await grafanaApi.createUser(plaformAdminUser, grafanaAdminBasicAuthOptions);
+		await grafanaApi.createUser(plaformAdminUser);
+		await grafanaApi.createOrgApiAdminUser(1);
 
 		const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE id = $4';
 		try {

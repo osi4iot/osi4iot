@@ -44,7 +44,9 @@ export default interface IDashboardApi {
 	removeUsersFromOrganization(orgId: number, idArray: number[]): Promise<IMessage[]>
 	createUser(user: CreateUserDto): Promise<IMessage>;
 	createUsers(users: CreateUserDto[]): Promise<IMessage[]>;
+	createOrgApiAdminUser(orgId: number): Promise<IMessage>;
 	deleteGlobalUser(userId: number): Promise<IMessage>;
+	deleteOrgApiAdminUser(orgId: number): Promise<IMessage>;
 	changeUserPassword(userId: number, password: string): Promise<IMessage>;
 	logoutUser(userId: number): Promise<IMessage>;
 

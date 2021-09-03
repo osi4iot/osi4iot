@@ -21,20 +21,33 @@ import IOptionsToken from "./interfaces/OptionsToken";
 import INotificationChannel from "./interfaces/NotificationChannel";
 import { updateNotificationChannelSettings } from "../components/group/groupDAL";
 import CreateUserDto from "../components/user/interfaces/User.dto";
-import sleep from "../utils/helpers/sleep";
 import wait from "../utils/helpers/wait";
 
 const GrafanaApiURL = "grafana:5000/api"
-const optionsBasicAuth = {
+const optionsBasicAuthApiAdmin = {
+	username: "api_admin",
+	password: process.env.PLATFORM_ADMIN_PASSWORD,
+	json: true
+}
+
+const optionsBasicAuthPlatformAdmin = {
 	username: process.env.PLATFORM_ADMIN_USER_NAME,
 	password: process.env.PLATFORM_ADMIN_PASSWORD,
 	json: true
 }
 
+const optionsBasicAuthOrgAdmin = (orgId: number) => {
+	return {
+		username: `org_${orgId}_api_admin`,
+		password: process.env.PLATFORM_ADMIN_PASSWORD,
+		json: true
+	}
+}
+
 export default class GrafanaApi implements IDashboardApi {
 	async getPlatformStatistics(): Promise<IPlatformStatistics> {
 		const url = `${GrafanaApiURL}/admin/stats`;
-		const statistics = await needle('get', url, optionsBasicAuth)
+		const statistics = await needle('get', url, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Platform statistics could not be geted: %s", err.message));
 		return statistics;
@@ -42,7 +55,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async createOrganization(orgData: IOrganizationGrafanaDTO): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/orgs`;
-		const message = await needle('post', url, orgData, optionsBasicAuth)
+		const message = await needle('post', url, orgData, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Organization ${orgData.name} could not be created: %s", err.message));
 		return message;
@@ -50,7 +63,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async getOrganizations(): Promise<IOrganizationGrafana[]> {
 		const url = `${GrafanaApiURL}/orgs`;
-		const organizations = await needle('get', url, optionsBasicAuth)
+		const organizations = await needle('get', url, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Organizations could not be found: %s", err.message));
 		return organizations;
@@ -58,7 +71,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async getOrganizationById(orgId: number): Promise<IOrganizationGrafana> {
 		const url = `${GrafanaApiURL}/orgs/${orgId}`;
-		const organization = await needle('get', url, optionsBasicAuth)
+		const organization = await needle('get', url, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Organization with id=${orgId} could not be found: %s", err.message));
 		return organization;
@@ -66,7 +79,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async getOrganizationByName(orgName: string): Promise<IOrganizationGrafana> {
 		const url = `${GrafanaApiURL}/orgs/${orgName}`;
-		const organization = await needle('get', url, optionsBasicAuth)
+		const organization = await needle('get', url, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Organization with name=${orgName} could not be found: %s", err.message));
 		return organization;
@@ -75,7 +88,7 @@ export default class GrafanaApi implements IDashboardApi {
 	async updateOrganizationById(orgId: number, newName: string): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/orgs/${orgId}`;
 		const newOrgName = { name: newName };
-		const message = await needle('put', url, newOrgName, optionsBasicAuth)
+		const message = await needle('put', url, newOrgName, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Organization with id=${orgId} could not be updated: %s", err.message));
 		return message;
@@ -83,7 +96,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async deleteOrganizationById(orgId: number): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/orgs/${orgId}`;
-		const message = await needle('delete', url, null, optionsBasicAuth)
+		const message = await needle('delete', url, null, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Organization with id=${orgId} could not be deleted: %s", err.message));
 		return message;
@@ -91,7 +104,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async switchOrgContextForAdmin(newOrgId: number): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/user/using/${newOrgId}`;
-		const message = await needle('post', url, null, optionsBasicAuth)
+		const message = await needle('post', url, null, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Context to org. id=${newOrgId} could not be switched: %s", err.message));
 		return message;
@@ -99,7 +112,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async createApiKeyToken(apiKeyData: IApiKeyDTO): Promise<IApiKey> {
 		const url = `${GrafanaApiURL}/auth/keys`;
-		const apikey = await needle('post', url, apiKeyData, optionsBasicAuth)
+		const apikey = await needle('post', url, apiKeyData, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Api token could not be created: %s", err.message));
 		return apikey;
@@ -107,7 +120,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async getUsers(): Promise<IUserGlobalGrafana[]> {
 		const url = `${GrafanaApiURL}/users`;
-		const users = await needle('get', url, optionsBasicAuth)
+		const users = await needle('get', url, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Users could not get: %s", err.message));
 		return users;
@@ -115,7 +128,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async getOrganizationUsers(orgId: number): Promise<IUserInOrgGrafana[]> {
 		const url = `${GrafanaApiURL}/orgs/${orgId}/users`;
-		const users = await needle('get', url, optionsBasicAuth)
+		const users = await needle('get', url, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Users could not get: %s", err.message));
 		return users;
@@ -125,7 +138,7 @@ export default class GrafanaApi implements IDashboardApi {
 		const base_url = `${GrafanaApiURL}/users/search?`;
 		let url = (perpage && page) ? `${base_url}perpage=${perpage}&page=${page}` : base_url;
 		url = query ? `${url}&query=${query}` : url;
-		const users = await needle('get', url, optionsBasicAuth)
+		const users = await needle('get', url, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Users with paging could not be geted: %s", err.message));
 		return users;
@@ -133,17 +146,37 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async getUserByLoginOrEmail(loginOrEmail: string): Promise<IUserGlobalGrafana> {
 		const url = `${GrafanaApiURL}/users/lookup?loginOrEmail=${loginOrEmail}`;
-		const user = await needle('get', url, optionsBasicAuth)
+		const user = await needle('get', url, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "Users with login or email=${loginOrEmail} could not be geted: %s", err.message));
 		return user;
 	}
 
-	async createUser(user: CreateUserDto, options_BasicAuth = optionsBasicAuth): Promise<IMessage> {
+	async createUser(user: CreateUserDto): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/admin/users`;
-		const message = await needle('post', url, user, options_BasicAuth)
+		const message = await needle('post', url, user, optionsBasicAuthApiAdmin)
 			.then(res => (res.body))
 			.catch(err => logger.log("error", "User could not be created: %s", err.message));
+		return message;
+	}
+
+	async createOrgApiAdminUser(orgId: number): Promise<IMessage> {
+		const url = `${GrafanaApiURL}/admin/users`;
+
+		const user = {
+			name: `org_${orgId}_api_admin`,
+			login: `org_${orgId}_api_admin`,
+			email: `org_${orgId}_api_admin@localhost`,
+			password: process.env.PLATFORM_ADMIN_PASSWORD,
+			OrgId: orgId,
+		}
+		const message: IMessage = await needle('post', url, user, optionsBasicAuthApiAdmin)
+			.then(res => (res.body))
+			.catch(err => logger.log("error", "User could not be created: %s", err.message));
+
+		if (message.message === 'User created') {
+			await this.changeUserRoleInOrganization(orgId, message.id, "Admin");
+		}
 		return message;
 	}
 
@@ -151,7 +184,7 @@ export default class GrafanaApi implements IDashboardApi {
 		const url = `${GrafanaApiURL}/admin/users/${userId}/permissions`;
 		const body = { isGrafanaAdmin: true };
 		const grafanaAdminBasicAuthOptions = {
-			username: 'admin',
+			username: 'api_admin',
 			password: process.env.GRAFANA_ADMIN_PASSWORD,
 			json: true
 		}
@@ -164,7 +197,7 @@ export default class GrafanaApi implements IDashboardApi {
 	async addUserToOrganization(orgId: number, userEmail: string, roleInOrg: string): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/orgs/${orgId}/users`;
 		const userData = { loginOrEmail: userEmail, role: roleInOrg };
-		const user_message = await needle('post', url, userData, optionsBasicAuth)
+		const user_message = await needle('post', url, userData, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "User could not be added to the organization: %s", err.message));
 		return user_message;
@@ -176,7 +209,7 @@ export default class GrafanaApi implements IDashboardApi {
 		for (let i = 0; i < usersData.length; i++) {
 			const userData = { loginOrEmail: usersData[i].email, role: usersData[i].roleInOrg };
 			usersAddedQueries[i] =
-				needle('post', url, userData, optionsBasicAuth)
+				needle('post', url, userData, optionsBasicAuthApiAdmin)
 					.then(res => res.body)
 					.catch(err => logger.log("error", "User could not be added to the organization: %s", err.message));
 
@@ -190,7 +223,7 @@ export default class GrafanaApi implements IDashboardApi {
 	async changeUserRoleInOrganization(orgId: number, userId: number, role: string): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/orgs/${orgId}/users/${userId}`;
 		const userRole = { role };
-		const message = await needle('patch', url, userRole, optionsBasicAuth)
+		const message = await needle('patch', url, userRole, optionsBasicAuthApiAdmin)
 			.then(res => (res.body.message))
 			.catch(err => logger.log("error", "User role could not be changed: %s", err.message));
 		return message;
@@ -203,7 +236,7 @@ export default class GrafanaApi implements IDashboardApi {
 			const userRole = { role: usersRoleArray[i] };
 			const url = `${GrafanaApiURL}/orgs/${orgId}/users/${userId}`;
 			usersCreationQueries[i] =
-				needle('patch', url, userRole, optionsBasicAuth)
+				needle('patch', url, userRole, optionsBasicAuthApiAdmin)
 					.then(res => res.body)
 					.catch(err => logger.log("error", "User role could not be changed: %s", err.message));
 		}
@@ -214,7 +247,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async removeUserFromOrganization(orgId: number, userId: number): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/orgs/${orgId}/users/${userId}`;
-		const message = await needle('delete', url, null, optionsBasicAuth)
+		const message = await needle('delete', url, null, optionsBasicAuthApiAdmin)
 			.then(res => (res.body.message))
 			.catch(err => logger.log("error", "User could not be removed from organization: %s", err.message));
 		return message;
@@ -225,7 +258,7 @@ export default class GrafanaApi implements IDashboardApi {
 		for (let i = 0; i < usersIdArray.length; i++) {
 			const url = `${GrafanaApiURL}/orgs/${orgId}/users/${usersIdArray[i]}`;
 			usersCreationQueries[i] =
-				needle('delete', url, null, optionsBasicAuth)
+				needle('delete', url, null, optionsBasicAuthApiAdmin)
 					.then(res => res.body)
 					.catch(err => logger.log("error", "User could not be removed from organization: %s", err.message));
 		}
@@ -242,7 +275,7 @@ export default class GrafanaApi implements IDashboardApi {
 				await wait(1000);
 			}
 			usersCreationQueries[i] =
-				needle('post', url, users[i], optionsBasicAuth)
+				needle('post', url, users[i], optionsBasicAuthApiAdmin)
 					.then(res => res.body)
 					.catch(err => logger.log("error", "User could not be created: %s", err.message));
 		}
@@ -253,16 +286,30 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async deleteGlobalUser(userId: number): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/admin/users/${userId}`;
-		const message = await needle('delete', url, null, optionsBasicAuth)
+		const message = await needle('delete', url, null, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "The user with id=${userId} could not be deleted: %s", err.message));
+		return message;
+	}
+
+	async deleteOrgApiAdminUser(orgId: number): Promise<IMessage> {
+		const userName = `org_${orgId}_api_amin`;
+		const getUserIdUrl = `${GrafanaApiURL}/users/lookup?loginOrEmail=${userName}`;
+		const user_message = await needle('get', getUserIdUrl, optionsBasicAuthApiAdmin)
+			.then(res => res.body)
+			.catch(err => logger.log("error", "The user with username=${userName} could not be deleted: %s", err.message));
+
+		const url = `${GrafanaApiURL}/admin/users/${user_message.id}`;
+		const message = await needle('delete', url, null, optionsBasicAuthApiAdmin)
+			.then(res => res.body)
+			.catch(err => logger.log("error", "The user with id=${user_message.id} could not be deleted: %s", err.message));
 		return message;
 	}
 
 	async changeUserPassword(userId: number, newPassword: string): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/admin/users/${userId}/password`;
 		const passwordData = { password: newPassword };
-		const message = await needle('put', url, passwordData, optionsBasicAuth)
+		const message = await needle('put', url, passwordData, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "The password to the user with id=${userId} could not be changed: %s", err.message));
 		return message;
@@ -270,14 +317,15 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async logoutUser(userId: number): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/admin/users/${userId}/logout`;
-		const message = await needle('post', url, null, optionsBasicAuth)
+		const message = await needle('post', url, null, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "The user with id=${userId} could not be logout: %s", err.message));
 		return message;
 	}
 
 	async createTeam(orgId: number, teamData: ITeamDTO): Promise<IMessage> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
+		console.log("createTeam optionsBasicAuth=", optionsBasicAuth)
 		const url = `${GrafanaApiURL}/teams`;
 		const message = await needle('post', url, teamData, optionsBasicAuth)
 			.then(res => res.body)
@@ -286,7 +334,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async getTeamsWithPaging(orgId: number, perpage: number, page: number, query?: string, name?: string): Promise<TeamsWithPaging> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const base_url = `${GrafanaApiURL}/teams/search?`;
 		let url = (perpage && page) ? `${base_url}perpage=${perpage}&page=${page}` : base_url;
 		url = query ? `${url}&query=${query}` : url;
@@ -298,7 +346,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async getTeamById(orgId: number, teamId: number): Promise<ITeam> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}`;
 		const team = await needle('get', url, optionsBasicAuth)
 			.then(res => res.body)
@@ -307,7 +355,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async updateTeamById(orgId: number, teamId: number, teamData: ITeamDTO): Promise<IMessage> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}`;
 		const team = await needle('put', url, teamData, optionsBasicAuth)
 			.then(res => res.body)
@@ -316,7 +364,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async deleteTeamById(orgId: number, teamId: number): Promise<IMessage> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}`;
 		const team = await needle('delete', url, null, optionsBasicAuth)
 			.then(res => res.body)
@@ -325,7 +373,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async getTeamMembers(orgId: number, teamId: number): Promise<TeamMember[]> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}/members`;
 		const members = await needle('get', url, optionsBasicAuth)
 			.then(res => res.body)
@@ -334,7 +382,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async addTeamMembers(orgId: number, teamId: number, usersId: IUserId[]): Promise<string[]> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}/members`;
 		const usersCreationQueries = [];
 		for (let i = 0; i < usersId.length; i++) {
@@ -351,7 +399,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async addMemberToTeam(orgId: number, teamId: number, userId: IUserId): Promise<IMessage> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}/members`;
 		const message = await needle('post', url, userId, optionsBasicAuth)
 			.then(res => res.body)
@@ -360,7 +408,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async removeMemberFromTeam(orgId: number, teamId: number, usersId: number): Promise<IMessage> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const url = `${GrafanaApiURL}/teams/${teamId}/members/${usersId}`;
 		const message = await needle('delete', url, null, optionsBasicAuth)
 			.then(res => res.body)
@@ -369,7 +417,7 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async removeMembersFromTeam(orgId: number, teamId: number, userIdsArray: number[]): Promise<IMessage[]> {
-		await this.switchOrgContextForAdmin(orgId);
+		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
 		const memberToRemoveQueries = [];
 		for (let i = 0; i < userIdsArray.length; i++) {
 			const url = `${GrafanaApiURL}/teams/${teamId}/members/${userIdsArray[i]}`;
@@ -395,7 +443,6 @@ export default class GrafanaApi implements IDashboardApi {
 	}
 
 	async folderPermission(orgId: number, uid: string, folderPermissionDTO: IFolderPermissionDTO, orgKey: string): Promise<IMessage> {
-		await this.switchOrgContextForAdmin(orgId);
 		const url = `${GrafanaApiURL}/folders/${uid}/permissions`;
 		const optionsToken = this.generateOptionsToken(orgKey);
 		const message = await needle('post', url, folderPermissionDTO, optionsToken)
