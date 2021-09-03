@@ -1,5 +1,9 @@
 FROM nodered/node-red
 
+COPY flows_cred.json /data
+COPY flows.json /data
+COPY settings.js /data
+
 RUN npm install node-red-dashboard \
     npm install node-red-contrib-schedex \
     npm install node-red-contrib-yield \
@@ -15,6 +19,7 @@ RUN npm install node-red-dashboard \
     # npm install node-red-contrib-telegrambot \
     # npm install node-red-node-mysql \
     # npm install node-red-contrib-influxdb \
+
 
 
 

@@ -47,8 +47,7 @@ services:
     ports:
       - "127.0.0.1:1880:1880"
     volumes:
-      # - nodered_data:/data
-      - ./volumes/nodered/:/data
+      - nodered_data:/data
       - ./certs/mqtt_nodered_certs/:/data/certs/
     restart: unless-stopped
     depends_on:
@@ -215,12 +214,11 @@ services:
 volumes:
   mosquitto_data:
   mosquitto_log:
-  # nodered_data:
+  nodered_data:
   pgdata:
   pgadmin4_data:
   portainer_data:
   grafana_data:
-
 
 networks:
   internal_net:

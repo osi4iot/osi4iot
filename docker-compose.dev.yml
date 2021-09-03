@@ -13,7 +13,8 @@ services:
       - "9001:9001"
     volumes:
       - ./config/mosquitto:/mosquitto/config/
-      - ./volumes/mosquitto/data:/mosquitto/data/
+      - mosquitto_data:/mosquitto/data/
+      - mosquitto_log:/mosquitto/log/
       - ./certs/mqtt_server_certs/:/mosquitto/mqtt_certs/
       - ./certs/domain_certs/:/mosquitto/wss_certs/
     restart: unless-stopped
@@ -46,7 +47,7 @@ services:
     ports:
       - "127.0.0.1:1880:1880"
     volumes:
-      - ./volumes/nodered/:/data
+      - nodered_data:/data
       - ./certs/mqtt_nodered_certs/:/data/certs/
     restart: unless-stopped
     depends_on:
@@ -67,7 +68,7 @@ services:
       GRAFANA_DATASOURCE_PASSWORD: ${GRAFANA_DATASOURCE_PASSWORD}
       TZ: ${TIME_ZONE}
     volumes:
-      - ./volumes/pgdata:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -86,7 +87,7 @@ services:
     ports:
       - "127.0.0.1:5000:5000"
     volumes:
-      - ./volumes/grafana:/var/lib/grafana
+      - grafana_data:/var/lib/grafana
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
       - DEFAULT_TIME_ZONE=${DEFAULT_TIME_ZONE}      
@@ -140,7 +141,7 @@ services:
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
       POSTGRES_USER: ${POSTGRES_USER}
     volumes:
-      - ./volumes/pgadmin:/var/lib/pgadmin
+      - pgadmin4_data:/var/lib/pgadmin
     ports:
       - "127.0.0.1:5050:80"
     networks:
@@ -210,10 +211,19 @@ services:
       - "127.0.0.1:9000:9000"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./volumes/portainer_data:/data
+      - portainer_data:/data
+
+volumes:
+  node_modules_vol:
+  mosquitto_data:
+  mosquitto_log:
+  nodered_data:
+  pgdata:
+  pgadmin4_data:
+  portainer_data:
+  grafana_data:
 
 networks:
   internal_net:
 
-volumes:
-  node_modules_vol:
+
