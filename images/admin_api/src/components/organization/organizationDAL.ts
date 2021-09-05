@@ -68,7 +68,7 @@ export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promi
 	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode",
 					state, country, building_id AS "buildingId"
 					FROM grafanadb.org
-					WHRE id = ANY($1::integer[])
+					WHERE id = ANY($1::integer[])
 					ORDER BY id ASC;`;
 	const result = await pool.query(query, [orgIdsArray]);
 	return result.rows;

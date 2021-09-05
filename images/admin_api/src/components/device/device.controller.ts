@@ -15,7 +15,8 @@ import LoginDto from "../Authentication/login.dto";
 import { updateDeviceUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IDevice from "./device.interface";
-import { getGroupsThatCanBeEditatedAndAdministratedByUserId} from "../group/groupDAL";
+import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId} from "../group/groupDAL";
+import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -98,6 +99,15 @@ class DeviceController implements IController {
 				devices = await getAllDevices();
 			} else {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
 				if (groups.length !== 0) {
 					const groupsIdArray = groups.map(group => group.id);
 					devices = await getDevicesByGroupsIdArray(groupsIdArray);

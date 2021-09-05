@@ -117,6 +117,13 @@ export const isThisUserOrgAdmin = async (userId: number, orgId: number): Promise
 	return result.rows[0].count !== 0;
 };
 
+export const isThisUserAdminOfSomeOrg = async (userId: number): Promise<boolean> => {
+	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org_user WHERE user_id = $1 AND role = $2',
+		[userId, "Admin"]);
+	return result.rows[0].count !== 0;
+};
+
+
 export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]> => {
 	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login, email,
 					grafanadb.org_user.org_id as "orgId", role as "roleInOrg",
@@ -168,6 +175,7 @@ export const getOrganizationUserWithGrafanaAdminByProp = async (orgId: number, p
 export const getOrganizationUserByProp = async (orgId: number, propName: string, propValue: string | number): Promise<IUserInOrg> => {
 	const query = `SELECT grafanadb.user.id as "userId", first_name AS "firstName", surname, login,  email,
 					grafanadb.org_user.org_id as "orgId", role as "roleInOrg",
+					grafanadb.user.is_admin as "isGrafanaAdmin",
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id

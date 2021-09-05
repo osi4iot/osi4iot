@@ -259,7 +259,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             axiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizationUsers, config)
                 .then((response) => {
-                    const orgUsers = response.data;
+                    const orgUsers = response.data.filter((user: IOrgUser) => user.login.slice(-9) !== "api_admin");
                     orgUsers.map((user: IOrgUser) => {
                         user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
                         return user;

@@ -325,7 +325,6 @@ export default class GrafanaApi implements IDashboardApi {
 
 	async createTeam(orgId: number, teamData: ITeamDTO): Promise<IMessage> {
 		const optionsBasicAuth = optionsBasicAuthOrgAdmin(orgId);
-		console.log("createTeam optionsBasicAuth=", optionsBasicAuth)
 		const url = `${GrafanaApiURL}/teams`;
 		const message = await needle('post', url, teamData, optionsBasicAuth)
 			.then(res => res.body)

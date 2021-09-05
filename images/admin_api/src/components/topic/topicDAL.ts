@@ -124,7 +124,7 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									WHERE grafanadb.device.group_id = $1
+									WHERE grafanadb.device.group_id = ANY($1::bigint[])
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC`, [groupsIdArray]);

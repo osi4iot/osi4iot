@@ -157,9 +157,9 @@ export const getBuildingsFromOrgIdArray = async (orgIdArray: number[]): Promise<
 									grafanadb.building.geodata AS "geoJsonData",
 									grafanadb.building.outer_bounds AS "outerBounds",
 									grafanadb.building.geolocation[0] AS longitude, grafanadb.building.geolocation[1] AS latitude,
-									grafanadb.building.created, grafanadb.building.updated
-									AGE(NOW(), created) AS "timeFromCreation",
-									AGE(NOW(), updated) AS "timeFromLastUpdate"
+									grafanadb.building.created, grafanadb.building.updated,
+									AGE(NOW(), grafanadb.building.created) AS "timeFromCreation",
+									AGE(NOW(), grafanadb.building.updated) AS "timeFromLastUpdate"
 									FROM grafanadb.building
 									INNER JOIN grafanadb.org ON grafanadb.org.building_id = grafanadb.building.id
 									WHERE grafanadb.org.id = ANY($1::integer[])
@@ -190,8 +190,8 @@ export const getAllFloorsFromOrgIdArray = async (orgIdArray: number[]): Promise<
 									grafanadb.floor.floor_number AS "floorNumber",
 									grafanadb.floor.geodata AS "geoJsonData",
 									grafanadb.floor.outer_bounds AS "outerBounds",
-									AGE(NOW(), created) AS "timeFromCreation",
-									AGE(NOW(), updated) AS "timeFromLastUpdate"
+									AGE(NOW(), grafanadb.floor.created) AS "timeFromCreation",
+									AGE(NOW(), grafanadb.floor.updated) AS "timeFromLastUpdate"
 									FROM grafanadb.floor
 									INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
 									INNER JOIN grafanadb.org ON grafanadb.org.building_id = grafanadb.building.id

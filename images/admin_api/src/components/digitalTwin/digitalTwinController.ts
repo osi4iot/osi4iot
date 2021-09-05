@@ -9,13 +9,14 @@ import organizationExists from "../../middleware/organizationExists.middleware";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
-import { getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
+import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import { createDigitalTwin, deleteDigitalTwinById, getAllDigitalTwins, getDigitalTwinByProp, getDigitalTwinsByGroupId, getDigitalTwinsByGroupsIdArray, getDigitalTwinsByOrgId, getNumDigitalTwinsByDeviceId, getStateOfAllDigitalTwins, getStateOfDigitalTwinsByGroupsIdArray, updateDigitalTwinById } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import HttpException from "../../exceptions/HttpException";
+import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
@@ -90,6 +91,15 @@ class DigitalTwinController implements IController {
 				digitalTwins = await getAllDigitalTwins();
 			} else {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
 				if (groups.length !== 0) {
 					const groupsIdArray = groups.map(group => group.id);
 					digitalTwins = await getDigitalTwinsByGroupsIdArray(groupsIdArray);
@@ -112,6 +122,15 @@ class DigitalTwinController implements IController {
 				digitalTwinsState = await getStateOfAllDigitalTwins();
 			} else {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
 				if (groups.length !== 0) {
 					const groupsIdArray = groups.map(group => group.id);
 					digitalTwinsState = await getStateOfDigitalTwinsByGroupsIdArray(groupsIdArray);

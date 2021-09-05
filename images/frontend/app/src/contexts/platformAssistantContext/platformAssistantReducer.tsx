@@ -164,6 +164,33 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 groupsMembership: action.payload.groupsMembership
             };
 
+        case "RESET_TABLES":
+            return {
+                userRole: "unknown",
+                numOrganizationManaged: 0,
+                numGroupsManaged: 0,
+                numDevicesManage: 0,
+                platformAssitantOptionToShow: PLATFORM_ASSISTANT_OPTION.HOME,
+                selectOrgUsers: [],
+                organizations: [],
+                buildings: [],
+                floors: [],
+                globalUsers: [],
+                refreshTokens: [],
+                orgsManaged: [],
+                orgsOfGroupsManaged: [],
+                orgUsers: [],
+                groups: [],
+                groupsManaged: [],
+                groupMembers: [],
+                devices: [],
+                topics: [],
+                digitalTwins: [],
+                userProfile: initialUserProfile,
+                orgsMembership: [],
+                groupsMembership: [],
+            };
+
         default:
             throw new Error(`Unhandled action type: ${action.type}`);
     }

@@ -1,7 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { superAdminAuth } from "../../middleware/auth.middleware";
+import { adminForSomeOrganizationAuth, superAdminAuth } from "../../middleware/auth.middleware";
 import grafanaApi from "../../GrafanaApi";
 import CreateUserDto from "../user/interfaces/User.dto";
 import {
@@ -41,7 +41,7 @@ class ApplicationController implements IController {
 			)
 			.get(
 				`${this.path}/global_users/`,
-				superAdminAuth,
+				adminForSomeOrganizationAuth,
 				this.getGlobalUsers
 			)
 			.get(
@@ -220,6 +220,9 @@ class ApplicationController implements IController {
 			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const user = await getUserByProp(propName, propValue);
 			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
+			if (user.login.slice(-9) === "api_admin") {
+				throw new HttpException(403, "An api admin user can not be deleted.")
+			}
 			const groupsArray = await getGroupsWhereUserIdIsMember(user.id);
 			await cleanEmailNotificationChannelForGroupsArray(user.email, groupsArray);
 			const message = await this.grafanaRepository.deleteGlobalUser(user.id);

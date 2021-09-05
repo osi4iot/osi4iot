@@ -14,9 +14,10 @@ import LoginDto from "../Authentication/login.dto";
 import {  updateTopicUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import ITopic from "./topic.interface";
-import { getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
+import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { changeTopicUidByUid, createTopic, deleteTopicById, getAllTopics, getTopicByProp, getTopicsByGroupId, getTopicsByGroupsIdArray, getTopicsByOrgId, updateTopicById } from "./topicDAL";
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
+import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 
 class TopicController implements IController {
 	public path = "/topic";
@@ -99,6 +100,15 @@ class TopicController implements IController {
 				topics = await getAllTopics();
 			} else {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
 				if (groups.length !== 0) {
 					const groupsIdArray = groups.map(group => group.id);
 					topics = await getTopicsByGroupsIdArray(groupsIdArray);

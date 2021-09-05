@@ -5,6 +5,7 @@ import styled from "styled-components";
 import { useWindowWidth } from "@react-hook/window-size";
 import { logout, useAuthDispatch, useIsUserAuth } from "../../contexts/authContext";
 import { useLoggedUserLogin } from "../../contexts/authContext/authContext";
+import { setResetTables, usePlatformAssitantDispatch } from "../../contexts/platformAssistantContext";
 
 const SignOutIcon = styled(RiLogoutCircleLine)`
 	font-size: 30px;
@@ -54,12 +55,16 @@ const SingInSignOut: FC<{}> = () => {
 	const history = useHistory();
 	const isUserLogged = useIsUserAuth();
 	const userName = useLoggedUserLogin();
+	const platformAssistantDispatch = usePlatformAssitantDispatch();
 
 
 	const isMobile = windowWidth < 768;
 
 	const onSignInSignOutClickHandler = (e: SyntheticEvent) => {
-		if (isUserLogged) logout(authDispatch);
+		if (isUserLogged) {
+			setResetTables(platformAssistantDispatch);
+			logout(authDispatch);
+		}
 		else history.push("/login");
 	};
 

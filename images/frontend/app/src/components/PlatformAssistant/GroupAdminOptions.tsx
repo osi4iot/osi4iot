@@ -41,6 +41,7 @@ import { filterBuildings } from '../../tools/filterBuildings';
 import { IBuilding } from './TableColumns/buildingsColumns';
 import { IFloor } from './TableColumns/floorsColumns';
 import { filterFloors } from '../../tools/filterFloors';
+import { ISelectOrgUser } from './TableColumns/selectOrgUsersColumns';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -331,7 +332,7 @@ const GroupAdminOptions: FC<{}> = () => {
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGroupsManaged, config)
                 .then((response) => {
-                    const selectOrgUsers = response.data;
+                    const selectOrgUsers = response.data.filter((user: ISelectOrgUser) => user.login.slice(-9) !== "api_admin");
                     setSelectOrgUsersTable(plaformAssistantDispatch, { selectOrgUsers });
                     setSelectOrgUsersLoading(false);
                 })

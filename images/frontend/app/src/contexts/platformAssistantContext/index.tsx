@@ -17,7 +17,8 @@ import {
     setDigitalTwinsTable,
     setUserProfileTable,
     setOrgsMembershipTable,
-    setGroupsMembershipTable
+    setGroupsMembershipTable,
+    setResetTables,
 } from './platformAssistantAction';
 import {
     PlatformAssitantProvider,
@@ -66,6 +67,7 @@ export {
     setUserProfileTable,
     setOrgsMembershipTable,
     setGroupsMembershipTable,
+    setResetTables,
     PlatformAssitantProvider,
     usePlatformAssitantDispatch,
     usePlatformAssitantState,

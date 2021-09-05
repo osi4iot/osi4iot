@@ -45,7 +45,7 @@ const domainName = getDomainName();
 const DeleteOrgUserModal: FC<DeleteOrgUserModalProps> = ({ rowIndex, orgId, userId, refreshOrgUsers }) => {
     const [isOrgUserDeleted, setIsOrgUserDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const title = "DELETE ORG USER";
+    const title = "REMOVE USER FROM ORG";
     const question = "Are you sure to delete this org user?";
     const consequences = "The user are going be removed of all groups beloging to the org.";
     const { accessToken, refreshToken } = useAuthState();

@@ -107,6 +107,11 @@ export function setGroupsMembershipTable(plaformAssistantDispatch: PlatformAssis
 	plaformAssistantDispatch({ type: 'GROUP_MEMBERSHIP_TABLE', payload: data });
 }
 
+export function setResetTables(plaformAssistantDispatch: PlatformAssistantDispatch) {
+	plaformAssistantDispatch({ type: 'RESET_TABLES' });
+}
+
+
 
 
 

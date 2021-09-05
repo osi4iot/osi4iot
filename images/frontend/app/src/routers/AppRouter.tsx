@@ -43,10 +43,26 @@ const AppRouter: FC<{}> = () => {
 
 					<PrivateRoute exact path="/platform_assistant" component={PlatformAssistantPage} />
 
-					<PrivateRouteWithUserRole roleRequired="PlatformAdmin" exact path="/platform_assistant/admin" component={PlatformAssistantPageAdmin} />
-					<PrivateRouteWithUserRole roleRequired="OrgAdmin" exact path="/platform_assistant/org" component={PlatformAssistantPageOrg} />
-					<PrivateRouteWithUserRole roleRequired="GroupAdmin" exact path="/platform_assistant/group" component={PlatformAssistantPageGroup} />
-					<PrivateRouteWithUserRole roleRequired="User" exact path="/platform_assistant/user" component={PlatformAssistantPageUser} />
+					<PrivateRouteWithUserRole
+						roleRequired="PlatformAdmin"
+						exact path="/platform_assistant/admin"
+						component={PlatformAssistantPageAdmin}
+					/>
+					<PrivateRouteWithUserRole
+						roleRequired="OrgAdmin"
+						exact path="/platform_assistant/org"
+						component={PlatformAssistantPageOrg}
+					/>
+					<PrivateRouteWithUserRole
+						roleRequired="GroupAdmin"
+						exact path="/platform_assistant/group"
+						component={PlatformAssistantPageGroup} /
+					>
+					<PrivateRouteWithUserRole
+						roleRequired="User"
+						exact path="/platform_assistant/user"
+						component={PlatformAssistantPageUser}
+					/>
 
 					<Route exact path="/404" component={NotFoundPage} />
 					<Route path="*">
@@ -54,7 +70,7 @@ const AppRouter: FC<{}> = () => {
 					</Route>
 				</Switch>
 			</Router>
-			<StyledToastContainer position="bottom-right" hideProgressBar={true} autoClose={5000}/>
+			<StyledToastContainer position="bottom-right" hideProgressBar={true} autoClose={5000} />
 		</>
 	);
 };

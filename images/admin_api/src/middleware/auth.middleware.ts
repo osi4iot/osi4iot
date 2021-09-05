@@ -2,7 +2,7 @@ import passport from "passport";
 import { NextFunction, Response } from "express";
 import IRequestWithUser from "../interfaces/requestWithUser.interface";
 import HttpException from "../exceptions/HttpException";
-import { isThisUserOrgAdmin } from "../components/user/userDAL";
+import { isThisUserAdminOfSomeOrg, isThisUserOrgAdmin } from "../components/user/userDAL";
 import { haveThisUserGroupAdminPermissions } from "../components/group/groupDAL";
 import IRequestWithUserAndGroup from "../components/group/interfaces/requestWithUserAndGroup.interface";
 
@@ -58,6 +58,30 @@ export const superAdminAuth = (req: IRequestWithUser, res: Response, next: NextF
 			return next(new HttpException(401, "You don't have administrator privileges."));
 		}
 
+		req.user = user;
+		return next();
+	})(req, res, next);
+};
+
+export const adminForSomeOrganizationAuth = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	passport.authenticate("access_jwt", { session: false }, async (err, user, info) => {
+		if (info) {
+			return next(new HttpException(401, info.message));
+		}
+		if (err) {
+			return next(err);
+		}
+		if (!user) {
+			return next(new HttpException(401, "You are not allowed to access."));
+		}
+		const { orgId } = req.params;
+
+		let isAdminOfSomeOrganization = await isThisUserAdminOfSomeOrg(user.id);
+		if (user.isGrafanaAdmin) isAdminOfSomeOrganization = true;
+
+		if (user && !isAdminOfSomeOrganization) {
+			return next(new HttpException(401, "You don't have organization administrator privileges."));
+		}
 		req.user = user;
 		return next();
 	})(req, res, next);

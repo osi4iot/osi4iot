@@ -104,8 +104,8 @@ class OrganizationController implements IController {
 		this.router
 			.post(
 				`${this.path}/:orgId/user/`,
-				superAdminAuth,
 				organizationExists,
+				organizationAdminAuth,
 				validationMiddleware<CreateUserDto>(CreateUserDto),
 				this.addUserToOrganization
 			)
@@ -131,8 +131,8 @@ class OrganizationController implements IController {
 			)
 			.delete(
 				`${this.path}/:orgId/user/:propName/:propValue`,
-				superAdminAuth,
 				organizationExists,
+				organizationAdminAuth,
 				this.removeUserFromOrganization
 			)
 			.delete(
@@ -489,6 +489,12 @@ class OrganizationController implements IController {
 			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const user = await getOrganizationUserByProp(organization.id, propName, propValue);
 			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
+			if (user.isGrafanaAdmin) {
+				throw new HttpException(403, "A platform administrator user cannot be removed from an org.")
+			}
+			if (user.login.slice(-9) === "api_admin") {
+				throw new HttpException(403, "An api admin user can not be removed from the org.")
+			}
 			const groupsArray = await getGroupsOfOrgIdWhereUserIdIsMember(organization.id, user.userId);
 			if (groupsArray.length !== 0) {
 				const groupMember = await getGroupMemberByProp(groupsArray[0], "id", user.userId);

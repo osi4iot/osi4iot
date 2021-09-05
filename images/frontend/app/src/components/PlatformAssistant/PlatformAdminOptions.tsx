@@ -30,6 +30,7 @@ import { BuildingsProvider } from '../../contexts/buildingsOptions';
 import BuildingsContainer from './BuildingsContainer';
 import { FloorsProvider } from '../../contexts/floorsOptions';
 import FloorsContainer from './FloorsContainer';
+import { IGlobalUser } from './TableColumns/globalUsersColumns';
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;
@@ -225,7 +226,7 @@ const PlatformAdminOptions: FC<{}> = () => {
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
-                    const globalUsers = response.data;
+                    const globalUsers = response.data.filter((user: IGlobalUser ) => user.login.slice(-9) !== "api_admin");
                     globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
                         user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
                         user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);

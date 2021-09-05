@@ -162,7 +162,7 @@ const LoginPage: FC<{}> = () => {
 			<Main>
 				<>
 					<Title>Login</Title>
-					{errorMessage  && <ServerError errorText={errorMessage} />}
+					{errorMessage && <ServerError errorText={errorMessage} />}
 					<Form onSubmit={handleSubmit}>
 						<ItemContainer>
 							<Label>Username:</Label>
