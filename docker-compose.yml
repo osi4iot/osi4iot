@@ -18,6 +18,11 @@ services:
       - ./certs/mqtt_server_certs/:/mosquitto/mqtt_certs/
       - ./certs/domain_certs/:/mosquitto/wss_certs/
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 5 mosquitto_sub -t '$$SYS/#' -C 1 | grep -v Error || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
 
   nginx_proxy:
     container_name: ${PLATFORM_NAME}_nginx_proxy
