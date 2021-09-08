@@ -9,6 +9,7 @@ import { getDataSourceByProp } from "./datasourceDAL";
 import { accelDashboardJson } from "./defaultDashboards/accelDashboardJson";
 import { homeDashboardJson } from "./defaultDashboards/homeDashboardJson";
 import { tempAlertJson } from "./defaultDashboards/tempAlertJson";
+import { accelAlertJson } from "./defaultDashboards/accelAlertJson";
 import { tempDashboardJson } from "./defaultDashboards/tempDashboardJson";
 import { getNotificationChannelUid } from "./groupDAL";
 import IAlert from "./interfaces/Alert.interface";
@@ -179,12 +180,23 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	accelDashboard.uid = uuidv4();
 	accelDashboard.title = titleAccelDashboard;
 	accelDashboard.panels[0].datasource = dataSourceName;
+	accelDashboard.panels[0].alert.notifications[0].uid = emailNotificationChannelUid;
+	accelDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
 	const device2Hash = `Device_${devices[1].deviceUid}`;
 	const topic2Hash = `Topic_${topics[1].topicUid}`;
 	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->>'ax' AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->>'ay' AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->>'az' AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${device2Hash}/${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
 	const accelDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleAccelDashboard, accelDashboard);
 	const accelDashboarddUrl = `${getDomainUrl()}/grafana/d/${accelDashboardCreated.uid}/${titleAccelDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=200ms`
+
+	const accelAlertData = JSON.parse(accelAlertJson);
+	accelAlertData.conditions[0].query.datasourceId = dataSource.id;
+	accelAlertData.conditions[0].query.model.rawSql = rawSqlAccel;
+	accelAlertData.notifications[0].uid = emailNotificationChannelUid;
+	accelAlertData.notifications[1].uid = telegramNotificationChannelUid;
+	const accelAlert = createAccelDemoAlert(group.orgId, accelDashboardCreated.id, 2, accelAlertData);
+	await createAlert(accelAlert);
+
 	return [tempDashboardCreated.uid, tempDashboardUrl, accelDashboardCreated.uid, accelDashboarddUrl];
 };
 
@@ -210,6 +222,29 @@ const createTempDemoAlert = (orgId: number, dashboardId: number, panelId: number
 	}
 	return alert;
 }
+
+const createAccelDemoAlert = (orgId: number, dashboardId: number, panelId: number, settings: any): Partial<IAlert> => {
+	const alert: Partial<IAlert> = {
+		version: 0,
+		dashboardId,
+		panelId,
+		orgId,
+		name: "Acceleration evolution alert",
+		message: "Acceleration of some axis of the mobile device has exceeded 40 m/s^2.",
+		state: 'unknown',
+		settings,
+		frequency: 20,
+		handler: 1,
+		severity: "",
+		silenced: false,
+		executionError: "",
+		evalData: "",
+		stateChanges: 0,
+		for: 180000000000
+	}
+	return alert;
+}
+
 
 
 

@@ -1,4 +1,4 @@
-FROM nodered/node-red
+FROM nodered/node-red:2.0.6-12
 
 COPY flows_cred.json /data
 COPY flows.json /data

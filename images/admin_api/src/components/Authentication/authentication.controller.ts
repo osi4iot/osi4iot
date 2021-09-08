@@ -177,7 +177,6 @@ class AuthenticationController implements IController {
 				res.status(200).json({ message: okMessage });
 			}
 		} catch (error) {
-			console.log("Error=", error)
 			return next(error);
 		}
 

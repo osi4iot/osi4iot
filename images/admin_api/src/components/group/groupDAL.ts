@@ -82,7 +82,7 @@ export const createGroup = async (
 	const groupAdminIdArray = groupInput.groupAdminDataArray.map(admin => ({ userId: admin.userId }));
 	await grafanaApi.addTeamMembers(orgId, teamId, groupAdminIdArray);
 	groupInput.groupAdminDataArray.forEach(groupAdmin => groupAdmin.roleInGroup = "Admin" as RoleInGroupOption);
-	await teamMembersPermissions(teamId, groupInput.groupAdminDataArray)
+	await teamMembersPermissions(teamId, groupInput.groupAdminDataArray);
 	const emailNotificationChannelData = {
 		uid: uuidv4(),
 		name: `${groupInput.acronym}_email_NC`,
@@ -90,7 +90,10 @@ export const createGroup = async (
 		isDefault: false,
 		sendReminder: false,
 		settings: {
-			addresses: groupInput.groupAdminDataArray.map(admin => admin.email).join()
+			addresses: groupInput.groupAdminDataArray.map(admin => admin.email).join(";"),
+			autoResolve: true,
+			httpMethod: "POST",
+			severity: "critical"
 		}
 	}
 	const emailNotificationChannel = await grafanaApi.createNotificationChannel(orgKey, emailNotificationChannelData);
@@ -105,7 +108,10 @@ export const createGroup = async (
 		settings: {
 			bottoken: process.env.TELEGRAM_BOTTOKEN,
 			chatid: telegramChatId,
-			uploadImage: true
+			uploadImage: true,
+			autoResolve: true,
+			httpMethod: "POST",
+			severity: "critical"
 		}
 	}
 	const telegramNotificationChannel = await grafanaApi.createNotificationChannel(orgKey, telegramNotificationChannelData);
@@ -785,10 +791,14 @@ export const addMembersToGroup = async (group: IGroup, groupMembersArray: Create
 
 	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
 	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
-	let oldAddressesArray = oldNotificationEmailSettings.addresses.split(",");
+	let oldAddressesArray = oldNotificationEmailSettings.addresses.split(";");
 	oldAddressesArray = oldAddressesArray.filter(address => address !== "");
-	const newAddress = [...oldAddressesArray, groupMembersAddedArray.map(member => member.email)].join();
-	const newSettings = { addresses: newAddress };
+	const newAddressArray = [...oldAddressesArray];
+	groupMembersAddedArray.forEach(member => {
+		if (newAddressArray.includes(member.email) === false) newAddressArray.push(member.email);
+	});
+	const newAddressString = newAddressArray.join(";");
+	const newSettings = { ...oldNotificationEmailSettings, addresses: newAddressString};
 	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
 
 	await sendGroupMemberInvitationEmail(group, groupMembersAddedArray);
@@ -890,10 +900,10 @@ export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: 
 	const memberToRemoveEmailsArray = groupMembersToRemove.map(member => member.email);
 	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
 	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
-	const oldAddressesArray = oldNotificationEmailSettings.addresses.split(",");
+	const oldAddressesArray = oldNotificationEmailSettings.addresses.split(";");
 	const newEmailsArray = oldAddressesArray.filter(email => memberToRemoveEmailsArray.indexOf(email) === -1 && email !== "");
-	const newAddress = newEmailsArray.join();
-	const newSettings = { addresses: newAddress };
+	const newAddress = newEmailsArray.join(";");
+	const newSettings = { ...oldNotificationEmailSettings, addresses: newAddress };
 	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
 
 	let message: string;
@@ -906,10 +916,10 @@ export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: 
 export const cleanEmailNotificationChannelForGroup = async (userEmail: string, group: IGroup): Promise<void> => {
 	const notificatonSettings = await getNotificationChannelSettings(group.emailNotificationChannelId);
 	const oldNotificationEmailSettings = JSON.parse(notificatonSettings.settings) as IEmailNotificationChannelSettings;
-	const oldAddressArray = oldNotificationEmailSettings.addresses.split(",");
+	const oldAddressArray = oldNotificationEmailSettings.addresses.split(";");
 	const newEmailsArray = oldAddressArray.filter(email => email !== userEmail && email !== "");
-	const newAddress = newEmailsArray.join();
-	const newSettings = { addresses: newAddress };
+	const newAddress = newEmailsArray.join(";");
+	const newSettings = { ...oldNotificationEmailSettings, addresses: newAddress };
 	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
 }
 

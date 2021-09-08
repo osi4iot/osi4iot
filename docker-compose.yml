@@ -4,7 +4,9 @@ services:
 
   mosquitto:
     container_name: ${PLATFORM_NAME}_mosquitto
-    build: ./images/mosquitto
+    build:
+      context: ./images/mosquitto
+      dockerfile: Dockerfile
     networks:
       - internal_net
     ports:
@@ -18,15 +20,12 @@ services:
       - ./certs/mqtt_server_certs/:/mosquitto/mqtt_certs/
       - ./certs/domain_certs/:/mosquitto/wss_certs/
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "timeout 5 mosquitto_sub -t '$$SYS/#' -C 1 | grep -v Error || exit 1"]
-      interval: 10s
-      timeout: 10s
-      retries: 6
 
   nginx_proxy:
     container_name: ${PLATFORM_NAME}_nginx_proxy
-    build: ./images/nginx
+    build:
+      context: ./images/nginx
+      dockerfile: Dockerfile    
     networks:
       - internal_net
     ports: 
@@ -43,7 +42,9 @@ services:
 
   nodered:
     container_name: ${PLATFORM_NAME}_nodered
-    build: ./images/nodered
+    build:
+      context: ./images/nodered
+      dockerfile: Dockerfile        
     user: "${UID}:${GID}"
     networks:
       - internal_net
@@ -63,6 +64,7 @@ services:
     container_name: ${PLATFORM_NAME}_postgres
     build:
       context: ./images/postgres
+      dockerfile: Dockerfile           
     networks:
       - internal_net  
     environment:
@@ -76,16 +78,13 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 4s
-      timeout: 120s
-      retries: 30
     restart: unless-stopped
 
   grafana:
     container_name: ${PLATFORM_NAME}_grafana
-    build: ./images/grafana
+    build:
+      context: ./images/grafana
+      dockerfile: Dockerfile               
     user: "${UID}:${GID}"
     networks:
       - internal_net      
@@ -115,18 +114,15 @@ services:
       - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
       - MAIN_ORGANIZATION_DATASOURCE_NAME=${MAIN_ORGANIZATION_DATASOURCE_NAME}
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]
-      interval: 10s
-      timeout: 300s
-      retries: 30
     depends_on:
       postgres:
         condition: service_healthy     
 
   grafana_renderer:
     container_name: ${PLATFORM_NAME}_grafana_rendered
-    build: ./images/grafana_renderer
+    build:
+      context: ./images/grafana_renderer
+      dockerfile: Dockerfile        
     networks:
       - internal_net
     ports:
@@ -150,12 +146,7 @@ services:
     ports:
       - "127.0.0.1:5050:80"
     networks:
-      - internal_net
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost || exit 1"]
-      interval: 10s
-      timeout: 300s
-      retries: 30      
+      - internal_net   
     restart: unless-stopped
 
   admin_api:
@@ -179,11 +170,6 @@ services:
       WAIT_HOSTS: postgres:5432, grafana:5000
       WAIT_HOSTS_TIMEOUT: 300
       WAIT_SLEEP_INTERVAL: 5
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail --insecure https://localhost:3200/health || exit 1"]
-      interval: 10s
-      timeout: 300s
-      retries: 30
     ports:
     - "127.0.0.1:3200:3200"
 
@@ -204,7 +190,9 @@ services:
         condition: service_started
   
   portainer:
-    image: portainer/portainer
+    build:
+      context: ./images/portainer
+      dockerfile: Dockerfile      
     container_name: ${PLATFORM_NAME}_portainer
     networks:
       - internal_net

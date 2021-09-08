@@ -4,7 +4,9 @@ services:
 
   mosquitto:
     container_name: ${PLATFORM_NAME}_mosquitto
-    build: ./images/mosquitto
+    build:
+      context: ./images/mosquitto
+      dockerfile: Dockerfile
     networks:
       - internal_net
     ports:
@@ -21,7 +23,9 @@ services:
 
   nginx_proxy:
     container_name: ${PLATFORM_NAME}_nginx_proxy
-    build: ./images/nginx
+    build:
+      context: ./images/nginx
+      dockerfile: Dockerfile    
     networks:
       - internal_net
     ports: 
@@ -58,6 +62,7 @@ services:
     container_name: ${PLATFORM_NAME}_postgres
     build:
       context: ./images/postgres
+      dockerfile: Dockerfile           
     networks:
       - internal_net  
     environment:
@@ -66,21 +71,18 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
       GRAFANA_DATASOURCE_PASSWORD: ${GRAFANA_DATASOURCE_PASSWORD}
-      TZ: ${TIME_ZONE}
+      TZ: ${TIME_ZONE}      
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 600s
-      retries: 60
     restart: unless-stopped
 
   grafana:
     container_name: ${PLATFORM_NAME}_grafana
-    build: ./images/grafana
+    build:
+      context: ./images/grafana
+      dockerfile: Dockerfile               
     user: "${UID}:${GID}"
     networks:
       - internal_net      
@@ -90,7 +92,7 @@ services:
       - grafana_data:/var/lib/grafana
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
-      - DEFAULT_TIME_ZONE=${DEFAULT_TIME_ZONE}      
+      - DEFAULT_TIME_ZONE=${DEFAULT_TIME_ZONE} 
       - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
       - GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
@@ -110,18 +112,15 @@ services:
       - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
       - MAIN_ORGANIZATION_DATASOURCE_NAME=${MAIN_ORGANIZATION_DATASOURCE_NAME}
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f localhost:5000/api/health || exit 1"]
-      interval: 10s
-      timeout: 600s
-      retries: 60
     depends_on:
       postgres:
         condition: service_healthy     
 
   grafana_renderer:
     container_name: ${PLATFORM_NAME}_grafana_rendered
-    build: ./images/grafana_renderer
+    build:
+      context: ./images/grafana_renderer
+      dockerfile: Dockerfile        
     networks:
       - internal_net
     ports:
@@ -145,12 +144,7 @@ services:
     ports:
       - "127.0.0.1:5050:80"
     networks:
-      - internal_net
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost || exit 1"]
-      interval: 10s
-      timeout: 300s
-      retries: 30      
+      - internal_net   
     restart: unless-stopped
 
   admin_api:
@@ -184,6 +178,7 @@ services:
     ports:
     - "3200:3200"
 
+  
   frontend:
     build: 
       context: ./images/frontend
@@ -192,7 +187,7 @@ services:
     restart: unless-stopped
     environment:
       PLATFORM_NAME: ${PLATFORM_NAME}
-      DOMAIN_NAME: ${DOMAIN_NAME}
+      DOMAIN_NAME: ${DOMAIN_NAME}    
     networks:
       - internal_net
     command: nginx -g "daemon off";
@@ -201,7 +196,9 @@ services:
         condition: service_started
   
   portainer:
-    image: portainer/portainer
+    build:
+      context: ./images/portainer
+      dockerfile: Dockerfile      
     container_name: ${PLATFORM_NAME}_portainer
     networks:
       - internal_net

@@ -8,7 +8,7 @@ COPY ./app/. .
 RUN yarn build
 
 # => Run container
-FROM nginx
+FROM nginx:1.21.1
 
 # Nginx config
 COPY ./nginx.conf /etc/nginx/nginx.conf

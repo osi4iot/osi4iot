@@ -187,7 +187,9 @@ services:
         condition: service_started
   
   portainer:
-    image: portainer/portainer
+    build:
+      context: ./images/portainer
+      dockerfile: Dockerfile
     container_name: ${PLATFORM_NAME}_portainer
     networks:
       - internal_net

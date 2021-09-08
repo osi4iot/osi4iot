@@ -21,5 +21,7 @@ RUN apk --no-cache add curl
 USER node
 RUN npm install
 COPY --from=0 /app/build ./build
-CMD /wait && npm run dev 
+CMD /wait && npm run dev
+HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
+  CMD curl --fail --insecure https://localhost:3200/health || exit 1
 EXPOSE 3200

@@ -166,7 +166,7 @@ export default class GrafanaApi implements IDashboardApi {
 		const user = {
 			name: `org_${orgId}_api_admin`,
 			login: `org_${orgId}_api_admin`,
-			email: `org_${orgId}_api_admin@localhost`,
+			email: `org_${orgId}_api_admin@test.com`,
 			password: process.env.PLATFORM_ADMIN_PASSWORD,
 			OrgId: orgId,
 		}

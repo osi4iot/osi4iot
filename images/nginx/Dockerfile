@@ -1,4 +1,4 @@
-FROM nginx
+FROM nginx:1.21.1
 #COPY /static/ /static/
 COPY /templates/default.conf /etc/nginx/templates/default.conf.template
 COPY entry_script.sh /src/scripts/entry_script.sh
