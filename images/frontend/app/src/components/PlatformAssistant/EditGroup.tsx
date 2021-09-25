@@ -205,10 +205,16 @@ const EditGroup: FC<EditGroupProps> = ({
         const orgId = groups[groupRowIndex].orgId;
         const groupInputFormData = { groupInputFormData: groupInputData };
         setGroupInputData(groupsDispatch, groupInputFormData);
-        const buildingId = orgsManagedTable.filter(org => org.id === orgId)[0].buildingId;
-        const groupBuildingId = { groupBuildingId: buildingId };
-        setGroupBuildingId(groupsDispatch, groupBuildingId);
-        selectSpaceOption();
+        const orgsManagedTableFiltered = orgsManagedTable.filter(org => org.id === orgId);
+        if (orgsManagedTableFiltered.length === 0) {
+            const warningMessage = "To select a location for the group orgs managed must been updated"
+            toast.warning(warningMessage);
+        } else {
+            const buildingId =  orgsManagedTableFiltered[0].buildingId;
+            const groupBuildingId = { groupBuildingId: buildingId };
+            setGroupBuildingId(groupsDispatch, groupBuildingId);
+            selectSpaceOption();
+        }
     }
 
     return (

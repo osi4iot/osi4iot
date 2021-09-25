@@ -3,6 +3,7 @@ import CreateUserDto from "./interfaces/User.dto";
 import jwt from "jsonwebtoken";
 import sleep from "../../utils/helpers/sleep";
 import wait from "../../utils/helpers/wait";
+import getDomainUrl from "../../utils/helpers/getDomainUrl";
 
 // const maxMessages = 50;
 
@@ -35,7 +36,7 @@ import wait from "../../utils/helpers/wait";
 // 			algorithm,
 // 			expiresIn: parseInt(process.env.REGISTRATION_TOKEN_LIFETIME, 10)
 // 		});
-// 		const registrationLink = `https://${process.env.DOMAIN_NAME}/register?token=${registrationToken}`;
+// 		const registrationLink = `${getDomainUrl()}/register?token=${registrationToken}`;
 
 // 		let mailBody =
 // 			`<p>Dear ${userFirstName},</p>
@@ -77,7 +78,7 @@ export const sendUserRegistrationInvitationEmail = async (usersArray: CreateUser
 			algorithm,
 			expiresIn: parseInt(process.env.REGISTRATION_TOKEN_LIFETIME, 10)
 		});
-		const registrationLink = `https://${process.env.DOMAIN_NAME}/register?token=${registrationToken}`;
+		const registrationLink = `${getDomainUrl()}/register?token=${registrationToken}`;
 
 		let mailBody =
 			`<p>Dear ${userFirstName},</p>

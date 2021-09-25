@@ -265,7 +265,7 @@ export async function dataBaseInitialization() {
 		try {
 			await pool.query(queryStringGroup);
 			const mainOrgGroupAdmin = {
-				id: 2,
+				userId: 2,
 				firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
 				surname: process.env.PLATFORM_ADMIN_SURNAME,
 				email: process.env.PLATFORM_ADMIN_EMAIL

@@ -23,5 +23,5 @@ RUN npm install --only=production
 COPY --from=0 /app/build ./build
 CMD /wait && npm start
 HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
-  CMD curl --fail --insecure https://localhost:3200/health || exit 1
+  CMD curl --fail --insecure http://localhost:3200/health || exit 1
 EXPOSE 3200

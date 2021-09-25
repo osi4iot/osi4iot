@@ -15,20 +15,15 @@ import errorMiddleware from "./middleware/error.middleware";
 import pool from "./config/dbconfig";
 import transporter from "./config/mailer";
 import IRequestWithSwaggerDoc from "./interfaces/requestWithSwaggerDoc";
+import getDomainUrl from "./utils/helpers/getDomainUrl";
 
-const httpsOptions = {
-	key: fs.readFileSync("./ssl_config/iot_platform.key"),
-	cert: fs.readFileSync("./ssl_config/iot_platform_cert.cer"),
-};
 
 class App {
 	private app: express.Application;
 	private port: number;
-	private server: https.Server;
 
 	constructor(controllers: IController[]) {
 		this.app = express();
-		this.server = https.createServer(httpsOptions, this.app);
 		this.port = 3200;
 
 		this.initializeMiddlewares();
@@ -39,7 +34,7 @@ class App {
 	}
 
 	public listen(): void {
-		this.server.listen(this.port, () => {
+		this.app.listen(this.port, () => {
 			const date = Date();
 			logger.log("info", `App listening on port ${this.port} - ${date}`);
 		});
@@ -50,8 +45,8 @@ class App {
 	}
 
 	private initializeMiddlewares(): void {
-		this.app.use(bodyParser.json({limit: '100mb'}));
-		this.app.use(bodyParser.urlencoded({limit: '100mb', extended: true}));
+		this.app.use(bodyParser.json({ limit: '100mb' }));
+		this.app.use(bodyParser.urlencoded({ limit: '100mb', extended: true }));
 		this.app.set("json spaces", 4);
 		this.app.use(helmet());
 		this.app.use(compression());
@@ -71,7 +66,7 @@ class App {
 		};
 		const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} Platform`;
 		const platformPhrase = `${process.env.PLATFORM_PHRASE}`;
-		const serverUrl = `https://${process.env.DOMAIN_NAME}/admin_api/`;
+		const serverUrl = `${getDomainUrl()}/admin_api/`;
 		this.app.use("/swagger", (req: IRequestWithSwaggerDoc, res: Response, next: NextFunction) => {
 			(swaggerDocument as any).info.title = platformName;
 			(swaggerDocument as any).info.description = platformPhrase;

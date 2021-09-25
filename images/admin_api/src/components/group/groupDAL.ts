@@ -78,6 +78,9 @@ export const createGroup = async (
 	} else {
 		groupInput.groupAdminDataArray.forEach(admin => permissionsArray.push({ userId: admin.userId, permission: "Editor" }));
 	}
+	console.log("luegor borrar permissionsArray=", permissionsArray)
+	console.log("luegor borrar folderId=", folderId)
+	console.log("luegor borrar orgId=", orgId)
 	await setFolderPermissions(orgId, folderId, permissionsArray);
 	const groupAdminIdArray = groupInput.groupAdminDataArray.map(admin => ({ userId: admin.userId }));
 	await grafanaApi.addTeamMembers(orgId, teamId, groupAdminIdArray);

@@ -290,15 +290,19 @@ class OrganizationController implements IController {
 				await grafanaApi.changeUserRoleInOrganization(newOrg.orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
 				const dataSourceName = `iot_${organizationData.acronym.replace(/ /g, "_").toLowerCase()}_db`;
 				await createDefaultOrgDataSource(newOrg.orgId, dataSourceName, apiKeyObj.key);
-				const groupAdminDataArray: CreateGroupAdminDto[] = []
-				organizationData.orgAdminArray.push({
-					name: `${process.env.PLATFORM_ADMIN_FIRST_NAME} ${process.env.PLATFORM_ADMIN_SURNAME}`,
-					firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
-					surname: process.env.PLATFORM_ADMIN_SURNAME,
-					email: process.env.PLATFORM_ADMIN_EMAIL,
-					login: process.env.PLATFORM_ADMIN_USER_NAME,
-					password: process.env.PLATFORM_ADMIN_PASSWORD,
-				});
+				const groupAdminDataArray: CreateGroupAdminDto[] = [];
+				const platformAdminEmail = process.env.PLATFORM_ADMIN_EMAIL;
+				const orgAdminArrayFiltered = organizationData.orgAdminArray.filter(orgAdmin => orgAdmin.email === platformAdminEmail);
+				if (orgAdminArrayFiltered.length === 0) {
+					organizationData.orgAdminArray.push({
+						name: `${process.env.PLATFORM_ADMIN_FIRST_NAME} ${process.env.PLATFORM_ADMIN_SURNAME}`,
+						firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
+						surname: process.env.PLATFORM_ADMIN_SURNAME,
+						email: process.env.PLATFORM_ADMIN_EMAIL,
+						login: process.env.PLATFORM_ADMIN_USER_NAME,
+						password: process.env.PLATFORM_ADMIN_PASSWORD,
+					});
+				}
 				organizationData.orgAdminArray.forEach(user => {
 					groupAdminDataArray.push(
 						{

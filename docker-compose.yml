@@ -96,7 +96,6 @@ services:
       - DOMAIN_NAME=${DOMAIN_NAME}
       - DEFAULT_TIME_ZONE=${DEFAULT_TIME_ZONE} 
       - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
-      - GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - HOME_DASHBOARD_PATH=/var/lib/grafana/data/home_dashboard.json
       - GMAIL_USER=${GMAIL_USER}
@@ -158,8 +157,6 @@ services:
       - internal_net
     restart: unless-stopped
     volumes:
-      - ./certs/domain_certs/iot_platform_cert.cer:/app/ssl_config/iot_platform_cert.cer
-      - ./certs/domain_certs/iot_platform.key:/app/ssl_config/iot_platform.key
       - ./certs/mqtt_server_certs/ca.crt:/app/mqtt_certs/ca.crt
       - ./certs/mqtt_server_certs/ca.key:/app/mqtt_certs/ca.key
     working_dir: /app

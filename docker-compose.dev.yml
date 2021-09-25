@@ -158,8 +158,6 @@ services:
     volumes:
       - node_modules_vol:/app/node_modules
       - ./images/admin_api:/app
-      - ./certs/domain_certs/iot_platform_cert.cer:/app/ssl_config/iot_platform_cert.cer
-      - ./certs/domain_certs/iot_platform.key:/app/ssl_config/iot_platform.key
       - ./certs/mqtt_server_certs/ca.crt:/app/mqtt_certs/ca.crt
       - ./certs/mqtt_server_certs/ca.key:/app/mqtt_certs/ca.key
     working_dir: /app
