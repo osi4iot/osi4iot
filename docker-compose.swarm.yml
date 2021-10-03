@@ -23,6 +23,8 @@ services:
     deploy:
       mode: replicated
       replicas: 3
+      # placement:
+      #   constraints: [node.role == worker]
     #   labels:
     #     - traefik.enable=true
     #     - traefik.http.routers.traefik.rule=Host(`${DOMAIN_NAME}`)
@@ -61,8 +63,11 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
     deploy:
+      replicas: 1
       placement:
         constraints: [ node.id == $NODE_ID ]
+      restart_policy:
+        condition: on-failure
 
   agent:
     image: portainer/agent
@@ -149,7 +154,7 @@ services:
   postgres:
     image: osi4iot/postgres:v1.0
     networks:
-      - internal_net
+      - internal_net  
     environment:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_USER: ${POSTGRES_USER}
@@ -160,7 +165,17 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro      
+      - /etc/localtime:/etc/localtime:ro 
+    deploy:
+      # placement:
+      #   constraints: [node.role == worker]
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
 
   nodered:
     image: osi4iot/nodered:v1.0     
@@ -176,6 +191,13 @@ services:
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro      
     deploy:
+      # placement:
+      #   constraints: [node.role == worker]
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        # max_attempts: 20
+        window: 120s
       labels:
         - traefik.enable=true
         - traefik.http.routers.nodered.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/nodered/`)
@@ -221,6 +243,15 @@ services:
       - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
       - MAIN_ORGANIZATION_DATASOURCE_NAME=${MAIN_ORGANIZATION_DATASOURCE_NAME}
     deploy:
+      mode: replicated
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      # placement:
+      #   constraints: [node.role == worker]
       labels:
         - traefik.enable=true
         - traefik.http.routers.grafana.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/grafana/`)
@@ -234,6 +265,9 @@ services:
         - traefik.http.routers.grafana.tls=true
         - traefik.http.routers.grafana.service=grafana
         - traefik.http.services.grafana.loadbalancer.server.port=5000
+        - traefik.http.services.grafana.loadbalancer.healthCheck.path=/api/health
+        - traefik.http.services.grafana.loadbalancer.healthCheck.interval=5s
+        - traefik.http.services.grafana.loadbalancer.healthCheck.timeout=3s      
   
   grafana_renderer:
     image: osi4iot/grafana_renderer:v1.0      
@@ -265,8 +299,16 @@ services:
       WAIT_HOSTS: postgres:5432, grafana:5000
       WAIT_HOSTS_TIMEOUT: 300
       WAIT_SLEEP_INTERVAL: 5
-      PLATFORM_ADMIN_SURNAME: "Di Capua"
     deploy:
+      mode: replicated
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      # placement:
+      #   constraints: [node.role == worker]
       labels:
         - traefik.enable=true
         - traefik.http.routers.admin_api.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/admin_api/`)
@@ -281,6 +323,9 @@ services:
         - traefik.http.routers.admin_api.tls=true        
         - traefik.http.routers.admin_api.service=admin_api
         - traefik.http.services.admin_api.loadbalancer.server.port=3200
+        - traefik.http.services.admin_api.loadbalancer.healthCheck.path=/health
+        - traefik.http.services.admin_api.loadbalancer.healthCheck.interval=5s
+        - traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s        
 
   frontend:
     image: osi4iot/frontend:v1.0
@@ -288,7 +333,6 @@ services:
       PLATFORM_NAME: ${PLATFORM_NAME}
       DOMAIN_NAME: ${DOMAIN_NAME}  
     networks:
-      - internal_net
       - traefik-public
     command: nginx -g "daemon off";
     volumes:
@@ -298,7 +342,14 @@ services:
       - /etc/localtime:/etc/localtime:ro       
     deploy:
       mode: replicated
-      replicas: 3    
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      # placement:
+      #   constraints: [node.role == worker]
       labels:
         - traefik.enable=true
         - traefik.http.routers.frontend.rule=Host(`${DOMAIN_NAME}`)
@@ -306,18 +357,9 @@ services:
         - traefik.http.routers.frontend.tls=true        
         - traefik.http.routers.frontend.service=frontend
         - traefik.http.services.frontend.loadbalancer.server.port=80
-
-  # whoami:
-  #   image: traefik/whoami
-  #   deploy:
-  #     labels:
-  #       - traefik.enable=true
-  #       - traefik.http.routers.whoami.rule=Host(`${DOMAIN_NAME}`) && Path(`/whoami`)
-  #       - traefik.http.routers.whoami.entrypoints=websecure
-  #       - traefik.http.routers.whoami.tls=true
-  #       - traefik.http.services.whoami.loadbalancer.server.port=80
-  #   networks:
-  #     - traefik-public
+        - traefik.http.services.frontend.loadbalancer.healthCheck.path=/health
+        - traefik.http.services.frontend.loadbalancer.healthCheck.interval=5s
+        - traefik.http.services.frontend.loadbalancer.healthCheck.timeout=3s
 
 networks:
   traefik-public:

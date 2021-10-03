@@ -1,7 +1,8 @@
 #!/bin/bash
+
 set -a
 #source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" -e "s/=\(.*\)/='\1'/g")
-source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" | sed $'s/\r$//') 
+source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" | sed $'s/\r$//')
 set +a
 
 export POSTGRES_PASSWORD=$GENERIC_PASSWORD
@@ -33,4 +34,42 @@ if [[ "$internal_network" == "" ]]; then
     docker network create -d overlay --opt encrypted=true internal_net
 fi
 
-docker stack deploy -c docker-compose.swarm.yml osi4iot_stack
+docker stack deploy -c docker-compose.swarm.yml osi4iot
+
+sp="/-\|"
+sc=0
+spin() {
+   printf "\b${sp:sc++:1}"
+   ((sc==${#sp})) && sc=0
+}
+endspin() {
+   printf "\r%s\n\n" "$@"
+   tput cnorm
+}
+
+do=true && [[ "$(docker ps | grep osi4iot/admin_api | grep healthy)" != "" ]] && do=false
+printf '\n%s' "Initializing database  "
+while $do ; do
+  spin
+  do=true && [[ "$(docker ps | grep osi4iot/admin_api | grep healthy)" != "" ]] && do=false
+  sleep 0.5
+done
+endspin
+docker service scale osi4iot_admin_api=3
+
+do=true && [[ "$(docker ps | grep starting)" == "" ]] && do=false
+printf '\n%s' "Waiting until all containers be ready  "
+while $do ; do
+  spin
+  do=true && [[ "$(docker ps | grep starting)" == "" ]] && do=false
+  sleep 1
+done
+endspin
+
+echo ""
+echo "Removing unused containers:"
+docker system prune --force
+
+echo ""
+echo "OSI4IOT platform is ready!!!"
+echo ""
