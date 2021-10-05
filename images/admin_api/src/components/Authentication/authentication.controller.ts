@@ -79,7 +79,7 @@ class AuthenticationController implements IController {
 			action: "refresh_token"
 		};
 
-		const algorithm = process.env.JWT_ALGORITHM as jwt.Algorithm;
+		const algorithm = 'HS256' as jwt.Algorithm;
 		const refreshToken = jwt.sign({ ...payloadRefreshToken }, process.env.REFRESH_TOKEN_SECRET, {
 			algorithm,
 			expiresIn: parseInt(process.env.REFRESH_TOKEN_LIFETIME, 10)
@@ -97,7 +97,7 @@ class AuthenticationController implements IController {
 		};
 
 		let loginOutput: ILoginOutput;
-		const algorithm = process.env.JWT_ALGORITHM as jwt.Algorithm;
+		const algorithm = "HS256" as jwt.Algorithm;
 		const accessToken = jwt.sign({ ...payloadAccessToken }, process.env.ACCESS_TOKEN_SECRET, {
 			algorithm,
 			expiresIn: parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10)

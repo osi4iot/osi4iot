@@ -1,8 +1,8 @@
 FROM nodered/node-red:2.0.6-12
 
-COPY flows_cred.json /data
-COPY flows.json /data
-COPY settings.js /data
+COPY --chown=node-red:node-red flows_cred.json /data
+COPY --chown=node-red:node-red flows.json /data
+COPY --chown=node-red:node-red settings.js /data
 
 RUN npm install node-red-dashboard \
     npm install node-red-contrib-schedex \

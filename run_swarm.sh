@@ -1,9 +1,15 @@
 #!/bin/bash
 
+echo RELOADAGENT | gpg-connect-agent
+gpg .env_aux.gpg >/dev/null 2>&1
+echo RELOADAGENT | gpg-connect-agent
+
 set -a
 #source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" -e "s/=\(.*\)/='\1'/g")
-source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" | sed $'s/\r$//')
+#source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" | sed $'s/\r$//')
+source <(cat .env_aux | sed -e '/^#/d;/^\s*$/d' | sed $'s/\r$//')
 set +a
+rm .env_aux
 
 export POSTGRES_PASSWORD=$GENERIC_PASSWORD
 export PGADMIN_DEFAULT_PASSWORD=$GENERIC_PASSWORD
@@ -67,8 +73,9 @@ done
 endspin
 
 echo ""
-echo "Removing unused containers:"
+echo "Removing unused containers and images:"
 docker system prune --force
+echo ""
 
 echo ""
 echo "OSI4IOT platform is ready!!!"

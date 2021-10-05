@@ -176,7 +176,12 @@ services:
     container_name: ${PLATFORM_NAME}_frontend
     environment:
       PLATFORM_NAME: ${PLATFORM_NAME}
-      DOMAIN_NAME: ${DOMAIN_NAME}    
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      MIN_LONGITUDE: ${MIN_LONGITUDE}
+      MAX_LONGITUDE: ${MAX_LONGITUDE}
+      MIN_LATITUDE: ${MIN_LATITUDE}
+      MAX_LATITUDE: ${MAX_LATITUDE}        
     networks:
       - internal_net
     command: nginx -g "daemon off";

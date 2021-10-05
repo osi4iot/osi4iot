@@ -139,7 +139,19 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 	const html_content = `<br/>\n<h1>${platformName}</h1>\n<h2>${orgName}</h2>\n`
 	homeDashboard.panels[0].options.content = html_content;
-	homeDashboard.uid = uuidv4();
+	homeDashboard.panels[0].gridPos = {
+		h: 4,
+		w: 24,
+		x: 0,
+		y: 0
+	};
+	homeDashboard.panels[1].gridPos = {
+		h: 18,
+		w: 24,
+		x: 0,
+		y: 4
+	},
+		homeDashboard.uid = uuidv4();
 	const response = await insertDashboard(orgId, folderId, title, homeDashboard);
 	await insertPreference(orgId, response.id);
 };

@@ -125,16 +125,16 @@ const findBounds = (buildings: IBuilding[]) => {
         let minMapLongitude = -10.56884765625;
         let maxMapLongitude = 1.42822265625;
         if (window._env_.MIN_LONGITUDE) {
-            minMapLongitude = window._env_.minLongitude;
+            minMapLongitude = parseFloat(window._env_.MIN_LONGITUDE);
         }
         if (window._env_.MAX_LONGITUDE) {
-            maxMapLongitude = window._env_.maxLongitude;
+            maxMapLongitude = parseFloat(window._env_.MAX_LONGITUDE);
         }
         if (window._env_.MIN_LATITUDE) {
-            minMapLatitude = window._env_.minLatitude;
+            minMapLatitude = parseFloat(window._env_.MIN_LATITUDE);
         }
         if (window._env_.MAX_LATITUDE) {
-            maxMapLatitude = window._env_.maxLatitude;
+            maxMapLatitude = parseFloat(window._env_.MAX_LATITUDE);
         }
         outerBounds = [[minMapLatitude, minMapLongitude], [maxMapLatitude, maxMapLongitude]];
     }

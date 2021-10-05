@@ -1,4 +1,6 @@
 .env
+.env_aux.gpg
+.env_aux
 certs/domain_certs/*
 !certs/domain_certs/.gitkeep
 certs/mqtt_nodered_certs/*

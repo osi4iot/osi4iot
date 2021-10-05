@@ -1,5 +1,6 @@
 /* eslint-disable quotes */
 import passport from "passport";
+import jwt from "jsonwebtoken";
 import passportLocal from "passport-local";
 import passportJwt from "passport-jwt";
 import { getUserLoginDatadByEmailOrLogin, getUserdByEmailOrLogin } from "../components/user/userDAL";
@@ -43,10 +44,11 @@ export default function passportInitialize(): void {
 		)
 	);
 
+	const algorithm = "HS256" as jwt.Algorithm;
 	const optsAccessToken = {
 		jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 		secretOrKey: process.env.ACCESS_TOKEN_SECRET,
-		algorithms: [process.env.JWT_ALGORITHM]
+		algorithms: [algorithm]
 	};
 
 	passport.use(
@@ -92,7 +94,7 @@ export default function passportInitialize(): void {
 	const optsRefreshToken = {
 		jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 		secretOrKey: process.env.REFRESH_TOKEN_SECRET,
-		algorithms: [process.env.JWT_ALGORITHM]
+		algorithms: [algorithm]
 	};
 
 	passport.use(

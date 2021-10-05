@@ -299,6 +299,10 @@ services:
       WAIT_HOSTS: postgres:5432, grafana:5000
       WAIT_HOSTS_TIMEOUT: 300
       WAIT_SLEEP_INTERVAL: 5
+      PLATFORM_ADMIN_SURNAME: ${PLATFORM_ADMIN_SURNAME}
+      PLATFORM_PHRASE: ${PLATFORM_PHRASE}
+      MAIN_ORGANIZATION_NAME: ${MAIN_ORGANIZATION_NAME}
+      MAIN_ORGANIZATION_ADDRESS1: ${MAIN_ORGANIZATION_ADDRESS1}
     deploy:
       mode: replicated
       replicas: 1
@@ -331,7 +335,11 @@ services:
     image: osi4iot/frontend:v1.0
     environment:
       PLATFORM_NAME: ${PLATFORM_NAME}
-      DOMAIN_NAME: ${DOMAIN_NAME}  
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      MIN_LONGITUDE: ${MIN_LONGITUDE}
+      MAX_LONGITUDE: ${MAX_LONGITUDE}
+      MIN_LATITUDE: ${MIN_LATITUDE}
+      MAX_LATITUDE: ${MAX_LATITUDE}
     networks:
       - traefik-public
     command: nginx -g "daemon off";
