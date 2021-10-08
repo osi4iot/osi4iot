@@ -1,0 +1,6 @@
+PLATFORM_NAME=<my_platform_name>
+DOMAIN_NAME=<my_domain_name>
+MIN_LONGITUDE=<my_min_longitude>
+MAX_LONGITUDE=<my_max_longitude>
+MIN_LATITUDE=<my_min_latitude>
+MAX_LATITUDE=<my_max_latitude>

@@ -1,0 +1,10 @@
+DOMAIN_NAME=<my_domain_name>
+DEFAULT_TIME_ZONE=<my_default_time_zone>
+GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
+HOME_DASHBOARD_PATH=/var/lib/grafana/data/home_dashboard.json
+GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
+GF_RENDERING_CALLBACK_URL=http://grafana:5000/grafana/
+GF_LOG_FILTERS=rendering:debug
+MAIN_ORGANIZATION_NAME=<my_main_organization_name>
+MAIN_ORGANIZATION_ACRONYM=<my_main_organization_acronym>
+MAIN_ORGANIZATION_DATASOURCE_NAME=${MAIN_ORGANIZATION_DATASOURCE_NAME}

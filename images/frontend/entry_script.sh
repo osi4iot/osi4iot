@@ -14,7 +14,13 @@ echo "window._env_ = {" >> ./env-config.js
 ## Loop through the above array
 for env_key in "${env_keys_array[@]}"
 do
-   line=$(env | grep $env_key)
+
+  if [ -f "/run/configs/frontend.conf" ]
+  then
+    line=$(cat /run/configs/frontend.conf | grep $env_key)
+  else
+    line=$(env | grep $env_key)
+  fi
    
   # Split env variables by character `=`
   if printf '%s\n' "$line" | grep -q -e '='; then

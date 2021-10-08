@@ -1,6 +1,16 @@
 .env
 .env_aux.gpg
 .env_aux
+secrets/*
+!secrets/*.example
+config/admin_api/*
+!config/admin_api/*.example
+config/frontend/*
+!config/frontend/*.example
+config/grafana/*
+!config/grafana/*.example
+config/nodered/*
+!config/nodered/*.example
 certs/domain_certs/*
 !certs/domain_certs/.gitkeep
 certs/mqtt_nodered_certs/*

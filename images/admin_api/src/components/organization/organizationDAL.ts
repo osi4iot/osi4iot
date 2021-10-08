@@ -99,7 +99,8 @@ export const getOrganizationKey = async (orgId: number): Promise<string> => {
 export const createDefaultOrgDataSource = async (orgId: number, name: string, orgKey: string): Promise<void> => {
 	const query1 = `SELECT id, json_data, secure_json_data
 					FROM grafanadb.data_source WHERE name = $1;`;
-	const result = await pool.query(query1, [process.env.MAIN_ORGANIZATION_DATASOURCE_NAME]);
+	const dataSourceName = `iot_${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
+	const result = await pool.query(query1, [dataSourceName]);
 	if (result.rows.length === 0) throw new Error("Main organization default data source not found");
 	const jsonData = result.rows[0].json_data;
 	const secureJsonData = result.rows[0].secure_json_data;

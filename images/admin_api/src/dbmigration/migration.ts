@@ -7,7 +7,6 @@ import { addMembersToGroup, createGroup, defaultOrgGroupName } from "../componen
 import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
 import { createDemoDashboards, createHomeDashboard } from "../components/group/dashboardDAL";
 import { createDevice, defaultGroupDeviceName } from "../components/device/deviceDAL";
-import { giveDefaultGeolocation } from "../utils/geolocation.ts/geolocation";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import { createTopic, demoTopicSensorName } from "../components/topic/topicDAL";
@@ -57,7 +56,7 @@ export async function dataBaseInitialization() {
 		}
 
 		const queryStringInsertBuilding = `INSERT INTO ${tableBuilding} (name, geolocation, created, updated) VALUES ($1, $2, NOW(), NOW())`;
-		const queryParametersInsertBuilding = [process.env.MAIN_ORGANIZATION_NAME, giveDefaultGeolocation()];
+		const queryParametersInsertBuilding = [process.env.MAIN_ORGANIZATION_NAME, `(0,0)`];
 		try {
 			await pool.query(queryStringInsertBuilding, queryParametersInsertBuilding);
 			logger.log("info", `Data in table ${tableBuilding} has been inserted sucessfully`);
@@ -168,7 +167,7 @@ export async function dataBaseInitialization() {
 
 		try {
 			await pool.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
-			const apyKeyName = `ApiKey_${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase()}`
+			const apyKeyName = `ApiKey_${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}`
 			const apiKeyData = { name: apyKeyName, role: "Admin" };
 			const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
 			apiKeyMainOrg = apiKeyObj.key;
@@ -217,8 +216,8 @@ export async function dataBaseInitialization() {
 
 		let group: IGroup;
 		const mainOrgGroupName = defaultOrgGroupName(process.env.MAIN_ORGANIZATION_NAME, process.env.MAIN_ORGANIZATION_ACRONYM);
-		const mainOrgGroupAcronym = `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase()}_GRAL`;
-		const orgAcronym = process.env.MAIN_ORGANIZATION_ACRONYM;
+		const mainOrgGroupAcronym = `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}_GRAL`;
+		const orgAcronym = process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
 		const orgName = process.env.MAIN_ORGANIZATION_NAME;
 		const tableGroup = "grafanadb.group";
 		const queryStringGroup = `
@@ -273,7 +272,7 @@ export async function dataBaseInitialization() {
 			const defaultMainOrgGroup = {
 				name: mainOrgGroupName,
 				acronym: mainOrgGroupAcronym,
-				email: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toLocaleLowerCase()}_general@test.com`,
+				email: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toLocaleLowerCase()}_general@test.com`,
 				telegramChatId: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 				telegramInvitationLink: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 				folderPermission: ("Viewer" as FolderPermissionOption),

@@ -1,0 +1,10 @@
+DOMAIN_NAME=<my_domain_name>
+PLATFORM_NAME=<my_platform_name>
+PLATFORM_PHRASE=<my_platform_phrase>
+MAIN_ORGANIZATION_NAME=<my_main_organization_name>
+MAIN_ORGANIZATION_ACRONYM=<my_main_organization_acronym>
+MAIN_ORGANIZATION_ADDRESS1=<my_main_organization_address>
+MAIN_ORGANIZATION_CITY=<my_main_organization_city>
+MAIN_ORGANIZATION_ZIP_CODE=<my_main_organization_zip_code>
+MAIN_ORGANIZATION_STATE=<my_main_organization_state>
+MAIN_ORGANIZATION_COUNTRY=<my_main_organization_country>

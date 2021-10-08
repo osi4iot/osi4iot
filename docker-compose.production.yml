@@ -18,6 +18,8 @@ services:
       - mosquitto_log:/mosquitto/log/
       - ./certs/mqtt_server_certs/:/mosquitto/mqtt_certs/
       - ./certs/domain_certs/:/mosquitto/wss_certs/
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     restart: unless-stopped
     logging:
       driver: "fluentd"
@@ -43,6 +45,8 @@ services:
     volumes:
       - ./images/nginx/static/:/static/
       - ./certs/domain_certs/:/etc/ssl/certs/
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     command: ./src/scripts/template_script.sh
     depends_on:
       - nodered
@@ -67,6 +71,8 @@ services:
     volumes:
       - nodered_data:/data
       - ./certs/mqtt_nodered_certs/:/data/certs/
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     restart: unless-stopped
     depends_on:
       postgres:
@@ -95,6 +101,8 @@ services:
       TZ: ${TIME_ZONE}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -122,6 +130,8 @@ services:
       - "127.0.0.1:5000:5000"
     volumes:
       - grafana_data:/var/lib/grafana
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     environment:
       - DOMAIN_NAME=${DOMAIN_NAME}
       - DEFAULT_TIME_ZONE=${DEFAULT_TIME_ZONE}       
@@ -129,10 +139,9 @@ services:
       - GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - HOME_DASHBOARD_PATH=/var/lib/grafana/data/home_dashboard.json
-      - GMAIL_USER=${GMAIL_USER}
-      - EMAIL_USER=${EMAIL_USER}
-      - EMAIL_ADDRESS=${EMAIL_ADDRESS}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
+      - NOTIFICATIONS_EMAIL_USER=${NOTIFICATIONS_EMAIL_USER}
+      - NOTIFICATIONS_EMAIL_ADDRESS=${NOTIFICATIONS_EMAIL_ADDRESS}
+      - NOTIFICATIONS_EMAIL_PASSWORD=${NOTIFICATIONS_EMAIL_PASSWORD}
       - TELEGRAM_BOTTOKEN=${TELEGRAM_BOTTOKEN}
       - TELEGRAM_CHATID=${TELEGRAM_CHATID}
       - GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
@@ -167,6 +176,9 @@ services:
       - fluentd_net
     ports:
       - 8081
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     environment:
       ENABLE_METRICS: 'true'
     restart: unless-stopped
@@ -188,6 +200,8 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
     volumes:
       - pgadmin4_data:/var/lib/pgadmin
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     ports:
       - "127.0.0.1:5050:80"
     networks:
@@ -216,6 +230,8 @@ services:
       - ./certs/domain_certs/iot_platform.key:/app/ssl_config/iot_platform.key
       - ./certs/mqtt_server_certs/ca.crt:/app/mqtt_certs/ca.crt
       - ./certs/mqtt_server_certs/ca.key:/app/mqtt_certs/ca.key
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     working_dir: /app
     env_file:
       - .env
@@ -241,7 +257,15 @@ services:
     container_name: ${PLATFORM_NAME}_frontend
     environment:
       PLATFORM_NAME: ${PLATFORM_NAME}
-      DOMAIN_NAME: ${DOMAIN_NAME}    
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      DOMAIN_NAME: ${DOMAIN_NAME}
+      MIN_LONGITUDE: ${MIN_LONGITUDE}
+      MAX_LONGITUDE: ${MAX_LONGITUDE}
+      MIN_LATITUDE: ${MIN_LATITUDE}
+      MAX_LATITUDE: ${MAX_LATITUDE}
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro   
     networks:
       - internal_net
       - fluentd_net
@@ -272,6 +296,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     depends_on:
       - fluentd
     logging:
@@ -289,6 +315,8 @@ services:
     volumes:
       - ./config/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
       - elasticsearch_data:/usr/share/elasticsearch/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro       
     ports:
       - "127.0.0.1:9200:9200"
       - "127.0.0.1:9300:9300"
@@ -317,6 +345,8 @@ services:
     container_name: ${PLATFORM_NAME}_kibana
     volumes:
       - ./config/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro       
     ports:
       - "127.0.0.1:5601:5601"
     environment:
@@ -344,6 +374,8 @@ services:
       ELASTIC_PASSWORD: $ELASTIC_PASSWORD
     volumes:
       - ./config/fluentd:/fluentd/etc
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     networks:
       - fluentd_net 
       - efk_net
@@ -356,6 +388,9 @@ services:
       - 9100
     ports:
       - 127.0.0.1:9100:9100
+    volumes:
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro        
     restart: always
     labels:
       container_group: monitoring
@@ -384,6 +419,8 @@ services:
       - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro        
     restart: always
     labels:
       container_group: monitoring
@@ -408,6 +445,8 @@ services:
     volumes:
       - prometheus_data:/prometheus
       - ./config/prometheus:/etc/prometheus
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     restart: always
     command:
       - "-config.file=/etc/prometheus/prometheus.yml"
@@ -438,6 +477,8 @@ services:
       - 127.0.0.1:3000:3000
     volumes:
       - grafana_system_data:/var/lib/grafana
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     restart: always
     labels:
       container_group: monitoring
@@ -468,6 +509,8 @@ services:
     volumes:
       - ./config/alertmanager/:/etc/alertmanager/
       - alertmanager_data:/alertmanager
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro      
     command:
       - '-config.file=/etc/alertmanager/config.yml'
       - '-storage.path=/alertmanager'
@@ -488,6 +531,8 @@ services:
     container_name: ${PLATFORM_NAME}_blackboxprober
     volumes:
       - ./config/blackboxprober:/etc/blackbox_exporter
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
     ports:
       - 127.0.0.1:9115:9115
     restart: always

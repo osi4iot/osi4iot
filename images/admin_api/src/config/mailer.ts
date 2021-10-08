@@ -7,8 +7,8 @@ const transporter = nodemailer.createTransport({
 	pool: true,
 	connectionTimeout: 30000,
 	auth: {
-		user: process.env.EMAIL_USER,
-		pass: process.env.EMAIL_PASSWORD
+		user: process.env.NOTIFICATIONS_EMAIL_USER,
+		pass: process.env.NOTIFICATIONS_EMAIL_PASSWORD
 	}
 });
 

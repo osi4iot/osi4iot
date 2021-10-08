@@ -30,7 +30,7 @@ import { updateGroupDevicesLocation } from "../device/deviceDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
-	if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").toUpperCase()}_general`;
+	if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}_general`;
 	return groupName;
 };
 

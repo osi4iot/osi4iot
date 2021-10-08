@@ -6,14 +6,14 @@ const sendEmail = async (subject: string, mailTo: string[], bodyType: string, ma
 		let mailOptions;
 		if (bodyType === "text") {
 			mailOptions = {
-				from: process.env.EMAIL_USER,
+				from: process.env.NOTIFICATIONS_EMAIL_USER,
 				to: mailTo,
 				subject,
 				text: mailBody
 			};
 		} else if (bodyType === "html") {
 			mailOptions = {
-				from: process.env.EMAIL_USER,
+				from: process.env.NOTIFICATIONS_EMAIL_USER,
 				to: mailTo,
 				subject,
 				html: mailBody

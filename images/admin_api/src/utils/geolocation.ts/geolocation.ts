@@ -6,10 +6,6 @@ export const giveGeolocationPoint = (longitude: number, latitude: number): strin
 	return geolocation;
 }
 
-export const giveDefaultGeolocation = (): string => {
-	const defaultLocation = `(${process.env.MAIN_ORGANIZATION_LONGITUDE},${process.env.MAIN_ORGANIZATION_LATITUDE})`;
-	return defaultLocation;
-}
 
 export const findBuildingBounds = (geoJsonDataString: any): number[][] => {
 	let maxLongitude = -180;

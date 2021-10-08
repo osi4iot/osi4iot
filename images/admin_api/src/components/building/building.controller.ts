@@ -1,4 +1,6 @@
 import { Router, NextFunction, Request, Response } from "express";
+import pointOnFeature from '@turf/point-on-feature';
+import { polygon } from '@turf/helpers';
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { superAdminAuth, userAuth } from "../../middleware/auth.middleware";
@@ -166,6 +168,13 @@ class BuildingController implements IController {
 			}
 			if (buildingData.geoJsonData) {
 				buildingData.outerBounds = findBuildingBounds(buildingData.geoJsonData);
+				if (buildingData.longitude === 0 && buildingData.latitude === 0 ) {
+					const geojsonObj = JSON.parse(buildingData.geoJsonData);
+					const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+					const center = pointOnFeature(geoPolygon);
+					buildingData.longitude = center.geometry.coordinates[0];
+					buildingData.latitude = center.geometry.coordinates[1];
+				}
 			}
 			const building = await createBuilding(buildingData);
 			if (!building) throw new HttpException(500, "Could not be created a new building");
@@ -317,6 +326,13 @@ class BuildingController implements IController {
 			const existBuilding = await await getBuildingByProp("id", parseInt(buildingId, 10));
 			if (!existBuilding) {
 				throw new ItemNotFoundException("The building", "id", buildingId);
+			}
+			if (buildingData.longitude === 0 && buildingData.latitude === 0 ) {
+				const geojsonObj = JSON.parse(buildingData.geoJsonData);
+				const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+				const center = pointOnFeature(geoPolygon);
+				buildingData.longitude = center.geometry.coordinates[0];
+				buildingData.latitude = center.geometry.coordinates[1];
 			}
 			const updatedBuilding = { ...existBuilding, ...buildingData };
 			updatedBuilding.outerBounds = findBuildingBounds(updatedBuilding.geoJsonData);

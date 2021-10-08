@@ -135,7 +135,7 @@ export const insertPreference = async (orgId: number, homeDashboardId: number): 
 
 export const createHomeDashboard = async (orgId: number, orgAcronym: string, orgName: string, folderId: number): Promise<void> => {
 	const homeDashboard = JSON.parse(homeDashboardJson);
-	const title = `Home ${orgAcronym.replace(/_/g, " ").toUpperCase()}`;
+	const title = `Home ${orgAcronym.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}`;
 	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 	const html_content = `<br/>\n<h1>${platformName}</h1>\n<h2>${orgName}</h2>\n`
 	homeDashboard.panels[0].options.content = html_content;
@@ -157,7 +157,7 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 };
 
 export const createDemoDashboards = async (orgAcronym: string, group: IGroup, devices: IDevice[], topics: ITopicUpdate[]): Promise<string[]> => {
-	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").toLowerCase()}_db`;
+	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
 	const dataSource = await getDataSourceByProp("name", dataSourceName);
 	const grouAcronym = group.acronym;
 	const tempDashboard = JSON.parse(tempDashboardJson);

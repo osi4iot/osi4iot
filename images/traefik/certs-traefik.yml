@@ -1,7 +1,7 @@
 tls:
   certificates:
-    - certFile: /etc/certs/iot_platform_cert.cer
-      keyFile: /etc/certs/iot_platform.key
+    - certFile: /run/secrets/iot_platform_cert.cer
+      keyFile: /run/secrets/iot_platform.key
   options:
     default:
       minVersion: VersionTLS12

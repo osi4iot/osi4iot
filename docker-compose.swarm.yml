@@ -1,6 +1,4 @@
-version: "3.3"
-
-services:
+version: "3.8"
 
 services:
   traefik:
@@ -34,6 +32,13 @@ services:
     #     - traefik.http.services.traefik.loadbalancer.server.port=8080
     #     - traefik.http.routers.traefik.middlewares=admin-auth
     #     - traefik.http.middlewares.admin-auth.basicauth.users=dicapua:$$apr1$$UVPioB1u$$52vwqCRCI2T1MTimMtZhc0
+    secrets:
+      - source: iot_platform_cert
+        target: iot_platform_cert.cer
+        mode: 0400
+      - source: iot_platform_key
+        target: iot_platform.key
+        mode: 0400
     ports:
       - "80:80"
       - "443:443"
@@ -42,7 +47,6 @@ services:
       - traefik-public
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./certs/domain_certs/:/etc/certs/
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
 
@@ -55,13 +59,33 @@ services:
       - "8883:8883"
       - "9001:9001"
     volumes:
-      - ./config/mosquitto:/mosquitto/config/
       - mosquitto_data:/mosquitto/data/
       - mosquitto_log:/mosquitto/log/
-      - ./certs/mqtt_server_certs/:/mosquitto/mqtt_certs/
-      - ./certs/domain_certs/:/mosquitto/wss_certs/
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - source: iot_platform_ca
+        target: /mosquitto/wss_certs/iot_platform_ca.pem
+        mode: 0444
+      - source: iot_platform_cert
+        target: /mosquitto/wss_certs/iot_platform_cert.cer
+        mode: 0444
+      - source: iot_platform_key
+        target: /mosquitto/wss_certs/iot_platform.key
+        mode: 0444
+      - source: mqtt_server_ca_cert
+        target: /mosquitto/mqtt_certs/ca.crt
+        mode: 0444
+      - source: mqtt_server_cert
+        target: /mosquitto/mqtt_certs/server.crt
+        mode: 0444
+      - source: mqtt_server_key
+        target: /mosquitto/mqtt_certs/server.key
+        mode: 0444        
+    configs:
+      - source: mosquitto_conf
+        target: /mosquitto/config/mosquitto.conf
+        mode: 0440  
     deploy:
       replicas: 1
       placement:
@@ -123,10 +147,10 @@ services:
   pgadmin4:
     image: osi4iot/pgadmin4:v1.0
     user: "${UID}:${GID}"
-    environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
-      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
-      POSTGRES_USER: ${POSTGRES_USER}
+    secrets:
+      - source: pgadmin4
+        target: pgadmin4.txt
+        mode: 0400
     volumes:
       - pgadmin4_data:/var/lib/pgadmin
       - /etc/timezone:/etc/timezone:ro
@@ -154,14 +178,11 @@ services:
   postgres:
     image: osi4iot/postgres:v1.0
     networks:
-      - internal_net  
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_DB: ${POSTGRES_DB}
-      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
-      GRAFANA_DATASOURCE_PASSWORD: ${GRAFANA_DATASOURCE_PASSWORD}
-      TZ: ${TIME_ZONE}
+      - internal_net
+    secrets:
+      - source: postgres
+        target: postgres.txt
+        mode: 0400
     volumes:
       - pgdata:/var/lib/postgresql/data
       - /etc/timezone:/etc/timezone:ro
@@ -183,13 +204,27 @@ services:
     networks:
       - internal_net
       - traefik-public
-    env_file:
-      - .env
     volumes:
       - nodered_data:/data
-      - ./certs/mqtt_nodered_certs/:/data/certs/
       - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro      
+      - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - source: mqtt_nodered_ca
+        target: /data/certs/ca.crt
+        mode: 0444
+      - source: mqtt_nodered_client_cert
+        target: /data/certs/client.crt
+        mode: 0444
+      - source: mqtt_nodered_client_key
+        target: /data/certs/client.key
+        mode: 0444
+      - source: nodered
+        target: nodered.txt
+        mode: 0400
+    configs:
+      - source: nodered_conf
+        target: /run/configs/nodered.conf
+        mode: 0440        
     deploy:
       # placement:
       #   constraints: [node.role == worker]
@@ -221,27 +256,15 @@ services:
     volumes:
       - grafana_data:/var/lib/grafana
       - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro      
-    environment:
-      - DOMAIN_NAME=${DOMAIN_NAME}
-      - DEFAULT_TIME_ZONE=${DEFAULT_TIME_ZONE} 
-      - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
-      - GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-      - HOME_DASHBOARD_PATH=/var/lib/grafana/data/home_dashboard.json
-      - GMAIL_USER=${GMAIL_USER}
-      - EMAIL_USER=${EMAIL_USER}
-      - EMAIL_ADDRESS=${EMAIL_ADDRESS}
-      - EMAIL_PASSWORD=${EMAIL_PASSWORD}
-      - TELEGRAM_BOTTOKEN=${TELEGRAM_BOTTOKEN}
-      - TELEGRAM_CHATID=${TELEGRAM_CHATID}
-      - GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
-      - GF_RENDERING_CALLBACK_URL=http://grafana:5000/grafana/
-      - GF_LOG_FILTERS=rendering:debug
-      - POSTGRES_DB=${POSTGRES_DB}
-      - GRAFANA_DB_PASSWORD=${GRAFANA_DB_PASSWORD}
-      - GRAFANA_DATASOURCE_PASSWORD=${GRAFANA_DATASOURCE_PASSWORD}
-      - MAIN_ORGANIZATION_NAME=${MAIN_ORGANIZATION_NAME}
-      - MAIN_ORGANIZATION_DATASOURCE_NAME=${MAIN_ORGANIZATION_DATASOURCE_NAME}
+      - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - source: grafana
+        target: grafana.txt
+        mode: 0400
+    configs:
+      - source: grafana_conf
+        target: /run/configs/grafana.conf
+        mode: 0444
     deploy:
       mode: replicated
       replicas: 3
@@ -285,13 +308,24 @@ services:
       - internal_net
       - traefik-public
     volumes:
-      - ./certs/mqtt_server_certs/ca.crt:/app/mqtt_certs/ca.crt
-      - ./certs/mqtt_server_certs/ca.key:/app/mqtt_certs/ca.key
+      - admin_api_log:/app/logs
       - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro      
+      - /etc/localtime:/etc/localtime:ro   
     working_dir: /app
-    env_file:
-      - .env
+    secrets:
+      - source: mqtt_server_ca_cert
+        target: ca.crt
+        mode: 0444
+      - source: mqtt_server_ca_key
+        target: ca.key
+        mode: 0444
+      - source: admin_api
+        target: admin_api.txt
+        mode: 0444
+    configs:
+      - source: admin_api_conf
+        target: /run/configs/admin_api.conf
+        mode: 0444   
     ports:
       - "3200:3200"
     environment:
@@ -299,10 +333,6 @@ services:
       WAIT_HOSTS: postgres:5432, grafana:5000
       WAIT_HOSTS_TIMEOUT: 300
       WAIT_SLEEP_INTERVAL: 5
-      PLATFORM_ADMIN_SURNAME: ${PLATFORM_ADMIN_SURNAME}
-      PLATFORM_PHRASE: ${PLATFORM_PHRASE}
-      MAIN_ORGANIZATION_NAME: ${MAIN_ORGANIZATION_NAME}
-      MAIN_ORGANIZATION_ADDRESS1: ${MAIN_ORGANIZATION_ADDRESS1}
     deploy:
       mode: replicated
       replicas: 1
@@ -333,13 +363,10 @@ services:
 
   frontend:
     image: osi4iot/frontend:v1.0
-    environment:
-      PLATFORM_NAME: ${PLATFORM_NAME}
-      DOMAIN_NAME: ${DOMAIN_NAME}
-      MIN_LONGITUDE: ${MIN_LONGITUDE}
-      MAX_LONGITUDE: ${MAX_LONGITUDE}
-      MIN_LATITUDE: ${MIN_LATITUDE}
-      MAX_LATITUDE: ${MAX_LATITUDE}
+    configs:
+      - source: frontend_conf
+        target: /run/configs/frontend.conf
+        mode: 0444
     networks:
       - traefik-public
     command: nginx -g "daemon off";
@@ -385,3 +412,48 @@ volumes:
   pgadmin4_data:
   portainer_data:
   grafana_data:
+  admin_api_log:
+
+secrets:
+  iot_platform_ca:
+    file: ./certs/domain_certs/iot_platform_ca.pem
+  iot_platform_cert:
+    file: ./certs/domain_certs/iot_platform_cert.cer
+  iot_platform_key:
+    file: ./certs/domain_certs/iot_platform.key
+  mqtt_server_ca_cert:
+    file: ./certs/mqtt_server_certs/ca.crt
+  mqtt_server_ca_key:
+    file: ./certs/mqtt_server_certs/ca.crt
+  mqtt_server_cert:
+    file: ./certs/mqtt_server_certs/server.crt
+  mqtt_server_key:
+    file: ./certs/mqtt_server_certs/server.key
+  mqtt_nodered_ca:
+    file: ./certs/mqtt_nodered_certs/ca.crt
+  mqtt_nodered_client_cert:
+    file: ./certs/mqtt_nodered_certs/client.crt
+  mqtt_nodered_client_key:
+    file: ./certs/mqtt_nodered_certs/client.key
+  pgadmin4:
+    file: ./secrets/pgadmin4.txt
+  postgres:
+    file: ./secrets/postgres.txt
+  nodered:
+    file: ./secrets/nodered.txt
+  grafana:
+    file: ./secrets/grafana.txt
+  admin_api:
+    file: ./secrets/admin_api.txt
+
+configs:
+  mosquitto_conf:
+    file: ./config/mosquitto/mosquitto.conf
+  nodered_conf:
+    file: ./config/nodered/nodered.conf
+  grafana_conf:
+    file: ./config/grafana/grafana.conf
+  admin_api_conf:
+    file: ./config/admin_api/admin_api.conf
+  frontend_conf:
+    file: ./config/frontend/frontend.conf

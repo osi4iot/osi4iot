@@ -280,7 +280,7 @@ class OrganizationController implements IController {
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				await grafanaApi.createOrgApiAdminUser(newOrg.orgId);
 				await updateOrganizationByProp("id", newOrg.orgId, organizationData);
-				const apyKeyName = `ApiKey_${organizationData.acronym}`
+				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g,"")}`
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
 				await grafanaApi.switchOrgContextForAdmin(newOrg.orgId);
 				const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
@@ -288,7 +288,7 @@ class OrganizationController implements IController {
 				const apiKeyId = await getApiKeyIdByName(apyKeyName);
 				await insertOrganizationToken(newOrg.orgId, apiKeyId, hashedApiKey);
 				await grafanaApi.changeUserRoleInOrganization(newOrg.orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
-				const dataSourceName = `iot_${organizationData.acronym.replace(/ /g, "_").toLowerCase()}_db`;
+				const dataSourceName = `iot_${organizationData.acronym.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
 				await createDefaultOrgDataSource(newOrg.orgId, dataSourceName, apiKeyObj.key);
 				const groupAdminDataArray: CreateGroupAdminDto[] = [];
 				const platformAdminEmail = process.env.PLATFORM_ADMIN_EMAIL;
@@ -313,11 +313,11 @@ class OrganizationController implements IController {
 						})
 				});
 				const groupName = defaultOrgGroupName(organizationData.name, organizationData.acronym);
-				const defaultOrgGroupAcronym = `${organizationData.acronym.replace(/ /g, "_").toUpperCase()}_GRAL`;
+				const defaultOrgGroupAcronym = `${organizationData.acronym.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}_GRAL`;
 				const defaultOrgGroup = {
 					name: groupName,
 					acronym: defaultOrgGroupAcronym,
-					email: `${organizationData.acronym.replace(/ /g, "_").toLocaleLowerCase()}_general@test.com`,
+					email: `${organizationData.acronym.replace(/ /g, "_").replace(/"/g,"").toLocaleLowerCase()}_general@test.com`,
 					telegramChatId: organizationData.telegramChatId,
 					telegramInvitationLink: organizationData.telegramInvitationLink,
 					folderPermission: ("Viewer" as FolderPermissionOption),

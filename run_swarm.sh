@@ -1,19 +1,20 @@
 #!/bin/bash
 
-echo RELOADAGENT | gpg-connect-agent
-gpg .env_aux.gpg >/dev/null 2>&1
-echo RELOADAGENT | gpg-connect-agent
+# echo RELOADAGENT | gpg-connect-agent >/dev/null
+# gpg .env_aux.gpg >/dev/null 2>&1
+# echo RELOADAGENT | gpg-connect-agent >/dev/null
 
-set -a
-#source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" -e "s/=\(.*\)/='\1'/g")
-#source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" | sed $'s/\r$//')
-source <(cat .env_aux | sed -e '/^#/d;/^\s*$/d' | sed $'s/\r$//')
-set +a
-rm .env_aux
+# set -a
+# #source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" -e "s/=\(.*\)/='\1'/g")
+# #source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" | sed $'s/\r$//')
+# source <(cat .env_aux | sed -e '/^#/d;/^\s*$/d' | sed $'s/\r$//')
+# set +a
+# rm .env_aux
 
-export POSTGRES_PASSWORD=$GENERIC_PASSWORD
-export PGADMIN_DEFAULT_PASSWORD=$GENERIC_PASSWORD
-export GRAFANA_ADMIN_PASSWORD=$GENERIC_PASSWORD
+
+# export POSTGRES_PASSWORD=$GENERIC_PASSWORD
+# export PGADMIN_DEFAULT_PASSWORD=$GENERIC_PASSWORD
+# export GRAFANA_ADMIN_PASSWORD=$GENERIC_PASSWORD
 
 # SUDO=''
 # if (( $EUID != 0 )); then SUDO='sudo'; fi
@@ -22,6 +23,7 @@ export GRAFANA_ADMIN_PASSWORD=$GENERIC_PASSWORD
 # export HASHED_PASSWORD=$(htpasswd -nbB $USER $GENERIC_PASSWORD)
 # echo $HASHED_PASSWORD
 
+export DOMAIN_NAME=iot.eebe.upc.edu
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
 
 
@@ -61,7 +63,7 @@ while $do ; do
   sleep 0.5
 done
 endspin
-docker service scale osi4iot_admin_api=3
+## docker service scale osi4iot_admin_api=3
 
 do=true && [[ "$(docker ps | grep starting)" == "" ]] && do=false
 printf '\n%s' "Waiting until all containers be ready  "
