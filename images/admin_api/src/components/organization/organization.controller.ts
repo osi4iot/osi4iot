@@ -61,6 +61,8 @@ import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic, demoTopicSensorName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
+import { existsBuildingWithId } from "../building/buildingDAL";
+
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -277,6 +279,9 @@ class OrganizationController implements IController {
 			} else {
 				if (!(await isUsersDataCorrect(organizationData.orgAdminArray)))
 					throw new HttpException(400, "The same values of name, login, email and/or telegramId of some user already exists.")
+				if (!(await existsBuildingWithId(organizationData.buildingId))) {
+					throw new HttpException(400, "There is no building with the indicated buildingId")
+				}
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				await grafanaApi.createOrgApiAdminUser(newOrg.orgId);
 				await updateOrganizationByProp("id", newOrg.orgId, organizationData);

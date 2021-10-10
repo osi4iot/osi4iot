@@ -23,9 +23,10 @@
 # export HASHED_PASSWORD=$(htpasswd -nbB $USER $GENERIC_PASSWORD)
 # echo $HASHED_PASSWORD
 
-export DOMAIN_NAME=iot.eebe.upc.edu
+export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
 
+docker node update --label-add primary=true $NODE_ID
 
 traefik_network=$(docker network ls | grep traefik-public)
 if [[ "$traefik_network" == "" ]]; then
@@ -63,7 +64,7 @@ while $do ; do
   sleep 0.5
 done
 endspin
-## docker service scale osi4iot_admin_api=3
+docker service scale osi4iot_admin_api=3
 
 do=true && [[ "$(docker ps | grep starting)" == "" ]] && do=false
 printf '\n%s' "Waiting until all containers be ready  "

@@ -217,7 +217,12 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
                                         const values = { ...formik.values };
                                         const geojsonObj = JSON.parse(localFileContent);
                                         values.geoJsonData = JSON.stringify(geojsonObj, null, 4);
-                                        const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+                                        let geoPolygon;
+                                        if (geojsonObj.features[0].geometry.type === "Polygon") {
+                                            geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+                                        } else if (geojsonObj.features[0].geometry.type === "MultiPolygon") {
+                                            geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates[0]);
+                                        }
                                         const center = centerOfMass(geoPolygon);
                                         values.longitude = center.geometry.coordinates[0];
                                         values.latitude = center.geometry.coordinates[1];

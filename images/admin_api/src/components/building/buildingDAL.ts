@@ -44,6 +44,12 @@ export const getBuildingByOrgId = async (orgId: number): Promise<IBuiliding> => 
 	return response.rows[0];
 };
 
+export const existsBuildingWithId = async (buildingId: number): Promise<boolean> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.building
+									WHERE grafanadb.building.id = $1`, [buildingId]);
+	return result.rows[0].count !== 0;
+};
+
 export const getFloorByBuildingIdAndFloorNumber = async (buildingId: number, floorNumber: number): Promise<IFloor> => {
 	const response = await pool.query(`SELECT grafanadb.floor.id, grafanadb.floor.building_id AS "buildingId",
 									grafanadb.building.name AS "buildingName",

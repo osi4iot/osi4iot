@@ -24,7 +24,9 @@ then
     export $(cat /run/secrets/admin_api.txt | grep POSTGRES_PASSWORD)
     export $(cat /run/secrets/admin_api.txt | grep POSTGRES_DB)
     export $(cat /run/secrets/admin_api.txt | grep NOTIFICATIONS_EMAIL_USER)
-    export $(cat /run/secrets/admin_api.txt | grep NOTIFICATIONS_EMAIL_PASSWORD)    
+    export $(cat /run/secrets/admin_api.txt | grep NOTIFICATIONS_EMAIL_PASSWORD)
+    export $(cat /run/secrets/admin_api.txt | grep MAIN_ORGANIZATION_TELEGRAM_CHAT_ID)
+    export $(cat /run/secrets/admin_api.txt | grep MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK)
 fi
 
 if [ -f "/run/configs/admin_api.conf" ]

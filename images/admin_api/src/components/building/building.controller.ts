@@ -168,9 +168,14 @@ class BuildingController implements IController {
 			}
 			if (buildingData.geoJsonData) {
 				buildingData.outerBounds = findBuildingBounds(buildingData.geoJsonData);
-				if (buildingData.longitude === 0 && buildingData.latitude === 0 ) {
+				if (buildingData.longitude === 0 && buildingData.latitude === 0) {
 					const geojsonObj = JSON.parse(buildingData.geoJsonData);
-					const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+					let geoPolygon;
+					if (geojsonObj.features[0].geometry.type === "Polygon") {
+						geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+					} else if (geojsonObj.features[0].geometry.type === "MultiPolygon") {
+						geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates[0]);
+					}
 					const center = pointOnFeature(geoPolygon);
 					buildingData.longitude = center.geometry.coordinates[0];
 					buildingData.latitude = center.geometry.coordinates[1];
@@ -327,9 +332,14 @@ class BuildingController implements IController {
 			if (!existBuilding) {
 				throw new ItemNotFoundException("The building", "id", buildingId);
 			}
-			if (buildingData.longitude === 0 && buildingData.latitude === 0 ) {
+			if (buildingData.longitude === 0 && buildingData.latitude === 0) {
 				const geojsonObj = JSON.parse(buildingData.geoJsonData);
-				const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+				let geoPolygon;
+				if (geojsonObj.features[0].geometry.type === "Polygon") {
+					geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+				} else if (geojsonObj.features[0].geometry.type === "MultiPolygon") {
+					geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates[0]);
+				}
 				const center = pointOnFeature(geoPolygon);
 				buildingData.longitude = center.geometry.coordinates[0];
 				buildingData.latitude = center.geometry.coordinates[1];
