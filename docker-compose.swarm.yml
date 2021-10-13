@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   traefik:
-    image: osi4iot/traefik:1.0.0
+    image: osi4iot/traefik:1.1.0
     command:
       - --api.insecure=true
       - --entrypoints.web.address=:80
@@ -55,7 +55,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
 
   mosquitto:
-    image: osi4iot/mosquitto:1.0.0
+    image: osi4iot/mosquitto:1.1.0
     networks:
       - internal_net
     ports:
@@ -98,7 +98,7 @@ services:
         condition: on-failure
 
   portainer_agent:
-    image: osi4iot/portainer_agent:1.0.0
+    image: osi4iot/portainer_agent:1.1.0
     environment:
       # REQUIRED: Should be equal to the service name prefixed by "tasks." when
       # deployed inside an overlay network
@@ -118,7 +118,7 @@ services:
         constraints: [node.platform.os == linux]
 
   portainer:
-    image: osi4iot/portainer:1.0.0
+    image: osi4iot/portainer:1.1.0
     command: -H tcp://tasks.agent:9001 --tlsskipverify
     volumes:
       - portainer_data:/data
@@ -149,7 +149,7 @@ services:
         - traefik.http.services.edge.loadbalancer.server.port=8000
 
   pgadmin4:
-    image: osi4iot/pgadmin4:1.0.0
+    image: osi4iot/pgadmin4:1.1.0
     user: "${UID}:${GID}"
     secrets:
       - source: pgadmin4
@@ -180,7 +180,7 @@ services:
         - traefik.http.services.pgadmin4.loadbalancer.server.port=80
 
   postgres:
-    image: osi4iot/timescaledb:1.0.0
+    image: osi4iot/timescaledb:1.1.0
     networks:
       - internal_net
     secrets:
@@ -203,7 +203,7 @@ services:
         window: 120s
 
   nodered:
-    image: osi4iot/nodered:1.0.0    
+    image: osi4iot/nodered:1.1.0    
     user: "${UID}:${GID}"
     networks:
       - internal_net
@@ -252,7 +252,7 @@ services:
         - traefik.http.services.nodered.loadbalancer.server.port=1880
 
   grafana:
-    image: osi4iot/grafana:1.0.0
+    image: osi4iot/grafana:1.1.0
     user: "${UID}:${GID}"
     networks:
       - internal_net
@@ -297,7 +297,7 @@ services:
         - traefik.http.services.grafana.loadbalancer.healthCheck.timeout=3s      
   
   grafana_renderer:
-    image: osi4iot/grafana_renderer:1.0.0     
+    image: osi4iot/grafana_renderer:1.1.0     
     networks:
       - internal_net
     ports:
@@ -307,7 +307,7 @@ services:
 
 
   admin_api:
-    image: osi4iot/admin_api:1.0.0
+    image: osi4iot/admin_api:1.1.0
     networks:
       - internal_net
       - traefik-public
@@ -366,7 +366,7 @@ services:
         - traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s        
 
   frontend:
-    image: osi4iot/frontend:1.0.0
+    image: osi4iot/frontend:1.1.0
     configs:
       - source: frontend_conf
         target: /run/configs/frontend.conf
@@ -387,8 +387,43 @@ services:
         delay: 5s
         max_attempts: 5
         window: 120s
-      # placement:
-      #   constraints: [node.role == worker]
+      placement:
+        constraints: [node.platform.arch==x86_64]
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.frontend.rule=Host(`${DOMAIN_NAME}`)
+        - traefik.http.routers.frontend.entrypoints=websecure
+        - traefik.http.routers.frontend.tls=true        
+        - traefik.http.routers.frontend.service=frontend
+        - traefik.http.services.frontend.loadbalancer.server.port=80
+        - traefik.http.services.frontend.loadbalancer.healthCheck.path=/health
+        - traefik.http.services.frontend.loadbalancer.healthCheck.interval=5s
+        - traefik.http.services.frontend.loadbalancer.healthCheck.timeout=3s
+
+  frontend_arm64:
+    image: osi4iot/frontend_arm64:1.1.0
+    configs:
+      - source: frontend_conf
+        target: /run/configs/frontend.conf
+        mode: 0444
+    networks:
+      - traefik-public
+    command: nginx -g "daemon off";
+    volumes:
+      - nodered_data:/data
+      - ./certs/mqtt_nodered_certs/:/data/certs/
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro       
+    deploy:
+      mode: replicated
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 5
+        window: 120s
+      placement:
+        constraints: [node.platform.arch==aarch64]
       labels:
         - traefik.enable=true
         - traefik.http.routers.frontend.rule=Host(`${DOMAIN_NAME}`)

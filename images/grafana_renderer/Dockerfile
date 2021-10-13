@@ -1,4 +1,4 @@
-FROM grafana/grafana-image-renderer:3.1.0
+FROM grafana/grafana-image-renderer:3.2.1
 USER root
 RUN apk --no-cache add curl
 USER grafana
