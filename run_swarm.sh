@@ -56,8 +56,19 @@ endspin() {
    tput cnorm
 }
 
+
+do=true && [[ "$(docker ps | grep osi4iot/grafana | grep healthy)" != "" &&  "$(docker ps | grep osi4iot/timescaledb | grep healthy)" != "" ]] && do=false
+printf '\n%s' "Initializing grafana database  "
+while $do ; do
+  spin
+  do=true && [[ "$(docker ps | grep osi4iot/grafana | grep healthy)" != "" &&  "$(docker ps | grep osi4iot/timescaledb | grep healthy)" != "" ]] && do=false
+  sleep 0.5
+done
+endspin
+docker service scale osi4iot_admin_api=1
+
 do=true && [[ "$(docker ps | grep osi4iot/admin_api | grep healthy)" != "" ]] && do=false
-printf '\n%s' "Initializing database  "
+printf '\n%s' "Initializing platform database  "
 while $do ; do
   spin
   do=true && [[ "$(docker ps | grep osi4iot/admin_api | grep healthy)" != "" ]] && do=false

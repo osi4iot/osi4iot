@@ -339,7 +339,7 @@ services:
       WAIT_SLEEP_INTERVAL: 5
     deploy:
       mode: replicated
-      replicas: 1
+      replicas: 0
       restart_policy:
         condition: on-failure
         delay: 5s
