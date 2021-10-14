@@ -38,6 +38,7 @@ if [[ "$agent_network" == "" ]]; then
     docker network create -d overlay --opt encrypted=true agent_network
 fi
 
+
 internal_network=$(docker network ls | grep internal_net)
 if [[ "$internal_network" == "" ]]; then
     docker network create -d overlay --opt encrypted=true internal_net

@@ -1,4 +1,4 @@
-FROM nodered/node-red:2.0.6-12
+FROM arm64v8/node:12-slim
 
 COPY --chown=node-red:node-red flows_cred.json /data
 COPY --chown=node-red:node-red flows.json /data

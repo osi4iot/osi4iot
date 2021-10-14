@@ -97,7 +97,7 @@ services:
       restart_policy:
         condition: on-failure
 
-  portainer_agent:
+  agent:
     image: osi4iot/portainer_agent:1.1.0
     environment:
       # REQUIRED: Should be equal to the service name prefixed by "tasks." when
@@ -126,10 +126,13 @@ services:
       - /etc/localtime:/etc/localtime:ro
     ports:
       - "8000:8000"
+      - "9000:9000"
     networks:
       - traefik-public
       - agent_network
     deploy:
+      mode: replicated
+      replicas: 1      
       placement:
         constraints: [ node.role == manager ]  
       labels:
@@ -230,8 +233,57 @@ services:
         target: /run/configs/nodered.conf
         mode: 0440        
     deploy:
-      # placement:
-      #   constraints: [node.role == worker]
+      placement:
+        constraints: [node.platform.arch==x86_64]      
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        # max_attempts: 20
+        window: 120s
+      labels:
+        - traefik.enable=true
+        - traefik.http.routers.nodered.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/nodered/`)
+        - traefik.http.middlewares.nodered-prefix.stripprefix.prefixes=/nodered
+        - traefik.http.routers.nodered.middlewares=nodered-prefix,nodered-header,nodered-redirectregex
+        - traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false
+        - traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/nodered/
+        - traefik.http.middlewares.nodered-redirectregex.redirectregex.regex=https://${DOMAIN_NAME}/(nodered*)
+        - traefik.http.middlewares.nodered-redirectregex.redirectregex.replacement=https://${DOMAIN_NAME}/$${1}"        
+        - traefik.http.routers.nodered.entrypoints=websecure
+        - traefik.http.routers.nodered.tls=true
+        - traefik.http.routers.nodered.service=nodered
+        - traefik.http.services.nodered.loadbalancer.server.port=1880
+
+  nodered_arm64:
+    image: osi4iot/nodered_arm64:1.1.0
+    user: "${UID}:${GID}"
+    networks:
+      - internal_net
+      - traefik-public
+    volumes:
+      - nodered_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+    secrets:
+      - source: mqtt_nodered_ca
+        target: /data/certs/ca.crt
+        mode: 0444
+      - source: mqtt_nodered_client_cert
+        target: /data/certs/client.crt
+        mode: 0444
+      - source: mqtt_nodered_client_key
+        target: /data/certs/client.key
+        mode: 0444
+      - source: nodered
+        target: nodered.txt
+        mode: 0400
+    configs:
+      - source: nodered_conf
+        target: /run/configs/nodered.conf
+        mode: 0440        
+    deploy:
+      placement:
+        constraints: [node.platform.arch==aarch64]
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -304,6 +356,9 @@ services:
       - 8081
     environment:
       ENABLE_METRICS: 'true'
+    deploy:
+      placement:
+        constraints: [node.platform.arch==x86_64]      
 
 
   admin_api:
@@ -436,9 +491,9 @@ services:
         - traefik.http.services.frontend.loadbalancer.healthCheck.timeout=3s
 
 networks:
-  traefik-public:
-    external: true
   agent_network:
+    external: true
+  traefik-public:
     external: true
   internal_net:
     external: true

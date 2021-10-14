@@ -16,6 +16,6 @@ if [ -f "/run/configs/nodered.conf" ]
 then
     export $(cat /run/configs/nodered.conf | grep PORT)
     export $(cat /run/configs/nodered.conf | grep DOMAIN_NAME)
-fi 
+fi
 
 npm --no-update-notifier --no-fund start --cache /data/.npm -- --userDir /data
