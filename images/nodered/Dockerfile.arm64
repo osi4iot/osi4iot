@@ -1,8 +1,8 @@
 FROM arm64v8/node:12-slim
 
-COPY --chown=node-red:node-red flows_cred.json /data
-COPY --chown=node-red:node-red flows.json /data
-COPY --chown=node-red:node-red settings.js /data
+COPY flows_cred.json /data
+COPY flows.json /data
+COPY settings.js /data
 COPY entry_script.sh /src/scripts/entry_script.sh
 RUN chmod +x /src/scripts/entry_script.sh
 
