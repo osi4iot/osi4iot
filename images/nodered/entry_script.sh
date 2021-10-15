@@ -18,6 +18,6 @@ then
     export $(cat /run/configs/nodered.conf | grep DOMAIN_NAME)
 fi
 
-ls -la
+ls -la /data
 
 npm --no-update-notifier --no-fund start --cache /data/.npm -- --userDir /data
