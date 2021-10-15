@@ -163,7 +163,7 @@ services:
   admin_api:
     build:
       context: ./images/admin_api
-      dockerfile: Dockerfile 
+      dockerfile: Dockerfile.compose
     container_name: ${PLATFORM_NAME}_admin_api
     networks:
       - internal_net
