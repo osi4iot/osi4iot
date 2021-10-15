@@ -231,7 +231,7 @@ services:
     configs:
       - source: nodered_conf
         target: /run/configs/nodered.conf
-        mode: 0440        
+        mode: 0440         
     deploy:
       placement:
         constraints: [node.platform.arch==x86_64]      
@@ -280,7 +280,7 @@ services:
     configs:
       - source: nodered_conf
         target: /run/configs/nodered.conf
-        mode: 0440        
+        mode: 0440
     deploy:
       placement:
         constraints: [node.platform.arch==aarch64]

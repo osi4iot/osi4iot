@@ -18,6 +18,8 @@ then
     export $(cat /run/configs/nodered.conf | grep DOMAIN_NAME)
 fi
 
-ls -la /data
+mv /tmp/flows.json /data
+mv /tmp/flows_cred.json /data
+mv /tmp/settings.js /data
 
 npm --no-update-notifier --no-fund start --cache /data/.npm -- --userDir /data
