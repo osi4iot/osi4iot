@@ -58,8 +58,8 @@ endspin() {
 }
 
 
-do=true && [[ "$(docker ps | grep osi4iot/grafana | grep healthy)" != "" &&  "$(docker ps | grep osi4iot/timescaledb | grep healthy)" != "" ]] && do=false
 printf '\n%s' "Initializing grafana database  "
+do=true && [[ "$(docker ps | grep osi4iot/grafana | grep healthy)" != "" &&  "$(docker ps | grep osi4iot/timescaledb | grep healthy)" != "" ]] && do=false
 while $do ; do
   spin
   do=true && [[ "$(docker ps | grep osi4iot/grafana | grep healthy)" != "" &&  "$(docker ps | grep osi4iot/timescaledb | grep healthy)" != "" ]] && do=false
