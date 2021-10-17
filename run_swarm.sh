@@ -4,24 +4,10 @@
 # gpg .env_aux.gpg >/dev/null 2>&1
 # echo RELOADAGENT | gpg-connect-agent >/dev/null
 
-# set -a
-# #source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" -e "s/=\(.*\)/='\1'/g")
-# #source <(cat .env | sed -e '/^#/d;/^\s*$/d' -e "s/'/'\\\''/g" | sed $'s/\r$//')
-# source <(cat .env_aux | sed -e '/^#/d;/^\s*$/d' | sed $'s/\r$//')
-# set +a
-# rm .env_aux
+set -a
+source <(cat .env_images_tag | sed -e '/^#/d;/^\s*$/d' | sed $'s/\r$//')
+set +a
 
-
-# export POSTGRES_PASSWORD=$GENERIC_PASSWORD
-# export PGADMIN_DEFAULT_PASSWORD=$GENERIC_PASSWORD
-# export GRAFANA_ADMIN_PASSWORD=$GENERIC_PASSWORD
-
-# SUDO=''
-# if (( $EUID != 0 )); then SUDO='sudo'; fi
-# which htpasswd >/dev/null || ($SUDO apt-get update && $SUDO apt-get install apache2-utils)
-# USER=dicapua
-# export HASHED_PASSWORD=$(htpasswd -nbB $USER $GENERIC_PASSWORD)
-# echo $HASHED_PASSWORD
 
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
@@ -66,16 +52,19 @@ while $do ; do
   sleep 0.5
 done
 endspin
-docker service scale osi4iot_admin_api=1
 
+echo "Initializing platform database:"
+echo ""
+docker service scale osi4iot_admin_api=1
 do=true && [[ "$(docker ps | grep osi4iot/admin_api | grep healthy)" != "" ]] && do=false
-printf '\n%s' "Initializing platform database  "
 while $do ; do
   spin
   do=true && [[ "$(docker ps | grep osi4iot/admin_api | grep healthy)" != "" ]] && do=false
   sleep 0.5
 done
 endspin
+
+echo ""
 docker service scale osi4iot_admin_api=3
 
 do=true && [[ "$(docker ps | grep starting)" == "" ]] && do=false
@@ -89,6 +78,7 @@ endspin
 
 echo ""
 echo "Removing unused containers and images:"
+echo ""
 docker system prune --force
 echo ""
 

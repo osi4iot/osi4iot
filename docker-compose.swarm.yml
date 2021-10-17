@@ -2,7 +2,7 @@ version: "3.8"
 
 services:
   traefik:
-    image: osi4iot/traefik
+    image: osi4iot/traefik:${TRAEFIK_TAG:-latest}
     command:
       - --api.insecure=true
       - --entrypoints.web.address=:80
@@ -55,7 +55,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
 
   mosquitto:
-    image: osi4iot/mosquitto
+    image: osi4iot/mosquitto:${MOSQUITTO_TAG:-latest}
     networks:
       - internal_net
     ports:
@@ -98,7 +98,7 @@ services:
         condition: on-failure
 
   agent:
-    image: osi4iot/portainer_agent
+    image: osi4iot/portainer_agent:${PORTAINER_AGENT_TAG:-latest}
     environment:
       # REQUIRED: Should be equal to the service name prefixed by "tasks." when
       # deployed inside an overlay network
@@ -118,7 +118,7 @@ services:
         constraints: [node.platform.os == linux]
 
   portainer:
-    image: osi4iot/portainer
+    image: osi4iot/portainer:${PORTAINER_TAG:-latest}
     command: -H tcp://tasks.agent:9001 --tlsskipverify
     volumes:
       - portainer_data:/data
@@ -152,7 +152,7 @@ services:
         - traefik.http.services.edge.loadbalancer.server.port=8000
 
   pgadmin4:
-    image: osi4iot/pgadmin4
+    image: osi4iot/pgadmin4:${PGADMIN4_TAG:-latest}
     user: "${UID}:${GID}"
     secrets:
       - source: pgadmin4
@@ -183,7 +183,7 @@ services:
         - traefik.http.services.pgadmin4.loadbalancer.server.port=80
 
   postgres:
-    image: osi4iot/timescaledb
+    image: osi4iot/timescaledb:${TIMESCALEDB_TAG:-latest}
     networks:
       - internal_net
     secrets:
@@ -206,7 +206,7 @@ services:
         window: 120s
 
   nodered:
-    image: osi4iot/nodered
+    image: osi4iot/nodered:${NODERED_TAG:-latest}
     user: "${UID}:${GID}"
     networks:
       - internal_net
@@ -215,6 +215,8 @@ services:
       - nodered_data:/data
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+    environment:
+      - ALWAYS_USE_DEFAULT_FLOWS=true
     secrets:
       - source: mqtt_nodered_ca
         target: /data/certs/ca.crt
@@ -255,7 +257,7 @@ services:
         - traefik.http.services.nodered.loadbalancer.server.port=1880
 
   nodered_arm64:
-    image: osi4iot/nodered_arm64
+    image: osi4iot/nodered_arm64:${NODERED_ARM64_TAG:-latest}
     user: "${UID}:${GID}"
     networks:
       - internal_net
@@ -264,6 +266,8 @@ services:
       - nodered_data:/data
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro
+    environment:
+      - ALWAYS_USE_DEFAULT_FLOWS=true
     secrets:
       - source: mqtt_nodered_ca
         target: /data/certs/ca.crt
@@ -304,7 +308,7 @@ services:
         - traefik.http.services.nodered.loadbalancer.server.port=1880
 
   grafana:
-    image: osi4iot/grafana
+    image: osi4iot/grafana:${GRAFANA_TAG:-latest}
     user: "${UID}:${GID}"
     networks:
       - internal_net
@@ -349,7 +353,7 @@ services:
         - traefik.http.services.grafana.loadbalancer.healthCheck.timeout=3s      
   
   grafana_renderer:
-    image: osi4iot/grafana_renderer
+    image: osi4iot/grafana_renderer:${GRAFANA_TAG:-latest}
     networks:
       - internal_net
     ports:
@@ -362,7 +366,7 @@ services:
 
 
   admin_api:
-    image: osi4iot/admin_api
+    image: osi4iot/admin_api:${ADMIN_API_TAG:-latest}
     networks:
       - internal_net
       - traefik-public
@@ -387,11 +391,6 @@ services:
         mode: 0444   
     ports:
       - "3200:3200"
-    environment:
-      PORT: 3200
-      WAIT_HOSTS: postgres:5432, grafana:5000
-      WAIT_HOSTS_TIMEOUT: 300
-      WAIT_SLEEP_INTERVAL: 5
     deploy:
       mode: replicated
       replicas: 0
@@ -421,7 +420,7 @@ services:
         - traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s        
 
   frontend:
-    image: osi4iot/frontend
+    image: osi4iot/frontend:${FRONTEND_TAG:-latest}
     configs:
       - source: frontend_conf
         target: /run/configs/frontend.conf
@@ -430,8 +429,6 @@ services:
       - traefik-public
     command: nginx -g "daemon off";
     volumes:
-      - nodered_data:/data
-      - ./certs/mqtt_nodered_certs/:/data/certs/
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro       
     deploy:
@@ -456,7 +453,7 @@ services:
         - traefik.http.services.frontend.loadbalancer.healthCheck.timeout=3s
 
   frontend_arm64:
-    image: osi4iot/frontend_arm64
+    image: osi4iot/frontend_arm64:${FRONTEND_ARM64_TAG:-latest}
     configs:
       - source: frontend_conf
         target: /run/configs/frontend.conf
@@ -465,8 +462,6 @@ services:
       - traefik-public
     command: nginx -g "daemon off";
     volumes:
-      - nodered_data:/data
-      - ./certs/mqtt_nodered_certs/:/data/certs/
       - /etc/timezone:/etc/timezone:ro
       - /etc/localtime:/etc/localtime:ro       
     deploy:

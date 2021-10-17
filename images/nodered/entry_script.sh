@@ -18,8 +18,13 @@ then
     export $(cat /run/configs/nodered.conf | grep DOMAIN_NAME)
 fi
 
-mv /tmp/flows.json /data
-mv /tmp/flows_cred.json /data
 mv /tmp/settings.js /data
+mv /tmp/flows_cred.json /data
+
+if [[ "$ALWAYS_USE_DEFAULT_FLOWS" == true ]]
+then
+    mv /tmp/flows.json /data
+fi
+
 
 npm --no-update-notifier --no-fund start --cache /data/.npm -- --userDir /data
