@@ -22,6 +22,8 @@ export ADMIN_API_TAG=1.1.0
 export FRONTEND_TAG=1.1.0
 export FRONTEND_ARM64_TAG=1.1.0
 
+# probando....
+
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
 docker node update --label-add primary=true $NODE_ID
