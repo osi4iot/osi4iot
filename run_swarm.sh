@@ -4,14 +4,26 @@
 # gpg .env_aux.gpg >/dev/null 2>&1
 # echo RELOADAGENT | gpg-connect-agent >/dev/null
 
-set -a
-source <(cat .env_images_tag | sed -e '/^#/d;/^\s*$/d' | sed $'s/\r$//')
-set +a
+# set -a
+# source <(cat .env_images_tag | sed -e '/^#/d;/^\s*$/d' | sed $'s/\r$//')
+# set +a
 
+export TRAEFIK_TAG=1.1.0
+export MOSQUITTO_TAG=1.1.0
+export PORTAINER_AGENT_TAG=1.1.0
+export PORTAINER_TAG=1.1.0
+export PGADMIN4_TAG=1.1.0
+export TIMESCALEDB_TAG=1.1.0
+export NODERED_TAG=1.1.0
+export NODERED_ARM64_TAG=1.1.0
+export GRAFANA_TAG=1.1.0
+export GRAFANA_RENDERER_TAG=1.1.0
+export ADMIN_API_TAG=1.1.0
+export FRONTEND_TAG=1.1.0
+export FRONTEND_ARM64_TAG=1.1.0
 
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
-
 docker node update --label-add primary=true $NODE_ID
 
 traefik_network=$(docker network ls | grep traefik-public)
