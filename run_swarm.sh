@@ -44,7 +44,7 @@ if [[ "$internal_network" == "" ]]; then
     docker network create -d overlay --opt encrypted=true internal_net
 fi
 
-docker stack deploy -c docker-compose.swarm.yml --with-registry-auth osi4iot
+docker stack deploy -c docker-compose.swarm.yml osi4iot
 
 sp="/-\|"
 sc=0
