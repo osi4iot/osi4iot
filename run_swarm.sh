@@ -4,8 +4,6 @@
 # gpg .env_aux.gpg >/dev/null 2>&1
 # echo RELOADAGENT | gpg-connect-agent >/dev/null
 
-# probando....
-
 # set -a
 # source <(cat .env_images_tag | sed -e '/^#/d;/^\s*$/d' | sed $'s/\r$//')
 # set +a
