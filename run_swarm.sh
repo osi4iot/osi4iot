@@ -22,7 +22,7 @@ export ADMIN_API_TAG=1.1.0
 export FRONTEND_TAG=1.1.0
 export FRONTEND_ARM64_TAG=1.1.0
 
-# probando....
+NUMBER_OF_NODES=$(( $(docker node ls | wc -l) - 1 ))
 
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
@@ -30,21 +30,26 @@ docker node update --label-add primary=true $NODE_ID
 
 traefik_network=$(docker network ls | grep traefik-public)
 if [[ "$traefik_network" == "" ]]; then
-    docker network create -d overlay --opt encrypted=true traefik-public
+  docker network create -d overlay --opt encrypted=true traefik-public
 fi
 
 agent_network=$(docker network ls | grep agent_network)
 if [[ "$agent_network" == "" ]]; then
-    docker network create -d overlay --opt encrypted=true agent_network
+  docker network create -d overlay --opt encrypted=true agent_network
 fi
 
 
 internal_network=$(docker network ls | grep internal_net)
 if [[ "$internal_network" == "" ]]; then
-    docker network create -d overlay --opt encrypted=true internal_net
+  docker network create -d overlay --opt encrypted=true internal_net
 fi
 
-docker stack deploy -c docker-compose.swarm.yml osi4iot
+if [[ $NUMBER_OF_NODES == 1 ]]; then
+  docker stack deploy -c docker-compose.local_swarm.yml osi4iot
+else
+    docker stack deploy -c docker-compose.local_swarm.yml osi4iot
+    export NFS_SERVER_IP=10.150.12.20
+fi
 
 sp="/-\|"
 sc=0
