@@ -47,8 +47,8 @@ fi
 if [[ $NUMBER_OF_NODES == 1 ]]; then
   docker stack deploy -c docker-compose.local_swarm.yml osi4iot
 else
-    docker stack deploy -c docker-compose.local_swarm.yml osi4iot
     export NFS_SERVER_IP=10.150.12.20
+    docker stack deploy -c docker-compose.cluster_swarm.yml osi4iot
 fi
 
 sp="/-\|"
