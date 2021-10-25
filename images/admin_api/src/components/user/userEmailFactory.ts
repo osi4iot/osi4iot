@@ -2,9 +2,10 @@ import sendEmail from "../../utils/sendEmail";
 import CreateUserDto from "./interfaces/User.dto";
 import jwt from "jsonwebtoken";
 import getDomainUrl from "../../utils/helpers/getDomainUrl";
+import process_env from "../../config/api_config";
 
 export const sendUserRegistrationInvitationEmail = async (usersArray: CreateUserDto[]): Promise<void> => {
-	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
+	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 	const subject = `Invitation to register in the ${platformName}`;
 
 	const userRegisterInvitationEmailQuery = [];
@@ -17,9 +18,9 @@ export const sendUserRegistrationInvitationEmail = async (usersArray: CreateUser
 			email: usersArray[i].email,
 			action: "registration"
 		};
-		const registrationToken = jwt.sign({ ...payload }, process.env.ACCESS_TOKEN_SECRET, {
+		const registrationToken = jwt.sign({ ...payload }, process_env.ACCESS_TOKEN_SECRET, {
 			algorithm,
-			expiresIn: parseInt(process.env.REGISTRATION_TOKEN_LIFETIME, 10)
+			expiresIn: parseInt(process_env.REGISTRATION_TOKEN_LIFETIME, 10)
 		});
 		const registrationLink = `${getDomainUrl()}/register?token=${registrationToken}`;
 

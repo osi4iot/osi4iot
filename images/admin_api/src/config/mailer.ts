@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import process_env from "./api_config";
 
 const transporter = nodemailer.createTransport({
 	host: 'smtp.gmail.com',
@@ -7,8 +8,8 @@ const transporter = nodemailer.createTransport({
 	pool: true,
 	connectionTimeout: 30000,
 	auth: {
-		user: process.env.NOTIFICATIONS_EMAIL_USER,
-		pass: process.env.NOTIFICATIONS_EMAIL_PASSWORD
+		user: process_env.NOTIFICATIONS_EMAIL_USER,
+		pass: process_env.NOTIFICATIONS_EMAIL_PASSWORD
 	}
 });
 

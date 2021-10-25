@@ -21,8 +21,8 @@ services:
     deploy:
       mode: replicated
       replicas: 3
-      placement:
-        constraints: [node.role == master]
+      # placement:
+      #   constraints: [node.role == manager]
         # preferences:
         #   - spread: node.labels.primary
         #   - spread: node.labels.secondary
@@ -51,8 +51,8 @@ services:
       - traefik-public
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
 
   mosquitto:
     image: ghcr.io/osi4iot/mosquitto:${MOSQUITTO_TAG:-latest}
@@ -65,8 +65,8 @@ services:
     volumes:
       - mosquitto_data:/mosquitto/data/
       - mosquitto_log:/mosquitto/log/
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     secrets:
       - source: iot_platform_ca
         target: /mosquitto/wss_certs/iot_platform_ca.pem
@@ -122,8 +122,8 @@ services:
     command: -H tcp://tasks.agent:9001 --tlsskipverify
     volumes:
       - portainer_data:/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     ports:
       - "8000:8000"
       - "9000:9000"
@@ -160,8 +160,8 @@ services:
         mode: 0400
     volumes:
       - pgadmin4_data:/var/lib/pgadmin
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro 
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro 
     networks:
       - internal_net
       - traefik-public
@@ -192,8 +192,8 @@ services:
         mode: 0400
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro 
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro 
     deploy:
       placement:
         constraints: [ node.role == worker ]
@@ -213,8 +213,8 @@ services:
       - traefik-public
     volumes:
       - nodered_data:/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     environment:
       - ALWAYS_USE_DEFAULT_FLOWS=true
     secrets:
@@ -266,8 +266,8 @@ services:
       - traefik-public
     volumes:
       - nodered_data:/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     environment:
       - ALWAYS_USE_DEFAULT_FLOWS=true
     secrets:
@@ -319,8 +319,8 @@ services:
       - traefik-public
     volumes:
       - grafana_data:/var/lib/grafana
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     secrets:
       - source: grafana
         target: grafana.txt
@@ -378,8 +378,8 @@ services:
       - traefik-public
     volumes:
       - admin_api_log:/app/logs
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro   
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro   
     working_dir: /app
     secrets:
       - source: mqtt_server_ca_cert
@@ -434,9 +434,9 @@ services:
     networks:
       - traefik-public
     command: nginx -g "daemon off";
-    volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro       
+    # volumes:
+    #   - /etc/timezone:/etc/timezone:ro
+    #   - /etc/localtime:/etc/localtime:ro       
     deploy:
       mode: replicated
       replicas: 3
@@ -469,9 +469,9 @@ services:
     networks:
       - traefik-public
     command: nginx -g "daemon off";
-    volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro       
+    # volumes:
+    #   - /etc/timezone:/etc/timezone:ro
+    #   - /etc/localtime:/etc/localtime:ro       
     deploy:
       mode: replicated
       replicas: 3

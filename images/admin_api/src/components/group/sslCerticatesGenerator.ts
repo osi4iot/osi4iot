@@ -1,13 +1,14 @@
 import fs from "fs";
 import mkcert from "mkcert";
+import process_env from "../../config/api_config";
 import IGroup from "./interfaces/Group.interface";
 import ISSLCertificates from "./interfaces/ISSLCertificates";
 
 const sslCerticatesGenerator = async (group: IGroup): Promise<ISSLCertificates> => {
 
-	const ca_crt = fs.readFileSync("./mqtt_certs/ca.crt");
-	const ca_key = fs.readFileSync("./mqtt_certs/ca.key");
-	const validityDays = parseInt(process.env.MQTT_SSL_CERTS_VALIDITY_DAYS,10);
+	const ca_crt = fs.readFileSync("/run/secrets/ca.crt");
+	const ca_key = fs.readFileSync("/run/secrets/ca.key");
+	const validityDays = parseInt(process_env.MQTT_SSL_CERTS_VALIDITY_DAYS,10);
 
 	const ca_certs = {
 		key: ca_key.toString(),

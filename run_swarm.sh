@@ -22,7 +22,7 @@ export ADMIN_API_TAG=1.1.0
 export FRONTEND_TAG=1.1.0
 export FRONTEND_ARM64_TAG=1.1.0
 
-NUMBER_OF_NODES=$(( $(docker node ls | wc -l) - 1 ))
+NUMBER_OF_NODES=$(docker node ls | grep Active | wc -l)
 
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
@@ -64,10 +64,14 @@ endspin() {
 
 
 printf '\n%s' "Initializing grafana database  "
-do=true && [[ "$(docker ps | grep osi4iot/grafana | grep healthy)" != "" &&  "$(docker ps | grep osi4iot/timescaledb | grep healthy)" != "" ]] && do=false
+grafana_healthy=$(docker ps | grep osi4iot/grafana: | grep healthy | wc -l)
+timescaledb_healthy=$(docker ps | grep osi4iot/timescaledb | grep healthy | wc -l)
+do=true && [[ $grafana_healthy == 3 &&  $timescaledb_healthy == 1 ]] && do=false
 while $do ; do
   spin
-  do=true && [[ "$(docker ps | grep osi4iot/grafana | grep healthy)" != "" &&  "$(docker ps | grep osi4iot/timescaledb | grep healthy)" != "" ]] && do=false
+  grafana_healthy=$(docker ps | grep osi4iot/grafana: | grep healthy | wc -l)
+  timescaledb_healthy=$(docker ps | grep osi4iot/timescaledb | grep healthy | wc -l)
+  do=true && [[ $grafana_healthy == 3 &&  $timescaledb_healthy == 1 ]] && do=false
   sleep 0.5
 done
 endspin

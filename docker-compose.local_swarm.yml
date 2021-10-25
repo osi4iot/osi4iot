@@ -21,8 +21,6 @@ services:
     deploy:
       mode: replicated
       replicas: 3
-      # placement:
-      #   constraints: [node.role == master]
         # preferences:
         #   - spread: node.labels.primary
         #   - spread: node.labels.secondary
@@ -51,8 +49,8 @@ services:
       - traefik-public
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
 
   mosquitto:
     image: ghcr.io/osi4iot/mosquitto:${MOSQUITTO_TAG:-latest}
@@ -65,8 +63,8 @@ services:
     volumes:
       - mosquitto_data:/mosquitto/data/
       - mosquitto_log:/mosquitto/log/
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     secrets:
       - source: iot_platform_ca
         target: /mosquitto/wss_certs/iot_platform_ca.pem
@@ -108,8 +106,8 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/volumes:/var/lib/docker/volumes
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro       
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro       
     networks:
       - agent_network
     deploy:
@@ -122,8 +120,8 @@ services:
     command: -H tcp://tasks.agent:9001 --tlsskipverify
     volumes:
       - portainer_data:/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     ports:
       - "8000:8000"
       - "9000:9000"
@@ -132,9 +130,7 @@ services:
       - agent_network
     deploy:
       mode: replicated
-      replicas: 1      
-      placement:
-        constraints: [ node.role == manager ]  
+      replicas: 1
       labels:
         - traefik.enable=true
         - traefik.http.routers.portainer.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/portainer/`)
@@ -160,14 +156,12 @@ services:
         mode: 0400
     volumes:
       - pgadmin4_data:/var/lib/pgadmin
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro 
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro 
     networks:
       - internal_net
       - traefik-public
-    deploy:
-      placement:
-        constraints: [node.role == manager]   
+    deploy:  
       labels:
         - traefik.enable=true
         - traefik.http.routers.pgadmin4.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/pgadmin4/`)
@@ -187,16 +181,24 @@ services:
     networks:
       - internal_net
     secrets:
-      - source: postgres
-        target: postgres.txt
+      - source: postgres_user
+        target: postgres_user.txt
+        mode: 0400             
+      - source: postgres_password
+        target: postgres_password.txt
+        mode: 0400    
+      - source: postgres_grafana
+        target: postgres_grafana.txt
         mode: 0400
     volumes:
       - pgdata:/var/lib/postgresql/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro 
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
+    environment:
+      - POSTGRES_DB=iot_platform_db
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user.txt
     deploy:
-      # placement:
-      #   constraints: [node.role == worker]
       mode: replicated
       replicas: 1
       restart_policy:
@@ -213,8 +215,8 @@ services:
       - traefik-public
     volumes:
       - nodered_data:/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     environment:
       - ALWAYS_USE_DEFAULT_FLOWS=true
     secrets:
@@ -264,8 +266,8 @@ services:
       - traefik-public
     volumes:
       - nodered_data:/data
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     environment:
       - ALWAYS_USE_DEFAULT_FLOWS=true
     secrets:
@@ -315,8 +317,8 @@ services:
       - traefik-public
     volumes:
       - grafana_data:/var/lib/grafana
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro
     secrets:
       - source: grafana
         target: grafana.txt
@@ -333,8 +335,6 @@ services:
         delay: 5s
         max_attempts: 5
         window: 120s
-      # placement:
-      #   constraints: [node.role == worker]
       labels:
         - traefik.enable=true
         - traefik.http.routers.grafana.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/grafana/`)
@@ -364,7 +364,6 @@ services:
       placement:
         constraints: [node.platform.arch==x86_64]      
 
-
   admin_api:
     image: ghcr.io/osi4iot/admin_api:${ADMIN_API_TAG:-latest}
     networks:
@@ -372,8 +371,8 @@ services:
       - traefik-public
     volumes:
       - admin_api_log:/app/logs
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro   
+      # - /etc/timezone:/etc/timezone:ro
+      # - /etc/localtime:/etc/localtime:ro   
     working_dir: /app
     secrets:
       - source: mqtt_server_ca_cert
@@ -399,8 +398,6 @@ services:
         delay: 5s
         max_attempts: 5
         window: 120s
-      # placement:
-      #   constraints: [node.role == worker]
       labels:
         - traefik.enable=true
         - traefik.http.routers.admin_api.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/admin_api/`)
@@ -428,9 +425,9 @@ services:
     networks:
       - traefik-public
     command: nginx -g "daemon off";
-    volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro       
+    # volumes:
+    #   - /etc/timezone:/etc/timezone:ro
+    #   - /etc/localtime:/etc/localtime:ro       
     deploy:
       mode: replicated
       replicas: 3
@@ -461,9 +458,9 @@ services:
     networks:
       - traefik-public
     command: nginx -g "daemon off";
-    volumes:
-      - /etc/timezone:/etc/timezone:ro
-      - /etc/localtime:/etc/localtime:ro       
+    # volumes:
+    #   - /etc/timezone:/etc/timezone:ro
+    #   - /etc/localtime:/etc/localtime:ro       
     deploy:
       mode: replicated
       replicas: 3
@@ -513,7 +510,7 @@ secrets:
   mqtt_server_ca_cert:
     file: ./certs/mqtt_server_certs/ca.crt
   mqtt_server_ca_key:
-    file: ./certs/mqtt_server_certs/ca.crt
+    file: ./certs/mqtt_server_certs/ca.key
   mqtt_server_cert:
     file: ./certs/mqtt_server_certs/server.crt
   mqtt_server_key:
@@ -526,8 +523,12 @@ secrets:
     file: ./certs/mqtt_nodered_certs/client.key
   pgadmin4:
     file: ./secrets/pgadmin4.txt
-  postgres:
-    file: ./secrets/postgres.txt
+  postgres_grafana:
+    file: ./secrets/postgres_grafana.txt
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt        
   nodered:
     file: ./secrets/nodered.txt
   grafana:

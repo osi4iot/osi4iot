@@ -16,6 +16,8 @@ import pool from "./config/dbconfig";
 import transporter from "./config/mailer";
 import IRequestWithSwaggerDoc from "./interfaces/requestWithSwaggerDoc";
 import getDomainUrl from "./utils/helpers/getDomainUrl";
+import process_env from "./config/api_config";
+
 
 
 class App {
@@ -64,8 +66,8 @@ class App {
 				docExpansion: 'none'
 			}
 		};
-		const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} Platform`;
-		const platformPhrase = `${process.env.PLATFORM_PHRASE}`;
+		const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} Platform`;
+		const platformPhrase = `${process_env.PLATFORM_PHRASE}`;
 		const serverUrl = `${getDomainUrl()}/admin_api/`;
 		this.app.use("/swagger", (req: IRequestWithSwaggerDoc, res: Response, next: NextFunction) => {
 			(swaggerDocument as any).info.title = platformName;

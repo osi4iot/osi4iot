@@ -5,6 +5,7 @@ import passportLocal from "passport-local";
 import passportJwt from "passport-jwt";
 import { getUserLoginDatadByEmailOrLogin, getUserdByEmailOrLogin } from "../components/user/userDAL";
 import verifiyPassword from "../utils/helpers/verifiyPassword";
+import process_env from "./api_config";
 
 
 export default function passportInitialize(): void {
@@ -47,7 +48,7 @@ export default function passportInitialize(): void {
 	const algorithm = "HS256" as jwt.Algorithm;
 	const optsAccessToken = {
 		jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-		secretOrKey: process.env.ACCESS_TOKEN_SECRET,
+		secretOrKey: process_env.ACCESS_TOKEN_SECRET,
 		algorithms: [algorithm]
 	};
 
@@ -93,7 +94,7 @@ export default function passportInitialize(): void {
 
 	const optsRefreshToken = {
 		jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-		secretOrKey: process.env.REFRESH_TOKEN_SECRET,
+		secretOrKey: process_env.REFRESH_TOKEN_SECRET,
 		algorithms: [algorithm]
 	};
 

@@ -4,6 +4,7 @@ import CreateGroupAdminDto from "./interfaces/groupAdmin.dto";
 import { getGroupMembers, getNotificationChannelName } from "./groupDAL";
 import CreateGroupMemberDto from "./interfaces/groupMember.dto";
 import { getOrganizationByProp } from "../organization/organizationDAL";
+import process_env from "../../config/api_config";
 
 const informationToEditorOrAdminHtml = async (group: IGroup): Promise<string> => {
 	const groupHash = `Group_${group.groupUid}`;
@@ -29,7 +30,7 @@ const informationToEditorOrAdminHtml = async (group: IGroup): Promise<string> =>
 
 
 export const sendGroupAdminInvitationEmail = async (orgName: string, group: IGroup, groupAdminDataArray: CreateGroupAdminDto[]): Promise<void> => {
-	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
+	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 	let subject: string;
 	if (group.isOrgDefaultGroup) {
 		subject = `Invitation to be the administrator of the organization "${orgName}"`;
@@ -78,7 +79,7 @@ export const sendGroupAdminInvitationEmail = async (orgName: string, group: IGro
 
 export const sendGroupMemberInvitationEmail = async (group: IGroup, groupMemberArray: CreateGroupMemberDto[]): Promise<void> => {
 	const subject = `Membership of the group "${group.name}"`;
-	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
+	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 
 	const groupMembershipEmailQuery = [];
 	for (let i = 0; i < groupMemberArray.length; i++) {
@@ -118,7 +119,7 @@ export const sendGroupMemberInvitationEmail = async (group: IGroup, groupMemberA
 
 export const sendRoleInGroupChangeInformationEmail = async (group: IGroup, groupMemberArray: CreateGroupMemberDto[]): Promise<void> => {
 	const subject = `Information of change of the member role in the group "${group.name}"`;
-	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
+	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 
 	const groupRoleChangeEmailQuery = [];
 	for (let i = 0; i < groupMemberArray.length; i++) {
@@ -148,7 +149,7 @@ export const sendRoleInGroupChangeInformationEmail = async (group: IGroup, group
 
 export const sendChangeGroupDataInformationEmail = async (newGroupData: IGroup, oldGroupName: string): Promise<void> => {
 	const subject = `Information of change of data in the group "${oldGroupName}"`;
-	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
+	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 	const groupMemberArray = await getGroupMembers(newGroupData);
 	const groupChangeDataInformationEmailQuery = [];
 	for (let i = 0; i < groupMemberArray.length; i++) {
@@ -184,7 +185,7 @@ export const sendChangeGroupDataInformationEmail = async (newGroupData: IGroup, 
 
 export const sendRemoveGroupInformationEmail = async (group: IGroup, groupMembersToRemove: CreateGroupMemberDto[], removeOrgMembership: boolean = false): Promise<void> => {
 	const subject = `Unsubscribed information from the "${group.name}" group`;
-	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
+	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 	const groupChangeDataInformationEmailQuery = [];
 	let removeOrgComment = "";
 	if (removeOrgMembership) {

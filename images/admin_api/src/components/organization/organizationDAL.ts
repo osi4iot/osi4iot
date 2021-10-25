@@ -12,6 +12,7 @@ import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import IUserInOrg from "../user/interfaces/UserInOrg.interface";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
+import process_env from "../../config/api_config";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
@@ -99,7 +100,7 @@ export const getOrganizationKey = async (orgId: number): Promise<string> => {
 export const createDefaultOrgDataSource = async (orgId: number, name: string, orgKey: string): Promise<void> => {
 	const query1 = `SELECT id, json_data, secure_json_data
 					FROM grafanadb.data_source WHERE name = $1;`;
-	const dataSourceName = `iot_${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
+	const dataSourceName = `iot_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
 	const result = await pool.query(query1, [dataSourceName]);
 	if (result.rows.length === 0) throw new Error("Main organization default data source not found");
 	const jsonData = result.rows[0].json_data;

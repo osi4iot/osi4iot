@@ -16,13 +16,10 @@ RUN mkdir -p /app/node_modules && chown -R node:node /app
 WORKDIR /app
 COPY package*.json ./
 RUN apk --no-cache add curl
-COPY entry_script.sh /src/scripts/entry_script.sh
-RUN chmod +x /src/scripts/entry_script.sh
 USER node
 RUN npm install --only=production
 COPY --from=0 /app/build ./build
-CMD /src/scripts/entry_script.sh
-# CMD /wait && npm start
+CMD npm start
 HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
   CMD curl --fail --insecure http://localhost:3200/health || exit 1
 EXPOSE 3200

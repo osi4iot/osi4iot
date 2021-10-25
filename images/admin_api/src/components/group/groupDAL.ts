@@ -27,6 +27,7 @@ import { findGroupBounds, findGroupGeojsonData } from "../../utils/geolocation.t
 import { getBuildingByOrgId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import arrayCompare from "../../utils/helpers/arrayCompare";
 import { updateGroupDevicesLocation } from "../device/deviceDAL";
+import process_env from "../../config/api_config";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
@@ -65,9 +66,12 @@ export const createGroup = async (
 		outerBounds = findGroupBounds(geoJsonData, floorData);
 	} else {
 		const building = await getBuildingByOrgId(orgId);
-		outerBounds = building.outerBounds;
+		if (building) {
+			outerBounds = building.outerBounds;
+		} else {
+			outerBounds = [[0, 0], [0, 0]];
+		}
 	}
-
 	const permissionsArray: IFolderPermission[] = [{
 		teamId,
 		permission: folderPermission
@@ -106,7 +110,7 @@ export const createGroup = async (
 		isDefault: false,
 		sendReminder: false,
 		settings: {
-			bottoken: process.env.TELEGRAM_BOTTOKEN,
+			bottoken: process_env.TELEGRAM_BOTTOKEN,
 			chatid: telegramChatId,
 			uploadImage: true,
 			autoResolve: true,

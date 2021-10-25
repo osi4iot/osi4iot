@@ -11,14 +11,15 @@ import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import { createTopic, demoTopicSensorName } from "../components/topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../components/digitalTwin/digitalTwinDAL";
+import process_env from "../config/api_config";
 
 
 export async function dataBaseInitialization() {
 	const pool = new Pool({
-		user: process.env.POSTGRES_USER,
+		user: process_env.POSTGRES_USER,
 		host: "postgres",
-		password: process.env.POSTGRES_PASSWORD,
-		database: process.env.POSTGRES_DB,
+		password: process_env.POSTGRES_PASSWORD,
+		database: process_env.POSTGRES_DB,
 		port: 5432,
 	});
 
@@ -56,7 +57,7 @@ export async function dataBaseInitialization() {
 		}
 
 		const queryStringInsertBuilding = `INSERT INTO ${tableBuilding} (name, geolocation, created, updated) VALUES ($1, $2, NOW(), NOW())`;
-		const queryParametersInsertBuilding = [process.env.MAIN_ORGANIZATION_NAME, `(0,0)`];
+		const queryParametersInsertBuilding = [process_env.MAIN_ORGANIZATION_NAME, `(0,0)`];
 		try {
 			await pool.query(queryStringInsertBuilding, queryParametersInsertBuilding);
 			logger.log("info", `Data in table ${tableBuilding} has been inserted sucessfully`);
@@ -113,13 +114,13 @@ export async function dataBaseInitialization() {
 
 		const plaformAdminUser = {
 			id: 2,
-			name: `${process.env.PLATFORM_ADMIN_FIRST_NAME} ${process.env.PLATFORM_ADMIN_SURNAME}`,
-			firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
-			surname: process.env.PLATFORM_ADMIN_SURNAME,
-			email: process.env.PLATFORM_ADMIN_EMAIL,
-			login: process.env.PLATFORM_ADMIN_USER_NAME,
-			password: process.env.PLATFORM_ADMIN_PASSWORD,
-			telegramId: process.env.PLATFORM_ADMIN_TELEGRAM_ID,
+			name: `${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
+			firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
+			surname: process_env.PLATFORM_ADMIN_SURNAME,
+			email: process_env.PLATFORM_ADMIN_EMAIL,
+			login: process_env.PLATFORM_ADMIN_USER_NAME,
+			password: process_env.PLATFORM_ADMIN_PASSWORD,
+			telegramId: process_env.PLATFORM_ADMIN_TELEGRAM_ID,
 			OrgId: 1
 		}
 		await grafanaApi.createUser(plaformAdminUser);
@@ -129,9 +130,9 @@ export async function dataBaseInitialization() {
 		try {
 			await pool.query(queryStringUpdateUser,
 				[
-					process.env.PLATFORM_ADMIN_FIRST_NAME,
-					process.env.PLATFORM_ADMIN_SURNAME,
-					`${process.env.PLATFORM_ADMIN_FIRST_NAME} ${process.env.PLATFORM_ADMIN_SURNAME}`,
+					process_env.PLATFORM_ADMIN_FIRST_NAME,
+					process_env.PLATFORM_ADMIN_SURNAME,
+					`${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
 					2
 				]);
 		} catch (err) {
@@ -153,13 +154,13 @@ export async function dataBaseInitialization() {
 		const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5,
 								state = $6, country = $7, building_id = $8 WHERE name = $9`;
 		const parameterArrayUpdateOrg = [
-			process.env.MAIN_ORGANIZATION_NAME,
-			process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
-			process.env.MAIN_ORGANIZATION_ADDRESS1,
-			process.env.MAIN_ORGANIZATION_CITY,
-			process.env.MAIN_ORGANIZATION_ZIP_CODE,
-			process.env.MAIN_ORGANIZATION_STATE,
-			process.env.MAIN_ORGANIZATION_COUNTRY,
+			process_env.MAIN_ORGANIZATION_NAME,
+			process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
+			process_env.MAIN_ORGANIZATION_ADDRESS1,
+			process_env.MAIN_ORGANIZATION_CITY,
+			process_env.MAIN_ORGANIZATION_ZIP_CODE,
+			process_env.MAIN_ORGANIZATION_STATE,
+			process_env.MAIN_ORGANIZATION_COUNTRY,
 			1,
 			"Main Org."
 		];
@@ -167,7 +168,7 @@ export async function dataBaseInitialization() {
 
 		try {
 			await pool.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
-			const apyKeyName = `ApiKey_${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}`
+			const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}`
 			const apiKeyData = { name: apyKeyName, role: "Admin" };
 			const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
 			apiKeyMainOrg = apiKeyObj.key;
@@ -215,10 +216,10 @@ export async function dataBaseInitialization() {
 
 
 		let group: IGroup;
-		const mainOrgGroupName = defaultOrgGroupName(process.env.MAIN_ORGANIZATION_NAME, process.env.MAIN_ORGANIZATION_ACRONYM);
-		const mainOrgGroupAcronym = `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}_GRAL`;
-		const orgAcronym = process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
-		const orgName = process.env.MAIN_ORGANIZATION_NAME;
+		const mainOrgGroupName = defaultOrgGroupName(process_env.MAIN_ORGANIZATION_NAME, process_env.MAIN_ORGANIZATION_ACRONYM);
+		const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}_GRAL`;
+		const orgAcronym = process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
+		const orgName = process_env.MAIN_ORGANIZATION_NAME;
 		const tableGroup = "grafanadb.group";
 		const queryStringGroup = `
 			CREATE TABLE IF NOT EXISTS ${tableGroup}(
@@ -265,28 +266,28 @@ export async function dataBaseInitialization() {
 			await pool.query(queryStringGroup);
 			const mainOrgGroupAdmin = {
 				userId: 2,
-				firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
-				surname: process.env.PLATFORM_ADMIN_SURNAME,
-				email: process.env.PLATFORM_ADMIN_EMAIL
+				firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
+				surname: process_env.PLATFORM_ADMIN_SURNAME,
+				email: process_env.PLATFORM_ADMIN_EMAIL
 			}
 			const defaultMainOrgGroup = {
 				name: mainOrgGroupName,
 				acronym: mainOrgGroupAcronym,
-				email: `${process.env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toLocaleLowerCase()}_general@test.com`,
-				telegramChatId: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
-				telegramInvitationLink: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
+				email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toLocaleLowerCase()}_general@test.com`,
+				telegramChatId: process_env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
+				telegramInvitationLink: process_env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 				folderPermission: ("Viewer" as FolderPermissionOption),
 				groupAdminDataArray: [mainOrgGroupAdmin],
 				floorNumber: 0,
 				featureIndex: 0,
 			}
-			group = await createGroup(1, defaultMainOrgGroup, process.env.MAIN_ORGANIZATION_NAME, true);
+			group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
 			await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
 			const groupMember = {
 				userId: 2,
-				firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
-				surname: process.env.PLATFORM_ADMIN_SURNAME,
-				email: process.env.PLATFORM_ADMIN_EMAIL,
+				firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
+				surname: process_env.PLATFORM_ADMIN_SURNAME,
+				email: process_env.PLATFORM_ADMIN_EMAIL,
 				roleInGroup: "Admin" as RoleInGroupOption
 			}
 			await addMembersToGroup(group, [groupMember])

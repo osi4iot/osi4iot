@@ -22,24 +22,25 @@ import INotificationChannel from "./interfaces/NotificationChannel";
 import { updateNotificationChannelSettings } from "../components/group/groupDAL";
 import CreateUserDto from "../components/user/interfaces/User.dto";
 import wait from "../utils/helpers/wait";
+import process_env from "../config/api_config";
 
 const GrafanaApiURL = "grafana:5000/api"
 const optionsBasicAuthApiAdmin = {
 	username: "api_admin",
-	password: process.env.PLATFORM_ADMIN_PASSWORD,
+	password: process_env.PLATFORM_ADMIN_PASSWORD,
 	json: true
 }
 
 const optionsBasicAuthPlatformAdmin = {
-	username: process.env.PLATFORM_ADMIN_USER_NAME,
-	password: process.env.PLATFORM_ADMIN_PASSWORD,
+	username: process_env.PLATFORM_ADMIN_USER_NAME,
+	password: process_env.PLATFORM_ADMIN_PASSWORD,
 	json: true
 }
 
 const optionsBasicAuthOrgAdmin = (orgId: number) => {
 	return {
 		username: `org_${orgId}_api_admin`,
-		password: process.env.PLATFORM_ADMIN_PASSWORD,
+		password: process_env.PLATFORM_ADMIN_PASSWORD,
 		json: true
 	}
 }
@@ -167,7 +168,7 @@ export default class GrafanaApi implements IDashboardApi {
 			name: `org_${orgId}_api_admin`,
 			login: `org_${orgId}_api_admin`,
 			email: `org_${orgId}_api_admin@test.com`,
-			password: process.env.PLATFORM_ADMIN_PASSWORD,
+			password: process_env.PLATFORM_ADMIN_PASSWORD,
 			OrgId: orgId,
 		}
 		const message: IMessage = await needle('post', url, user, optionsBasicAuthApiAdmin)
@@ -185,7 +186,7 @@ export default class GrafanaApi implements IDashboardApi {
 		const body = { isGrafanaAdmin: true };
 		const grafanaAdminBasicAuthOptions = {
 			username: 'api_admin',
-			password: process.env.GRAFANA_ADMIN_PASSWORD,
+			password: process_env.GRAFANA_ADMIN_PASSWORD,
 			json: true
 		}
 		const message = await needle('put', url, body, grafanaAdminBasicAuthOptions)
@@ -476,7 +477,7 @@ export default class GrafanaApi implements IDashboardApi {
 			basicAuth: false,
 			basicAuthPassword: "",
 			basicAuthUser: "",
-			database: process.env.POSTGRES_DB,
+			database: process_env.POSTGRES_DB,
 			name,
 			orgId,
 			password: "",

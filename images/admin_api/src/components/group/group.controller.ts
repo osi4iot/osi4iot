@@ -262,12 +262,16 @@ class GroupController implements IController {
 			}
 			const groupCreated = await createGroup(orgId, groupInput, req.organization.name);
 			const floorData = await getFloorByOrgIdAndFloorNumber(groupCreated.orgId, groupCreated.floorNumber);
-			const geoJsonDataString = findGroupGeojsonData(floorData, groupCreated.featureIndex)
+			const geoJsonDataString = findGroupGeojsonData(floorData, groupCreated.featureIndex);
 			const geojsonObj = JSON.parse(geoJsonDataString);
-			const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
-			const center = pointOnFeature(geoPolygon);
-			const centerLongitude = center.geometry.coordinates[0];
-			const centerLatitude = center.geometry.coordinates[1];
+			let centerLongitude = 0.0;
+			let centerLatitude = 0.0;
+			if (geojsonObj.features) {
+				const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+				const center = pointOnFeature(geoPolygon);
+				centerLongitude = center.geometry.coordinates[0];
+				centerLatitude = center.geometry.coordinates[1];
+			}
 			const devicesDistance = 0.00002;
 			const defaultGroupDeviceData = [
 				{
@@ -310,6 +314,7 @@ class GroupController implements IController {
 
 			[dashboardUid[0], digitalTwinsUrl[0], dashboardUid[1], digitalTwinsUrl[1]] =
 				await createDemoDashboards(req.organization.acronym, groupCreated, [device1, device2], [topic1, topic2]);
+
 
 			const defaultDeviceDigitalTwinsData = [
 				{

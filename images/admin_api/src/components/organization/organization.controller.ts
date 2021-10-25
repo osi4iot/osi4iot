@@ -62,6 +62,7 @@ import IUser from "../user/interfaces/User.interface";
 import { createTopic, demoTopicSensorName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
+import process_env from "../../config/api_config";
 
 
 class OrganizationController implements IController {
@@ -296,16 +297,16 @@ class OrganizationController implements IController {
 				const dataSourceName = `iot_${organizationData.acronym.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
 				await createDefaultOrgDataSource(newOrg.orgId, dataSourceName, apiKeyObj.key);
 				const groupAdminDataArray: CreateGroupAdminDto[] = [];
-				const platformAdminEmail = process.env.PLATFORM_ADMIN_EMAIL;
+				const platformAdminEmail = process_env.PLATFORM_ADMIN_EMAIL;
 				const orgAdminArrayFiltered = organizationData.orgAdminArray.filter(orgAdmin => orgAdmin.email === platformAdminEmail);
 				if (orgAdminArrayFiltered.length === 0) {
 					organizationData.orgAdminArray.push({
-						name: `${process.env.PLATFORM_ADMIN_FIRST_NAME} ${process.env.PLATFORM_ADMIN_SURNAME}`,
-						firstName: process.env.PLATFORM_ADMIN_FIRST_NAME,
-						surname: process.env.PLATFORM_ADMIN_SURNAME,
-						email: process.env.PLATFORM_ADMIN_EMAIL,
-						login: process.env.PLATFORM_ADMIN_USER_NAME,
-						password: process.env.PLATFORM_ADMIN_PASSWORD,
+						name: `${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
+						firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
+						surname: process_env.PLATFORM_ADMIN_SURNAME,
+						email: process_env.PLATFORM_ADMIN_EMAIL,
+						login: process_env.PLATFORM_ADMIN_USER_NAME,
+						password: process_env.PLATFORM_ADMIN_PASSWORD,
 					});
 				}
 				organizationData.orgAdminArray.forEach(user => {

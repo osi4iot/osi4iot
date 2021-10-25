@@ -1,3 +1,4 @@
+import process_env from "../../config/api_config";
 import transporter from "../../config/mailer";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 
@@ -6,14 +7,14 @@ const sendEmail = async (subject: string, mailTo: string[], bodyType: string, ma
 		let mailOptions;
 		if (bodyType === "text") {
 			mailOptions = {
-				from: process.env.NOTIFICATIONS_EMAIL_USER,
+				from: process_env.NOTIFICATIONS_EMAIL_USER,
 				to: mailTo,
 				subject,
 				text: mailBody
 			};
 		} else if (bodyType === "html") {
 			mailOptions = {
-				from: process.env.NOTIFICATIONS_EMAIL_USER,
+				from: process_env.NOTIFICATIONS_EMAIL_USER,
 				to: mailTo,
 				subject,
 				html: mailBody

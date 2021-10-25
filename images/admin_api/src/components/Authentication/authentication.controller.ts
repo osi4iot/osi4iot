@@ -23,6 +23,7 @@ import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtA
 import CreateUserDto from "../user/interfaces/User.dto";
 import UserProfileDto from "../user/interfaces/UserProfile.dto";
 import verifiyPassword from "../../utils/helpers/verifiyPassword";
+import process_env from "../../config/api_config";
 
 interface IJwtPayload {
 	id: string;
@@ -80,9 +81,9 @@ class AuthenticationController implements IController {
 		};
 
 		const algorithm = 'HS256' as jwt.Algorithm;
-		const refreshToken = jwt.sign({ ...payloadRefreshToken }, process.env.REFRESH_TOKEN_SECRET, {
+		const refreshToken = jwt.sign({ ...payloadRefreshToken }, process_env.REFRESH_TOKEN_SECRET, {
 			algorithm,
-			expiresIn: parseInt(process.env.REFRESH_TOKEN_LIFETIME, 10)
+			expiresIn: parseInt(process_env.REFRESH_TOKEN_LIFETIME, 10)
 		});
 
 		return refreshToken;
@@ -98,9 +99,9 @@ class AuthenticationController implements IController {
 
 		let loginOutput: ILoginOutput;
 		const algorithm = "HS256" as jwt.Algorithm;
-		const accessToken = jwt.sign({ ...payloadAccessToken }, process.env.ACCESS_TOKEN_SECRET, {
+		const accessToken = jwt.sign({ ...payloadAccessToken }, process_env.ACCESS_TOKEN_SECRET, {
 			algorithm,
-			expiresIn: parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10)
+			expiresIn: parseInt(process_env.ACCESS_TOKEN_LIFETIME, 10)
 		});
 		const decodedAccessToken = jwt.decode(accessToken) as IJwtPayload;
 		const expirationDate = (new Date(decodedAccessToken.exp * 1000)).toString();
@@ -110,8 +111,8 @@ class AuthenticationController implements IController {
 		if (existentRefreshToken) {
 			const decodedRefreshToken = jwt.decode(existentRefreshToken.token) as IJwtPayload;
 			const refreshTokenExpirationDate = new Date(decodedRefreshToken.exp * 1000);
-			const timeframe = parseInt(process.env.REFRESH_TOKEN_LIFETIME, 10) * 0.1;
-			const accessTokenLifeTime = parseInt(process.env.ACCESS_TOKEN_LIFETIME, 10);
+			const timeframe = parseInt(process_env.REFRESH_TOKEN_LIFETIME, 10) * 0.1;
+			const accessTokenLifeTime = parseInt(process_env.ACCESS_TOKEN_LIFETIME, 10);
 			const nextRefreshDate = new Date(Date.now() + (accessTokenLifeTime - timeframe) * 1000);
 			refreshToken = existentRefreshToken.token;
 			if (refreshTokenExpirationDate > nextRefreshDate) refreshToken = existentRefreshToken.token;

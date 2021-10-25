@@ -1,8 +1,9 @@
 import crypto from "crypto";
+import process_env from "../../config/api_config";
 import Hash from "./hash.interface";
 
 const algorithm = "aes-256-ctr";
-const secretKey = process.env.ENCRYPTION_SECRET_KEY;
+const secretKey = process_env.ENCRYPTION_SECRET_KEY;
 const iv = crypto.randomBytes(16);
 
 export const encrypt = (text: string): string => {

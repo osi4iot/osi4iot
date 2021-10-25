@@ -15,6 +15,7 @@ import { getNotificationChannelUid } from "./groupDAL";
 import IAlert from "./interfaces/Alert.interface";
 import IDashboardData from "./interfaces/DashboardData.interface";
 import IGroup from "./interfaces/Group.interface";
+import process_env from "../../config/api_config";
 
 export const insertDashboard = async (orgId: number, folderId: number, title: string, data: any): Promise<any> => {
 	const now = new Date();
@@ -136,7 +137,7 @@ export const insertPreference = async (orgId: number, homeDashboardId: number): 
 export const createHomeDashboard = async (orgId: number, orgAcronym: string, orgName: string, folderId: number): Promise<void> => {
 	const homeDashboard = JSON.parse(homeDashboardJson);
 	const title = `Home ${orgAcronym.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}`;
-	const platformName = `${process.env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
+	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 	const html_content = `<br/>\n<h1>${platformName}</h1>\n<h2>${orgName}</h2>\n`
 	homeDashboard.panels[0].options.content = html_content;
 	homeDashboard.panels[0].gridPos = {
