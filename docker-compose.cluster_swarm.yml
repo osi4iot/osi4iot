@@ -21,8 +21,8 @@ services:
     deploy:
       mode: replicated
       replicas: 3
-      # placement:
-      #   constraints: [node.role == manager]
+      placement:
+        constraints: [ node.role == worker ]
         # preferences:
         #   - spread: node.labels.primary
         #   - spread: node.labels.secondary
@@ -187,13 +187,23 @@ services:
     networks:
       - internal_net
     secrets:
-      - source: postgres
-        target: postgres.txt
+      - source: postgres_user
+        target: postgres_user.txt
+        mode: 0400             
+      - source: postgres_password
+        target: postgres_password.txt
+        mode: 0400    
+      - source: postgres_grafana
+        target: postgres_grafana.txt
         mode: 0400
     volumes:
       - pgdata:/var/lib/postgresql/data
       # - /etc/timezone:/etc/timezone:ro
       # - /etc/localtime:/etc/localtime:ro 
+    environment:
+      - POSTGRES_DB=iot_platform_db
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt
+      - POSTGRES_USER_FILE=/run/secrets/postgres_user.txt
     deploy:
       placement:
         constraints: [ node.role == worker ]
@@ -369,7 +379,6 @@ services:
         constraints: 
           - node.platform.arch == x86_64
           - node.role == worker
-
 
   admin_api:
     image: ghcr.io/osi4iot/admin_api:${ADMIN_API_TAG:-latest}
@@ -563,7 +572,7 @@ secrets:
   mqtt_server_ca_cert:
     file: ./certs/mqtt_server_certs/ca.crt
   mqtt_server_ca_key:
-    file: ./certs/mqtt_server_certs/ca.crt
+    file: ./certs/mqtt_server_certs/ca.key
   mqtt_server_cert:
     file: ./certs/mqtt_server_certs/server.crt
   mqtt_server_key:
@@ -576,8 +585,12 @@ secrets:
     file: ./certs/mqtt_nodered_certs/client.key
   pgadmin4:
     file: ./secrets/pgadmin4.txt
-  postgres:
-    file: ./secrets/postgres.txt
+  postgres_grafana:
+    file: ./secrets/postgres_grafana.txt
+  postgres_user:
+    file: ./secrets/postgres_user.txt
+  postgres_password:
+    file: ./secrets/postgres_password.txt        
   nodered:
     file: ./secrets/nodered.txt
   grafana:
