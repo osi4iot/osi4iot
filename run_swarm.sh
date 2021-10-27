@@ -23,6 +23,10 @@ export FRONTEND_TAG=1.1.0
 export FRONTEND_ARM64_TAG=1.1.0
 
 NUMBER_OF_NODES=$(docker node ls | grep Active | wc -l)
+PLATFORM_ARCH=x86_64
+if [[ uname -a | grep aarch64 != "" ]]; then
+  PLATFORM_ARCH=aarch64
+fi
 
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
@@ -45,11 +49,23 @@ if [[ "$internal_network" == "" ]]; then
 fi
 
 if [[ $NUMBER_OF_NODES == 1 ]]; then
-  docker stack deploy -c docker-compose.local_swarm.yml osi4iot
+  if [[ $PLATFORM_ARCH == x86_64 ]]; then
+    wget -o docker-compose.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm.yml
+  else
+    wget -o docker-compose.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm_rpi.yml
+  fi
 else
-    export NFS_SERVER_IP=10.150.12.20
-    docker stack deploy -c docker-compose.cluster_swarm.yml osi4iot
+  echo "Input nfs server ip:"
+  input NFS_SERVER_IP
+  export NFS_SERVER_IP=$NFS_SERVER_IP
+  if [[ $PLATFORM_ARCH == x86_64 ]]; then
+    wget -o docker-compose.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm.yml
+  else
+    wget -o docker-compose.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm_rpi.yml
+  fi
 fi
+
+docker stack deploy -c docker-compose.yml osi4iot
 
 sp="/-\|"
 sc=0
@@ -64,14 +80,14 @@ endspin() {
 
 
 printf '\n%s' "Initializing grafana database  "
-grafana_healthy=$(docker ps | grep osi4iot/grafana: | grep healthy | wc -l)
-timescaledb_healthy=$(docker ps | grep osi4iot/timescaledb | grep healthy | wc -l)
-do=true && [[ $grafana_healthy == 3 &&  $timescaledb_healthy == 1 ]] && do=false
+grafana_healthy=$(docker service ls | grep osi4iot/grafana | grep 3/3)
+timescaledb_healthy=$(docker ps | grep osi4iot/timescaledb | grep 1/1)
+do=true && [[ $grafana_healthy != "" &&  $timescaledb_healthy != "" ]] && do=false
 while $do ; do
   spin
-  grafana_healthy=$(docker ps | grep osi4iot/grafana: | grep healthy | wc -l)
-  timescaledb_healthy=$(docker ps | grep osi4iot/timescaledb | grep healthy | wc -l)
-  do=true && [[ $grafana_healthy == 3 &&  $timescaledb_healthy == 1 ]] && do=false
+  grafana_healthy=$(docker service ls | grep osi4iot/grafana | grep 3/3)
+  timescaledb_healthy=$(docker ps | grep osi4iot/timescaledb | grep 1/1)
+  do=true && [[ $grafana_healthy != "" &&  $timescaledb_healthy != "" ]] && do=false
   sleep 0.5
 done
 endspin
@@ -79,10 +95,10 @@ endspin
 echo "Initializing platform database:"
 echo ""
 docker service scale osi4iot_admin_api=1
-do=true && [[ "$(docker ps | grep osi4iot/admin_api | grep healthy)" != "" ]] && do=false
+do=true && [[ "$(docker service ls | grep osi4iot/admin_api | grep 1/1)" != "" ]] && do=false
 while $do ; do
   spin
-  do=true && [[ "$(docker ps | grep osi4iot/admin_api | grep healthy)" != "" ]] && do=false
+  do=true && [[ "$(docker service ls | grep osi4iot/admin_api | grep 1/1)" != "" ]] && do=false
   sleep 0.5
 done
 endspin
@@ -90,11 +106,11 @@ endspin
 echo ""
 docker service scale osi4iot_admin_api=3
 
-do=true && [[ "$(docker ps | grep starting)" == "" ]] && do=false
+do=true && [[ "$(docker service ls | grep 0/)" == "" ]] && do=false
 printf '\n%s' "Waiting until all containers be ready  "
 while $do ; do
   spin
-  do=true && [[ "$(docker ps | grep starting)" == "" ]] && do=false
+  do=true && [[ "$(docker service ls | grep 0/)" == "" ]] && do=false
   sleep 1
 done
 endspin

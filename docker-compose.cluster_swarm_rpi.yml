@@ -21,6 +21,8 @@ services:
     deploy:
       mode: replicated
       replicas: 3
+      placement:
+        constraints: [ node.role == worker ]
         # preferences:
         #   - spread: node.labels.primary
         #   - spread: node.labels.secondary
@@ -91,7 +93,7 @@ services:
     deploy:
       replicas: 1
       placement:
-        constraints: [ node.id == $NODE_ID ]
+        constraints: [ node.role == worker ]
       restart_policy:
         condition: on-failure
 
@@ -106,14 +108,14 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - /var/lib/docker/volumes:/var/lib/docker/volumes
-      # - /etc/timezone:/etc/timezone:ro
-      # - /etc/localtime:/etc/localtime:ro       
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro       
     networks:
       - agent_network
     deploy:
       mode: global
       placement:
-        constraints: [node.platform.os == linux]
+        constraints: [ node.platform.os == linux ]
 
   portainer:
     image: ghcr.io/osi4iot/portainer:${PORTAINER_TAG:-latest}
@@ -130,7 +132,9 @@ services:
       - agent_network
     deploy:
       mode: replicated
-      replicas: 1
+      replicas: 1      
+      placement:
+        constraints: [ node.role == manager ]  
       labels:
         - traefik.enable=true
         - traefik.http.routers.portainer.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/portainer/`)
@@ -161,7 +165,9 @@ services:
     networks:
       - internal_net
       - traefik-public
-    deploy:  
+    deploy:
+      placement:
+        constraints: [ node.role == worker ]
       labels:
         - traefik.enable=true
         - traefik.http.routers.pgadmin4.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/pgadmin4/`)
@@ -193,12 +199,14 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
       # - /etc/timezone:/etc/timezone:ro
-      # - /etc/localtime:/etc/localtime:ro
+      # - /etc/localtime:/etc/localtime:ro 
     environment:
       - POSTGRES_DB=iot_platform_db
       - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt
       - POSTGRES_USER_FILE=/run/secrets/postgres_user.txt
     deploy:
+      placement:
+        constraints: [ node.role == worker ]
       mode: replicated
       replicas: 1
       restart_policy:
@@ -207,8 +215,8 @@ services:
         max_attempts: 5
         window: 120s
 
-  nodered:
-    image: ghcr.io/osi4iot/nodered:${NODERED_TAG:-latest}
+  nodered_arm64:
+    image: ghcr.io/osi4iot/nodered_arm64:${NODERED_ARM64_TAG:-latest}
     user: "${UID}:${GID}"
     networks:
       - internal_net
@@ -235,10 +243,12 @@ services:
     configs:
       - source: nodered_conf
         target: /run/configs/nodered.conf
-        mode: 0440         
+        mode: 0440
     deploy:
       placement:
-        constraints: [node.platform.arch==x86_64]      
+        constraints: 
+          - node.platform.arch == aarch64
+          - node.role == worker          
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -284,6 +294,8 @@ services:
         delay: 5s
         max_attempts: 5
         window: 120s
+      placement:
+        constraints: [ node.role == worker ]
       labels:
         - traefik.enable=true
         - traefik.http.routers.grafana.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/grafana/`)
@@ -311,7 +323,9 @@ services:
       ENABLE_METRICS: 'true'
     deploy:
       placement:
-        constraints: [node.platform.arch==x86_64]      
+        constraints: 
+          - node.platform.arch == x86_64
+          - node.role == worker
 
   admin_api:
     image: ghcr.io/osi4iot/admin_api:${ADMIN_API_TAG:-latest}
@@ -347,6 +361,8 @@ services:
         delay: 5s
         max_attempts: 5
         window: 120s
+      placement:
+        constraints: [ node.role == worker ]
       labels:
         - traefik.enable=true
         - traefik.http.routers.admin_api.rule=Host(`${DOMAIN_NAME}`) && PathPrefix(`/admin_api/`)
@@ -365,8 +381,8 @@ services:
         - traefik.http.services.admin_api.loadbalancer.healthCheck.interval=5s
         - traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s        
 
-  frontend:
-    image: ghcr.io/osi4iot/frontend:${FRONTEND_TAG:-latest}
+  frontend_arm64:
+    image: ghcr.io/osi4iot/frontend_arm64:${FRONTEND_ARM64_TAG:-latest}
     configs:
       - source: frontend_conf
         target: /run/configs/frontend.conf
@@ -386,7 +402,9 @@ services:
         max_attempts: 5
         window: 120s
       placement:
-        constraints: [node.platform.arch==x86_64]
+        constraints: 
+          - node.platform.arch == aarch64
+          - node.role == worker
       labels:
         - traefik.enable=true
         - traefik.http.routers.frontend.rule=Host(`${DOMAIN_NAME}`)
@@ -408,13 +426,53 @@ networks:
 
 volumes:
   mosquitto_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: nfsvers=4,addr=${NFS_SERVER_IP},rw
+      device: ":/var/nfs/mosquitto_data"   
   mosquitto_log:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: nfsvers=4,addr=${NFS_SERVER_IP},rw
+      device: ":/var/nfs/mosquitto_log"  
   nodered_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: nfsvers=4,addr=${NFS_SERVER_IP},rw
+      device: ":/var/nfs/nodered_data"
   pgdata:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: nfsvers=4,addr=${NFS_SERVER_IP},rw
+      device: ":/var/nfs/pgdata"
   pgadmin4_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: nfsvers=4,addr=${NFS_SERVER_IP},rw
+      device: ":/var/nfs/pgadmin4_data"
   portainer_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: nfsvers=4,addr=${NFS_SERVER_IP},rw
+      device: ":/var/nfs/portainer_data"     
   grafana_data:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: nfsvers=4,addr=${NFS_SERVER_IP},rw
+      device: ":/var/nfs/grafana_data"
   admin_api_log:
+    driver: local
+    driver_opts:
+      type: nfs
+      o: nfsvers=4,addr=${NFS_SERVER_IP},rw
+      device: ":/var/nfs/admin_api_log"    
 
 secrets:
   iot_platform_ca:

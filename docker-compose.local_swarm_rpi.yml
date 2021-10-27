@@ -207,8 +207,8 @@ services:
         max_attempts: 5
         window: 120s
 
-  nodered:
-    image: ghcr.io/osi4iot/nodered:${NODERED_TAG:-latest}
+  nodered_arm64:
+    image: ghcr.io/osi4iot/nodered_arm64:${NODERED_ARM64_TAG:-latest}
     user: "${UID}:${GID}"
     networks:
       - internal_net
@@ -235,10 +235,10 @@ services:
     configs:
       - source: nodered_conf
         target: /run/configs/nodered.conf
-        mode: 0440         
+        mode: 0440
     deploy:
       placement:
-        constraints: [node.platform.arch==x86_64]      
+        constraints: [node.platform.arch==aarch64]
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -363,10 +363,10 @@ services:
         - traefik.http.services.admin_api.loadbalancer.server.port=3200
         - traefik.http.services.admin_api.loadbalancer.healthCheck.path=/health
         - traefik.http.services.admin_api.loadbalancer.healthCheck.interval=5s
-        - traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s        
+        - traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s
 
-  frontend:
-    image: ghcr.io/osi4iot/frontend:${FRONTEND_TAG:-latest}
+  frontend_arm64:
+    image: ghcr.io/osi4iot/frontend_arm64:${FRONTEND_ARM64_TAG:-latest}
     configs:
       - source: frontend_conf
         target: /run/configs/frontend.conf
@@ -386,7 +386,7 @@ services:
         max_attempts: 5
         window: 120s
       placement:
-        constraints: [node.platform.arch==x86_64]
+        constraints: [node.platform.arch==aarch64]
       labels:
         - traefik.enable=true
         - traefik.http.routers.frontend.rule=Host(`${DOMAIN_NAME}`)
