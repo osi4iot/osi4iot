@@ -1,6 +1,5 @@
 .env
-.env_aux.gpg
-.env_aux
+osi4iot_stack.yml
 secrets/*
 !secrets/*.example
 config/admin_api/*

@@ -24,8 +24,14 @@ export FRONTEND_ARM64_TAG=1.1.0
 
 NUMBER_OF_NODES=$(docker node ls | grep Active | wc -l)
 PLATFORM_ARCH=x86_64
-if [[ uname -a | grep aarch64 != "" ]]; then
+if [[ $(uname -a | grep aarch64) != "" ]]; then
   PLATFORM_ARCH=aarch64
+fi
+
+if [[ $NUMBER_OF_NODES > 1 ]]; then
+    echo "Input nfs server ip:"
+    input NFS_SERVER_IP
+    export NFS_SERVER_IP=$NFS_SERVER_IP
 fi
 
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
@@ -48,24 +54,23 @@ if [[ "$internal_network" == "" ]]; then
   docker network create -d overlay --opt encrypted=true internal_net
 fi
 
-if [[ $NUMBER_OF_NODES == 1 ]]; then
-  if [[ $PLATFORM_ARCH == x86_64 ]]; then
-    wget -o docker-compose.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm.yml
+if [ ! -f osi4iot_stack.yml ]; then
+  if [[ $NUMBER_OF_NODES == 1 ]]; then
+    if [[ $PLATFORM_ARCH == x86_64 ]]; then
+      wget -O osi4iot_stack.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm.yml
+    else
+      wget -O osi4iot_stack.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm_rpi.yml
+    fi
   else
-    wget -o docker-compose.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm_rpi.yml
-  fi
-else
-  echo "Input nfs server ip:"
-  input NFS_SERVER_IP
-  export NFS_SERVER_IP=$NFS_SERVER_IP
-  if [[ $PLATFORM_ARCH == x86_64 ]]; then
-    wget -o docker-compose.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm.yml
-  else
-    wget -o docker-compose.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.local_swarm_rpi.yml
+    if [[ $PLATFORM_ARCH == x86_64 ]]; then
+      wget -O osi4iot_stack.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.cluster_swarm.yml
+    else
+      wget -O osi4iot_stack.yml https://raw.githubusercontent.com/osi4iot/osi4iot/master/docker-compose.cluster_swarm_rpi.yml
+    fi
   fi
 fi
 
-docker stack deploy -c docker-compose.yml osi4iot
+docker stack deploy -c osi4iot_stack.yml osi4iot
 
 sp="/-\|"
 sc=0
@@ -80,13 +85,13 @@ endspin() {
 
 
 printf '\n%s' "Initializing grafana database  "
-grafana_healthy=$(docker service ls | grep osi4iot/grafana | grep 3/3)
-timescaledb_healthy=$(docker ps | grep osi4iot/timescaledb | grep 1/1)
+grafana_healthy=$(docker service ls | grep osi4iot_grafana | grep 3/3)
+timescaledb_healthy=$(docker service ls | grep osi4iot_postgres | grep 1/1)
 do=true && [[ $grafana_healthy != "" &&  $timescaledb_healthy != "" ]] && do=false
 while $do ; do
   spin
-  grafana_healthy=$(docker service ls | grep osi4iot/grafana | grep 3/3)
-  timescaledb_healthy=$(docker ps | grep osi4iot/timescaledb | grep 1/1)
+  grafana_healthy=$(docker service ls | grep osi4iot_grafana | grep 3/3)
+  timescaledb_healthy=$(docker service ls | grep osi4iot_postgres | grep 1/1)
   do=true && [[ $grafana_healthy != "" &&  $timescaledb_healthy != "" ]] && do=false
   sleep 0.5
 done
@@ -95,18 +100,17 @@ endspin
 echo "Initializing platform database:"
 echo ""
 docker service scale osi4iot_admin_api=1
-do=true && [[ "$(docker service ls | grep osi4iot/admin_api | grep 1/1)" != "" ]] && do=false
+do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
 while $do ; do
   spin
-  do=true && [[ "$(docker service ls | grep osi4iot/admin_api | grep 1/1)" != "" ]] && do=false
+  do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
   sleep 0.5
 done
 endspin
 
-echo ""
 docker service scale osi4iot_admin_api=3
 
-do=true && [[ "$(docker service ls | grep 0/)" == "" ]] && do=false
+do=true && [[ "$(docker service ls | grep 0/1)" == "" || "$(docker service ls | grep 0/3)" == "" ]] && do=false
 printf '\n%s' "Waiting until all containers be ready  "
 while $do ; do
   spin
