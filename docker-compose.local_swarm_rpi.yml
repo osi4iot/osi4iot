@@ -299,20 +299,7 @@ services:
         - traefik.http.services.grafana.loadbalancer.server.port=5000
         - traefik.http.services.grafana.loadbalancer.healthCheck.path=/api/health
         - traefik.http.services.grafana.loadbalancer.healthCheck.interval=5s
-        - traefik.http.services.grafana.loadbalancer.healthCheck.timeout=3s      
-  
-  grafana_renderer:
-    image: ghcr.io/osi4iot/grafana_renderer:${GRAFANA_TAG:-latest}
-    networks:
-      - internal_net
-    ports:
-      - 8081
-    environment:
-      ENABLE_METRICS: 'true'
-    deploy:
-      placement:
-        constraints: [node.platform.arch==x86_64]      
-
+        - traefik.http.services.grafana.loadbalancer.healthCheck.timeout=3s
   admin_api:
     image: ghcr.io/osi4iot/admin_api:${ADMIN_API_TAG:-latest}
     networks:
