@@ -30,8 +30,8 @@ export const isValidText = (text: string): boolean => {
 };
 
 export const isValidNumber = (value: number, limitValue: number): boolean => {
-	let isValid = true;
-	if (value <= limitValue) isValid = false;
+    let isValid = true;
+	if (value < limitValue) isValid = false;
 	return isValid;
 };
 

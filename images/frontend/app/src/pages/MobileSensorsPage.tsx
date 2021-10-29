@@ -74,7 +74,7 @@ const Input = styled.input<InputProps>`
 			if (props.type === "text" && !isValidText(props.value as string)) color = "#e02f44";
 			if (props.type === "number" && props.name === "totalReadingTime" && !isValidNumber(props.value as number, 10))
 				color = "#e02f44";
-			if (props.type === "number" && props.name === "samplingFrequency" && !isValidNumber(props.value as number, 20))
+			if (props.type === "number" && props.name === "samplingFrequency" && !isValidNumber(props.value as number, 2))
 				color = "#e02f44";
 		}
 		return color;
@@ -96,13 +96,7 @@ const Select = styled.select<InputProps>`
 	width: 100%;
 	border-width: 1px;
 	border-style: solid;
-	border-color: ${(props) => {
-		let color = "#2c3235";
-		if (props.isValidationRequired) {
-			if (!isValidText(props.value as string)) color = "#e02f44";
-		}
-		return color;
-	}};
+	border-color: #2c3235;
 	outline: none;
 
 	&:focus {
@@ -174,7 +168,7 @@ interface ReadingParameters {
 const areReadingParameterOK = (readingParameters: ReadingParameters): boolean => {
 	let areOK = true;
 	if (!isValidNumber(readingParameters.totalReadingTime, 10)) areOK = false;
-	if (!isValidNumber(readingParameters.samplingFrequency, 20)) areOK = false;
+	if (!isValidNumber(readingParameters.samplingFrequency, 2)) areOK = false;
 	return areOK;
 };
 
@@ -286,11 +280,13 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 			if (!areReadingParameterOK(readingParameter)) {
 				setIsValidationRequired(true);
 			} else {
-				const groupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
-				const deviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
-				const topicHash = (topicsManaged[topicSelectedIndex] as ITopic).topicUid;
-				const mqttTopic = `dev2pdb/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
-				ReadAccelerations(mqttClient as Paho.Client, mqttTopic, readingParameter, setIsSensorReadings, setReadingProgress);
+				if (devicesManaged[deviceSelectedIndex] && topicsManaged[topicSelectedIndex]) {
+					const groupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
+					const deviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
+					const topicHash = (topicsManaged[topicSelectedIndex] as ITopic).topicUid;
+					const mqttTopic = `dev2pdb/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
+					ReadAccelerations(mqttClient as Paho.Client, mqttTopic, readingParameter, setIsSensorReadings, setReadingProgress);
+				}
 			}
 		}
 	};
@@ -355,7 +351,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 								disabled={loading}
 							/>
 							{isValidationRequired && !isValidNumber(totalReadingTime, 10) && (
-								<Alert alertText="Total reading time must be greater than 20 seconds" />
+								<Alert alertText="Total reading time must be greater than 10 seconds" />
 							)}
 						</ItemContainer>
 
@@ -369,8 +365,8 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 								value={samplingFrequency}
 								disabled={loading}
 							/>
-							{isValidationRequired && !isValidNumber(samplingFrequency, 20) && (
-								<Alert alertText="The sampling frequency must be greater than 20 samples by second" />
+							{isValidationRequired && !isValidNumber(samplingFrequency, 2) && (
+								<Alert alertText="The sampling frequency must be greater than 2 samples by second" />
 							)}
 						</ItemContainer>
 						{isSensorReading ? (

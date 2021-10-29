@@ -29,8 +29,8 @@ if [[ $(uname -a | grep aarch64) != "" ]]; then
 fi
 
 if [[ $NUMBER_OF_NODES > 1 ]]; then
-    echo "Input nfs server ip:"
-    input NFS_SERVER_IP
+    printf "Input nfs server ip: "
+    read NFS_SERVER_IP
     export NFS_SERVER_IP=$NFS_SERVER_IP
 fi
 

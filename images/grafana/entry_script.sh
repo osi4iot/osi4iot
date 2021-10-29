@@ -8,8 +8,6 @@ then
     export $(cat /run/secrets/grafana.txt | grep NOTIFICATIONS_EMAIL_USER)
     export $(cat /run/secrets/grafana.txt | grep NOTIFICATIONS_EMAIL_PASSWORD)
     export $(cat /run/secrets/grafana.txt | grep NOTIFICATIONS_EMAIL_ADDRESS)
-    export $(cat /run/secrets/grafana.txt | grep TELEGRAM_BOTTOKEN)
-    export $(cat /run/secrets/grafana.txt | grep TELEGRAM_CHATID)
     export $(cat /run/secrets/grafana.txt | grep POSTGRES_DB)
     export $(cat /run/secrets/grafana.txt | grep GRAFANA_DB_PASSWORD)
     export $(cat /run/secrets/grafana.txt | grep GRAFANA_DATASOURCE_PASSWORD)

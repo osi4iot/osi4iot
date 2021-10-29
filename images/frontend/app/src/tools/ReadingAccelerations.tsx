@@ -16,8 +16,9 @@ const ReadAccelerations = (
 	sensor.onreading = function () {
 		setIsSensorReadings(true);
 		if (readingsCont <= totalReadings) {
+			const timestamp = new Date();
 			let az = sensor.z - 9.80665;
-			const payload = { ax: sensor.x, ay: sensor.y, az };
+			const payload = { timestamp, ax: sensor.x, ay: sensor.y, az };
 			const message = new Paho.Message(JSON.stringify(payload));
 			message.destinationName = mqttTopic;
 			mqttClient.send(message);

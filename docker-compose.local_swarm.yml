@@ -400,11 +400,11 @@ services:
 
 networks:
   agent_network:
-    external: true
+    driver: overlay
   traefik-public:
-    external: true
+    driver: overlay
   internal_net:
-    external: true
+    driver: overlay
 
 volumes:
   mosquitto_data:

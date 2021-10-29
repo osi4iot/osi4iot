@@ -2,6 +2,16 @@ import fs from "fs";
 import { logger } from "../config/winston";
 
 interface IProcessEnv extends Record<string, string> {
+	PLATFORM_NAME: string;
+	DOMAIN_NAME: string;
+	PLATFORM_PHRASE: string;
+	MAIN_ORGANIZATION_NAME: string;
+	MAIN_ORGANIZATION_ACRONYM: string;
+	MAIN_ORGANIZATION_ADDRESS1: string;
+	MAIN_ORGANIZATION_CITY: string;
+	MAIN_ORGANIZATION_ZIP_CODE: string;
+	MAIN_ORGANIZATION_STATE: string;
+	MAIN_ORGANIZATION_COUNTRY: string;
 	REGISTRATION_TOKEN_LIFETIME: string;
 	REFRESH_TOKEN_LIFETIME: string;
 	REFRESH_TOKEN_SECRET: string;
@@ -23,6 +33,7 @@ interface IProcessEnv extends Record<string, string> {
 	NOTIFICATIONS_EMAIL_PASSWORD: string;
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: string;
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: string;
+	TELEGRAM_BOTTOKEN: string;
 }
 
 const process_env: IProcessEnv = {
@@ -57,6 +68,7 @@ const process_env: IProcessEnv = {
 	NOTIFICATIONS_EMAIL_PASSWORD: process.env.NOTIFICATIONS_EMAIL_PASSWORD,
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
+	TELEGRAM_BOTTOKEN: process.env.TELEGRAM_BOTTOKEN,
 };
 
 const readDockerFiles = (dockerFileName: string) => {

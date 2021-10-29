@@ -16,8 +16,8 @@ RUN mkdir -p /app/node_modules && chown -R node:node /app
 WORKDIR /app
 COPY package*.json ./
 RUN apk --no-cache add curl
-USER node
 RUN npm install --only=production
+USER node
 COPY --from=0 /app/build ./build
 CMD npm start
 HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
