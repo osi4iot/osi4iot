@@ -300,6 +300,7 @@ services:
         - traefik.http.services.grafana.loadbalancer.healthCheck.path=/api/health
         - traefik.http.services.grafana.loadbalancer.healthCheck.interval=5s
         - traefik.http.services.grafana.loadbalancer.healthCheck.timeout=3s
+        
   admin_api:
     image: ghcr.io/osi4iot/admin_api:${ADMIN_API_TAG:-latest}
     networks:
