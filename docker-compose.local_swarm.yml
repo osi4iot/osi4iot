@@ -93,7 +93,7 @@ services:
       placement:
         constraints: [ node.id == $NODE_ID ]
       restart_policy:
-        condition: on-failure
+        condition: any
 
   agent:
     image: ghcr.io/osi4iot/portainer_agent:${PORTAINER_AGENT_TAG:-latest}
