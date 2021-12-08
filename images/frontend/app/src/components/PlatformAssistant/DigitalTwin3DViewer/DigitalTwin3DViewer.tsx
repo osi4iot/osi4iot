@@ -12,7 +12,6 @@ import {
   loader,
   sortObjects
 } from './ViewerUtils';
-// import { sample1 } from './Data';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { getDomainName } from '../../../tools/tools';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
@@ -155,11 +154,14 @@ const ConnectionLed = styled.span<ConnectionLedProps>`
 
 const domainName = getDomainName();
 
+const brokerUrl = `wss://${domainName}`;
+
+
 const mqttOptions = {
   port: 9001,
-  // protocol: 'ws' as 'ws',
   protocol: 'wss' as 'wss',
-  host: domainName
+  clientId: "clientId_" + Math.floor(Math.random() * 1000),
+  retain: false
 }
 
 interface Viewer3DProps {
@@ -233,7 +235,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
           spotLigth={opts.spotLigth}
           pointLight={opts.pointLight}
         >
-          <Connector options={mqttOptions}>
+          <Connector options={mqttOptions} brokerUrl={brokerUrl}>
             <Model
               sensorObjects={sensorObjects}
               assetObjects={assetObjects}

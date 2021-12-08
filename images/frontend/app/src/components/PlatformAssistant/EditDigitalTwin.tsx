@@ -199,7 +199,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const initialTopicData = {
         name: digitalTwins[digitalTwinRowIndex].name,
         description: digitalTwins[digitalTwinRowIndex].description,
-        type: digitalTwinType,
+        type: digitalTwins[digitalTwinRowIndex].type,
         dashboardId: digitalTwins[digitalTwinRowIndex].dashboardId,
         gltfData: JSON.stringify(digitalTwins[digitalTwinRowIndex].gltfData, null, 4)
     }
@@ -210,12 +210,13 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         type: Yup.string().max(20, "The maximum number of characters allowed is 190").required('Required'),
         dashboardId: Yup.number().when("type", {
             is: "Grafana dashboard",
-            then: Yup.number().required("Must enter dashboardId")
-
+            then: Yup.number().required("Must enter dashboardId"),
+            otherwise: Yup.number().default(-1).nullable()
         }),
         gltfData: Yup.string().when("type", {
             is: "Gltf 3D model",
-            then: Yup.string().required("Must enter gltfData")
+            then: Yup.string().required("Must enter gltfData"),
+            otherwise: Yup.string().default('{}').nullable()
         })
     });
 

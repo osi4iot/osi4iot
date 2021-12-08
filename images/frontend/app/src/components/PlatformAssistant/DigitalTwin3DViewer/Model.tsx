@@ -150,11 +150,11 @@ const Model: FC<ModelProps> = (
 			sensorObjects.forEach((obj) => {
 				const objName = obj.node.name;
 				if (obj.topicIndex === mqttTopicIndex && sensorsState[objName].stateString === "off") {
-					if (mqttMessage.payload) {
+					if (mqttMessage) {
 						const fieldName = obj.node.userData.fieldName;
-						const payloadKeys = Object.keys(mqttMessage.payload);
+						const payloadKeys = Object.keys(mqttMessage);
 						if (payloadKeys.indexOf(fieldName) !== -1) {
-							const value = mqttMessage.payload[fieldName];
+							const value = mqttMessage[fieldName];
 							if (typeof value === 'number' || (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)) {
 								sensorsNewState[objName] = { ...sensorsNewState[objName], stateString: "on" };
 								isSensorStateChanged = true;
@@ -168,10 +168,10 @@ const Model: FC<ModelProps> = (
 			const assestsNewState = { ...assestsState };
 			assetObjects.forEach((obj) => {
 				if (obj.topicIndex === mqttTopicIndex) {
-					if (mqttMessage.payload) {
+					if (mqttMessage) {
 						const objName = obj.node.name;
 						const assetPartIndex = obj.node.userData.assetPartIndex;
-						const stateNumber = parseInt(mqttMessage.payload.assetPartsState[assetPartIndex], 10);
+						const stateNumber = parseInt(mqttMessage.assetPartsState[assetPartIndex], 10);
 						if (stateNumber === 1) {
 							assestsNewState[objName] = { ...assestsNewState[objName], stateString: "alerting" };
 						} else if (stateNumber === 0) {

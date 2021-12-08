@@ -316,7 +316,7 @@ export const addMqttTopicAndDashboardUrl = async (digitalTwins: IDigitalTwin[]):
 }
 
 const generateMqttTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
-	const mqttTopic = `${mqttTopicInfo.topicType}/${mqttTopicInfo.groupHash}/${mqttTopicInfo.deviceHash}/${mqttTopicInfo.topicHash}`;
+	const mqttTopic = `${mqttTopicInfo.topicType}/Group_${mqttTopicInfo.groupHash}/Device_${mqttTopicInfo.deviceHash}/Topic_${mqttTopicInfo.topicHash}`;
 	return mqttTopic;
 }
 
