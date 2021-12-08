@@ -12,9 +12,17 @@ interface GeoDigitalTwinsProps {
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
+    openDigitalTwin3DViewer: () => void;
 }
 
-const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({ deviceSelected, digitalTwins, digitalTwinSelected, selectDigitalTwin, digitalTwinsState }) => {
+const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({
+    deviceSelected,
+    digitalTwins,
+    digitalTwinSelected,
+    selectDigitalTwin,
+    digitalTwinsState,
+    openDigitalTwin3DViewer
+}) => {
     return (
         <LayerGroup>
             {
@@ -27,6 +35,7 @@ const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({ deviceSelected, digitalTwin
                         digitalTwinSelected={digitalTwinSelected}
                         selectDigitalTwin={selectDigitalTwin}
                         digitalTwinsState={digitalTwinsState}
+                        openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     />
                 )
             }

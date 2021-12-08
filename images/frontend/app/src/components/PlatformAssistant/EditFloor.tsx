@@ -3,9 +3,8 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
+import { useAuthDispatch, useAuthState } from "../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -116,7 +115,8 @@ interface EditFloorProps {
 
 const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const floorsDispatch = useFloorsDispatch();
     const floorId = useFloorIdToEdit();
     const floorRowIndex = useFloorRowIndexToEdit();
@@ -155,7 +155,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
 
         values.geoJsonData = JSON.stringify(JSON.parse(values.geoJsonData));
 
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response) => {
                 const data = response.data;

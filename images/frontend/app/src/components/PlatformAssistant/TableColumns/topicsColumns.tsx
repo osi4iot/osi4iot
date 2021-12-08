@@ -21,9 +21,9 @@ export interface ITopic {
     orgId: number;
     groupId: number;
     deviceId: number;
-    sensorName: string;
+    topicType: string;
+    topicName: string;
     description: string;
-    sensorType: string;
     payloadFormat: string;
     topicUid: string;
 }
@@ -194,17 +194,17 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             filter: 'equals'
         },
         {
-            Header: "Sensor name",
-            accessor: "sensorName",
+            Header: "Type",
+            accessor: "topicType"
+        },        
+        {
+            Header: "Topic name",
+            accessor: "topicName",
             filter: 'equals'
         },
         {
             Header: "Description",
             accessor: "description"
-        },
-        {
-            Header: "Sensor type",
-            accessor: "sensorType"
         },
         {
             Header: "Payload format",

@@ -4,8 +4,8 @@ export default interface IDigitalTwinUpdate {
 	name: string;
 	description: string;
 	type: string;
-	url: string;
-	dashboardId: number;
+	dashboardId?: number;
+	gltfData?: string;
 	created?: string;
 	updated?: string;
 }

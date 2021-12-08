@@ -392,6 +392,7 @@ interface MapProps {
     selectDigitalTwinOption: () => void;
     resetBuildingSelection: () => void;
     digitalTwinsState: IDigitalTwinState[];
+    openDigitalTwin3DViewer: () => void;
 }
 
 
@@ -430,7 +431,8 @@ const Map: FC<MapProps> = (
         selectDeviceOption,
         selectDigitalTwinOption,
         resetBuildingSelection,
-        digitalTwinsState
+        digitalTwinsState,
+        openDigitalTwin3DViewer
     }) => {
 
     const refreshAll = useCallback(() => {
@@ -488,6 +490,7 @@ const Map: FC<MapProps> = (
                     digitalTwinSelected={digitalTwinSelected}
                     selectDigitalTwin={selectDigitalTwin}
                     digitalTwinsState={digitalTwinsState}
+                    openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                 />
             }
             <ControlsContainer>

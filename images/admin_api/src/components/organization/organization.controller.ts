@@ -59,7 +59,7 @@ import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
-import { createTopic, demoTopicSensorName } from "../topic/topicDAL";
+import { createTopic, demoTopicName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
@@ -357,46 +357,44 @@ class OrganizationController implements IController {
 
 				const defaultDeviceTopicsData = [
 					{
-						sensorName: demoTopicSensorName(group, device1, "Temperature"),
+						topicType: "dev2pdb",
+						topicName: demoTopicName(group, device1, "Temperature"),
 						description: `Temperature sensor for default generic device of the group ${group.acronym}`,
-						sensorType: "Temperature",
 						payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
 					},
-					{
-						sensorName: demoTopicSensorName(group, device2, "Accelerometer"),
+					{	topicType: "dev2pdb",
+						topicName: demoTopicName(group, device2, "Accelerometer"),
 						description: `Accelerometer for default mobile device of the group ${group.acronym}`,
-						sensorType: "Accelerometer",
 						payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
 					},
 				];
 				const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
 				const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
 
-				const dashboardUid: string[] = [];
-				const digitalTwinsUrl: string[] = [];
+				const dashboardsId: number[] = [];
 
-				[dashboardUid[0], digitalTwinsUrl[0], dashboardUid[1], digitalTwinsUrl[1]] =
+				[dashboardsId[0], dashboardsId[1]] =
 					await createDemoDashboards(organizationData.acronym, group, [device1, device2], [topic1, topic2]);
 
 				const defaultDeviceDigitalTwinsData = [
 					{
 						name: demoDigitalTwinName(group, "Generic"),
 						description: `Demo digital twin for default generic device of the group ${group.acronym}`,
-						type: "Grafana",
-						url: digitalTwinsUrl[0],
-						dashboardUid: dashboardUid[0]
+						type: "Grafana dashboard",
+						dashboardId: dashboardsId[0],
+						gltfData: "{}"
 					},
 					{
 						name: demoDigitalTwinName(group, "Mobile"),
 						description: `Demo digital twin for default mobile device of the group ${group.acronym}`,
-						type: "Grafana",
-						url: digitalTwinsUrl[1],
-						dashboardUid: dashboardUid[1]
+						type: "Grafana dashboard",
+						dashboardId: dashboardsId[1],
+						gltfData: "{}"
 					},
 				];
 
-				await createDigitalTwin(newOrg.orgId, device1.id, defaultDeviceDigitalTwinsData[0]);
-				await createDigitalTwin(newOrg.orgId, device2.id, defaultDeviceDigitalTwinsData[1]);
+				await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
+				await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
 			}
 			const message = { message: "Organization created successfully" }
 			res.status(201).send(message);

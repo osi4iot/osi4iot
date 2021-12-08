@@ -12,7 +12,10 @@ import {
   loader,
   sortObjects
 } from './ViewerUtils';
-import { sample1 } from './Data';
+// import { sample1 } from './Data';
+import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
+import { getDomainName } from '../../../tools/tools';
+import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 
 
 interface CanvasContainerProps {
@@ -23,14 +26,14 @@ const CanvasContainer = styled.div<CanvasContainerProps>`
 	background-color: #212121;
   height: 100%;
   color: white;
-  width: calc(100vw - 60px);
+  width: 100%;
   &:hover {
     cursor: ${(props) => props.isCursorInsideObject ? "pointer" : "default"};
   }
 `;
 
 const MqttConnectionDiv = styled.div`
-  background-color: #000000;
+  background-color: #141619;
   padding: 20px 10px;
 	font-size: 12px;
 	color: white;
@@ -38,12 +41,13 @@ const MqttConnectionDiv = styled.div`
 `;
 
 const SelectedObjectInfoContainer = styled.div`
-    background-color: #000000;
+    background-color: #141619;
     margin: 5px 10px;
+    border-radius: 10px;
     padding: 5px;
     color: white;
     position: fixed;
-    bottom: 0;
+    bottom: 12px;
     right: 0;
     width: 30%;
   `;
@@ -67,37 +71,49 @@ export interface SelectedObjectInfo {
   topicId: string;
 }
 
+const StyledDatGui = styled(DatGui)`
+  .react-dat-gui .dg  {
+    border-radius: 10px;
+  }
+`;
+
+const StyledDatFolder = styled(DatFolder)`
+  .title {
+    background-color: #141619 !important;
+  }
+`;
+
 const StyledDatBoolean = styled(DatBoolean)`
     &.cr.boolean {
       border-left: 5px solid #806787;
-      background-color: #000000;
+      background-color: #141619;
     }
 `;
 
 const StyledDatNumber = styled(DatNumber)`
   &.cr.number {
     border-left: 5px solid #806787;
-    background-color: #000000;
+    background-color: #141619;
   }
 `;
 
 const StyledDatColor = styled(DatColor)`
   &.cr.color {
     border-left: 5px solid #806787 !important;
-    background-color: #000000;
+    background-color: #141619;
   }
 `;
 
 const StyledButton = styled(DatButton)`
   &.cr.button {
-    border-left: 5px solid #000000 !important;
+    border-left: 5px solid #141619 !important;
     display: flex;
     justify-content: center;
-    background-color:#000000;
+    background-color: #141619;
     padding: 10px 0px;
 
     .label-text {
-      display: flex;
+      display: flex !important;
       justify-content: center;
       align-items: center;
       background-color: #3274d9;
@@ -108,7 +124,7 @@ const StyledButton = styled(DatButton)`
       outline: none;
       cursor: pointer;
       box-shadow: 0 5px #173b70;
-      width: 80%;
+      width: 80% !important;
 
       &:hover {
         background-color: #2461c0;
@@ -137,17 +153,26 @@ const ConnectionLed = styled.span<ConnectionLedProps>`
 	display: inline-block;
 `;
 
+const domainName = getDomainName();
+
 const mqttOptions = {
   port: 9001,
-  protocol: 'ws' as 'ws',
-  host: "localhost"
+  // protocol: 'ws' as 'ws',
+  protocol: 'wss' as 'wss',
+  host: domainName
 }
 
 interface Viewer3DProps {
-  closeViewer3D: () => void;
+  groupSelected: IGroupManaged | null;
+  digitalTwinSelected: IDigitalTwin | null;
+  close3DViewer: () => void;
 }
 
-const Viewer3D: FC<Viewer3DProps> = ({ closeViewer3D }) => {
+const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
+  groupSelected,
+  digitalTwinSelected,
+  close3DViewer
+}) => {
   const canvasRef = useRef(null);
   const controlsRef = useRef() as any;
   const [isMqttConnected, setIsMqttConnected] = useState(false);
@@ -160,30 +185,23 @@ const Viewer3D: FC<Viewer3DProps> = ({ closeViewer3D }) => {
   const [selectedObjectInfo, setSelectedObjectInfo] = useState({ type: "-", name: "-", dashboardId: "-", topicId: "-" });
 
   useEffect(() => {
-    loader.parse(sample1, "", (gltf: any) => {
-      const scene = gltf.scene;
-      centerScene(scene);
-      const {
-        sensorObjects,
-        assetObjects,
-        genericObjects,
-        topicsId,
-        dashboardsId
-      } = sortObjects(scene);
-      setSensorObjects(sensorObjects);
-      setAssetObjects(assetObjects);
-      setGenericObjects(genericObjects);
-      //Buscar en base de datos mqttTopics y dashboardsUrl
-      console.log("topicsId= ", topicsId);
-      console.log("dashboardId= ", dashboardsId)
-      const mqttTopics = ["test/asset", "test/sensor"];
-      setMqttTopics(mqttTopics);
-      const dashboardsUrl = [
-        "https://iot.eebe.upc.edu/grafana/d/1f149d41-3052-45fb-8b36-f9f89b17c755/eebe_gral_temp_demo",
-        "https://iot.eebe.upc.edu/grafana/d/5f06c6ab-4572-4fda-a595-bea96a6a3725/eebe_gral_accel_demo"
-      ];
-      setDashboardsUrl(dashboardsUrl);
-    });
+    if (groupSelected && digitalTwinSelected) {
+      loader.parse(JSON.stringify(digitalTwinSelected.gltfData), "", (gltf: any) => {
+        const scene = gltf.scene;
+        centerScene(scene);
+        const {
+          sensorObjects,
+          assetObjects,
+          genericObjects
+        } = sortObjects(scene);
+        setSensorObjects(sensorObjects);
+        setAssetObjects(assetObjects);
+        setGenericObjects(genericObjects);
+        setMqttTopics(digitalTwinSelected.mqttTopics as string[]);
+        setDashboardsUrl(digitalTwinSelected.dashboardUrls as string[]);
+      });
+
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -199,7 +217,7 @@ const Viewer3D: FC<Viewer3DProps> = ({ closeViewer3D }) => {
   });
 
   const datGuiStyle = {
-    marginTop: "100px",
+    marginTop: "205px",
     button: {
       borderLeft: "0px"
     }
@@ -235,28 +253,27 @@ const Viewer3D: FC<Viewer3DProps> = ({ closeViewer3D }) => {
         </Stage>
         <OrbitControls ref={controlsRef} />
       </Canvas>
-      <DatGui data={opts} onUpdate={setOpts} style={datGuiStyle}>
+      <StyledDatGui data={opts} onUpdate={setOpts} style={datGuiStyle}>
         <MqttConnectionDiv>
           Mqtt connection <ConnectionLed isMqttConnected={isMqttConnected} />
         </MqttConnectionDiv>
-        <DatFolder title='Ligths' closed={true}>
+        <StyledDatFolder title='Ligths' closed={true}>
           <StyledDatNumber label="Ligth intensity" path="ligthIntensity" min={0} max={5} step={0.05} />
           <StyledDatBoolean label="Ambient ligth" path="ambientLigth" />
           <StyledDatBoolean label="Spot ligth" path="spotLigth" />
           <StyledDatBoolean label="Point ligth" path="pointLight" />
-        </DatFolder>
-        <DatFolder title='Sensors' closed={true}>
+        </StyledDatFolder>
+        <StyledDatFolder title='Sensors' closed={true}>
           <StyledDatBoolean label="Highlight sensors" path="highlightAllSensors" />
           <StyledDatColor label="Sensors color" path="sensorsColor" />
-        </DatFolder>
-        <DatFolder title='Assests' closed={true}>
+        </StyledDatFolder>
+        <StyledDatFolder title='Assests' closed={true}>
           <StyledDatBoolean label="Highlight assets" path="highlightAllAssets" />
           <StyledDatColor label="Assests color" path="assetsColor" />
-        </DatFolder>
-        <StyledButton label="Exit" onClick={(e) => closeViewer3D()} />
-      </DatGui>
+        </StyledDatFolder>
+        <StyledButton label="Exit" onClick={(e) => close3DViewer()} />
+      </StyledDatGui>
       <SelectedObjectInfoContainer>
-        {/* <SelectedObjectInfoTitle>Selected object:</SelectedObjectInfoTitle> */}
         <ObjectInfoContainer>
           <ObjectInfo>Object type: {selectedObjectInfo.type}</ObjectInfo>
           <ObjectInfo>Object name: {selectedObjectInfo.name}</ObjectInfo>
@@ -268,4 +285,4 @@ const Viewer3D: FC<Viewer3DProps> = ({ closeViewer3D }) => {
   )
 }
 
-export default Viewer3D;
+export default DigitalTwin3DViewer;

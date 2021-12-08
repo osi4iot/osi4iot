@@ -16,7 +16,10 @@ export interface IDigitalTwin {
     name: string;
     description: string;
     type: string;
-    url: string;
+    dashboardId: string;
+    gltfData: string;
+    mqttTopics?: string[];
+    dashboardUrls?: string[];
 }
 
 interface IDigitalTwinColumn extends IDigitalTwin {
@@ -134,17 +137,21 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             accessor: "description"
         },
         {
-            Header: "Url",
-            accessor: "url",
-            disableFilters: true,
-            disableSortBy: true
-        },      
-        {
             Header: "Type",
             accessor: "type",
             disableFilters: true,
             disableSortBy: true
         },
+        {
+            Header: "DashboardId",
+            accessor: "dashboardId",
+            disableFilters: true,
+        },
+        {
+            Header: "Gltf data",
+            accessor: "gltfData",
+            disableFilters: true,
+        },        
         {
             Header: "",
             accessor: "edit",

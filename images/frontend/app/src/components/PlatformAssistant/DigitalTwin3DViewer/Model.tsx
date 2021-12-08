@@ -4,7 +4,6 @@ import { useMqttState, useSubscription } from 'mqtt-react-hooks';
 import Sensors from './Sensors';
 import GenericObjects from './GenericObjects';
 import Assets from './Assets';
-import useInterval from "../Tools/useInterval";
 import { useThree } from '@react-three/fiber';
 import {
 	AssetState,
@@ -19,7 +18,8 @@ import {
 	SensorState,
 	setParameters,
 } from './ViewerUtils';
-import { SelectedObjectInfo } from './Viewer3D';
+import { SelectedObjectInfo } from './DigitalTwin3DViewer';
+import useInterval from '../../../tools/useInterval';
 
 
 export interface SensorObject {

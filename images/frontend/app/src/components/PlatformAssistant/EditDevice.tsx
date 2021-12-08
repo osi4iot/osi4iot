@@ -2,9 +2,8 @@ import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
+import { useAuthDispatch, useAuthState } from "../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -101,7 +100,6 @@ const deviceInitInputFormData = {
 
 const domainName = getDomainName();
 
-
 interface EditDeviceProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
     devices: IDevice[];
@@ -118,7 +116,8 @@ const EditDevice: FC<EditDeviceProps> = ({
     refreshDevices
 }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const devicesDispatch = useDevicesDispatch();
     const deviceId = useDeviceIdToEdit();
     const deviceRowIndex = useDeviceRowIndexToEdit();
@@ -152,7 +151,7 @@ const EditDevice: FC<EditDeviceProps> = ({
         const deviceInputFormData = {  deviceInputFormData: deviceInitInputFormData };
         setDeviceInputData(devicesDispatch, deviceInputFormData);
 
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .patch(url, deviceEditData, config)
             .then((response) => {
                 const data = response.data;

@@ -4,10 +4,9 @@ import centerOfMass from '@turf/center-of-mass';
 import { polygon } from '@turf/helpers';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import axios from "axios";
 import { useFilePicker } from 'use-file-picker';
-import { axiosAuth, getDomainName } from "../../tools/tools";
-import { useAuthState } from "../../contexts/authContext";
+import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
+import { useAuthDispatch, useAuthState } from "../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../Tools/FormikControl";
 import FormButtonsProps from "../Tools/FormButtons";
@@ -126,7 +125,8 @@ interface EditBuildingProps {
 
 const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBuildings }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const { accessToken } = useAuthState();
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const buildingsDispatch = useBuildingsDispatch();
     const buildingId = useBuildingIdToEdit();
     const buildingRowIndex = useBuildingRowIndexToEdit();
@@ -171,7 +171,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
 
         values.geoJsonData = JSON.stringify(JSON.parse(values.geoJsonData));
 
-        axios
+        axiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response) => {
                 const data = response.data;

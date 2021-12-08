@@ -33,6 +33,7 @@ export const initialState = {
     groupMembers: [],
     devices: [],
     topics: [],
+    dashboards: [],
     digitalTwins: [],
     userProfile: initialUserProfile,
     orgsMembership: [],
@@ -140,6 +141,12 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 topics: action.payload.topics
             };
 
+        case "DASHBOARDS_TABLE":
+            return {
+                ...initialState,
+                dashboards: action.payload.dashboards
+            };
+
         case "DIGITAL_TWIN_TABLE":
             return {
                 ...initialState,
@@ -185,6 +192,7 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 groupMembers: [],
                 devices: [],
                 topics: [],
+                dashboards: [],
                 digitalTwins: [],
                 userProfile: initialUserProfile,
                 orgsMembership: [],

@@ -18,8 +18,6 @@ import IRequestWithSwaggerDoc from "./interfaces/requestWithSwaggerDoc";
 import getDomainUrl from "./utils/helpers/getDomainUrl";
 import process_env from "./config/api_config";
 
-
-
 class App {
 	private app: express.Application;
 	private port: number;

@@ -324,6 +324,11 @@
   dependencies:
     "@types/express" "*"
 
+"@types/pg-format@^1.0.2":
+  "integrity" "sha512-D3MEO6u3BObw3G4Xewjdx05MF5v/fiog78CedtrXe8BhONM8GvUz2dPfLWtI0BPRBoRd6anPHXe+sbrPReZouQ=="
+  "resolved" "https://registry.npmjs.org/@types/pg-format/-/pg-format-1.0.2.tgz"
+  "version" "1.0.2"
+
 "@types/pg@^7.14.9":
   "integrity" "sha512-EnZkZ1OMw9DvNfQkn2MTJrwKmhJYDEs5ujWrPfvseWNoI95N8B4HzU/Ltrq5ZfYxDX/Zg8mTzwr6UAyTjjFvXA=="
   "resolved" "https://registry.npmjs.org/@types/pg/-/pg-7.14.11.tgz"
@@ -1628,6 +1633,11 @@
   "integrity" "sha512-r5o/V/ORTA6TmUnyWZR9nCj1klXCO2CEKNRlVuJptZe85QuhFayC7WeMic7ndayT5IRIR0S0xFxFi2ousartlQ=="
   "resolved" "https://registry.npmjs.org/pg-connection-string/-/pg-connection-string-2.5.0.tgz"
   "version" "2.5.0"
+
+"pg-format@^1.0.4":
+  "integrity" "sha1-J3NCNsKtP05QZJFaWTNOIAQKgo4="
+  "resolved" "https://registry.npmjs.org/pg-format/-/pg-format-1.0.4.tgz"
+  "version" "1.0.4"
 
 "pg-int8@1.0.1":
   "integrity" "sha512-WCtabS6t3c8SkpDBUlb1kjOs7l66xsGdKpIPZsg4wR+B3+u9UAum2odSsF9tnvxg80h4ZxLWMy4pRjOsFIqQpw=="

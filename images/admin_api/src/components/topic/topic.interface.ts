@@ -3,9 +3,9 @@ export default interface ITopic {
 	orgId: number;
 	groupId: number;
 	deviceId: number;
-	sensorName: string;
+	topicType: string;
+	topicName: string;
 	description: string;
-	sensorType: string;
 	topicUid: string;
 	payloadFormat: string;
 	created?: string;

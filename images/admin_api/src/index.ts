@@ -15,6 +15,7 @@ import TopicController from "./components/topic/topic.controller";
 import DigitalTwinController from "./components/digitalTwin/digitalTwinController";
 import BuildingController from "./components/building/building.controller";
 import MeasurementController from "./components/mesurement/measurement.controller";
+import DashboardController from "./components/dashboard/dashboardController";
 
 
 async function main(): Promise<void> {
@@ -32,6 +33,7 @@ async function main(): Promise<void> {
 			new TopicController(),
 			new MeasurementController(),
 			new DigitalTwinController(),
+			new DashboardController(),
 		]);
 		app.listen();
 	} catch (error) {

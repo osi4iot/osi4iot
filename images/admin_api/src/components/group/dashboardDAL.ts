@@ -157,7 +157,7 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 	await insertPreference(orgId, response.id);
 };
 
-export const createDemoDashboards = async (orgAcronym: string, group: IGroup, devices: IDevice[], topics: ITopicUpdate[]): Promise<string[]> => {
+export const createDemoDashboards = async (orgAcronym: string, group: IGroup, devices: IDevice[], topics: ITopicUpdate[]): Promise<number[]> => {
 	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
 	const dataSource = await getDataSourceByProp("name", dataSourceName);
 	const grouAcronym = group.acronym;
@@ -178,7 +178,7 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	const telegramNotificationChannelUid = await getNotificationChannelUid(group.telegramNotificationChannelId);
 	tempDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
 	const tempDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleTempDashboard, tempDashboard);
-	const tempDashboardUrl = `${getDomainUrl()}/grafana/d/${tempDashboardCreated.uid}/${titleTempDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=1s`
+	// const tempDashboardUrl = `${getDomainUrl()}/grafana/d/${tempDashboardCreated.uid}/${titleTempDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=1s`
 
 	const tempAlertData = JSON.parse(tempAlertJson);
 	tempAlertData.conditions[0].query.datasourceId = dataSource.id;
@@ -200,7 +200,7 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->>'ax' AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->>'ay' AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->>'az' AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${device2Hash}/${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
 	const accelDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleAccelDashboard, accelDashboard);
-	const accelDashboarddUrl = `${getDomainUrl()}/grafana/d/${accelDashboardCreated.uid}/${titleAccelDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=200ms`
+	// const accelDashboarddUrl = `${getDomainUrl()}/grafana/d/${accelDashboardCreated.uid}/${titleAccelDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=200ms`
 
 	const accelAlertData = JSON.parse(accelAlertJson);
 	accelAlertData.conditions[0].query.datasourceId = dataSource.id;
@@ -210,7 +210,7 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	const accelAlert = createAccelDemoAlert(group.orgId, accelDashboardCreated.id, 2, accelAlertData);
 	await createAlert(accelAlert);
 
-	return [tempDashboardCreated.uid, tempDashboardUrl, accelDashboardCreated.uid, accelDashboarddUrl];
+	return [tempDashboardCreated.id, accelDashboardCreated.id];
 };
 
 

@@ -2,13 +2,13 @@ import { IsString } from "class-validator";
 
 class CreateTopicDto {
 	@IsString()
-	public sensorName: string;
+	public topicType: string;
+
+	@IsString()
+	public topicName: string;
 
 	@IsString()
 	public description: string;
-
-	@IsString()
-	public sensorType: string;
 
 	@IsString()
 	public payloadFormat: string;

@@ -2,8 +2,8 @@ import * as THREE from 'three';
 import React, { FC, useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react';
 import { useThree } from '@react-three/fiber';
 import { SensorObject } from './Model';
-import useInterval from '../Tools/useInterval';
 import { SensorState } from './ViewerUtils';
+import useInterval from '../../../tools/useInterval';
 
 interface SensorProps {
     obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>;

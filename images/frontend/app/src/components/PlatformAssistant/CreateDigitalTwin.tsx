@@ -1,6 +1,6 @@
-import { FC, useState, SyntheticEvent } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
-import { Formik, Form } from 'formik';
+import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../contexts/authContext';
 import { axiosAuth, axiosInstance, getDomainName } from "../../tools/tools";
@@ -10,6 +10,7 @@ import FormButtonsProps from "../Tools/FormButtons";
 import FormTitle from "../Tools/FormTitle";
 import { DIGITAL_TWINS_OPTIONS } from './platformAssistantOptions';
 import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../contexts/digitalTwinsOptions';
+import { useFilePicker } from 'use-file-picker';
 
 
 const FormContainer = styled.div`
@@ -61,18 +62,127 @@ const ControlsContainer = styled.div`
     }
 `;
 
+const GltfDataFileTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const GltfDataFileContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+`;
+
+const SelectGltfDataFilenButtonContainer = styled.div`
+    display: flex;
+    margin-bottom: 10px;
+    flex-direction: row;
+    justify-content: center;
+	align-items: center;
+    background-color: #202226;
+    width: 100%;
+`;
+
+const SelectFileButton = styled.button`
+	background-color: #3274d9;
+	padding: 5px 10px;
+    margin: 5px 10px;
+	color: white;
+	border: 1px solid #2c3235;
+	border-radius: 10px;
+	outline: none;
+	cursor: pointer;
+	box-shadow: 0 5px #173b70;
+    font-size: 14px;
+    width: 80%;
+
+	&:hover {
+		background-color: #2461c0;
+	}
+
+	&:active {
+		background-color: #2461c0;
+		box-shadow: 0 2px #173b70;
+		transform: translateY(4px);
+	}
+`;
+
+const selectFile = (openFileSelector: () => void, clear: () => void) => {
+    clear();
+    openFileSelector();
+}
+
 const domainName = getDomainName();
+
+const initialDigitalTwinData = {
+    groupId: "",
+    deviceId: "",
+    name: "",
+    description: "",
+    type: "Grafana dashboard",
+    dashboardId: "",
+    gltfData: "{}"
+}
+
+const digitalTwinTypeOptions = [
+    {
+        label: "Grafana dashboard",
+        value: "Grafana dashboard"
+    },
+    {
+        label: "Gltf 3D model",
+        value: "Gltf 3D model"
+    }
+];
+
 
 interface CreateDigitalTwinProps {
     backToTable: () => void;
     refreshDigitalTwins: () => void;
 }
 
+type FormikType = FormikProps<{
+    groupId: string;
+    deviceId: string;
+    name: string;
+    description: string;
+    type: string;
+    dashboardId: string;
+    gltfData: string;
+}>
+
+
 const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDigitalTwins }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const digitalTwinsDispatch = useDigitalTwinsDispatch();
+    const [localFileContent, setLocalFileContent] = useState("");
+    const [localFileLoaded, setLocalFileLoaded] = useState(false);
+    const [localFileLabel, setLocalFileLabel] = useState("Select local file");
+    const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
+    const [openFileSelector, { filesContent, plainFiles, loading, clear }] = useFilePicker({
+        readAs: 'Text',
+        multiple: false,
+        accept: '.gltf',
+    });
+
+    useEffect(() => {
+        if (!loading && filesContent.length !== 0 && plainFiles.length !== 0) {
+            setLocalFileContent(filesContent[0].content);
+            setLocalFileLoaded(true)
+            setLocalFileLabel(`Add gltf data from ${plainFiles[0].name} file`);
+        }
+    }, [loading, filesContent, plainFiles])
+
+    const resetFileSelect = (e: SyntheticEvent) => {
+        e.preventDefault();
+        setLocalFileLabel("Select local file");
+        setLocalFileContent("");
+        setLocalFileLoaded(false);
+        clear();
+    }
+
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
@@ -84,8 +194,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             name: values.name,
             description: values.description,
             type: values.type,
-            url: values.url,
-            dashboardUid: values.dashboardUid
+            dashboardId: parseInt(values.dashboardId,10),
+            gltfData: values.gltfData
         }
 
         setIsSubmitting(true);
@@ -106,25 +216,21 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             })
     }
 
-
-    const initialDeviceData = {
-        groupId: "",
-        deviceId: "",
-        name: "",
-        description: "",
-        type: "",
-        url: "",
-        dashboardUid: ""
-    }
-
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
         deviceId: Yup.number().required('Required'),
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 190").required('Required'),
-        url: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        dashboardUid: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
+        dashboardId: Yup.number().when("type", {
+            is: "Grafana dashboard",
+            then: Yup.number().required("Must enter dashboardId")
+
+        }),
+        gltfData: Yup.string().when("type", {
+            is: "Gltf 3D model",
+            then: Yup.string().required("Must enter gltfData")
+        })
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -132,61 +238,110 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         backToTable();
     };
 
+    const onDigitalTwinTypeSelectChange = (e: {value: string}, formik: FormikType) => {
+        setDigitalTwinType(e.value);
+        formik.setFieldValue("type", e.value)
+    }
+
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create digital twin</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialDeviceData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik initialValues={initialDigitalTwinData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
-                        formik => (
-                            <Form>
-                                <ControlsContainer>
-                                    <FormikControl
-                                        control='input'
-                                        label='GroupId'
-                                        name='groupId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='DeviceId'
-                                        name='deviceId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Name'
-                                        name='name'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Description'
-                                        name='description'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Type'
-                                        name='type'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Url'
-                                        name='url'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Dashboard uid'
-                                        name='dashboardUid'
-                                        type='text'
-                                    />                                       
-                                </ControlsContainer>
-                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
-                            </Form>
-                        )
+                        formik => {
+                            const localFileButtonHandler = () => {
+                                if (!localFileLoaded) {
+                                    selectFile(openFileSelector, clear);
+                                } else {
+                                    try {
+                                        const values = { ...formik.values };
+                                        const gltfData = JSON.parse(localFileContent);
+                                        values.gltfData = JSON.stringify(gltfData, null, 4);
+                                        formik.setValues(values);
+                                    } catch (e) {
+                                        console.error(e);
+                                        toast.error("Invalid gltffile");
+                                        setLocalFileLabel("Select local file");
+                                        setLocalFileContent("");
+                                        setLocalFileLoaded(false);
+                                        clear();
+                                    }
+                                }
+                            }
+                            return (
+                                <Form>
+                                    <ControlsContainer>
+                                        <FormikControl
+                                            control='input'
+                                            label='GroupId'
+                                            name='groupId'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='DeviceId'
+                                            name='deviceId'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Name'
+                                            name='name'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Description'
+                                            name='description'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='select'
+                                            label='Type'
+                                            name="type"
+                                            options={digitalTwinTypeOptions}
+                                            type='text'
+                                            onChange={(e) => onDigitalTwinTypeSelectChange(e, formik)}
+                                        />
+                                        {
+                                            digitalTwinType === "Grafana dashboard" ?
+                                                <>
+                                                    <FormikControl
+                                                        control='input'
+                                                        label='DashboardId'
+                                                        name='dashboardId'
+                                                        type='text'
+                                                    />
+                                                </>
+                                                :
+                                                <>
+                                                    <GltfDataFileTitle>Gltf data file</GltfDataFileTitle>
+                                                    <GltfDataFileContainer>
+                                                        <FormikControl
+                                                            control='textarea'
+                                                            label='Gltf data'
+                                                            name='gltfData'
+                                                            textAreaSize='Large'
+                                                        />
+                                                        <SelectGltfDataFilenButtonContainer >
+                                                            <SelectFileButton
+                                                                type='button'
+                                                                onClick={() => localFileButtonHandler()}
+                                                                onContextMenu={resetFileSelect}
+                                                            >
+                                                                {localFileLabel}
+                                                            </SelectFileButton>
+                                                        </SelectGltfDataFilenButtonContainer>
+                                                    </GltfDataFileContainer>
+                                                </>
+
+                                        }
+                                    </ControlsContainer>
+                                    <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                                </Form>
+                            )
+                        }
                     }
                 </Formik>
             </FormContainer>

@@ -1,4 +1,5 @@
 import { IBuilding } from "../../components/PlatformAssistant/TableColumns/buildingsColumns";
+import { IDashboard } from "../../components/PlatformAssistant/TableColumns/dashboardsColumns";
 import { IDevice } from "../../components/PlatformAssistant/TableColumns/devicesColumns";
 import { IDigitalTwin } from "../../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
 import { IFloor } from "../../components/PlatformAssistant/TableColumns/floorsColumns";
@@ -41,6 +42,7 @@ export interface PlatformAssistantContextProps {
 	groupMembers: IGroupMember[];
 	devices: IDevice[];
 	topics: ITopic[];
+	dashboards: IDashboard[];
 	digitalTwins: IDigitalTwin[];
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
@@ -67,6 +69,7 @@ export interface PlatformAssistantActionPayload {
 	groupMembers: IGroupMember[];
 	devices: IDevice[];
 	topics: ITopic[];
+	dashboards: IDashboard[];
 	digitalTwins: IDigitalTwin[];
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
@@ -156,6 +159,10 @@ export interface IGroupsMembershipTable {
 
 export interface ITopicsTable {
 	topics: ITopic[];
+}
+
+export interface IDashboardsTable {
+	dashboards: IDashboard[];
 }
 
 export interface IDigitalTwinsTable {

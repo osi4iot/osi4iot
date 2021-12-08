@@ -1,5 +1,6 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
 import { IBuilding } from '../../components/PlatformAssistant/TableColumns/buildingsColumns';
+import { IDashboard } from '../../components/PlatformAssistant/TableColumns/dashboardsColumns';
 import { IDevice } from '../../components/PlatformAssistant/TableColumns/devicesColumns';
 import { IDigitalTwin } from '../../components/PlatformAssistant/TableColumns/digitalTwinsColumns';
 import { IFloor } from '../../components/PlatformAssistant/TableColumns/floorsColumns';
@@ -176,6 +177,14 @@ export const useTopicsTable = (): ITopic[] => {
 		throw new Error('useTopicsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.topics;
+}
+
+export const useDashboardsTable = (): IDashboard[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('seDashboardsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.dashboards;
 }
 
 export const useDigitalTwinsTable = (): IDigitalTwin[] => {

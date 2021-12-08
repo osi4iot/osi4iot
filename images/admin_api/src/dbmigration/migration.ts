@@ -9,7 +9,7 @@ import { createDemoDashboards, createHomeDashboard } from "../components/group/d
 import { createDevice, defaultGroupDeviceName } from "../components/device/deviceDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
-import { createTopic, demoTopicSensorName } from "../components/topic/topicDAL";
+import { createTopic, demoTopicName } from "../components/topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../components/digitalTwin/digitalTwinDAL";
 import process_env from "../config/api_config";
 
@@ -168,7 +168,7 @@ export async function dataBaseInitialization() {
 
 		try {
 			await pool.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
-			const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}`
+			const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}`
 			const apiKeyData = { name: apyKeyName, role: "Admin" };
 			const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
 			apiKeyMainOrg = apiKeyObj.key;
@@ -214,10 +214,9 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Data in table ${tableOrgToken} con not been inserted: %s`, err.message);
 		}
 
-
 		let group: IGroup;
 		const mainOrgGroupName = defaultOrgGroupName(process_env.MAIN_ORGANIZATION_NAME, process_env.MAIN_ORGANIZATION_ACRONYM);
-		const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}_GRAL`;
+		const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_GRAL`;
 		const orgAcronym = process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
 		const orgName = process_env.MAIN_ORGANIZATION_NAME;
 		const tableGroup = "grafanadb.group";
@@ -273,7 +272,7 @@ export async function dataBaseInitialization() {
 			const defaultMainOrgGroup = {
 				name: mainOrgGroupName,
 				acronym: mainOrgGroupAcronym,
-				email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toLocaleLowerCase()}_general@test.com`,
+				email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toLocaleLowerCase()}_general@test.com`,
 				telegramChatId: process_env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 				telegramInvitationLink: process_env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 				folderPermission: ("Viewer" as FolderPermissionOption),
@@ -334,9 +333,9 @@ export async function dataBaseInitialization() {
 			CREATE TABLE IF NOT EXISTS ${tableTopic}(
 				id serial PRIMARY KEY,
 				device_id bigint,
-				sensor_name VARCHAR(190) UNIQUE,
+				topic_type VARCHAR(40),
+				topic_name VARCHAR(190) UNIQUE,
 				description VARCHAR(190),
-				sensor_type VARCHAR(40),
 				payload_format json,
 				topic_uid VARCHAR(40) UNIQUE,
 				created TIMESTAMPTZ,
@@ -347,8 +346,8 @@ export async function dataBaseInitialization() {
 						ON DELETE CASCADE
 			);
 
-			CREATE INDEX IF NOT EXISTS idx_sensor_name
-			ON grafanadb.topic(sensor_name);`;
+			CREATE INDEX IF NOT EXISTS idx_topic_name
+			ON grafanadb.topic(topic_name);`;
 
 		try {
 			await pool.query(queryStringTopic);
@@ -364,9 +363,9 @@ export async function dataBaseInitialization() {
 				device_id bigint,
 				name VARCHAR(190) UNIQUE,
 				description VARCHAR(190),
-				type VARCHAR(20),
-				url VARCHAR(190),
+				type VARCHAR(40),
 				dashboard_id bigint,
+				gltfdata jsonb NOT NULL DEFAULT '{}'::jsonb,
 				created TIMESTAMPTZ,
 				updated TIMESTAMPTZ,
 				CONSTRAINT fk_device_id
@@ -431,15 +430,15 @@ export async function dataBaseInitialization() {
 
 			const defaultDeviceTopicsData = [
 				{
-					sensorName: demoTopicSensorName(group, device1, "Temperature"),
+					topicType: "dev2pdb",
+					topicName: demoTopicName(group, device1, "Temperature"),
 					description: `Temperature sensor for ${defaultGroupDeviceName(group, "Generic")} device`,
-					sensorType: "Tempeature",
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
 				},
 				{
-					sensorName: demoTopicSensorName(group, device2, "Accelerometer"),
+					topicType: "dev2pdb",
+					topicName: demoTopicName(group, device2, "Accelerometer"),
 					description: `Accelerometer for ${defaultGroupDeviceName(group, "Mobile")} device`,
-					sensorType: "Accelerometer",
 					payloadFormat: '{ "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}'
 					// payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
 				},
@@ -447,31 +446,30 @@ export async function dataBaseInitialization() {
 			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
 			const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
 
-			const dashboardUid: string[] = [];
-			const digitalTwinsUrl: string[] = [];
+			const dashboardsId: number[] = [];
 
-			[dashboardUid[0], digitalTwinsUrl[0], dashboardUid[1], digitalTwinsUrl[1]] =
+			[dashboardsId[0], dashboardsId[1]] =
 				await createDemoDashboards(orgAcronym, group, [device1, device2], [topic1, topic2]);
 
 			const defaultDeviceDigitalTwinsData = [
 				{
 					name: demoDigitalTwinName(group, "Generic"),
 					description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
-					type: "Grafana",
-					url: digitalTwinsUrl[0],
-					dashboardUid: dashboardUid[0]
+					type: "Grafana dashboard",
+					dashboardId: dashboardsId[0],
+					gltfData: "{}"
 				},
 				{
 					name: demoDigitalTwinName(group, "Mobile"),
 					description: `Demo digital twin for default mobile device of the group ${mainOrgGroupAcronym}`,
-					type: "Grafana",
-					url: digitalTwinsUrl[1],
-					dashboardUid: dashboardUid[1]
+					type: "Grafana dashboard",
+					dashboardId: dashboardsId[1],
+					gltfData: "{}"
 				},
 			];
 
-			await createDigitalTwin(1, device1.id, defaultDeviceDigitalTwinsData[0]);
-			await createDigitalTwin(1, device2.id, defaultDeviceDigitalTwinsData[1]);
+			await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
+			await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
 
 			logger.log("info", `Foreing key in table ${tableThingData} has been created sucessfully`);
 		} catch (err) {

@@ -103,7 +103,6 @@ services:
       - DOMAIN_NAME=${DOMAIN_NAME}
       - DEFAULT_TIME_ZONE=${DEFAULT_TIME_ZONE} 
       - GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
-      - GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
       - GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
       - HOME_DASHBOARD_PATH=/var/lib/grafana/data/home_dashboard.json
       - NOTIFICATIONS_EMAIL_USER=${NOTIFICATIONS_EMAIL_USER}
@@ -181,11 +180,6 @@ services:
       WAIT_HOSTS: postgres:5432, grafana:5000
       WAIT_HOSTS_TIMEOUT: 600
       WAIT_SLEEP_INTERVAL: 5
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail --insecure https://localhost:3200/health || exit 1"]
-      interval: 10s
-      timeout: 600s
-      retries: 60
     ports:
     - "3200:3200"
 

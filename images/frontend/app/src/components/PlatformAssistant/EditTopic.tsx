@@ -29,6 +29,17 @@ const ControlsContainer = styled.div`
     }
 `;
 
+const topicTypeOptions = [
+    {
+        label: "Device to platform DB",
+        value: "dev2pdb"
+    },
+    {
+        label: "Device to platform DT",
+        value: "dev2pdt"
+    }
+];
+
 
 const domainName = getDomainName();
 
@@ -72,16 +83,16 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
 
 
     const initialTopicData = {
-        sensorName: topics[topicRowIndex].sensorName,
+        topicType: topics[topicRowIndex].topicType,
+        topicName: topics[topicRowIndex].topicName,
         description: topics[topicRowIndex].description,
-        sensorType: topics[topicRowIndex].sensorType,
         payloadFormat: JSON.stringify(JSON.parse(topics[topicRowIndex].payloadFormat), null, 4)
     }
 
     const validationSchema = Yup.object().shape({
-        sensorName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
+        topicName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        sensorType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         payloadFormat: Yup.string().required('Required'),
     });
 
@@ -100,9 +111,16 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl
+                                        control='select'
+                                        label='Topic type'
+                                        name='topicType'
+                                        options={topicTypeOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
                                         control='input'
-                                        label='Sensor name'
-                                        name='sensorName'
+                                        label='Topic name'
+                                        name='topicName'
                                         type='text'
                                     />
                                     <FormikControl
@@ -111,12 +129,6 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                                         name='description'
                                         type='text'
                                     />
-                                    <FormikControl
-                                        control='input'
-                                        label='Sensor type'
-                                        name='sensorType'
-                                        type='text'
-                                    />                                      
                                     <FormikControl
                                         control='textarea'
                                         label='Payload format'

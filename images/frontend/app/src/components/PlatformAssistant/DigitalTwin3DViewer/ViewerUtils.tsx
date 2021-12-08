@@ -2,7 +2,7 @@ import { GLTFLoader } from "three-stdlib";
 import * as THREE from 'three'
 import { Camera } from '@react-three/fiber';
 import { SensorObject, AssetObject } from './Model';
-import { SelectedObjectInfo } from "./Viewer3D";
+import { SelectedObjectInfo } from "./DigitalTwin3DViewer";
 
 export const loader = new GLTFLoader();
 
@@ -126,8 +126,6 @@ export const sortObjects: (scene: any) => {
 	sensorObjects: SensorObject[],
 	assetObjects: AssetObject[],
 	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[]
-	topicsId: number[], //Must match with mqttTopics vector
-	dashboardsId: number[] //Must match with DasboardsUrl vector
 } = function (scene: any) {
 	scene.traverse((obj: any) => {
 		if (obj.type === "Mesh") {
@@ -182,7 +180,7 @@ export const sortObjects: (scene: any) => {
 		obj.dasboardIndex = dashboardsId.findIndex(id => id === dashboardId);
 	})
 
-	return { sensorObjects, assetObjects, genericObjects, topicsId, dashboardsId }
+	return { sensorObjects, assetObjects, genericObjects }
 }
 
 function sendCustomEvent(eventName: string, data: any) {
@@ -270,7 +268,8 @@ export const onMouseDown = (event: MouseEvent) => {
 
 export const onMouseClick = (event: any) => {
 	processMouseEvent("mesh_mouse_down", event);
-	if (event.ctrlKey) {
+	// if (event.ctrlKey) {
+	if (event.altKey) {
 		if (mouse.type !== "" && mouse.objName !== "") {
 			let dashboardUrlIndex = -1;
 			if (mouse.type === "sensor") {

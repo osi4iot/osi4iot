@@ -38,6 +38,7 @@ interface GeoDigitalTwinProps {
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
+    openDigitalTwin3DViewer: () => void;
 }
 
 const setDigitalTwinCircleColor = (digitalTwinId: number, digitalTwinSelected: IDigitalTwin | null): string => {
@@ -58,7 +59,15 @@ const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, dis
     return [position.geometry.coordinates[0], position.geometry.coordinates[1]];
 }
 
-const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({ deviceData, digitalTwinIndex, digitalTwinData, digitalTwinSelected, selectDigitalTwin, digitalTwinsState }) => {
+const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
+    deviceData,
+    digitalTwinIndex,
+    digitalTwinData,
+    digitalTwinSelected,
+    selectDigitalTwin,
+    digitalTwinsState,
+    openDigitalTwin3DViewer
+}) => {
     const angle = 360 * digitalTwinIndex / 12;
     const positionRadius = 0.00115;
     const [centerLongitude, centerLatitude] = calcGeoPointPosition(deviceData.longitude, deviceData.latitude, positionRadius, angle);
@@ -72,8 +81,12 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({ deviceData, digitalTwinIndex,
 
     const clickHandler = () => {
         selectDigitalTwin(digitalTwinData);
-        const url = digitalTwinData.url;
-        window.open(url, "_blank");
+        if (digitalTwinData.type === "Gltf 3D model") {
+            openDigitalTwin3DViewer();
+        } else if (digitalTwinData.type === "Grafana dashboard") {
+            const url = (digitalTwinData.dashboardUrls as string[])[0];
+            window.open(url, "_blank");
+        }
     }
 
     return (
@@ -95,6 +108,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({ deviceData, digitalTwinIndex,
             <Tooltip sticky>
                 <span style={{ fontWeight: 'bold' }}>Digital twin</span><br />
                 Name: {digitalTwinData.name}<br />
+                Type: {digitalTwinData.type}<br />
                 Status: <span style={{ fontWeight: 'bold' }}>{state.charAt(0).toUpperCase() + state.slice(1)}</span>
             </Tooltip>
         </Circle >

@@ -1,4 +1,4 @@
-import { IsString } from "class-validator";
+import { IsString, IsNumber } from "class-validator";
 
 class CreateDigitalTwinDto {
 	@IsString()
@@ -10,11 +10,11 @@ class CreateDigitalTwinDto {
 	@IsString()
 	public type: string;
 
-	@IsString()
-	public url: string;
+	@IsNumber()
+	public dashboardId?: number;
 
 	@IsString()
-	public dashboardUid: string;
+	public gltfData?: string;
 }
 
 export default CreateDigitalTwinDto;

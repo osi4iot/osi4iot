@@ -95,6 +95,7 @@ export const GROUP_ADMIN_OPTIONS = {
     DEVICES: "Orgs users",
     GROUP_MEMBERS: "Group members",
     TOPICS: "Topics",
+    DASHBOARDS: "Dashboards",
     MEASUREMENTS: "Measurements",
     DIGITAL_TWINS: "Digital twins"
 }

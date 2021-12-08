@@ -65,6 +65,10 @@
 		{
 			"name": "Digital twin",
 			"description": "Management of digital twin of devices of the IOT Platform - Default role required: Group_Admin"
+		},
+		{
+			"name": "Dashboard",
+			"description": "List of dashboards of the IOT Platform - Default role required: Group_Admin"
 		}				
 	],
 	"consumes": ["application/json"],
@@ -4336,7 +4340,89 @@
 					}
 				}
 			}
-		}				
+		},
+		"/dashboards/user_managed": {
+			"get": {
+				"tags": ["Dashboard"],
+				"summary": "Get all dashboards managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Dashboards"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}          
+				}
+			}
+		},
+		"/dashboard/{groupId}/{dashboardId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "dashboardId",
+					"in": "path",
+					"required": true,
+					"description": "id the dashboard",
+					"type": "string"
+				}			
+			],
+			"get": {
+				"tags": ["Dashboard"],
+				"summary": "Get dashboard by id  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DashboardOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		}										
 	},
 	"definitions": {
 		"UserRegister": {
@@ -5403,13 +5489,13 @@
 		},
 		"TopicInput": {
 			"properties": {
-				"sensorName": {
+				"topicName": {
 					"type": "string"
 				},
 				"description": {
 					"type": "string"
 				},
-				"sensorType": {
+				"topicType": {
 					"type": "string"
 				},				
 				"payloadFormat": {
@@ -5431,13 +5517,13 @@
 				"deviceId": {
 					"type": "number"
 				},														
-				"sensorName": {
+				"topicName": {
 					"type": "string"
 				},
 				"description": {
 					"type": "string"
 				},
-				"sensorType": {
+				"topicType": {
 					"type": "string"
 				},				
 				"payloadFormat": {
@@ -5600,7 +5686,41 @@
 			"items": {
 				"$ref": "#/definitions/DigitalTwinOutput"
 			}
-		}			
+		},
+		"DashboardOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"groupId": {
+					"type": "number"
+				},																	
+				"slug": {
+					"type": "string"
+				},
+				"title": {
+					"type": "string"
+				},
+				"uid": {
+					"type": "string"
+				},
+				"created": {
+					"type": "string"
+				},										
+				"updated": {
+					"type": "string"
+				}	
+			}
+		},
+		"Dashboards": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/DashboardOutput"
+			}
+		}					
 	}
 }
   

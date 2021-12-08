@@ -27,7 +27,9 @@ import {
     setBuildingsTable,
     setFloorsTable,
     useOrgsOfGroupsManagedTable,
-    setOrgsOfGroupsManagedTable
+    setOrgsOfGroupsManagedTable,
+    useDashboardsTable,
+    setDashboardsTable
 } from '../../contexts/platformAssistantContext';
 import { GroupsManagedProvider } from '../../contexts/groupsManagedOptions';
 import GroupsManagedContainer from './GroupsManagedContainer';
@@ -42,6 +44,9 @@ import { IBuilding } from './TableColumns/buildingsColumns';
 import { IFloor } from './TableColumns/floorsColumns';
 import { filterFloors } from '../../tools/filterFloors';
 import { ISelectOrgUser } from './TableColumns/selectOrgUsersColumns';
+import { DASHBOARD_COLUMNS } from './TableColumns/dashboardsColumns';
+import TableWithPagination from './TableWithPagination';
+import { toast } from 'react-toastify';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -127,6 +132,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const groupMembersTable = useGroupMembersTable();
     const selectOrgUsersTable = useSelectOrgUsersTable();
     const topicsTable = useTopicsTable();
+    const dashboardsTable = useDashboardsTable();
     const digitalTwinsTable = useDigitalTwinsTable();
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
@@ -134,6 +140,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
     const [devicesLoading, setDevicesLoading] = useState(true);
     const [topicsLoading, setTopicsLoading] = useState(true);
+    const [dashboardsLoading, setDashboardsLoading] = useState(true);
     const [digitalTwinsLoading, setDigitalTwinsLoading] = useState(true);
     const [groupMembersLoading, setGroupMembersLoading] = useState(true);
     const [selectOrgUsersLoading, setSelectOrgUsersLoading] = useState(true);
@@ -144,6 +151,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [reloadGroupMembers, setReloadGroupMembers] = useState(false);
     const [reloadDevices, setReloadDevices] = useState(false);
     const [reloadTopics, setReloadTopics] = useState(false);
+    const [reloadDashboards, setReloadDashboards] = useState(false);
     const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
     const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
@@ -173,6 +181,12 @@ const GroupAdminOptions: FC<{}> = () => {
         setReloadTopics(true);
         setTopicsLoading(true);
         setTimeout(() => setReloadTopics(false), 500);
+    }, [])
+
+    const refreshDashboards = useCallback(() => {
+        setReloadDashboards(true);
+        setDashboardsLoading(true);
+        setTimeout(() => setReloadDashboards(false), 500);
     }, [])
 
     const refreshDigitalTwins = useCallback(() => {
@@ -388,6 +402,27 @@ const GroupAdminOptions: FC<{}> = () => {
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadTopics, topicsTable.length]);
 
     useEffect(() => {
+        if (dashboardsTable.length === 0 || reloadDashboards) {
+
+            const config = axiosAuth(accessToken);
+            const urlDashboards = `https://${domainName}/admin_api/dashboards/user_managed/`;
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlDashboards, config)
+                .then((response) => {
+                    const dashboards = response.data;
+                    setDashboardsTable(plaformAssistantDispatch, { dashboards });
+                    setDashboardsLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+        } else {
+            setDashboardsLoading(false);
+        }
+
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDashboards, dashboardsTable.length]);
+
+    useEffect(() => {
         if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
             const config = axiosAuth(accessToken);
             const urlDigitalTwins = `https://${domainName}/admin_api/digital_twins/user_managed`;
@@ -399,6 +434,11 @@ const GroupAdminOptions: FC<{}> = () => {
                     setDigitalTwinsLoading(false);
                 })
                 .catch((error) => {
+                    const digitalTwins: never[] = [];
+                    setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
+                    setDigitalTwinsLoading(false);
+                    const errorMessage = error.response.data.message;
+                    toast.error(errorMessage);
                     console.log(error);
                 });
         } else {
@@ -430,8 +470,11 @@ const GroupAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.MEASUREMENTS)}>
                     Measurements
                 </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DASHBOARDS)}>
+                    Dashboards
+                </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DIGITAL_TWINS)}>
-                    Digital twins management
+                    Digital twins
                 </OptionContainer>
             </GroupAdminOptionsContainer>
             <ContentContainer >
@@ -444,6 +487,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         groupMembersLoading ||
                         selectOrgUsersLoading ||
                         topicsLoading ||
+                        dashboardsLoading ||
                         digitalTwinsLoading
                     ) ?
                         <Loader />
@@ -487,6 +531,14 @@ const GroupAdminOptions: FC<{}> = () => {
                                 <MeasurementsProvider>
                                     <MeasurementsContainer topics={topicsTable} devices={devicesTable} />
                                 </MeasurementsProvider>
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS &&
+                                <TableWithPagination
+                                    dataTable={dashboardsTable}
+                                    columnsTable={DASHBOARD_COLUMNS}
+                                    reloadTable={refreshDashboards}
+                                    componentName=""
+                                />
                             }
                             {optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS &&
                                 <DigitalTwinsProvider>

@@ -61,6 +61,18 @@ const ControlsContainer = styled.div`
     }
 `;
 
+const topicTypeOptions = [
+    {
+        label: "Device to platform DB",
+        value: "dev2pdb"
+    },
+    {
+        label: "Device to platform DT",
+        value: "dev2pdt"
+    }
+];
+
+
 const domainName = getDomainName();
 
 interface CreateTopicProps {
@@ -81,9 +93,8 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         const config = axiosAuth(accessToken);
 
         const topicData = {
-            sensorName: values.sensorName,
+            topicName: values.topicName,
             description: values.description,
-            sensorType: values.sensorType,
             payloadFormat: values.payloadFormat,
         }
 
@@ -106,21 +117,21 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
     }
 
 
-    const initialDeviceData = {
+    const initialTopicData = {
         groupId: "",
         deviceId: "",
-        sensorName: "",
+        topicType: "dev2pdb",
+        topicName: "",
         description: "",
-        sensorType: "",
         payloadFormat: "{}"
     }
 
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
         deviceId: Yup.number().required('Required'),
-        sensorName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
+        topicName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        sensorType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         payloadFormat: Yup.string().required('Required'),
     });
 
@@ -133,7 +144,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         <>
             <FormTitle isSubmitting={isSubmitting}>Create topic</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialDeviceData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik initialValues={initialTopicData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
                             <Form>
@@ -151,9 +162,16 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                         type='text'
                                     />
                                     <FormikControl
+                                        control='select'
+                                        label='Topic type'
+                                        name='topicType'
+                                        options={topicTypeOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
                                         control='input'
-                                        label='Sensor name'
-                                        name='sensorName'
+                                        label='Topic name'
+                                        name='topicName'
                                         type='text'
                                     />
                                     <FormikControl
@@ -162,12 +180,6 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                         name='description'
                                         type='text'
                                     />
-                                    <FormikControl
-                                        control='input'
-                                        label='Sensor type'
-                                        name='sensorType'
-                                        type='text'
-                                    />                                    
                                     <FormikControl
                                         control='textarea'
                                         label='Payload format'

@@ -20,7 +20,6 @@ import {
     setFloorsTable,
 } from '../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
-import DigitalTwins from './DigitalTwins';
 import GeolocationContainer from './GeolocationContainer';
 import { IGroupManaged } from './TableColumns/groupsManagedColumns';
 import { IDevice } from './TableColumns/devicesColumns';
@@ -30,6 +29,9 @@ import { IFloor } from './TableColumns/floorsColumns';
 import { filterBuildings } from '../../tools/filterBuildings';
 import { filterFloors } from '../../tools/filterFloors';
 import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
+import DigitalTwin3DViewer from './DigitalTwin3DViewer/DigitalTwin3DViewer';
+import { toast } from 'react-toastify';
+// import DigitalTwins from './DigitalTwins';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -113,7 +115,7 @@ const findBounds = (buildings: IBuilding[]) => {
     if (buildings.length !== 0) {
         const buildingsOuterBounds = buildings.map(building => building.outerBounds);
         buildingsOuterBounds.forEach(buildingOuterBounds => {
-            if (buildingOuterBounds[1][1] > maxLongitude) maxLongitude = buildingOuterBounds[1][1] ;
+            if (buildingOuterBounds[1][1] > maxLongitude) maxLongitude = buildingOuterBounds[1][1];
             if (buildingOuterBounds[0][1] < minLongitude) minLongitude = buildingOuterBounds[0][1];
             if (buildingOuterBounds[1][0] > maxLatitude) maxLatitude = buildingOuterBounds[1][0];
             if (buildingOuterBounds[0][0] < minLatitude) minLatitude = buildingOuterBounds[0][0];
@@ -178,7 +180,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
     const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
     const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
     const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
-
 
     const refreshBuildings = useCallback(() => {
         setReloadBuildings(true);
@@ -416,6 +417,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                     setDigitalTwinsLoading(false);
                 })
                 .catch((error) => {
+                    const digitalTwins: never[] = [];
+                    setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
+                    setDigitalTwinsLoading(false);
+                    const errorMessage = error.response.data.message;
+                    toast.error(errorMessage);
                     console.log(error);
                 });
         } else {
@@ -427,11 +433,24 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
         setOptionToShow(optionToShow);
     }
 
+    const geoLocationOrDTOptionTitle = () => {
+        let title = "Geolocation"
+        if (optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS) title = "Digital twins";
+        return title;
+    }
+
+
     return (
         <>
             <PlatformAssistantHomeOptionsContainer>
-                <OptionContainer isOptionActive={optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION} onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION)}>
-                    Geolocation
+                <OptionContainer
+                    isOptionActive={
+                        optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION ||
+                        optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS
+                    }
+                    onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION)}
+                >
+                    {geoLocationOrDTOptionTitle()}
                 </OptionContainer>
                 {/* <OptionContainer isOptionActive={optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)}>
                     Digital twins
@@ -476,10 +495,15 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
                                     outerBounds={outerBounds}
                                     setNewOuterBounds={setNewOuterBounds}
                                     resetBuildingSelection={resetBuildingSelection}
+                                    openDigitalTwin3DViewer={() => setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)}
                                 />
                             }
                             {optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS &&
-                                <DigitalTwins />
+                                <DigitalTwin3DViewer
+                                    groupSelected={groupSelected}
+                                    digitalTwinSelected={digitalTwinSelected}
+                                    close3DViewer={() => setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION)}
+                                />
                             }
                             {
                                 optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.TUTORIAL &&

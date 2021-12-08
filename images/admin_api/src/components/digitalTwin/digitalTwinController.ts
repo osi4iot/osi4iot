@@ -1,7 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -12,11 +12,28 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
-import { createDigitalTwin, deleteDigitalTwinById, getAllDigitalTwins, getDigitalTwinByProp, getDigitalTwinsByGroupId, getDigitalTwinsByGroupsIdArray, getDigitalTwinsByOrgId, getNumDigitalTwinsByDeviceId, getStateOfAllDigitalTwins, getStateOfDigitalTwinsByGroupsIdArray, updateDigitalTwinById } from "./digitalTwinDAL";
+import {
+	addMqttTopicAndDashboardUrl,
+	checkIfLoggedUserManageTopicsAndDashboards,
+	createDigitalTwin,
+	deleteDigitalTwinById,
+	getAllDigitalTwins,
+	getDigitalTwinByProp,
+	getDigitalTwinsByGroupId,
+	getDigitalTwinsByGroupsIdArray,
+	getDigitalTwinsByOrgId,
+	getNumDigitalTwinsByDeviceId,
+	getStateOfAllDigitalTwins,
+	getStateOfDigitalTwinsByGroupsIdArray,
+	getTopicsIdAndDashboardsIdFromDigitalTwin,
+	updateDigitalTwinById
+} from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import HttpException from "../../exceptions/HttpException";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import { checkIfExistTopics } from "../topic/topicDAL";
+
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
@@ -105,7 +122,8 @@ class DigitalTwinController implements IController {
 					digitalTwins = await getDigitalTwinsByGroupsIdArray(groupsIdArray);
 				}
 			}
-			res.status(200).send(digitalTwins);
+			const digitalTwinsExtended = await addMqttTopicAndDashboardUrl(digitalTwins);
+			res.status(200).send(digitalTwinsExtended);
 		} catch (error) {
 			next(error);
 		}
@@ -202,16 +220,27 @@ class DigitalTwinController implements IController {
 	};
 
 	private updateDigitalTwinById = async (
-		req: Request,
+		req: IRequestWithUser,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const digitalTwinData = req.body;
 			const { digitalTwinId } = req.params;
-			const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
-			if (!digitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
-			const digitalTwinUpdate = { ...digitalTwin, ...digitalTwinData };
+			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
+			if (!existentDigitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
+			const digitalTwinUpdate = { ...existentDigitalTwin, ...digitalTwinData };
+			const [newTopicsId, newDashboardsId] = getTopicsIdAndDashboardsIdFromDigitalTwin(digitalTwinUpdate);
+			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboards(
+				req.user,
+				digitalTwinUpdate.type,
+				newTopicsId,
+				newDashboardsId
+			);
+			if (checkPrivilegesMessage !== "OK") {
+				throw new HttpException(400, checkPrivilegesMessage);
+			}
+
 			await updateDigitalTwinById(parseInt(digitalTwinId, 10), digitalTwinUpdate);
 			const message = { message: "Digital twin updated successfully" }
 			res.status(200).json(message);
@@ -221,13 +250,25 @@ class DigitalTwinController implements IController {
 	};
 
 	private createDigitalTwin = async (
-		req: IRequestWithGroup,
+		req: IRequestWithUser,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const digitalTwinData: CreateDigitalTwinDto = req.body;
 			const deviceId = parseInt(req.params.deviceId, 10);
+			const [topicsId, dashboardsId] = getTopicsIdAndDashboardsIdFromDigitalTwin(digitalTwinData);
+			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboards(
+				req.user,
+				digitalTwinData.type,
+				topicsId,
+				dashboardsId
+			);
+
+			if (checkPrivilegesMessage !== "OK") {
+				throw new HttpException(400, checkPrivilegesMessage);
+			}
+
 			let message: { message: string };
 			const existDigitalTwin = await getDigitalTwinByProp("name", digitalTwinData.name)
 			if (!existDigitalTwin) {
@@ -235,7 +276,7 @@ class DigitalTwinController implements IController {
 				if (numDigitalTwinsInDevice === 12) {
 					throw new HttpException(400, "The maximun number of digital twins by device is 12.");
 				}
-				const digitalTwin = await createDigitalTwin(req.group.orgId, deviceId, digitalTwinData);
+				const digitalTwin = await createDigitalTwin(deviceId, digitalTwinData);
 				if (digitalTwin) {
 					message = { message: `A new digital twin has been created` };
 				} else {

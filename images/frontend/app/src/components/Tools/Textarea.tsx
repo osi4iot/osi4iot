@@ -39,6 +39,7 @@ const InputStyled = styled.div<InputStyledProps>`
         /* width */
         ::-webkit-scrollbar {
             width: 10px;
+            height: 10px;
         }
     
         /* Track */
@@ -49,13 +50,17 @@ const InputStyled = styled.div<InputStyledProps>`
         
         /* Handle */
         ::-webkit-scrollbar-thumb {
-            background: #2c3235; 
+            background: #2c3235;
             border-radius: 5px;
         }
     
         /* Handle on hover */
         ::-webkit-scrollbar-thumb:hover {
             background-color: #343840;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: #0c0d0f;
         }
 
         &:focus {

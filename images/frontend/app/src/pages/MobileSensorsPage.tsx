@@ -333,7 +333,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 									const topic = topic_i as ITopic;
 									return (
 										<option value={index} key={topic.id}>
-											{topic.sensorName}
+											{topic.topicName}
 										</option>
 									);
 								})}

@@ -19,6 +19,7 @@ import {
 	IOrgsMembershipTable,
 	IUserProfileTable,
 	ITopicsTable,
+	IDashboardsTable,
 	IDigitalTwinsTable
 
 } from "./interfaces";
@@ -89,6 +90,10 @@ export function setDevicesTable(plaformAssistantDispatch: PlatformAssistantDispa
 
 export function setTopicsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: ITopicsTable) {
 	plaformAssistantDispatch({ type: 'TOPICS_TABLE', payload: data });
+}
+
+export function setDashboardsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IDashboardsTable) {
+	plaformAssistantDispatch({ type: 'DASHBOARDS_TABLE', payload: data });
 }
 
 export function setDigitalTwinsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IDigitalTwinsTable) {
