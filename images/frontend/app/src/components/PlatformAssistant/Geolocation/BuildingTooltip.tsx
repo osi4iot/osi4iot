@@ -5,7 +5,7 @@ import { IOrgManaged } from "../TableColumns/organizationsManagedColumns";
 import { StatusLed } from "./StatusLed";
 
 export interface IOrgManagedWithStatus extends IOrgManaged {
-    state: string;
+    orgStatus: string;
 }
 
 const Ul = styled.ul`
@@ -26,10 +26,10 @@ interface BuildingTooltipProps {
 
 const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuilding, orgSelected }) => {
     let orgAcronym = orgsInBuilding[0]?.acronym;
-    let orgStatus = orgsInBuilding[0]?.state;
+    let orgStatus = orgsInBuilding[0]?.orgStatus;
     if (orgSelected) {
         orgAcronym = orgSelected.acronym;
-        orgStatus = orgsInBuilding.filter(org => org.id === orgSelected.id)[0]?.state
+        orgStatus = orgsInBuilding.filter(org => org.id === orgSelected.id)[0]?.orgStatus
     }
 
     return (

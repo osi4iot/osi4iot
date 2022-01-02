@@ -382,14 +382,24 @@ class OrganizationController implements IController {
 						description: `Demo digital twin for default generic device of the group ${group.acronym}`,
 						type: "Grafana dashboard",
 						dashboardId: dashboardsId[0],
-						gltfData: "{}"
+						gltfData: "{}",
+						gltfFileName: "-",
+						gltfFileLastModifDateString: "-",
+						femSimulationData: "{}",
+						femSimDataFileName: "-",
+						femSimDataFileLastModifDateString: "-"
 					},
 					{
 						name: demoDigitalTwinName(group, "Mobile"),
 						description: `Demo digital twin for default mobile device of the group ${group.acronym}`,
 						type: "Grafana dashboard",
 						dashboardId: dashboardsId[1],
-						gltfData: "{}"
+						gltfData: "{}",
+						gltfFileName: "-",
+						gltfFileLastModifDateString: "-",
+						femSimulationData: "{}",
+						femSimDataFileName: "-",
+						femSimDataFileLastModifDateString: "-"
 					},
 				];
 

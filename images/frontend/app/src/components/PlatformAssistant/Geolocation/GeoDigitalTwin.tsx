@@ -9,6 +9,10 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import { IDigitalTwinState } from "../GeolocationContainer";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
+import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
+import { createUrl, IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { toast } from "react-toastify";
 
 
 interface DigitanTwinSvgImageProps {
@@ -38,7 +42,7 @@ interface GeoDigitalTwinProps {
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
-    openDigitalTwin3DViewer: () => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
 }
 
 const setDigitalTwinCircleColor = (digitalTwinId: number, digitalTwinSelected: IDigitalTwin | null): string => {
@@ -48,6 +52,8 @@ const setDigitalTwinCircleColor = (digitalTwinId: number, digitalTwinSelected: I
     }
     return color;
 }
+
+const domainName = getDomainName();
 
 const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, distance: number, angle: number): number[] => {
     const pt = point([pointLongitude, pointLatitude]);
@@ -68,6 +74,8 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     digitalTwinsState,
     openDigitalTwin3DViewer
 }) => {
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
     const angle = 360 * digitalTwinIndex / 12;
     const positionRadius = 0.00115;
     const [centerLongitude, centerLatitude] = calcGeoPointPosition(deviceData.longitude, deviceData.latitude, positionRadius, angle);
@@ -78,14 +86,45 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
 
     const bounds = useMemo(() => calcGeoBounds(centerLongitude, centerLatitude, digitalTwinRadio), [centerLongitude, centerLatitude]);
 
-
     const clickHandler = () => {
         selectDigitalTwin(digitalTwinData);
         if (digitalTwinData.type === "Gltf 3D model") {
-            openDigitalTwin3DViewer();
+            const config = axiosAuth(accessToken);
+            const groupId = digitalTwinData.groupId;
+            const deviceId = digitalTwinData.deviceId;
+            let urlDigitalTwinGltfData = `https://${domainName}/admin_api/digital_twin_gltfdata`;
+            urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${deviceId}/${digitalTwinData.id}`;
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlDigitalTwinGltfData, config)
+                .then((response) => {
+                    const digitalTwinGltfData = response.data;
+                    const gltfData = digitalTwinGltfData.gltfData;
+                    if (Object.keys(gltfData).length) {
+                        digitalTwinGltfData.digitalTwinGltfUrl = createUrl(JSON.stringify(gltfData));
+                    } else digitalTwinGltfData.digitalTwinGltfUrl = null;
+
+                    const femSimulationData = digitalTwinGltfData.femSimulationData;
+                    if (Object.keys(femSimulationData).length) {
+                        digitalTwinGltfData.femSimulationUrl = createUrl(JSON.stringify(femSimulationData));
+                    } else digitalTwinGltfData.femSimulationUrl = null;                    
+
+                    const inexistentMqttTopics = digitalTwinGltfData.mqttTopics.filter((topic: string) => topic.slice(0, 7) === "Warning");
+                    if (inexistentMqttTopics.length !== 0) {
+                        const warningMessage = "Some mqtt topics no longer exist"
+						toast.warning(warningMessage);
+                    }
+                    openDigitalTwin3DViewer(digitalTwinGltfData);
+                })
+                .catch((error) => {
+                    const errorMessage = error.response.data.message;
+                    toast.error(errorMessage);
+                });
+
         } else if (digitalTwinData.type === "Grafana dashboard") {
-            const url = (digitalTwinData.dashboardUrls as string[])[0];
-            window.open(url, "_blank");
+            const url = (digitalTwinData.dashboardUrl as string);
+            if (url.slice(0, 7) === "Warning") {
+                toast.warning(url);
+            } else window.open(url, "_blank");
         }
     }
 

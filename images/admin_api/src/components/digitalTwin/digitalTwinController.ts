@@ -13,19 +13,21 @@ import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUse
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import {
-	addMqttTopicAndDashboardUrl,
-	checkIfLoggedUserManageTopicsAndDashboards,
+	addMqttTopicsData,
+	addDashboardUrls,
+	checkIfLoggedUserManageTopicsAndDashboard,
 	createDigitalTwin,
 	deleteDigitalTwinById,
 	getAllDigitalTwins,
 	getDigitalTwinByProp,
+	getDigitalTwinGltfDataById,
 	getDigitalTwinsByGroupId,
 	getDigitalTwinsByGroupsIdArray,
 	getDigitalTwinsByOrgId,
 	getNumDigitalTwinsByDeviceId,
 	getStateOfAllDigitalTwins,
 	getStateOfDigitalTwinsByGroupsIdArray,
-	getTopicsIdAndDashboardsIdFromDigitalTwin,
+	getTopicsIdFromDigitalTwin,
 	updateDigitalTwinById
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
@@ -73,6 +75,12 @@ class DigitalTwinController implements IController {
 				groupExists,
 				groupAdminAuth,
 				this.getDigitalTwinByProp
+			)
+			.get(
+				`${this.path}_gltfdata/:groupId/:deviceId/:digitalTwinId`,
+				deviceAndGroupExist,
+				groupAdminAuth,
+				this.getDigitalTwinGltfData
 			)
 			.delete(
 				`${this.path}/:groupId/:deviceId/:digitalTwinId`,
@@ -122,7 +130,7 @@ class DigitalTwinController implements IController {
 					digitalTwins = await getDigitalTwinsByGroupsIdArray(groupsIdArray);
 				}
 			}
-			const digitalTwinsExtended = await addMqttTopicAndDashboardUrl(digitalTwins);
+			const digitalTwinsExtended = await addDashboardUrls(digitalTwins);
 			res.status(200).send(digitalTwinsExtended);
 		} catch (error) {
 			next(error);
@@ -202,6 +210,22 @@ class DigitalTwinController implements IController {
 		}
 	};
 
+	private getDigitalTwinGltfData = async (
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { digitalTwinId } = req.params;
+			const digitalTwinGltfData = await getDigitalTwinGltfDataById(parseInt(digitalTwinId, 10));
+			if (!digitalTwinGltfData) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
+			const digitalTwinsExtended = await addMqttTopicsData(digitalTwinGltfData);
+			res.status(200).send(digitalTwinsExtended);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private deleteDigitalTwinById = async (
 		req: Request,
 		res: Response,
@@ -230,12 +254,13 @@ class DigitalTwinController implements IController {
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!existentDigitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
 			const digitalTwinUpdate = { ...existentDigitalTwin, ...digitalTwinData };
-			const [newTopicsId, newDashboardsId] = getTopicsIdAndDashboardsIdFromDigitalTwin(digitalTwinUpdate);
-			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboards(
+			let newTopicsId: number[] = [];
+			if(digitalTwinUpdate.type === "Gltf 3D model") newTopicsId = getTopicsIdFromDigitalTwin(digitalTwinUpdate);
+			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboard(
 				req.user,
 				digitalTwinUpdate.type,
 				newTopicsId,
-				newDashboardsId
+				digitalTwinUpdate.dashboardId
 			);
 			if (checkPrivilegesMessage !== "OK") {
 				throw new HttpException(400, checkPrivilegesMessage);
@@ -257,12 +282,12 @@ class DigitalTwinController implements IController {
 		try {
 			const digitalTwinData: CreateDigitalTwinDto = req.body;
 			const deviceId = parseInt(req.params.deviceId, 10);
-			const [topicsId, dashboardsId] = getTopicsIdAndDashboardsIdFromDigitalTwin(digitalTwinData);
-			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboards(
+			const topicsId = getTopicsIdFromDigitalTwin(digitalTwinData);
+			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboard(
 				req.user,
 				digitalTwinData.type,
 				topicsId,
-				dashboardsId
+				digitalTwinData.dashboardId
 			);
 
 			if (checkPrivilegesMessage !== "OK") {

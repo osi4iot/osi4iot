@@ -1,9 +1,8 @@
 import * as THREE from 'three'
-import React, { FC, useRef, useLayoutEffect, useEffect, useCallback, useState } from 'react';
-import { useThree } from '@react-three/fiber';
-import { AssetObject } from './Model';
-import { AssetState } from './ViewerUtils';
-import useInterval from '../../../tools/useInterval';
+import React, { FC, useRef, useLayoutEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { IAssetObject } from './Model';
+import { AssetState, defaultVisibility } from './ViewerUtils';
 
 const assetOkColor = new THREE.Color(0x00ff00);
 const assetAlertingColor = new THREE.Color(0xff0000);
@@ -12,54 +11,70 @@ const noEmitColor = new THREE.Color(0, 0, 0);
 interface AssetProps {
     obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>;
     blinking: boolean;
-    color?: string;
+    opacity: number;
     assetState: AssetState;
-    emitAssets: boolean;
+    assetsStateString: string;
 }
 
-
-const Asset: FC<AssetProps> = ({
+const AssetBase: FC<AssetProps> = ({
     obj,
     blinking,
-    color = "#828282",
+    opacity = 1,
     assetState,
-    emitAssets,
+    assetsStateString
 }) => {
     const camera = useThree((state) => state.camera);
-    const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>()
-    const mColor = (obj.material as THREE.MeshLambertMaterial).color;
-    const materialColor = (mColor.r === 1 && mColor.g === 1 && mColor.b === 1) ? new THREE.Color(color) : new THREE.Color(mColor);
-    var newMaterial = new THREE.MeshLambertMaterial({ color: materialColor, emissive: noEmitColor });
-    obj.material = newMaterial;
+    const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>();
+    const material = Object.assign(obj.material);
+    let lastIntervalTime = 0;
+
+    useFrame(({ clock }) => {
+        if (blinking) {
+            if (lastIntervalTime === 0) {
+                lastIntervalTime = clock.elapsedTime;
+            }
+            const deltaInterval = clock.elapsedTime - lastIntervalTime;
+            if (deltaInterval <= 0.30) {
+                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                material.emissive = noEmitColor;
+                material.opacity = opacity;
+            } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                material.opacity = opacity;
+                if (meshRef.current) meshRef.current.visible = true;
+                if (assetState?.stateString === "ok") {
+                    material.emissive = assetOkColor;
+                } else if (assetState?.stateString === "alerting") {
+                    material.emissive = assetAlertingColor;
+                }
+            } else if (deltaInterval > 0.60) {
+                lastIntervalTime = clock.elapsedTime;
+            }
+        } else {
+            if (assetState.highlight) {
+                if (meshRef.current) meshRef.current.visible = true;
+                material.opacity = 1;
+                if (assetState.stateString === "ok") {
+                    material.emissive = assetOkColor;
+                } else if (assetState?.stateString === "alerting") {
+                    material.emissive = assetAlertingColor;
+                }
+            } else {
+                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                material.opacity = opacity;
+                if (assetState.stateString === "ok") {
+                    material.emissive = noEmitColor;
+                } else if (assetState.stateString === "alerting") {
+                    material.emissive = assetAlertingColor;
+                }
+            }
+        }
+    })
+
 
     useLayoutEffect(() => {
         camera.updateProjectionMatrix();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [color]);
-
-    useLayoutEffect(() => {
-        if (assetState?.highlight && !blinking) {
-            if (assetState?.stateString === "ok") {
-                (meshRef.current?.material as THREE.MeshPhongMaterial).emissive = assetOkColor;
-            } else if (assetState.stateString === "alerting") {
-                (meshRef.current?.material as THREE.MeshPhongMaterial).emissive = assetAlertingColor;
-            }
-        }
-    }, [assetState, blinking])
-
-    useEffect(() => {
-        if (blinking) {
-            if (assetState?.stateString === "ok") {
-                if (emitAssets) (meshRef.current?.material as THREE.MeshPhongMaterial).emissive = assetOkColor;
-                else (meshRef.current?.material as THREE.MeshPhongMaterial).emissive = noEmitColor;
-            }
-        }
-        if (assetState?.stateString === "alerting") {
-            if (emitAssets) (meshRef.current?.material as THREE.MeshPhongMaterial).emissive = assetAlertingColor;
-            else (meshRef.current?.material as THREE.MeshPhongMaterial).emissive = noEmitColor;
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [emitAssets])
+    }, [opacity]);
 
     return (
         <mesh
@@ -67,7 +82,7 @@ const Asset: FC<AssetProps> = ({
             castShadow
             receiveShadow
             geometry={obj.geometry}
-            material={obj.material}
+            material={material}
             position={[obj.position.x, obj.position.y, obj.position.z]}
             rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
             scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
@@ -75,9 +90,18 @@ const Asset: FC<AssetProps> = ({
     )
 }
 
+const areEqual = (prevProps: AssetProps, nextProps: AssetProps) => {
+    return (prevProps.assetState.highlight === nextProps.assetState.highlight || nextProps.blinking) &&
+        prevProps.assetState.stateString === nextProps.assetState.stateString &&
+        (prevProps.assetsStateString === nextProps.assetsStateString && nextProps.blinking) &&
+        prevProps.blinking === nextProps.blinking &&
+        prevProps.opacity === nextProps.opacity;
+}
+const Asset = React.memo(AssetBase, areEqual);
+
 interface AssetsProps {
-    assetObjects: AssetObject[]
-    assetsColor: string;
+    assetObjects: IAssetObject[]
+    assetsOpacity: number;
     highlightAllAssets: boolean;
     assetsState: Record<string, AssetState>;
 }
@@ -85,20 +109,11 @@ interface AssetsProps {
 
 const Assets: FC<AssetsProps> = ({
     assetObjects,
-    assetsColor,
+    assetsOpacity,
     highlightAllAssets,
-    assetsState
+    assetsState,
 }) => {
-    const [emitAssets, setEmitAssets] = useState(false);
-    const isBlinkingNecesary = Object.values(assetsState).findIndex(state => state.stateString === "alerting") !== -1;
-
-    const updateEmit = useCallback(() => {
-        if (highlightAllAssets || isBlinkingNecesary) {
-            setEmitAssets(emitAssets => !emitAssets);
-        }
-    }, [highlightAllAssets, isBlinkingNecesary]);
-
-    useInterval(updateEmit, 250);
+    const assetsStateString = Object.values(assetsState).map(state => state.stateString === "alerting" ? "1" : "0").join("");
 
     return (
         <>
@@ -107,16 +122,15 @@ const Assets: FC<AssetsProps> = ({
                     return <Asset
                         key={obj.node.uuid}
                         obj={obj.node}
-                        color={assetsColor}
-                        blinking={highlightAllAssets}
+                        opacity={assetsOpacity}
+                        blinking={highlightAllAssets || assetsState[obj.node.name].stateString === "alerting"}
                         assetState={assetsState[obj.node.name]}
-                        emitAssets={emitAssets}
+                        assetsStateString={assetsStateString}
                     />
                 })
             }
         </>
     )
 }
-
 
 export default Assets;

@@ -64,8 +64,14 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
     const digitalTwinsStateFiltered = digitalTwinsState.filter(item => orgsInBuilding.findIndex(org => org.id === item.orgId) !== -1);
     const buildingStatus = findOutStatus(digitalTwinsStateFiltered);
     const orgsInBuildingWithStatus: IOrgManagedWithStatus[] = orgsInBuilding.map(org => {
-        const state = digitalTwinsStateFiltered.filter(item => item.orgId === org.id)[0]?.state;
-        return { ...org, state };
+        let orgStatus = "ok";
+        const orgWithNotOkStatus = digitalTwinsStateFiltered.filter(item => item.orgId === org.id && item.state !== "ok").length !== 0;
+        if (orgWithNotOkStatus) {
+            const orgWithAlertingState = digitalTwinsStateFiltered.filter(item => item.orgId === org.id && item.state === "alerting").length !== 0;
+            if(orgWithAlertingState) orgStatus = "alerting"
+            else orgStatus="pending"
+        }
+        return { ...org, orgStatus };
     });
 
     const clickHandler = () => {

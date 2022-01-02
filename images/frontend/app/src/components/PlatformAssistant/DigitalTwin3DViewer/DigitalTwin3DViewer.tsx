@@ -1,34 +1,33 @@
-import React, { FC, useEffect, useRef, useState } from 'react'
+import { FC, useRef, useState } from 'react'
 import styled from "styled-components";
 import { Connector } from 'mqtt-react-hooks';
 import { Canvas } from '@react-three/fiber';
+import * as THREE from 'three'
 import { OrbitControls } from '@react-three/drei';
-import DatGui, { DatColor, DatNumber, DatFolder, DatBoolean, DatButton } from "react-dat-gui";
+import DatGui, { DatNumber, DatFolder, DatBoolean, DatButton, DatSelect } from "react-dat-gui";
 import "react-dat-gui/dist/dist/index.css";
 import { Stage } from "./Stage";
-import Model, { AssetObject, SensorObject } from './Model'
+import Model, { IAnimatedObject, IAssetObject, IFemSimulationObject, ISensorObject } from './Model'
 import {
-  centerScene,
-  loader,
-  sortObjects
+  AnimatedObjectState,
+  AssetState,
+  FemSimulationObjectState,
+  IDigitalTwinGltfData,
+  SensorState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { getDomainName } from '../../../tools/tools';
-import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import SimulationLegend from './SimulationLegend';
+import SetGltfObjects from './SetGlftOjbects';
+import SetFemSimulationObject from './SetFemSimulationObject';
 
 
-interface CanvasContainerProps {
-  isCursorInsideObject: boolean;
-}
-
-const CanvasContainer = styled.div<CanvasContainerProps>`
+const CanvasContainer = styled.div`
 	background-color: #212121;
   height: 100%;
   color: white;
   width: 100%;
-  &:hover {
-    cursor: ${(props) => props.isCursorInsideObject ? "pointer" : "default"};
-  }
+  position: relative;
 `;
 
 const MqttConnectionDiv = styled.div`
@@ -70,22 +69,24 @@ export interface SelectedObjectInfo {
   topicId: string;
 }
 
-const StyledDatGui = styled(DatGui)`
-  .react-dat-gui .dg  {
-    border-radius: 10px;
+const StyledDataGui = styled(DatGui)`
+  &.react-dat-gui li.folder.closed .title {
+    background-color: #141619;
   }
-`;
-
-const StyledDatFolder = styled(DatFolder)`
-  .title {
-    background-color: #141619 !important;
-  }
-`;
+`
 
 const StyledDatBoolean = styled(DatBoolean)`
     &.cr.boolean {
       border-left: 5px solid #806787;
       background-color: #141619;
+
+      label {
+        width: 100%;
+  
+        .label-text {
+          width: 30% !important;
+        }
+      }
     }
 `;
 
@@ -93,15 +94,63 @@ const StyledDatNumber = styled(DatNumber)`
   &.cr.number {
     border-left: 5px solid #806787;
     background-color: #141619;
+
+    label {
+      width: 100%;
+
+      .label-text {
+        width: 29% !important;
+      }
+    }
+
+    span {
+      width: 71% !important;
+    }
   }
 `;
 
-const StyledDatColor = styled(DatColor)`
-  &.cr.color {
-    border-left: 5px solid #806787 !important;
+const StyledDatSelect = styled(DatSelect)`
+  &.cr.select {
+    border-left: 5px solid #806787;
     background-color: #141619;
+
+    label {
+      width: 100%;
+
+      .label-text {
+        width: 30% !important;
+      }
+    }
+
+    select {
+      width: 70% !important;
+      color: white;
+      background-color: #141619;
+      // border: 2px solid #b1b4b5;
+      border: 2px solid #7d7f80;
+      padding: 2px;
+      margin-right: 5px;
+
+      &:focus {
+        outline: none;
+        box-shadow: rgb(20 22 25) 0px 0px 0px 2px, rgb(31 96 196) 0px 0px 0px 4px;
+      }
+
+      &:hover {
+        cursor: pointer;
+        background-color: #0c0d0f;
+      }
+
+    }
+
+    option {
+      background-color: #35383d;
+    }
+
   }
 `;
+
+
 
 const StyledButton = styled(DatButton)`
   &.cr.button {
@@ -156,7 +205,6 @@ const domainName = getDomainName();
 
 const brokerUrl = `wss://${domainName}`;
 
-
 const mqttOptions = {
   port: 9001,
   protocol: 'wss' as 'wss',
@@ -165,57 +213,57 @@ const mqttOptions = {
 }
 
 interface Viewer3DProps {
-  groupSelected: IGroupManaged | null;
   digitalTwinSelected: IDigitalTwin | null;
+  digitalTwinGltfData: IDigitalTwinGltfData;
   close3DViewer: () => void;
 }
 
+const mouseButtons = {
+  LEFT: THREE.MOUSE.PAN,
+  MIDDLE: THREE.MOUSE.ROTATE,
+  RIGHT: THREE.MOUSE.DOLLY,
+}
+
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
-  groupSelected,
   digitalTwinSelected,
+  digitalTwinGltfData,
   close3DViewer
 }) => {
+  const canvasContainerRef = useRef(null);
   const canvasRef = useRef(null);
   const controlsRef = useRef() as any;
+  const selectedObjTypeRef = useRef(null);
+  const selectedObjNameRef = useRef(null);
+  const selectedObjTopicIdRef = useRef(null);
   const [isMqttConnected, setIsMqttConnected] = useState(false);
-  const [isCursorInsideObject, setIsCursorInsideObject] = useState(false);
-  const [sensorObjects, setSensorObjects] = useState<SensorObject[]>([]);
-  const [assetObjects, setAssetObjects] = useState<AssetObject[]>([]);
+  const [sensorObjects, setSensorObjects] = useState<ISensorObject[]>([]);
+  const [assetObjects, setAssetObjects] = useState<IAssetObject[]>([]);
+  const [animatedObjects, setAnimatedObjects] = useState<IAnimatedObject[]>([]);
+  const [femSimulationObject, setFemSimulationObjects] = useState<IFemSimulationObject | null>(null);
   const [genericObjects, setGenericObjects] = useState<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[]>([]);
-  const [mqttTopics, setMqttTopics] = useState<string[]>([]);
-  const [dashboardsUrl, setDashboardsUrl] = useState<string[]>([]);
-  const [selectedObjectInfo, setSelectedObjectInfo] = useState({ type: "-", name: "-", dashboardId: "-", topicId: "-" });
+  const [initialSensorsState, setInitialSensorsState] = useState<Record<string, SensorState> | null>(null);
+  const [initialAssetsState, setInitialAssetsState] = useState<Record<string, AssetState> | null>(null);
+  const [initialAnimatedObjectsState, setInitialAnimatedObjectsState] = useState<Record<string, AnimatedObjectState> | null>(null);
+  const [initialFemSimulationObjectState, setInitialFemSimulationObjectState] = useState<FemSimulationObjectState | null>(null);
 
-  useEffect(() => {
-    if (groupSelected && digitalTwinSelected) {
-      loader.parse(JSON.stringify(digitalTwinSelected.gltfData), "", (gltf: any) => {
-        const scene = gltf.scene;
-        centerScene(scene);
-        const {
-          sensorObjects,
-          assetObjects,
-          genericObjects
-        } = sortObjects(scene);
-        setSensorObjects(sensorObjects);
-        setAssetObjects(assetObjects);
-        setGenericObjects(genericObjects);
-        setMqttTopics(digitalTwinSelected.mqttTopics as string[]);
-        setDashboardsUrl(digitalTwinSelected.dashboardUrls as string[]);
-      });
-
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   const [opts, setOpts] = useState({
     ligthIntensity: 1,
     ambientLigth: true,
     spotLigth: true,
     pointLight: true,
-    sensorsColor: "#23272F",
+    sensorsOpacity: 1,
     highlightAllSensors: false,
+    assetsOpacity: 1,
+    highlightAllAnimatedObjects: false,
+    animatedObjectsOpacity: 1,
+    highlightFemSimulationObject: false,
+    femSimulationObjectHidden: false,
+    highlightAllGenericObjects: false,
+    genericObjectsOpacity: 1,
     highlightAllAssets: false,
-    assetsColor: "#292828",
+    hideFemSimulationLegend: false,
+    femSimulationResult: "None result"
   });
 
   const datGuiStyle = {
@@ -225,65 +273,140 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     }
   };
 
+
   return (
-    <CanvasContainer isCursorInsideObject={isCursorInsideObject}>
-      <Canvas ref={canvasRef} dpr={window.devicePixelRatio} orthographic>
-        <Stage
-          controls={controlsRef}
-          intensity={opts.ligthIntensity}
-          ambientLigth={opts.ambientLigth}
-          spotLigth={opts.spotLigth}
-          pointLight={opts.pointLight}
-        >
-          <Connector options={mqttOptions} brokerUrl={brokerUrl}>
-            <Model
-              sensorObjects={sensorObjects}
-              assetObjects={assetObjects}
-              genericObjects={genericObjects}
-              mqttTopics={mqttTopics}
-              dashboardsUrl={dashboardsUrl}
-              setSelectedObjectInfo={(selectedObjectInfo) => setSelectedObjectInfo(selectedObjectInfo)}
-              sensorsColor={opts.sensorsColor}
-              highlightAllSensors={opts.highlightAllSensors}
-              assetsColor={opts.assetsColor}
-              highlightAllAssets={opts.highlightAllAssets}
-              setIsMqttConnected={isMqttConnected => setIsMqttConnected(isMqttConnected)}
-              setIsCursorInsideObject={isCursorInsideObject => setIsCursorInsideObject(isCursorInsideObject)}
-              canvasRef={canvasRef}
-            />
-          </Connector>
-        </Stage>
-        <OrbitControls ref={controlsRef} />
-      </Canvas>
-      <StyledDatGui data={opts} onUpdate={setOpts} style={datGuiStyle}>
-        <MqttConnectionDiv>
-          Mqtt connection <ConnectionLed isMqttConnected={isMqttConnected} />
-        </MqttConnectionDiv>
-        <StyledDatFolder title='Ligths' closed={true}>
-          <StyledDatNumber label="Ligth intensity" path="ligthIntensity" min={0} max={5} step={0.05} />
-          <StyledDatBoolean label="Ambient ligth" path="ambientLigth" />
-          <StyledDatBoolean label="Spot ligth" path="spotLigth" />
-          <StyledDatBoolean label="Point ligth" path="pointLight" />
-        </StyledDatFolder>
-        <StyledDatFolder title='Sensors' closed={true}>
-          <StyledDatBoolean label="Highlight sensors" path="highlightAllSensors" />
-          <StyledDatColor label="Sensors color" path="sensorsColor" />
-        </StyledDatFolder>
-        <StyledDatFolder title='Assests' closed={true}>
-          <StyledDatBoolean label="Highlight assets" path="highlightAllAssets" />
-          <StyledDatColor label="Assests color" path="assetsColor" />
-        </StyledDatFolder>
-        <StyledButton label="Exit" onClick={(e) => close3DViewer()} />
-      </StyledDatGui>
-      <SelectedObjectInfoContainer>
-        <ObjectInfoContainer>
-          <ObjectInfo>Object type: {selectedObjectInfo.type}</ObjectInfo>
-          <ObjectInfo>Object name: {selectedObjectInfo.name}</ObjectInfo>
-          <ObjectInfo>DasboardId: {selectedObjectInfo.dashboardId}</ObjectInfo>
-          <ObjectInfo>TopicId: {selectedObjectInfo.topicId}</ObjectInfo>
-        </ObjectInfoContainer>
-      </SelectedObjectInfoContainer>
-    </CanvasContainer>
+    <>
+      {
+        digitalTwinGltfData.digitalTwinGltfUrl &&
+        <SetGltfObjects
+          digitalTwinGltfData={digitalTwinGltfData}
+          setSensorObjects={setSensorObjects}
+          setAssetObjects={setAssetObjects}
+          setAnimatedObjects={setAnimatedObjects}
+          setGenericObjects={setGenericObjects}
+          setInitialSensorsState={setInitialSensorsState}
+          setInitialAssetsState={setInitialAssetsState}
+          setInitialAnimatedObjectsState={setInitialAnimatedObjectsState}
+        />
+      }
+      {
+        digitalTwinGltfData.femSimulationUrl &&
+        <SetFemSimulationObject
+          digitalTwinGltfData={digitalTwinGltfData}
+          setFemSimulationObjects={setFemSimulationObjects}
+          setInitialFemSimulationObjectState={setInitialFemSimulationObjectState}
+        />
+      }
+      <CanvasContainer ref={canvasContainerRef}>
+        <Canvas ref={canvasRef} dpr={window.devicePixelRatio} orthographic >
+          <Stage
+            controls={controlsRef}
+            intensity={opts.ligthIntensity}
+            ambientLigth={opts.ambientLigth}
+            spotLigth={opts.spotLigth}
+            pointLight={opts.pointLight}
+          >
+            <Connector options={mqttOptions} brokerUrl={brokerUrl}>
+              <Model
+                sensorObjects={sensorObjects}
+                initialSensorsState={initialSensorsState as Record<string, SensorState>}
+                assetObjects={assetObjects}
+                initialAssetsState={initialAssetsState as Record<string, SensorState>}
+                animatedObjects={animatedObjects}
+                initialAnimatedObjectsState={initialAnimatedObjectsState as Record<string, AnimatedObjectState>}
+                femSimulationObject={femSimulationObject as IFemSimulationObject}
+                initialFemSimulationObjectState={initialFemSimulationObjectState as FemSimulationObjectState}
+                genericObjects={genericObjects}
+                mqttTopics={digitalTwinGltfData.mqttTopics}
+                dashboardUrl={digitalTwinSelected?.dashboardUrl as string}
+                sensorsOpacity={opts.sensorsOpacity}
+                highlightAllSensors={opts.highlightAllSensors}
+                assetsOpacity={opts.assetsOpacity}
+                highlightAllAssets={opts.highlightAllAssets}
+                animatedObjectsOpacity={opts.animatedObjectsOpacity}
+                highlightAllAnimatedObjects={opts.highlightAllAnimatedObjects}
+                femSimulationObjectHidden={opts.femSimulationObjectHidden}
+                highlightFemSimulationObject={opts.highlightFemSimulationObject}
+                genericObjectsOpacity={opts.genericObjectsOpacity}
+                highlightAllGenericObjects={opts.highlightAllGenericObjects}
+                setIsMqttConnected={isMqttConnected => setIsMqttConnected(isMqttConnected)}
+                canvasRef={canvasRef}
+                selectedObjTypeRef={selectedObjTypeRef}
+                selectedObjNameRef={selectedObjNameRef}
+                selectedObjTopicIdRef={selectedObjTopicIdRef}
+                femSimulationResult={opts.femSimulationResult}
+              />
+            </Connector>
+          </Stage>
+          <OrbitControls ref={controlsRef} mouseButtons={mouseButtons} />
+        </Canvas>
+        {(femSimulationObject && opts.femSimulationResult !== "None result" && !opts.hideFemSimulationLegend) &&
+          <SimulationLegend
+            resultRenderInfo={femSimulationObject.resultsRenderInfo[opts.femSimulationResult]}
+            canvasContainerRef={canvasContainerRef}
+          />
+        }
+        <StyledDataGui data={opts} onUpdate={setOpts} style={datGuiStyle}>
+          <MqttConnectionDiv>
+            Mqtt connection <ConnectionLed isMqttConnected={isMqttConnected} />
+          </MqttConnectionDiv>
+          <DatFolder title='Ligths' closed={true}>
+            <StyledDatNumber label="Intensity" path="ligthIntensity" min={0} max={5} step={0.05} />
+            <StyledDatBoolean label="Ambient" path="ambientLigth" />
+            <StyledDatBoolean label="Spot" path="spotLigth" />
+            <StyledDatBoolean label="Point" path="pointLight" />
+          </DatFolder>
+          {
+            sensorObjects.length !== 0 &&
+            <DatFolder title='Sensors' closed={true}>
+              <StyledDatNumber label="Opacity" path="sensorsOpacity" min={0} max={1} step={0.05} />
+              <StyledDatBoolean label="Highlight" path="highlightAllSensors" />
+            </DatFolder>
+          }
+          {
+            assetObjects.length !== 0 &&
+            <DatFolder title='Assests' closed={true}>
+              <StyledDatNumber label="Opacity" path="assetsOpacity" min={0} max={1} step={0.05} />
+              <StyledDatBoolean label="Highlight" path="highlightAllAssets" />
+            </DatFolder>
+          }
+          {
+            animatedObjects.length !== 0 &&
+            <DatFolder title='Animated objects' closed={true}>
+              <StyledDatNumber label="Opacity" path="animatedObjectsOpacity" min={0} max={1} step={0.05} />
+              <StyledDatBoolean label="Highlight" path="highlightAllAnimatedObjects" />
+            </DatFolder>
+          }
+          {
+            genericObjects.length !== 0 &&
+            <DatFolder title='Generic objects' closed={true}>
+              <StyledDatNumber label="Opacity" path="genericObjectsOpacity" min={0} max={1} step={0.05} />
+              <StyledDatBoolean label="Highlight" path="highlightAllGenericObjects" />
+            </DatFolder>
+          }
+          {
+            femSimulationObject &&
+            <DatFolder title='Fem simulation object' closed={true}>
+                <StyledDatSelect
+                  path='femSimulationResult'
+                  label='Results'
+                  options={["None result", ...Object.keys(femSimulationObject.resultFieldPaths)]} />
+              <StyledDatBoolean label="Highlight" path="highlightFemSimulationObject" />
+                <StyledDatBoolean label="Hide mesh" path="femSimulationObjectHidden" />
+                <StyledDatBoolean label="Hide legend" path="hideFemSimulationLegend" />
+            </DatFolder>
+          }
+          <StyledButton label="Exit" onClick={(e) => close3DViewer()} />
+        </StyledDataGui>
+        <SelectedObjectInfoContainer>
+          <ObjectInfoContainer>
+            <ObjectInfo ref={selectedObjTypeRef} >Object type: -</ObjectInfo>
+            <ObjectInfo ref={selectedObjNameRef}>Object name: -</ObjectInfo>
+            <ObjectInfo ref={selectedObjTopicIdRef}>TopicId: -</ObjectInfo>
+          </ObjectInfoContainer>
+        </SelectedObjectInfoContainer>
+      </CanvasContainer>
+    </>
   )
 }
 

@@ -93,6 +93,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         const config = axiosAuth(accessToken);
 
         const topicData = {
+            topicType: values.topicType,
             topicName: values.topicName,
             description: values.description,
             payloadFormat: values.payloadFormat,

@@ -8,8 +8,13 @@ export default interface IDigitalTwin {
 	type: string;
 	dashboardId: number;
 	gltfData: string;
+	gltfFileName: string;
+	gltfFileLastModifDateString: string;
+	femSimulationData: string;
+	femSimDataFileName: string;
+	femSimDataFileLastModifDateString: string;
 	created?: string;
 	updated?: string;
 	mqttTopics?: string[];
-	dashboardUrls?: string[];
+	dashboardUrl: string;
 }

@@ -366,6 +366,11 @@ export async function dataBaseInitialization() {
 				type VARCHAR(40),
 				dashboard_id bigint,
 				gltfdata jsonb NOT NULL DEFAULT '{}'::jsonb,
+				gltf_file_name VARCHAR(50) DEFAULT '-',
+				gltf_file_last_modif_date_string VARCHAR(190),
+				fem_simulation_data jsonb NOT NULL DEFAULT '{}'::jsonb,
+				femsimdata_file_name VARCHAR(50) DEFAULT '-',
+				femsimdata_file_last_modif_date_string VARCHAR(190),
 				created TIMESTAMPTZ,
 				updated TIMESTAMPTZ,
 				CONSTRAINT fk_device_id
@@ -457,14 +462,24 @@ export async function dataBaseInitialization() {
 					description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
 					type: "Grafana dashboard",
 					dashboardId: dashboardsId[0],
-					gltfData: "{}"
+					gltfData: "{}",
+					gltfFileName: "-",
+					gltfFileLastModifDateString: "-",
+					femSimulationData: "{}",
+					femSimDataFileName: "-",
+					femSimDataFileLastModifDateString: "-",
 				},
 				{
 					name: demoDigitalTwinName(group, "Mobile"),
 					description: `Demo digital twin for default mobile device of the group ${mainOrgGroupAcronym}`,
 					type: "Grafana dashboard",
 					dashboardId: dashboardsId[1],
-					gltfData: "{}"
+					gltfData: "{}",
+					gltfFileName: "-",
+					gltfFileLastModifDateString: "-",
+					femSimulationData: "{}",
+					femSimDataFileName: "-",
+					femSimDataFileLastModifDateString: "-",
 				},
 			];
 

@@ -1,5 +1,5 @@
 import fs from "fs";
-import { logger } from "../config/winston";
+import { logger } from "./winston";
 
 interface IProcessEnv extends Record<string, string> {
 	PLATFORM_NAME: string;

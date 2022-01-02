@@ -100,13 +100,14 @@ interface TextareaProps {
     label: string;
     name: string;
     textAreaSize: string;
+    readOnly: boolean
 }
 
-const Textarea: FC<TextareaProps> = ({ label, name, textAreaSize= "Large", ...rest }) => {
+const Textarea: FC<TextareaProps> = ({ label, name, textAreaSize= "Large", readOnly, ...rest }) => {
     return (
         <InputStyled textAreaSize={textAreaSize}>
             <label htmlFor={name}>{label}</label>
-            <Field as='textarea' id={name} name={name} {...rest} />
+            <Field as='textarea' id={name} name={name} {...rest} readOnly={readOnly}/>
             <ErrorMessage name={name} component={TextError}/>
         </InputStyled>
     )

@@ -4341,6 +4341,67 @@
 				}
 			}
 		},
+		"/digital_twin_gltfdata/{groupId}/{deviceId}/{digitalTwinId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "number"
+				},
+				{
+					"name": "digitalTwinId",
+					"in": "path",
+					"required": true,
+					"description": "Digital twin id",
+					"type": "number"
+				}		
+			],
+			"get": {
+				"tags": ["Digital twin"],
+				"summary": "Get digital twin gltf data  by digitalTwinId  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwinGltfDataOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},		
 		"/dashboards/user_managed": {
 			"get": {
 				"tags": ["Dashboard"],
@@ -5642,8 +5703,11 @@
 				"type": {
 					"type": "string"
 				},
-				"url": {
-					"type": "string"
+				"dashboardId": {
+					"type": "number"
+				},
+				"gltfData": {
+					"type": "number"
 				}
 			}
 		},		
@@ -5670,8 +5734,8 @@
 				"type": {
 					"type": "string"
 				},
-				"url": {
-					"type": "string"
+				"dashboardId": {
+					"type": "number"
 				},
 				"created": {
 					"type": "string"
@@ -5681,6 +5745,16 @@
 				}	
 			}
 		},
+		"DigitalTwinGltfDataOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"gltfData": {
+					"type": "number"
+				}
+			}
+		},		
 		"DigitalTwins": {
 			"type": "array",
 			"items": {

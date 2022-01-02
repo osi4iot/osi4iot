@@ -17,9 +17,12 @@ export interface IDigitalTwin {
     description: string;
     type: string;
     dashboardId: string;
-    gltfData: string;
+    gltfFileName: string;
+    gltfFileLastModifDateString: string;
+    femSimDataFileName: string;
+    femSimDataFileLastModifDateString: string;
     mqttTopics?: string[];
-    dashboardUrls?: string[];
+    dashboardUrl: string;
 }
 
 interface IDigitalTwinColumn extends IDigitalTwin {
@@ -148,10 +151,25 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             disableFilters: true,
         },
         {
-            Header: "Gltf data",
-            accessor: "gltfData",
+            Header: "gltfFileName",
+            accessor: "gltfFileName",
             disableFilters: true,
-        },        
+        }, 
+        {
+            Header: "gltfFileLastModifDateString",
+            accessor: "gltfFileLastModifDateString",
+            disableFilters: true,
+        },
+        {
+            Header: "femSimDataFileName",
+            accessor: "femSimDataFileName",
+            disableFilters: true,
+        }, 
+        {
+            Header: "femSimDataFileLastModifDateString",
+            accessor: "femSimDataFileLastModifDateString",
+            disableFilters: true,
+        },         
         {
             Header: "",
             accessor: "edit",

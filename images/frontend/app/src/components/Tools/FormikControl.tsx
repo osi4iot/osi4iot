@@ -26,9 +26,10 @@ interface FormikControlProps {
     autoFocus?: boolean;
     onChange?: (e: any) => void;
     textAreaSize?: string;
+    readOnly?: boolean
 }
 
-const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, options, autoFocus, textAreaSize, ...rest }) => {
+const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, options, autoFocus, textAreaSize, readOnly=false, ...rest }) => {
     switch (control) {
         case 'input':
             return <Input label={label as string} name={name as string} type={type as string} {...rest} />
@@ -62,7 +63,7 @@ const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, lab
                 />
             )
         case 'textarea':
-            return <Textarea label={label as string} name={name as string} textAreaSize={textAreaSize as string} {...rest}/>
+            return <Textarea label={label as string} name={name as string} textAreaSize={textAreaSize as string} readOnly={readOnly} {...rest}/>
         case 'select':
             return <SelectControl label={label as string} name={name as string} options={options as OptionsType<IOption>} autoFocus={ autoFocus as boolean} {...rest} />
         default: return null;

@@ -366,7 +366,12 @@ const hiddenColumnCondition = (col: any) => {
         col.accessor === "dashboardId" ||
         col.accessor === "payloadFormat" ||
         col.Header === "Building_Id" ||
-        col.Header === "featureIndex"
+        col.Header === "featureIndex" ||
+        col.Header === "gltfFileName" ||
+        col.Header === "gltfFileLastModifDateString" ||
+        col.Header === "femSimDataFileName" ||
+        col.Header === "femSimDataFileLastModifDateString";
+
     return condition;
 }
 

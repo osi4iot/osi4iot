@@ -33,7 +33,8 @@ export function Stage({
     // @ts-expect-error new in @react-three/fiber@7.0.5
     const defaultControls = useThree((state) => state.controls) as ControlsProto
     const childrenGroup = React.useRef<THREE.Group>(null!)
-    const [{ radius, width, height, deep }, set] = useState({ radius: 0, width: 0, height: 0, deep: 0 })
+    const [{ radius, width, height }, set] = useState({ radius: 0, width: 0, height: 0, deep: 0 })
+    const [sceneCenter, setSceneCenter] = useState(new THREE.Vector3(0.0, 0.0, 0.0));
 
     useLayoutEffect(() => {
         const box3 = new THREE.Box3().setFromObject(childrenGroup.current);
@@ -45,10 +46,11 @@ export function Stage({
         box3.getCenter(center);
         box3.getBoundingSphere(sphere);
         set({ radius: sphere.radius, width, height, deep });
+        setSceneCenter(sphere.center)
 
-        const zoom_fact_x = 0.7 * Math.min(sceneWidth, sceneHeigth) / width;
-        const zoom_fact_y = 0.7 * Math.min(sceneWidth, sceneHeigth) / height;
-        const zoom_fact_z = 1.5 * Math.min(sceneWidth, sceneHeigth) / deep;
+        const zoom_fact_x = 0.6 * Math.min(sceneWidth, sceneHeigth) / width;
+        const zoom_fact_y = 0.6 * Math.min(sceneWidth, sceneHeigth) / height;
+        const zoom_fact_z = 1.25 * Math.min(sceneWidth, sceneHeigth) / deep;
         const zoom_fact = Math.min(zoom_fact_x, zoom_fact_y, zoom_fact_z);
         camera.zoom = zoom_fact;
         camera.updateProjectionMatrix();
@@ -57,14 +59,15 @@ export function Stage({
 
 
     useLayoutEffect(() => {
-        let y = radius / (Math.max(height, deep) > width ? 20.0 : 10.0);
-        camera.position.set(radius * 1.0, radius * 1.0, radius * 2.5);
+        camera.position.set(sceneCenter.x + radius * 1.0, sceneCenter.y + radius * 1.0, sceneCenter.z + radius * 2.5);
         camera.near = 0.1;
         camera.far = Math.max(5000, radius * 4);
-        camera.lookAt(0, -y, 0);
+        // camera.lookAt(center_x, center_y, 0);
+        camera.lookAt(sceneCenter)
         const ctrl = defaultControls || controls?.current;
         if (ctrl) {
-            ctrl.target.set(0, -y, 0);
+            // ctrl.target.set(center_x, center_y, 0);
+            ctrl.target.set(sceneCenter.x, sceneCenter.y, sceneCenter.z);
             ctrl.update();
         }
         camera.updateProjectionMatrix();

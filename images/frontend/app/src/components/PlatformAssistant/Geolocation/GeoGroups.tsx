@@ -9,6 +9,7 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoGroup from "./GeoGroup";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { isGeoJSONObject } from "../../../tools/geojsonValidation";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 
 
 const STATUS_OK = "#3e3f3b";
@@ -40,7 +41,7 @@ interface GeoGroupsProps {
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
-    openDigitalTwin3DViewer: () => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
 }
 
 

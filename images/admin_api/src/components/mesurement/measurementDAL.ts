@@ -57,6 +57,16 @@ export const getLastMeasurements = async (groupUid: string, topic: string, count
 	return response.rows;
 };
 
+export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
+	const response = await pool.query(`SELECT timestamp, topic, payload
+									FROM iot_data.thingData
+									WHERE group_uid = $1 AND
+									topic = $2
+									ORDER BY timestamp DESC
+									LIMIT $3;`, [groupUid, topic, 1]);
+	return response.rows[0];
+};
+
 export const getDuringMeasurementsWithPagination = async (
 	groupUid: string,
 	topic: string,

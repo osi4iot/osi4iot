@@ -12,6 +12,7 @@ import { IDigitalTwinState } from "../GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";
@@ -59,7 +60,7 @@ interface GeoGroupProps {
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
-    openDigitalTwin3DViewer: () => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
 }
 
 const GeoGroup: FC<GeoGroupProps> = (

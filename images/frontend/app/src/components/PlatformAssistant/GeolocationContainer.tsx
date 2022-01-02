@@ -13,6 +13,7 @@ import useInterval from '../../tools/useInterval';
 import { IBuilding } from './TableColumns/buildingsColumns';
 import { IFloor } from './TableColumns/floorsColumns';
 import SelectFloorWithState from './SelectFloorWithState';
+import { IDigitalTwinGltfData } from './DigitalTwin3DViewer/ViewerUtils';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -75,7 +76,7 @@ interface GeolocationContainerProps {
     outerBounds: number[][];
     setNewOuterBounds: (outerBounds: number[][]) => void;
     resetBuildingSelection: () => void;
-    openDigitalTwin3DViewer: () => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (

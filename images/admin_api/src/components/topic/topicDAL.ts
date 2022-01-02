@@ -180,8 +180,21 @@ export const checkIfExistTopics = async (topicsIdArray: number[]): Promise<strin
 	return message;
 };
 
+export const markInexistentTopics = async (topicsId: number[]): Promise<number[]> => {
+	const response = await pool.query(`SELECT grafanadb.topic.id FROM grafanadb.topic
+									WHERE grafanadb.topic.id = ANY($1::bigint[])
+									ORDER BY grafanadb.topic.id ASC;`, [topicsId]);
+	const existentTopicsId = response.rows.map(elem => elem.id);
+	const markedTopics = topicsId.map(topicId => {
+		if (!existentTopicsId.includes(topicId)) return -topicId;
+		else return topicId;
+	})
+	return markedTopics;
+};
+
 export const getMqttTopicsInfoFromIdArray = async (topicsIdArray: number[]): Promise<IMqttTopicInfo[]> => {
 	if (topicsIdArray.length === 0) return [];
+	const filteredTopicsIdArray = topicsIdArray.filter(id => id > 0);
 	const response = await pool.query(`SELECT grafanadb.topic.id AS "topicId", grafanadb.topic.topic_type AS "topicType",
 									grafanadb.group.group_uid AS "groupHash", grafanadb.device.device_uid AS "deviceHash",
 									grafanadb.topic.topic_uid AS "topicHash"
@@ -189,7 +202,8 @@ export const getMqttTopicsInfoFromIdArray = async (topicsIdArray: number[]): Pro
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.topic.id = ANY($1::bigint[])
-									ORDER BY grafanadb.topic.id ASC;`, [topicsIdArray]);
+									ORDER BY grafanadb.topic.id ASC;`, [filteredTopicsIdArray]);
+
 	return response.rows;
 }
 

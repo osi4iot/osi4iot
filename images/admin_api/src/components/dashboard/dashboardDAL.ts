@@ -56,14 +56,33 @@ export const checkIfExistDashboards = async (dashboardsIdArray: number[]): Promi
 	return message;
 };
 
+export const markInexistentDashboards = async (dashboardsIdArray: number[]): Promise<number[]> => {
+	const response = await pool.query(`SELECT grafanadb.dashboard.id FROM grafanadb.dashboard
+									WHERE grafanadb.dashboard.id = ANY($1::bigint[]) AND grafanadb.dashboard.is_folder = $2
+									ORDER BY grafanadb.dashboard.id ASC;`, [dashboardsIdArray, false]);
+
+	const existentDashboardsId = response.rows.map(elem => elem.id);
+	const markedDashboards = dashboardsIdArray.map(dashboardId => {
+		if (!existentDashboardsId.includes(dashboardId)) return -dashboardId;
+		else return dashboardId;
+	})
+	return markedDashboards;
+};
+
 export const getDashboardsInfoFromIdArray = async (idArray: number[]): Promise<IDashboardInfo[]> => {
 	if (idArray.length === 0) return [];
+	const filteredIdArray = idArray.filter(id => id > 0);
 	const response = await pool.query(`SELECT grafanadb.dashboard.id AS "dashboardId",
 									grafanadb.dashboard.slug, grafanadb.dashboard.uid
 									FROM grafanadb.dashboard
 									WHERE grafanadb.dashboard.id = ANY($1::bigint[]) AND grafanadb.dashboard.is_folder = $2
-									ORDER BY grafanadb.dashboard.id ASC;`, [idArray, false]);
-	return response.rows;
+									ORDER BY grafanadb.dashboard.id ASC;`, [filteredIdArray, false]);
+	const dashboardsInfo = [...response.rows];
+	const nonExistentDashboardsInfo = idArray.filter(id => id < 0).map(id => {
+		const fakeDashboard = { dashboardId: -id, slug: "Inexistent", uid: "" };
+		return fakeDashboard;
+	});
+	return dashboardsInfo.concat(nonExistentDashboardsInfo);
 }
 
 

@@ -19,6 +19,7 @@ import GeoBuildings from './GeoBuildings';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoGroups from './GeoGroups';
+import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -392,7 +393,7 @@ interface MapProps {
     selectDigitalTwinOption: () => void;
     resetBuildingSelection: () => void;
     digitalTwinsState: IDigitalTwinState[];
-    openDigitalTwin3DViewer: () => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
 }
 
 

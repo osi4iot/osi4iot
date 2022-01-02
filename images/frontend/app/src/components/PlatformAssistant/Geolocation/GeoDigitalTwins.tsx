@@ -1,5 +1,6 @@
 import { FC } from "react";
 import { LayerGroup } from 'react-leaflet';
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { IDigitalTwinState } from "../GeolocationContainer";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
@@ -12,7 +13,7 @@ interface GeoDigitalTwinsProps {
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
-    openDigitalTwin3DViewer: () => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
 }
 
 const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({

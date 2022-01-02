@@ -1,8 +1,10 @@
 import { GLTFLoader } from "three-stdlib";
 import * as THREE from 'three'
 import { Camera } from '@react-three/fiber';
-import { SensorObject, AssetObject } from './Model';
-import { SelectedObjectInfo } from "./DigitalTwin3DViewer";
+import { ISensorObject, IAssetObject, IAnimatedObject, IFemSimulationObject, IResultRenderInfo } from './Model';
+import { toast } from "react-toastify";
+import { IMeasurement } from "../TableColumns/measurementsColumns";
+import Lut, { ILegendLabels } from "./Lut";
 
 export const loader = new GLTFLoader();
 
@@ -16,41 +18,156 @@ export interface AssetState {
 	highlight: boolean;
 }
 
-
-export const generateDefaultSensorsState = (sensorObjects: SensorObject[]) => {
-	const defaultSensorsState: Record<string, SensorState> = {}
-	sensorObjects.forEach(obj => {
-		const objName = obj.node.name;
-		defaultSensorsState[objName] = { stateString: "off", highlight: false };
-	})
-	return defaultSensorsState;
+export interface AnimatedObjectState {
+	value: number | null;
+	highlight: boolean;
 }
 
-export const generateDefaultAssetsState = (assetObjects: AssetObject[]) => {
-	const defaultAssetsState: Record<string, AssetState> = {}
+export interface FemSimulationObjectState {
+	resultFieldModalValues: Record<string,number[]>;
+	highlight: boolean;
+}
+
+export interface IDigitalTwinGltfData {
+	id: number;
+	gltfData: any;
+	digitalTwinGltfUrl: string | null;
+	femSimulationData: any;
+	femSimulationUrl: string | null;
+	mqttTopics: string[];
+	lastMeasurements: (IMeasurement | null)[];
+}
+
+
+const findLastMeasurement = (topicIndex: number, digitalTwinGltfData: IDigitalTwinGltfData): (IMeasurement | null) => {
+	let lastMeasurement = null;
+	const mqttTopic = digitalTwinGltfData.mqttTopics[topicIndex];
+	if (mqttTopic.slice(0, 7) !== "Warning") {
+		const sqlTopicArray = mqttTopic.split("/");
+		const sqlTopic = `${sqlTopicArray[2]}/${sqlTopicArray[3]}`;
+		const lastMeasurementIndex = digitalTwinGltfData.lastMeasurements.findIndex(item => item?.topic === sqlTopic);
+		if (lastMeasurementIndex !== -1) {
+			lastMeasurement = digitalTwinGltfData.lastMeasurements[lastMeasurementIndex];
+		}
+	}
+	return lastMeasurement;
+}
+
+const getElapsedTimeInSeconds = (timestamp: number) => {
+	const datetime = new Date(timestamp).getTime();
+	const now = new Date().getTime();
+	const elapsedTime = (now - datetime) * 1000;
+	return elapsedTime;
+}
+
+export const generateInitialSensorsState = (sensorObjects: ISensorObject[], digitalTwinGltfData: IDigitalTwinGltfData) => {
+	const initialSensorsState: Record<string, SensorState> = {}
+	sensorObjects.forEach(obj => {
+		const objName = obj.node.name;
+		const lastMeasurement = findLastMeasurement(obj.topicIndex, digitalTwinGltfData);
+		if (lastMeasurement) {
+			const fieldName = obj.node.userData.fieldName;
+			const timeout = obj.node.userData.timeout;
+			const payloadObject = lastMeasurement.payload as any;
+			const payloadKeys = Object.keys(lastMeasurement.payload);
+			const elpasedTimeInSeconds = getElapsedTimeInSeconds(lastMeasurement.timestamp);
+			if (payloadKeys.indexOf(fieldName) !== -1 && elpasedTimeInSeconds < timeout) {
+				const value = payloadObject[fieldName];
+				if (typeof value === 'number' || (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)) {
+					initialSensorsState[objName] = { stateString: "on", highlight: false };
+				}
+			} else {
+				initialSensorsState[objName] = { stateString: "off", highlight: false };
+			}
+
+		} else {
+			initialSensorsState[objName] = { stateString: "off", highlight: false };
+		}
+	})
+	return initialSensorsState;
+}
+
+export const generateInitialAssetsState = (assetObjects: IAssetObject[], digitalTwinGltfData: IDigitalTwinGltfData) => {
+	const initialAssetsState: Record<string, AssetState> = {}
 	assetObjects.forEach(obj => {
 		const objName = obj.node.name;
-		defaultAssetsState[objName] = { stateString: "ok", highlight: false };
+		const lastMeasurement = findLastMeasurement(obj.topicIndex, digitalTwinGltfData);
+		if (lastMeasurement) {
+			const assetPartIndex = obj.node.userData.assetPartIndex;
+			const payloadObject = lastMeasurement.payload as any;
+			const stateNumber = parseInt(payloadObject.assetPartsState[assetPartIndex], 10);
+			if (stateNumber === 1) {
+				initialAssetsState[objName] = { stateString: "alerting", highlight: false };
+			} else if (stateNumber === 0) {
+				initialAssetsState[objName] = { stateString: "ok", highlight: false };
+			}
+
+		} else {
+			initialAssetsState[objName] = { stateString: "ok", highlight: false };
+		}
 	})
-	return defaultAssetsState;
+	return initialAssetsState;
+}
+
+export const generateInitialAnimatedObjectsState = (
+	animatedObjects: IAnimatedObject[],
+	digitalTwinGltfData: IDigitalTwinGltfData
+) => {
+	const initialAnimatedObjectsState: Record<string, AnimatedObjectState> = {}
+	animatedObjects.forEach(obj => {
+		const objName = obj.node.name;
+		let lastMeasurement = null;
+		if (obj.topicIndex !== -1) {
+			lastMeasurement = findLastMeasurement(obj.topicIndex, digitalTwinGltfData);
+		}
+		if (lastMeasurement) {
+			const fieldName = obj.node.userData.fieldName;
+			const payloadObject = lastMeasurement.payload as any;
+			const payloadKeys = Object.keys(lastMeasurement.payload);
+			if (payloadKeys.indexOf(fieldName) !== -1) {
+				const value = payloadObject[fieldName];
+				if (typeof value === 'number') {
+					initialAnimatedObjectsState[objName] = { value, highlight: false };
+				}
+			} else {
+				initialAnimatedObjectsState[objName] = { value: null, highlight: false };
+			}
+
+		} else {
+			if (obj.topicIndex !== -1 && obj.node.userData.valueMin) {
+				initialAnimatedObjectsState[objName] = { value: obj.node.userData.valueMin, highlight: false };
+			} else initialAnimatedObjectsState[objName] = { value: null, highlight: false };
+		}
+	})
+	return initialAnimatedObjectsState;
+}
+
+export const generateInitialFemSimulationObjectState = (femSimulationObject: IFemSimulationObject, digitalTwinGltfData: IDigitalTwinGltfData) => {
+	const highlight = false;
+	let resultFieldModalValues = femSimulationObject.defaultModalValues;
+	const lastMeasurement = findLastMeasurement(femSimulationObject.topicIndex, digitalTwinGltfData);
+	if (lastMeasurement) {
+		const resultFieldNames = Object.keys(femSimulationObject.resultFieldPaths);
+		const payloadObject = lastMeasurement.payload as any;
+		resultFieldNames.forEach((resultFieldName, index) => {
+			resultFieldModalValues[resultFieldName] = payloadObject.femSimulationModalValues[index];
+		});
+
+	}
+	const initialFemSimulationObjectState = {highlight, resultFieldModalValues}
+	return initialFemSimulationObjectState;
 }
 
 var camera: Camera;
 var container: HTMLCanvasElement | null;
-const sensorObjects: SensorObject[] = [];
-const assetObjects: AssetObject[] = [];
-const genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[] = [];
-const topicsId: number[] = []; //Must match with mqttTopics vector
-const dashboardsId: number[] = []; //Must match with DasboardsUrl vector
-var dashboardsUrl: string[] = [];
-const objNameToTopicIdMap: Record<string, number> = {};
-const objNameToDashboardIdMap: Record<string, number> = {};
+var selectedObjTypeRef: HTMLDivElement | null;
+var selectedObjNameRef: HTMLDivElement | null;
+var selectedObjTopicIdRef: HTMLDivElement | null;
 
-var setIsCursorInsideObject: (isCursorInsideObjec: boolean) => void;
-var setSelectedObjectInfo: (selectedObjectInfo: SelectedObjectInfo) => void;
+const topicsId: number[] = []; //Must match with mqttTopics vector
+var dashboardUrl: string = "";
+const objNameToTopicIdMap: Record<string, number> = {};
 var changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void;
-var updateSensorsState: (objName: string, field: string, newValue: string | boolean) => void;
-var updateAssestsState: (objName: string, field: string, newValue: string | boolean) => void;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
 const meshList: THREE.Mesh[] = [];
@@ -60,127 +177,217 @@ var mouse = {
 	type: ""
 };
 
-export const setMeshList = (scene: THREE.Scene) => {
-	scene.traverse((obj: any) => {
+
+export const setMeshList = (nodes: any) => {
+	for (const prop in nodes) {
+		const obj = nodes[prop];
 		if (obj.type === "Mesh") {
 			meshList.push(obj);
 		}
-	})
+	};
 }
 
-function getSceneBox(scene: THREE.Scene) {
+
+const getSceneBox = (
+	sensorObjects: ISensorObject[],
+	assetObjects: IAssetObject[],
+	animatedObjects: IAnimatedObject[],
+	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[],
+	femSimulationObject: IFemSimulationObject | null
+) => {
 	let first = true;
 	var box: any;
-	scene.traverse(obj => {
-		if (obj.type === "Mesh") {
-			if (first) {
-				box = new THREE.Box3().setFromObject(obj);
-				first = false;
-			} else {
-				(box as THREE.Box3).expandByObject(obj)
-			}
+
+	sensorObjects.forEach((obj: ISensorObject) => {
+		if (first) {
+			box = new THREE.Box3().setFromObject(obj.node);
+			first = false;
+		} else {
+			(box as THREE.Box3).expandByObject(obj.node)
 		}
-	});
+	})
+
+	assetObjects.forEach((obj: IAssetObject) => {
+		if (first) {
+			box = new THREE.Box3().setFromObject(obj.node);
+			first = false;
+		} else {
+			(box as THREE.Box3).expandByObject(obj.node)
+		}
+	})
+
+	animatedObjects.forEach((obj: IAnimatedObject) => {
+		if (first) {
+			box = new THREE.Box3().setFromObject(obj.node);
+			first = false;
+		} else {
+			(box as THREE.Box3).expandByObject(obj.node)
+		}
+	})
+
+	genericObjects.forEach((obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>) => {
+		if (first) {
+			box = new THREE.Box3().setFromObject(obj);
+			first = false;
+		} else {
+			(box as THREE.Box3).expandByObject(obj)
+		}
+	})
+
+	if (femSimulationObject) {
+		if (first) {
+			box = new THREE.Box3().setFromObject(femSimulationObject.node);
+			first = false;
+		} else {
+			(box as THREE.Box3).expandByObject(femSimulationObject.node)
+		}
+	}
+
 	return box;
 }
 
-export const centerScene = (scene: THREE.Scene) => {
-	var box = getSceneBox(scene);
+
+export const giveSceneCenter = (
+	sensorObjects: ISensorObject[],
+	assetObjects: IAssetObject[],
+	animatedObjects: IAnimatedObject[],
+	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[],
+	femSimulationObject: IFemSimulationObject | null
+) => {
+	var box = getSceneBox(sensorObjects, assetObjects, animatedObjects, genericObjects, femSimulationObject);
 	const center_x = (box.max.x + box.min.x) / 2;
 	const center_y = (box.max.y + box.min.y) / 2;
-	scene.traverse(obj => {
-		//though only meshes are taken as input, here everything is shifted as lights shall shift too
-		//hierarchical structure does move end leaves multiple times, so selection of meshes only moved as workaround
-		if (obj.type === "Mesh") {
-			obj.position.set(obj.position.x - center_x, obj.position.y - center_y, obj.position.z);
-			const objBox = new THREE.Box3().setFromObject(obj);
-			objBox.min.sub(obj.position);
-			objBox.max.sub(obj.position);
-		}
-	});
-	setMeshList(scene);
+	return [center_x, center_y];
 }
 
 export const setParameters = (
 	l_camera: Camera,
 	l_container: HTMLCanvasElement | null,
-	l_setIsCursorInsideObject: (isCursorInsideObject: boolean) => void,
-	l_setSelectedObjectInfo: (selectedObjectInfo: SelectedObjectInfo) => void,
+	l_selectedObjTypeRef: HTMLDivElement | null,
+	l_selectedObjNameRef: HTMLDivElement | null,
+	l_selectedObjTopicIdRef: HTMLDivElement | null,
 	l_changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void,
-	l_updateSensorsState: (objName: string, field: string, newValue: string | boolean) => void,
-	l_updateAssestsState: (objName: string, field: string, newValue: string | boolean) => void,
-	l_dashboardsUrl: string[],
+	l_dashboardUrl: string,
 
 ) => {
 	camera = l_camera;
 	container = l_container;
-	setIsCursorInsideObject = l_setIsCursorInsideObject;
-	setSelectedObjectInfo = l_setSelectedObjectInfo;
-	changeObjectHighlight = l_changeObjectHighlight
-	updateSensorsState = l_updateSensorsState;
-	updateAssestsState = l_updateAssestsState;
-	dashboardsUrl = l_dashboardsUrl;
+	selectedObjTypeRef = l_selectedObjTypeRef;
+	selectedObjNameRef = l_selectedObjNameRef;
+	selectedObjTopicIdRef = l_selectedObjTopicIdRef;
+	changeObjectHighlight = l_changeObjectHighlight;
+	dashboardUrl = l_dashboardUrl;
 }
 
-export const sortObjects: (scene: any) => {
-	sensorObjects: SensorObject[],
-	assetObjects: AssetObject[],
+const noEmitColor = new THREE.Color(0, 0, 0);
+export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStandardMaterial>) => {
+	let objMaterial = null;
+	for (const materialName in materials) {
+		if (materials[materialName].uuid === obj.material.uuid) {
+			objMaterial = materials[materialName].clone();
+			objMaterial.transparent = true;
+			objMaterial.opacity = 1;
+			break;
+		}
+	}
+	if (!objMaterial) {
+		if (obj.userData.type === "sensor") {
+			const materialColor = new THREE.Color("#23272F");
+			objMaterial = new THREE.MeshLambertMaterial({ color: materialColor, emissive: noEmitColor, transparent: true, opacity: 1 });
+		} else if (obj.userData.type === "asset") {
+			const materialColor = new THREE.Color("#828282");
+			objMaterial = new THREE.MeshLambertMaterial({ color: materialColor, emissive: noEmitColor, transparent: true, opacity: 1 });
+		} else {
+			const materialColor = new THREE.Color("#7a5270");
+			objMaterial = new THREE.MeshLambertMaterial({ color: materialColor, emissive: noEmitColor, transparent: true, opacity: 1 });
+		}
+	}
+	return objMaterial;
+}
+
+export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) => {
+	sensorObjects: ISensorObject[],
+	assetObjects: IAssetObject[],
+	animatedObjects: IAnimatedObject[],
 	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[]
-} = function (scene: any) {
-	scene.traverse((obj: any) => {
+	topicsId: number[], //Must match with mqttTopics vector
+} = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
+	setMeshList(nodes);
+	const sensorObjects: ISensorObject[] = [];
+	const assetObjects: IAssetObject[] = [];
+	const animatedObjects: IAnimatedObject[] = [];
+	const genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[] = [];
+	for (const prop in nodes) {
+		const obj = nodes[prop];
 		if (obj.type === "Mesh") {
-			const topicId = obj.userData.topicId;
-			objNameToTopicIdMap[obj.name] = topicId;
-			if (topicId && topicsId.findIndex(id => id === topicId) === -1) {
-				topicsId.push(topicId)
-			}
-			const dashboardId = obj.userData.dashboardId;
-			objNameToDashboardIdMap[obj.name] = dashboardId;
-			if (dashboardsId && dashboardsId.findIndex(id => id === dashboardId) === -1) {
-				dashboardsId.push(dashboardId)
+			obj.material = findMaterial(obj, materials)
+			if (obj.userData.topicId) {
+				const topicId = obj.userData.topicId;
+				objNameToTopicIdMap[obj.name] = topicId;
+				if (topicId && topicsId.findIndex(id => id === topicId) === -1) {
+					topicsId.push(topicId)
+				}
 			}
 			switch (obj.userData.type) {
 				case "sensor":
 					{
-						const sensorObject: SensorObject = {
+						const sensorObject: ISensorObject = {
 							node: obj,
-							topicIndex: -1,
-							dasboardIndex: -1,
+							topicIndex: -1
 						}
 						sensorObjects.push(sensorObject);
 						break;
 					}
 				case "asset":
 					{
-						const assestObject: AssetObject = {
+						const assestObject: IAssetObject = {
 							node: obj,
 							topicIndex: -1,
-							dasboardIndex: -1,
 						}
 						assetObjects.push(assestObject);
+						break;
+					}
+				case "animated":
+					{
+						const animatedObject: IAnimatedObject = {
+							node: obj,
+							topicIndex: -1,
+						}
+						animatedObjects.push(animatedObject);
 						break;
 					}
 				default:
 					genericObjects.push(obj);
 			}
 		}
+	}
+
+	sensorObjects.forEach((obj: ISensorObject) => {
+		if (obj.node.userData.topicId) {
+			const topicId = obj.node.userData.topicId;
+			obj.topicIndex = topicsId.findIndex(id => id === topicId);
+		}
 	})
 
-	sensorObjects.forEach((obj: SensorObject) => {
-		const topicId = obj.node.userData.topicId;
-		obj.topicIndex = topicsId.findIndex(id => id === topicId);
-		const dashboardId = obj.node.userData.dashboardId;
-		obj.dasboardIndex = dashboardsId.findIndex(id => id === dashboardId);
+	assetObjects.forEach((obj: IAssetObject) => {
+		if (obj.node.userData.topicId) {
+			const topicId = obj.node.userData.topicId;
+			obj.topicIndex = topicsId.findIndex(id => id === topicId);
+		}
 	})
 
-	assetObjects.forEach((obj: AssetObject) => {
-		const topicId = obj.node.userData.topicId;
-		obj.topicIndex = topicsId.findIndex(id => id === topicId);
-		const dashboardId = obj.node.userData.dashboardId;
-		obj.dasboardIndex = dashboardsId.findIndex(id => id === dashboardId);
+	animatedObjects.forEach((obj: IAnimatedObject) => {
+		if (obj.node.userData.topicId) {
+			const topicId = obj.node.userData.topicId;
+			obj.topicIndex = topicsId.findIndex(id => id === topicId);
+		}
+		if (obj.node.userData.clipName) {
+			const objAnimation = animations.filter(clip => clip.name === obj.node.userData.clipName)[0]
+			obj.node.animations = [objAnimation];
+		}
 	})
 
-	return { sensorObjects, assetObjects, genericObjects }
+	return { sensorObjects, assetObjects, animatedObjects, genericObjects, topicsId }
 }
 
 function sendCustomEvent(eventName: string, data: any) {
@@ -249,44 +456,18 @@ export const onTouch = (event: TouchEvent) => {
 	}
 }
 
-export const updateObjectState = (type: string, objName: string, field: string, newValue: string | boolean) => {
-	switch (type) {
-		case "sensor":
-			updateSensorsState(objName, field, newValue);
-			break;
-		case "asset":
-			updateAssestsState(objName, field, newValue);
-			break;
-		default:
-		// code block
-	}
-}
-
 export const onMouseDown = (event: MouseEvent) => {
 	processMouseEvent("mesh_mouse_down", event)
 }
 
 export const onMouseClick = (event: any) => {
 	processMouseEvent("mesh_mouse_down", event);
-	// if (event.ctrlKey) {
-	if (event.altKey) {
-		if (mouse.type !== "" && mouse.objName !== "") {
-			let dashboardUrlIndex = -1;
-			if (mouse.type === "sensor") {
-				const sensorObj = sensorObjects.filter(obj => obj.node.name === mouse.objName)[0];
-				if(sensorObj) dashboardUrlIndex = sensorObj.dasboardIndex;
-			} else if (mouse.type === "asset") {
-				const assetObj = assetObjects.filter(obj => obj.node.name === mouse.objName)[0];
-				if(assetObj) dashboardUrlIndex = assetObj.dasboardIndex;			
-			}
-			if (dashboardUrlIndex !== -1) {
-				const url = dashboardsUrl[dashboardUrlIndex];
-				window.open(url, "_blank");
-			}
-		}
+	if (mouse.type !== "" && mouse.objName !== "") {
+		if (dashboardUrl.slice(0, 7) === "Warning") {
+			toast.warning(dashboardUrl);
+		} else window.open(dashboardUrl, '_blank');
 	}
 }
-
 
 
 export const onMouseMove = (event: MouseEvent) => {
@@ -294,46 +475,143 @@ export const onMouseMove = (event: MouseEvent) => {
 }
 
 export const onMeshMouseEnter = (e: any) => {
-	setIsCursorInsideObject(true);
+	if (container) container.style.cursor = "pointer";
 	const objName = e.detail.name;
 	const type = e.detail.type;
 	changeObjectHighlight(type, objName, true);
-	const topicId = objNameToTopicIdMap[objName].toString();
-	const dashboardId = objNameToDashboardIdMap[objName].toString();
-	setSelectedObjectInfo({type: toFirstLetterUpperCase(type), name: objName, topicId, dashboardId})
+	let topicId = "-";
+	if (objNameToTopicIdMap[objName]) {
+		topicId = objNameToTopicIdMap[objName].toString();
+	}
+	if (selectedObjTypeRef) selectedObjTypeRef.innerHTML = `Object type: ${type}`;
+	if (selectedObjNameRef) selectedObjNameRef.innerHTML = `Object name: ${objName}`;
+	if (selectedObjTopicIdRef) selectedObjTopicIdRef.innerHTML = `TopicId: ${topicId}`;
 }
 
 export const onMeshMouseExit = (e: any) => {
-	setIsCursorInsideObject(false);
+	if (container) container.style.cursor = "default";
 	const objName = e.detail.name;
 	const type = e.detail.type;
 	changeObjectHighlight(type, objName, false);
-	setSelectedObjectInfo({type: "-", name: "-", topicId: "-", dashboardId: "-"})
+	if (selectedObjTypeRef) selectedObjTypeRef.innerHTML = "Object type: -";
+	if (selectedObjNameRef) selectedObjNameRef.innerHTML = "Object name: -";
+	if (selectedObjTopicIdRef) selectedObjTopicIdRef.innerHTML = "TopicId: -";
 }
 
-// function swap_light_state(name){
-// 	if(typeof rooms_light_state[name] == "undefined"){
-// 		rooms_light_state[name] = true;
-// 	}
-// 	else{
-// 		rooms_light_state[name] = ! rooms_light_state[name];
-// 	}
-// 	return rooms_light_state[name];
-// }
-
-// function onMeshMouseDown(e){
-// 	console.log(`Mesh Mouse Down on ${e.detail.name}`);
-// 	const switch_to_state = swap_light_state(e.detail.name);
-// 	three.setBulbState(interactive_meshes[e.detail.name],"switch",switch_to_state);
-// }
-
-// function onMeshTouchStart(e){
-// 	console.log(`Mesh Touch Start on ${e.detail.name}`)
-// 	const switch_to_state = swap_light_state(e.detail.name);
-// 	three.setBulbState(interactive_meshes[e.detail.name],"switch",switch_to_state);
-// }
-
-const toFirstLetterUpperCase = (text: string) => {
+export const toFirstLetterUpperCase = (text: string) => {
 	const textModified = text.charAt(0).toLocaleUpperCase() + text.slice(1);
 	return textModified;
 }
+
+export const createUrl = (gltfData: string) => {
+	const binaryDataGltf = [];
+	binaryDataGltf.push(gltfData);
+	const gltfUrl = URL.createObjectURL(new Blob(binaryDataGltf));
+	return gltfUrl;
+}
+
+export const defaultVisibility = (
+	obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>
+) => {
+	let defVisibility = true;
+	if (obj.userData.visible !== undefined && obj.userData.visible === "false") defVisibility = false;
+	return defVisibility;
+}
+
+export const loadJsonModel = (
+	digitalTwinGltfData: IDigitalTwinGltfData,
+	setFemSimulationObjects: (femSimulationObject: IFemSimulationObject) => void,
+	setInitialFemSimulationObjectState: (initialFemSimulationObjectState: FemSimulationObjectState) => void
+) => {
+	const loader = new THREE.BufferGeometryLoader();
+	const colorMap = 'rainbow';
+	const numberOfColors = 512;
+	loader.load(digitalTwinGltfData.femSimulationUrl as string, function (geometry) {
+		let legendLayout = 'vertical';
+		geometry.computeVertexNormals();
+		geometry.normalizeNormals();
+
+		let material = new THREE.MeshLambertMaterial({
+			side: THREE.DoubleSide,
+			color: 0xF5F5F5,
+			vertexColors: true
+		});
+
+		let lutColors = [];
+		for (let i = 0, n = geometry.attributes.position.count; i < n; ++i) {
+			lutColors.push(1, 1, 1);
+		}
+		const noneResultColor = new Float32Array(lutColors);
+
+		const mesh = new THREE.Mesh(geometry, material);
+
+		const resultsRenderInfo: Record<string, IResultRenderInfo> = {};
+		const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+		const numberOfModes = digitalTwinGltfData.femSimulationData.metadata.numberOfModes;
+		const resultFieldPaths: Record<string, string> = {};
+		const defaultModalValues: Record<string, number[]> = {};
+		const topicIndex = digitalTwinGltfData.mqttTopics.length - 1;
+
+		for (let ires = 0; ires < resultFields.length; ires++) {
+			const legendCamera = new THREE.PerspectiveCamera(20, 0.5, 1, 10000);
+			legendCamera.position.set(11, 9.5, 40);
+			const legendScene = new THREE.Scene();
+			legendScene.background = new THREE.Color("#141619");
+
+			const resultLut = new Lut(colorMap, numberOfColors);
+			resultLut.setMax(resultFields[ires].maxValue);
+			resultLut.setMin(resultFields[ires].minValue);
+
+			if (legendLayout) {
+				let legend: THREE.Mesh;
+
+				if (legendLayout === 'horizontal') {
+					legend = resultLut.setLegendOn({ 'layout': 'horizontal', 'position': { 'x': 21, 'y': 6, 'z': 5 } });
+				}
+				else {
+					legend = resultLut.setLegendOn();
+				}
+				legendScene.add(legend);
+				const title = resultFields[ires].resultName;
+				const um = resultFields[ires].units;
+				var labels = resultLut.setLegendLabels({ title, um, ticks: 5 }) as ILegendLabels;
+				if (labels) {
+					legendScene.add(labels.title);
+					for (var ilabel = 0; ilabel < Object.keys(labels['ticks']).length; ilabel++) {
+						legendScene.add(labels['ticks'][ilabel]);
+						legendScene.add(labels['lines'][ilabel]);
+					}
+				}
+			}
+
+			const legendRenderer = new THREE.WebGLRenderer({ antialias: true });
+			legendRenderer.autoClear = false;
+			legendRenderer.setPixelRatio(window.devicePixelRatio);
+			legendRenderer.setSize(180, 360);
+			legendRenderer.render(legendScene, legendCamera);
+
+			const resultRenderInfo = { resultLut, legendCamera, legendScene, legendRenderer };
+			resultsRenderInfo[resultFields[ires].resultName] = resultRenderInfo;
+			resultFieldPaths[resultFields[ires].resultName] = resultFields[ires].resultPath;
+			defaultModalValues[resultFields[ires].resultName] = resultFields[ires].defaultModalValues;
+		}
+
+		const femSimulationObject: IFemSimulationObject = {
+			node: mesh,
+			topicIndex: topicIndex,
+			resultsRenderInfo,
+			resultFieldPaths,
+			defaultModalValues,
+			numberOfModes,
+			noneResultColor,
+		}
+		setFemSimulationObjects(femSimulationObject);
+		setInitialFemSimulationObjectState(generateInitialFemSimulationObjectState(femSimulationObject, digitalTwinGltfData))
+
+		URL.revokeObjectURL(digitalTwinGltfData.femSimulationUrl as string);
+	});
+}
+
+
+
+
