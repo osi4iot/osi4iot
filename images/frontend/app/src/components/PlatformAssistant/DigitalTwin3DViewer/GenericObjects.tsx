@@ -1,12 +1,14 @@
 import * as THREE from 'three'
 import React, { FC, useRef } from 'react'
 import { useFrame } from '@react-three/fiber';
-import { defaultVisibility } from './ViewerUtils';
+import { defaultVisibility, GenericObjectState } from './ViewerUtils';
+import { IGenericObject } from './Model';
 
 interface GenericObjectProps {
     obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>;
     blinking: boolean;
     opacity: number;
+    visible: boolean;
 }
 
 const highlightColor = new THREE.Color(0x00ff00);
@@ -17,9 +19,11 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     obj,
     blinking,
     opacity = 1,
+    visible = true,
 }) => {
     const meshRef = useRef<THREE.Mesh>();
     const material = Object.assign(obj.material);
+    material.transparent = opacity === 1 ? false : true;
     let lastIntervalTime = 0;
 
     useFrame(({ clock }) => {
@@ -42,6 +46,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             material.emissive = noEmitColor;
             material.opacity = opacity;
         }
+        if (meshRef.current) meshRef.current.visible = visible;
     })
 
     return (
@@ -60,15 +65,17 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 
 const areEqual = (prevProps: GenericObjectProps, nextProps: GenericObjectProps) => {
     return (prevProps.blinking === nextProps.blinking &&
-        prevProps.opacity === nextProps.opacity);
+        prevProps.opacity === nextProps.opacity &&
+        prevProps.visible === nextProps.visible);
 }
 
 const GenericObject = React.memo(GenericObjectBase, areEqual);
 
 interface GenericObjectsProps {
-    genericObjects: THREE.Mesh[];
+    genericObjects: IGenericObject[];
     genericObjectsOpacity: number;
     highlightAllGenericObjects: boolean;
+    genericObjectsState: Record<string, GenericObjectState>;
 }
 
 
@@ -76,6 +83,7 @@ const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjects,
     genericObjectsOpacity = 1,
     highlightAllGenericObjects,
+    genericObjectsState,
 }) => {
 
     return (
@@ -83,10 +91,11 @@ const GenericObjects: FC<GenericObjectsProps> = ({
             {
                 genericObjects.map((obj, index) => {
                     return <GenericObject
-                        key={obj.uuid}
-                        obj={obj}
+                        key={obj.node.uuid}
+                        obj={obj.node}
                         blinking={highlightAllGenericObjects}
                         opacity={genericObjectsOpacity}
+                        visible={genericObjectsState[obj.collectionName].visible}
                     />
                 })
             }

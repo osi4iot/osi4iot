@@ -1,7 +1,7 @@
 import { GLTFLoader } from "three-stdlib";
 import * as THREE from 'three'
 import { Camera } from '@react-three/fiber';
-import { ISensorObject, IAssetObject, IAnimatedObject, IFemSimulationObject, IResultRenderInfo } from './Model';
+import { ISensorObject, IAssetObject, IAnimatedObject, IFemSimulationObject, IResultRenderInfo, IGenericObject } from './Model';
 import { toast } from "react-toastify";
 import { IMeasurement } from "../TableColumns/measurementsColumns";
 import Lut, { ILegendLabels } from "./Lut";
@@ -23,6 +23,10 @@ export interface AnimatedObjectState {
 	highlight: boolean;
 }
 
+export interface GenericObjectState {
+	visible: boolean;
+}
+
 export interface FemSimulationObjectState {
 	resultFieldModalValues: Record<string,number[]>;
 	highlight: boolean;
@@ -42,7 +46,7 @@ export interface IDigitalTwinGltfData {
 const findLastMeasurement = (topicIndex: number, digitalTwinGltfData: IDigitalTwinGltfData): (IMeasurement | null) => {
 	let lastMeasurement = null;
 	const mqttTopic = digitalTwinGltfData.mqttTopics[topicIndex];
-	if (mqttTopic.slice(0, 7) !== "Warning") {
+	if (mqttTopic && mqttTopic.slice(0, 7) !== "Warning") {
 		const sqlTopicArray = mqttTopic.split("/");
 		const sqlTopic = `${sqlTopicArray[2]}/${sqlTopicArray[3]}`;
 		const lastMeasurementIndex = digitalTwinGltfData.lastMeasurements.findIndex(item => item?.topic === sqlTopic);
@@ -95,7 +99,10 @@ export const generateInitialAssetsState = (assetObjects: IAssetObject[], digital
 		if (lastMeasurement) {
 			const assetPartIndex = obj.node.userData.assetPartIndex;
 			const payloadObject = lastMeasurement.payload as any;
-			const stateNumber = parseInt(payloadObject.assetPartsState[assetPartIndex], 10);
+			let stateNumber = 0;
+			if (payloadObject.assetPartsState && payloadObject.assetPartsState[assetPartIndex]) {
+				stateNumber = parseInt(payloadObject.assetPartsState[assetPartIndex], 10);
+			}
 			if (stateNumber === 1) {
 				initialAssetsState[objName] = { stateString: "alerting", highlight: false };
 			} else if (stateNumber === 0) {
@@ -164,13 +171,12 @@ var selectedObjTypeRef: HTMLDivElement | null;
 var selectedObjNameRef: HTMLDivElement | null;
 var selectedObjTopicIdRef: HTMLDivElement | null;
 
-const topicsId: number[] = []; //Must match with mqttTopics vector
 var dashboardUrl: string = "";
 const objNameToTopicIdMap: Record<string, number> = {};
 var changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
-const meshList: THREE.Mesh[] = [];
+let meshList: THREE.Mesh[];
 var mouse = {
 	isInsideObject: false,
 	objName: "",
@@ -179,9 +185,13 @@ var mouse = {
 
 
 export const setMeshList = (nodes: any) => {
+	meshList = [];
 	for (const prop in nodes) {
 		const obj = nodes[prop];
 		if (obj.type === "Mesh") {
+			const objBox = new THREE.Box3().setFromObject(obj);
+			objBox.min.sub(obj.position);
+			objBox.max.sub(obj.position);
 			meshList.push(obj);
 		}
 	};
@@ -309,14 +319,16 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
 	animatedObjects: IAnimatedObject[],
-	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[]
-	topicsId: number[], //Must match with mqttTopics vector
+	genericObjects: IGenericObject[],
+	genericObjectsCollectionNames: string[],
 } = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
 	setMeshList(nodes);
 	const sensorObjects: ISensorObject[] = [];
 	const assetObjects: IAssetObject[] = [];
 	const animatedObjects: IAnimatedObject[] = [];
-	const genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[] = [];
+	const genericObjects: IGenericObject[] = [];
+	const topicsId: number[] = []; //Must match with mqttTopics vector
+	const genericObjectsCollectionNames: string[] = [];
 	for (const prop in nodes) {
 		const obj = nodes[prop];
 		if (obj.type === "Mesh") {
@@ -357,7 +369,17 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 						break;
 					}
 				default:
-					genericObjects.push(obj);
+					{
+						let collectionName = "General";
+						if (obj.userData.collectionName) {
+							collectionName = obj.userData.collectionName;
+						}
+						const genericObject: IGenericObject = {
+							node: obj,
+							collectionName,
+						}						
+						genericObjects.push(genericObject);
+					}
 			}
 		}
 	}
@@ -387,7 +409,14 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 		}
 	})
 
-	return { sensorObjects, assetObjects, animatedObjects, genericObjects, topicsId }
+	genericObjects.forEach((obj: IGenericObject) => {
+		const collectionName = obj.collectionName
+		if (genericObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			genericObjectsCollectionNames.push(collectionName);
+		}
+	})
+
+	return { sensorObjects, assetObjects, animatedObjects, genericObjects, genericObjectsCollectionNames }
 }
 
 function sendCustomEvent(eventName: string, data: any) {
@@ -525,7 +554,7 @@ export const loadJsonModel = (
 ) => {
 	const loader = new THREE.BufferGeometryLoader();
 	const colorMap = 'rainbow';
-	const numberOfColors = 512;
+	const numberOfColors = 256; //512;
 	loader.load(digitalTwinGltfData.femSimulationUrl as string, function (geometry) {
 		let legendLayout = 'vertical';
 		geometry.computeVertexNormals();
@@ -608,7 +637,6 @@ export const loadJsonModel = (
 		setFemSimulationObjects(femSimulationObject);
 		setInitialFemSimulationObjectState(generateInitialFemSimulationObjectState(femSimulationObject, digitalTwinGltfData))
 
-		URL.revokeObjectURL(digitalTwinGltfData.femSimulationUrl as string);
 	});
 }
 

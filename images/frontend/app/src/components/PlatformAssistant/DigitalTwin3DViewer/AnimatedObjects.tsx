@@ -22,6 +22,7 @@ const AnimatedObjectBase: FC<AnimatedObjectProps> = ({
 }) => {
     const meshRef = useRef<THREE.Mesh>();
     const material = Object.assign(obj.material);
+    material.transparent = opacity === 1 ? false : true;
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null)
     const [objAnimationClip, setObjectAnimationClip] = useState<THREE.AnimationClip | null>(null);

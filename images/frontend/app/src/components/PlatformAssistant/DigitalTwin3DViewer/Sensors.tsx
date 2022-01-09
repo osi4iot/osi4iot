@@ -29,6 +29,7 @@ const SensorBase: FC<SensorProps> = ({
     const [lastTimestamp, setLastTimestamp] = useState<Date | null>(null);
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
     const material = Object.assign(obj.material);
+    material.transparent = opacity === 1 ? false : true;
     const timeout = obj.userData.timeout as number || 60;
     let lastIntervalTime = 0;
 

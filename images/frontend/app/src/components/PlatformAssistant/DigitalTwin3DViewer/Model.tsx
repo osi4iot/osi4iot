@@ -10,6 +10,7 @@ import {
 	AnimatedObjectState,
 	AssetState,
 	FemSimulationObjectState,
+	GenericObjectState,
 	onMeshMouseEnter,
 	onMeshMouseExit,
 	onMouseClick,
@@ -39,6 +40,11 @@ export interface IAnimatedObject {
 	topicIndex: number;
 }
 
+export interface IGenericObject {
+	node: THREE.Mesh;
+	collectionName: string;
+}
+
 export interface IResultRenderInfo {
 	resultLut: Lut;
 	legendCamera: THREE.PerspectiveCamera;
@@ -65,7 +71,8 @@ interface ModelProps {
 	initialAnimatedObjectsState: Record<string, AnimatedObjectState>;
 	femSimulationObject: IFemSimulationObject;
 	initialFemSimulationObjectState: FemSimulationObjectState;
-	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[];
+	genericObjects: IGenericObject[];
+	genericObjectsState: Record<string, GenericObjectState>;
 	mqttTopics: string[];
 	dashboardUrl: string;
 	sensorsOpacity: number;
@@ -98,6 +105,7 @@ const Model: FC<ModelProps> = (
 		femSimulationObject,
 		initialFemSimulationObjectState,
 		genericObjects,
+		genericObjectsState,
 		mqttTopics,
 		dashboardUrl,
 		sensorsOpacity,
@@ -325,7 +333,7 @@ const Model: FC<ModelProps> = (
 				/>
 			}
 			{
-				femSimulationObject &&
+				(femSimulationObject && femSimulationObjectState) &&
 				<FemSimulationObject
 					femSimulationObject={femSimulationObject}
 					femSimulationObjectState={femSimulationObjectState}
@@ -336,11 +344,12 @@ const Model: FC<ModelProps> = (
 				/>
 			}
 			{
-				genericObjects.length &&
+				(genericObjects.length && genericObjectsState) &&
 				<GenericObjects
 					genericObjects={genericObjects}
 					genericObjectsOpacity={genericObjectsOpacity}
 					highlightAllGenericObjects={highlightAllGenericObjects}
+					genericObjectsState={genericObjectsState}
 				/>
 			}
 		</group>

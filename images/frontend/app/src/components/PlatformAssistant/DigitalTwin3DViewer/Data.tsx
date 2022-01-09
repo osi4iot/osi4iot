@@ -15,7 +15,10 @@ export const pressure = `
                 "resultPath": "pressure",
                 "units": "Pa",
                 "maxValue": 2000,
-                "minValue": 0
+                "minValue": 0,
+                "defaultModalValues": [
+                    1
+                ]
             }
         ]
     },

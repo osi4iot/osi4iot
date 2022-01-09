@@ -43,6 +43,7 @@ interface GeoDigitalTwinProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
 
 const setDigitalTwinCircleColor = (digitalTwinId: number, digitalTwinSelected: IDigitalTwin | null): string => {
@@ -72,7 +73,8 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     digitalTwinSelected,
     selectDigitalTwin,
     digitalTwinsState,
-    openDigitalTwin3DViewer
+    openDigitalTwin3DViewer,
+    setGlftDataLoading
 }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -89,6 +91,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     const clickHandler = () => {
         selectDigitalTwin(digitalTwinData);
         if (digitalTwinData.type === "Gltf 3D model") {
+            setGlftDataLoading(true);
             const config = axiosAuth(accessToken);
             const groupId = digitalTwinData.groupId;
             const deviceId = digitalTwinData.deviceId;
@@ -113,6 +116,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                         const warningMessage = "Some mqtt topics no longer exist"
 						toast.warning(warningMessage);
                     }
+                    setGlftDataLoading(false);
                     openDigitalTwin3DViewer(digitalTwinGltfData);
                 })
                 .catch((error) => {

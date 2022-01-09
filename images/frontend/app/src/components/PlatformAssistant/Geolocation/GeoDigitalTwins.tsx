@@ -14,6 +14,7 @@ interface GeoDigitalTwinsProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
 
 const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({
@@ -22,7 +23,8 @@ const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({
     digitalTwinSelected,
     selectDigitalTwin,
     digitalTwinsState,
-    openDigitalTwin3DViewer
+    openDigitalTwin3DViewer,
+    setGlftDataLoading
 }) => {
     return (
         <LayerGroup>
@@ -37,6 +39,7 @@ const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({
                         selectDigitalTwin={selectDigitalTwin}
                         digitalTwinsState={digitalTwinsState}
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+                        setGlftDataLoading={setGlftDataLoading}
                     />
                 )
             }

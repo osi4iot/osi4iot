@@ -77,6 +77,7 @@ interface GeolocationContainerProps {
     setNewOuterBounds: (outerBounds: number[][]) => void;
     resetBuildingSelection: () => void;
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
@@ -109,7 +110,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         outerBounds,
         setNewOuterBounds,
         resetBuildingSelection,
-        openDigitalTwin3DViewer
+        openDigitalTwin3DViewer,
+        setGlftDataLoading
     }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -232,6 +234,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     resetBuildingSelection={resetBuildingSelection}
                     digitalTwinsState={digitalTwinsState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+                    setGlftDataLoading={setGlftDataLoading}
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_ORG &&

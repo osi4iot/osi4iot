@@ -62,13 +62,14 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             const numberOfModes = femSimulationObject.numberOfModes;
             const resultFieldPath = femSimulationObject.resultFieldPaths[femSimulationResult];
             let resultpath = resultFieldPath;
-            const resultValues = femSimulationObject.node.geometry.attributes[resultpath];
-            for (var i = 0; i < resultValues.array.length; i++) {
+            for (var i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
                 let totalcolorValue = 0;
                 for (let imode = 1; imode <= numberOfModes; imode++) {
-                    if (numberOfModes !== 1) {
-                        resultpath = `${resultFieldPath}__${imode}`
+                    resultpath = `${resultFieldPath}__${imode}`
+                    if (numberOfModes === 1 && femSimulationObject.node.geometry.attributes[resultpath] === undefined) {
+                        resultpath = resultFieldPath;
                     }
+                    const resultValues = femSimulationObject.node.geometry.attributes[resultpath];
                     const modalValue = femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1]
                     totalcolorValue += resultValues.array[i] * modalValue;
                 }

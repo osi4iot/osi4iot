@@ -26,6 +26,7 @@ const AssetBase: FC<AssetProps> = ({
     const camera = useThree((state) => state.camera);
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>();
     const material = Object.assign(obj.material);
+    material.transparent = opacity === 1 ? false : true;
     let lastIntervalTime = 0;
 
     useFrame(({ clock }) => {

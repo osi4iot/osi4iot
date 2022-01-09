@@ -24,7 +24,21 @@ export const getTopicsIdFromDigitalTwin = (digitalTwin: CreateDigitalTwinDto | I
 	let gltfData: any = digitalTwin.gltfData;
 	if (typeof gltfData === "string") gltfData = JSON.parse(gltfData);
 	if (Object.keys(gltfData).length && gltfData.nodes?.length !== 0) {
-		gltfData.nodes.forEach((node: { extras: { topicId: any; dashboardId: any; }; }) => {
+		const meshNodes: { name?: string; mesh?: number; extras: { topicId: number; }; }[] = [];
+		gltfData.nodes.forEach((node: { name?: string; mesh?: number; extras: { topicId: number; }; }) => {
+			if (node.mesh && node.extras) meshNodes.push(node);
+		})
+		meshNodes.sort((node1, node2) => {
+			if (node1.name > node2.name) {
+				return 1;
+			}
+			if (node1.name < node2.name) {
+				return -1;
+			}
+			return 0;
+		})
+
+		meshNodes.forEach((node: { extras: { topicId: number; }; }) => {
 			const topicId = node.extras?.topicId;
 			if (topicId && topicsId.findIndex(id => id === topicId) === -1) {
 				topicsId.push(topicId)
@@ -47,7 +61,21 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 	let gltfData: any = digitalTwin.gltfData;
 	if (typeof gltfData === "string") gltfData = JSON.parse(gltfData);
 	if (Object.keys(gltfData).length && gltfData.nodes?.length !== 0) {
-		gltfData.nodes.forEach((node: { extras: { topicId: number; type: string; }; }) => {
+		const meshNodes: { name?: string; mesh?: number; extras: { topicId: number; }; }[] = [];
+		gltfData.nodes.forEach((node: { mesh: number; extras: { topicId: number; }; }) => {
+			if (node.mesh && node.extras) meshNodes.push(node);
+		})
+		meshNodes.sort((node1, node2) => {
+			if (node1.name > node2.name) {
+				return 1;
+			}
+			if (node1.name < node2.name) {
+				return -1;
+			}
+			return 0;
+		})
+
+		meshNodes.forEach((node: { extras: { topicId: number; }; }) => {
 			const topicId = node.extras?.topicId;
 			if (topicId && mqttTopicsData.findIndex(topicData => topicData.topicId === topicId) === -1) {
 				const mqttTopicData: IMqttTopicData = {

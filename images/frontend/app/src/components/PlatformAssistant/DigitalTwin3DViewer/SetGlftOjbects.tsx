@@ -1,12 +1,13 @@
 import { useGLTF } from '@react-three/drei';
 import { FC, useEffect } from 'react'
-import { IAnimatedObject, IAssetObject, ISensorObject } from './Model';
+import { IAnimatedObject, IAssetObject, IGenericObject, ISensorObject } from './Model';
 import {
     AnimatedObjectState,
     AssetState,
     generateInitialAnimatedObjectsState,
     generateInitialAssetsState,
     generateInitialSensorsState,
+    GenericObjectState,
     IDigitalTwinGltfData,
     SensorState,
     sortObjects
@@ -17,10 +18,11 @@ interface SetGltfObjectsProps {
     setSensorObjects: (sensorObjects: ISensorObject[]) => void;
     setAssetObjects: (assetObjects: IAssetObject[]) => void;
     setAnimatedObjects: (animatedObjects: IAnimatedObject[]) => void;
-    setGenericObjects: (genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[]) => void;
+    setGenericObjects: (genericObjects: IGenericObject[]) => void;
     setInitialSensorsState: (initialSensorsState: Record<string, SensorState> | null) => void;
     setInitialAssetsState: (initialAssetsState: Record<string, AssetState> | null) => void;
     setInitialAnimatedObjectsState: (initialAnimatedObjectsState: Record<string, AnimatedObjectState> | null) => void;
+    setInitialGenericObjectsState:  (initialGenericObjectsState: Record<string, GenericObjectState> | null) => void;
 }
 
 
@@ -32,7 +34,8 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     setGenericObjects,
     setInitialSensorsState,
     setInitialAssetsState,
-    setInitialAnimatedObjectsState
+    setInitialAnimatedObjectsState,
+    setInitialGenericObjectsState
 }) => {
     const { nodes, materials, animations } = useGLTF(digitalTwinGltfData.digitalTwinGltfUrl as string) as any;
 
@@ -41,8 +44,9 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             const {
                 sensorObjects,
                 assetObjects,
-                genericObjects,
                 animatedObjects,
+                genericObjects,
+                genericObjectsCollectionNames
             } = sortObjects(nodes, materials, animations);
             setSensorObjects(sensorObjects);
             setAssetObjects(assetObjects);
@@ -51,6 +55,11 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             setInitialSensorsState(generateInitialSensorsState(sensorObjects, digitalTwinGltfData));
             setInitialAssetsState(generateInitialAssetsState(assetObjects, digitalTwinGltfData));
             setInitialAnimatedObjectsState(generateInitialAnimatedObjectsState(animatedObjects, digitalTwinGltfData))
+            const initialGenericObjectsState: Record<string, GenericObjectState> = {}
+            for (const collectionName of genericObjectsCollectionNames) {
+                initialGenericObjectsState[collectionName] = { visible: true };
+            }
+            setInitialGenericObjectsState(initialGenericObjectsState);
         }
 
         return () => URL.revokeObjectURL(digitalTwinGltfData.digitalTwinGltfUrl as string);

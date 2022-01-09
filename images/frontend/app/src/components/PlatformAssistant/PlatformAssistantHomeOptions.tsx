@@ -32,7 +32,7 @@ import { IOrgOfGroupsManaged } from './TableColumns/orgsOfGroupsManagedColumns';
 import DigitalTwin3DViewer from './DigitalTwin3DViewer/DigitalTwin3DViewer';
 import { toast } from 'react-toastify';
 import { IDigitalTwinGltfData } from './DigitalTwin3DViewer/ViewerUtils';
-// import DigitalTwins from './DigitalTwins';
+import SceneLoader from '../Tools/SceneLoader';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -104,8 +104,6 @@ const ContentContainer = styled.div`
     }
 
 `;
-
-
 
 const findBounds = (buildings: IBuilding[]) => {
 	let outerBounds: number[][] = [[35.55010533588552, -10.56884765625], [44.134913443750726, 1.42822265625]];
@@ -182,6 +180,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
 	const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
 	const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
+	const [glftDataLoading, setGlftDataLoading] = useState(false);
 
 	const refreshBuildings = useCallback(() => {
 		setReloadBuildings(true);
@@ -471,7 +470,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			</PlatformAssistantHomeOptionsContainer>
 			<ContentContainer >
 				<>
-					{(buildingsLoading || floorsLoading || orgsOfGroupsManagedLoading || groupsManagedLoading || deviceLoading || digitalTwinLoading) ?
+					{(buildingsLoading || floorsLoading || orgsOfGroupsManagedLoading || groupsManagedLoading || deviceLoading || digitalTwinLoading || glftDataLoading) ?
 						<Loader />
 						:
 						<>
@@ -506,10 +505,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									setNewOuterBounds={setNewOuterBounds}
 									resetBuildingSelection={resetBuildingSelection}
 									openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+									setGlftDataLoading={(glftDataLoading) => setGlftDataLoading(glftDataLoading)}
 								/>
 							}
 							{(optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData) &&
-								<Suspense fallback={null}>
+								<Suspense fallback={<SceneLoader />}>
 									<DigitalTwin3DViewer
 										digitalTwinSelected={digitalTwinSelected}
 										digitalTwinGltfData={digitalTwinGltfData}

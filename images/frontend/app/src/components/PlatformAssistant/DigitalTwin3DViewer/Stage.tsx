@@ -1,15 +1,30 @@
-import React, { useState, useLayoutEffect } from 'react'
+import React, { useState, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
+import { useHelper } from '@react-three/drei';
+
+const dirX = new THREE.Vector3(1, 0, 0);
+const redColor = new THREE.Color("#FF0000");
+const dirY = new THREE.Vector3(0, 1, 0);
+const greenColor = new THREE.Color("#00FF00");
+const dirZ = new THREE.Vector3(0, 0, 1);
+const blueColor = new THREE.Color("#0000FF");
+const origin = new THREE.Vector3(0, 0, 0);
+
 
 type ControlsProto = { update(): void; target: THREE.Vector3 }
 
 type Props = JSX.IntrinsicElements['group'] & {
     shadows?: boolean
-    intensity?: number
-    ambientLigth?: boolean
-    spotLigth?: boolean
+    ambientLight?: boolean
+    ambientLightIntensity?: number
+    spotLight?: boolean
+    spotLightPower?: number
+    showSpotLightHelper?: boolean
     pointLight?: boolean
+    pointLightPower?: number
+    showPointLightHelper?: boolean
+    showAxes?: boolean
     ambience?: number
     controls?: React.MutableRefObject<ControlsProto>
     shadowBias?: number
@@ -20,10 +35,15 @@ export function Stage({
     children,
     controls,
     shadows = true,
-    ambientLigth = true,
-    spotLigth = true,
+    ambientLight = true,
+    ambientLightIntensity = 1.0,
+    spotLight = true,
+    spotLightPower = 100.0,
+    showSpotLightHelper = false,
     pointLight = true,
-    intensity = 1.0,
+    pointLightPower = 100.0,
+    showPointLightHelper = false,
+    showAxes = false,
     shadowBias = 0,
     ...props
 }: Props) {
@@ -35,6 +55,15 @@ export function Stage({
     const childrenGroup = React.useRef<THREE.Group>(null!)
     const [{ radius, width, height }, set] = useState({ radius: 0, width: 0, height: 0, deep: 0 })
     const [sceneCenter, setSceneCenter] = useState(new THREE.Vector3(0.0, 0.0, 0.0));
+    const spotLightRefBase = useRef();
+    const spotLightRefNull = useRef(undefined);
+    const spotLightRef = showSpotLightHelper ? spotLightRefBase : spotLightRefNull;
+    useHelper(spotLightRef, THREE.SpotLightHelper, "teal");
+    const pointLightRefBase = useRef();
+    const pointLightRefNull = useRef(undefined);
+    const pointLightRef = showPointLightHelper ? pointLightRefBase : pointLightRefNull;
+    useHelper(pointLightRef, THREE.PointLightHelper, 0.2, 'cyan');
+    const [axisLength, setAxisLength] = useState(1);
 
     useLayoutEffect(() => {
         const box3 = new THREE.Box3().setFromObject(childrenGroup.current);
@@ -46,7 +75,7 @@ export function Stage({
         box3.getCenter(center);
         box3.getBoundingSphere(sphere);
         set({ radius: sphere.radius, width, height, deep });
-        setSceneCenter(sphere.center)
+        setSceneCenter(sphere.center);
 
         const zoom_fact_x = 0.6 * Math.min(sceneWidth, sceneHeigth) / width;
         const zoom_fact_y = 0.6 * Math.min(sceneWidth, sceneHeigth) / height;
@@ -56,6 +85,11 @@ export function Stage({
         camera.updateProjectionMatrix();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sceneWidth, sceneHeigth])
+
+    useLayoutEffect(() => {
+        setAxisLength(radius / 3.0);
+    }, [radius])
+
 
 
     useLayoutEffect(() => {
@@ -78,22 +112,38 @@ export function Stage({
     return (
         <group {...props}>
             <group ref={childrenGroup}>{children}</group>
-            {ambientLigth && <ambientLight intensity={intensity / 3} />}
-            {spotLigth &&
-                <spotLight
-                    penumbra={1.0}
-                    position={[1.0 * radius, 2.0 * radius, 0.9 * radius]}
-                    intensity={intensity * 2}
-                    castShadow={shadows}
-                    shadow-bias={shadowBias}
-                />}
-            {pointLight &&
-                <pointLight
-                    position={[-2.0 * radius, -0.5 * radius, -1.8 * radius]}
-                    intensity={intensity * 1}
-                />
+            {ambientLight && <ambientLight intensity={ambientLightIntensity} />}
+            {spotLight &&
+                <>
+                    <spotLight
+                        ref={spotLightRefBase}
+                        penumbra={0.5}
+                        position={[sceneCenter.x + radius * 1.0, sceneCenter.y + radius * 2.0, sceneCenter.z + radius * 1.0]}
+                        power={spotLightPower}
+                        castShadow={shadows}
+                        shadow-bias={shadowBias}
+                        shadow-mapSize-height={2048}
+                        shadow-mapSize-width={2048}
+                    />
+                </>
             }
 
+            {pointLight &&
+                <pointLight
+                    ref={pointLightRefBase}
+                    // position={[-2.0 * radius, -0.5 * radius, -1.8 * radius]}
+                    position={[sceneCenter.x - radius * 1.0, sceneCenter.y - radius * 2.0, sceneCenter.z - radius * 1.0]}
+                    power={pointLightPower}
+                />
+            }
+            {
+                showAxes &&
+                <>
+                    <primitive object={new THREE.ArrowHelper(dirX, origin, axisLength, redColor)} />
+                    <primitive object={new THREE.ArrowHelper(dirY, origin, axisLength, greenColor)} />
+                    <primitive object={new THREE.ArrowHelper(dirZ, origin, axisLength, blueColor)} />
+                </>
+            }
         </group>
     )
 }

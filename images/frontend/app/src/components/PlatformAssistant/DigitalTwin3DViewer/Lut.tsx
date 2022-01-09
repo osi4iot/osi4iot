@@ -5,7 +5,29 @@ import * as THREE from 'three';
 
 
 export const ColorMapKeywords: Record<string, [number, number][]> = {
-    rainbow: [[0.0, 0x0000FF], [0.2, 0x00FFFF], [0.5, 0x00FF00], [0.8, 0xFFFF00], [1.0, 0xFF0000]],
+    // rainbow: [[0.0, 0x0000FF], [0.2, 0x00FFFF], [0.5, 0x00FF00], [0.8, 0xFFFF00], [1.0, 0xFF0000]],
+    rainbow: [
+        [0.00, 0x000080],
+        [0.05, 0x0000b3],
+        [0.10, 0x0000ff],
+        [0.15, 0x0040ff],
+        [0.20, 0x0080ff],
+        [0.25, 0x00bfff],
+        [0.30, 0x00ffff],
+        [0.35, 0x00ffbf],
+        [0.40, 0x00ff80],
+        [0.45, 0x00ff40],
+        [0.50, 0x00ff00],
+        [0.55, 0x40ff00],
+        [0.60, 0x80ff00],
+        [0.65, 0xbfff00],
+        [0.70, 0xffff00],
+        [0.75, 0xffbf00],
+        [0.80, 0xff8000],
+        [0.85, 0xff4000],
+        [0.90, 0xff0000],
+        [0.95, 0xb30000],
+        [1.0, 0x800000]],
     cooltowarm: [[0.0, 0x3C4EC2], [0.2, 0x9BBCFF], [0.5, 0xDCDCDC], [0.8, 0xF6A385], [1.0, 0xB40426]],
     blackbody: [[0.0, 0x000000], [0.2, 0x780000], [0.5, 0xE63200], [0.8, 0xFFFF00], [1.0, 0xFFFFFF]],
     grayscale: [[0.0, 0x000000], [0.2, 0x404040], [0.5, 0x7F7F80], [0.8, 0xBFBFBF], [1.0, 0xFFFFFF]]

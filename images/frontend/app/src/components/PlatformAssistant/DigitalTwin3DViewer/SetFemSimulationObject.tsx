@@ -19,6 +19,8 @@ const SetFemSimulationObject: FC<SetFemSimulationObjectProps> = ({
 
     useEffect(() => {
         loadJsonModel(digitalTwinGltfData, setFemSimulationObjects, setInitialFemSimulationObjectState);
+
+        return () => URL.revokeObjectURL(digitalTwinGltfData.femSimulationUrl as string);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
 

@@ -42,6 +42,7 @@ interface GeoGroupsProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     digitalTwinsState: IDigitalTwinState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
 
 
@@ -60,7 +61,8 @@ const GeoGroups: FC<GeoGroupsProps> = (
         digitalTwinSelected,
         selectDigitalTwin,
         digitalTwinsState,
-        openDigitalTwin3DViewer
+        openDigitalTwin3DViewer,
+        setGlftDataLoading
     }
 ) => {
     const map = useMap();
@@ -97,6 +99,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         selectDigitalTwin={selectDigitalTwin}
                         digitalTwinsState={digitalTwinsState}
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+                        setGlftDataLoading={setGlftDataLoading}
                     />
                 )
 

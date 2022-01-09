@@ -394,6 +394,7 @@ interface MapProps {
     resetBuildingSelection: () => void;
     digitalTwinsState: IDigitalTwinState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
 
 
@@ -433,7 +434,8 @@ const Map: FC<MapProps> = (
         selectDigitalTwinOption,
         resetBuildingSelection,
         digitalTwinsState,
-        openDigitalTwin3DViewer
+        openDigitalTwin3DViewer,
+        setGlftDataLoading
     }) => {
 
     const refreshAll = useCallback(() => {
@@ -492,6 +494,7 @@ const Map: FC<MapProps> = (
                     selectDigitalTwin={selectDigitalTwin}
                     digitalTwinsState={digitalTwinsState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+                    setGlftDataLoading={setGlftDataLoading}
                 />
             }
             <ControlsContainer>
