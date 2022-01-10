@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import React, { FC, useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber';
-import { AnimatedObjectState, defaultVisibility } from './ViewerUtils';
+import { AnimatedObjectState, defaultOpacity, defaultVisibility, ObjectVisibilityState } from './ViewerUtils';
 import { IAnimatedObject } from './Model';
 
 interface AnimatedObjectProps {
@@ -9,6 +9,7 @@ interface AnimatedObjectProps {
     blinking: boolean;
     opacity: number;
     animatedObjectState: AnimatedObjectState;
+    visible: boolean;
 }
 
 const highlightColor = new THREE.Color(0x00ff00);
@@ -19,10 +20,12 @@ const AnimatedObjectBase: FC<AnimatedObjectProps> = ({
     blinking,
     opacity = 1,
     animatedObjectState,
+    visible = true,
 }) => {
     const meshRef = useRef<THREE.Mesh>();
     const material = Object.assign(obj.material);
-    material.transparent = opacity === 1 ? false : true;
+    const defOpacity = defaultOpacity(obj);
+    material.transparent = (opacity * defOpacity) === 1 ? false : true;
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null)
     const [objAnimationClip, setObjectAnimationClip] = useState<THREE.AnimationClip | null>(null);
@@ -62,7 +65,7 @@ const AnimatedObjectBase: FC<AnimatedObjectProps> = ({
             const deltaInterval = clock.elapsedTime - lastIntervalTime;
             if (deltaInterval <= 0.30) {
                 material.emissive = noEmitColor;
-                material.opacity = opacity;
+                material.opacity = defOpacity*opacity;
             } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
                 material.opacity = 1;
                 material.emissive = highlightColor;
@@ -76,10 +79,11 @@ const AnimatedObjectBase: FC<AnimatedObjectProps> = ({
                 material.emissive = highlightColor;
             } else {
                 if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                material.opacity = opacity;
+                material.opacity = defOpacity*opacity;
                 material.emissive = noEmitColor;
             }
         }
+        if (meshRef.current) meshRef.current.visible = visible;
     })
 
     return (
@@ -100,7 +104,8 @@ const areEqual = (prevProps: AnimatedObjectProps, nextProps: AnimatedObjectProps
     return (prevProps.animatedObjectState.highlight === nextProps.animatedObjectState.highlight || nextProps.blinking) &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
-        prevProps.animatedObjectState.value === nextProps.animatedObjectState.value;
+        prevProps.animatedObjectState.value === nextProps.animatedObjectState.value &&
+        prevProps.visible === nextProps.visible;
 }
 
 const AnimatedObject = React.memo(AnimatedObjectBase, areEqual);
@@ -109,7 +114,9 @@ interface AnimatedObjectsProps {
     animatedObjects: IAnimatedObject[];
     animatedObjectsOpacity: number;
     highlightAllAnimatedObjects: boolean;
+    hideAllAnimatedObjects: boolean;
     animatedObjectsState: Record<string, AnimatedObjectState>;
+    animatedObjectsVisibilityState: Record<string, ObjectVisibilityState>;
 }
 
 
@@ -117,7 +124,9 @@ const AnimatedObjects: FC<AnimatedObjectsProps> = ({
     animatedObjects,
     animatedObjectsOpacity = 1,
     highlightAllAnimatedObjects,
+    hideAllAnimatedObjects,
     animatedObjectsState,
+    animatedObjectsVisibilityState,
 }) => {
 
     return (
@@ -127,9 +136,10 @@ const AnimatedObjects: FC<AnimatedObjectsProps> = ({
                     return <AnimatedObject
                         key={obj.node.uuid}
                         obj={obj.node}
-                        blinking={highlightAllAnimatedObjects}
-                        opacity={animatedObjectsOpacity}
+                        blinking={highlightAllAnimatedObjects || animatedObjectsVisibilityState[obj.collectionName].highlight}
+                        opacity={animatedObjectsOpacity*animatedObjectsVisibilityState[obj.collectionName].opacity}
                         animatedObjectState={animatedObjectsState[obj.node.name]}
+                        visible={!(animatedObjectsVisibilityState[obj.collectionName].hide || hideAllAnimatedObjects)}
                     />
                 })
             }

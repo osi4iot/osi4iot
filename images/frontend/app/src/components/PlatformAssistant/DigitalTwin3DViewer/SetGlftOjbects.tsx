@@ -7,7 +7,7 @@ import {
     generateInitialAnimatedObjectsState,
     generateInitialAssetsState,
     generateInitialSensorsState,
-    GenericObjectState,
+    ObjectVisibilityState,
     IDigitalTwinGltfData,
     SensorState,
     sortObjects
@@ -22,7 +22,10 @@ interface SetGltfObjectsProps {
     setInitialSensorsState: (initialSensorsState: Record<string, SensorState> | null) => void;
     setInitialAssetsState: (initialAssetsState: Record<string, AssetState> | null) => void;
     setInitialAnimatedObjectsState: (initialAnimatedObjectsState: Record<string, AnimatedObjectState> | null) => void;
-    setInitialGenericObjectsState:  (initialGenericObjectsState: Record<string, GenericObjectState> | null) => void;
+    setInitialGenericObjectsVisibilityState: (initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
+    setInitialSensorsVisibilityState: (initialSensorsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
+    setInitialAssetsVisibilityState: (initialAssetsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
+    setInitialAnimatedObjsVisibilityState: (initialAnimatedObjsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
 }
 
 
@@ -35,7 +38,10 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     setInitialSensorsState,
     setInitialAssetsState,
     setInitialAnimatedObjectsState,
-    setInitialGenericObjectsState
+    setInitialGenericObjectsVisibilityState,
+    setInitialSensorsVisibilityState,
+    setInitialAssetsVisibilityState,
+    setInitialAnimatedObjsVisibilityState
 }) => {
     const { nodes, materials, animations } = useGLTF(digitalTwinGltfData.digitalTwinGltfUrl as string) as any;
 
@@ -46,6 +52,9 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 assetObjects,
                 animatedObjects,
                 genericObjects,
+                sensorsCollectionNames,
+                assetsCollectionNames,
+                animatedObjectsCollectionNames,
                 genericObjectsCollectionNames
             } = sortObjects(nodes, materials, animations);
             setSensorObjects(sensorObjects);
@@ -55,11 +64,31 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             setInitialSensorsState(generateInitialSensorsState(sensorObjects, digitalTwinGltfData));
             setInitialAssetsState(generateInitialAssetsState(assetObjects, digitalTwinGltfData));
             setInitialAnimatedObjectsState(generateInitialAnimatedObjectsState(animatedObjects, digitalTwinGltfData))
-            const initialGenericObjectsState: Record<string, GenericObjectState> = {}
+
+            const initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> = {}
             for (const collectionName of genericObjectsCollectionNames) {
-                initialGenericObjectsState[collectionName] = { visible: true };
+                initialGenericObjectsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
             }
-            setInitialGenericObjectsState(initialGenericObjectsState);
+            setInitialGenericObjectsVisibilityState(initialGenericObjectsVisibilityState);
+
+
+            const initialSensorsVisibilityState: Record<string, ObjectVisibilityState> = {}
+            for (const collectionName of sensorsCollectionNames) {
+                initialSensorsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
+            }
+            setInitialSensorsVisibilityState(initialSensorsVisibilityState);
+
+            const initialAssetsVisibilityState: Record<string, ObjectVisibilityState> = {}
+            for (const collectionName of assetsCollectionNames) {
+                initialAssetsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
+            }
+            setInitialAssetsVisibilityState(initialAssetsVisibilityState);
+
+            const initialAnimatedObjsVisibilityState: Record<string, ObjectVisibilityState> = {}
+            for (const collectionName of animatedObjectsCollectionNames) {
+                initialAnimatedObjsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
+            }
+            setInitialAnimatedObjsVisibilityState(initialAnimatedObjsVisibilityState);
         }
 
         return () => URL.revokeObjectURL(digitalTwinGltfData.digitalTwinGltfUrl as string);

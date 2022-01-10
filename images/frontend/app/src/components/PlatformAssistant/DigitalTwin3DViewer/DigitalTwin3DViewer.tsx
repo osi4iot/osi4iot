@@ -14,7 +14,7 @@ import {
 	AnimatedObjectState,
 	AssetState,
 	FemSimulationObjectState,
-	GenericObjectState,
+	ObjectVisibilityState,
 	IDigitalTwinGltfData,
 	SensorState,
 } from './ViewerUtils';
@@ -313,8 +313,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [initialSensorsState, setInitialSensorsState] = useState<Record<string, SensorState> | null>(null);
 	const [initialAssetsState, setInitialAssetsState] = useState<Record<string, AssetState> | null>(null);
 	const [initialAnimatedObjectsState, setInitialAnimatedObjectsState] = useState<Record<string, AnimatedObjectState> | null>(null);
-	const [initialGenericObjectsState, setInitialGenericObjectsState] = useState<Record<string, GenericObjectState> | null>(null);
 	const [initialFemSimulationObjectState, setInitialFemSimulationObjectState] = useState<FemSimulationObjectState | null>(null);
+	const [
+		initialGenericObjectsVisibilityState,
+		setInitialGenericObjectsVisibilityState
+	] = useState<Record<string, ObjectVisibilityState> | null>(null);
+	const [initialSensorsVisibilityState, setInitialSensorsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
+	const [initialAssetsVisibilityState, setInitialAssetsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
+	const [initialAnimatedObjsVisibilityState, setInitialAnimatedObjsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
 
 
 	const [opts, setOpts] = useState({
@@ -330,29 +336,66 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		showShadows: true,
 		sensorsOpacity: 1,
 		highlightAllSensors: false,
+		hideAllSensors: false,
+		sensorsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
 		assetsOpacity: 1,
-		highlightAllAnimatedObjects: false,
+		highlightAllAssets: false,
+		hideAllAssets: false,
+		assetsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
 		animatedObjectsOpacity: 1,
+		highlightAllAnimatedObjects: false,
+		hideAllAnimatedObjects: false,
+		animatedObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
+		genericObjectsOpacity: 1,
+		highlightAllGenericObjects: false,
+		hideAllGenericObjects: false,
+		genericObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
 		highlightFemSimulationObject: false,
 		femSimulationObjectHidden: false,
-		highlightAllGenericObjects: false,
-		genericObjectsOpacity: 1,
-		genericObjectsState: undefined as unknown as Record<string, GenericObjectState>, //initialGenericObjectsState,
-		highlightAllAssets: false,
 		hideFemSimulationLegend: false,
 		femSimulationResult: "None result"
 	});
 
 
 	useEffect(() => {
-		if (initialGenericObjectsState) {
+		if (initialGenericObjectsVisibilityState) {
 			setOpts((prevOpts) => {
 				const newOpts = { ...prevOpts };
-				newOpts.genericObjectsState = initialGenericObjectsState;
+				newOpts.genericObjectsVisibilityState = initialGenericObjectsVisibilityState;
 				return newOpts;
 			})
 		}
-	}, [initialGenericObjectsState])
+	}, [initialGenericObjectsVisibilityState])
+
+	useEffect(() => {
+		if (initialSensorsVisibilityState) {
+			setOpts((prevOpts) => {
+				const newOpts = { ...prevOpts };
+				newOpts.sensorsVisibilityState = initialSensorsVisibilityState;
+				return newOpts;
+			})
+		}
+	}, [initialSensorsVisibilityState])
+
+	useEffect(() => {
+		if (initialAssetsVisibilityState) {
+			setOpts((prevOpts) => {
+				const newOpts = { ...prevOpts };
+				newOpts.assetsVisibilityState = initialAssetsVisibilityState;
+				return newOpts;
+			})
+		}
+	}, [initialAssetsVisibilityState])
+
+	useEffect(() => {
+		if (initialAnimatedObjsVisibilityState) {
+			setOpts((prevOpts) => {
+				const newOpts = { ...prevOpts };
+				newOpts.animatedObjectsVisibilityState = initialAnimatedObjsVisibilityState;
+				return newOpts;
+			})
+		}
+	}, [initialAnimatedObjsVisibilityState])
 
 	useEffect(() => {
 		return () => {
@@ -377,7 +420,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					setInitialSensorsState={setInitialSensorsState}
 					setInitialAssetsState={setInitialAssetsState}
 					setInitialAnimatedObjectsState={setInitialAnimatedObjectsState}
-					setInitialGenericObjectsState={setInitialGenericObjectsState}
+					setInitialGenericObjectsVisibilityState={setInitialGenericObjectsVisibilityState}
+					setInitialSensorsVisibilityState={setInitialSensorsVisibilityState}
+					setInitialAssetsVisibilityState={setInitialAssetsVisibilityState}
+					setInitialAnimatedObjsVisibilityState={setInitialAnimatedObjsVisibilityState}
 				/>
 			}
 			{
@@ -413,26 +459,33 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							<Model
 								sensorObjects={sensorObjects}
 								initialSensorsState={initialSensorsState as Record<string, SensorState>}
+								sensorsVisibilityState={opts.sensorsVisibilityState}
 								assetObjects={assetObjects}
 								initialAssetsState={initialAssetsState as Record<string, SensorState>}
+								assetsVisibilityState={opts.assetsVisibilityState}
 								animatedObjects={animatedObjects}
 								initialAnimatedObjectsState={initialAnimatedObjectsState as Record<string, AnimatedObjectState>}
+								animatedObjectsVisibilityState={opts.animatedObjectsVisibilityState}
 								femSimulationObject={femSimulationObject as IFemSimulationObject}
 								initialFemSimulationObjectState={initialFemSimulationObjectState as FemSimulationObjectState}
 								genericObjects={genericObjects}
-								genericObjectsState={opts.genericObjectsState}
+								genericObjectsVisibilityState={opts.genericObjectsVisibilityState}
 								mqttTopics={digitalTwinGltfData.mqttTopics}
 								dashboardUrl={digitalTwinSelected?.dashboardUrl as string}
 								sensorsOpacity={opts.sensorsOpacity}
 								highlightAllSensors={opts.highlightAllSensors}
+								hideAllSensors={opts.hideAllSensors}
 								assetsOpacity={opts.assetsOpacity}
 								highlightAllAssets={opts.highlightAllAssets}
+								hideAllAssets={opts.hideAllAssets}
 								animatedObjectsOpacity={opts.animatedObjectsOpacity}
 								highlightAllAnimatedObjects={opts.highlightAllAnimatedObjects}
+								hideAllAnimatedObjects={opts.hideAllAnimatedObjects}
 								femSimulationObjectHidden={opts.femSimulationObjectHidden}
 								highlightFemSimulationObject={opts.highlightFemSimulationObject}
 								genericObjectsOpacity={opts.genericObjectsOpacity}
 								highlightAllGenericObjects={opts.highlightAllGenericObjects}
+								hideAllGenericObjects={opts.hideAllGenericObjects}
 								setIsMqttConnected={isMqttConnected => setIsMqttConnected(isMqttConnected)}
 								canvasRef={canvasRef}
 								selectedObjTypeRef={selectedObjTypeRef}
@@ -491,32 +544,125 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						{
 							sensorObjects.length !== 0 &&
 							<DatFolder title='Sensors' closed={true}>
-								<StyledDatNumber label="Opacity" path="sensorsOpacity" min={0} max={1} step={0.05} />
-								<StyledDatBoolean label="Highlight" path="highlightAllSensors" />
+								<DatFolder title='All nodes' closed={true}>
+									<StyledDatNumber label="Opacity" path="sensorsOpacity" min={0} max={1} step={0.05} />
+									<StyledDatBoolean label="Highlight" path="highlightAllSensors" />
+									<StyledDatBoolean label="Hide" path="hideAllSensors" />
+								</DatFolder>
+								{initialSensorsVisibilityState &&
+									Object.keys(initialSensorsVisibilityState as Record<string, ObjectVisibilityState>).map(collecionName =>
+										<DatFolder key={collecionName} title={collecionName} closed={true}>
+											<StyledDatNumber
+												label="Opacity"
+												path={`sensorsVisibilityState[${collecionName}].opacity`}
+												min={0}
+												max={1}
+												step={0.05}
+											/>
+											<StyledDatBoolean
+												label="Highlight"
+												path={`sensorsVisibilityState[${collecionName}].highlight`}
+											/>
+											<StyledDatBoolean
+												label="Hide"
+												path={`sensorsVisibilityState[${collecionName}].hide`}
+											/>
+										</DatFolder>
+									)
+								}
 							</DatFolder>
 						}
 						{
 							assetObjects.length !== 0 &&
 							<DatFolder title='Assests' closed={true}>
-								<StyledDatNumber label="Opacity" path="assetsOpacity" min={0} max={1} step={0.05} />
-								<StyledDatBoolean label="Highlight" path="highlightAllAssets" />
+								<DatFolder title='All nodes' closed={true}>
+									<StyledDatNumber label="Opacity" path="assetsOpacity" min={0} max={1} step={0.05} />
+									<StyledDatBoolean label="Highlight" path="highlightAllAssets" />
+									<StyledDatBoolean label="Hide" path="hideAllAssets" />
+								</DatFolder>
+								{initialAssetsVisibilityState &&
+									Object.keys(initialAssetsVisibilityState as Record<string, ObjectVisibilityState>).map(collecionName =>
+										<DatFolder key={collecionName} title={collecionName} closed={true}>
+											<StyledDatNumber
+												label="Opacity"
+												path={`assetsVisibilityState[${collecionName}].opacity`}
+												min={0}
+												max={1}
+												step={0.05}
+											/>
+											<StyledDatBoolean
+												label="Highlight"
+												path={`assetsVisibilityState[${collecionName}].highlight`}
+											/>
+											<StyledDatBoolean
+												label="Hide"
+												path={`assetsVisibilityState[${collecionName}].hide`}
+											/>
+										</DatFolder>
+									)
+								}
 							</DatFolder>
 						}
 						{
 							animatedObjects.length !== 0 &&
 							<DatFolder title='Animated objects' closed={true}>
-								<StyledDatNumber label="Opacity" path="animatedObjectsOpacity" min={0} max={1} step={0.05} />
-								<StyledDatBoolean label="Highlight" path="highlightAllAnimatedObjects" />
+								<DatFolder title='All nodes' closed={true}>
+									<StyledDatNumber label="Opacity" path="animatedObjectsOpacity" min={0} max={1} step={0.05} />
+									<StyledDatBoolean label="Highlight" path="highlightAllAnimatedObjects" />
+									<StyledDatBoolean label="Hide" path="hideAllAnimatedObjects" />
+								</DatFolder>
+								{initialAnimatedObjsVisibilityState &&
+									Object.keys(initialAnimatedObjsVisibilityState as Record<string, ObjectVisibilityState>).map(collecionName =>
+										<DatFolder key={collecionName} title={collecionName} closed={true}>
+											<StyledDatNumber
+												label="Opacity"
+												path={`animatedObjectsVisibilityState[${collecionName}].opacity`}
+												min={0}
+												max={1}
+												step={0.05}
+											/>
+											<StyledDatBoolean
+												label="Highlight"
+												path={`animatedObjectsVisibilityState[${collecionName}].highlight`}
+											/>
+											<StyledDatBoolean
+												label="Hide"
+												path={`animatedObjectsVisibilityState[${collecionName}].hide`}
+											/>
+										</DatFolder>
+									)
+								}
 							</DatFolder>
 						}
 						{
 							genericObjects.length !== 0 &&
 							<DatFolder title='Generic objects' closed={true}>
-								<StyledDatNumber label="Opacity" path="genericObjectsOpacity" min={0} max={1} step={0.05} />
-								<StyledDatBoolean label="Highlight" path="highlightAllGenericObjects" />
-								<DatFolder title='Collections' closed={true}>
-									{initialGenericObjectsState && Object.keys(initialGenericObjectsState as Record<string, GenericObjectState>).map(collecionName => <StyledDatBoolean key={collecionName} label={collecionName} path={`genericObjectsState[${collecionName}].visible`} />)}
+								<DatFolder title='All nodes' closed={true}>
+									<StyledDatNumber label="Opacity" path="genericObjectsOpacity" min={0} max={1} step={0.05} />
+									<StyledDatBoolean label="Highlight" path="highlightAllGenericObjects" />
+									<StyledDatBoolean label="Hide" path="hideAllGenericObjects" />
 								</DatFolder>
+								{initialGenericObjectsVisibilityState &&
+									Object.keys(initialGenericObjectsVisibilityState as Record<string, ObjectVisibilityState>).map(collecionName =>
+										<DatFolder key={collecionName} title={collecionName} closed={true}>
+											<StyledDatNumber
+												label="Opacity"
+												path={`genericObjectsVisibilityState[${collecionName}].opacity`}
+												min={0}
+												max={1}
+												step={0.05}
+											/>
+											<StyledDatBoolean
+												label="Highlight"
+												path={`genericObjectsVisibilityState[${collecionName}].highlight`}
+											/>
+											<StyledDatBoolean
+												label="Hide"
+												path={`genericObjectsVisibilityState[${collecionName}].hide`}
+											/>
+										</DatFolder>
+									)
+								}
 							</DatFolder>
 						}
 						{

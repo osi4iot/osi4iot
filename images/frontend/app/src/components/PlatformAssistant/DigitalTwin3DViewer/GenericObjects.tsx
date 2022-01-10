@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import React, { FC, useRef } from 'react'
 import { useFrame } from '@react-three/fiber';
-import { defaultVisibility, GenericObjectState } from './ViewerUtils';
+import { defaultOpacity, defaultVisibility, ObjectVisibilityState } from './ViewerUtils';
 import { IGenericObject } from './Model';
 
 interface GenericObjectProps {
@@ -23,7 +23,8 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 }) => {
     const meshRef = useRef<THREE.Mesh>();
     const material = Object.assign(obj.material);
-    material.transparent = opacity === 1 ? false : true;
+    const defOpacity = defaultOpacity(obj);
+    material.transparent = (defOpacity*opacity) === 1 ? false : true;;
     let lastIntervalTime = 0;
 
     useFrame(({ clock }) => {
@@ -34,7 +35,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             const deltaInterval = clock.elapsedTime - lastIntervalTime;
             if (deltaInterval <= 0.30) {
                 material.emissive = noEmitColor;
-                material.opacity = opacity;
+                material.opacity = defOpacity*opacity;
             } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
                 material.opacity = 1;
                 material.emissive = highlightColor;
@@ -44,7 +45,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
         } else {
             if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
             material.emissive = noEmitColor;
-            material.opacity = opacity;
+            material.opacity = defOpacity*opacity;
         }
         if (meshRef.current) meshRef.current.visible = visible;
     })
@@ -75,7 +76,8 @@ interface GenericObjectsProps {
     genericObjects: IGenericObject[];
     genericObjectsOpacity: number;
     highlightAllGenericObjects: boolean;
-    genericObjectsState: Record<string, GenericObjectState>;
+    hideAllGenericObjects: boolean;
+    genericObjectsVisibilityState: Record<string, ObjectVisibilityState>;
 }
 
 
@@ -83,7 +85,8 @@ const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjects,
     genericObjectsOpacity = 1,
     highlightAllGenericObjects,
-    genericObjectsState,
+    hideAllGenericObjects,
+    genericObjectsVisibilityState,
 }) => {
 
     return (
@@ -93,9 +96,9 @@ const GenericObjects: FC<GenericObjectsProps> = ({
                     return <GenericObject
                         key={obj.node.uuid}
                         obj={obj.node}
-                        blinking={highlightAllGenericObjects}
-                        opacity={genericObjectsOpacity}
-                        visible={genericObjectsState[obj.collectionName].visible}
+                        blinking={highlightAllGenericObjects || genericObjectsVisibilityState[obj.collectionName].highlight}
+                        opacity={genericObjectsOpacity*genericObjectsVisibilityState[obj.collectionName].opacity}
+                        visible={!(genericObjectsVisibilityState[obj.collectionName].hide || hideAllGenericObjects)}
                     />
                 })
             }

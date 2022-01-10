@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import React, { FC, useRef, useState, useLayoutEffect } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { ISensorObject } from './Model';
-import { defaultVisibility, SensorState } from './ViewerUtils';
+import { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState } from './ViewerUtils';
 
 interface SensorProps {
     obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>;
@@ -11,6 +11,7 @@ interface SensorProps {
     sensorState: SensorState;
     sensorsStateString: string;
     updateSensorStateString: (state: string) => void;
+    visible: boolean;
 }
 
 const sensorOnColor = new THREE.Color(0x00ff00);
@@ -23,13 +24,15 @@ const SensorBase: FC<SensorProps> = ({
     opacity = 1,
     sensorState,
     sensorsStateString,
-    updateSensorStateString
+    updateSensorStateString,
+    visible
 }) => {
     const camera = useThree((state) => state.camera);
     const [lastTimestamp, setLastTimestamp] = useState<Date | null>(null);
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
     const material = Object.assign(obj.material);
-    material.transparent = opacity === 1 ? false : true;
+    const defOpacity = defaultOpacity(obj);
+    material.transparent = (defOpacity*opacity) === 1 ? false : true;
     const timeout = obj.userData.timeout as number || 60;
     let lastIntervalTime = 0;
 
@@ -42,7 +45,7 @@ const SensorBase: FC<SensorProps> = ({
             if (deltaInterval <= 0.30) {
                 if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
                 material.emissive = noEmitColor;
-                material.opacity = opacity;
+                material.opacity = defOpacity*opacity;
             } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
                 if (meshRef.current) meshRef.current.visible = true;
                 material.opacity = 1;
@@ -66,7 +69,7 @@ const SensorBase: FC<SensorProps> = ({
             } else {
                 if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
                 material.emissive = noEmitColor;
-                material.opacity = opacity;
+                material.opacity = defOpacity*opacity;
             }
         }
         if (lastTimestamp) {
@@ -77,6 +80,7 @@ const SensorBase: FC<SensorProps> = ({
                 setLastTimestamp(null);
             }
         }
+        if (meshRef.current) meshRef.current.visible = visible;
     })
 
     useLayoutEffect(() => {
@@ -114,7 +118,8 @@ const areEqual = (prevProps: SensorProps, nextProps: SensorProps) => {
         prevProps.sensorState.stateString === nextProps.sensorState.stateString &&
         (prevProps.sensorsStateString === nextProps.sensorsStateString && nextProps.blinking) &&
         prevProps.blinking === nextProps.blinking &&
-        prevProps.opacity === nextProps.opacity;
+        prevProps.opacity === nextProps.opacity &&
+        prevProps.visible === nextProps.visible;
 }
 const Sensor = React.memo(SensorBase, areEqual);
 
@@ -122,7 +127,9 @@ interface SensorsProps {
     sensorObjects: ISensorObject[];
     sensorsOpacity: number;
     highlightAllSensors: boolean;
+    hideAllSensors: boolean;
     sensorsState: Record<string, SensorState>;
+    sensorsVisibilityState: Record<string, ObjectVisibilityState>;
     updateSensorStateString: (objName: string, state: string) => void;
 }
 
@@ -131,7 +138,9 @@ const Sensors: FC<SensorsProps> = ({
     sensorObjects,
     sensorsOpacity,
     highlightAllSensors,
+    hideAllSensors,
     sensorsState,
+    sensorsVisibilityState,
     updateSensorStateString,
 }) => {
     const sensorsStateString = Object.values(sensorsState).map(state => state.stateString === "off" ? "1" : "0").join("");
@@ -143,11 +152,12 @@ const Sensors: FC<SensorsProps> = ({
                     return <Sensor
                         key={obj.node.uuid}
                         obj={obj.node}
-                        opacity={sensorsOpacity}
-                        blinking={highlightAllSensors}
+                        opacity={sensorsOpacity*sensorsVisibilityState[obj.collectionName].opacity}
+                        blinking={highlightAllSensors || sensorsVisibilityState[obj.collectionName].highlight}
                         sensorState={sensorsState[obj.node.name]}
                         sensorsStateString={sensorsStateString}
                         updateSensorStateString={(state) => updateSensorStateString(obj.node.name, state)}
+                        visible={!(sensorsVisibilityState[obj.collectionName].hide || hideAllSensors)}
                     />
                 })
             }

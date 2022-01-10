@@ -10,7 +10,7 @@ import {
 	AnimatedObjectState,
 	AssetState,
 	FemSimulationObjectState,
-	GenericObjectState,
+	ObjectVisibilityState,
 	onMeshMouseEnter,
 	onMeshMouseExit,
 	onMouseClick,
@@ -28,16 +28,19 @@ import Lut from './Lut';
 export interface ISensorObject {
 	node: THREE.Mesh;
 	topicIndex: number;
+	collectionName: string;
 }
 
 export interface IAssetObject {
 	node: THREE.Mesh;
 	topicIndex: number;
+	collectionName: string;
 }
 
 export interface IAnimatedObject {
 	node: THREE.Mesh;
 	topicIndex: number;
+	collectionName: string;
 }
 
 export interface IGenericObject {
@@ -65,26 +68,33 @@ export interface IFemSimulationObject {
 interface ModelProps {
 	sensorObjects: ISensorObject[];
 	initialSensorsState: Record<string, SensorState>
+	sensorsVisibilityState: Record<string, ObjectVisibilityState>;
 	assetObjects: IAssetObject[];
 	initialAssetsState: Record<string, AssetState>;
+	assetsVisibilityState: Record<string, ObjectVisibilityState>;
 	animatedObjects: IAnimatedObject[];
 	initialAnimatedObjectsState: Record<string, AnimatedObjectState>;
+	animatedObjectsVisibilityState: Record<string, ObjectVisibilityState>;
 	femSimulationObject: IFemSimulationObject;
 	initialFemSimulationObjectState: FemSimulationObjectState;
 	genericObjects: IGenericObject[];
-	genericObjectsState: Record<string, GenericObjectState>;
+	genericObjectsVisibilityState: Record<string, ObjectVisibilityState>;
 	mqttTopics: string[];
 	dashboardUrl: string;
 	sensorsOpacity: number;
 	highlightAllSensors: boolean;
+	hideAllSensors: boolean;
 	assetsOpacity: number;
 	highlightAllAssets: boolean;
+	hideAllAssets: boolean;
 	animatedObjectsOpacity: number;
 	highlightAllAnimatedObjects: boolean;
+	hideAllAnimatedObjects: boolean;
 	femSimulationObjectHidden: boolean;
 	highlightFemSimulationObject: boolean;
 	genericObjectsOpacity: number;
 	highlightAllGenericObjects: boolean;
+	hideAllGenericObjects: boolean;
 	setIsMqttConnected: (isMqttConnected: boolean) => void;
 	canvasRef: React.MutableRefObject<null>;
 	selectedObjTypeRef: React.MutableRefObject<null>;
@@ -98,26 +108,33 @@ const Model: FC<ModelProps> = (
 	{
 		sensorObjects,
 		initialSensorsState,
+		sensorsVisibilityState,
 		assetObjects,
 		initialAssetsState,
+		assetsVisibilityState,
 		animatedObjects,
 		initialAnimatedObjectsState,
+		animatedObjectsVisibilityState,
 		femSimulationObject,
 		initialFemSimulationObjectState,
 		genericObjects,
-		genericObjectsState,
+		genericObjectsVisibilityState,
 		mqttTopics,
 		dashboardUrl,
 		sensorsOpacity,
 		highlightAllSensors,
+		hideAllSensors,
 		assetsOpacity,
 		highlightAllAssets,
+		hideAllAssets,
 		animatedObjectsOpacity,
 		highlightAllAnimatedObjects,
+		hideAllAnimatedObjects,
 		femSimulationObjectHidden,
 		highlightFemSimulationObject,
 		genericObjectsOpacity,
 		highlightAllGenericObjects,
+		hideAllGenericObjects,
 		setIsMqttConnected,
 		canvasRef,
 		selectedObjTypeRef,
@@ -305,13 +322,16 @@ const Model: FC<ModelProps> = (
 
 	return (
 		<group ref={group} dispose={null}>
-			{sensorObjects.length &&
+			{(sensorObjects.length && sensorsVisibilityState) &&
 				<Sensors
 					sensorObjects={sensorObjects}
 					sensorsOpacity={sensorsOpacity}
 					highlightAllSensors={highlightAllSensors}
+					hideAllSensors={hideAllSensors}
 					sensorsState={sensorsState}
+					sensorsVisibilityState={sensorsVisibilityState}
 					updateSensorStateString={updateSensorStateString}
+
 				/>
 			}
 			{
@@ -320,7 +340,9 @@ const Model: FC<ModelProps> = (
 					assetObjects={assetObjects}
 					assetsOpacity={assetsOpacity}
 					highlightAllAssets={highlightAllAssets}
+					hideAllAssets={hideAllAssets}
 					assetsState={assetsState}
+					assetsVisibilityState={assetsVisibilityState}
 				/>
 			}
 			{
@@ -329,7 +351,9 @@ const Model: FC<ModelProps> = (
 					animatedObjects={animatedObjects}
 					animatedObjectsOpacity={animatedObjectsOpacity}
 					highlightAllAnimatedObjects={highlightAllAnimatedObjects}
+					hideAllAnimatedObjects={hideAllAnimatedObjects}
 					animatedObjectsState={animatedObjectsState}
+					animatedObjectsVisibilityState={animatedObjectsVisibilityState}
 				/>
 			}
 			{
@@ -344,12 +368,13 @@ const Model: FC<ModelProps> = (
 				/>
 			}
 			{
-				(genericObjects.length && genericObjectsState) &&
+				(genericObjects.length && genericObjectsVisibilityState) &&
 				<GenericObjects
 					genericObjects={genericObjects}
 					genericObjectsOpacity={genericObjectsOpacity}
 					highlightAllGenericObjects={highlightAllGenericObjects}
-					genericObjectsState={genericObjectsState}
+					hideAllGenericObjects={hideAllGenericObjects}
+					genericObjectsVisibilityState={genericObjectsVisibilityState}
 				/>
 			}
 		</group>

@@ -23,8 +23,10 @@ export interface AnimatedObjectState {
 	highlight: boolean;
 }
 
-export interface GenericObjectState {
-	visible: boolean;
+export interface ObjectVisibilityState {
+	hide: boolean;
+	highlight: boolean;
+	opacity: number;
 }
 
 export interface FemSimulationObjectState {
@@ -320,6 +322,9 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 	assetObjects: IAssetObject[],
 	animatedObjects: IAnimatedObject[],
 	genericObjects: IGenericObject[],
+	sensorsCollectionNames: string[],
+	assetsCollectionNames: string[],
+	animatedObjectsCollectionNames: string[],
 	genericObjectsCollectionNames: string[],
 } = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
 	setMeshList(nodes);
@@ -329,6 +334,10 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 	const genericObjects: IGenericObject[] = [];
 	const topicsId: number[] = []; //Must match with mqttTopics vector
 	const genericObjectsCollectionNames: string[] = [];
+	const sensorsCollectionNames: string[] = [];
+	const assetsCollectionNames: string[] = [];
+	const animatedObjectsCollectionNames: string[] = [];
+
 	for (const prop in nodes) {
 		const obj = nodes[prop];
 		if (obj.type === "Mesh") {
@@ -343,27 +352,42 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 			switch (obj.userData.type) {
 				case "sensor":
 					{
+						let collectionName = "General";
+						if (obj.userData.collectionName) {
+							collectionName = obj.userData.collectionName;
+						}
 						const sensorObject: ISensorObject = {
 							node: obj,
-							topicIndex: -1
+							topicIndex: -1,
+							collectionName,
 						}
 						sensorObjects.push(sensorObject);
 						break;
 					}
 				case "asset":
 					{
+						let collectionName = "General";
+						if (obj.userData.collectionName) {
+							collectionName = obj.userData.collectionName;
+						}
 						const assestObject: IAssetObject = {
 							node: obj,
 							topicIndex: -1,
+							collectionName,
 						}
 						assetObjects.push(assestObject);
 						break;
 					}
 				case "animated":
 					{
+						let collectionName = "General";
+						if (obj.userData.collectionName) {
+							collectionName = obj.userData.collectionName;
+						}
 						const animatedObject: IAnimatedObject = {
 							node: obj,
 							topicIndex: -1,
+							collectionName,
 						}
 						animatedObjects.push(animatedObject);
 						break;
@@ -385,6 +409,10 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 	}
 
 	sensorObjects.forEach((obj: ISensorObject) => {
+		const collectionName = obj.collectionName
+		if (sensorsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			sensorsCollectionNames.push(collectionName);
+		}
 		if (obj.node.userData.topicId) {
 			const topicId = obj.node.userData.topicId;
 			obj.topicIndex = topicsId.findIndex(id => id === topicId);
@@ -392,6 +420,10 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 	})
 
 	assetObjects.forEach((obj: IAssetObject) => {
+		const collectionName = obj.collectionName
+		if (assetsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			assetsCollectionNames.push(collectionName);
+		}		
 		if (obj.node.userData.topicId) {
 			const topicId = obj.node.userData.topicId;
 			obj.topicIndex = topicsId.findIndex(id => id === topicId);
@@ -399,6 +431,10 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 	})
 
 	animatedObjects.forEach((obj: IAnimatedObject) => {
+		const collectionName = obj.collectionName
+		if (animatedObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			animatedObjectsCollectionNames.push(collectionName);
+		}	
 		if (obj.node.userData.topicId) {
 			const topicId = obj.node.userData.topicId;
 			obj.topicIndex = topicsId.findIndex(id => id === topicId);
@@ -416,7 +452,16 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 		}
 	})
 
-	return { sensorObjects, assetObjects, animatedObjects, genericObjects, genericObjectsCollectionNames }
+	return {
+		sensorObjects,
+		assetObjects,
+		animatedObjects,
+		genericObjects,
+		sensorsCollectionNames,
+		assetsCollectionNames,
+		animatedObjectsCollectionNames,
+		genericObjectsCollectionNames
+	}
 }
 
 function sendCustomEvent(eventName: string, data: any) {
@@ -545,6 +590,14 @@ export const defaultVisibility = (
 	let defVisibility = true;
 	if (obj.userData.visible !== undefined && obj.userData.visible === "false") defVisibility = false;
 	return defVisibility;
+}
+
+export const defaultOpacity = (
+	obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>
+) => {
+	let defOpacity = 1;
+	if (obj.userData.opacity !== undefined) defOpacity = obj.userData.opacity;
+	return defOpacity;
 }
 
 export const loadJsonModel = (
