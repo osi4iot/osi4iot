@@ -30,7 +30,7 @@ export interface ObjectVisibilityState {
 }
 
 export interface FemSimulationObjectState {
-	resultFieldModalValues: Record<string,number[]>;
+	resultFieldModalValues: Record<string, number[]>;
 	highlight: boolean;
 }
 
@@ -163,7 +163,7 @@ export const generateInitialFemSimulationObjectState = (femSimulationObject: IFe
 		});
 
 	}
-	const initialFemSimulationObjectState = {highlight, resultFieldModalValues}
+	const initialFemSimulationObjectState = { highlight, resultFieldModalValues }
 	return initialFemSimulationObjectState;
 }
 
@@ -401,7 +401,7 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 						const genericObject: IGenericObject = {
 							node: obj,
 							collectionName,
-						}						
+						}
 						genericObjects.push(genericObject);
 					}
 			}
@@ -423,7 +423,7 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 		const collectionName = obj.collectionName
 		if (assetsCollectionNames.findIndex(name => name === collectionName) === -1) {
 			assetsCollectionNames.push(collectionName);
-		}		
+		}
 		if (obj.node.userData.topicId) {
 			const topicId = obj.node.userData.topicId;
 			obj.topicIndex = topicsId.findIndex(id => id === topicId);
@@ -434,7 +434,7 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 		const collectionName = obj.collectionName
 		if (animatedObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
 			animatedObjectsCollectionNames.push(collectionName);
-		}	
+		}
 		if (obj.node.userData.topicId) {
 			const topicId = obj.node.userData.topicId;
 			obj.topicIndex = topicsId.findIndex(id => id === topicId);
@@ -613,19 +613,33 @@ export const loadJsonModel = (
 		geometry.computeVertexNormals();
 		geometry.normalizeNormals();
 
-		let material = new THREE.MeshLambertMaterial({
+		const material = new THREE.MeshLambertMaterial({
 			side: THREE.DoubleSide,
 			color: 0xF5F5F5,
 			vertexColors: true
 		});
 
-		let lutColors = [];
+		const wireFrameMaterial = new THREE.LineBasicMaterial({
+			color: 0xffffff,
+			linewidth: 1.5,
+		});
+
+		const lutColors = [];
+		const originalGeometryArray = [];
 		for (let i = 0, n = geometry.attributes.position.count; i < n; ++i) {
 			lutColors.push(1, 1, 1);
+			const coordX = geometry.attributes.position.array[i * 3];
+			const coordY = geometry.attributes.position.array[i * 3 + 1];
+			const coordZ = geometry.attributes.position.array[i * 3 + 2];
+			originalGeometryArray.push(coordX, coordY, coordZ);
 		}
 		const noneResultColor = new Float32Array(lutColors);
+		const originalGeometry = new Float32Array(originalGeometryArray);
 
 		const mesh = new THREE.Mesh(geometry, material);
+		const wireframeGeometry = new THREE.WireframeGeometry(mesh.geometry);
+        const wireFrameMesh = new THREE.LineSegments(wireframeGeometry, wireFrameMaterial);
+		const deformationFields: string[] = digitalTwinGltfData.femSimulationData.metadata.deformationFields;
 
 		const resultsRenderInfo: Record<string, IResultRenderInfo> = {};
 		const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
@@ -684,8 +698,11 @@ export const loadJsonModel = (
 			resultsRenderInfo,
 			resultFieldPaths,
 			defaultModalValues,
+			deformationFields,
 			numberOfModes,
 			noneResultColor,
+			originalGeometry,
+			wireFrameMesh,
 		}
 		setFemSimulationObjects(femSimulationObject);
 		setInitialFemSimulationObjectState(generateInitialFemSimulationObjectState(femSimulationObject, digitalTwinGltfData))

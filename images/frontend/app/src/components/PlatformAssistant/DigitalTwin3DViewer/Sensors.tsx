@@ -37,40 +37,44 @@ const SensorBase: FC<SensorProps> = ({
     let lastIntervalTime = 0;
 
     useFrame(({ clock }) => {
-        if (blinking) {
-            if (lastIntervalTime === 0) {
-                lastIntervalTime = clock.elapsedTime;
-            }
-            const deltaInterval = clock.elapsedTime - lastIntervalTime;
-            if (deltaInterval <= 0.30) {
-                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                material.emissive = noEmitColor;
-                material.opacity = defOpacity*opacity;
-            } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                if (meshRef.current) meshRef.current.visible = true;
-                material.opacity = 1;
-                if (sensorState?.stateString === "on") {
-                    material.emissive = sensorOnColor;
-                } else {
-                    material.emissive = sensorOffColor;
+        if (visible) {
+            if (blinking) {
+                if (lastIntervalTime === 0) {
+                    lastIntervalTime = clock.elapsedTime;
                 }
-            } else if (deltaInterval > 0.60) {
-                lastIntervalTime = clock.elapsedTime;
-            }
-        } else {
-            if (sensorState.highlight) {
-                if (meshRef.current) meshRef.current.visible = true;
-                material.opacity = 1;
-                if (sensorState?.stateString === "on") {
-                    material.emissive = sensorOnColor;
-                } else {
-                    material.emissive = sensorOffColor;
+                const deltaInterval = clock.elapsedTime - lastIntervalTime;
+                if (deltaInterval <= 0.30) {
+                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                    material.emissive = noEmitColor;
+                    material.opacity = defOpacity*opacity;
+                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                    if (meshRef.current) meshRef.current.visible = true;
+                    material.opacity = 1;
+                    if (sensorState?.stateString === "on") {
+                        material.emissive = sensorOnColor;
+                    } else {
+                        material.emissive = sensorOffColor;
+                    }
+                } else if (deltaInterval > 0.60) {
+                    lastIntervalTime = clock.elapsedTime;
                 }
             } else {
-                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                material.emissive = noEmitColor;
-                material.opacity = defOpacity*opacity;
+                if (sensorState.highlight) {
+                    if (meshRef.current) meshRef.current.visible = true;
+                    material.opacity = 1;
+                    if (sensorState?.stateString === "on") {
+                        material.emissive = sensorOnColor;
+                    } else {
+                        material.emissive = sensorOffColor;
+                    }
+                } else {
+                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                    material.emissive = noEmitColor;
+                    material.opacity = defOpacity*opacity;
+                }
             }
+        } else {
+            if (meshRef.current) meshRef.current.visible = visible;
         }
         if (lastTimestamp) {
             const newDate = new Date();
@@ -80,7 +84,6 @@ const SensorBase: FC<SensorProps> = ({
                 setLastTimestamp(null);
             }
         }
-        if (meshRef.current) meshRef.current.visible = visible;
     })
 
     useLayoutEffect(() => {

@@ -28,26 +28,29 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     let lastIntervalTime = 0;
 
     useFrame(({ clock }) => {
-        if (blinking) {
-            if (lastIntervalTime === 0) {
-                lastIntervalTime = clock.elapsedTime;
-            }
-            const deltaInterval = clock.elapsedTime - lastIntervalTime;
-            if (deltaInterval <= 0.30) {
+        if (visible) {
+            if (blinking) {
+                if (lastIntervalTime === 0) {
+                    lastIntervalTime = clock.elapsedTime;
+                }
+                const deltaInterval = clock.elapsedTime - lastIntervalTime;
+                if (deltaInterval <= 0.30) {
+                    material.emissive = noEmitColor;
+                    material.opacity = defOpacity*opacity;
+                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                    material.opacity = 1;
+                    material.emissive = highlightColor;
+                } else if (deltaInterval > 0.60) {
+                    lastIntervalTime = clock.elapsedTime;
+                }
+            } else {
+                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
                 material.emissive = noEmitColor;
                 material.opacity = defOpacity*opacity;
-            } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                material.opacity = 1;
-                material.emissive = highlightColor;
-            } else if (deltaInterval > 0.60) {
-                lastIntervalTime = clock.elapsedTime;
             }
         } else {
-            if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-            material.emissive = noEmitColor;
-            material.opacity = defOpacity*opacity;
+            if (meshRef.current) meshRef.current.visible = visible;
         }
-        if (meshRef.current) meshRef.current.visible = visible;
     })
 
     return (

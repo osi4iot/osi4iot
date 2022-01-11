@@ -57,33 +57,36 @@ const AnimatedObjectBase: FC<AnimatedObjectProps> = ({
     }, [mixer, animatedObjectState.value])
 
     useFrame(({ clock }, delta) => {
-        if (!obj.userData.topicId) mixer?.update(delta);
-        if (blinking) {
-            if (lastIntervalTime === 0) {
-                lastIntervalTime = clock.elapsedTime;
-            }
-            const deltaInterval = clock.elapsedTime - lastIntervalTime;
-            if (deltaInterval <= 0.30) {
-                material.emissive = noEmitColor;
-                material.opacity = defOpacity*opacity;
-            } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                material.opacity = 1;
-                material.emissive = highlightColor;
-            } else if (deltaInterval > 0.60) {
-                lastIntervalTime = clock.elapsedTime;
+        if (visible) {
+            if (!obj.userData.topicId) mixer?.update(delta);
+            if (blinking) {
+                if (lastIntervalTime === 0) {
+                    lastIntervalTime = clock.elapsedTime;
+                }
+                const deltaInterval = clock.elapsedTime - lastIntervalTime;
+                if (deltaInterval <= 0.30) {
+                    material.emissive = noEmitColor;
+                    material.opacity = defOpacity*opacity;
+                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                    material.opacity = 1;
+                    material.emissive = highlightColor;
+                } else if (deltaInterval > 0.60) {
+                    lastIntervalTime = clock.elapsedTime;
+                }
+            } else {
+                if (animatedObjectState.highlight) {
+                    if (meshRef.current) meshRef.current.visible = true;
+                    material.opacity = 1;
+                    material.emissive = highlightColor;
+                } else {
+                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                    material.opacity = defOpacity*opacity;
+                    material.emissive = noEmitColor;
+                }
             }
         } else {
-            if (animatedObjectState.highlight) {
-                if (meshRef.current) meshRef.current.visible = true;
-                material.opacity = 1;
-                material.emissive = highlightColor;
-            } else {
-                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                material.opacity = defOpacity*opacity;
-                material.emissive = noEmitColor;
-            }
+            if (meshRef.current) meshRef.current.visible = visible;
         }
-        if (meshRef.current) meshRef.current.visible = visible;
     })
 
     return (

@@ -351,9 +351,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		hideAllGenericObjects: false,
 		genericObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
 		highlightFemSimulationObject: false,
-		femSimulationObjectHidden: false,
+		hideFemSimulationObject: false,
 		hideFemSimulationLegend: false,
-		femSimulationResult: "None result"
+		femSimulationResult: "None result",
+		showFemSimulationDeformation: false,
+		femSimulationDefScale: 0,
+		showFemSimulationMesh: false,
 	});
 
 
@@ -481,8 +484,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								animatedObjectsOpacity={opts.animatedObjectsOpacity}
 								highlightAllAnimatedObjects={opts.highlightAllAnimatedObjects}
 								hideAllAnimatedObjects={opts.hideAllAnimatedObjects}
-								femSimulationObjectHidden={opts.femSimulationObjectHidden}
+								hideFemSimulationObject={opts.hideFemSimulationObject}
+								showFemSimulationDeformation={opts.showFemSimulationDeformation}
 								highlightFemSimulationObject={opts.highlightFemSimulationObject}
+								showFemSimulationMesh={opts.showFemSimulationMesh}
 								genericObjectsOpacity={opts.genericObjectsOpacity}
 								highlightAllGenericObjects={opts.highlightAllGenericObjects}
 								hideAllGenericObjects={opts.hideAllGenericObjects}
@@ -492,6 +497,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								selectedObjNameRef={selectedObjNameRef}
 								selectedObjTopicIdRef={selectedObjTopicIdRef}
 								femSimulationResult={opts.femSimulationResult}
+								femSimulationDefScale={opts.femSimulationDefScale}
 							/>
 						</Connector>
 					</Stage>
@@ -671,9 +677,19 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								<StyledDatSelect
 									path='femSimulationResult'
 									label='Results'
-									options={["None result", ...Object.keys(femSimulationObject.resultFieldPaths)]} />
+									options={["None result", ...Object.keys(femSimulationObject.resultFieldPaths)]}
+								/>
+								<StyledDatBoolean label="Deformation" path="showFemSimulationDeformation" />
+								<StyledDatNumber
+									label="Log def. scale"
+									path="femSimulationDefScale"
+									min={-2}
+									max={10}
+									step={0.01}
+								/>
+								<StyledDatBoolean label="Show mesh" path="showFemSimulationMesh" />
 								<StyledDatBoolean label="Highlight" path="highlightFemSimulationObject" />
-								<StyledDatBoolean label="Hide mesh" path="femSimulationObjectHidden" />
+								<StyledDatBoolean label="Hide object" path="hideFemSimulationObject" />
 								<StyledDatBoolean label="Hide legend" path="hideFemSimulationLegend" />
 							</DatFolder>
 						}

@@ -34,46 +34,49 @@ const AssetBase: FC<AssetProps> = ({
     let lastIntervalTime = 0;
 
     useFrame(({ clock }) => {
-        if (blinking) {
-            if (lastIntervalTime === 0) {
-                lastIntervalTime = clock.elapsedTime;
-            }
-            const deltaInterval = clock.elapsedTime - lastIntervalTime;
-            if (deltaInterval <= 0.30) {
-                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                material.emissive = noEmitColor;
-                material.opacity = defOpacity*opacity;
-            } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                material.opacity = defOpacity*opacity;
-                if (meshRef.current) meshRef.current.visible = true;
-                if (assetState?.stateString === "ok") {
-                    material.emissive = assetOkColor;
-                } else if (assetState?.stateString === "alerting") {
-                    material.emissive = assetAlertingColor;
+        if (visible) {
+            if (blinking) {
+                if (lastIntervalTime === 0) {
+                    lastIntervalTime = clock.elapsedTime;
                 }
-            } else if (deltaInterval > 0.60) {
-                lastIntervalTime = clock.elapsedTime;
-            }
-        } else {
-            if (assetState.highlight) {
-                if (meshRef.current) meshRef.current.visible = true;
-                material.opacity = 1;
-                if (assetState.stateString === "ok") {
-                    material.emissive = assetOkColor;
-                } else if (assetState?.stateString === "alerting") {
-                    material.emissive = assetAlertingColor;
+                const deltaInterval = clock.elapsedTime - lastIntervalTime;
+                if (deltaInterval <= 0.30) {
+                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                    material.emissive = noEmitColor;
+                    material.opacity = defOpacity*opacity;
+                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                    material.opacity = defOpacity*opacity;
+                    if (meshRef.current) meshRef.current.visible = true;
+                    if (assetState?.stateString === "ok") {
+                        material.emissive = assetOkColor;
+                    } else if (assetState?.stateString === "alerting") {
+                        material.emissive = assetAlertingColor;
+                    }
+                } else if (deltaInterval > 0.60) {
+                    lastIntervalTime = clock.elapsedTime;
                 }
             } else {
-                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                material.opacity = defOpacity*opacity;
-                if (assetState.stateString === "ok") {
-                    material.emissive = noEmitColor;
-                } else if (assetState.stateString === "alerting") {
-                    material.emissive = assetAlertingColor;
+                if (assetState.highlight) {
+                    if (meshRef.current) meshRef.current.visible = true;
+                    material.opacity = 1;
+                    if (assetState.stateString === "ok") {
+                        material.emissive = assetOkColor;
+                    } else if (assetState?.stateString === "alerting") {
+                        material.emissive = assetAlertingColor;
+                    }
+                } else {
+                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                    material.opacity = defOpacity*opacity;
+                    if (assetState.stateString === "ok") {
+                        material.emissive = noEmitColor;
+                    } else if (assetState.stateString === "alerting") {
+                        material.emissive = assetAlertingColor;
+                    }
                 }
             }
+        } else {
+            if (meshRef.current) meshRef.current.visible = visible;
         }
-        if (meshRef.current) meshRef.current.visible = visible;
     })
 
 

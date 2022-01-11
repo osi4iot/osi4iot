@@ -60,9 +60,12 @@ export interface IFemSimulationObject {
 	topicIndex: number;
 	resultsRenderInfo: Record<string, IResultRenderInfo>;
 	resultFieldPaths: Record<string, string>;
+	deformationFields: string[];
 	defaultModalValues: Record<string, number[]>;
 	numberOfModes: number;
 	noneResultColor: Float32Array;
+	originalGeometry: Float32Array;
+	wireFrameMesh: THREE.LineSegments;
 }
 
 interface ModelProps {
@@ -90,8 +93,9 @@ interface ModelProps {
 	animatedObjectsOpacity: number;
 	highlightAllAnimatedObjects: boolean;
 	hideAllAnimatedObjects: boolean;
-	femSimulationObjectHidden: boolean;
+	hideFemSimulationObject: boolean;
 	highlightFemSimulationObject: boolean;
+	showFemSimulationMesh: boolean;
 	genericObjectsOpacity: number;
 	highlightAllGenericObjects: boolean;
 	hideAllGenericObjects: boolean;
@@ -101,6 +105,8 @@ interface ModelProps {
 	selectedObjNameRef: React.MutableRefObject<null>;
 	selectedObjTopicIdRef: React.MutableRefObject<null>;
 	femSimulationResult: string;
+	showFemSimulationDeformation: boolean;
+	femSimulationDefScale: number;
 }
 
 
@@ -130,8 +136,9 @@ const Model: FC<ModelProps> = (
 		animatedObjectsOpacity,
 		highlightAllAnimatedObjects,
 		hideAllAnimatedObjects,
-		femSimulationObjectHidden,
+		hideFemSimulationObject,
 		highlightFemSimulationObject,
+		showFemSimulationMesh,
 		genericObjectsOpacity,
 		highlightAllGenericObjects,
 		hideAllGenericObjects,
@@ -140,7 +147,9 @@ const Model: FC<ModelProps> = (
 		selectedObjTypeRef,
 		selectedObjNameRef,
 		selectedObjTopicIdRef,
-		femSimulationResult
+		femSimulationResult,
+		showFemSimulationDeformation,
+		femSimulationDefScale
 	}) => {
 	const camera = useThree((state) => state.camera);
 	const container = canvasRef.current as HTMLCanvasElement | null;
@@ -363,8 +372,11 @@ const Model: FC<ModelProps> = (
 					femSimulationObjectState={femSimulationObjectState}
 					femSimulationStateString={JSON.stringify(femSimulationObjectState.resultFieldModalValues)}
 					blinking={highlightFemSimulationObject}
-					hideMesh={femSimulationObjectHidden}
+					hideObject={hideFemSimulationObject}
+					showFemMesh={showFemSimulationMesh}
 					femSimulationResult={femSimulationResult}
+					showFemSimulationDeformation={showFemSimulationDeformation}
+					femSimulationDefScale={femSimulationDefScale}
 				/>
 			}
 			{
