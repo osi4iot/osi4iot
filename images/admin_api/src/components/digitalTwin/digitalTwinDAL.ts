@@ -121,6 +121,16 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 				}
 			}
 		})
+
+		mqttTopicsData.sort((topicData1, topicData2) => {
+			if (topicData1.topicId > topicData2.topicId) {
+				return 1;
+			}
+			if (topicData1.topicId < topicData2.topicId) {
+				return -1;
+			}
+			return 0;
+		});
 	}
 
 	return mqttTopicsData;

@@ -20,7 +20,6 @@ export const getDomainName = () => {
     const location = window.location.href;
     let domainName = location.split("/")[2];
     if (domainName === "localhost:3000") domainName = "localhost";  //Development case
-
     return domainName;
 }
 
