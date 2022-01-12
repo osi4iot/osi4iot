@@ -240,6 +240,7 @@ const Model: FC<ModelProps> = (
 
 	useLayoutEffect(() => {
 		if (message) {
+			console.log("message=", message)
 			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
 			let mqttMessage: any;
 			try {
@@ -270,7 +271,7 @@ const Model: FC<ModelProps> = (
 						if (mqttMessage) {
 							const objName = obj.node.name;
 							const assetPartIndex = obj.node.userData.assetPartIndex;
-							const stateNumber = parseInt(mqttMessage.assetPartsState[assetPartIndex], 10);
+							const stateNumber = parseInt(mqttMessage.assetPartsState[assetPartIndex-1], 10);
 							if (stateNumber === 1) {
 								assestsNewState[objName] = { ...assestsNewState[objName], stateString: "alerting" };
 							} else if (stateNumber === 0) {

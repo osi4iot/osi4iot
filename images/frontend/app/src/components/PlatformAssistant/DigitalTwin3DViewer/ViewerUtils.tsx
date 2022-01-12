@@ -408,6 +408,8 @@ export const sortObjects: (nodes: any, materials: Record<string, THREE.MeshStand
 		}
 	}
 
+	topicsId.sort();
+
 	sensorObjects.forEach((obj: ISensorObject) => {
 		const collectionName = obj.collectionName
 		if (sensorsCollectionNames.findIndex(name => name === collectionName) === -1) {
