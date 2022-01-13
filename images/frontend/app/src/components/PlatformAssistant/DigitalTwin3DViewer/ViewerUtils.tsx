@@ -574,10 +574,6 @@ export const onMeshMouseExit = (e: any) => {
 	if (selectedObjTopicIdRef) selectedObjTopicIdRef.innerHTML = "TopicId: -";
 }
 
-export const toFirstLetterUpperCase = (text: string) => {
-	const textModified = text.charAt(0).toLocaleUpperCase() + text.slice(1);
-	return textModified;
-}
 
 export const createUrl = (gltfData: string) => {
 	const binaryDataGltf = [];

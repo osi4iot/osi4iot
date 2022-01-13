@@ -240,7 +240,6 @@ const Model: FC<ModelProps> = (
 
 	useLayoutEffect(() => {
 		if (message) {
-			console.log("message=", message)
 			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
 			let mqttMessage: any;
 			try {

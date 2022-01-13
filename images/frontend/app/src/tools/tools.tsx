@@ -62,7 +62,10 @@ export const axiosAuth = (token: string) => {
     return config;
 }; 
 
-
+export const toFirstLetterUpperCase = (text: string) => {
+	const textModified = text.charAt(0).toLocaleUpperCase() + text.slice(1);
+	return textModified;
+}
 
 export const getPlatformAssistantPathForUserRole = (userRole: string) => {
 	let platformAssistantPath = PLATFORM_ASSISTANT_ROUTES.HOME;

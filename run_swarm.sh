@@ -32,6 +32,9 @@ if [[ $NUMBER_OF_NODES > 1 ]]; then
     printf "Input nfs server ip: "
     read NFS_SERVER_IP
     export NFS_SERVER_IP=$NFS_SERVER_IP
+    printf "Input username for the nfs server:"
+    read NFS_USERNAME
+    export NFS_USERNAME=$NFS_USERNAME
 fi
 
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
@@ -69,6 +72,23 @@ if [ ! -f osi4iot_stack.yml ]; then
     fi
   fi
 fi
+
+if [[ $NUMBER_OF_NODES == 1 ]]; then
+  nodered_volume=$(docker volume ls | grep nodered_data)
+  if [[ "$nodered_volume" == "" ]]; then
+    export IS_NODERED_VOLUME_ALREADY_CREATED=false
+  else
+    export IS_NODERED_VOLUME_ALREADY_CREATED=true
+  fi
+else
+  nfshost=$NFS_USERNAME:$NFS_SERVER_IP
+  if ssh $nfshost "test -e /path/to/file"; then
+    export IS_NODERED_VOLUME_ALREADY_CREATED=false
+  else
+    export IS_NODERED_VOLUME_ALREADY_CREATED=true
+  fi
+fi
+
 
 docker stack deploy -c osi4iot_stack.yml osi4iot
 

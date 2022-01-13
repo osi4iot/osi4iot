@@ -444,8 +444,7 @@ export async function dataBaseInitialization() {
 					topicType: "dev2pdb",
 					topicName: demoTopicName(group, device2, "Accelerometer"),
 					description: `Accelerometer for ${defaultGroupDeviceName(group, "Mobile")} device`,
-					payloadFormat: '{ "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}'
-					// payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+					payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
 				},
 			];
 			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);

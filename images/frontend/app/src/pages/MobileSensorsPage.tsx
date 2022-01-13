@@ -8,7 +8,7 @@ import Main from "../components/Layout/Main";
 import ServerError from "../components/Tools/ServerError";
 import { useAuthState } from "../contexts/authContext";
 import { ChildrenProp, IDevice } from "../interfaces/interfaces";
-import { getDomainName, isValidNumber, isValidText } from "../tools/tools";
+import { getDomainName, isValidNumber, isValidText, toFirstLetterUpperCase } from "../tools/tools";
 import ReadAccelerations from "../tools/ReadingAccelerations";
 import MqttConnection from "../tools/MqttConnection";
 import ProgresBar from "../components/Tools/ProgressBar";
@@ -161,12 +161,14 @@ const domainName = getDomainName();
 
 interface ReadingParameters {
 	deviceSelectedIndex: number;
+	topicsSelect: ITopic[];
 	totalReadingTime: number;
 	samplingFrequency: number;
 }
 
 const areReadingParameterOK = (readingParameters: ReadingParameters): boolean => {
 	let areOK = true;
+	if (readingParameters.topicsSelect.length === 0) areOK = false;
 	if (!isValidNumber(readingParameters.totalReadingTime, 10)) areOK = false;
 	if (!isValidNumber(readingParameters.samplingFrequency, 2)) areOK = false;
 	return areOK;
@@ -174,12 +176,14 @@ const areReadingParameterOK = (readingParameters: ReadingParameters): boolean =>
 
 const initialFormValues = {
 	deviceSelectedIndex: 0,
+	mobileSensorSelectedIndex: 0,
 	topicSelectedIndex: 0,
 	totalReadingTime: 20,
 	samplingFrequency: 25,
 };
 
 let mqttClient: (Paho.Client | null) = null;
+const mobileSensors = ["accelerations"];
 
 const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const [devicesManaged, setDevicesManaged] = useState<IDevice[]>([]);
@@ -191,7 +195,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const [formValues, setFormValues] = useState(initialFormValues);
 	const [readingProgress, setReadingProgress] = useState(0);
 	const [isSensorReading, setIsSensorReadings] = useState(false);
-	const { deviceSelectedIndex, topicSelectedIndex, totalReadingTime, samplingFrequency } = formValues;
+	const { deviceSelectedIndex, mobileSensorSelectedIndex, topicSelectedIndex, totalReadingTime, samplingFrequency } = formValues;
 
 	const { accessToken, loading, errorMessage } = useAuthState();
 
@@ -206,16 +210,17 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 			.then((response) => {
 				const devices: IDevice[] = response.data;
 				const devicesManaged = devices.filter(device => device.type === "Mobile");
-				const devicesManagesIdsArray = devicesManaged.map(device => device.id);
+				const devicesManagedIdsArray = devicesManaged.map(device => device.id);
 				setDevicesManaged(devicesManaged);
 				axios
 					.get(urlTopics, config)
 					.then((response) => {
 						const topics: ITopic[] = response.data;
-						const topicsManaged = topics.filter(topic => devicesManagesIdsArray.indexOf(topic.deviceId) !== -1);
+						const topicsManaged = topics.filter(topic => devicesManagedIdsArray.indexOf(topic.deviceId) !== -1);
 						setTopicsManaged(topicsManaged);
-						const topicsSelect = topicsManaged.filter(topic => topic.deviceId === devicesManaged[0].id);
-						setTopicsSelect(topicsSelect);
+						const topicsForDeviceSelected = topicsManaged.filter(topic => topic.deviceId === devicesManaged[0].id);
+						const topicsManagedForMobileSensor = topicsForDeviceSelected.filter(topic => (topic.payloadFormat as any)[mobileSensors[0]] !== undefined);
+						setTopicsSelect(topicsManagedForMobileSensor);
 					})
 					.catch((error) => {
 						console.log(error);
@@ -251,6 +256,23 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 		setFormValues(changedFormValues);
 	};
 
+	const handleMobileSensorSelectChange = (e: React.FormEvent<HTMLSelectElement>) => {
+		const mobileSensorSelectedIndex = parseInt(e.currentTarget.value, 10);
+		const selectedDevice = devicesManaged[deviceSelectedIndex];
+		const selectedMobileSensor = mobileSensors[mobileSensorSelectedIndex];
+
+		const topicsForDeviceSelected = topicsManaged.filter(topic => topic.deviceId === selectedDevice.id);
+		const topicsManagedForMobileSensor = topicsForDeviceSelected.filter(topic => (topic.payloadFormat as any)[selectedMobileSensor] !== undefined);
+		setTopicsSelect(topicsManagedForMobileSensor);
+
+		const changedFormValues = {
+			...formValues,
+			mobileSensorSelectedIndex,
+		};
+		setFormValues(changedFormValues);
+	};
+
+
 	const handleTopicSelectChange = (e: React.FormEvent<HTMLSelectElement>) => {
 		const topicOptionSelected = parseInt(e.currentTarget.value, 10);
 		setTopicOptionSelected(topicOptionSelected);
@@ -274,13 +296,14 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 		if (mqttClient && !isSensorReading) {
 			const readingParameter = {
 				deviceSelectedIndex,
+				topicsSelect,
 				totalReadingTime,
 				samplingFrequency,
 			};
 			if (!areReadingParameterOK(readingParameter)) {
 				setIsValidationRequired(true);
 			} else {
-				if (devicesManaged[deviceSelectedIndex] && topicsManaged[topicSelectedIndex]) {
+				if (devicesManaged[deviceSelectedIndex] && topicsSelect.length !== 0 && topicsManaged[topicSelectedIndex]) {
 					const groupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
 					const deviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
 					const topicHash = (topicsManaged[topicSelectedIndex] as ITopic).topicUid;
@@ -297,7 +320,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 			<Main>
 				<>
 					<Title>
-						Mobile accelerations <ConnectionLed isMqttConnected={isMqttConnected} />
+						Mobile sensors <ConnectionLed isMqttConnected={isMqttConnected} />
 					</Title>
 					{errorMessage && <ServerError errorText={errorMessage} />}
 					<Form onSubmit={handleSubmit}>
@@ -321,7 +344,25 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 							</Select>
 						</ItemContainer>
 						<ItemContainer>
-							<Label>Sensor name:</Label>
+							<Label>Mobile sensor type:</Label>
+							<Select
+								name="mobileSensorSelected"
+								isValidationRequired={isValidationRequired}
+								onChange={handleMobileSensorSelectChange}
+								value={mobileSensorSelectedIndex}
+								disabled={loading}
+							>
+								{mobileSensors.map((mobileSensor, index) => {
+									return (
+										<option value={index} key={mobileSensor}>
+											{toFirstLetterUpperCase(mobileSensor)}
+										</option>
+									);
+								})}
+							</Select>
+						</ItemContainer>
+						<ItemContainer>
+							<Label>Topic name:</Label>
 							<Select
 								name="topicSelected"
 								isValidationRequired={isValidationRequired}
@@ -338,6 +379,9 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 									);
 								})}
 							</Select>
+							{isValidationRequired && topicsSelect.length === 0 && (
+								<Alert alertText="No topics for the sensor type selected." />
+							)}
 						</ItemContainer>
 
 						<ItemContainer>

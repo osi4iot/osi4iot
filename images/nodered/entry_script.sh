@@ -21,7 +21,7 @@ fi
 mv /tmp/settings.js /data
 mv /tmp/flows_cred.json /data
 
-if [[ "$ALWAYS_USE_DEFAULT_FLOWS" == true ]]
+if [[ "$IS_NODERED_VOLUME_ALREADY_CREATED" == false ]] || [[ "$USE_DEFAULT_FLOWS" == true ]]
 then
     mv /tmp/flows.json /data
 fi

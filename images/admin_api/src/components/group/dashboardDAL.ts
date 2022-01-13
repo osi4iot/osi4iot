@@ -178,7 +178,6 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	const telegramNotificationChannelUid = await getNotificationChannelUid(group.telegramNotificationChannelId);
 	tempDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
 	const tempDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleTempDashboard, tempDashboard);
-	// const tempDashboardUrl = `${getDomainUrl()}/grafana/d/${tempDashboardCreated.uid}/${titleTempDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=1s`
 
 	const tempAlertData = JSON.parse(tempAlertJson);
 	tempAlertData.conditions[0].query.datasourceId = dataSource.id;
@@ -197,10 +196,9 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	accelDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
 	const device2Hash = `Device_${devices[1].deviceUid}`;
 	const topic2Hash = `Topic_${topics[1].topicUid}`;
-	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->>'ax' AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->>'ay' AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->>'az' AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${device2Hash}/${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->'accelerations'->>0 AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->'accelerations'->>1 AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->'accelerations'->>2 AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${device2Hash}/${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
 	const accelDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleAccelDashboard, accelDashboard);
-	// const accelDashboarddUrl = `${getDomainUrl()}/grafana/d/${accelDashboardCreated.uid}/${titleAccelDashboard.toLowerCase()}?orgId=${group.orgId}&refresh=200ms`
 
 	const accelAlertData = JSON.parse(accelAlertJson);
 	accelAlertData.conditions[0].query.datasourceId = dataSource.id;

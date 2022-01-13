@@ -218,7 +218,8 @@ services:
       # - /etc/timezone:/etc/timezone:ro
       # - /etc/localtime:/etc/localtime:ro
     environment:
-      - ALWAYS_USE_DEFAULT_FLOWS=true
+      - USE_DEFAULT_FLOWS=false
+      - IS_NODERED_VOLUME_ALREADY_CREATED=${IS_NODERED_VOLUME_ALREADY_CREATE:-false}
     secrets:
       - source: mqtt_nodered_ca
         target: /data/certs/ca.crt
