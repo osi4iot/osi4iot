@@ -89,7 +89,7 @@ else
   fi
 fi
 
-if [[ "$(docker service ls | grep osi4iot_admin_api | grep 3/3)" == "" ]]; then
+if [[ "$(docker service ls | grep osi4iot_admin_api | grep 3/3)" != "" ]]; then
   export ADMIN_API_REPLICAS=3
 else
   export ADMIN_API_REPLICAS=0
