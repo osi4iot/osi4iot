@@ -89,8 +89,13 @@ else
   fi
 fi
 
+if [[ "$(docker service ls | grep osi4iot_admin_api | grep 3/3)" == "" ]]; then
+  export ADMIN_API_REPLICAS=3
+else
+  export ADMIN_API_REPLICAS=0
+fi
 
-docker stack deploy -c osi4iot_stack.yml osi4iot
+docker stack deploy --resolve-image changed -c osi4iot_stack.yml osi4iot
 
 sp="/-\|"
 sc=0
@@ -117,18 +122,20 @@ while $do ; do
 done
 endspin
 
-echo "Initializing platform database:"
-echo ""
-docker service scale osi4iot_admin_api=1
-do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
-while $do ; do
-  spin
+if [[ "$(docker service ls | grep osi4iot_admin_api | grep 3/3)" == "" ]]; then
+  echo "Initializing platform database:"
+  echo ""
+  docker service scale osi4iot_admin_api=1
   do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
-  sleep 0.5
-done
-endspin
+  while $do ; do
+    spin
+    do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
+    sleep 0.5
+  done
+  endspin
 
-docker service scale osi4iot_admin_api=3
+  docker service scale osi4iot_admin_api=3
+fi
 
 do=true && [[ "$(docker service ls | grep 0/1)" == "" || "$(docker service ls | grep 0/3)" == "" ]] && do=false
 printf '\n%s' "Waiting until all containers be ready  "
