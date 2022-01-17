@@ -322,7 +322,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [initialAssetsVisibilityState, setInitialAssetsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
 	const [initialAnimatedObjsVisibilityState, setInitialAnimatedObjsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
 
-
 	const [opts, setOpts] = useState({
 		ambientLight: true,
 		ambientLightIntensity: 1,

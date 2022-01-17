@@ -102,8 +102,8 @@ export const generateInitialAssetsState = (assetObjects: IAssetObject[], digital
 			const assetPartIndex = obj.node.userData.assetPartIndex;
 			const payloadObject = lastMeasurement.payload as any;
 			let stateNumber = 0;
-			if (payloadObject.assetPartsState && payloadObject.assetPartsState[assetPartIndex]) {
-				stateNumber = parseInt(payloadObject.assetPartsState[assetPartIndex], 10);
+			if (payloadObject.assetPartsState && payloadObject.assetPartsState[assetPartIndex - 1]) {
+				stateNumber = parseInt(payloadObject.assetPartsState[assetPartIndex - 1], 10);
 			}
 			if (stateNumber === 1) {
 				initialAssetsState[objName] = { stateString: "alerting", highlight: false };
@@ -161,7 +161,6 @@ export const generateInitialFemSimulationObjectState = (femSimulationObject: IFe
 		resultFieldNames.forEach((resultFieldName, index) => {
 			resultFieldModalValues[resultFieldName] = payloadObject.femSimulationModalValues[index];
 		});
-
 	}
 	const initialFemSimulationObjectState = { highlight, resultFieldModalValues }
 	return initialFemSimulationObjectState;
@@ -475,7 +474,7 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 	let objName = "";
 	let type = "";
 
-	if (container) {
+	if (container && meshList && meshList.length) {
 		const rect = container.getBoundingClientRect();
 		pointer.x = ((lx - rect.left) / rect.width) * 2 - 1;
 		pointer.y = - ((ly - rect.top) / rect.height) * 2 + 1;
@@ -636,8 +635,11 @@ export const loadJsonModel = (
 
 		const mesh = new THREE.Mesh(geometry, material);
 		const wireframeGeometry = new THREE.WireframeGeometry(mesh.geometry);
-        const wireFrameMesh = new THREE.LineSegments(wireframeGeometry, wireFrameMaterial);
-		const deformationFields: string[] = digitalTwinGltfData.femSimulationData.metadata.deformationFields;
+		const wireFrameMesh = new THREE.LineSegments(wireframeGeometry, wireFrameMaterial);
+		let deformationFields: string[] = [];
+		if (digitalTwinGltfData.femSimulationData.metadata.deformationFields) {
+			deformationFields = digitalTwinGltfData.femSimulationData.metadata.deformationFields;
+		}
 
 		const resultsRenderInfo: Record<string, IResultRenderInfo> = {};
 		const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
@@ -702,9 +704,9 @@ export const loadJsonModel = (
 			originalGeometry,
 			wireFrameMesh,
 		}
+
 		setFemSimulationObjects(femSimulationObject);
 		setInitialFemSimulationObjectState(generateInitialFemSimulationObjectState(femSimulationObject, digitalTwinGltfData))
-
 	});
 }
 

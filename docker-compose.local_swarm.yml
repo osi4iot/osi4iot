@@ -90,8 +90,6 @@ services:
         mode: 0440  
     deploy:
       replicas: 1
-      placement:
-        constraints: [ node.id == $NODE_ID ]
       restart_policy:
         condition: any
 

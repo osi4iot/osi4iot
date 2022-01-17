@@ -96,7 +96,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             resultColors = new Float32Array(lutColors);
         }
 
-        if (showFemSimulationDeformation) {
+        if (showFemSimulationDeformation && femSimulationObject.deformationFields.length) {
             const currentPositionArray = [];
             const deformationScale = Math.pow(10.0, femSimulationDefScale);
             for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
