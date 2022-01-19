@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import React, { FC, useRef, useState, useLayoutEffect, useCallback } from 'react';
+import React, { FC, useRef, useState, useLayoutEffect, useCallback, useEffect } from 'react';
 import { useMqttState, useSubscription } from 'mqtt-react-hooks';
 import Sensors from './Sensors';
 import GenericObjects from './GenericObjects';
@@ -157,9 +157,14 @@ const Model: FC<ModelProps> = (
 	const [sensorsState, setSensorsState] = useState<Record<string, SensorState>>(initialSensorsState);
 	const [assetsState, setAssetsState] = useState<Record<string, AssetState>>(initialAssetsState);
 	const [animatedObjectsState, setAnimatedObjectsState] = useState<Record<string, AnimatedObjectState>>(initialAnimatedObjectsState);
-	const [femSimulationObjectState, setFemSimulationObjectState] = useState<FemSimulationObjectState>(initialFemSimulationObjectState);
+	const [femSimulationObjectState, setFemSimulationObjectState] = useState<FemSimulationObjectState | null>(null);
 	const { client } = useMqttState();
 	const { message } = useSubscription(mqttTopics);
+
+	useEffect(() => {
+		setFemSimulationObjectState(initialFemSimulationObjectState);
+	}, [initialFemSimulationObjectState, femSimulationObject]);
+
 
 	useLayoutEffect(() => {
 		const changeObjectHighlight = (objType: string, objName: string, highlighted: boolean) => {
@@ -301,19 +306,20 @@ const Model: FC<ModelProps> = (
 				});
 				if (isAnimatedObjectsStateChanged) setAnimatedObjectsState(animatedObjectsNewState);
 
-				const femSimulationObjectNewState = { ...femSimulationObjectState };
-				let isfemSimulationObjectStateChanged = false;
-				if (femSimulationObject.topicIndex === mqttTopicIndex) {
-					if (mqttMessage) {
-						const resultFieldNames = Object.keys(femSimulationObject.resultFieldPaths);
-						resultFieldNames.forEach((resultFieldName, index) => {
-							femSimulationObjectNewState.resultFieldModalValues[resultFieldName] = mqttMessage.femSimulationModalValues[index];
-							isfemSimulationObjectStateChanged = true
-						});
+				if (femSimulationObjectState) {
+					let isfemSimulationObjectStateChanged = false;
+					const femSimulationObjectNewState = { ...femSimulationObjectState };
+					if (femSimulationObject.topicIndex === mqttTopicIndex) {
+						if (mqttMessage) {
+							const resultFieldNames = Object.keys(femSimulationObject.resultFieldPaths);
+							resultFieldNames.forEach((resultFieldName, index) => {
+								femSimulationObjectNewState.resultFieldModalValues[resultFieldName] = mqttMessage.femSimulationModalValues[index];
+								isfemSimulationObjectStateChanged = true
+							});
+						}
 					}
+					if (isfemSimulationObjectStateChanged) setFemSimulationObjectState(femSimulationObjectNewState);
 				}
-				if (isfemSimulationObjectStateChanged) setFemSimulationObjectState(femSimulationObjectNewState);
-
 
 			} catch (error) {
 				console.log("Error reading Mqtt message");
