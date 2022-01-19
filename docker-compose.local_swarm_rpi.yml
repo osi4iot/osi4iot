@@ -217,7 +217,7 @@ services:
       # - /etc/localtime:/etc/localtime:ro
     environment:
       - USE_DEFAULT_FLOWS=false
-      - IS_NODERED_VOLUME_ALREADY_CREATED=${IS_NODERED_VOLUME_ALREADY_CREATE:-false}
+      - IS_NODERED_VOLUME_ALREADY_CREATED=${IS_NODERED_VOLUME_ALREADY_CREATED:-false}
     secrets:
       - source: mqtt_nodered_ca
         target: /data/certs/ca.crt

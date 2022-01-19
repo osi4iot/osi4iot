@@ -301,6 +301,7 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 			break;
 		}
 	}
+	
 	if (!objMaterial) {
 		if (obj.userData.type === "sensor") {
 			const materialColor = new THREE.Color("#23272F");
