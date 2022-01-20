@@ -163,7 +163,6 @@ const Model: FC<ModelProps> = (
 
 	useLayoutEffect(() => {
 		setFemSimulationObjectState(initialFemSimulationObjectState);
-		console.log("Paso por useLayoutEffect en Model")
 	}, [initialFemSimulationObjectState, femSimulationObject]);
 
 
