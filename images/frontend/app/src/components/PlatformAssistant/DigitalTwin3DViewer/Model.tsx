@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import React, { FC, useRef, useState, useLayoutEffect, useCallback, useEffect } from 'react';
+import React, { FC, useRef, useState, useLayoutEffect, useCallback } from 'react';
 import { useMqttState, useSubscription } from 'mqtt-react-hooks';
 import Sensors from './Sensors';
 import GenericObjects from './GenericObjects';
@@ -161,8 +161,9 @@ const Model: FC<ModelProps> = (
 	const { client } = useMqttState();
 	const { message } = useSubscription(mqttTopics);
 
-	useEffect(() => {
+	useLayoutEffect(() => {
 		setFemSimulationObjectState(initialFemSimulationObjectState);
+		console.log("Paso por useLayoutEffect en Model")
 	}, [initialFemSimulationObjectState, femSimulationObject]);
 
 
