@@ -34,8 +34,6 @@ import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import HttpException from "../../exceptions/HttpException";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
-import { checkIfExistTopics } from "../topic/topicDAL";
-
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";

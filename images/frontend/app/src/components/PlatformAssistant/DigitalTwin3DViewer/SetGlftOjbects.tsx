@@ -1,6 +1,14 @@
 import { useGLTF } from '@react-three/drei';
 import { FC, useEffect } from 'react'
-import { IAnimatedObject, IAssetObject, IGenericObject, ISensorObject } from './Model';
+import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
+import {
+    IAnimatedObject,
+    IAssetObject,
+    IFemSimulationObject,
+    IGenericObject,
+    IResultRenderInfo,
+    ISensorObject
+} from './Model';
 import {
     AnimatedObjectState,
     AssetState,
@@ -10,38 +18,55 @@ import {
     ObjectVisibilityState,
     IDigitalTwinGltfData,
     SensorState,
-    sortObjects
+    sortObjects,
+    GenericObjectState,
+    generateInitialGenericObjectsState,
+    FemSimObjectVisibilityState,
+    FemSimulationObjectState,
+    readFemSimulationInfo
 } from './ViewerUtils';
 
 interface SetGltfObjectsProps {
+    digitalTwinSelected: IDigitalTwin;
     digitalTwinGltfData: IDigitalTwinGltfData;
     setSensorObjects: (sensorObjects: ISensorObject[]) => void;
     setAssetObjects: (assetObjects: IAssetObject[]) => void;
     setAnimatedObjects: (animatedObjects: IAnimatedObject[]) => void;
     setGenericObjects: (genericObjects: IGenericObject[]) => void;
+    setFemSimulationObjects: (femSimulationObjects: IFemSimulationObject[]) => void;
     setInitialSensorsState: (initialSensorsState: Record<string, SensorState> | null) => void;
     setInitialAssetsState: (initialAssetsState: Record<string, AssetState> | null) => void;
+    setInitialGenericObjectsState: (initialGenericObjectsState: Record<string, GenericObjectState> | null) => void;
     setInitialAnimatedObjectsState: (initialAnimatedObjectsState: Record<string, AnimatedObjectState> | null) => void;
+    setInitialFemSimObjectsState: (initialFemSimObjectsState: FemSimulationObjectState[]) => void;
+    setFemSimulationGeneralInfo: (femSimulationGeneralInfo: Record<string, IResultRenderInfo>) => void;
     setInitialGenericObjectsVisibilityState: (initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialSensorsVisibilityState: (initialSensorsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialAssetsVisibilityState: (initialAssetsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialAnimatedObjsVisibilityState: (initialAnimatedObjsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
+    setInitialFemSimObjectsVisibilityState: (initialFemSimObjectsVisibilityState: Record<string, FemSimObjectVisibilityState> | null) => void;
 }
 
 
 const SetGltfObjects: FC<SetGltfObjectsProps> = ({
+    digitalTwinSelected,
     digitalTwinGltfData,
     setSensorObjects,
     setAssetObjects,
     setAnimatedObjects,
     setGenericObjects,
+    setFemSimulationObjects,
     setInitialSensorsState,
     setInitialAssetsState,
+    setInitialGenericObjectsState,
     setInitialAnimatedObjectsState,
+    setInitialFemSimObjectsState,
+    setFemSimulationGeneralInfo,
     setInitialGenericObjectsVisibilityState,
     setInitialSensorsVisibilityState,
     setInitialAssetsVisibilityState,
-    setInitialAnimatedObjsVisibilityState
+    setInitialAnimatedObjsVisibilityState,
+    setInitialFemSimObjectsVisibilityState
 }) => {
     const { nodes, materials, animations } = useGLTF(digitalTwinGltfData.digitalTwinGltfUrl as string) as any;
 
@@ -52,18 +77,31 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 assetObjects,
                 animatedObjects,
                 genericObjects,
+                femSimulationObjects,
                 sensorsCollectionNames,
                 assetsCollectionNames,
                 animatedObjectsCollectionNames,
-                genericObjectsCollectionNames
+                genericObjectsCollectionNames,
+                femSimulationObjectsCollectionNames
             } = sortObjects(nodes, materials, animations);
             setSensorObjects(sensorObjects);
             setAssetObjects(assetObjects);
             setAnimatedObjects(animatedObjects);
             setGenericObjects(genericObjects);
+            setFemSimulationObjects(femSimulationObjects);
             setInitialSensorsState(generateInitialSensorsState(sensorObjects, digitalTwinGltfData));
-            setInitialAssetsState(generateInitialAssetsState(assetObjects, digitalTwinGltfData));
+            setInitialAssetsState(generateInitialAssetsState(digitalTwinSelected, assetObjects, digitalTwinGltfData));
+            setInitialGenericObjectsState(generateInitialGenericObjectsState(digitalTwinSelected, genericObjects, digitalTwinGltfData))
             setInitialAnimatedObjectsState(generateInitialAnimatedObjectsState(animatedObjects, digitalTwinGltfData))
+            if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
+                readFemSimulationInfo(
+                    digitalTwinSelected,
+                    digitalTwinGltfData,
+                    femSimulationObjects,
+                    setInitialFemSimObjectsState,
+                    setFemSimulationGeneralInfo
+                )
+            }
 
             const initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> = {}
             for (const collectionName of genericObjectsCollectionNames) {
@@ -89,6 +127,19 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 initialAnimatedObjsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
             }
             setInitialAnimatedObjsVisibilityState(initialAnimatedObjsVisibilityState);
+
+            const initialFemSimObjectsVisibilityState: Record<string, FemSimObjectVisibilityState> = {}
+            for (const collectionName of femSimulationObjectsCollectionNames) {
+                initialFemSimObjectsVisibilityState[collectionName] = {
+                    hide: false,
+                    showMesh: false,
+                    showDeformation: false,
+                    highlight: false,
+                    opacity: 1.0,
+                    femSimulationResult: "None result"
+                };
+            }
+            setInitialFemSimObjectsVisibilityState(initialFemSimObjectsVisibilityState);
         }
 
         return () => URL.revokeObjectURL(digitalTwinGltfData.digitalTwinGltfUrl as string);

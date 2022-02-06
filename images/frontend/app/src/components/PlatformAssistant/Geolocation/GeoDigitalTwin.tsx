@@ -13,6 +13,7 @@ import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { createUrl, IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { toast } from "react-toastify";
+import { IMqttTopicData } from "../DigitalTwin3DViewer/Model";
 
 
 interface DigitanTwinSvgImageProps {
@@ -109,9 +110,10 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                     const femSimulationData = digitalTwinGltfData.femSimulationData;
                     if (Object.keys(femSimulationData).length) {
                         digitalTwinGltfData.femSimulationUrl = createUrl(JSON.stringify(femSimulationData));
-                    } else digitalTwinGltfData.femSimulationUrl = null;                    
-
-                    const inexistentMqttTopics = digitalTwinGltfData.mqttTopics.filter((topic: string) => topic.slice(0, 7) === "Warning");
+                    } else digitalTwinGltfData.femSimulationUrl = null;
+                    
+                    const mqttTopics = digitalTwinGltfData.mqttTopicsData.map((topicData: IMqttTopicData) => topicData.mqttTopic);
+                    const inexistentMqttTopics = mqttTopics.filter((topic: string) => topic.slice(0, 7) === "Warning");
                     if (inexistentMqttTopics.length !== 0) {
                         const warningMessage = "Some mqtt topics no longer exist"
 						toast.warning(warningMessage);

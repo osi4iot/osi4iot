@@ -9,7 +9,10 @@ import { useThree } from '@react-three/fiber';
 import {
 	AnimatedObjectState,
 	AssetState,
+	FemSimObjectVisibilityState,
 	FemSimulationObjectState,
+	GenericObjectState,
+	IDigitalTwinGltfData,
 	ObjectVisibilityState,
 	onMeshMouseEnter,
 	onMeshMouseExit,
@@ -21,25 +24,22 @@ import {
 	setParameters,
 } from './ViewerUtils';
 import AnimatedObjects from './AnimatedObjects';
-import FemSimulationObject from './FemSimulationObjects';
 import Lut from './Lut';
+import FemSimulationObjects from './FemSimulationObjects';
 
 
 export interface ISensorObject {
 	node: THREE.Mesh;
-	topicIndex: number;
 	collectionName: string;
 }
 
 export interface IAssetObject {
 	node: THREE.Mesh;
-	topicIndex: number;
 	collectionName: string;
 }
 
 export interface IAnimatedObject {
 	node: THREE.Mesh;
-	topicIndex: number;
 	collectionName: string;
 }
 
@@ -55,20 +55,32 @@ export interface IResultRenderInfo {
 	legendRenderer: THREE.WebGLRenderer;
 }
 
+
 export interface IFemSimulationObject {
 	node: THREE.Mesh;
-	topicIndex: number;
-	resultsRenderInfo: Record<string, IResultRenderInfo>;
-	resultFieldPaths: Record<string, string>;
-	deformationFields: string[];
-	defaultModalValues: Record<string, number[]>;
-	numberOfModes: number;
-	noneResultColor: Float32Array;
 	originalGeometry: Float32Array;
 	wireFrameMesh: THREE.LineSegments;
+	collectionName: string;
+	femResultMaterial: THREE.MeshLambertMaterial;
+}
+
+export interface IMeasurement {
+	timestamp: number;
+	topic: string;
+	payload: string;
+	totalRows?: number;
+}
+
+export interface IMqttTopicData {
+	topicId: number;
+	topicType: string;
+	topicSubtype: string;
+	mqttTopic: string;
+	lastMeasurement: IMeasurement | null;
 }
 
 interface ModelProps {
+	digitalTwinGltfData: IDigitalTwinGltfData;
 	sensorObjects: ISensorObject[];
 	initialSensorsState: Record<string, SensorState>
 	sensorsVisibilityState: Record<string, ObjectVisibilityState>;
@@ -78,11 +90,14 @@ interface ModelProps {
 	animatedObjects: IAnimatedObject[];
 	initialAnimatedObjectsState: Record<string, AnimatedObjectState>;
 	animatedObjectsVisibilityState: Record<string, ObjectVisibilityState>;
-	femSimulationObject: IFemSimulationObject;
-	initialFemSimulationObjectState: FemSimulationObjectState;
+	femSimulationObjects: IFemSimulationObject[];
+	femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
+	initialFemSimObjectsState: FemSimulationObjectState[];
+	femSimulationObjectsVisibilityState: Record<string, FemSimObjectVisibilityState>;
 	genericObjects: IGenericObject[];
+	initialGenericObjectsState: Record<string, GenericObjectState>;
 	genericObjectsVisibilityState: Record<string, ObjectVisibilityState>;
-	mqttTopics: string[];
+	mqttTopicsData: IMqttTopicData[];
 	dashboardUrl: string;
 	sensorsOpacity: number;
 	highlightAllSensors: boolean;
@@ -93,9 +108,10 @@ interface ModelProps {
 	animatedObjectsOpacity: number;
 	highlightAllAnimatedObjects: boolean;
 	hideAllAnimatedObjects: boolean;
-	hideFemSimulationObject: boolean;
-	highlightFemSimulationObject: boolean;
-	showFemSimulationMesh: boolean;
+	femSimulationObjectsOpacity: number;
+	hideAllFemSimulationObjects: boolean;
+	highlightAllFemSimulationObjects: boolean;
+	showAllFemSimulationMeshes: boolean;
 	genericObjectsOpacity: number;
 	highlightAllGenericObjects: boolean;
 	hideAllGenericObjects: boolean;
@@ -112,6 +128,7 @@ interface ModelProps {
 
 const Model: FC<ModelProps> = (
 	{
+		digitalTwinGltfData,
 		sensorObjects,
 		initialSensorsState,
 		sensorsVisibilityState,
@@ -121,11 +138,14 @@ const Model: FC<ModelProps> = (
 		animatedObjects,
 		initialAnimatedObjectsState,
 		animatedObjectsVisibilityState,
-		femSimulationObject,
-		initialFemSimulationObjectState,
+		femSimulationObjects,
+		femSimulationGeneralInfo,
+		initialFemSimObjectsState,
+		femSimulationObjectsVisibilityState,
 		genericObjects,
+		initialGenericObjectsState,
 		genericObjectsVisibilityState,
-		mqttTopics,
+		mqttTopicsData,
 		dashboardUrl,
 		sensorsOpacity,
 		highlightAllSensors,
@@ -136,9 +156,10 @@ const Model: FC<ModelProps> = (
 		animatedObjectsOpacity,
 		highlightAllAnimatedObjects,
 		hideAllAnimatedObjects,
-		hideFemSimulationObject,
-		highlightFemSimulationObject,
-		showFemSimulationMesh,
+		femSimulationObjectsOpacity,
+		hideAllFemSimulationObjects,
+		highlightAllFemSimulationObjects,
+		showAllFemSimulationMeshes,
 		genericObjectsOpacity,
 		highlightAllGenericObjects,
 		hideAllGenericObjects,
@@ -156,14 +177,23 @@ const Model: FC<ModelProps> = (
 	const group = useRef<THREE.Group>();
 	const [sensorsState, setSensorsState] = useState<Record<string, SensorState>>(initialSensorsState);
 	const [assetsState, setAssetsState] = useState<Record<string, AssetState>>(initialAssetsState);
+	const [genericObjectsState, setGenericObjectsState] = useState<Record<string, GenericObjectState>>(initialGenericObjectsState);
 	const [animatedObjectsState, setAnimatedObjectsState] = useState<Record<string, AnimatedObjectState>>(initialAnimatedObjectsState);
-	const [femSimulationObjectState, setFemSimulationObjectState] = useState<FemSimulationObjectState | null>(null);
+	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
+	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic);
 	const { message } = useSubscription(mqttTopics);
 
 	useLayoutEffect(() => {
-		setFemSimulationObjectState(initialFemSimulationObjectState);
-	}, [initialFemSimulationObjectState, femSimulationObject]);
+		setFemSimulationObjectsState(initialFemSimObjectsState);
+	}, [initialFemSimObjectsState, femSimulationObjects]);
+
+	let femResultNames: string[] = [];
+	if (femSimulationObjects.length && femSimulationGeneralInfo) {
+		femResultNames = digitalTwinGltfData.femSimulationData.metadata.resultFields.map(
+			(resultField: { resultName: string; }) => resultField.resultName
+		);
+	}
 
 
 	useLayoutEffect(() => {
@@ -246,33 +276,101 @@ const Model: FC<ModelProps> = (
 	useLayoutEffect(() => {
 		if (message) {
 			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
+			const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
+			const messageTopicSubtype = mqttTopicsData[mqttTopicIndex].topicSubtype;
 			let mqttMessage: any;
 			try {
 				mqttMessage = JSON.parse(message.message as string);
-				const sensorsNewState = { ...sensorsState };
-				let isSensorStateChanged = false;
-				sensorObjects.forEach((obj) => {
-					const objName = obj.node.name;
-					if (obj.topicIndex === mqttTopicIndex && sensorsState[objName].stateString === "off") {
-						if (mqttMessage) {
-							const fieldName = obj.node.userData.fieldName;
-							const payloadKeys = Object.keys(mqttMessage);
-							if (payloadKeys.indexOf(fieldName) !== -1) {
-								const value = mqttMessage[fieldName];
-								if (typeof value === 'number' || (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)) {
-									sensorsNewState[objName] = { ...sensorsNewState[objName], stateString: "on" };
-									isSensorStateChanged = true;
+				if (mqttMessage) {
+					const messagePayloadKeys = Object.keys(mqttMessage);
+					const sensorsNewState = { ...sensorsState };
+					let isSensorStateChanged = false;
+					const assestsNewState = { ...assetsState };
+					let isAssetStateChanged = false;
+					const genericObjectNewState = { ...genericObjectsState };
+					let isGenericObjectsStateChanged = false;
+					let isfemSimulationObjectsStateChanged = false;
+					const femSimulationObjectsNewState = [...femSimulationObjectsState];
+
+					if (messageTopicSubtype === "sensorTopic" || messageTopicSubtype === "sensorSimulationTopic") {
+						sensorObjects.forEach((obj) => {
+							const objName = obj.node.name;
+							const sensorTopicId = obj.node.userData.topicId;
+							if (sensorTopicId === messageTopicId && sensorsState[objName].stateString === "off") {
+								const fieldName = obj.node.userData.fieldName;
+								if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+									const value = mqttMessage[fieldName];
+									if (typeof value === 'number' || (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)) {
+										sensorsNewState[objName] = { ...sensorsNewState[objName], stateString: "on" };
+										isSensorStateChanged = true;
+									}
 								}
 							}
-						}
-					}
-				});
-				if (isSensorStateChanged) setSensorsState(sensorsNewState);
+							const clipTopicIds = obj.node.userData.clipTopicIds;
+							if (clipTopicIds && clipTopicIds.length !== 0) {
+								const clipValues = [...sensorsNewState[objName].clipValues];
+								clipTopicIds.forEach((clipTopicId: number, index: number) => {
+									if (clipTopicId === messageTopicId) {
+										const fieldName = obj.node.userData.clipFieldNames[index];
+										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+											const value = mqttMessage[fieldName];
+											if (typeof value === 'number') {
+												clipValues[index] = value;
+												isSensorStateChanged = true;
+											}
+										}
+									}
+								});
+								sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
+							}
+						});
 
-				const assestsNewState = { ...assetsState };
-				assetObjects.forEach((obj) => {
-					if (obj.topicIndex === mqttTopicIndex) {
-						if (mqttMessage) {
+						assetObjects.forEach((obj) => {
+							const objName = obj.node.name;
+							const clipTopicIds = obj.node.userData.clipTopicIds;
+							if (clipTopicIds && clipTopicIds.length !== 0) {
+								const clipValues = [...assestsNewState[objName].clipValues];
+								clipTopicIds.forEach((clipTopicId: number, index: number) => {
+									if (clipTopicId === messageTopicId) {
+										const fieldName = obj.node.userData.clipFieldNames[index];
+										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+											const value = mqttMessage[fieldName];
+											if (typeof value === 'number') {
+												clipValues[index] = value;
+												isAssetStateChanged = true;
+											}
+										}
+									}
+								});
+								assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
+							}
+						});
+
+						genericObjects.forEach((obj) => {
+							const objName = obj.node.name;
+							const clipTopicIds = obj.node.userData.clipTopicIds;
+							if (clipTopicIds && clipTopicIds.length !== 0) {
+								const clipValues = [...genericObjectNewState[objName].clipValues];
+								clipTopicIds.forEach((clipTopicId: number, index: number) => {
+									if (clipTopicId === messageTopicId) {
+										const fieldName = obj.node.userData.clipFieldNames[index];
+										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+											const value = mqttMessage[fieldName];
+											if (typeof value === 'number') {
+												clipValues[index] = value;
+												isGenericObjectsStateChanged = true;
+											}
+										}
+									}
+								});
+								genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
+							}
+						});
+					}
+
+					if (messageTopicSubtype === "assetStateTopic" || messageTopicSubtype === "assetStateSimulationTopic") {
+						const assestsNewState = { ...assetsState };
+						assetObjects.forEach((obj) => {
 							const objName = obj.node.name;
 							const assetPartIndex = obj.node.userData.assetPartIndex;
 							const stateNumber = parseInt(mqttMessage.assetPartsState[assetPartIndex - 1], 10);
@@ -281,47 +379,46 @@ const Model: FC<ModelProps> = (
 							} else if (stateNumber === 0) {
 								assestsNewState[objName] = { ...assestsNewState[objName], stateString: "ok" };
 							}
-						}
+						});
+						setAssetsState(assestsNewState);
 					}
-				});
-				setAssetsState(assestsNewState);
 
-				const animatedObjectsNewState = { ...animatedObjectsState };
-				let isAnimatedObjectsStateChanged = false;
-				animatedObjects.forEach((obj) => {
-					if (obj.topicIndex === mqttTopicIndex) {
-						if (mqttMessage) {
-							const objName = obj.node.name;
-							const fieldName = obj.node.userData.fieldName;
-							const payloadKeys = Object.keys(mqttMessage);
-							if (payloadKeys.indexOf(fieldName) !== -1) {
-								const value = mqttMessage[fieldName];
-								if (typeof value === 'number') {
-									animatedObjectsNewState[objName] = { ...animatedObjectsNewState[objName], value };
-									isAnimatedObjectsStateChanged = true;
+					const animatedObjectsNewState = { ...animatedObjectsState };
+					let isAnimatedObjectsStateChanged = false;
+					animatedObjects.forEach((obj) => {
+						const objName = obj.node.name;
+						const fieldName = obj.node.userData.fieldName;
+						if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+							const value = mqttMessage[fieldName];
+							if (typeof value === 'number') {
+								animatedObjectsNewState[objName] = { ...animatedObjectsNewState[objName], value };
+								isAnimatedObjectsStateChanged = true;
+							}
+						}
+					});
+					if (isAnimatedObjectsStateChanged) setAnimatedObjectsState(animatedObjectsNewState);
+
+					if (femSimulationObjectsState.length) {
+						if (messageTopicSubtype === "femResultModalValuesTopic") {
+							for (let imesh = 0; imesh < femSimulationObjectsState.length; imesh++) {
+								for (let ires = 0; ires < femResultNames.length; ires++) {
+									const resultName = femResultNames[ires];
+									const femResultsModalValue = mqttMessage.femResultsModalValues[imesh][ires];
+									femSimulationObjectsNewState[imesh].resultFieldModalValues[resultName] = femResultsModalValue
+									isfemSimulationObjectsStateChanged = true
 								}
 							}
 						}
 					}
-				});
-				if (isAnimatedObjectsStateChanged) setAnimatedObjectsState(animatedObjectsNewState);
 
-				if (femSimulationObjectState) {
-					let isfemSimulationObjectStateChanged = false;
-					const femSimulationObjectNewState = { ...femSimulationObjectState };
-					if (femSimulationObject.topicIndex === mqttTopicIndex) {
-						if (mqttMessage) {
-							const resultFieldNames = Object.keys(femSimulationObject.resultFieldPaths);
-							resultFieldNames.forEach((resultFieldName, index) => {
-								femSimulationObjectNewState.resultFieldModalValues[resultFieldName] = mqttMessage.femSimulationModalValues[index];
-								isfemSimulationObjectStateChanged = true
-							});
-						}
-					}
-					if (isfemSimulationObjectStateChanged) setFemSimulationObjectState(femSimulationObjectNewState);
+					if (isSensorStateChanged) setSensorsState(sensorsNewState);
+					if (isAssetStateChanged) setAssetsState(assestsNewState);
+					if (isGenericObjectsStateChanged) setGenericObjectsState(genericObjectNewState);
+					if (isfemSimulationObjectsStateChanged) setFemSimulationObjectsState(femSimulationObjectsNewState);
 				}
 
 			} catch (error) {
+				console.log("error=", error)
 				console.log("Error reading Mqtt message");
 			}
 		}
@@ -372,17 +469,20 @@ const Model: FC<ModelProps> = (
 				/>
 			}
 			{
-				(femSimulationObject && femSimulationObjectState) &&
-				<FemSimulationObject
-					femSimulationObject={femSimulationObject}
-					femSimulationObjectState={femSimulationObjectState}
-					femSimulationStateString={JSON.stringify(femSimulationObjectState.resultFieldModalValues)}
-					blinking={highlightFemSimulationObject}
-					hideObject={hideFemSimulationObject}
-					showFemMesh={showFemSimulationMesh}
+				(femSimulationObjects.length && femSimulationObjectsState.length) &&
+				<FemSimulationObjects
+					femSimulationGeneralInfo={femSimulationGeneralInfo}
+					digitalTwinGltfData={digitalTwinGltfData}
+					femSimulationObjects={femSimulationObjects}
+					femSimulationObjectsOpacity={femSimulationObjectsOpacity}
+					highlightAllFemSimulationObjects={highlightAllFemSimulationObjects}
+					hideAllFemSimulationObjects={hideAllFemSimulationObjects}
+					femSimulationObjectsState={femSimulationObjectsState}
 					femSimulationResult={femSimulationResult}
+					showFemAllMeshes={showAllFemSimulationMeshes}
 					showFemSimulationDeformation={showFemSimulationDeformation}
 					femSimulationDefScale={femSimulationDefScale}
+					femSimulationObjectsVisibilityState={femSimulationObjectsVisibilityState}
 				/>
 			}
 			{
@@ -392,6 +492,7 @@ const Model: FC<ModelProps> = (
 					genericObjectsOpacity={genericObjectsOpacity}
 					highlightAllGenericObjects={highlightAllGenericObjects}
 					hideAllGenericObjects={hideAllGenericObjects}
+					genericObjectsState={genericObjectsState}
 					genericObjectsVisibilityState={genericObjectsVisibilityState}
 				/>
 			}

@@ -9,7 +9,14 @@ import { OrbitControls } from '@react-three/drei';
 import DatGui, { DatNumber, DatFolder, DatBoolean, DatSelect } from "react-dat-gui";
 import "react-dat-gui/dist/dist/index.css";
 import { Stage } from "./Stage";
-import Model, { IAnimatedObject, IAssetObject, IFemSimulationObject, IGenericObject, ISensorObject } from './Model'
+import Model, {
+	IAnimatedObject,
+	IAssetObject,
+	IFemSimulationObject,
+	IGenericObject,
+	IResultRenderInfo,
+	ISensorObject
+} from './Model'
 import {
 	AnimatedObjectState,
 	AssetState,
@@ -17,12 +24,14 @@ import {
 	ObjectVisibilityState,
 	IDigitalTwinGltfData,
 	SensorState,
+	GenericObjectState,
+	FemSimObjectVisibilityState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { getDomainName } from '../../../tools/tools';
 import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
-import SetFemSimulationObject from './SetFemSimulationObject';
+// import SetFemSimulationObject from './SetFemSimulationObject';
 
 
 const CanvasContainer = styled.div`
@@ -273,12 +282,6 @@ const mqttOptions = {
 	retain: false
 }
 
-interface Viewer3DProps {
-	digitalTwinSelected: IDigitalTwin | null;
-	digitalTwinGltfData: IDigitalTwinGltfData;
-	close3DViewer: () => void;
-}
-
 const mouseButtons = {
 	LEFT: THREE.MOUSE.PAN,
 	MIDDLE: THREE.MOUSE.ROTATE,
@@ -291,6 +294,12 @@ const datGuiStyle = {
 		borderLeft: "0px"
 	}
 };
+
+interface Viewer3DProps {
+	digitalTwinSelected: IDigitalTwin | null;
+	digitalTwinGltfData: IDigitalTwinGltfData;
+	close3DViewer: () => void;
+}
 
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	digitalTwinSelected,
@@ -309,18 +318,28 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [assetObjects, setAssetObjects] = useState<IAssetObject[]>([]);
 	const [animatedObjects, setAnimatedObjects] = useState<IAnimatedObject[]>([]);
 	const [genericObjects, setGenericObjects] = useState<IGenericObject[]>([]);
-	const [femSimulationObject, setFemSimulationObjects] = useState<IFemSimulationObject | null>(null);
+	const [femSimulationObjects, setFemSimulationObjects] = useState<IFemSimulationObject[]>([]);
 	const [initialSensorsState, setInitialSensorsState] = useState<Record<string, SensorState> | null>(null);
 	const [initialAssetsState, setInitialAssetsState] = useState<Record<string, AssetState> | null>(null);
+	const [initialGenericObjectsState, setInitialGenericObjectsState] = useState<Record<string, GenericObjectState> | null>(null);
 	const [initialAnimatedObjectsState, setInitialAnimatedObjectsState] = useState<Record<string, AnimatedObjectState> | null>(null);
-	const [initialFemSimulationObjectState, setInitialFemSimulationObjectState] = useState<FemSimulationObjectState | null>(null);
+	const [initialFemSimObjectsState, setInitialFemSimObjectsState] = useState<FemSimulationObjectState[]>([]);
 	const [
 		initialGenericObjectsVisibilityState,
 		setInitialGenericObjectsVisibilityState
 	] = useState<Record<string, ObjectVisibilityState> | null>(null);
+	const [femSimulationGeneralInfo, setFemSimulationGeneralInfo] = useState<Record<string, IResultRenderInfo> | null>(null);
 	const [initialSensorsVisibilityState, setInitialSensorsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
 	const [initialAssetsVisibilityState, setInitialAssetsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
 	const [initialAnimatedObjsVisibilityState, setInitialAnimatedObjsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
+	const [initialFemSimObjectsVisibilityState, setInitialFemSimObjectsVisibilityState] = useState<Record<string, FemSimObjectVisibilityState> | null>(null);
+
+	let femResultNames: string[] = [];
+	if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
+		femResultNames = digitalTwinGltfData.femSimulationData.metadata.resultFields.map(
+			(resultField: { resultName: string; }) => resultField.resultName
+		);
+	}
 
 	const [opts, setOpts] = useState({
 		ambientLight: true,
@@ -349,15 +368,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		highlightAllGenericObjects: false,
 		hideAllGenericObjects: false,
 		genericObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
-		highlightFemSimulationObject: false,
-		hideFemSimulationObject: false,
+		femSimulationObjectsOpacity: 1,
+		highlightAllFemSimulationObjects: false,
+		hideAllFemSimulationObjects: false,
+		femSimulationObjectsVisibilityState: undefined as unknown as Record<string, FemSimObjectVisibilityState>,
 		hideFemSimulationLegend: false,
 		femSimulationResult: "None result",
 		showFemSimulationDeformation: false,
 		femSimulationDefScale: 0,
-		showFemSimulationMesh: false,
+		showAllFemSimulationMeshes: false,
+		legendToShow: "None result"
 	});
-
 
 	useEffect(() => {
 		if (initialGenericObjectsVisibilityState) {
@@ -400,42 +421,50 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	}, [initialAnimatedObjsVisibilityState])
 
 	useEffect(() => {
+		if (initialFemSimObjectsVisibilityState) {
+			setOpts((prevOpts) => {
+				const newOpts = { ...prevOpts };
+				newOpts.femSimulationObjectsVisibilityState = initialFemSimObjectsVisibilityState;
+				return newOpts;
+			})
+		}
+	}, [initialFemSimObjectsVisibilityState])
+
+	useEffect(() => {
 		return () => {
-			if (femSimulationObject) {
-				for (const fieldName in femSimulationObject.resultsRenderInfo) {
-					femSimulationObject.resultsRenderInfo[fieldName].legendRenderer.forceContextLoss();
+			if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
+				for (let resulName of femResultNames) {
+					femSimulationGeneralInfo[resulName].legendRenderer.forceContextLoss();
 				}
 			}
 		}
-	}, [femSimulationObject])
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [femSimulationGeneralInfo, femSimulationObjects])
 
 	return (
 		<>
 			{
-				digitalTwinGltfData.digitalTwinGltfUrl &&
+				(digitalTwinSelected && digitalTwinGltfData.digitalTwinGltfUrl) &&
 				<SetGltfObjects
+					digitalTwinSelected={digitalTwinSelected}
 					digitalTwinGltfData={digitalTwinGltfData}
 					setSensorObjects={setSensorObjects}
 					setAssetObjects={setAssetObjects}
 					setAnimatedObjects={setAnimatedObjects}
 					setGenericObjects={setGenericObjects}
+					setFemSimulationObjects={setFemSimulationObjects}
 					setInitialSensorsState={setInitialSensorsState}
 					setInitialAssetsState={setInitialAssetsState}
+					setInitialGenericObjectsState={setInitialGenericObjectsState}
 					setInitialAnimatedObjectsState={setInitialAnimatedObjectsState}
+					setInitialFemSimObjectsState={setInitialFemSimObjectsState}
+					setFemSimulationGeneralInfo={setFemSimulationGeneralInfo}
 					setInitialGenericObjectsVisibilityState={setInitialGenericObjectsVisibilityState}
 					setInitialSensorsVisibilityState={setInitialSensorsVisibilityState}
 					setInitialAssetsVisibilityState={setInitialAssetsVisibilityState}
 					setInitialAnimatedObjsVisibilityState={setInitialAnimatedObjsVisibilityState}
+					setInitialFemSimObjectsVisibilityState={setInitialFemSimObjectsVisibilityState}
 				/>
-			}
-			{
-				digitalTwinGltfData.femSimulationUrl &&
-				<SetFemSimulationObject
-					digitalTwinGltfData={digitalTwinGltfData}
-					setFemSimulationObjects={setFemSimulationObjects}
-					setInitialFemSimulationObjectState={setInitialFemSimulationObjectState}
-				/>
-
 			}
 			<CanvasContainer ref={canvasContainerRef}>
 				<Canvas ref={canvasRef}
@@ -459,6 +488,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					>
 						<Connector options={mqttOptions} brokerUrl={brokerUrl}>
 							<Model
+								digitalTwinGltfData={digitalTwinGltfData}
 								sensorObjects={sensorObjects}
 								initialSensorsState={initialSensorsState as Record<string, SensorState>}
 								sensorsVisibilityState={opts.sensorsVisibilityState}
@@ -468,11 +498,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								animatedObjects={animatedObjects}
 								initialAnimatedObjectsState={initialAnimatedObjectsState as Record<string, AnimatedObjectState>}
 								animatedObjectsVisibilityState={opts.animatedObjectsVisibilityState}
-								femSimulationObject={femSimulationObject as IFemSimulationObject}
-								initialFemSimulationObjectState={initialFemSimulationObjectState as FemSimulationObjectState}
+								femSimulationObjects={femSimulationObjects}
+								femSimulationGeneralInfo={femSimulationGeneralInfo as Record<string, IResultRenderInfo>}
+								initialFemSimObjectsState={initialFemSimObjectsState}
+								femSimulationObjectsVisibilityState={opts.femSimulationObjectsVisibilityState}
 								genericObjects={genericObjects}
+								initialGenericObjectsState={initialGenericObjectsState as Record<string, GenericObjectState>}
 								genericObjectsVisibilityState={opts.genericObjectsVisibilityState}
-								mqttTopics={digitalTwinGltfData.mqttTopics}
+								mqttTopicsData={digitalTwinGltfData.mqttTopicsData}
 								dashboardUrl={digitalTwinSelected?.dashboardUrl as string}
 								sensorsOpacity={opts.sensorsOpacity}
 								highlightAllSensors={opts.highlightAllSensors}
@@ -483,10 +516,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								animatedObjectsOpacity={opts.animatedObjectsOpacity}
 								highlightAllAnimatedObjects={opts.highlightAllAnimatedObjects}
 								hideAllAnimatedObjects={opts.hideAllAnimatedObjects}
-								hideFemSimulationObject={opts.hideFemSimulationObject}
+								femSimulationObjectsOpacity={opts.femSimulationObjectsOpacity}
+								hideAllFemSimulationObjects={opts.hideAllFemSimulationObjects}
 								showFemSimulationDeformation={opts.showFemSimulationDeformation}
-								highlightFemSimulationObject={opts.highlightFemSimulationObject}
-								showFemSimulationMesh={opts.showFemSimulationMesh}
+								highlightAllFemSimulationObjects={opts.highlightAllFemSimulationObjects}
+								showAllFemSimulationMeshes={opts.showAllFemSimulationMeshes}
 								genericObjectsOpacity={opts.genericObjectsOpacity}
 								highlightAllGenericObjects={opts.highlightAllGenericObjects}
 								hideAllGenericObjects={opts.hideAllGenericObjects}
@@ -502,9 +536,15 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					</Stage>
 					<OrbitControls ref={controlsRef} mouseButtons={mouseButtons} />
 				</Canvas>
-				{(femSimulationObject && opts.femSimulationResult !== "None result" && !opts.hideFemSimulationLegend) &&
+				{
+					(
+						femSimulationObjects.length !== 0 &&
+						femSimulationGeneralInfo &&
+						(opts.femSimulationResult !== "None result" || opts.legendToShow !== "None result") &&
+						!opts.hideFemSimulationLegend
+					) &&
 					<SimulationLegend
-						resultRenderInfo={femSimulationObject.resultsRenderInfo[opts.femSimulationResult]}
+						resultRenderInfo={femSimulationGeneralInfo[opts.femSimulationResult === "None result" ? opts.legendToShow : opts.femSimulationResult]}
 						canvasContainerRef={canvasContainerRef}
 					/>
 				}
@@ -554,8 +594,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 									<StyledDatBoolean label="Highlight" path="highlightAllSensors" />
 									<StyledDatBoolean label="Hide" path="hideAllSensors" />
 								</DatFolder>
-								{initialSensorsVisibilityState &&
-									Object.keys(initialSensorsVisibilityState as Record<string, ObjectVisibilityState>).map(collecionName =>
+								{
+									(
+										(Object.keys(initialSensorsVisibilityState || []).length > 1) ?
+											Object.keys(initialSensorsVisibilityState || []) : []
+									).map(collecionName =>
 										<DatFolder key={collecionName} title={collecionName} closed={true}>
 											<StyledDatNumber
 												label="Opacity"
@@ -585,8 +628,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 									<StyledDatBoolean label="Highlight" path="highlightAllAssets" />
 									<StyledDatBoolean label="Hide" path="hideAllAssets" />
 								</DatFolder>
-								{initialAssetsVisibilityState &&
-									Object.keys(initialAssetsVisibilityState as Record<string, ObjectVisibilityState>).map(collecionName =>
+								{
+									(
+										(Object.keys(initialAssetsVisibilityState || []).length > 1) ?
+											Object.keys(initialAssetsVisibilityState || []) : []
+									).map(collecionName =>
 										<DatFolder key={collecionName} title={collecionName} closed={true}>
 											<StyledDatNumber
 												label="Opacity"
@@ -616,26 +662,27 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 									<StyledDatBoolean label="Highlight" path="highlightAllAnimatedObjects" />
 									<StyledDatBoolean label="Hide" path="hideAllAnimatedObjects" />
 								</DatFolder>
-								{initialAnimatedObjsVisibilityState &&
-									Object.keys(initialAnimatedObjsVisibilityState as Record<string, ObjectVisibilityState>).map(collecionName =>
-										<DatFolder key={collecionName} title={collecionName} closed={true}>
-											<StyledDatNumber
-												label="Opacity"
-												path={`animatedObjectsVisibilityState[${collecionName}].opacity`}
-												min={0}
-												max={1}
-												step={0.05}
-											/>
-											<StyledDatBoolean
-												label="Highlight"
-												path={`animatedObjectsVisibilityState[${collecionName}].highlight`}
-											/>
-											<StyledDatBoolean
-												label="Hide"
-												path={`animatedObjectsVisibilityState[${collecionName}].hide`}
-											/>
-										</DatFolder>
-									)
+								{initialFemSimObjectsVisibilityState &&
+									Object.keys(initialFemSimObjectsVisibilityState as Record<string, FemSimObjectVisibilityState>)
+										.map(collecionName =>
+											<DatFolder key={collecionName} title={collecionName} closed={true}>
+												<StyledDatNumber
+													label="Opacity"
+													path={`animatedObjectsVisibilityState[${collecionName}].opacity`}
+													min={0}
+													max={1}
+													step={0.05}
+												/>
+												<StyledDatBoolean
+													label="Highlight"
+													path={`animatedObjectsVisibilityState[${collecionName}].highlight`}
+												/>
+												<StyledDatBoolean
+													label="Hide"
+													path={`animatedObjectsVisibilityState[${collecionName}].hide`}
+												/>
+											</DatFolder>
+										)
 								}
 							</DatFolder>
 						}
@@ -647,8 +694,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 									<StyledDatBoolean label="Highlight" path="highlightAllGenericObjects" />
 									<StyledDatBoolean label="Hide" path="hideAllGenericObjects" />
 								</DatFolder>
-								{initialGenericObjectsVisibilityState &&
-									Object.keys(initialGenericObjectsVisibilityState as Record<string, ObjectVisibilityState>).map(collecionName =>
+								{
+									(
+										(Object.keys(initialGenericObjectsVisibilityState || []).length > 1) ?
+											Object.keys(initialGenericObjectsVisibilityState || []) : []
+									).map(collecionName =>
 										<DatFolder key={collecionName} title={collecionName} closed={true}>
 											<StyledDatNumber
 												label="Opacity"
@@ -671,25 +721,68 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							</DatFolder>
 						}
 						{
-							femSimulationObject &&
-							<DatFolder title='Fem simulation object' closed={true}>
-								<StyledDatSelect
-									path='femSimulationResult'
-									label='Results'
-									options={["None result", ...Object.keys(femSimulationObject.resultFieldPaths)]}
-								/>
-								<StyledDatBoolean label="Deformation" path="showFemSimulationDeformation" />
-								<StyledDatNumber
-									label="Log def. scale"
-									path="femSimulationDefScale"
-									min={-2}
-									max={10}
-									step={0.01}
-								/>
-								<StyledDatBoolean label="Show mesh" path="showFemSimulationMesh" />
-								<StyledDatBoolean label="Highlight" path="highlightFemSimulationObject" />
-								<StyledDatBoolean label="Hide object" path="hideFemSimulationObject" />
-								<StyledDatBoolean label="Hide legend" path="hideFemSimulationLegend" />
+							(femSimulationObjects.length !== 0 && femSimulationGeneralInfo) &&
+							<DatFolder title='Fem simulation objects' closed={true}>
+								<DatFolder title='All meshes' closed={true}>
+									<StyledDatSelect
+										path='femSimulationResult'
+										label='Results'
+										options={["None result", ...femResultNames]}
+									/>
+									<StyledDatBoolean label="Deformation" path="showFemSimulationDeformation" />
+									<StyledDatNumber
+										label="Log def. scale"
+										path="femSimulationDefScale"
+										min={-2}
+										max={10}
+										step={0.01}
+									/>
+									<StyledDatBoolean label="Show meshes" path="showAllFemSimulationMeshes" />
+									<StyledDatNumber label="Opacity" path="femSimulationObjectsOpacity" min={0} max={1} step={0.05} />
+									<StyledDatBoolean label="Highlight" path="highlightAllFemSimulationObjects" />
+									<StyledDatBoolean label="Hide objects" path="hideAllFemSimulationObjects" />
+									<StyledDatSelect
+										path='legendToShow'
+										label='Legend'
+										options={["None result", ...femResultNames]}
+									/>
+									<StyledDatBoolean label="Hide legend" path="hideFemSimulationLegend" />
+								</DatFolder>
+								{
+									initialFemSimObjectsVisibilityState &&
+									Object.keys(initialFemSimObjectsVisibilityState).map(collecionName =>
+										<DatFolder key={collecionName} title={collecionName} closed={true}>
+											<StyledDatSelect
+												path={`femSimulationObjectsVisibilityState[${collecionName}].femSimulationResult`}
+												label='Results'
+												options={["None result", ...femResultNames]}
+											/>
+											<StyledDatBoolean
+												label="Deformation"
+												path={`femSimulationObjectsVisibilityState[${collecionName}].showDeformation`}
+											/>
+											<StyledDatBoolean
+												label="Show mesh"
+												path={`femSimulationObjectsVisibilityState[${collecionName}].showMesh`}
+											/>
+											<StyledDatNumber
+												label="Opacity"
+												path={`femSimulationObjectsVisibilityState[${collecionName}].opacity`}
+												min={0}
+												max={1}
+												step={0.05}
+											/>
+											<StyledDatBoolean
+												label="Highlight"
+												path={`femSimulationObjectsVisibilityState[${collecionName}].highlight`}
+											/>
+											<StyledDatBoolean
+												label="Hide"
+												path={`femSimulationObjectsVisibilityState[${collecionName}].hide`}
+											/>
+										</DatFolder>
+									)
+								}
 							</DatFolder>
 						}
 					</StyledDataGui>

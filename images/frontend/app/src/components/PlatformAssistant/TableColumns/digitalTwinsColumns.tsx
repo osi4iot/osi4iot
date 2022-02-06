@@ -21,7 +21,12 @@ export interface IDigitalTwin {
     gltfFileLastModifDateString: string;
     femSimDataFileName: string;
     femSimDataFileLastModifDateString: string;
-    mqttTopics?: string[];
+    digitalTwinSimulationFormat: string;
+    sensorSimulationTopicId: number;
+	assetStateTopicId: number;
+	assetStateSimulationTopicId: number;
+	femResultModalValuesTopicId: number;
+	femResultModalValuesSimulationTopicId: number;
     dashboardUrl: string;
 }
 
@@ -169,7 +174,37 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             Header: "femSimDataFileLastModifDateString",
             accessor: "femSimDataFileLastModifDateString",
             disableFilters: true,
-        },         
+        },
+        {
+            Header: "digitalTwinSimulationFormat",
+            accessor: "digitalTwinSimulationFormat",
+            disableFilters: true
+        },
+        {
+            Header: "sensorSimulationTopicId",
+            accessor: "sensorSimulationTopicId",
+            disableFilters: true
+        },
+        {
+            Header: "assetStateTopicId",
+            accessor: "assetStateTopicId",
+            disableFilters: true
+        },
+        {
+            Header: "assetStateSimulationTopicId",
+            accessor: "assetStateSimulationTopicId",
+            disableFilters: true
+        },
+        {
+            Header: "femResultModalValuesTopicId",
+            accessor: "femResultModalValuesTopicId",
+            disableFilters: true
+        },
+        {
+            Header: "femResultModalValuesSimulationTopicId",
+            accessor: "femResultModalValuesSimulationTopicId",
+            disableFilters: true
+        },        
         {
             Header: "",
             accessor: "edit",

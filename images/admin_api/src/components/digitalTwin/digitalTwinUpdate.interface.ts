@@ -11,6 +11,11 @@ export default interface IDigitalTwinUpdate {
 	femSimulationData: string;
 	femSimDataFileName: string;
 	femSimDataFileLastModifDateString: string;
+	digitalTwinSimulationFormat: string;
+	assetStateTopicId: number;
+	assetStateSimulationTopicId: number;
+	femResultModalValuesTopicId: number;
+	femResultModalValuesSimulationTopicId: number;
 	created?: string;
 	updated?: string;
 }

@@ -1,5 +1,4 @@
 import pool from "../../config/dbconfig";
-import format from "pg-format";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import IDigitalTwin from "./digitalTwin.interface";
@@ -9,7 +8,7 @@ import IUser from "../user/interfaces/User.interface";
 import ITopic from "../topic/topic.interface";
 import IDashboard from "../dashboard/dashboard.interface";
 import { getAllDashboards, getDashboardsByGroupsIdArray, getDashboardsInfoFromIdArray, markInexistentDashboards } from "../dashboard/dashboardDAL";
-import { getAllTopics, getMqttTopicsInfoFromIdArray, getTopicsByGroupsIdArray, markInexistentTopics } from "../topic/topicDAL";
+import { createTopic, getAllTopics, getMqttTopicsInfoFromIdArray, getTopicsByGroupsIdArray, markInexistentTopics } from "../topic/topicDAL";
 import { getGroupsThatCanBeEditatedAndAdministratedByUserId, getAllGroupsInOrgArray } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import IMqttTopicInfo from "../topic/mqttTopicInfo.interface";
@@ -19,7 +18,7 @@ import IDigitalTwinGltfData, { IMqttTopicData } from "./digitalTwinGltfData.inte
 import { getLastMeasurement } from "../mesurement/measurementDAL";
 import IMeasurement from "../mesurement/measurement.interface";
 
-export const getTopicsIdFromDigitalTwin = (digitalTwin: CreateDigitalTwinDto | IDigitalTwin | IDigitalTwinGltfData): number[] => {
+export const getTopicsIdFromDigitalTwin = (digitalTwin: Partial<IDigitalTwin>): number[] => {
 	const topicsId: number[] = [];
 	let gltfData: any = digitalTwin.gltfData;
 	if (typeof gltfData === "string") gltfData = JSON.parse(gltfData);
@@ -29,20 +28,28 @@ export const getTopicsIdFromDigitalTwin = (digitalTwin: CreateDigitalTwinDto | I
 			if (node.mesh && node.extras) meshNodes.push(node);
 		})
 
-		meshNodes.forEach((node: { extras: { topicId: number; }; }) => {
-			const topicId = node.extras?.topicId;
-			if (topicId && topicsId.findIndex(id => id === topicId) === -1) {
-				topicsId.push(topicId)
+		meshNodes.forEach((node: { extras: { topicId: number; type: string; clipTopicIds: number[] }; }) => {
+			if (node.extras?.type && node.extras?.type === "sensor") {
+				const topicId = node.extras?.topicId;
+				if (topicId && topicsId.findIndex(id => id === topicId) === -1) {
+					topicsId.push(topicId)
+				}
+			}
+			if (node.extras?.clipTopicIds && node.extras?.clipTopicIds.length !== 0) {
+				node.extras?.clipTopicIds.forEach(topicId => {
+					if (topicId && topicsId.findIndex(id => id === topicId) === -1) {
+						topicsId.push(topicId)
+					}
+				})
 			}
 		})
 	}
 
-	let femSimulationData: any = digitalTwin.femSimulationData;
-	if (typeof femSimulationData === "string") femSimulationData = JSON.parse(femSimulationData);
-	if (Object.keys(femSimulationData).length && femSimulationData.metadata?.topicId) {
-		const topicId = femSimulationData.metadata?.topicId;
-		topicsId.push(topicId);
-	}
+	if (digitalTwin.sensorSimulationTopicId) topicsId.push(digitalTwin.sensorSimulationTopicId);
+	if (digitalTwin.assetStateTopicId) topicsId.push(digitalTwin.assetStateTopicId);
+	if (digitalTwin.assetStateSimulationTopicId) topicsId.push(digitalTwin.assetStateSimulationTopicId);
+	if (digitalTwin.femResultModalValuesTopicId) topicsId.push(digitalTwin.femResultModalValuesTopicId);
+	if (digitalTwin.femResultModalValuesSimulationTopicId) topicsId.push(digitalTwin.femResultModalValuesSimulationTopicId)
 
 	return topicsId;
 }
@@ -57,33 +64,104 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 			if (node.mesh && node.extras) meshNodes.push(node);
 		})
 
-		meshNodes.forEach((node: { extras: { topicId: number; }; }) => {
-			const topicId = node.extras?.topicId;
-			if (topicId && mqttTopicsData.findIndex(topicData => topicData.topicId === topicId) === -1) {
-				const mqttTopicData: IMqttTopicData = {
-					topicId,
-					mqttTopic: "",
-					groupUid: null,
-					sqlTopic: null,
-					lastMeasurement: null
+		meshNodes.forEach((node: { extras: { topicId: number; type: string; clipTopicIds: number[] }; }) => {
+			if (node.extras?.type && node.extras?.type === "sensor" && node.extras?.topicId) {
+				const topicId = node.extras?.topicId;
+				if (topicId && mqttTopicsData.findIndex(topicData => topicData.topicId === topicId) === -1) {
+					const mqttTopicData: IMqttTopicData = {
+						topicId,
+						topicType: "dev2pdb",
+						topicSubtype: "sensorTopic",
+						mqttTopic: "",
+						groupUid: null,
+						sqlTopic: null,
+						lastMeasurement: null
+					}
+					mqttTopicsData.push(mqttTopicData)
 				}
-				mqttTopicsData.push(mqttTopicData)
+			}
+			if (node.extras?.clipTopicIds && node.extras?.clipTopicIds.length !== 0) {
+				node.extras?.clipTopicIds.forEach(topicId => {
+					if (topicId && mqttTopicsData.findIndex(topicData => topicData.topicId === topicId) === -1) {
+						const mqttTopicData: IMqttTopicData = {
+							topicId,
+							topicType: "dev2pdb",
+							topicSubtype: "sensorTopic",
+							mqttTopic: "",
+							groupUid: null,
+							sqlTopic: null,
+							lastMeasurement: null
+						}
+						mqttTopicsData.push(mqttTopicData)
+					}
+				})
 			}
 		})
 	}
 
-	let femSimulationData: any = digitalTwin.femSimulationData;
-	if (typeof femSimulationData === "string") femSimulationData = JSON.parse(femSimulationData);
-	if (Object.keys(femSimulationData).length && femSimulationData.metadata?.topicId) {
-		const topicId = femSimulationData.metadata?.topicId;
+	if (digitalTwin.sensorSimulationTopicId) {
 		const mqttTopicData: IMqttTopicData = {
-			topicId,
+			topicId: digitalTwin.sensorSimulationTopicId,
+			topicType: "dts2dtm",
+			topicSubtype: "sensorSimulationTopic",
 			mqttTopic: "",
 			groupUid: null,
 			sqlTopic: null,
 			lastMeasurement: null
 		};
-		mqttTopicsData.push(mqttTopicData)
+		mqttTopicsData.push(mqttTopicData);
+	}
+
+	if (digitalTwin.assetStateTopicId) {
+		const mqttTopicData: IMqttTopicData = {
+			topicId: digitalTwin.assetStateTopicId,
+			topicType: "dtm2pdb",
+			topicSubtype: "assetStateTopic",
+			mqttTopic: "",
+			groupUid: null,
+			sqlTopic: null,
+			lastMeasurement: null
+		};
+		mqttTopicsData.push(mqttTopicData);
+	}
+
+	if (digitalTwin.assetStateSimulationTopicId) {
+		const mqttTopicData: IMqttTopicData = {
+			topicId: digitalTwin.assetStateSimulationTopicId,
+			topicType: "dtm2dts",
+			topicSubtype: "assetStateSimulationTopic",
+			mqttTopic: "",
+			groupUid: null,
+			sqlTopic: null,
+			lastMeasurement: null
+		};
+		mqttTopicsData.push(mqttTopicData);
+	}
+
+	if (digitalTwin.femResultModalValuesTopicId) {
+		const mqttTopicData: IMqttTopicData = {
+			topicId: digitalTwin.femResultModalValuesTopicId,
+			topicType: "dtm2pdb",
+			topicSubtype: "femResultModalValuesTopic",
+			mqttTopic: "",
+			groupUid: null,
+			sqlTopic: null,
+			lastMeasurement: null
+		};
+		mqttTopicsData.push(mqttTopicData);
+	}
+
+	if (digitalTwin.femResultModalValuesSimulationTopicId) {
+		const mqttTopicData: IMqttTopicData = {
+			topicId: digitalTwin.femResultModalValuesSimulationTopicId,
+			topicType: "dtm2dts",
+			topicSubtype: "femResultModalValuesSimulationTopic",
+			mqttTopic: "",
+			groupUid: null,
+			sqlTopic: null,
+			lastMeasurement: null
+		};
+		mqttTopicsData.push(mqttTopicData);
 	}
 
 	if (mqttTopicsData.length) {
@@ -106,7 +184,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 
 		const mesurementsQueries: any[] = [];
 		mqttTopicsData.forEach(mqttTopicData => {
-			if (mqttTopicData.sqlTopic) {
+			if (mqttTopicData.sqlTopic && (mqttTopicData.topicType === "dev2pdb" || mqttTopicData.topicType === "dtm2pdb")) {
 				const query = getLastMeasurement(mqttTopicData.groupUid, mqttTopicData.sqlTopic);
 				mesurementsQueries.push(query);
 			}
@@ -175,14 +253,14 @@ export const checkIfLoggedUserManageTopicsAndDashboard = async (
 	if (digitalTwinType === "Grafana dashboard") {
 		const filteredDashboards = dashboardsManagedByUser.filter(dashboard => dashboard.id === dashboardId);
 		if (filteredDashboards.length === 0) {
-			message = "The indicated dashboard is not managed for the logged user";
+			message = "The indicated dashboard is not managed for the logged user or simply not exists";
 		}
 	} else if (digitalTwinType === "Gltf 3D model") {
 		const topicsIdManagedByUser = topicsManagedByUser.map(topic => topic.id);
 		const isTopicsManaged = arrayContainedChecker(topicsIdManagedByUser, topicsId);
 		const isDashboardManaged = dashboardsManagedByUser.filter(dashboard => dashboard.id === dashboardId).length === 1;
 		if (!isTopicsManaged || !isDashboardManaged) {
-			message = "The indicated topics and/or dashboard are not managed for the logged user";
+			message = "The indicated topics and/or dashboard are not managed for the logged user or simply not exist";
 		}
 	}
 	return message;
@@ -195,7 +273,7 @@ export const demoDigitalTwinName = (group: IGroup, deviceType: string): string =
 	return digitalTwinName;
 }
 
-export const insertDigitalTwin = async (digitalTwinData: IDigitalTwinUpdate): Promise<IDigitalTwinUpdate> => {
+export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwinUpdate>): Promise<IDigitalTwinUpdate> => {
 	const result = await pool.query(`INSERT INTO grafanadb.digital_twin (device_id,
 					name, description, type, dashboard_id, gltfdata, gltf_file_name, gltf_file_last_modif_date_string,
 					fem_simulation_data, femsimdata_file_name, femsimdata_file_last_modif_date_string,
@@ -228,7 +306,9 @@ export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinDa
 	const query = `UPDATE grafanadb.digital_twin SET name = $1, description = $2, type = $3,
 					dashboard_id = $4, gltfdata = $5, gltf_file_name = $6, gltf_file_last_modif_date_string = $7,
 					fem_simulation_data = $8, femsimdata_file_name = $9, femsimdata_file_last_modif_date_string = $10,
-					updated = NOW() WHERE grafanadb.digital_twin.id = $11;`;
+					digital_twin_simulation_format = $11, sensor_simulation_topic_id = $12, asset_state_topic_id = $13, asset_state_simulation_topic_id = $14, fem_result_modal_values_topic_id = $15,
+					fem_result_modal_values_simulation_topic_id = $16,
+					updated = NOW() WHERE grafanadb.digital_twin.id = $17;`;
 	const result = await pool.query(query, [
 		digitalTwinData.name,
 		digitalTwinData.description,
@@ -240,9 +320,38 @@ export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinDa
 		digitalTwinData.femSimulationData,
 		digitalTwinData.femSimDataFileName,
 		digitalTwinData.femSimDataFileLastModifDateString,
+		digitalTwinData.digitalTwinSimulationFormat,
+		digitalTwinData.sensorSimulationTopicId,
+		digitalTwinData.assetStateTopicId,
+		digitalTwinData.assetStateSimulationTopicId,
+		digitalTwinData.femResultModalValuesTopicId,
+		digitalTwinData.femResultModalValuesSimulationTopicId,
 		digitalTwinId
 	]);
 };
+
+export const updateTopicsForDigitalTwinById = async (
+	digitalTwinId: number,
+	sensorSimulationTopicId: number,
+	assetStateTopicId: number,
+	assetStateSimulationTopicId: number,
+	femResultModalValuesTopicId: number,
+	femResultModalValuesSimulationTopicId: number
+): Promise<void> => {
+	const query = `UPDATE grafanadb.digital_twin SET sensor_simulation_topic_id = $1, asset_state_topic_id = $2,
+					asset_state_simulation_topic_id = $3, fem_result_modal_values_topic_id = $4,
+					fem_result_modal_values_simulation_topic_id = $5, updated = NOW()
+					WHERE grafanadb.digital_twin.id = $6;`;
+	const result = await pool.query(query, [
+		sensorSimulationTopicId,
+		assetStateTopicId,
+		assetStateSimulationTopicId,
+		femResultModalValuesTopicId,
+		femResultModalValuesSimulationTopicId,
+		digitalTwinId
+	]);
+};
+
 
 
 
@@ -251,8 +360,63 @@ export const deleteDigitalTwinById = async (digitalTwinId: number): Promise<void
 };
 
 export const createDigitalTwin = async (deviceId: number, digitalTwinInput: CreateDigitalTwinDto): Promise<IDigitalTwinUpdate | null> => {
-	const digitalTwinUpdated: IDigitalTwinUpdate = { ...digitalTwinInput, deviceId };
+	const digitalTwinUpdated: Partial<IDigitalTwinUpdate> = { ...digitalTwinInput, deviceId };
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
+	if (digitalTwinUpdated.type === "Gltf 3D model") {
+		const sensorSimulationTopicData =
+		{
+			topicType: "dts2dtm",
+			topicName: `SST DT_${digitalTwin.id}`,
+			description: `Sensor simulation topic for DT_${digitalTwin.id}`,
+			payloadFormat: digitalTwinInput.digitalTwinSimulationFormat
+		};
+		const sensorSimulationTopic = await createTopic(deviceId, sensorSimulationTopicData);
+
+		const assetStateTopicData =
+		{
+			topicType: "dtm2pdb",
+			topicName: `AST DT_${digitalTwin.id}`,
+			description: `Assets state topic for DT_${digitalTwin.id}`,
+			payloadFormat: '{"assetPartsState": "number[]"}'
+		};
+		const assetStateTopic = await createTopic(deviceId, assetStateTopicData);
+
+		const assetStateSimulationTopicData =
+		{
+			topicType: "dtm2dts",
+			topicName: `ASST for DT_${digitalTwin.id}`,
+			description: `Assets state simulation topic for DT_${digitalTwin.id}`,
+			payloadFormat: '{"assetPartsState": "number[]"}'
+		};
+		const assetStateSimulationTopic = await createTopic(deviceId, assetStateSimulationTopicData);
+
+		const femResultModalValuesTopicData =
+		{
+			topicType: "dtm2pdb",
+			topicName: `FMRT DT_${digitalTwin.id}`,
+			description: `Fem modal result topic for DT_${digitalTwin.id}`,
+			payloadFormat: '{"femResultsModalValues": "number[][][]"}'
+		};
+		const femResultModalValuesTopic = await createTopic(deviceId, femResultModalValuesTopicData);
+
+		const femResultModalValuesSimulationTopicData =
+		{
+			topicType: "dtm2dts",
+			topicName: `FMRST DT_${digitalTwin.id}`,
+			description: `Fem modal result simulation topic for DT_${digitalTwin.id}`,
+			payloadFormat: '{"femResultsModalValues": "number[][]"}'
+		};
+		const femResultModalValuesSimulationTopic = await createTopic(deviceId, femResultModalValuesSimulationTopicData);
+
+		await updateTopicsForDigitalTwinById(
+			digitalTwin.id,
+			sensorSimulationTopic.id,
+			assetStateTopic.id,
+			assetStateSimulationTopic.id,
+			femResultModalValuesTopic.id,
+			femResultModalValuesSimulationTopic.id
+		)
+	}
 	return digitalTwin;
 };
 
@@ -265,6 +429,12 @@ export const getDigitalTwinByProp = async (propName: string, propValue: (string 
 									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
 									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
 									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.sensor_simulation_topic_id AS "sensorSimulationTopicId",
+									grafanadb.digital_twin.asset_state_topic_id AS "assetStateTopicId",
+									grafanadb.digital_twin.asset_state_simulation_topic_id AS "assetStateSimulationTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_topic_id AS "femResultModalValuesTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_simulation_topic_id AS "femResultModalValuesSimulationTopicId",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
@@ -275,7 +445,13 @@ export const getDigitalTwinByProp = async (propName: string, propValue: (string 
 export const getDigitalTwinGltfDataById = async (digitalTwinId: number): Promise<IDigitalTwinGltfData> => {
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id,
 									grafanadb.digital_twin.gltfdata AS "gltfData",
-									grafanadb.digital_twin.fem_simulation_data AS "femSimulationData"
+									grafanadb.digital_twin.fem_simulation_data AS "femSimulationData",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.sensor_simulation_topic_id AS "sensorSimulationTopicId",
+									grafanadb.digital_twin.asset_state_topic_id AS "assetStateTopicId",
+									grafanadb.digital_twin.asset_state_simulation_topic_id AS "assetStateSimulationTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_topic_id AS "femResultModalValuesTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_simulation_topic_id AS "femResultModalValuesSimulationTopicId"
 									FROM grafanadb.digital_twin
 									WHERE grafanadb.digital_twin.id = $1`, [digitalTwinId]);
 	return response.rows[0];
@@ -290,6 +466,12 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
 									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
 									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.sensor_simulation_topic_id AS "sensorSimulationTopicId",
+									grafanadb.digital_twin.asset_state_topic_id AS "assetStateTopicId",
+									grafanadb.digital_twin.asset_state_simulation_topic_id AS "assetStateSimulationTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_topic_id AS "femResultModalValuesTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_simulation_topic_id AS "femResultModalValuesSimulationTopicId",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
@@ -335,6 +517,12 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
 									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
 									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.sensor_simulation_topic_id AS "sensorSimulationTopicId",
+									grafanadb.digital_twin.asset_state_topic_id AS "assetStateTopicId",
+									grafanadb.digital_twin.asset_state_simulation_topic_id AS "assetStateSimulationTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_topic_id AS "femResultModalValuesTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_simulation_topic_id AS "femResultModalValuesSimulationTopicId",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
@@ -354,6 +542,12 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
 									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
 									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.sensor_simulation_topic_id AS "sensorSimulationTopicId",
+									grafanadb.digital_twin.asset_state_topic_id AS "assetStateTopicId",
+									grafanadb.digital_twin.asset_state_simulation_topic_id AS "assetStateSimulationTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_topic_id AS "femResultModalValuesTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_simulation_topic_id AS "femResultModalValuesSimulationTopicId",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
@@ -397,6 +591,12 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
 									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
 									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.sensor_simulation_topic_id AS "sensorSimulationTopicId",
+									grafanadb.digital_twin.asset_state_topic_id AS "assetStateTopicId",
+									grafanadb.digital_twin.asset_state_simulation_topic_id AS "assetStateSimulationTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_topic_id AS "femResultModalValuesTopicId",
+									grafanadb.digital_twin.fem_result_modal_values_simulation_topic_id AS "femResultModalValuesSimulationTopicId",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
@@ -409,12 +609,18 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 
 export const addMqttTopicsData = async (digitalTwin: IDigitalTwinGltfData): Promise<IDigitalTwinGltfData> => {
 	const topicsData = await getMqttTopicsDataFromDigitalTwinData(digitalTwin);
-	const mqttTopics = topicsData.map(topicData => topicData.mqttTopic);
-	const lastMeasurements = topicsData.map(topicData => topicData.lastMeasurement);
+	const mqttTopicsData = topicsData.map(topicData => {
+		return {
+			topicId: topicData.topicId,
+			mqttTopic: topicData.mqttTopic,
+			topicType: topicData.topicType,
+			topicSubtype: topicData.topicSubtype,
+			lastMeasurement: topicData.lastMeasurement
+		}
+	});
 	const digitalTwinExtended = {
 		...digitalTwin,
-		mqttTopics,
-		lastMeasurements,
+		mqttTopicsData
 	};
 	return digitalTwinExtended;
 }

@@ -387,7 +387,8 @@ class OrganizationController implements IController {
 						gltfFileLastModifDateString: "-",
 						femSimulationData: "{}",
 						femSimDataFileName: "-",
-						femSimDataFileLastModifDateString: "-"
+						femSimDataFileLastModifDateString: "-",
+						digitalTwinSimulationFormat: "{}"
 					},
 					{
 						name: demoDigitalTwinName(group, "Mobile"),
@@ -399,7 +400,8 @@ class OrganizationController implements IController {
 						gltfFileLastModifDateString: "-",
 						femSimulationData: "{}",
 						femSimDataFileName: "-",
-						femSimDataFileLastModifDateString: "-"
+						femSimDataFileLastModifDateString: "-",
+						digitalTwinSimulationFormat: "{}"
 					},
 				];
 

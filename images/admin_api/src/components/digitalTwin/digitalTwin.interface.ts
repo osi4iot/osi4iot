@@ -13,8 +13,13 @@ export default interface IDigitalTwin {
 	femSimulationData: string;
 	femSimDataFileName: string;
 	femSimDataFileLastModifDateString: string;
+	digitalTwinSimulationFormat: string;
+	sensorSimulationTopicId: number;
+	assetStateTopicId: number;
+	assetStateSimulationTopicId: number;
+	femResultModalValuesTopicId: number;
+	femResultModalValuesSimulationTopicId: number;
 	created?: string;
 	updated?: string;
-	mqttTopics?: string[];
 	dashboardUrl: string;
 }

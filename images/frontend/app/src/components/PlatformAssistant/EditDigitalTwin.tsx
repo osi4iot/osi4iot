@@ -145,6 +145,12 @@ type FormikType = FormikProps<{
     gltfFileLastModifDateString: string;
     femSimDataFileName: string;
     femSimDataFileLastModifDateString: string;
+    digitalTwinSimulationFormat: string;
+    sensorSimulationTopicId: number;
+    assetStateTopicId: number;
+    assetStateSimulationTopicId: number;
+    femResultModalValuesTopicId: number;
+    femResultModalValuesSimulationTopicId: number;
 }>;
 
 const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, refreshDigitalTwins }) => {
@@ -247,8 +253,13 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             femSimulationData: JSON.stringify(digitalTwinFemSimData),
             femSimDataFileName: values.femSimDataFileName,
             femSimDataFileLastModifDateString: femSimFileDate.toString(),
+            sensorSimulationTopicId: values.sensorSimulationTopicId,
+            assetStateTopicId: values.assetStateTopicId,
+            assetStateSimulationTopicId: values.assetStateSimulationTopicId,
+            femResultModalValuesTopicId: values.femResultModalValuesTopicId,
+            femResultModalValuesSimulationTopicId: values.femResultModalValuesSimulationTopicId,
+            digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
         }
-
 
         axiosInstance(refreshToken, authDispatch)
             .patch(url, digitalTwinData, config)
@@ -267,7 +278,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             })
     }
 
-    const initialTopicData = {
+    const initialDigitalTwinData = {
         name: digitalTwins[digitalTwinRowIndex].name,
         description: digitalTwins[digitalTwinRowIndex].description,
         type: digitalTwins[digitalTwinRowIndex].type,
@@ -276,6 +287,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         gltfFileLastModifDateString: formatDateString(digitalTwins[digitalTwinRowIndex].gltfFileLastModifDateString),
         femSimDataFileName: digitalTwins[digitalTwinRowIndex].femSimDataFileName,
         femSimDataFileLastModifDateString: formatDateString(digitalTwins[digitalTwinRowIndex].femSimDataFileLastModifDateString),
+        sensorSimulationTopicId: digitalTwins[digitalTwinRowIndex].sensorSimulationTopicId,
+        assetStateTopicId: digitalTwins[digitalTwinRowIndex].assetStateTopicId,
+        assetStateSimulationTopicId: digitalTwins[digitalTwinRowIndex].assetStateSimulationTopicId,
+        femResultModalValuesTopicId: digitalTwins[digitalTwinRowIndex].femResultModalValuesTopicId,
+        femResultModalValuesSimulationTopicId: digitalTwins[digitalTwinRowIndex].femResultModalValuesSimulationTopicId,
+        digitalTwinSimulationFormat: JSON.stringify(digitalTwins[digitalTwinRowIndex].digitalTwinSimulationFormat, null, 4)
     }
 
     const validationSchema = Yup.object().shape({
@@ -299,6 +316,30 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             is: "Gltf 3D model",
             then: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Must enter femSimDataFileLastModifDateString")
         }),
+        sensorSimulationTopicId: Yup.number().when("type", {
+            is: "Gltf 3D model",
+            then: Yup.number().required("Must enter sensor simulation topic id")
+        }),        
+        assetStateTopicId: Yup.number().when("type", {
+            is: "Gltf 3D model",
+            then: Yup.number().required("Must enter assets state topic id")
+        }),
+        assetStateSimulationTopicId: Yup.number().when("type", {
+            is: "Gltf 3D model",
+            then: Yup.number().required("Must enter assets state simulation topic id")
+        }),
+        femResultModalValuesTopicId: Yup.number().when("type", {
+            is: "Gltf 3D model",
+            then: Yup.number().required("Must enter fem tesult modal values topic id")
+        }),
+        femResultModalValuesSimulationTopicId: Yup.number().when("type", {
+            is: "Gltf 3D model",
+            then: Yup.number().required("Must enter fem tesult modal values simulation topic id")
+        }),        
+        digitalTwinSimulationFormat: Yup.string().when("type", {
+            is: "Gltf 3D model",
+            then: Yup.string().required("Must enter Digital twin simulation format")
+        }),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -320,7 +361,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     <>
                         <FormTitle isSubmitting={isSubmitting} >Edit digital twin</FormTitle>
                         <FormContainer>
-                            <Formik initialValues={initialTopicData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                            <Formik initialValues={initialDigitalTwinData} validationSchema={validationSchema} onSubmit={onSubmit} >
                                 {
                                     formik => {
                                         const clearGltfDataFile = () => {
@@ -485,8 +526,43 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                                     </FileButton>
                                                                 </SelectDataFilenButtonContainer>
                                                             </DataFileContainer>
+                                                            <FormikControl
+                                                                control='input'
+                                                                label='Sensors simulation topicId'
+                                                                name='sensorSimulationTopicId'
+                                                                type='text'
+                                                            />
+                                                            <FormikControl
+                                                                control='input'
+                                                                label='Assets state topicId'
+                                                                name='assetStateTopicId'
+                                                                type='text'
+                                                            />
+                                                            <FormikControl
+                                                                control='input'
+                                                                label='Assets state simulation topicId'
+                                                                name='assetStateSimulationTopicId'
+                                                                type='text'
+                                                            />
+                                                            <FormikControl
+                                                                control='input'
+                                                                label='Fem result modal values topicId'
+                                                                name='femResultModalValuesTopicId'
+                                                                type='text'
+                                                            />
+                                                            <FormikControl
+                                                                control='input'
+                                                                label='Fem result modal values simulation topicId'
+                                                                name='femResultModalValuesSimulationTopicId'
+                                                                type='text'
+                                                            />                                                            
+                                                            <FormikControl
+                                                                control='textarea'
+                                                                label='Digital twin simulation format'
+                                                                name='digitalTwinSimulationFormat'
+                                                                textAreaSize='Small'
+                                                            />
                                                         </>
-
                                                     }
                                                 </ControlsContainer>
                                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

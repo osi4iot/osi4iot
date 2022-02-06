@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import React, { FC, useRef, useLayoutEffect } from 'react';
+import React, { FC, useRef, useLayoutEffect, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { IAssetObject } from './Model';
 import { AssetState, defaultOpacity, defaultVisibility, ObjectVisibilityState } from './ViewerUtils';
@@ -30,8 +30,41 @@ const AssetBase: FC<AssetProps> = ({
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
     material.transparent = (defOpacity*opacity) === 1 ? false : true;
-    
     let lastIntervalTime = 0;
+    const [mixers, setMixers] = useState<THREE.AnimationMixer[]>([]);
+
+    useEffect(() => {
+        if (obj.animations.length && meshRef.current) {
+            if (obj.userData.clipNames) {
+                const mixers: THREE.AnimationMixer[] = []
+                obj.animations.forEach(clip => {
+                    const mixer = new THREE.AnimationMixer(meshRef.current as any);
+                    const action = mixer.clipAction(clip);
+                    action.play();
+                    mixers.push(mixer);
+                });
+                setMixers(mixers);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [obj.animations, meshRef]);
+
+    useEffect(() => {
+        if (mixers.length && assetState.clipValues && assetState.clipValues.length !== 0) {
+            assetState.clipValues.forEach((clipValue, index) => {
+                if (clipValue) {
+                    const maxValue = obj.userData.clipMaxValues[index];
+                    const minValue = obj.userData.clipMinValues[index];
+                    const clipDuration = obj.animations[index].duration;
+                    let time = (clipValue - minValue) / (maxValue - minValue) * clipDuration;
+                    if (time >= clipDuration) time = clipDuration - 0.00001;
+                    if (time < 0.0) time = 0.0;
+                    mixers[index].setTime(time);
+                }
+            })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [mixers, assetState.clipValues]);
 
     useFrame(({ clock }) => {
         if (visible) {

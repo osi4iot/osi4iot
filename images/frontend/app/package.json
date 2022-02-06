@@ -40,7 +40,7 @@
     "react-table": "^7.7.0",
     "react-toastify": "^7.0.4",
     "styled-components": "^5.2.3",
-    "three": "^0.135.0",
+    "three": "^0.137.5",
     "three-stdlib": "^2.6.1",
     "typescript": "^4.1.2",
     "use-file-picker": "^1.2.0",
@@ -66,8 +66,8 @@
     "not op_mini all"
   ],
   "devDependencies": {
-    "@react-three/drei": "^7.25.4",
-    "@react-three/fiber": "^7.0.21",
+    "@react-three/drei": "^8.8.1",
+    "@react-three/fiber": "^7.0.26",
     "@types/file-saver": "^2.0.2",
     "@types/jszip": "^3.4.1",
     "@types/leaflet": "^1.7.2",

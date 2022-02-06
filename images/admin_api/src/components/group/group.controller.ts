@@ -327,6 +327,7 @@ class GroupController implements IController {
 					femSimulationData: "{}",
 					femSimDataFileName: "-",
 					femSimDataFileLastModifDateString: "-",
+					digitalTwinSimulationFormat: "{}"
 				},
 				{
 					name: demoDigitalTwinName(groupCreated, "Mobile"),
@@ -339,6 +340,7 @@ class GroupController implements IController {
 					femSimulationData: "{}",
 					femSimDataFileName: "-",
 					femSimDataFileLastModifDateString: "-",
+					digitalTwinSimulationFormat: "{}"
 				},
 			];
 

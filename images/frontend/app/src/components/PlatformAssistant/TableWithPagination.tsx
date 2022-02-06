@@ -370,7 +370,13 @@ const hiddenColumnCondition = (col: any) => {
         col.Header === "gltfFileName" ||
         col.Header === "gltfFileLastModifDateString" ||
         col.Header === "femSimDataFileName" ||
-        col.Header === "femSimDataFileLastModifDateString";
+        col.Header === "femSimDataFileLastModifDateString" ||
+        col.Header === "digitalTwinSimulationFormat" ||
+        col.Header === "sensorSimulationTopicId" ||
+        col.Header === "assetStateTopicId" ||
+        col.Header === "assetStateSimulationTopicId" ||
+        col.Header === "femResultModalValuesTopicId" ||
+        col.Header === "femResultModalValuesSimulationTopicId";
 
     return condition;
 }

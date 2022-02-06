@@ -371,6 +371,12 @@ export async function dataBaseInitialization() {
 				fem_simulation_data jsonb NOT NULL DEFAULT '{}'::jsonb,
 				femsimdata_file_name VARCHAR(50) DEFAULT '-',
 				femsimdata_file_last_modif_date_string VARCHAR(190),
+				digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
+				sensor_simulation_topic_id  bigint,
+				asset_state_topic_id bigint,
+				asset_state_simulation_topic_id bigint,
+				fem_result_modal_values_topic_id bigint,
+				fem_result_modal_values_simulation_topic_id bigint,
 				created TIMESTAMPTZ,
 				updated TIMESTAMPTZ,
 				CONSTRAINT fk_device_id
@@ -467,6 +473,7 @@ export async function dataBaseInitialization() {
 					femSimulationData: "{}",
 					femSimDataFileName: "-",
 					femSimDataFileLastModifDateString: "-",
+					digitalTwinSimulationFormat: "{}"
 				},
 				{
 					name: demoDigitalTwinName(group, "Mobile"),
@@ -479,6 +486,7 @@ export async function dataBaseInitialization() {
 					femSimulationData: "{}",
 					femSimDataFileName: "-",
 					femSimDataFileLastModifDateString: "-",
+					digitalTwinSimulationFormat: "{}"
 				},
 			];
 

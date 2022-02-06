@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsBoolean, IsNumber, IsString, ValidateIf, ValidateNested } from "class-validator";
+import { IsNumber, IsString, ValidateIf, ValidateNested } from "class-validator";
 import CreateUserDto from "../../user/interfaces/User.dto";
 
 

@@ -127,6 +127,7 @@ const initialDigitalTwinData = {
     gltfFileLastModifDateString: "-",
     femSimDataFileName: "-",
     femSimDataFileLastModifDateString: "-",
+    digitalTwinSimulationFormat: "{}",
 }
 
 const digitalTwinTypeOptions = [
@@ -157,6 +158,7 @@ type FormikType = FormikProps<{
     gltfFileLastModifDateString: string;
     femSimDataFileName: string;
     femSimDataFileLastModifDateString: string;
+    digitalTwinSimulationFormat: string;
 }>
 
 const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDigitalTwins }) => {
@@ -217,6 +219,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             femSimulationData: JSON.stringify(digitalTwinFemSimData),
             femSimDataFileName: values.femSimDataFileName,
             femSimDataFileLastModifDateString: femSimFileDate.toString(),
+            digitalTwinSimulationFormat: values.digitalTwinSimulationFormat
         }
 
         setIsSubmitting(true);
@@ -252,13 +255,17 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             is: "Gltf 3D model",
             then: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Must enter gltfFileLastModifDateString")
         }),
-        femSimDataFileName:  Yup.string().when("type", {
+        femSimDataFileName: Yup.string().when("type", {
             is: "Gltf 3D model",
             then: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Must enter femSimDataFileName")
         }),
-        femSimDataFileLastModifDateString:  Yup.string().when("type", {
+        femSimDataFileLastModifDateString: Yup.string().when("type", {
             is: "Gltf 3D model",
             then: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Must enter femSimDataFileLastModifDateString")
+        }),
+        digitalTwinSimulationFormat: Yup.string().when("type", {
+            is: "Gltf 3D model",
+            then: Yup.string().required("Must enter Digital twin simulation format")
         }),
     });
 
@@ -350,7 +357,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                     }
                                 }
                             }
-                            
+
                             return (
                                 <Form>
                                     <ControlsContainer>
@@ -453,6 +460,12 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                         </FileButton>
                                                     </SelectDataFilenButtonContainer>
                                                 </DataFileContainer>
+                                                <FormikControl
+                                                    control='textarea'
+                                                    label='Digital twin simulation format'
+                                                    name='digitalTwinSimulationFormat'
+                                                    textAreaSize='Small'
+                                                />
                                             </>
 
                                         }
