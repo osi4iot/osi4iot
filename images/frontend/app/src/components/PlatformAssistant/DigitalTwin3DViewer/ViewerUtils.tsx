@@ -1,7 +1,7 @@
 import { GLTFLoader } from "three-stdlib";
 import * as THREE from 'three'
 import { Camera } from '@react-three/fiber';
-import { ISensorObject, IAssetObject, IAnimatedObject, IFemSimulationObject, IResultRenderInfo, IGenericObject, IMqttTopicData } from './Model';
+import { ISensorObject, IAssetObject, IFemSimulationObject, IResultRenderInfo, IGenericObject, IMqttTopicData } from './Model';
 import { toast } from "react-toastify";
 import { IMeasurement } from "../TableColumns/measurementsColumns";
 import Lut, { ILegendLabels } from "./Lut";
@@ -26,10 +26,6 @@ export interface GenericObjectState {
 	clipValues: (number | null)[];
 }
 
-export interface AnimatedObjectState {
-	value: number | null;
-	highlight: boolean;
-}
 
 export interface ObjectVisibilityState {
 	hide: boolean;
@@ -248,39 +244,6 @@ export const generateInitialGenericObjectsState = (
 	return initialGenericObjectsState;
 }
 
-export const generateInitialAnimatedObjectsState = (
-	animatedObjects: IAnimatedObject[],
-	digitalTwinGltfData: IDigitalTwinGltfData
-) => {
-	const initialAnimatedObjectsState: Record<string, AnimatedObjectState> = {}
-	// animatedObjects.forEach(obj => {
-	// 	const objName = obj.node.name;
-	// 	let lastMeasurement = null;
-	// 	if (obj.topicIndex !== -1) {
-	// 		lastMeasurement = findLastMeasurement(obj.topicIndex, digitalTwinGltfData);
-	// 	}
-	// 	if (lastMeasurement) {
-	// 		const fieldName = obj.node.userData.fieldName;
-	// 		const payloadObject = lastMeasurement.payload as any;
-	// 		const payloadKeys = Object.keys(lastMeasurement.payload);
-	// 		if (payloadKeys.indexOf(fieldName) !== -1) {
-	// 			const value = payloadObject[fieldName];
-	// 			if (typeof value === 'number') {
-	// 				initialAnimatedObjectsState[objName] = { value, highlight: false };
-	// 			}
-	// 		} else {
-	// 			initialAnimatedObjectsState[objName] = { value: null, highlight: false };
-	// 		}
-
-	// 	} else {
-	// 		if (obj.topicIndex !== -1 && obj.node.userData.valueMin) {
-	// 			initialAnimatedObjectsState[objName] = { value: obj.node.userData.valueMin, highlight: false };
-	// 		} else initialAnimatedObjectsState[objName] = { value: null, highlight: false };
-	// 	}
-	// })
-	return initialAnimatedObjectsState;
-}
-
 export const generateInitialFemSimObjectsState = (
 	digitalTwinSelected: IDigitalTwin,
 	femSimulationObjects: IFemSimulationObject[],
@@ -376,7 +339,6 @@ export const setMeshList = (nodes: any) => {
 const getSceneBox = (
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
-	animatedObjects: IAnimatedObject[],
 	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[],
 	femSimulationObject: IFemSimulationObject | null
 ) => {
@@ -393,15 +355,6 @@ const getSceneBox = (
 	})
 
 	assetObjects.forEach((obj: IAssetObject) => {
-		if (first) {
-			box = new THREE.Box3().setFromObject(obj.node);
-			first = false;
-		} else {
-			(box as THREE.Box3).expandByObject(obj.node)
-		}
-	})
-
-	animatedObjects.forEach((obj: IAnimatedObject) => {
 		if (first) {
 			box = new THREE.Box3().setFromObject(obj.node);
 			first = false;
@@ -435,11 +388,10 @@ const getSceneBox = (
 export const giveSceneCenter = (
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
-	animatedObjects: IAnimatedObject[],
 	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[],
 	femSimulationObject: IFemSimulationObject | null
 ) => {
-	var box = getSceneBox(sensorObjects, assetObjects, animatedObjects, genericObjects, femSimulationObject);
+	var box = getSceneBox(sensorObjects, assetObjects, genericObjects, femSimulationObject);
 	const center_x = (box.max.x + box.min.x) / 2;
 	const center_y = (box.max.y + box.min.y) / 2;
 	return [center_x, center_y];
@@ -521,7 +473,6 @@ export const sortObjects: (
 ) => {
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
-	animatedObjects: IAnimatedObject[],
 	genericObjects: IGenericObject[],
 	femSimulationObjects: IFemSimulationObject[],
 	sensorsCollectionNames: string[],
@@ -534,7 +485,6 @@ export const sortObjects: (
 	setMeshList(nodes);
 	const sensorObjects: ISensorObject[] = [];
 	const assetObjects: IAssetObject[] = [];
-	const animatedObjects: IAnimatedObject[] = [];
 	const genericObjects: IGenericObject[] = [];
 	const femSimulationObjects: IFemSimulationObject[] = [];
 	const genericObjectsCollectionNames: string[] = [];
@@ -574,19 +524,6 @@ export const sortObjects: (
 						assetObjects.push(assestObject);
 						break;
 					}
-				case "animated":
-					{
-						let collectionName = "General";
-						if (obj.userData.collectionName) {
-							collectionName = obj.userData.collectionName;
-						}
-						const animatedObject: IAnimatedObject = {
-							node: obj,
-							collectionName,
-						}
-						animatedObjects.push(animatedObject);
-						break;
-					}
 				case "femSimulationObject":
 					{
 						const collectionName = obj.name;
@@ -605,7 +542,6 @@ export const sortObjects: (
 						});
 						const wireframeGeometry = new THREE.WireframeGeometry(obj.geometry);
 						const wireFrameMesh = new THREE.LineSegments(wireframeGeometry, wireFrameMaterial);
-						console.log("wireFrameMesh=", wireFrameMesh)
 						const materialColor = new THREE.Color("#F5F5F5");
 						const femResultMaterial = new THREE.MeshLambertMaterial({
 							side: THREE.DoubleSide,
@@ -670,17 +606,6 @@ export const sortObjects: (
 		}
 	})
 
-	animatedObjects.forEach((obj: IAnimatedObject) => {
-		const collectionName = obj.collectionName
-		if (animatedObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
-			animatedObjectsCollectionNames.push(collectionName);
-		}
-		if (obj.node.userData.clipName) {
-			const objAnimation = animations.filter(clip => clip.name === obj.node.userData.clipName)[0]
-			obj.node.animations = [objAnimation];
-		}
-	})
-
 	genericObjects.forEach((obj: IGenericObject) => {
 		const collectionName = obj.collectionName
 		if (genericObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
@@ -714,7 +639,6 @@ export const sortObjects: (
 	return {
 		sensorObjects,
 		assetObjects,
-		animatedObjects,
 		genericObjects,
 		femSimulationObjects,
 		sensorsCollectionNames,

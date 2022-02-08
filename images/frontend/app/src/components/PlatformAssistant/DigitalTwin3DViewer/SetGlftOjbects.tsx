@@ -2,7 +2,6 @@ import { useGLTF } from '@react-three/drei';
 import { FC, useEffect } from 'react'
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import {
-    IAnimatedObject,
     IAssetObject,
     IFemSimulationObject,
     IGenericObject,
@@ -10,9 +9,7 @@ import {
     ISensorObject
 } from './Model';
 import {
-    AnimatedObjectState,
     AssetState,
-    generateInitialAnimatedObjectsState,
     generateInitialAssetsState,
     generateInitialSensorsState,
     ObjectVisibilityState,
@@ -31,13 +28,11 @@ interface SetGltfObjectsProps {
     digitalTwinGltfData: IDigitalTwinGltfData;
     setSensorObjects: (sensorObjects: ISensorObject[]) => void;
     setAssetObjects: (assetObjects: IAssetObject[]) => void;
-    setAnimatedObjects: (animatedObjects: IAnimatedObject[]) => void;
     setGenericObjects: (genericObjects: IGenericObject[]) => void;
     setFemSimulationObjects: (femSimulationObjects: IFemSimulationObject[]) => void;
     setInitialSensorsState: (initialSensorsState: Record<string, SensorState> | null) => void;
     setInitialAssetsState: (initialAssetsState: Record<string, AssetState> | null) => void;
     setInitialGenericObjectsState: (initialGenericObjectsState: Record<string, GenericObjectState> | null) => void;
-    setInitialAnimatedObjectsState: (initialAnimatedObjectsState: Record<string, AnimatedObjectState> | null) => void;
     setInitialFemSimObjectsState: (initialFemSimObjectsState: FemSimulationObjectState[]) => void;
     setFemSimulationGeneralInfo: (femSimulationGeneralInfo: Record<string, IResultRenderInfo>) => void;
     setInitialGenericObjectsVisibilityState: (initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
@@ -53,13 +48,11 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     digitalTwinGltfData,
     setSensorObjects,
     setAssetObjects,
-    setAnimatedObjects,
     setGenericObjects,
     setFemSimulationObjects,
     setInitialSensorsState,
     setInitialAssetsState,
     setInitialGenericObjectsState,
-    setInitialAnimatedObjectsState,
     setInitialFemSimObjectsState,
     setFemSimulationGeneralInfo,
     setInitialGenericObjectsVisibilityState,
@@ -75,7 +68,6 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             const {
                 sensorObjects,
                 assetObjects,
-                animatedObjects,
                 genericObjects,
                 femSimulationObjects,
                 sensorsCollectionNames,
@@ -86,13 +78,11 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             } = sortObjects(nodes, materials, animations);
             setSensorObjects(sensorObjects);
             setAssetObjects(assetObjects);
-            setAnimatedObjects(animatedObjects);
             setGenericObjects(genericObjects);
             setFemSimulationObjects(femSimulationObjects);
             setInitialSensorsState(generateInitialSensorsState(sensorObjects, digitalTwinGltfData));
             setInitialAssetsState(generateInitialAssetsState(digitalTwinSelected, assetObjects, digitalTwinGltfData));
             setInitialGenericObjectsState(generateInitialGenericObjectsState(digitalTwinSelected, genericObjects, digitalTwinGltfData))
-            setInitialAnimatedObjectsState(generateInitialAnimatedObjectsState(animatedObjects, digitalTwinGltfData))
             if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
                 readFemSimulationInfo(
                     digitalTwinSelected,

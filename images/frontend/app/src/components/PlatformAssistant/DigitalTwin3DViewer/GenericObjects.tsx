@@ -28,42 +28,45 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     const meshRef = useRef<THREE.Mesh>();
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
-    material.transparent = (defOpacity*opacity) === 1 ? false : true;
+    material.transparent = (defOpacity * opacity) === 1 ? false : true;
     let lastIntervalTime = 0;
-    const [mixers, setMixers] = useState<THREE.AnimationMixer[]>([]);
+    const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
+    const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
         if (obj.animations.length && meshRef.current) {
             if (obj.userData.clipNames) {
-                const mixers: THREE.AnimationMixer[] = []
+                const mixer = new THREE.AnimationMixer(meshRef.current as any);
                 obj.animations.forEach(clip => {
-                    const mixer = new THREE.AnimationMixer(meshRef.current as any);
                     const action = mixer.clipAction(clip);
                     action.play();
-                    mixers.push(mixer);
                 });
-                setMixers(mixers);
+                const clipsDuration = obj.animations[0].duration - 0.00001; //All clips must have the same duration
+                setClipsDuration(clipsDuration);
+                setMixer(mixer);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [obj.animations, meshRef]);
 
     useEffect(() => {
-        if (mixers.length && genericObjectState.clipValues && genericObjectState.clipValues.length !== 0) {
+        if (mixer && clipsDuration && genericObjectState.clipValues && genericObjectState.clipValues.length !== 0) {
             genericObjectState.clipValues.forEach((clipValue, index) => {
-                if (clipValue) {
+                if (clipValue !== null) {
                     const maxValue = obj.userData.clipMaxValues[index];
                     const minValue = obj.userData.clipMinValues[index];
-                    const clipDuration = obj.animations[index].duration;
-                    let time = (clipValue - minValue) / (maxValue - minValue) * clipDuration;
-                    if (time >= clipDuration) time = clipDuration - 0.00001;
-                    if (time < 0.0) time = 0.0;
-                    mixers[index].setTime(time);
+                    let weigth = (clipValue - minValue) / (maxValue - minValue) / genericObjectState.clipValues.length;
+                    const action = mixer.existingAction(obj.animations[index]);
+                    if (action) {
+                        action.setEffectiveWeight(weigth);
+                        action.setEffectiveTimeScale(1.0);
+                    }
                 }
             })
+            mixer.setTime(clipsDuration);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mixers, genericObjectState.clipValues]);
+    }, [mixer, genericObjectState.clipValues]);
 
     useFrame(({ clock }) => {
         if (visible) {
@@ -74,7 +77,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
                 if (deltaInterval <= 0.30) {
                     material.emissive = noEmitColor;
-                    material.opacity = defOpacity*opacity;
+                    material.opacity = defOpacity * opacity;
                 } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
                     material.emissive = highlightColor;
                     material.opacity = 1;
@@ -84,7 +87,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             } else {
                 if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
                 material.emissive = noEmitColor;
-                material.opacity = defOpacity*opacity;
+                material.opacity = defOpacity * opacity;
             }
         } else {
             if (meshRef.current) meshRef.current.visible = visible;
@@ -109,7 +112,7 @@ const areEqual = (prevProps: GenericObjectProps, nextProps: GenericObjectProps) 
     return (prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.visible === nextProps.visible) &&
-        prevProps.genericObjectStateString ===  nextProps.genericObjectStateString;
+        prevProps.genericObjectStateString === nextProps.genericObjectStateString;
 }
 
 const GenericObject = React.memo(GenericObjectBase, areEqual);
@@ -141,7 +144,7 @@ const GenericObjects: FC<GenericObjectsProps> = ({
                         key={obj.node.uuid}
                         obj={obj.node}
                         blinking={highlightAllGenericObjects || genericObjectsVisibilityState[obj.collectionName].highlight}
-                        opacity={genericObjectsOpacity*genericObjectsVisibilityState[obj.collectionName].opacity}
+                        opacity={genericObjectsOpacity * genericObjectsVisibilityState[obj.collectionName].opacity}
                         visible={!(genericObjectsVisibilityState[obj.collectionName].hide || hideAllGenericObjects)}
                         genericObjectState={genericObjectsState[obj.node.name]}
                         genericObjectStateString={JSON.stringify(genericObjectsState[obj.node.name])}

@@ -31,40 +31,43 @@ const AssetBase: FC<AssetProps> = ({
     const defOpacity = defaultOpacity(obj);
     material.transparent = (defOpacity*opacity) === 1 ? false : true;
     let lastIntervalTime = 0;
-    const [mixers, setMixers] = useState<THREE.AnimationMixer[]>([]);
+    const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
+    const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
         if (obj.animations.length && meshRef.current) {
             if (obj.userData.clipNames) {
-                const mixers: THREE.AnimationMixer[] = []
+                const mixer = new THREE.AnimationMixer(meshRef.current as any);
                 obj.animations.forEach(clip => {
-                    const mixer = new THREE.AnimationMixer(meshRef.current as any);
                     const action = mixer.clipAction(clip);
                     action.play();
-                    mixers.push(mixer);
                 });
-                setMixers(mixers);
+                const clipsDuration = obj.animations[0].duration - 0.00001; //All clips must have the same duration
+                setClipsDuration(clipsDuration);
+                setMixer(mixer);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [obj.animations, meshRef]);
 
     useEffect(() => {
-        if (mixers.length && assetState.clipValues && assetState.clipValues.length !== 0) {
+        if (mixer && clipsDuration && assetState.clipValues && assetState.clipValues.length !== 0) {
             assetState.clipValues.forEach((clipValue, index) => {
-                if (clipValue) {
+                if (clipValue !== null) {
                     const maxValue = obj.userData.clipMaxValues[index];
                     const minValue = obj.userData.clipMinValues[index];
-                    const clipDuration = obj.animations[index].duration;
-                    let time = (clipValue - minValue) / (maxValue - minValue) * clipDuration;
-                    if (time >= clipDuration) time = clipDuration - 0.00001;
-                    if (time < 0.0) time = 0.0;
-                    mixers[index].setTime(time);
+                    let weigth = (clipValue - minValue) / (maxValue - minValue) / assetState.clipValues.length;
+                    const action = mixer.existingAction(obj.animations[index]);
+                    if (action) {
+                        action.setEffectiveWeight(weigth);
+                        action.setEffectiveTimeScale(1.0);
+                    }
                 }
             })
+            mixer.setTime(clipsDuration);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mixers, assetState.clipValues]);
+    }, [mixer, assetState.clipValues]);
 
     useFrame(({ clock }) => {
         if (visible) {

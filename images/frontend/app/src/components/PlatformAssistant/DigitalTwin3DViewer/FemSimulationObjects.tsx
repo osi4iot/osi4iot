@@ -49,43 +49,47 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     let lastIntervalTime = 0;
     const meshResult = digitalTwinGltfData.femSimulationData.meshResults[meshIndex];
     let deformationFields: string[] = [];
-    const [mixers, setMixers] = useState<THREE.AnimationMixer[]>([]);
     if (digitalTwinGltfData.femSimulationData.metadata.deformationFields) {
         deformationFields = digitalTwinGltfData.femSimulationData.metadata.deformationFields;
     }
+    const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
+    const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
-        if (femSimulationObject.node.animations.length && meshRef.current) {
+        if (femSimulationObject.node.animations.length && objectRef.current) {
             if (femSimulationObject.node.userData.clipNames) {
-                const mixers: THREE.AnimationMixer[] = []
+                const mixer = new THREE.AnimationMixer(objectRef.current as any);
                 femSimulationObject.node.animations.forEach(clip => {
-                    const mixer = new THREE.AnimationMixer(meshRef.current as any);
                     const action = mixer.clipAction(clip);
                     action.play();
-                    mixers.push(mixer);
                 });
-                setMixers(mixers);
+                const clipsDuration = femSimulationObject.node.animations[0].duration - 0.00001; //All clips must have the same duration
+                setClipsDuration(clipsDuration);
+                setMixer(mixer);
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [femSimulationObject.node.animations, meshRef]);
+    }, [femSimulationObject.node.animations, objectRef]);
 
     useEffect(() => {
-        if (mixers.length && femSimulationObjectState.clipValues && femSimulationObjectState.clipValues.length !== 0) {
+        if (mixer && clipsDuration && femSimulationObjectState.clipValues && femSimulationObjectState.clipValues.length !== 0) {
             femSimulationObjectState.clipValues.forEach((clipValue, index) => {
-                if (clipValue) {
+                if (clipValue !== null) {
                     const maxValue = femSimulationObject.node.userData.clipMaxValues[index];
                     const minValue = femSimulationObject.node.userData.clipMinValues[index];
-                    const clipDuration = femSimulationObject.node.animations[index].duration;
-                    let time = (clipValue - minValue) / (maxValue - minValue) * clipDuration;
-                    if (time >= clipDuration) time = clipDuration - 0.00001;
-                    if (time < 0.0) time = 0.0;
-                    mixers[index].setTime(time);
+                    let weigth = (clipValue - minValue) / (maxValue - minValue) / femSimulationObjectState.clipValues.length;
+                    const action = mixer.existingAction(femSimulationObject.node.animations[index]);
+                    if (action) {
+                        action.setEffectiveWeight(weigth);
+                        action.setEffectiveTimeScale(1.0);
+                    }
                 }
             })
+            mixer.setTime(clipsDuration);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mixers, femSimulationObjectState.clipValues]);
+    }, [mixer, femSimulationObjectState.clipValues]);
+
 
     useFrame(({ clock }) => {
         if (hideObject) {
@@ -303,6 +307,8 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     femSimulationDefScale,
     femSimulationObjectsVisibilityState
 }) => {
+
+    //console.log("femSimulationObjectsState=", femSimulationObjectsState)
 
     return (
         <>

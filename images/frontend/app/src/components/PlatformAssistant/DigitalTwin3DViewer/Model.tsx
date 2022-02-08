@@ -7,7 +7,6 @@ import Assets from './Assets';
 import useInterval from '../../../tools/useInterval';
 import { useThree } from '@react-three/fiber';
 import {
-	AnimatedObjectState,
 	AssetState,
 	FemSimObjectVisibilityState,
 	FemSimulationObjectState,
@@ -23,7 +22,6 @@ import {
 	SensorState,
 	setParameters,
 } from './ViewerUtils';
-import AnimatedObjects from './AnimatedObjects';
 import Lut from './Lut';
 import FemSimulationObjects from './FemSimulationObjects';
 
@@ -34,11 +32,6 @@ export interface ISensorObject {
 }
 
 export interface IAssetObject {
-	node: THREE.Mesh;
-	collectionName: string;
-}
-
-export interface IAnimatedObject {
 	node: THREE.Mesh;
 	collectionName: string;
 }
@@ -87,8 +80,6 @@ interface ModelProps {
 	assetObjects: IAssetObject[];
 	initialAssetsState: Record<string, AssetState>;
 	assetsVisibilityState: Record<string, ObjectVisibilityState>;
-	animatedObjects: IAnimatedObject[];
-	initialAnimatedObjectsState: Record<string, AnimatedObjectState>;
 	animatedObjectsVisibilityState: Record<string, ObjectVisibilityState>;
 	femSimulationObjects: IFemSimulationObject[];
 	femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
@@ -135,9 +126,6 @@ const Model: FC<ModelProps> = (
 		assetObjects,
 		initialAssetsState,
 		assetsVisibilityState,
-		animatedObjects,
-		initialAnimatedObjectsState,
-		animatedObjectsVisibilityState,
 		femSimulationObjects,
 		femSimulationGeneralInfo,
 		initialFemSimObjectsState,
@@ -153,9 +141,6 @@ const Model: FC<ModelProps> = (
 		assetsOpacity,
 		highlightAllAssets,
 		hideAllAssets,
-		animatedObjectsOpacity,
-		highlightAllAnimatedObjects,
-		hideAllAnimatedObjects,
 		femSimulationObjectsOpacity,
 		hideAllFemSimulationObjects,
 		highlightAllFemSimulationObjects,
@@ -178,7 +163,6 @@ const Model: FC<ModelProps> = (
 	const [sensorsState, setSensorsState] = useState<Record<string, SensorState>>(initialSensorsState);
 	const [assetsState, setAssetsState] = useState<Record<string, AssetState>>(initialAssetsState);
 	const [genericObjectsState, setGenericObjectsState] = useState<Record<string, GenericObjectState>>(initialGenericObjectsState);
-	const [animatedObjectsState, setAnimatedObjectsState] = useState<Record<string, AnimatedObjectState>>(initialAnimatedObjectsState);
 	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
 	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic);
@@ -200,10 +184,8 @@ const Model: FC<ModelProps> = (
 		const changeObjectHighlight = (objType: string, objName: string, highlighted: boolean) => {
 			let highlightSensor = false;
 			let highlightAsset = false;
-			let highlightAnimatedObject = false;
 			if (objType === "sensor" && highlighted) highlightSensor = true;
 			else if (objType === "asset" && highlighted) highlightAsset = true;
-			else if (objType === "animated" && highlighted) highlightAnimatedObject = true;
 
 			setSensorsState((prevSensorsState) => {
 				const newSensorState = { ...prevSensorsState };
@@ -228,19 +210,6 @@ const Model: FC<ModelProps> = (
 				};
 				return newAssetsState;
 			});
-
-			setAnimatedObjectsState((prevAnimatedObjectsState) => {
-				const newAnimatedObjectsState = { ...prevAnimatedObjectsState };
-				for (const objLabel in newAnimatedObjectsState) {
-					if (objType === "animated" && objLabel === objName) {
-						newAnimatedObjectsState[objLabel] = { ...newAnimatedObjectsState[objLabel], highlight: highlightAnimatedObject }
-					} else {
-						newAnimatedObjectsState[objLabel] = { ...newAnimatedObjectsState[objLabel], highlight: false }
-					}
-				};
-				return newAnimatedObjectsState;
-			});
-
 		}
 
 		setParameters(
@@ -267,7 +236,7 @@ const Model: FC<ModelProps> = (
 			container?.removeEventListener('touchstart', onTouch);
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [camera, container, setSensorsState, setAssetsState, setAnimatedObjectsState])
+	}, [camera, container, setSensorsState, setAssetsState])
 
 	const updateSensorStateString = useCallback((objName: string, state: string) => {
 		setSensorsState((prevState) => { return { ...prevState, [objName]: { ...prevState[objName], stateString: state } } });
@@ -366,6 +335,26 @@ const Model: FC<ModelProps> = (
 								genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
 							}
 						});
+
+						femSimulationObjects.forEach((obj, index) => {
+							const clipTopicIds = obj.node.userData.clipTopicIds;
+							if (clipTopicIds && clipTopicIds.length !== 0) {
+								const clipValues = [...femSimulationObjectsNewState[index].clipValues];
+								clipTopicIds.forEach((clipTopicId: number, index: number) => {
+									if (clipTopicId === messageTopicId) {
+										const fieldName = obj.node.userData.clipFieldNames[index];
+										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+											const value = mqttMessage[fieldName];
+											if (typeof value === 'number') {
+												clipValues[index] = value;
+												isfemSimulationObjectsStateChanged = true;
+											}
+										}
+									}
+								});
+								femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
+							}
+						});
 					}
 
 					if (messageTopicSubtype === "assetStateTopic" || messageTopicSubtype === "assetStateSimulationTopic") {
@@ -383,20 +372,6 @@ const Model: FC<ModelProps> = (
 						setAssetsState(assestsNewState);
 					}
 
-					const animatedObjectsNewState = { ...animatedObjectsState };
-					let isAnimatedObjectsStateChanged = false;
-					animatedObjects.forEach((obj) => {
-						const objName = obj.node.name;
-						const fieldName = obj.node.userData.fieldName;
-						if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-							const value = mqttMessage[fieldName];
-							if (typeof value === 'number') {
-								animatedObjectsNewState[objName] = { ...animatedObjectsNewState[objName], value };
-								isAnimatedObjectsStateChanged = true;
-							}
-						}
-					});
-					if (isAnimatedObjectsStateChanged) setAnimatedObjectsState(animatedObjectsNewState);
 
 					if (femSimulationObjectsState.length) {
 						if (messageTopicSubtype === "femResultModalValuesTopic") {
@@ -455,17 +430,6 @@ const Model: FC<ModelProps> = (
 					hideAllAssets={hideAllAssets}
 					assetsState={assetsState}
 					assetsVisibilityState={assetsVisibilityState}
-				/>
-			}
-			{
-				animatedObjects.length &&
-				<AnimatedObjects
-					animatedObjects={animatedObjects}
-					animatedObjectsOpacity={animatedObjectsOpacity}
-					highlightAllAnimatedObjects={highlightAllAnimatedObjects}
-					hideAllAnimatedObjects={hideAllAnimatedObjects}
-					animatedObjectsState={animatedObjectsState}
-					animatedObjectsVisibilityState={animatedObjectsVisibilityState}
 				/>
 			}
 			{

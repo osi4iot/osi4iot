@@ -10,7 +10,6 @@ import DatGui, { DatNumber, DatFolder, DatBoolean, DatSelect } from "react-dat-g
 import "react-dat-gui/dist/dist/index.css";
 import { Stage } from "./Stage";
 import Model, {
-	IAnimatedObject,
 	IAssetObject,
 	IFemSimulationObject,
 	IGenericObject,
@@ -18,7 +17,6 @@ import Model, {
 	ISensorObject
 } from './Model'
 import {
-	AnimatedObjectState,
 	AssetState,
 	FemSimulationObjectState,
 	ObjectVisibilityState,
@@ -80,6 +78,7 @@ const StyledDataGui = styled(DatGui)`
 
   &.react-dat-gui {
     max-height: calc(100vh - 320px);
+	background-color: #212121;
     overflow-y: auto;
     /* width */
     ::-webkit-scrollbar {
@@ -316,13 +315,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
 	const [sensorObjects, setSensorObjects] = useState<ISensorObject[]>([]);
 	const [assetObjects, setAssetObjects] = useState<IAssetObject[]>([]);
-	const [animatedObjects, setAnimatedObjects] = useState<IAnimatedObject[]>([]);
 	const [genericObjects, setGenericObjects] = useState<IGenericObject[]>([]);
 	const [femSimulationObjects, setFemSimulationObjects] = useState<IFemSimulationObject[]>([]);
 	const [initialSensorsState, setInitialSensorsState] = useState<Record<string, SensorState> | null>(null);
 	const [initialAssetsState, setInitialAssetsState] = useState<Record<string, AssetState> | null>(null);
 	const [initialGenericObjectsState, setInitialGenericObjectsState] = useState<Record<string, GenericObjectState> | null>(null);
-	const [initialAnimatedObjectsState, setInitialAnimatedObjectsState] = useState<Record<string, AnimatedObjectState> | null>(null);
 	const [initialFemSimObjectsState, setInitialFemSimObjectsState] = useState<FemSimulationObjectState[]>([]);
 	const [
 		initialGenericObjectsVisibilityState,
@@ -450,13 +447,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					digitalTwinGltfData={digitalTwinGltfData}
 					setSensorObjects={setSensorObjects}
 					setAssetObjects={setAssetObjects}
-					setAnimatedObjects={setAnimatedObjects}
 					setGenericObjects={setGenericObjects}
 					setFemSimulationObjects={setFemSimulationObjects}
 					setInitialSensorsState={setInitialSensorsState}
 					setInitialAssetsState={setInitialAssetsState}
 					setInitialGenericObjectsState={setInitialGenericObjectsState}
-					setInitialAnimatedObjectsState={setInitialAnimatedObjectsState}
 					setInitialFemSimObjectsState={setInitialFemSimObjectsState}
 					setFemSimulationGeneralInfo={setFemSimulationGeneralInfo}
 					setInitialGenericObjectsVisibilityState={setInitialGenericObjectsVisibilityState}
@@ -495,8 +490,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								assetObjects={assetObjects}
 								initialAssetsState={initialAssetsState as Record<string, SensorState>}
 								assetsVisibilityState={opts.assetsVisibilityState}
-								animatedObjects={animatedObjects}
-								initialAnimatedObjectsState={initialAnimatedObjectsState as Record<string, AnimatedObjectState>}
 								animatedObjectsVisibilityState={opts.animatedObjectsVisibilityState}
 								femSimulationObjects={femSimulationObjects}
 								femSimulationGeneralInfo={femSimulationGeneralInfo as Record<string, IResultRenderInfo>}
@@ -651,38 +644,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 											/>
 										</DatFolder>
 									)
-								}
-							</DatFolder>
-						}
-						{
-							animatedObjects.length !== 0 &&
-							<DatFolder title='Animated objects' closed={true}>
-								<DatFolder title='All nodes' closed={true}>
-									<StyledDatNumber label="Opacity" path="animatedObjectsOpacity" min={0} max={1} step={0.05} />
-									<StyledDatBoolean label="Highlight" path="highlightAllAnimatedObjects" />
-									<StyledDatBoolean label="Hide" path="hideAllAnimatedObjects" />
-								</DatFolder>
-								{initialFemSimObjectsVisibilityState &&
-									Object.keys(initialFemSimObjectsVisibilityState as Record<string, FemSimObjectVisibilityState>)
-										.map(collecionName =>
-											<DatFolder key={collecionName} title={collecionName} closed={true}>
-												<StyledDatNumber
-													label="Opacity"
-													path={`animatedObjectsVisibilityState[${collecionName}].opacity`}
-													min={0}
-													max={1}
-													step={0.05}
-												/>
-												<StyledDatBoolean
-													label="Highlight"
-													path={`animatedObjectsVisibilityState[${collecionName}].highlight`}
-												/>
-												<StyledDatBoolean
-													label="Hide"
-													path={`animatedObjectsVisibilityState[${collecionName}].hide`}
-												/>
-											</DatFolder>
-										)
 								}
 							</DatFolder>
 						}
