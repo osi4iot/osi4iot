@@ -85,9 +85,15 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                     lastIntervalTime = clock.elapsedTime;
                 }
             } else {
-                if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                material.emissive = noEmitColor;
-                material.opacity = defOpacity * opacity;
+                if (genericObjectState.highlight) {
+                    if (meshRef.current) meshRef.current.visible = true;
+                    material.opacity = 1;
+                    material.emissive = highlightColor;
+                } else {
+                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                    material.emissive = noEmitColor;
+                    material.opacity = defOpacity*opacity;
+                }
             }
         } else {
             if (meshRef.current) meshRef.current.visible = visible;

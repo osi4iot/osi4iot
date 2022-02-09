@@ -48,6 +48,14 @@ export interface FemSimulationObjectState {
 	clipValues: (number | null)[];
 }
 
+export interface DigitalTwinSimulationParameter {
+	minValue: number;
+	maxValue: number;
+	defaultValue: number;
+	step: number;
+	label: string;
+}
+
 export interface IDigitalTwinGltfData {
 	id: number;
 	gltfData: any;
@@ -55,6 +63,12 @@ export interface IDigitalTwinGltfData {
 	femSimulationData: any;
 	femSimulationUrl: string | null;
 	mqttTopicsData: IMqttTopicData[];
+	assetStateSimulationTopicId: number;
+	assetStateTopicId: number;
+	femResultModalValuesSimulationTopicId: number;
+	femResultModalValuesTopicId: number;
+	sensorSimulationTopicId: number;
+	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
 }
 
 
@@ -307,10 +321,9 @@ var camera: Camera;
 var container: HTMLCanvasElement | null;
 var selectedObjTypeRef: HTMLDivElement | null;
 var selectedObjNameRef: HTMLDivElement | null;
-var selectedObjTopicIdRef: HTMLDivElement | null;
+var selectedObjCollectionNameRef: HTMLDivElement | null;
 
 var dashboardUrl: string = "";
-const objNameToTopicIdMap: Record<string, number> = {};
 var changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -318,7 +331,8 @@ let meshList: THREE.Mesh[];
 var mouse = {
 	isInsideObject: false,
 	objName: "",
-	type: ""
+	type: "",
+	collectionName: ""
 };
 
 
@@ -402,7 +416,7 @@ export const setParameters = (
 	l_container: HTMLCanvasElement | null,
 	l_selectedObjTypeRef: HTMLDivElement | null,
 	l_selectedObjNameRef: HTMLDivElement | null,
-	l_selectedObjTopicIdRef: HTMLDivElement | null,
+	l_selectedObjCollectionNameRef: HTMLDivElement | null,
 	l_changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void,
 	l_dashboardUrl: string,
 
@@ -411,7 +425,7 @@ export const setParameters = (
 	container = l_container;
 	selectedObjTypeRef = l_selectedObjTypeRef;
 	selectedObjNameRef = l_selectedObjNameRef;
-	selectedObjTopicIdRef = l_selectedObjTopicIdRef;
+	selectedObjCollectionNameRef = l_selectedObjCollectionNameRef;
 	changeObjectHighlight = l_changeObjectHighlight;
 	dashboardUrl = l_dashboardUrl;
 }
@@ -422,7 +436,7 @@ const giveDefaultObjectMaterialColor = (obj: any) => {
 		materialColor = new THREE.Color("#23272F");
 	} else if (obj.userData.type === "asset") {
 		materialColor = new THREE.Color("#828282");
-	} else if (obj.userData.type === "femSimulationObject") {
+	} else if (obj.userData.type === "femObject") {
 		materialColor = new THREE.Color("#F5F5F5");
 	} else if (obj.userData.type === "generic") {
 		materialColor = new THREE.Color("#7a5270");
@@ -440,7 +454,7 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 			objMaterial.opacity = 1;
 			objMaterial.side = 2;
 			if (objMaterial.name === "") {
-				const materialColor =  giveDefaultObjectMaterialColor(obj);
+				const materialColor = giveDefaultObjectMaterialColor(obj);
 				objMaterial = new THREE.MeshLambertMaterial({
 					color: materialColor,
 					emissive: noEmitColor,
@@ -454,7 +468,7 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 	}
 
 	if (!objMaterial) {
-		const materialColor =  giveDefaultObjectMaterialColor(obj);
+		const materialColor = giveDefaultObjectMaterialColor(obj);
 		objMaterial = new THREE.MeshLambertMaterial({
 			color: materialColor,
 			emissive: noEmitColor,
@@ -477,7 +491,6 @@ export const sortObjects: (
 	femSimulationObjects: IFemSimulationObject[],
 	sensorsCollectionNames: string[],
 	assetsCollectionNames: string[],
-	animatedObjectsCollectionNames: string[],
 	genericObjectsCollectionNames: string[],
 	femSimulationObjectsCollectionNames: string[],
 
@@ -490,7 +503,6 @@ export const sortObjects: (
 	const genericObjectsCollectionNames: string[] = [];
 	const sensorsCollectionNames: string[] = [];
 	const assetsCollectionNames: string[] = [];
-	const animatedObjectsCollectionNames: string[] = [];
 	const femSimulationObjectsCollectionNames: string[] = [];
 
 	for (const prop in nodes) {
@@ -524,7 +536,7 @@ export const sortObjects: (
 						assetObjects.push(assestObject);
 						break;
 					}
-				case "femSimulationObject":
+				case "femObject":
 					{
 						const collectionName = obj.name;
 						const originalGeometryArray = [];
@@ -586,7 +598,7 @@ export const sortObjects: (
 			obj.node.userData.clipNames.forEach((clipName: string) => {
 				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
 				if (objAnimations) objAnimations.push(objAnimation);
-			}); 
+			});
 			obj.node.animations = objAnimations;
 		}
 	})
@@ -601,7 +613,7 @@ export const sortObjects: (
 			obj.node.userData.clipNames.forEach((clipName: string) => {
 				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
 				if (objAnimations) objAnimations.push(objAnimation);
-			}); 
+			});
 			obj.node.animations = objAnimations;
 		}
 	})
@@ -616,7 +628,7 @@ export const sortObjects: (
 			obj.node.userData.clipNames.forEach((clipName: string) => {
 				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
 				if (objAnimations) objAnimations.push(objAnimation);
-			}); 
+			});
 			obj.node.animations = objAnimations;
 		}
 	})
@@ -631,7 +643,7 @@ export const sortObjects: (
 			obj.node.userData.clipNames.forEach((clipName: string) => {
 				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
 				if (objAnimations) objAnimations.push(objAnimation);
-			}); 
+			});
 			obj.node.animations = objAnimations;
 		}
 	})
@@ -643,7 +655,6 @@ export const sortObjects: (
 		femSimulationObjects,
 		sensorsCollectionNames,
 		assetsCollectionNames,
-		animatedObjectsCollectionNames,
 		genericObjectsCollectionNames,
 		femSimulationObjectsCollectionNames
 	}
@@ -657,6 +668,7 @@ function sendCustomEvent(eventName: string, data: any) {
 export const get_mesh_intersect = (lx: number, ly: number) => {
 	let objName = "";
 	let type = "";
+	let collectionName = "";
 
 	if (container && meshList && meshList.length) {
 		const rect = container.getBoundingClientRect();
@@ -669,9 +681,15 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 		if (intersects.length > 0) {
 			objName = intersects[0].object.name;
 			type = intersects[0].object.userData.type;
+			if (type === "femObject") collectionName = objName;
+			else {
+				if (intersects[0].object.userData.collectionName) {
+					collectionName = intersects[0].object.userData.collectionName;
+				} else collectionName = "General";
+			}
 		}
 	}
-	return [objName, type];
+	return [objName, type, collectionName];
 }
 
 const processMouseEvent = (
@@ -680,21 +698,24 @@ const processMouseEvent = (
 ) => {
 	event.preventDefault();
 
-	const [objName, type] = get_mesh_intersect(event.clientX, event.clientY);
+	const [objName, type, collectionName] = get_mesh_intersect(event.clientX, event.clientY);
 
 	if (objName !== "" && type) {
 		if ((mouse.objName !== "") && (mouse.objName !== objName)) {
 			//jump from object to object, exist last one
 			mouse.isInsideObject = false;
 			mouse.type = "";
+			mouse.collectionName = "";
 		}
 		mouse.objName = objName;
+		mouse.collectionName = collectionName;
 		if (!mouse.isInsideObject) {
-			sendCustomEvent("mesh_mouse_enter", { type, name: mouse.objName });
+			sendCustomEvent("mesh_mouse_enter", { type, name: mouse.objName, collectionName: mouse.collectionName });
 		}
 		mouse.isInsideObject = true;
 		mouse.type = type;
-		sendCustomEvent(event_name, { type, name: mouse.objName });
+
+		sendCustomEvent(event_name, { type, name: mouse.objName, collectionName: mouse.collectionName });
 	}
 	else {
 		if (mouse.isInsideObject) {
@@ -737,14 +758,11 @@ export const onMeshMouseEnter = (e: any) => {
 	if (container) container.style.cursor = "pointer";
 	const objName = e.detail.name;
 	const type = e.detail.type;
+	const collectionName = e.detail.collectionName;
 	changeObjectHighlight(type, objName, true);
-	let topicId = "-";
-	if (objNameToTopicIdMap[objName]) {
-		topicId = objNameToTopicIdMap[objName].toString();
-	}
-	if (selectedObjTypeRef) selectedObjTypeRef.innerHTML = `Object type: ${type}`;
-	if (selectedObjNameRef) selectedObjNameRef.innerHTML = `Object name: ${objName}`;
-	if (selectedObjTopicIdRef) selectedObjTopicIdRef.innerHTML = `TopicId: ${topicId}`;
+	if (selectedObjNameRef) selectedObjNameRef.innerHTML = `Name: ${objName}`;
+	if (selectedObjTypeRef) selectedObjTypeRef.innerHTML = `Type: ${type}`;
+	if (selectedObjCollectionNameRef) selectedObjCollectionNameRef.innerHTML = `Collection: ${collectionName}`;
 }
 
 export const onMeshMouseExit = (e: any) => {
@@ -752,9 +770,9 @@ export const onMeshMouseExit = (e: any) => {
 	const objName = e.detail.name;
 	const type = e.detail.type;
 	changeObjectHighlight(type, objName, false);
-	if (selectedObjTypeRef) selectedObjTypeRef.innerHTML = "Object type: -";
-	if (selectedObjNameRef) selectedObjNameRef.innerHTML = "Object name: -";
-	if (selectedObjTopicIdRef) selectedObjTopicIdRef.innerHTML = "TopicId: -";
+	if (selectedObjNameRef) selectedObjNameRef.innerHTML = "Name: -";
+	if (selectedObjTypeRef) selectedObjTypeRef.innerHTML = "Type: -";
+	if (selectedObjCollectionNameRef) selectedObjCollectionNameRef.innerHTML = "Collection: -";
 }
 
 

@@ -38,7 +38,6 @@ interface SetGltfObjectsProps {
     setInitialGenericObjectsVisibilityState: (initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialSensorsVisibilityState: (initialSensorsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialAssetsVisibilityState: (initialAssetsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
-    setInitialAnimatedObjsVisibilityState: (initialAnimatedObjsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialFemSimObjectsVisibilityState: (initialFemSimObjectsVisibilityState: Record<string, FemSimObjectVisibilityState> | null) => void;
 }
 
@@ -58,7 +57,6 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     setInitialGenericObjectsVisibilityState,
     setInitialSensorsVisibilityState,
     setInitialAssetsVisibilityState,
-    setInitialAnimatedObjsVisibilityState,
     setInitialFemSimObjectsVisibilityState
 }) => {
     const { nodes, materials, animations } = useGLTF(digitalTwinGltfData.digitalTwinGltfUrl as string) as any;
@@ -72,7 +70,6 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 femSimulationObjects,
                 sensorsCollectionNames,
                 assetsCollectionNames,
-                animatedObjectsCollectionNames,
                 genericObjectsCollectionNames,
                 femSimulationObjectsCollectionNames
             } = sortObjects(nodes, materials, animations);
@@ -111,12 +108,6 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 initialAssetsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
             }
             setInitialAssetsVisibilityState(initialAssetsVisibilityState);
-
-            const initialAnimatedObjsVisibilityState: Record<string, ObjectVisibilityState> = {}
-            for (const collectionName of animatedObjectsCollectionNames) {
-                initialAnimatedObjsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
-            }
-            setInitialAnimatedObjsVisibilityState(initialAnimatedObjsVisibilityState);
 
             const initialFemSimObjectsVisibilityState: Record<string, FemSimObjectVisibilityState> = {}
             for (const collectionName of femSimulationObjectsCollectionNames) {

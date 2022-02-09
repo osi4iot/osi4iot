@@ -6,7 +6,7 @@ import { Connector } from 'mqtt-react-hooks';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three'
 import { OrbitControls } from '@react-three/drei';
-import DatGui, { DatNumber, DatFolder, DatBoolean, DatSelect } from "react-dat-gui";
+import DatGui, { DatNumber, DatFolder, DatBoolean, DatSelect, DatButton } from "react-dat-gui";
 import "react-dat-gui/dist/dist/index.css";
 import { Stage } from "./Stage";
 import Model, {
@@ -29,7 +29,6 @@ import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { getDomainName } from '../../../tools/tools';
 import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
-// import SetFemSimulationObject from './SetFemSimulationObject';
 
 
 const CanvasContainer = styled.div`
@@ -191,6 +190,25 @@ const StyledDatSelect = styled(DatSelect)`
   }
 `;
 
+const StyledDatButtom = styled(DatButton)`
+  &.cr.button {
+    border: 5px solid #141619;
+	border-radius: 10px;
+    background-color: #3274d9;
+
+	&:hover {
+		background: #2461c0;
+	}
+
+	.label-text {
+        width: 50% !important;
+		margin: auto;
+		text-align: center;
+    }
+
+  }
+`;
+
 const HeaderContainer = styled.div`
   background-color: #141619;
   width: 280px;
@@ -310,7 +328,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const controlsRef = useRef() as any;
 	const selectedObjTypeRef = useRef(null);
 	const selectedObjNameRef = useRef(null);
-	const selectedObjTopicIdRef = useRef(null);
+	const selectedObjCollectionNameRef = useRef(null);
 	const [isMqttConnected, setIsMqttConnected] = useState(false);
 	const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
 	const [sensorObjects, setSensorObjects] = useState<ISensorObject[]>([]);
@@ -328,8 +346,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femSimulationGeneralInfo, setFemSimulationGeneralInfo] = useState<Record<string, IResultRenderInfo> | null>(null);
 	const [initialSensorsVisibilityState, setInitialSensorsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
 	const [initialAssetsVisibilityState, setInitialAssetsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
-	const [initialAnimatedObjsVisibilityState, setInitialAnimatedObjsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
 	const [initialFemSimObjectsVisibilityState, setInitialFemSimObjectsVisibilityState] = useState<Record<string, FemSimObjectVisibilityState> | null>(null);
+	const [digitalTwinSimulatorSendData, setDigitalTwinSimulatorSendData] = useState(false);
+	const [digitalTwinSimulatorButtomLabel, setDigitalTwinSimulatorButtomLabel] = useState("SEND DATA");
 
 	let femResultNames: string[] = [];
 	if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
@@ -337,6 +356,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			(resultField: { resultName: string; }) => resultField.resultName
 		);
 	}
+
+	const handleDigitalTwinSimulatorButtonClick = () => {
+		if (digitalTwinSimulatorButtomLabel === "SEND DATA") {
+			setDigitalTwinSimulatorButtomLabel("STOP SENDING DATA")
+		} else if (digitalTwinSimulatorButtomLabel === "STOP SENDING DATA") {
+			setDigitalTwinSimulatorButtomLabel("SEND DATA")
+		}
+		setDigitalTwinSimulatorSendData(prevState => !prevState);
+	}
+
 
 	const [opts, setOpts] = useState({
 		ambientLight: true,
@@ -374,7 +403,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		showFemSimulationDeformation: false,
 		femSimulationDefScale: 0,
 		showAllFemSimulationMeshes: false,
-		legendToShow: "None result"
+		legendToShow: "None result",
+		digitalTwinSimulatorState: undefined as unknown as Record<string, number>,
 	});
 
 	useEffect(() => {
@@ -408,16 +438,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	}, [initialAssetsVisibilityState])
 
 	useEffect(() => {
-		if (initialAnimatedObjsVisibilityState) {
-			setOpts((prevOpts) => {
-				const newOpts = { ...prevOpts };
-				newOpts.animatedObjectsVisibilityState = initialAnimatedObjsVisibilityState;
-				return newOpts;
-			})
-		}
-	}, [initialAnimatedObjsVisibilityState])
-
-	useEffect(() => {
 		if (initialFemSimObjectsVisibilityState) {
 			setOpts((prevOpts) => {
 				const newOpts = { ...prevOpts };
@@ -438,10 +458,29 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [femSimulationGeneralInfo, femSimulationObjects])
 
+	useEffect(() => {
+		if (Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) {
+			const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
+			const digitalTwinSimulatorState: Record<string, number> = {};
+			Object.keys(digitalTwinSimulationFormat).forEach(paramName => {
+				digitalTwinSimulatorState[paramName] = digitalTwinSimulationFormat[paramName].defaultValue;
+			})
+			setOpts((prevOpts) => {
+				const newOpts = { ...prevOpts };
+				newOpts.digitalTwinSimulatorState = digitalTwinSimulatorState;
+				return newOpts;
+			})
+		}
+	}, [digitalTwinGltfData.digitalTwinSimulationFormat])
+
 	return (
 		<>
 			{
-				(digitalTwinSelected && digitalTwinGltfData.digitalTwinGltfUrl) &&
+				(
+					digitalTwinSelected &&
+					digitalTwinGltfData &&
+					digitalTwinGltfData.digitalTwinGltfUrl
+				) &&
 				<SetGltfObjects
 					digitalTwinSelected={digitalTwinSelected}
 					digitalTwinGltfData={digitalTwinGltfData}
@@ -457,7 +496,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					setInitialGenericObjectsVisibilityState={setInitialGenericObjectsVisibilityState}
 					setInitialSensorsVisibilityState={setInitialSensorsVisibilityState}
 					setInitialAssetsVisibilityState={setInitialAssetsVisibilityState}
-					setInitialAnimatedObjsVisibilityState={setInitialAnimatedObjsVisibilityState}
 					setInitialFemSimObjectsVisibilityState={setInitialFemSimObjectsVisibilityState}
 				/>
 			}
@@ -521,9 +559,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								canvasRef={canvasRef}
 								selectedObjTypeRef={selectedObjTypeRef}
 								selectedObjNameRef={selectedObjNameRef}
-								selectedObjTopicIdRef={selectedObjTopicIdRef}
+								selectedObjCollectionNameRef={selectedObjCollectionNameRef}
 								femSimulationResult={opts.femSimulationResult}
 								femSimulationDefScale={opts.femSimulationDefScale}
+								digitalTwinSimulatorState={opts.digitalTwinSimulatorState}
+								digitalTwinSimulatorSendData={digitalTwinSimulatorSendData}
 							/>
 						</Connector>
 					</Stage>
@@ -683,7 +723,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						}
 						{
 							(femSimulationObjects.length !== 0 && femSimulationGeneralInfo) &&
-							<DatFolder title='Fem simulation objects' closed={true}>
+							<DatFolder title='Fem objects' closed={true}>
 								<DatFolder title='All meshes' closed={true}>
 									<StyledDatSelect
 										path='femSimulationResult'
@@ -746,13 +786,30 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								}
 							</DatFolder>
 						}
+						{
+							(Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) &&
+							<DatFolder title='Digital twin simulator' closed={true}>
+								{
+									Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).map(paramName =>
+										<StyledDatNumber
+											label={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].label || paramName}
+											path={`digitalTwinSimulatorState[${paramName}]`}
+											min={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].minValue}
+											max={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].maxValue}
+											step={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].step}
+										/>
+									)
+								}
+								<StyledDatButtom label={digitalTwinSimulatorButtomLabel} onClick={handleDigitalTwinSimulatorButtonClick} />
+							</DatFolder>
+						}
 					</StyledDataGui>
 				}
 				<SelectedObjectInfoContainer>
 					<ObjectInfoContainer>
-						<ObjectInfo ref={selectedObjTypeRef} >Object type: -</ObjectInfo>
-						<ObjectInfo ref={selectedObjNameRef}>Object name: -</ObjectInfo>
-						<ObjectInfo ref={selectedObjTopicIdRef}>TopicId: -</ObjectInfo>
+						<ObjectInfo ref={selectedObjNameRef}>Name: -</ObjectInfo>
+						<ObjectInfo ref={selectedObjTypeRef} >Type: -</ObjectInfo>
+						<ObjectInfo ref={selectedObjCollectionNameRef}>Collection: -</ObjectInfo>
 					</ObjectInfoContainer>
 				</SelectedObjectInfoContainer>
 			</CanvasContainer>

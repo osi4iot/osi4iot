@@ -69,7 +69,7 @@ class OT_LoadFemMeshes(Operator, ImportHelper):
             mesh.update()
             # make object from mesh
             object = bpy.data.objects.new(meshName, mesh)
-            object["type"]= "femSimulationObject"
+            object["type"]= "femObject"
             # add object to scene collection
             femSimObjs_collection.objects.link(object)
 

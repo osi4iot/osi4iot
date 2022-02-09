@@ -111,9 +111,15 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     lastIntervalTime = clock.elapsedTime;
                 }
             } else {
-                if (objectRef.current) objectRef.current.visible = defaultVisibility(femSimulationObject.node);
-                material.emissive = noEmitColor;
-                material.opacity = defOpacity*opacity;
+                if (femSimulationObjectState.highlight) {
+                    if (objectRef.current) objectRef.current.visible = true;
+                    material.opacity = 1;
+                    material.emissive = highlightColor;
+                } else {
+                    if (objectRef.current) objectRef.current.visible = defaultVisibility(femSimulationObject.node);
+                    material.emissive = noEmitColor;
+                    material.opacity = defOpacity*opacity;
+                }
             }
         }
     })
@@ -307,8 +313,6 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     femSimulationDefScale,
     femSimulationObjectsVisibilityState
 }) => {
-
-    //console.log("femSimulationObjectsState=", femSimulationObjectsState)
 
     return (
         <>
