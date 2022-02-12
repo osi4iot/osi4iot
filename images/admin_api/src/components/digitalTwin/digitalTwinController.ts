@@ -28,12 +28,16 @@ import {
 	getStateOfAllDigitalTwins,
 	getStateOfDigitalTwinsByGroupsIdArray,
 	getTopicsIdFromDigitalTwin,
-	updateDigitalTwinById
+	updateDigitalTwinById,
+	getAllDigitalTwinSimulators,
+	getDigitalTwinSimulatorsByGroupsIdArray,
+	addMqttTopicsToDigitalTwinSimulators
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import HttpException from "../../exceptions/HttpException";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
@@ -55,6 +59,11 @@ class DigitalTwinController implements IController {
 				`${this.path}s_state/user_managed/`,
 				userAuth,
 				this.getStateOfDigitalTwinsManagedByUser
+			)
+			.get(
+				`${this.path}_simulators/user_managed/`,
+				userAuth,
+				this.getDigitalTwinSimulatorsManagedByUser
 			)
 			.get(
 				`${this.path}s_in_org/:orgId/`,
@@ -166,6 +175,38 @@ class DigitalTwinController implements IController {
 		}
 	};
 
+	private getDigitalTwinSimulatorsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let digitalTwinSimulators: IDigitalTwinSimulator[] = [];
+			if (req.user.isGrafanaAdmin) {
+				digitalTwinSimulators = await getAllDigitalTwinSimulators();
+			} else {
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					digitalTwinSimulators = await getDigitalTwinSimulatorsByGroupsIdArray(groupsIdArray);
+				}
+			}
+			const digitalTwinSimulatorsExtended = await addMqttTopicsToDigitalTwinSimulators(digitalTwinSimulators);
+			res.status(200).send(digitalTwinSimulatorsExtended);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private getDigitalTwinsInOrg = async (
 		req: IRequestWithOrganization,
 		res: Response,
@@ -253,7 +294,7 @@ class DigitalTwinController implements IController {
 			if (!existentDigitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
 			const digitalTwinUpdate = { ...existentDigitalTwin, ...digitalTwinData };
 			let newTopicsId: number[] = [];
-			if(digitalTwinUpdate.type === "Gltf 3D model") newTopicsId = getTopicsIdFromDigitalTwin(digitalTwinUpdate);
+			if (digitalTwinUpdate.type === "Gltf 3D model") newTopicsId = getTopicsIdFromDigitalTwin(digitalTwinUpdate);
 			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboard(
 				req.user,
 				digitalTwinUpdate.type,

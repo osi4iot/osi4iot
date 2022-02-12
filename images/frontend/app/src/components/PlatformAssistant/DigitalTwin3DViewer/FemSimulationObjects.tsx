@@ -18,6 +18,8 @@ interface FemSimulationObjectProps {
     femSimulationResult: string;
     showFemSimulationDeformation: boolean;
     femSimulationDefScale: number;
+    setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
+    setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
 }
 
 const highlightColor = new THREE.Color(0x00ff00);
@@ -36,7 +38,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     showFemMesh,
     femSimulationResult,
     showFemSimulationDeformation,
-    femSimulationDefScale
+    femSimulationDefScale,
+    setFemMinValues,
+    setFemMaxValues
 }) => {
     const objectRef = useRef<THREE.Group>();
     const meshRef = useRef<THREE.LineSegments>();
@@ -103,7 +107,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
                 if (deltaInterval <= 0.30) {
                     material.emissive = noEmitColor;
-                    material.opacity = defOpacity*opacity;
+                    material.opacity = defOpacity * opacity;
                 } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
                     material.emissive = highlightColor;
                     material.opacity = 1;
@@ -118,7 +122,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 } else {
                     if (objectRef.current) objectRef.current.visible = defaultVisibility(femSimulationObject.node);
                     material.emissive = noEmitColor;
-                    material.opacity = defOpacity*opacity;
+                    material.opacity = defOpacity * opacity;
                 }
             }
         }
@@ -133,7 +137,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         } else {
             const numberOfModes = meshResult.resultFields[femSimulationResult].numberOfModes;
             let lutColors = [];
-
+            let femMinValue: any;
+            let femMaxValue: any;
             for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
                 let totalcolorValue = 0;
                 for (let imode = 1; imode <= numberOfModes; imode++) {
@@ -141,7 +146,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     const modalValue = femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1];
                     if (meshResult.resultFields[femSimulationResult].resultLocation === "OnNodes") {
                         const resultValues = meshResult.resultFields[femSimulationResult].modalValues[resultpath];
-                        const inode = meshResult.elemConnectivities.array[i] -1;
+                        const inode = meshResult.elemConnectivities.array[i] - 1;
                         totalcolorValue += resultValues.array[inode] * modalValue;
                     } else if (meshResult.resultFields[femSimulationResult].resultLocation === "OnGaussPoints") {
                         const resultValues = meshResult.resultFields[femSimulationResult].modalValues[resultpath];
@@ -149,6 +154,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     }
                 }
 
+                if (femMinValue  === undefined) femMinValue = totalcolorValue;
+                if(totalcolorValue < femMinValue) femMinValue = totalcolorValue;
+                if (femMaxValue === undefined) femMaxValue = totalcolorValue;
+                if(totalcolorValue > femMaxValue) femMaxValue = totalcolorValue;
 
                 color = femSimulationGeneralInfo[femSimulationResult].resultLut.getColor(totalcolorValue);
                 if (color === undefined) {
@@ -159,6 +168,18 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     lutColors[3 * i + 2] = color.b;
                 }
             }
+
+            setFemMinValues((prevFemMinValues: number[]) => {
+                const newFemMinValues = [...prevFemMinValues];
+                newFemMinValues[meshIndex] = femMinValue;
+                return newFemMinValues;
+            });
+
+            setFemMaxValues((prevFemMaxValues: number[]) => {
+                const newFemMaxValues = [...prevFemMaxValues];
+                newFemMaxValues[meshIndex] = femMaxValue;
+                return newFemMaxValues;
+            });
 
             resultColors = new Float32Array(lutColors);
             femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(resultColors), 3));
@@ -171,7 +192,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 let currentCoordX = femSimulationObject.originalGeometry[i * 3];
                 let currentCoordY = femSimulationObject.originalGeometry[i * 3 + 1];
                 let currentCoordZ = femSimulationObject.originalGeometry[i * 3 + 2];
-                const inode = meshResult.elemConnectivities.array[i] -1;
+                const inode = meshResult.elemConnectivities.array[i] - 1;
 
                 const numberOfModesDispX = meshResult.resultFields[deformationFields[0]].numberOfModes;
                 for (let imode = 1; imode <= numberOfModesDispX; imode++) {
@@ -296,6 +317,8 @@ interface FemSimulationObjectsProps {
     showFemSimulationDeformation: boolean;
     femSimulationDefScale: number;
     femSimulationObjectsVisibilityState: Record<string, FemSimObjectVisibilityState>;
+    setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
+    setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
 }
 
 
@@ -311,7 +334,9 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     showFemAllMeshes,
     showFemSimulationDeformation,
     femSimulationDefScale,
-    femSimulationObjectsVisibilityState
+    femSimulationObjectsVisibilityState,
+    setFemMinValues,
+    setFemMaxValues
 }) => {
 
     return (
@@ -340,6 +365,8 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
                             femSimulationObjectsVisibilityState[obj.collectionName].showDeformation
                         }
                         femSimulationDefScale={femSimulationDefScale}
+                        setFemMinValues={setFemMinValues}
+                        setFemMaxValues={setFemMaxValues}
                     />
                 })
             }

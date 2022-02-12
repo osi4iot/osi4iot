@@ -173,10 +173,13 @@ const HomePage: FC<{}> = () => {
 							<StyledNavLink exact to="/platform_assistant" >
 								Platform assistant
 							</StyledNavLink>
+							<StyledNavLink exact to="/digital_twin_simulator_mobile">
+								Digital twin simulator
+							</StyledNavLink>
 							<StyledNavLink exact to="/mobile_sensors">
 								<p>Mobile sensors</p>
 								<p>(Only Android devices)</p>
-							</StyledNavLink>
+							</StyledNavLink>							
 							<Footer>Power by Aula CIMNE-EEBE - dicapua@cimne.upc.edu</Footer>
 						</MenuBorder>
 					</MenuContainer>

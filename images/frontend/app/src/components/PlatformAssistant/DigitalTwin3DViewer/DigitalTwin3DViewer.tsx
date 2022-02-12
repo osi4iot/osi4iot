@@ -63,6 +63,34 @@ const ObjectInfo = styled.div`
   margin: 0px 10px;
 `;
 
+const MaxMinValuesContainer = styled.div`
+    background-color: #141619;
+    margin: 5px 10px;
+    border-radius: 10px;
+    padding: 5px;
+    color: white;
+    position: fixed;
+    bottom: 12px;
+    left: 30;
+    width: 18%;
+  `;
+
+const MaxMinFlexContainer = styled.div`
+  font-size: 12px;
+  padding: 3px 10px;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+`;
+
+const FemMaxValue = styled.div`
+  margin: 0px 10px;
+`;
+
+const FemMinValue = styled.div`
+  margin: 0px 10px;
+`;
+
 export interface SelectedObjectInfo {
 	type: string;
 	name: string;
@@ -328,6 +356,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const controlsRef = useRef() as any;
 	const selectedObjTypeRef = useRef(null);
 	const selectedObjNameRef = useRef(null);
+	const femMaxValueRef = useRef(null);
+	const femMinValueRef = useRef(null);
 	const selectedObjCollectionNameRef = useRef(null);
 	const [isMqttConnected, setIsMqttConnected] = useState(false);
 	const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
@@ -349,6 +379,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [initialFemSimObjectsVisibilityState, setInitialFemSimObjectsVisibilityState] = useState<Record<string, FemSimObjectVisibilityState> | null>(null);
 	const [digitalTwinSimulatorSendData, setDigitalTwinSimulatorSendData] = useState(false);
 	const [digitalTwinSimulatorButtomLabel, setDigitalTwinSimulatorButtomLabel] = useState("SEND DATA");
+	const [femMinValues, setFemMinValues] = useState<number[]>([]);
+    const [femMaxValues, setFemMaxValues] = useState<number[]>([]);
 
 	let femResultNames: string[] = [];
 	if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
@@ -473,6 +505,65 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		}
 	}, [digitalTwinGltfData.digitalTwinSimulationFormat])
 
+	useEffect(() => {
+		if (opts.femSimulationResult !== "None result" && femMinValues.length !== 0 && femMinValueRef && femMinValueRef.current ) {
+			const femMinValuesFiltered: number[] = [];
+			if (!opts.hideAllFemSimulationObjects) {
+				femSimulationObjects.forEach((obj, index) => {
+					const collectionName = obj.collectionName;
+					if(!opts.femSimulationObjectsVisibilityState[collectionName].hide) femMinValuesFiltered.push(femMinValues[index]);
+				});
+			}
+
+			if (femMinValuesFiltered.length !== 0) {
+				const sortedFemMinValues = femMinValuesFiltered.slice().sort((a, b) => a - b);
+				const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+				const resultFieldFiltered = resultFields.filter((result: { resultName: string; }) => result.resultName === opts.femSimulationResult)[0];
+				const units = resultFieldFiltered.units;
+				(femMinValueRef.current as any).innerHTML = `Min value: ${sortedFemMinValues[0].toExponential(4)} ${units}`;
+			} else {
+				(femMinValueRef.current as any).innerHTML = "Min value: -";
+			}
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		opts.femSimulationResult,
+		opts.hideAllFemSimulationObjects,
+		opts.femSimulationObjectsVisibilityState,
+		femMinValueRef,
+		femMinValues
+	]);
+
+    useEffect(() => {
+		if (opts.femSimulationResult !== "None result" && femMaxValues.length !== 0 && femMaxValueRef && femMaxValueRef.current) {
+			const femMaxValuesFiltered: number[] = [];
+			if (!opts.hideAllFemSimulationObjects) {
+				femSimulationObjects.forEach((obj, index) => {
+					const collectionName = obj.collectionName;
+					if(!opts.femSimulationObjectsVisibilityState[collectionName].hide) femMaxValuesFiltered.push(femMaxValues[index]);
+				});	
+			}
+
+			if (femMaxValuesFiltered.length !== 0) {
+				const sortedFemMaxValues = femMaxValuesFiltered.slice().sort((a, b) => b - a);
+				const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+				const resultFieldFiltered = resultFields.filter((result: { resultName: string; }) => result.resultName === opts.femSimulationResult)[0];
+				const units = resultFieldFiltered.units;
+				(femMaxValueRef.current as any).innerHTML = `Max value: ${sortedFemMaxValues[0].toExponential(4)} ${units}`;
+			} else {
+				(femMaxValueRef.current as any).innerHTML = "Max value: -";
+			}
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		opts.femSimulationResult,
+		opts.hideAllFemSimulationObjects,
+		opts.femSimulationObjectsVisibilityState,
+		femMaxValueRef,
+		femMaxValues
+	]);
+
+	
 	return (
 		<>
 			{
@@ -564,6 +655,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								femSimulationDefScale={opts.femSimulationDefScale}
 								digitalTwinSimulatorState={opts.digitalTwinSimulatorState}
 								digitalTwinSimulatorSendData={digitalTwinSimulatorSendData}
+								setFemMinValues={setFemMinValues}
+								setFemMaxValues={setFemMaxValues}
 							/>
 						</Connector>
 					</Stage>
@@ -576,10 +669,18 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						(opts.femSimulationResult !== "None result" || opts.legendToShow !== "None result") &&
 						!opts.hideFemSimulationLegend
 					) &&
-					<SimulationLegend
-						resultRenderInfo={femSimulationGeneralInfo[opts.femSimulationResult === "None result" ? opts.legendToShow : opts.femSimulationResult]}
-						canvasContainerRef={canvasContainerRef}
-					/>
+					<>
+						<SimulationLegend
+							resultRenderInfo={femSimulationGeneralInfo[opts.femSimulationResult === "None result" ? opts.legendToShow : opts.femSimulationResult]}
+							canvasContainerRef={canvasContainerRef}
+						/>
+						<MaxMinValuesContainer>
+							<MaxMinFlexContainer>
+								<FemMinValue ref={femMinValueRef}>Min value: 0</FemMinValue>
+								<FemMaxValue ref={femMaxValueRef} >Max value: 0</FemMaxValue>
+							</MaxMinFlexContainer>
+						</MaxMinValuesContainer>
+					</>
 				}
 				<HeaderContainer>
 					<HeaderOptionsContainer >

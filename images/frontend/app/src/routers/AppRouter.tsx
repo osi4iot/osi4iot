@@ -16,6 +16,7 @@ import PlatformAssistantPageGroup from "../pages/PlaformAssitantPageGroup";
 import PlatformAssistantPageOrg from "../pages/PlatformAssistantPageOrg";
 import PlatformAssistantPageUser from "../pages/PlatformAssistantPageUser";
 import { PrivateRouteWithUserRole } from "./PrivateRouteWithUserRole";
+import DigitalTwinSimulatorMobilePage from "../pages/DigitalTwinSimulatorMobilePage";
 
 const StyledToastContainer = styled(ToastContainer)`
 
@@ -38,6 +39,7 @@ const AppRouter: FC<{}> = () => {
 					<PublicRoute exact path="/register" component={RegisterPage} />
 					<PublicRoute exact path="/login" component={LoginPage} />
 					<PrivateRoute exact path="/mobile_sensors" component={MobileSensorsPage} />
+					<PrivateRoute exact path="/digital_twin_simulator_mobile" component={DigitalTwinSimulatorMobilePage} />
 
 					<Route exact path="/" component={HomePage} />
 

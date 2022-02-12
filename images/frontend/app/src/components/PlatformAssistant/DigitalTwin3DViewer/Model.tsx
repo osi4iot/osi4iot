@@ -116,6 +116,8 @@ interface ModelProps {
 	femSimulationDefScale: number;
 	digitalTwinSimulatorState: Record<string, number>;
 	digitalTwinSimulatorSendData: boolean;
+    setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
+    setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
 }
 
 
@@ -159,7 +161,9 @@ const Model: FC<ModelProps> = (
 		showFemSimulationDeformation,
 		femSimulationDefScale,
 		digitalTwinSimulatorState,
-		digitalTwinSimulatorSendData
+		digitalTwinSimulatorSendData,
+		setFemMinValues,
+		setFemMaxValues
 	}) => {
 	const camera = useThree((state) => state.camera);
 	const container = canvasRef.current as HTMLCanvasElement | null;
@@ -184,7 +188,6 @@ const Model: FC<ModelProps> = (
 			(resultField: { resultName: string; }) => resultField.resultName
 		);
 	}
-
 
 	useLayoutEffect(() => {
 		const changeObjectHighlight = (objType: string, objName: string, highlighted: boolean) => {
@@ -506,21 +509,28 @@ const Model: FC<ModelProps> = (
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [message])
 
+	useLayoutEffect(() => {
+		if (client && client.connected) {
+			if (digitalTwinModelMqttTopic && Object.keys(digitalTwinSimulatorState).length !== 0 && digitalTwinSimulatorSendData) {
+				const mqttTopic = digitalTwinModelMqttTopic.mqttTopic;
+				const message = JSON.stringify(digitalTwinSimulatorState);
+				if (lastMqttMessageSended !== message) {
+					client.publish(mqttTopic, message)
+					setLastMqttMessageSended(message);
+				}
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [client, digitalTwinSimulatorState, digitalTwinSimulatorSendData]);
+	
+
 	useInterval(() => {
 		if (client) {
 			if (client.connected) {
 				setIsMqttConnected(true);
-				if (digitalTwinModelMqttTopic && Object.keys(digitalTwinSimulatorState).length !== 0 && digitalTwinSimulatorSendData) {
-					const mqttTopic = digitalTwinModelMqttTopic.mqttTopic;
-					const message = JSON.stringify(digitalTwinSimulatorState);
-					if (lastMqttMessageSended !== message) {
-						client.publish(mqttTopic, message)
-						setLastMqttMessageSended(message);
-					}
-				}
 			} else setIsMqttConnected(false);
 		}
-	}, 100)
+	}, 500)
 
 	return (
 		<group ref={group} dispose={null}>
@@ -573,6 +583,8 @@ const Model: FC<ModelProps> = (
 					showFemSimulationDeformation={showFemSimulationDeformation}
 					femSimulationDefScale={femSimulationDefScale}
 					femSimulationObjectsVisibilityState={femSimulationObjectsVisibilityState}
+					setFemMaxValues={setFemMaxValues}
+					setFemMinValues={setFemMinValues}
 				/>
 			}
 		</group>
