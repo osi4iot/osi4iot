@@ -179,7 +179,11 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 
 		const mesurementsQueries: any[] = [];
 		mqttTopicsData.forEach(mqttTopicData => {
-			if (mqttTopicData.sqlTopic && (mqttTopicData.topicType === "dev2pdb" || mqttTopicData.topicType === "dtm2pdb")) {
+			if (mqttTopicData.sqlTopic &&
+				(mqttTopicData.topicType === "dev2pdb" ||
+				mqttTopicData.topicType === "dtm_as2pdb" ||
+				mqttTopicData.topicType === "dtm_fmv2pdb")
+			) {
 				const query = getLastMeasurement(mqttTopicData.groupUid, mqttTopicData.sqlTopic);
 				mesurementsQueries.push(query);
 			}

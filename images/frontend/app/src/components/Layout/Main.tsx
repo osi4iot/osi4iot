@@ -33,6 +33,7 @@ const MainContainer = styled.main<MainContainerProps>`
     /* width */
     ::-webkit-scrollbar {
         width: 10px;
+		height: 10px;
     }
 
     /* Track */
@@ -49,6 +50,13 @@ const MainContainer = styled.main<MainContainerProps>`
 
     /* Handle on hover */
     ::-webkit-scrollbar-thumb:hover {
+		background-color: #343840;
+	}
+
+	::-webkit-scrollbar-corner {
+        /* background-color: #0c0d0f; */
+        background: #202226;
+    }
 `;
 
 interface MainProps {

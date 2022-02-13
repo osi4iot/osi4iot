@@ -388,7 +388,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			(resultField: { resultName: string; }) => resultField.resultName
 		);
 	}
-
 	const handleDigitalTwinSimulatorButtonClick = () => {
 		if (digitalTwinSimulatorButtomLabel === "SEND DATA") {
 			setDigitalTwinSimulatorButtomLabel("STOP SENDING DATA")

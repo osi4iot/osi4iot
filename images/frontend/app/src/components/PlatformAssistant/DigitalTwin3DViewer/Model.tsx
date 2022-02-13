@@ -115,8 +115,8 @@ interface ModelProps {
 	femSimulationDefScale: number;
 	digitalTwinSimulatorState: Record<string, number>;
 	digitalTwinSimulatorSendData: boolean;
-    setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
-    setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
+	setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
+	setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
 }
 
 
@@ -172,10 +172,14 @@ const Model: FC<ModelProps> = (
 	const [genericObjectsState, setGenericObjectsState] = useState<Record<string, GenericObjectState>>(initialGenericObjectsState);
 	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
-	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic);
+	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
 	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicType === "dev_sim_2dtm")[0] || null;
 	const { message } = useSubscription(mqttTopics);
-	const [lastMqttMessageSended, setLastMqttMessageSended] = useState(""); 
+	const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
+
+	const updateSensorStateString = useCallback((objName: string, state: string) => {
+		setSensorsState((prevState) => { return { ...prevState, [objName]: { ...prevState[objName], stateString: state } } });
+	}, []);
 
 	useLayoutEffect(() => {
 		setFemSimulationObjectsState(initialFemSimObjectsState);
@@ -274,10 +278,6 @@ const Model: FC<ModelProps> = (
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [camera, container, setSensorsState, setAssetsState])
-
-	const updateSensorStateString = useCallback((objName: string, state: string) => {
-		setSensorsState((prevState) => { return { ...prevState, [objName]: { ...prevState[objName], stateString: state } } });
-	}, []);
 
 	useLayoutEffect(() => {
 		if (message) {
@@ -520,7 +520,7 @@ const Model: FC<ModelProps> = (
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [client, digitalTwinSimulatorState, digitalTwinSimulatorSendData]);
-	
+
 
 	useInterval(() => {
 		if (client) {

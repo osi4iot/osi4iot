@@ -77,6 +77,7 @@ const OptionContainer = styled.div<OptionContainerProps>`
     }
 `;
 
+
 const ContentContainer = styled.div`
     width: calc(100vw - 75px);
     height: calc(100vh - 200px);
@@ -155,7 +156,6 @@ const GroupAdminOptions: FC<{}> = () => {
     const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
     const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
-
 
     const refreshGroupsManaged = useCallback(() => {
         setReloadGroupsManaged(true);
@@ -477,7 +477,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     Digital twins
                 </OptionContainer>
             </GroupAdminOptionsContainer>
-            <ContentContainer >
+            <ContentContainer>
                 {
                     (buildingsLoading ||
                         floorsLoading ||
