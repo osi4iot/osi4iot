@@ -284,6 +284,7 @@ const Model: FC<ModelProps> = (
 			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
 			const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
 			const messageTopicType = mqttTopicsData[mqttTopicIndex].topicType;
+			const clipSimulationTopicId = digitalTwinGltfData.sensorSimulationTopicId;
 			let mqttMessage: any;
 			try {
 				mqttMessage = JSON.parse(message.message as string);
@@ -330,12 +331,11 @@ const Model: FC<ModelProps> = (
 								sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
 							}
 
-							const clipSimulationTopicIds = obj.node.userData.clipSimulationTopicIds;
-							if (clipSimulationTopicIds && clipSimulationTopicIds.length !== 0) {
+							if (clipSimulationTopicId === messageTopicId) {
 								const clipValues = [...sensorsNewState[objName].clipValues];
-								clipSimulationTopicIds.forEach((clipTopicId: number, index: number) => {
-									if (clipTopicId === messageTopicId) {
-										const fieldName = obj.node.userData.clipFieldNames[index];
+								const fieldNames: string[] = obj.node.userData.clipFieldNames;
+								if (fieldNames !== undefined && fieldNames.length !== 0) {
+									fieldNames.forEach((fieldName,index) => {
 										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
 											const value = mqttMessage[fieldName];
 											if (typeof value === 'number') {
@@ -343,10 +343,10 @@ const Model: FC<ModelProps> = (
 												isSensorStateChanged = true;
 											}
 										}
-									}
-								});
-								sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
-							}
+									});
+									sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
+								}
+							}							
 						});
 
 						assetObjects.forEach((obj) => {
@@ -369,12 +369,11 @@ const Model: FC<ModelProps> = (
 								assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
 							}
 
-							const clipSimulationTopicIds = obj.node.userData.clipSimulationTopicIds;
-							if (clipSimulationTopicIds && clipSimulationTopicIds.length !== 0) {
+							if (clipSimulationTopicId === messageTopicId) {
 								const clipValues = [...assestsNewState[objName].clipValues];
-								clipSimulationTopicIds.forEach((clipTopicId: number, index: number) => {
-									if (clipTopicId === messageTopicId) {
-										const fieldName = obj.node.userData.clipFieldNames[index];
+								const fieldNames: string[] = obj.node.userData.clipFieldNames;
+								if (fieldNames !== undefined && fieldNames.length !== 0) {
+									fieldNames.forEach((fieldName,index) => {
 										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
 											const value = mqttMessage[fieldName];
 											if (typeof value === 'number') {
@@ -382,10 +381,11 @@ const Model: FC<ModelProps> = (
 												isAssetStateChanged = true;
 											}
 										}
-									}
-								});
-								assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
-							}
+									});
+									assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
+								}
+							}								
+
 						});
 
 						genericObjects.forEach((obj) => {
@@ -408,12 +408,11 @@ const Model: FC<ModelProps> = (
 								genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
 							}
 
-							const clipSimulationTopicIds = obj.node.userData.clipSimulationTopicIds;
-							if (clipSimulationTopicIds && clipSimulationTopicIds.length !== 0) {
+							if (clipSimulationTopicId === messageTopicId) {
 								const clipValues = [...genericObjectNewState[objName].clipValues];
-								clipSimulationTopicIds.forEach((clipTopicId: number, index: number) => {
-									if (clipTopicId === messageTopicId) {
-										const fieldName = obj.node.userData.clipFieldNames[index];
+								const fieldNames: string[] = obj.node.userData.clipFieldNames;
+								if (fieldNames !== undefined && fieldNames.length !== 0) {
+									fieldNames.forEach((fieldName,index) => {
 										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
 											const value = mqttMessage[fieldName];
 											if (typeof value === 'number') {
@@ -421,10 +420,10 @@ const Model: FC<ModelProps> = (
 												isGenericObjectsStateChanged = true;
 											}
 										}
-									}
-								});
-								genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
-							}
+									});
+									genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
+								}
+							}						
 						});
 
 						femSimulationObjects.forEach((obj, index) => {
@@ -446,12 +445,11 @@ const Model: FC<ModelProps> = (
 								femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
 							}
 
-							const clipSimulationTopicIds = obj.node.userData.clipSimulationTopicIds;
-							if (clipSimulationTopicIds && clipSimulationTopicIds.length !== 0) {
+							if (clipSimulationTopicId === messageTopicId) {
 								const clipValues = [...femSimulationObjectsNewState[index].clipValues];
-								clipSimulationTopicIds.forEach((clipTopicId: number, index: number) => {
-									if (clipTopicId === messageTopicId) {
-										const fieldName = obj.node.userData.clipFieldNames[index];
+								const fieldNames: string[] = obj.node.userData.clipFieldNames;
+								if (fieldNames !== undefined && fieldNames.length !== 0) {
+									fieldNames.forEach((fieldName,index) => {
 										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
 											const value = mqttMessage[fieldName];
 											if (typeof value === 'number') {
@@ -459,10 +457,11 @@ const Model: FC<ModelProps> = (
 												isfemSimulationObjectsStateChanged = true;
 											}
 										}
-									}
-								});
-								femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
-							}
+									});
+									femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
+								}
+							}	
+
 						});
 					}
 
@@ -509,7 +508,7 @@ const Model: FC<ModelProps> = (
 	}, [message])
 
 	useLayoutEffect(() => {
-		if (client && client.connected) {
+		if (client && client.connected && digitalTwinSimulatorState !== undefined) {
 			if (digitalTwinModelMqttTopic && Object.keys(digitalTwinSimulatorState).length !== 0 && digitalTwinSimulatorSendData) {
 				const mqttTopic = digitalTwinModelMqttTopic.mqttTopic;
 				const message = JSON.stringify(digitalTwinSimulatorState);
