@@ -3,7 +3,6 @@ import IMeasurement from "../mesurement/measurement.interface";
 export interface IMqttTopicData {
 	topicId: number;
 	topicType: string;
-	topicSubtype: string;
 	mqttTopic: string;
 	groupUid: string | null;
 	sqlTopic: string | null;
@@ -13,7 +12,6 @@ export interface IMqttTopicData {
 interface IMqttTopicDataShort {
 	topicId: number;
 	topicType: string;
-	topicSubtype: string;
 	mqttTopic: string;
 	lastMeasurement: IMeasurement | null;
 }

@@ -73,7 +73,6 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 					const mqttTopicData: IMqttTopicData = {
 						topicId,
 						topicType: "dev2pdb",
-						topicSubtype: "sensorTopic",
 						mqttTopic: "",
 						groupUid: null,
 						sqlTopic: null,
@@ -88,7 +87,6 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 						const mqttTopicData: IMqttTopicData = {
 							topicId,
 							topicType: "dev2pdb",
-							topicSubtype: "sensorTopic",
 							mqttTopic: "",
 							groupUid: null,
 							sqlTopic: null,
@@ -104,8 +102,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 	if (digitalTwin.sensorSimulationTopicId) {
 		const mqttTopicData: IMqttTopicData = {
 			topicId: digitalTwin.sensorSimulationTopicId,
-			topicType: "dts2dtm",
-			topicSubtype: "sensorSimulationTopic",
+			topicType: "dev_sim_2dtm",
 			mqttTopic: "",
 			groupUid: null,
 			sqlTopic: null,
@@ -117,8 +114,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 	if (digitalTwin.assetStateTopicId) {
 		const mqttTopicData: IMqttTopicData = {
 			topicId: digitalTwin.assetStateTopicId,
-			topicType: "dtm2pdb",
-			topicSubtype: "assetStateTopic",
+			topicType: "dtm_as2pdb",
 			mqttTopic: "",
 			groupUid: null,
 			sqlTopic: null,
@@ -130,8 +126,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 	if (digitalTwin.assetStateSimulationTopicId) {
 		const mqttTopicData: IMqttTopicData = {
 			topicId: digitalTwin.assetStateSimulationTopicId,
-			topicType: "dtm2dts",
-			topicSubtype: "assetStateSimulationTopic",
+			topicType: "dtm_sim_as2dts",
 			mqttTopic: "",
 			groupUid: null,
 			sqlTopic: null,
@@ -143,8 +138,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 	if (digitalTwin.femResultModalValuesTopicId) {
 		const mqttTopicData: IMqttTopicData = {
 			topicId: digitalTwin.femResultModalValuesTopicId,
-			topicType: "dtm2pdb",
-			topicSubtype: "femResultModalValuesTopic",
+			topicType: "dtm_fmv2pdb",
 			mqttTopic: "",
 			groupUid: null,
 			sqlTopic: null,
@@ -156,8 +150,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 	if (digitalTwin.femResultModalValuesSimulationTopicId) {
 		const mqttTopicData: IMqttTopicData = {
 			topicId: digitalTwin.femResultModalValuesSimulationTopicId,
-			topicType: "dtm2dts",
-			topicSubtype: "femResultModalValuesSimulationTopic",
+			topicType: "dtm_sim_fmv2dts",
 			mqttTopic: "",
 			groupUid: null,
 			sqlTopic: null,
@@ -367,45 +360,45 @@ export const createDigitalTwin = async (deviceId: number, digitalTwinInput: Crea
 	if (digitalTwinUpdated.type === "Gltf 3D model") {
 		const sensorSimulationTopicData =
 		{
-			topicType: "dts2dtm",
-			topicName: `SST DT_${digitalTwin.id}`,
-			description: `Sensor simulation topic for DT_${digitalTwin.id}`,
+			topicType: "dev_sim_2dtm",
+			topicName: `dev_sim_2dtm DT_${digitalTwin.id}`,
+			description: `Simulated device to DTM topic for DT_${digitalTwin.id}`,
 			payloadFormat: digitalTwinInput.digitalTwinSimulationFormat
 		};
 		const sensorSimulationTopic = await createTopic(deviceId, sensorSimulationTopicData);
 
 		const assetStateTopicData =
 		{
-			topicType: "dtm2pdb",
-			topicName: `AST DT_${digitalTwin.id}`,
-			description: `Assets state topic for DT_${digitalTwin.id}`,
+			topicType: "dtm_as2pdb",
+			topicName: `dtm_as2pdb DT_${digitalTwin.id}`,
+			description: `DTM assets state to pdb topic for DT_${digitalTwin.id}`,
 			payloadFormat: '{"assetPartsState": "number[]"}'
 		};
 		const assetStateTopic = await createTopic(deviceId, assetStateTopicData);
 
 		const assetStateSimulationTopicData =
 		{
-			topicType: "dtm2dts",
-			topicName: `ASST for DT_${digitalTwin.id}`,
-			description: `Assets state simulation topic for DT_${digitalTwin.id}`,
+			topicType: "dtm_sim_as2dts",
+			topicName: `dtm_sim_as2dts DT_${digitalTwin.id}`,
+			description: `DTM sim assets state to DTS topic for DT_${digitalTwin.id}`,
 			payloadFormat: '{"assetPartsState": "number[]"}'
 		};
 		const assetStateSimulationTopic = await createTopic(deviceId, assetStateSimulationTopicData);
 
 		const femResultModalValuesTopicData =
 		{
-			topicType: "dtm2pdb",
-			topicName: `FMRT DT_${digitalTwin.id}`,
-			description: `Fem modal result topic for DT_${digitalTwin.id}`,
+			topicType: "dtm_fmv2pdb",
+			topicName: `dtm_fmv2pdb DT_${digitalTwin.id}`,
+			description: `DTM fem modal value to pdb topic for DT_${digitalTwin.id}`,
 			payloadFormat: '{"femResultsModalValues": "number[][][]"}'
 		};
 		const femResultModalValuesTopic = await createTopic(deviceId, femResultModalValuesTopicData);
 
 		const femResultModalValuesSimulationTopicData =
 		{
-			topicType: "dtm2dts",
-			topicName: `FMRST DT_${digitalTwin.id}`,
-			description: `Fem modal result simulation topic for DT_${digitalTwin.id}`,
+			topicType: "dtm_sim_fmv2dts",
+			topicName: `dtm_sim_fmv2dts DT_${digitalTwin.id}`,
+			description: `DTM sim fem modal value to DTS topic for DT_${digitalTwin.id}`,
 			payloadFormat: '{"femResultsModalValues": "number[][]"}'
 		};
 		const femResultModalValuesSimulationTopic = await createTopic(deviceId, femResultModalValuesSimulationTopicData);
@@ -652,7 +645,6 @@ export const addMqttTopicsData = async (digitalTwin: IDigitalTwinGltfData): Prom
 			topicId: topicData.topicId,
 			mqttTopic: topicData.mqttTopic,
 			topicType: topicData.topicType,
-			topicSubtype: topicData.topicSubtype,
 			lastMeasurement: topicData.lastMeasurement
 		}
 	});

@@ -18,7 +18,7 @@ const FormContainer = styled.div`
     padding: 30px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
-    width: 350px;
+    width: 400px;
 `;
 
 const ControlsContainer = styled.div`
@@ -35,11 +35,26 @@ const topicTypeOptions = [
         value: "dev2pdb"
     },
     {
-        label: "Device to platform DT",
-        value: "dev2pdt"
-    }
+        label: "Simulated device to DT",
+        value: "dev_sim_2dtm"
+    },
+    {
+        label: "DTM assets state to plaform database",
+        value: "dtm_as2pdb"
+    },
+    {
+        label: "DTM simulated assets state to DTS",
+        value: "dtm_sim_as2dts"
+    },
+    {
+        label: "DTM fem modal value to platform database",
+        value: "dtm_fmv2pdb"
+    },
+    {
+        label: "DTM simulated fem modal value to DTS",
+        value: "dtm_sim_fmv2dts"
+    }   
 ];
-
 
 const domainName = getDomainName();
 

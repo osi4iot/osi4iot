@@ -167,9 +167,10 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 	useEffect(() => {
 		if (
 			mqttClient &&
+			isMqttConnected &&
 			digitalTwinSimulatorsManaged.length !== 0 &&
 			digitalTwinSelectedIndex !== -1 &&
-			paramValues.length !== 0
+			Object.keys(paramValues).length !== 0
 		) {
 			const mqttTopic = digitalTwinSimulatorsManaged[digitalTwinSelectedIndex].mqttTopic;
 			const message = JSON.stringify(paramValues);

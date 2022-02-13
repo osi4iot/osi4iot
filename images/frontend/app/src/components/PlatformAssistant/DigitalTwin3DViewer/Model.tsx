@@ -67,7 +67,6 @@ export interface IMeasurement {
 export interface IMqttTopicData {
 	topicId: number;
 	topicType: string;
-	topicSubtype: string;
 	mqttTopic: string;
 	lastMeasurement: IMeasurement | null;
 }
@@ -174,7 +173,7 @@ const Model: FC<ModelProps> = (
 	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
 	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic);
-	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicType === "dts2dtm")[0] || null;
+	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicType === "dev_sim_2dtm")[0] || null;
 	const { message } = useSubscription(mqttTopics);
 	const [lastMqttMessageSended, setLastMqttMessageSended] = useState(""); 
 
@@ -284,7 +283,7 @@ const Model: FC<ModelProps> = (
 		if (message) {
 			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
 			const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
-			const messageTopicSubtype = mqttTopicsData[mqttTopicIndex].topicSubtype;
+			const messageTopicType = mqttTopicsData[mqttTopicIndex].topicType;
 			let mqttMessage: any;
 			try {
 				mqttMessage = JSON.parse(message.message as string);
@@ -299,7 +298,7 @@ const Model: FC<ModelProps> = (
 					let isfemSimulationObjectsStateChanged = false;
 					const femSimulationObjectsNewState = [...femSimulationObjectsState];
 
-					if (messageTopicSubtype === "sensorTopic" || messageTopicSubtype === "sensorSimulationTopic") {
+					if ((messageTopicType === "dev2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dev_sim_2dtm") {
 						sensorObjects.forEach((obj) => {
 							const objName = obj.node.name;
 							const sensorTopicId = obj.node.userData.topicId;
@@ -467,7 +466,7 @@ const Model: FC<ModelProps> = (
 						});
 					}
 
-					if (messageTopicSubtype === "assetStateTopic" || messageTopicSubtype === "assetStateSimulationTopic") {
+					if ((messageTopicType === "dtm_as2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dtm_sim_as2dts") {
 						const assestsNewState = { ...assetsState };
 						assetObjects.forEach((obj) => {
 							const objName = obj.node.name;
@@ -484,7 +483,7 @@ const Model: FC<ModelProps> = (
 
 
 					if (femSimulationObjectsState.length) {
-						if (messageTopicSubtype === "femResultModalValuesTopic" || messageTopicSubtype === "femResultModalValuesSimulationTopic") {
+						if ((messageTopicType === "dtm_fmv2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dtm_sim_fmv2dts") {
 							for (let imesh = 0; imesh < femSimulationObjectsState.length; imesh++) {
 								for (let ires = 0; ires < femResultNames.length; ires++) {
 									const resultName = femResultNames[ires];
