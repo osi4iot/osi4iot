@@ -177,6 +177,32 @@ const StyledDatNumber = styled(DatNumber)`
   }
 `;
 
+const StyledDatNumberDTSimulator = styled(DatNumber)`
+  &.cr.number {
+    border-left: 5px solid #806787;
+    background-color: #141619;
+
+    label {
+      width: 100%;
+	  flex-direction: column;
+	  margin: 5px 0;
+
+      .label-text {
+        width: 100% !important;
+		margin: 2px;
+      }
+
+	  span {
+		width: 100% !important;
+
+		.slider {
+			border-left: 0;
+		}
+	  }
+    }
+  }
+`;
+
 const StyledDatSelect = styled(DatSelect)`
   &.cr.select {
     border-left: 5px solid #806787;
@@ -380,7 +406,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [digitalTwinSimulatorSendData, setDigitalTwinSimulatorSendData] = useState(false);
 	const [digitalTwinSimulatorButtomLabel, setDigitalTwinSimulatorButtomLabel] = useState("SEND DATA");
 	const [femMinValues, setFemMinValues] = useState<number[]>([]);
-    const [femMaxValues, setFemMaxValues] = useState<number[]>([]);
+	const [femMaxValues, setFemMaxValues] = useState<number[]>([]);
+	const [initialDigitalTwinSimulatorState, setInitialDigitalTwinSimulatorState] = useState<Record<string, number>>({});
 
 	let femResultNames: string[] = [];
 	if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
@@ -494,7 +521,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
 			const digitalTwinSimulatorState: Record<string, number> = {};
 			Object.keys(digitalTwinSimulationFormat).forEach(paramName => {
-				digitalTwinSimulatorState[paramName] = digitalTwinSimulationFormat[paramName].defaultValue;
+				if (initialDigitalTwinSimulatorState[paramName] !== undefined) {
+					digitalTwinSimulatorState[paramName] = initialDigitalTwinSimulatorState[paramName];
+				} else digitalTwinSimulatorState[paramName] = digitalTwinSimulationFormat[paramName].defaultValue;
 			})
 			setOpts((prevOpts) => {
 				const newOpts = { ...prevOpts };
@@ -502,7 +531,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				return newOpts;
 			})
 		}
-	}, [digitalTwinGltfData.digitalTwinSimulationFormat])
+	}, [initialDigitalTwinSimulatorState, digitalTwinGltfData.digitalTwinSimulationFormat])
 
 	useEffect(() => {
 		if (opts.femSimulationResult !== "None result" && femMinValues.length !== 0 && femMinValueRef && femMinValueRef.current ) {
@@ -587,6 +616,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					setInitialSensorsVisibilityState={setInitialSensorsVisibilityState}
 					setInitialAssetsVisibilityState={setInitialAssetsVisibilityState}
 					setInitialFemSimObjectsVisibilityState={setInitialFemSimObjectsVisibilityState}
+					setInitialDigitalTwinSimulatorState={setInitialDigitalTwinSimulatorState}
 				/>
 			}
 			<CanvasContainer ref={canvasContainerRef}>
@@ -656,6 +686,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								digitalTwinSimulatorSendData={digitalTwinSimulatorSendData}
 								setFemMinValues={setFemMinValues}
 								setFemMaxValues={setFemMaxValues}
+								setInitialDigitalTwinSimulatorState={setInitialDigitalTwinSimulatorState}
 							/>
 						</Connector>
 					</Stage>
@@ -891,8 +922,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							<DatFolder title='Digital twin simulator' closed={true}>
 								{
 									Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).map(paramName =>
-										<StyledDatNumber
-											label={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].label || paramName}
+										<StyledDatNumberDTSimulator
+											label={`${digitalTwinGltfData.digitalTwinSimulationFormat[paramName].label || paramName}:`}
 											path={`digitalTwinSimulatorState[${paramName}]`}
 											min={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].minValue}
 											max={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].maxValue}

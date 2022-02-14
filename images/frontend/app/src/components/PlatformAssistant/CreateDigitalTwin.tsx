@@ -219,7 +219,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             femSimulationData: JSON.stringify(digitalTwinFemSimData),
             femSimDataFileName: values.femSimDataFileName,
             femSimDataFileLastModifDateString: femSimFileDate.toString(),
-            digitalTwinSimulationFormat: values.digitalTwinSimulationFormat
+            digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat))
         }
 
         setIsSubmitting(true);

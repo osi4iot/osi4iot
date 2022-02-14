@@ -93,7 +93,11 @@ const getElapsedTimeInSeconds = (timestamp: number) => {
 	return elapsedTime;
 }
 
-export const generateInitialSensorsState = (sensorObjects: ISensorObject[], digitalTwinGltfData: IDigitalTwinGltfData) => {
+export const generateInitialSensorsState = (
+	sensorObjects: ISensorObject[],
+	digitalTwinGltfData: IDigitalTwinGltfData,
+	setInitialDigitalTwinSimulatorState: React.Dispatch<React.SetStateAction<Record<string, number>>>
+) => {
 	const initialSensorsState: Record<string, SensorState> = {}
 	sensorObjects.forEach(obj => {
 		const objName = obj.node.name;
@@ -132,6 +136,13 @@ export const generateInitialSensorsState = (sensorObjects: ISensorObject[], digi
 							const value = payloadObject[fieldName];
 							if (typeof value === 'number') {
 								clipValues.push(value);
+								if (Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) {
+									setInitialDigitalTwinSimulatorState((prevValues: any) => {
+										const newValues = { ...prevValues };
+										newValues[fieldName] = value;
+										return newValues;
+									})
+								}
 							}
 						} else {
 							clipValues.push(null);
@@ -154,7 +165,8 @@ export const generateInitialSensorsState = (sensorObjects: ISensorObject[], digi
 export const generateInitialAssetsState = (
 	digitalTwinSelected: IDigitalTwin,
 	assetObjects: IAssetObject[],
-	digitalTwinGltfData: IDigitalTwinGltfData
+	digitalTwinGltfData: IDigitalTwinGltfData,
+	setInitialDigitalTwinSimulatorState: React.Dispatch<React.SetStateAction<Record<string, number>>>
 ) => {
 	const initialAssetsState: Record<string, AssetState> = {};
 	const assetStateTopicId = digitalTwinSelected.assetStateTopicId;
@@ -193,6 +205,13 @@ export const generateInitialAssetsState = (
 							const value = payloadObject[fieldName];
 							if (typeof value === 'number') {
 								clipValues.push(value);
+								if (Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) {
+									setInitialDigitalTwinSimulatorState((prevValues: any) => {
+										const newValues = { ...prevValues };
+										newValues[fieldName] = value;
+										return newValues;
+									})
+								}	
 							}
 						} else {
 							clipValues.push(null);
@@ -216,7 +235,8 @@ export const generateInitialAssetsState = (
 export const generateInitialGenericObjectsState = (
 	digitalTwinSelected: IDigitalTwin,
 	genericObjects: IGenericObject[],
-	digitalTwinGltfData: IDigitalTwinGltfData
+	digitalTwinGltfData: IDigitalTwinGltfData,
+	setInitialDigitalTwinSimulatorState: React.Dispatch<React.SetStateAction<Record<string, number>>>
 ) => {
 	const initialGenericObjectsState: Record<string, GenericObjectState> = {};
 	genericObjects.forEach(obj => {
@@ -238,6 +258,13 @@ export const generateInitialGenericObjectsState = (
 							const value = payloadObject[fieldName];
 							if (typeof value === 'number') {
 								clipValues.push(value);
+								if (Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) {
+									setInitialDigitalTwinSimulatorState((prevValues: any) => {
+										const newValues = { ...prevValues };
+										newValues[fieldName] = value;
+										return newValues;
+									})
+								}
 							}
 						} else {
 							clipValues.push(null);
@@ -262,6 +289,7 @@ export const generateInitialFemSimObjectsState = (
 	digitalTwinSelected: IDigitalTwin,
 	femSimulationObjects: IFemSimulationObject[],
 	digitalTwinGltfData: IDigitalTwinGltfData,
+	setInitialDigitalTwinSimulatorState: React.Dispatch<React.SetStateAction<Record<string, number>>>
 ) => {
 	const highlight = false;
 	const initialFemSimObjectsState: FemSimulationObjectState[] = [];
@@ -298,6 +326,13 @@ export const generateInitialFemSimObjectsState = (
 							const value = payloadObject[fieldName];
 							if (typeof value === 'number') {
 								clipValues.push(value);
+								if (Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) {
+									setInitialDigitalTwinSimulatorState((prevValues: any) => {
+										const newValues = { ...prevValues };
+										newValues[fieldName] = value;
+										return newValues;
+									})
+								}
 							}
 						} else {
 							clipValues.push(null);
@@ -806,6 +841,7 @@ export const readFemSimulationInfo = (
 	femSimulationObjects: IFemSimulationObject[],
 	setInitialFemSimObjectsState: (initialFemSimObjectsState: FemSimulationObjectState[]) => void,
 	setFemSimulationGeneralInfo: (femSimulationGeneralInfo: Record<string, IResultRenderInfo>) => void,
+	setInitialDigitalTwinSimulatorState: React.Dispatch<React.SetStateAction<Record<string, number>>>
 ) => {
 	const colorMap = 'rainbow';
 	const numberOfColors = 256; //512;
@@ -865,7 +901,8 @@ export const readFemSimulationInfo = (
 		generateInitialFemSimObjectsState(
 			digitalTwinSelected,
 			femSimulationObjects,
-			digitalTwinGltfData
+			digitalTwinGltfData,
+			setInitialDigitalTwinSimulatorState
 		)
 	)
 

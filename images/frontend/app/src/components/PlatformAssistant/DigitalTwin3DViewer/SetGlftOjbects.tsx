@@ -39,6 +39,7 @@ interface SetGltfObjectsProps {
     setInitialSensorsVisibilityState: (initialSensorsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialAssetsVisibilityState: (initialAssetsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialFemSimObjectsVisibilityState: (initialFemSimObjectsVisibilityState: Record<string, FemSimObjectVisibilityState> | null) => void;
+    setInitialDigitalTwinSimulatorState: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 }
 
 
@@ -57,7 +58,8 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     setInitialGenericObjectsVisibilityState,
     setInitialSensorsVisibilityState,
     setInitialAssetsVisibilityState,
-    setInitialFemSimObjectsVisibilityState
+    setInitialFemSimObjectsVisibilityState,
+    setInitialDigitalTwinSimulatorState
 }) => {
     const { nodes, materials, animations } = useGLTF(digitalTwinGltfData.digitalTwinGltfUrl as string) as any;
 
@@ -77,16 +79,31 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             setAssetObjects(assetObjects);
             setGenericObjects(genericObjects);
             setFemSimulationObjects(femSimulationObjects);
-            setInitialSensorsState(generateInitialSensorsState(sensorObjects, digitalTwinGltfData));
-            setInitialAssetsState(generateInitialAssetsState(digitalTwinSelected, assetObjects, digitalTwinGltfData));
-            setInitialGenericObjectsState(generateInitialGenericObjectsState(digitalTwinSelected, genericObjects, digitalTwinGltfData))
+            setInitialSensorsState(generateInitialSensorsState(
+                sensorObjects,
+                digitalTwinGltfData,
+                setInitialDigitalTwinSimulatorState
+            ));
+            setInitialAssetsState(generateInitialAssetsState(
+                digitalTwinSelected,
+                assetObjects,
+                digitalTwinGltfData,
+                setInitialDigitalTwinSimulatorState
+            ));
+            setInitialGenericObjectsState(generateInitialGenericObjectsState(
+                digitalTwinSelected,
+                genericObjects,
+                digitalTwinGltfData,
+                setInitialDigitalTwinSimulatorState
+            ))
             if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
                 readFemSimulationInfo(
                     digitalTwinSelected,
                     digitalTwinGltfData,
                     femSimulationObjects,
                     setInitialFemSimObjectsState,
-                    setFemSimulationGeneralInfo
+                    setFemSimulationGeneralInfo,
+                    setInitialDigitalTwinSimulatorState
                 )
             }
 

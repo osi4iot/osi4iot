@@ -117,6 +117,7 @@ interface ModelProps {
 	digitalTwinSimulatorSendData: boolean;
 	setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
 	setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
+	setInitialDigitalTwinSimulatorState: React.Dispatch<React.SetStateAction<Record<string, number>>>;
 }
 
 
@@ -162,7 +163,8 @@ const Model: FC<ModelProps> = (
 		digitalTwinSimulatorState,
 		digitalTwinSimulatorSendData,
 		setFemMinValues,
-		setFemMaxValues
+		setFemMaxValues,
+		setInitialDigitalTwinSimulatorState
 	}) => {
 	const camera = useThree((state) => state.camera);
 	const container = canvasRef.current as HTMLCanvasElement | null;
@@ -324,6 +326,11 @@ const Model: FC<ModelProps> = (
 											if (typeof value === 'number') {
 												clipValues[index] = value;
 												isSensorStateChanged = true;
+												setInitialDigitalTwinSimulatorState((prevValues: any) => {
+													const newValues = { ...prevValues };
+													newValues[fieldName] = value;
+													return newValues;
+												})
 											}
 										}
 									}
@@ -362,6 +369,11 @@ const Model: FC<ModelProps> = (
 											if (typeof value === 'number') {
 												clipValues[index] = value;
 												isAssetStateChanged = true;
+												setInitialDigitalTwinSimulatorState((prevValues: any) => {
+													const newValues = { ...prevValues };
+													newValues[fieldName] = value;
+													return newValues;
+												})
 											}
 										}
 									}
@@ -401,6 +413,11 @@ const Model: FC<ModelProps> = (
 											if (typeof value === 'number') {
 												clipValues[index] = value;
 												isGenericObjectsStateChanged = true;
+												setInitialDigitalTwinSimulatorState((prevValues: any) => {
+													const newValues = { ...prevValues };
+													newValues[fieldName] = value;
+													return newValues;
+												})
 											}
 										}
 									}
@@ -438,6 +455,11 @@ const Model: FC<ModelProps> = (
 											if (typeof value === 'number') {
 												clipValues[index] = value;
 												isfemSimulationObjectsStateChanged = true;
+												setInitialDigitalTwinSimulatorState((prevValues: any) => {
+													const newValues = { ...prevValues };
+													newValues[fieldName] = value;
+													return newValues;
+												})
 											}
 										}
 									}
