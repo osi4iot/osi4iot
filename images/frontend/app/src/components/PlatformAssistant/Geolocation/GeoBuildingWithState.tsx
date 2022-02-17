@@ -3,7 +3,7 @@ import { GeoJSON, Marker, useMap } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IconAlertingMarker, IconMarker, IconPendingMarker } from "./IconMarker";
-import { IDigitalTwinState } from "../GeolocationContainer";
+import { IDigitalTwinState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import BuildingTooltip, { IOrgManagedWithStatus } from "./BuildingTooltip";

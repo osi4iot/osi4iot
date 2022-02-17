@@ -2,7 +2,7 @@ import { FC, useEffect } from "react";
 import { useMap, LayerGroup } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
-import { IDigitalTwinState } from "../GeolocationContainer";
+import { IDigitalTwinState } from "./GeolocationContainer";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import { IFloor } from "../TableColumns/floorsColumns";
 import GeoBuildingWithState from "./GeoBuildingWithState";

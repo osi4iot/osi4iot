@@ -1,8 +1,8 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
-import AddUsersIcon from '../AddUsersIcon';
-import RemoveUsersIcon from '../RemoveUsersIcon';
-import { ORGS_MANAGED_OPTIONS } from '../platformAssistantOptions';
+import AddUsersIcon from '../Utils/AddUsersIcon';
+import RemoveUsersIcon from '../UserOptions/RemoveUsersIcon';
+import { ORGS_MANAGED_OPTIONS } from '../Utils/platformAssistantOptions';
 import { useOrgsManagedDispatch, setOrgManagedIdToCreateOrgUsers, setOrgManagedRowIndex, setOrgsManagedOptionToShow } from '../../../contexts/orgsManagedOptions';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';

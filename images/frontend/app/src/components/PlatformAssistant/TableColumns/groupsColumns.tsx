@@ -4,10 +4,10 @@ import { toast } from 'react-toastify';
 import { FeatureCollection } from 'geojson';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import EditIcon from '../EditIcon';
-import DeleteIcon from '../DeleteIcon';
+import EditIcon from '../Utils/EditIcon';
+import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
-import { GROUPS_OPTIONS } from '../platformAssistantOptions';
+import { GROUPS_OPTIONS } from '../Utils/platformAssistantOptions';
 import {
     setGroupIdToEdit,
     setGroupRowIndexToEdit,

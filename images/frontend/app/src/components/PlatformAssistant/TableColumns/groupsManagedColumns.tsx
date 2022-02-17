@@ -3,17 +3,17 @@ import { Column } from 'react-table';
 import styled from "styled-components";
 import { saveAs } from 'file-saver';
 import JSZip from 'jszip';
-import DownloadFileIcon from '../DownloadFileIcon';
-import ExChangeIcon from '../ExchangeIcon';
-import AddUsersIcon from '../AddUsersIcon';
-import RemoveUsersIcon from '../RemoveUsersIcon';
+import DownloadFileIcon from '../Utils/DownloadFileIcon';
+import ExChangeIcon from '../Utils/ExchangeIcon';
+import AddUsersIcon from '../Utils/AddUsersIcon';
+import RemoveUsersIcon from '../UserOptions/RemoveUsersIcon';
 import {
     setGroupManagedIdToCreateGroupMembers,
     setGroupManagedRowIndex,
     setGroupsManagedOptionToShow,
     useGroupsManagedDispatch
 } from '../../../contexts/groupsManagedOptions';
-import { GROUPS_MANAGED_OPTIONS } from '../platformAssistantOptions';
+import { GROUPS_MANAGED_OPTIONS } from '../Utils/platformAssistantOptions';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';

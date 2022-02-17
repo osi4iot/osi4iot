@@ -1,12 +1,12 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import EditIcon from '../EditIcon';
-import DeleteIcon from '../DeleteIcon';
+import EditIcon from '../Utils/EditIcon';
+import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { ORGS_OPTIONS } from '../platformAssistantOptions';
+import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setOrgIdToEdit, setOrgRowIndexToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgsOptions';
 
 

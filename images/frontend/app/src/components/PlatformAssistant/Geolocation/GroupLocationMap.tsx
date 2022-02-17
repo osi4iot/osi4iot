@@ -15,7 +15,7 @@ import GeoBuilding from './GeoBuilding';
 import { IFeatureCollection, spacesDivider } from '../../../tools/spacesDivider';
 import GeoFloorSpace from './GeoFloorSpace';
 import { useGroupInputData, useGroupsPreviousOption } from '../../../contexts/groupsOptions';
-import { GROUPS_PREVIOUS_OPTIONS } from '../platformAssistantOptions';
+import { GROUPS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;

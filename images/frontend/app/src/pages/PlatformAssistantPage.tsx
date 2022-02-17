@@ -2,14 +2,14 @@ import { FC, useEffect } from "react";
 import styled from "styled-components";
 import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
-import PlatformAssistantMenu from "../components/PlatformAssistant/PlatformAssistantMenu";
+import PlatformAssistantMenu from "./PlatformAssistantMenu";
 import { useAuthState } from "../contexts/authContext";
 import { usePlatformAssitantDispatch } from "../contexts/platformAssistantContext";
 import { axiosAuth, getDomainName } from "../tools/tools";
 import axios from "axios";
 import { setUserRole } from "../contexts/platformAssistantContext";
-import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/platformAssistantOptions";
-import PlatformAssistantHomeOptions from '../components/PlatformAssistant/PlatformAssistantHomeOptions';
+import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
+import PlatformAssistantHomeOptions from '../components/PlatformAssistant/PlatformAssistantHomeOptions/PlatformAssistantHomeOptions';
 
 
 const Container = styled.div`

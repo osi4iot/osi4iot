@@ -1,7 +1,7 @@
 import { OrgsContextProps, OrgsAction } from "./interfaces";
 import {
     ORGS_OPTIONS
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {

@@ -21,7 +21,7 @@ import { useDeviceIdToEdit, useDevicesPreviousOption } from '../../../contexts/d
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { DeviceSvgImage } from './GeoDevice';
 import calcGeoBounds from '../../../tools/calcGeoBounds';
-import { DEVICES_PREVIOUS_OPTIONS } from '../platformAssistantOptions';
+import { DEVICES_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
 
 
 const MapContainerStyled = styled(MapContainer)`

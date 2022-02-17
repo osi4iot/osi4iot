@@ -16,7 +16,7 @@ import { IOrgUser } from "../../components/PlatformAssistant/TableColumns/orgUse
 import { IRefreshToken } from "../../components/PlatformAssistant/TableColumns/refreshTokensColumns";
 import { ISelectOrgUser } from "../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns";
 import { ITopic } from "../../components/PlatformAssistant/TableColumns/topicsColumns";
-import { IUserProfile } from "../../components/PlatformAssistant/UserProfile";
+import { IUserProfile } from "../../components/PlatformAssistant/UserOptions/UserProfile";
 
 export interface PlatformAssistantDispatch {
 	(arg0: { type: string; payload?: any; error?: any }): void;

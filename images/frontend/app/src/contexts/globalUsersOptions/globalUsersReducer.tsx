@@ -1,7 +1,7 @@
 import { GlobalUsersContextProps, GlobalUsersAction } from "./interfaces";
 import {
     GLOBAL_USERS_OPTIONS
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {

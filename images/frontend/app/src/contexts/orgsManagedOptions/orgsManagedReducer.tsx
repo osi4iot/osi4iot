@@ -2,7 +2,7 @@ import { OrgsManagedContextProps, OrgsManagedAction } from "./interfaces";
 import {
     ORGS_MANAGED_OPTIONS,
 
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {

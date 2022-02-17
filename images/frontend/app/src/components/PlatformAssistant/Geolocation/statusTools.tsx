@@ -1,4 +1,4 @@
-import { IDigitalTwinState } from "../GeolocationContainer";
+import { IDigitalTwinState } from "./GeolocationContainer";
 
 export const STATUS_OK = "#62f700";
 export const STATUS_ALERTING = "#ff4040";

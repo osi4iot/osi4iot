@@ -2,9 +2,9 @@ import { FC } from "react";
 import styled from "styled-components";
 import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
-import PlatformAssistantMenu from "../components/PlatformAssistant/PlatformAssistantMenu";
-import UserOptions from "../components/PlatformAssistant/UserOptions";
-import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/platformAssistantOptions";
+import PlatformAssistantMenu from "./PlatformAssistantMenu";
+import UserOptions from "../components/PlatformAssistant/UserOptions/UserOptions";
+import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 const Container = styled.div`
     display: flex;

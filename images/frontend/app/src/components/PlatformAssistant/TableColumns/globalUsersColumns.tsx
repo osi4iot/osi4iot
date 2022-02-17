@@ -3,11 +3,11 @@ import { Column } from 'react-table';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import EditIcon from '../EditIcon';
-import DeleteIcon from '../DeleteIcon';
+import EditIcon from '../Utils/EditIcon';
+import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { useGlobalUsersDispatch } from '../../../contexts/globalUsersOptions';
-import { GLOBAL_USERS_OPTIONS } from '../platformAssistantOptions';
+import { GLOBAL_USERS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setGlobalUserIdToEdit, setGlobalUserRowIndexToEdit, setGlobalUsersOptionToShow } from '../../../contexts/globalUsersOptions';
 
 export interface IGlobalUser {

@@ -1,7 +1,7 @@
 import axios from "axios";
 import { setUserRole } from "../contexts/platformAssistantContext";
 import { PlatformAssistantDispatch } from "../contexts/platformAssistantContext/interfaces";
-import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/platformAssistantOptions";
+import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 import { axiosAuth, getDomainName } from "./tools";
 
 const domainName = getDomainName();

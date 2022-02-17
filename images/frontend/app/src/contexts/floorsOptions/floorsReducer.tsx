@@ -1,7 +1,7 @@
 import { FloorsContextProps, FloorsAction } from "./interfaces";
 import {
     FLOORS_OPTIONS
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {

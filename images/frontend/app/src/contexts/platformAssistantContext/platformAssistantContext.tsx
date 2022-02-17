@@ -17,7 +17,7 @@ import { IOrgUser } from '../../components/PlatformAssistant/TableColumns/orgUse
 import { IRefreshToken } from '../../components/PlatformAssistant/TableColumns/refreshTokensColumns';
 import { ISelectOrgUser } from '../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns';
 import { ITopic } from '../../components/PlatformAssistant/TableColumns/topicsColumns';
-import { IUserProfile } from '../../components/PlatformAssistant/UserProfile';
+import { IUserProfile } from '../../components/PlatformAssistant/UserOptions/UserProfile';
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { PlatformAssistantContextProps } from './interfaces'
 import { initialState, PlatformAssitantReducer } from './platformAssistantReducer';

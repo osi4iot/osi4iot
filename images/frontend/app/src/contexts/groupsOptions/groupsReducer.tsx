@@ -2,7 +2,7 @@ import { GroupsContextProps, GroupsAction } from "./interfaces";
 import {
     GROUPS_OPTIONS,
     GROUPS_PREVIOUS_OPTIONS
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {

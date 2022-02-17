@@ -14,7 +14,7 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { IDigitalTwinState } from '../GeolocationContainer';
+import { IDigitalTwinState } from './GeolocationContainer';
 import GeoBuildings from './GeoBuildings';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';

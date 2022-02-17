@@ -141,7 +141,7 @@ do=true && [[ "$(docker service ls | grep 0/1)" == "" || "$(docker service ls | 
 printf '\n%s' "Waiting until all containers be ready  "
 while $do ; do
   spin
-  do=true && [[ "$(docker service ls | grep 0/)" == "" ]] && do=false
+  do=true && [[ "$(docker service ls | grep 0/1)" == "" || "$(docker service ls | grep 0/3)" == "" ]] && do=false
   sleep 1
 done
 endspin

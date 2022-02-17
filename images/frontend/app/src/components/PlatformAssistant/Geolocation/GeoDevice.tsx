@@ -3,7 +3,7 @@ import { SVGOverlay, Circle, useMap } from 'react-leaflet';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { LatLngTuple } from 'leaflet';
 import { IDevice } from '../TableColumns/devicesColumns';
-import { IDigitalTwinState } from "../GeolocationContainer";
+import { IDigitalTwinState } from "./GeolocationContainer";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
 

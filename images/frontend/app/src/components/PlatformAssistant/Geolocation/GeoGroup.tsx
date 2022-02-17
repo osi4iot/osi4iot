@@ -8,7 +8,7 @@ import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoDigitalTwins from "./GeoDigitalTwins";
-import { IDigitalTwinState } from "../GeolocationContainer";
+import { IDigitalTwinState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";

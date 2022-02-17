@@ -1,7 +1,7 @@
 import { DevicesContextProps, DevicesAction } from "./interfaces";
 import {
     DEVICES_OPTIONS, DEVICES_PREVIOUS_OPTIONS
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {

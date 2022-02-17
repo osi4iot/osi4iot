@@ -1,7 +1,7 @@
 import { PlatformAssistantContextProps, PlatformAssistantAction } from "./interfaces";
 import {
     PLATFORM_ASSISTANT_OPTION,
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 const initialUserProfile = {
     userId: 0,

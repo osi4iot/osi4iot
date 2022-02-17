@@ -1,4 +1,4 @@
-import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/platformAssistantOptions";
+import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 import axios, { AxiosStatic } from 'axios';
 import createAuthRefreshInterceptor from 'axios-auth-refresh';
 

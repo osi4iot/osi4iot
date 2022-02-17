@@ -1,7 +1,7 @@
 import { MeasurementsContextProps, MeasurementsAction } from "./interfaces";
 import {
     MEASUREMENTS_OPTIONS
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 const currentDate = new Date();
 

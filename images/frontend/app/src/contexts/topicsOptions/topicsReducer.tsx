@@ -1,7 +1,7 @@
 import { TopicsContextProps, TopicsAction } from "./interfaces";
 import {
     TOPICS_OPTIONS
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {

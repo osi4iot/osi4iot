@@ -1,7 +1,7 @@
 import { GroupMembersContextProps, GroupMembersAction } from "./interfaces";
 import {
     GROUP_MEMBERS_OPTIONS,
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {

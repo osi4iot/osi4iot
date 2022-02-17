@@ -3,10 +3,10 @@ import { Column } from 'react-table';
 import { toast } from 'react-toastify';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import EditIcon from '../EditIcon';
-import DeleteIcon from '../DeleteIcon';
+import EditIcon from '../Utils/EditIcon';
+import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
-import { DIGITAL_TWINS_OPTIONS } from '../platformAssistantOptions';
+import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDigitalTwinIdToEdit, setDigitalTwinRowIndexToEdit, setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
 
 export interface IDigitalTwin {

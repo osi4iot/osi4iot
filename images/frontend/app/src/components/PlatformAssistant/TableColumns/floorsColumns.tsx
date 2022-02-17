@@ -2,12 +2,12 @@ import { FC, useState, useEffect } from 'react';
 import { FeatureCollection } from 'geojson';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import EditIcon from '../EditIcon';
-import DeleteIcon from '../DeleteIcon';
+import EditIcon from '../Utils/EditIcon';
+import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { FLOORS_OPTIONS } from '../platformAssistantOptions';
+import { FLOORS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setFloorIdToEdit, setFloorRowIndexToEdit, setFloorsOptionToShow, useFloorsDispatch } from '../../../contexts/floorsOptions';
 
 

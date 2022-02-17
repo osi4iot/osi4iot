@@ -1,7 +1,7 @@
 import { FC } from "react";
 import { LayerGroup } from 'react-leaflet';
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
-import { IDigitalTwinState } from "../GeolocationContainer";
+import { IDigitalTwinState } from "./GeolocationContainer";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoDigitalTwin from "./GeoDigitalTwin";

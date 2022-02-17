@@ -7,7 +7,7 @@ import { LatLngTuple } from 'leaflet';
 import { IDevice } from '../TableColumns/devicesColumns';
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
-import { IDigitalTwinState } from "../GeolocationContainer";
+import { IDigitalTwinState } from "./GeolocationContainer";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";

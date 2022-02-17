@@ -2,7 +2,7 @@ import { OrgUsersContextProps, OrgUsersAction } from "./interfaces";
 import {
     ORG_USERS_OPTIONS,
 
-} from "../../components/PlatformAssistant/platformAssistantOptions";
+} from "../../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
 export const initialState = {
