@@ -31,7 +31,7 @@ const SliderLabel = styled.div<SliderLabelProps>`
     flex-direction: ${(props) => ((props.label.length+numberFormat(props.value).length)<28 ? "row" : "column")};
     justify-content: flex-start;
     align-items: flex-start;
-    width: calc(100% - 58px);
+    width: calc(100% - 65px);
     font-size: 14px;
     font-family: Arial, Helvetica, sans-serif;
 `;
@@ -43,9 +43,9 @@ const SliderLabelElement = styled.div`
 const ControlsContainer = styled.div`
     display: flex;
     flex-direction: row;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: flex-start;
-    width: 58px;
+    width: 65px;
 `;
 
 const ControlElement = styled.button`

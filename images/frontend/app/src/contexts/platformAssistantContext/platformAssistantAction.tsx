@@ -20,7 +20,14 @@ import {
 	IUserProfileTable,
 	ITopicsTable,
 	IDashboardsTable,
-	IDigitalTwinsTable
+	IDigitalTwinsTable,
+	IReloadGroupsManagedTable,
+	IReloadDevicesTable,
+	IReloadOrgsManagedTable,
+	IReloadSelectOrgUsersTable,
+	IReloadGroupMembersTable,
+	IRealoadOrgsMembershipTable,
+	IReloadGroupsMembershipTable
 
 } from "./interfaces";
 
@@ -34,6 +41,10 @@ export function setPlaformAssistantOptionToShow(plaformAssistantDispatch: Platfo
 
 export function setSelectOrgUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: ISelectOrgUsersTable) {
 	plaformAssistantDispatch({ type: 'SELECT_ORG_USERS_TABLE', payload: data });
+}
+
+export function setReloadSelectOrgUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadSelectOrgUsersTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_SELECT_ORG_USERS_TABLE', payload: data });
 }
 
 export function setOrganizationsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrganizationsTable) {
@@ -61,6 +72,11 @@ export function setOrgsManagedTable(plaformAssistantDispatch: PlatformAssistantD
 	plaformAssistantDispatch({ type: 'ORGS_MANAGED_TABLE', payload: data });
 }
 
+export function setReloadOrgsManagedTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadOrgsManagedTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_ORGS_MANAGED_TABLE', payload: data });
+}
+
+
 export function setOrgsOfGroupsManagedTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrgsOfGroupsManagedTable) {
 	plaformAssistantDispatch({ type: 'ORGS_OF_GROUPS_MANAGED_TABLE', payload: data });
 }
@@ -68,7 +84,6 @@ export function setOrgsOfGroupsManagedTable(plaformAssistantDispatch: PlatformAs
 export function setOrgUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrgUsersTable) {
 	plaformAssistantDispatch({ type: 'ORGS_USERS_TABLE', payload: data });
 }
-
 
 export function setGroupsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IGroupsTable) {
 	plaformAssistantDispatch({ type: 'GROUPS_TABLE', payload: data });
@@ -79,14 +94,26 @@ export function setGroupsManagedTable(plaformAssistantDispatch: PlatformAssistan
 	plaformAssistantDispatch({ type: 'GROUPS_MANAGED_TABLE', payload: data });
 }
 
+export function setReloadGroupsManagedTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadGroupsManagedTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_GROUPS_MANAGED_TABLE', payload: data });
+}
+
 export function setGroupMembersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IGroupMembersTable) {
 	plaformAssistantDispatch({ type: 'GROUPS_MEMBERS_TABLE', payload: data });
 }
 
+export function setReloadGroupMembersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadGroupMembersTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_GROUPS_MEMBERS_TABLE', payload: data });
+}
 
 export function setDevicesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IDevicesTable) {
 	plaformAssistantDispatch({ type: 'DEVICES_TABLE', payload: data });
 }
+
+export function setReloadDevicesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadDevicesTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_DEVICES_TABLE', payload: data });
+}
+
 
 export function setTopicsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: ITopicsTable) {
 	plaformAssistantDispatch({ type: 'TOPICS_TABLE', payload: data });
@@ -108,8 +135,16 @@ export function setOrgsMembershipTable(plaformAssistantDispatch: PlatformAssista
 	plaformAssistantDispatch({ type: 'ORGS_MEMBERSHIP_TABLE', payload: data });
 }
 
+export function setReloadOrgsMembershipTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IRealoadOrgsMembershipTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_ORGS_MEMBERSHIP_TABLE', payload: data });
+}
+
 export function setGroupsMembershipTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IGroupsMembershipTable) {
 	plaformAssistantDispatch({ type: 'GROUP_MEMBERSHIP_TABLE', payload: data });
+}
+
+export function setReloadGroupsMembershipTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadGroupsMembershipTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_GROUP_MEMBERSHIP_TABLE', payload: data });
 }
 
 export function setResetTables(plaformAssistantDispatch: PlatformAssistantDispatch) {

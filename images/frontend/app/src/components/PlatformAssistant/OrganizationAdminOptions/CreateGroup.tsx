@@ -15,6 +15,7 @@ import SelectOrgUsersOfOrgManaged from './SelectOrgUsersOfOrgManaged';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
+import { setReloadDevicesTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -144,6 +145,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
     floorSelected
 }) => {
     const [selectedOrgId, setSelectedOrgId] = useState(orgsManagedTable[0].id);
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [showCreateGroup, setShowCreateGroup] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectOrgUser[]>([]);
@@ -208,6 +210,12 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 setIsSubmitting(false);
                 setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
                 refreshGroups();
+                const reloadGroupsManagedTable = true;
+                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
+                const reloadDevicesTable = true;
+                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;

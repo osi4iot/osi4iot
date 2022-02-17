@@ -29,7 +29,11 @@ import {
     useOrgsOfGroupsManagedTable,
     setOrgsOfGroupsManagedTable,
     useDashboardsTable,
-    setDashboardsTable
+    setDashboardsTable,
+    useReloadSelectOrgUsersTable,
+    setReloadSelectOrgUsersTable,
+    useReloadGroupMembersTable,
+    setReloadGroupMembersTable
 } from '../../../contexts/platformAssistantContext';
 import { GroupsManagedProvider } from '../../../contexts/groupsManagedOptions';
 import GroupsManagedContainer from './GroupsManagedContainer';
@@ -149,13 +153,14 @@ const GroupAdminOptions: FC<{}> = () => {
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadloors] = useState(false);
     const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
-    const [reloadGroupMembers, setReloadGroupMembers] = useState(false);
+    const reloadGroupMembersTable = useReloadGroupMembersTable();
     const [reloadDevices, setReloadDevices] = useState(false);
     const [reloadTopics, setReloadTopics] = useState(false);
     const [reloadDashboards, setReloadDashboards] = useState(false);
     const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
     const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
+    const reloadSelectOrgUsersTable = useReloadSelectOrgUsersTable();
 
     const refreshGroupsManaged = useCallback(() => {
         setReloadGroupsManaged(true);
@@ -172,10 +177,10 @@ const GroupAdminOptions: FC<{}> = () => {
 
 
     const refreshGroupMembers = useCallback(() => {
-        setReloadGroupMembers(true);
         setGroupMembersLoading(true);
-        setTimeout(() => setReloadGroupMembers(false), 500);
-    }, [])
+        const reloadGroupMembersTable = true;
+        setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+    }, [plaformAssistantDispatch])
 
     const refreshTopics = useCallback(() => {
         setReloadTopics(true);
@@ -321,7 +326,7 @@ const GroupAdminOptions: FC<{}> = () => {
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
 
     useEffect(() => {
-        if (groupMembersTable.length === 0 || reloadGroupMembers) {
+        if (groupMembersTable.length === 0 || reloadGroupMembersTable) {
             const config = axiosAuth(accessToken);
             const urlGroupMembers = `https://${domainName}/admin_api/group_members/user_managed`;
             axiosInstance(refreshToken, authDispatch)
@@ -330,6 +335,8 @@ const GroupAdminOptions: FC<{}> = () => {
                     const groupMembers = response.data;
                     setGroupMembersTable(plaformAssistantDispatch, { groupMembers });
                     setGroupMembersLoading(false);
+                    const reloadGroupMembersTable = false;
+                    setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -337,10 +344,17 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setGroupMembersLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupMembers, groupMembersTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadGroupMembersTable,
+        groupMembersTable.length
+    ]);
 
     useEffect(() => {
-        if (selectOrgUsersTable.length === 0 || reloadGroupsManaged) {
+        if (selectOrgUsersTable.length === 0 || reloadSelectOrgUsersTable) {
             const config = axiosAuth(accessToken);
             const urlGroupsManaged = `https://${domainName}/admin_api/organization_users/user_groups_managed/`;
             axiosInstance(refreshToken, authDispatch)
@@ -349,6 +363,8 @@ const GroupAdminOptions: FC<{}> = () => {
                     const selectOrgUsers = response.data.filter((user: ISelectOrgUser) => user.login.slice(-9) !== "api_admin");
                     setSelectOrgUsersTable(plaformAssistantDispatch, { selectOrgUsers });
                     setSelectOrgUsersLoading(false);
+                    const reloadSelectOrgUsersTable = false;
+                    setReloadSelectOrgUsersTable(plaformAssistantDispatch, { reloadSelectOrgUsersTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -356,7 +372,7 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setSelectOrgUsersLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsManaged, selectOrgUsersTable.length]);
+    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadSelectOrgUsersTable, selectOrgUsersTable.length]);
 
     useEffect(() => {
         if (devicesTable.length === 0 || reloadDevices) {

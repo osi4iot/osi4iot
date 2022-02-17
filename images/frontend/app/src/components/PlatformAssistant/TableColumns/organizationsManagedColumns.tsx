@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import AddUsersIcon from '../Utils/AddUsersIcon';
-import RemoveUsersIcon from '../UserOptions/RemoveUsersIcon';
+import RemoveUsersIcon from '../Utils/RemoveUsersIcon';
 import { ORGS_MANAGED_OPTIONS } from '../Utils/platformAssistantOptions';
 import { useOrgsManagedDispatch, setOrgManagedIdToCreateOrgUsers, setOrgManagedRowIndex, setOrgsManagedOptionToShow } from '../../../contexts/orgsManagedOptions';
 import { toast } from 'react-toastify';

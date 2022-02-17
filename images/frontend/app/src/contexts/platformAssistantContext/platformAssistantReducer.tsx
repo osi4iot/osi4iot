@@ -20,6 +20,7 @@ export const initialState = {
     numDevicesManage: 0,
     platformAssitantOptionToShow: PLATFORM_ASSISTANT_OPTION.HOME,
     selectOrgUsers: [],
+    reloadSelectOrgUsersTable: true,
     organizations: [],
     buildings: [],
     floors: [],
@@ -27,17 +28,23 @@ export const initialState = {
     refreshTokens: [],
     orgsManaged: [],
     orgsOfGroupsManaged: [],
+    reloadOrgsManagedTable: true,
     orgUsers: [],
     groups: [],
     groupsManaged: [],
+    reloadGroupsManagedTable: true,
     groupMembers: [],
+    reloadGroupMembersTable: true,
     devices: [],
+    reloadDevicesTable: true,
     topics: [],
     dashboards: [],
     digitalTwins: [],
     userProfile: initialUserProfile,
     orgsMembership: [],
+    reloadOrgsMembershipTable: true,
     groupsMembership: [],
+    reloadGroupsMembershipTable: true,
 };
 
 export const PlatformAssitantReducer = (initialState: PlatformAssistantContextProps, action: PlatformAssistantAction) => {
@@ -61,6 +68,12 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
             return {
                 ...initialState,
                 selectOrgUsers: action.payload.selectOrgUsers
+            };
+
+        case "RELOAD_SELECT_ORG_USERS_TABLE":
+            return {
+                ...initialState,
+                reloadSelectOrgUsersTable: action.payload.reloadSelectOrgUsersTable
             };
 
         case "ORGANIZATIONS_TABLE":
@@ -99,6 +112,12 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 orgsManaged: action.payload.orgsManaged
             };
 
+        case "RELOAD_ORGS_MANAGED_TABLE":
+            return {
+                ...initialState,
+                reloadOrgsManagedTable: action.payload.reloadOrgsManagedTable
+            };
+
         case "ORGS_OF_GROUPS_MANAGED_TABLE":
             return {
                 ...initialState,
@@ -123,16 +142,34 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 groupsManaged: action.payload.groupsManaged
             };
 
+        case "RELOAD_GROUPS_MANAGED_TABLE":
+            return {
+                ...initialState,
+                reloadGroupsManagedTable: action.payload.reloadGroupsManagedTable
+            };
+
         case "GROUPS_MEMBERS_TABLE":
             return {
                 ...initialState,
                 groupMembers: action.payload.groupMembers
             };
 
+        case "RELOAD_GROUPS_MEMBERS_TABLE":
+            return {
+                ...initialState,
+                reloadGroupMembersTable: action.payload.reloadGroupMembersTable
+            };
+
         case "DEVICES_TABLE":
             return {
                 ...initialState,
                 devices: action.payload.devices
+            };
+
+        case "RELOAD_DEVICES_TABLE":
+            return {
+                ...initialState,
+                reloadDevicesTable: action.payload.reloadDevicesTable
             };
 
         case "TOPICS_TABLE":
@@ -165,10 +202,22 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 orgsMembership: action.payload.orgsMembership
             };
 
+        case "RELOAD_ORGS_MEMBERSHIP_TABLE":
+            return {
+                ...initialState,
+                reloadOrgsMembershipTable: action.payload.reloadOrgsMembershipTable
+            };
+
         case "GROUP_MEMBERSHIP_TABLE":
             return {
                 ...initialState,
                 groupsMembership: action.payload.groupsMembership
+            };
+
+        case "RELOAD_GROUP_MEMBERSHIP_TABLE":
+            return {
+                ...initialState,
+                reloadGroupsMembershipTable: action.payload.reloadGroupsMembershipTable
             };
 
         case "RESET_TABLES":
@@ -179,24 +228,31 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 numDevicesManage: 0,
                 platformAssitantOptionToShow: PLATFORM_ASSISTANT_OPTION.HOME,
                 selectOrgUsers: [],
+                reloadSelectOrgUsersTable: true,
                 organizations: [],
                 buildings: [],
                 floors: [],
                 globalUsers: [],
                 refreshTokens: [],
                 orgsManaged: [],
+                reloadOrgsManagedTable: true,
                 orgsOfGroupsManaged: [],
                 orgUsers: [],
                 groups: [],
                 groupsManaged: [],
+                reloadGroupsManagedTable: true,
                 groupMembers: [],
+                reloadGroupMembersTable: true,
                 devices: [],
+                reloadDevicesTable: true,
                 topics: [],
                 dashboards: [],
                 digitalTwins: [],
                 userProfile: initialUserProfile,
                 orgsMembership: [],
+                reloadOrgsMembershipTable: true,
                 groupsMembership: [],
+                reloadGroupsMembershipTable: true
             };
 
         default:

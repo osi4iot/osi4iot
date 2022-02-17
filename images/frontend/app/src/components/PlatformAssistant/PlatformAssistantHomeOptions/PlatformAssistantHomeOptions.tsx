@@ -18,6 +18,10 @@ import {
 	useFloorsTable,
 	setBuildingsTable,
 	setFloorsTable,
+	useReloadGroupsManagedTable,
+	setReloadGroupsManagedTable,
+	useReloadDevicesTable,
+	setReloadDevicesTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import GeolocationContainer from '../Geolocation/GeolocationContainer';
@@ -167,8 +171,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [reloadBuildings, setReloadBuildings] = useState(false);
 	const [reloadFloors, setReloadloors] = useState(false);
 	const [reloadOrgsOfGroupsManaged, setReloadOrgsOfGroupsManaged] = useState(false);
-	const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
-	const [reloadDevices, setReloadDevices] = useState(false);
+	const reloadGroupsManagedTable = useReloadGroupsManagedTable();
+	// const [reloadDevices, setReloadDevices] = useState(false);
+	const reloadDevicesTable = useReloadDevicesTable();
 	const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
 	const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
 	const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
@@ -201,17 +206,17 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	}, [])
 
 	const refreshGroupsManaged = useCallback(() => {
-		setReloadGroupsManaged(true);
 		setGroupsManagedLoading(true);
-		setTimeout(() => setReloadGroupsManaged(false), 500);
-	}, []);
+		const reloadGroupsManagedTable = true;
+		setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+	}, [plaformAssistantDispatch]);
 
 
 	const refreshDevices = useCallback(() => {
-		setReloadDevices(true);
 		setDevicesLoading(true);
-		setTimeout(() => setReloadDevices(false), 500);
-	}, [])
+		const reloadDevicesTable = true;
+		setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+	}, [plaformAssistantDispatch])
 
 	const refreshDigitalTwins = useCallback(() => {
 		setReloadDigitalTwins(true);
@@ -371,7 +376,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	]);
 
 	useEffect(() => {
-		if (groupsManagedTable.length === 0 || reloadGroupsManaged) {
+		if (groupsManagedTable.length === 0 || reloadGroupsManagedTable) {
 			const config = axiosAuth(accessToken);
 			const urlGroupsManaged = `https://${domainName}/admin_api/groups/user_managed`;
 			axiosInstance(refreshToken, authDispatch)
@@ -384,6 +389,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					})
 					setGroupsManagedTable(plaformAssistantDispatch, { groupsManaged });
 					setGroupsManagedLoading(false);
+					const reloadGroupsManagedTable = false;
+					setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
 				})
 				.catch((error) => {
 					console.log(error);
@@ -391,10 +398,18 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		} else {
 			setGroupsManagedLoading(false);
 		}
-	}, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
+	}, [
+		accessToken,
+		refreshToken,
+		authDispatch,
+		plaformAssistantDispatch,
+		groupsManagedTable.length,
+		reloadGroupsManagedTable
+	]);
+
 
 	useEffect(() => {
-		if (devicesTable.length === 0 || reloadDevices) {
+		if (devicesTable.length === 0 || reloadDevicesTable) {
 			const config = axiosAuth(accessToken);
 			const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
 			axiosInstance(refreshToken, authDispatch)
@@ -403,6 +418,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const devices = response.data;
 					setDevicesTable(plaformAssistantDispatch, { devices });
 					setDevicesLoading(false);
+					const reloadDevicesTable = false;
+					setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
 				})
 				.catch((error) => {
 					console.log(error);
@@ -410,7 +427,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		} else {
 			setDevicesLoading(false);
 		}
-	}, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
+	}, [
+		accessToken,
+		refreshToken,
+		authDispatch,
+		plaformAssistantDispatch,
+		devicesTable.length,
+		reloadDevicesTable
+	]);
 
 	useEffect(() => {
 		if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {

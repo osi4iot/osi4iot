@@ -74,6 +74,14 @@ export const useSelectOrgUsersTable = (): ISelectOrgUser[] => {
 	return context.selectOrgUsers;
 }
 
+export const useReloadSelectOrgUsersTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadSelectOrgUsersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadSelectOrgUsersTable;
+}
+
 
 export const useOrganizationsTable = (): IOrganization[] => {
 	const context = useContext(PlatformAssitantStateContext);
@@ -123,6 +131,15 @@ export const useOrgsManagedTable = (): IOrgManaged[] => {
 	return context.orgsManaged;
 }
 
+export const useReloadOrgsManagedTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadOrgsManagedTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadOrgsManagedTable;
+}
+
+
 export const useOrgsOfGroupsManagedTable = (): IOrgOfGroupsManaged[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
@@ -155,6 +172,14 @@ export const useGroupsManagedTable = (): IGroupManaged[] => {
 	return context.groupsManaged;
 }
 
+export const useReloadGroupsManagedTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadGroupsManagedTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadGroupsManagedTable
+}
+
 export const useGroupMembersTable = (): IGroupMember[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
@@ -163,12 +188,28 @@ export const useGroupMembersTable = (): IGroupMember[] => {
 	return context.groupMembers;
 }
 
+export const useReloadGroupMembersTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadGroupMembersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadGroupMembersTable;
+}
+
 export const useDevicesTable = (): IDevice[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
 		throw new Error('useDevicesTable must be used within a PlatformAssitantProvider');
 	}
 	return context.devices;
+}
+
+export const useReloadDevicesTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadDevicesTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadDevicesTable;
 }
 
 export const useTopicsTable = (): ITopic[] => {
@@ -211,12 +252,28 @@ export const useOrgsMembershipTable = (): IMembershipInOrgs[] => {
 	return context.orgsMembership;
 }
 
+export const useReloadOrgsMembershipTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadOrgsMembershipTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadOrgsMembershipTable ;
+}
+
 export const useGroupsMembershipTable = (): IMembershipInGroups[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
 		throw new Error('useGroupsMembershipTable must be used within a PlatformAssitantProvider');
 	}
 	return context.groupsMembership;
+}
+
+export const useReloadGroupsMembershipTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadGroupsMembershipTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadGroupsMembershipTable;
 }
 
 export function usePlatformAssitantDispatch() {

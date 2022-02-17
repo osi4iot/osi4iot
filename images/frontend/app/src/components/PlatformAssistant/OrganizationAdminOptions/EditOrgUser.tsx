@@ -17,6 +17,7 @@ import {
 } from '../../../contexts/orgUsersOptions';
 import { ORG_USERS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IOrgUser } from '../TableColumns/orgUsersColumns';
+import { setReloadGroupMembersTable, setReloadGroupsMembershipTable, setReloadOrgsMembershipTable, setReloadSelectOrgUsersTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -86,6 +87,7 @@ interface EditOrgUserProps {
 
 
 const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUsers }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -114,6 +116,14 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
                 setIsSubmitting(false);
                 setOrgUsersOptionToShow(orgsUsersDispatch, { orgUsersOptionToShow: ORG_USERS_OPTIONS.TABLE });
                 refreshOrgUsers();
+                const reloadSelectOrgUsersTable = true;
+                setReloadSelectOrgUsersTable(plaformAssistantDispatch, { reloadSelectOrgUsersTable });
+                const reloadGroupMembersTable = true;
+                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+                const reloadOrgsMembershipTable = true;
+                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });                
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;

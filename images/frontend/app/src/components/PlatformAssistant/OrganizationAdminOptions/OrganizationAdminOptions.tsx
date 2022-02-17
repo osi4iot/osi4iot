@@ -25,6 +25,8 @@ import {
     useFloorsTable,
     setBuildingsTable,
     setFloorsTable,
+    useReloadOrgsManagedTable,
+    setReloadOrgsManagedTable,
 } from '../../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
 import { filterBuildings } from '../../../tools/filterBuildings';
@@ -127,15 +129,15 @@ const OrganizationAdminOptions: FC<{}> = () => {
     
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadloors] = useState(false);
-    const [reloadOrgsManaged, setReloadOrgsManaged] = useState(false);
+    const reloadOrgsManagedTable = useReloadOrgsManagedTable();
     const [reloadOrgUsers, setReloadOrgUsers] = useState(false);
     const [reloadGroups, setReloadGroups] = useState(false);
 
     const refreshOrgsManaged = useCallback(() => {
-        setReloadOrgsManaged(true);
         setOrgsManagedLoading(true);
-        setTimeout(() => setReloadOrgsManaged(false), 500);
-    }, []);
+        const reloadOrgsManagedTable = true;
+        setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
+    }, [plaformAssistantDispatch]);
 
 
     const refreshOrgUsers = useCallback(() => {
@@ -235,7 +237,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
 
 
     useEffect(() => {
-        if (orgsManagedTable.length === 0 || reloadOrgsManaged) {
+        if (orgsManagedTable.length === 0 || reloadOrgsManagedTable) {
             const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_managed/`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
@@ -244,6 +246,8 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     const orgsManaged = response.data;
                     setOrgsManagedTable(plaformAssistantDispatch, { orgsManaged });
                     setOrgsManagedLoading(false);
+                    const reloadOrgsManagedTable = false;
+                    setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -251,7 +255,14 @@ const OrganizationAdminOptions: FC<{}> = () => {
         } else {
             setOrgsManagedLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadOrgsManaged, orgsManagedTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadOrgsManagedTable,
+        orgsManagedTable.length
+    ]);
 
     useEffect(() => {
         if (orgUsersTable.length === 0 || reloadOrgUsers) {

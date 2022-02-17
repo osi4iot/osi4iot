@@ -166,7 +166,6 @@ const PlatformAdminOptions: FC<{}> = () => {
                 .get(urlOrganizations, config)
                 .then((response) => {
                     const organizations = response.data;
-                    // const organizations = JSON.parse(mockOrganizations);
                     setOrganizationsTable(plaformAssistantDispatch, { organizations });
                     setOrgsLoading(false);
                 })

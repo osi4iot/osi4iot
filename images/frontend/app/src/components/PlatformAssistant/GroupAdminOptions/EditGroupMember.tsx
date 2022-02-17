@@ -17,6 +17,7 @@ import {
 } from '../../../contexts/groupMembersOptions';
 import { GROUP_MEMBERS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IGroupMember } from '../TableColumns/groupMemberColumns';
+import { setReloadGroupsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -85,6 +86,7 @@ interface EditGroupMemberProps {
 }
 
 const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupMembers, backToTable }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -113,6 +115,8 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupM
                 setIsSubmitting(false);
                 setGroupMembersOptionToShow(groupMembersDispatch, { groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.TABLE });
                 refreshGroupMembers();
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;

@@ -16,6 +16,10 @@ import {
     useUserProfileTable,
     useOrgsMembershipTable,
     useGroupsMembershipTable,
+    useReloadOrgsMembershipTable,
+    useReloadGroupsMembershipTable,
+    setReloadOrgsMembershipTable,
+    setReloadGroupsMembershipTable,
 } from '../../../contexts/platformAssistantContext';
 
 
@@ -105,8 +109,8 @@ const UserOptions: FC<{}> = () => {
     const [loadingGroupsMembership, setLoadinGroupsMembership] = useState(true);
 
     const [reloadUserProfile, setReloadUserProfile] = useState(false);
-    const [reloadOrgsMembership, setReloadOrgsMembership] = useState(false);
-    const [reloadGroupsMembership, setReloadGroupsMembership] = useState(false);
+    const reloadOrgsMembershipTable = useReloadOrgsMembershipTable();
+    const reloadGroupsMembershipTable = useReloadGroupsMembershipTable();
 
     const refreshUserProfile = useCallback(() => {
         setReloadUserProfile(true);
@@ -115,18 +119,17 @@ const UserOptions: FC<{}> = () => {
     }, []);
 
     const refreshOrgsMembership = useCallback(() => {
-        setReloadOrgsMembership(true);
         setLoadingOrgsMembership(true);
-        setTimeout(() => setReloadOrgsMembership(false), 500);
-    }, []);
+        const reloadOrgsMembershipTable = true;
+        setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
+    }, [plaformAssistantDispatch]);
 
 
     const refreshGroupsMembership = useCallback(() => {
-        setReloadGroupsMembership(true);
         setLoadinGroupsMembership(true);
-        setTimeout(() => setReloadGroupsMembership(false), 500);
-    }, []);
-    
+        const reloadGroupsMembershipTable = true;
+        setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+    }, [plaformAssistantDispatch]);
     
     useEffect(() => {
         if (userProfileTable.userId === 0 || reloadUserProfile) {
@@ -149,7 +152,7 @@ const UserOptions: FC<{}> = () => {
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadUserProfile, userProfileTable.userId]);
 
     useEffect(() => {
-        if (orgsMembershipTable.length === 0 || reloadOrgsMembership) {
+        if (orgsMembershipTable.length === 0 || reloadOrgsMembershipTable) {
 
             const config = axiosAuth(accessToken);
             const urlMembershipInOrgs = `https://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
@@ -159,6 +162,8 @@ const UserOptions: FC<{}> = () => {
                     const orgsMembership = response.data;
                     setOrgsMembershipTable(plaformAssistantDispatch, { orgsMembership });
                     setLoadingOrgsMembership(false);
+                    const reloadOrgsMembershipTable = false;
+                    setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -167,10 +172,16 @@ const UserOptions: FC<{}> = () => {
             setLoadingOrgsMembership(false);
         }
 
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadOrgsMembership, orgsMembershipTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadOrgsMembershipTable,
+        orgsMembershipTable.length]);
 
     useEffect(() => {
-        if (groupsMembershipTable.length === 0 || reloadGroupsMembership) {
+        if (groupsMembershipTable.length === 0 || reloadGroupsMembershipTable) {
             const config = axiosAuth(accessToken);
             const urlMembershipInGroups = `https://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
             axiosInstance(refreshToken, authDispatch)
@@ -179,6 +190,8 @@ const UserOptions: FC<{}> = () => {
                     const groupsMembership = response.data;
                     setGroupsMembershipTable(plaformAssistantDispatch, { groupsMembership });
                     setLoadinGroupsMembership(false);
+                    const reloadGroupsMembershipTable = false;
+                    setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -187,7 +200,14 @@ const UserOptions: FC<{}> = () => {
             setLoadinGroupsMembership(false);
         }
 
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsMembership, groupsMembershipTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadGroupsMembershipTable,
+        groupsMembershipTable.length
+    ]);
 
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);

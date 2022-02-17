@@ -15,7 +15,7 @@ import {
     useGroupManagedRowIndex
 } from '../../../contexts/groupsManagedOptions';
 import SelectOrgUsers from '../OrganizationAdminOptions/SelectOrgUsers';
-import { useGroupsManagedTable } from '../../../contexts/platformAssistantContext';
+import { setReloadGroupsMembershipTable, useGroupsManagedTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -100,6 +100,7 @@ const initialGroupMembersValues = {
 }
 
 const CreateGroupMember: FC<CreateGroupMemberProps> = ({ refreshGroupMembers, backToTable, groupMembersInputData, setGroupMembersInputData }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const groupManagedId = useGroupManagedIdToCreateGroupMembers();
     const groupManagedRowIndex = useGroupManagedRowIndex();
     const groupsManagedTable = useGroupsManagedTable();
@@ -154,6 +155,8 @@ const CreateGroupMember: FC<CreateGroupMemberProps> = ({ refreshGroupMembers, ba
                 toast.success(data.message);
                 backToTable();
                 refreshGroupMembers();
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;

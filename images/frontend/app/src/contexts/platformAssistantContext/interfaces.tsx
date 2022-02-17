@@ -1,3 +1,4 @@
+import { boolean } from "yup/lib/locale";
 import { IBuilding } from "../../components/PlatformAssistant/TableColumns/buildingsColumns";
 import { IDashboard } from "../../components/PlatformAssistant/TableColumns/dashboardsColumns";
 import { IDevice } from "../../components/PlatformAssistant/TableColumns/devicesColumns";
@@ -29,24 +30,31 @@ export interface PlatformAssistantContextProps {
 	numDevicesManage: number;
 	platformAssitantOptionToShow: string;
 	selectOrgUsers: ISelectOrgUser[];
+	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
 	buildings: IBuilding[];
 	floors: IFloor[];
 	globalUsers: IGlobalUser[];
 	refreshTokens: IRefreshToken[];
 	orgsManaged: IOrgManaged[];
+	reloadOrgsManagedTable: boolean;
 	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
 	orgUsers: IOrgUser[];
 	groups: IGroup[];
 	groupsManaged: IGroupManaged[];
+	reloadGroupsManagedTable: boolean;
 	groupMembers: IGroupMember[];
+	reloadGroupMembersTable: boolean;
 	devices: IDevice[];
+	reloadDevicesTable: boolean;
 	topics: ITopic[];
 	dashboards: IDashboard[];
 	digitalTwins: IDigitalTwin[];
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
+	reloadOrgsMembershipTable: boolean;
 	groupsMembership: IMembershipInGroups[];
+	reloadGroupsMembershipTable: boolean;
 }
 
 export interface PlatformAssistantActionPayload {
@@ -56,24 +64,31 @@ export interface PlatformAssistantActionPayload {
 	numDevicesManage: number;
 	platformAssitantOptionToShow: string;
 	selectOrgUsers: ISelectOrgUser[];
+	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
 	buildings: IBuilding[];
 	floors: IFloor[];
 	globalUsers: IGlobalUser[];
 	refreshTokens: IRefreshToken[];
 	orgsManaged: IOrgManaged[];
+	reloadOrgsManagedTable: boolean;
 	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
 	orgUsers: IOrgUser[];
 	groups: IGroup[];
 	groupsManaged: IGroupManaged[];
+	reloadGroupsManagedTable: boolean;
 	groupMembers: IGroupMember[];
+	reloadGroupMembersTable: boolean;
 	devices: IDevice[];
+	reloadDevicesTable: boolean;
 	topics: ITopic[];
 	dashboards: IDashboard[];
 	digitalTwins: IDigitalTwin[];
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
+	reloadOrgsMembershipTable: boolean;
 	groupsMembership: IMembershipInGroups[];
+	reloadGroupsMembershipTable: boolean;
 }
 
 export interface PlatformAssistantAction {
@@ -95,6 +110,10 @@ export interface IPlatformAssistantOptionToShow {
 
 export interface ISelectOrgUsersTable {
 	selectOrgUsers: ISelectOrgUser[];
+}
+
+export interface IReloadSelectOrgUsersTable {
+	reloadSelectOrgUsersTable: boolean;
 }
 
 export interface IOrganizationsTable {
@@ -121,6 +140,10 @@ export interface IOrgsManagedTable {
 	orgsManaged: IOrgManaged[];
 }
 
+export interface IReloadOrgsManagedTable {
+	reloadOrgsManagedTable: boolean;
+}
+
 export interface IOrgsOfGroupsManagedTable {
 	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
 }
@@ -137,12 +160,24 @@ export interface IGroupsManagedTable {
 	groupsManaged: IGroupManaged[];
 }
 
+export interface IReloadGroupsManagedTable {
+	reloadGroupsManagedTable: boolean;
+}
+
 export interface IGroupMembersTable {
 	groupMembers: IGroupMember[];
 }
 
+export interface IReloadGroupMembersTable {
+	reloadGroupMembersTable: boolean;
+}
+
 export interface IDevicesTable {
 	devices: IDevice[];
+}
+
+export interface IReloadDevicesTable {
+	reloadDevicesTable: boolean;
 }
 
 export interface IUserProfileTable {
@@ -153,8 +188,16 @@ export interface IOrgsMembershipTable {
 	orgsMembership: IMembershipInOrgs[];
 }
 
+export interface IRealoadOrgsMembershipTable {
+	reloadOrgsMembershipTable: boolean; 
+}
+
 export interface IGroupsMembershipTable {
 	groupsMembership: IMembershipInGroups[];
+}
+
+export interface IReloadGroupsMembershipTable {
+	reloadGroupsMembershipTable: boolean;
 }
 
 export interface ITopicsTable {

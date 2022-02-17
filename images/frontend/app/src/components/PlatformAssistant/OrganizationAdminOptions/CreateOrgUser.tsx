@@ -12,7 +12,7 @@ import { useOrgManagedIdToCreateOrgUsers, useOrgManagedRowIndex } from '../../..
 import { IOrgUsersInput } from './OrgsManagedContainer';
 import SelectGlobalUsers from '../PlatformAdminOptions/SelectGlobalUsers';
 import { ISelectGlobalUser } from '../TableColumns/selectGlobalUserColumns';
-import { useOrgsManagedTable } from '../../../contexts/platformAssistantContext';
+import { setReloadGroupMembersTable, setReloadGroupsMembershipTable, setReloadOrgsMembershipTable, setReloadSelectOrgUsersTable, useOrgsManagedTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -97,6 +97,7 @@ const initialOrgUsersValues = {
 }
 
 const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, orgUsersInputData, setOrgUsersInputData }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const orgsManagedTable = useOrgsManagedTable();
     const orgManagedRowIndex = useOrgManagedRowIndex();
     const orgAcronym = orgsManagedTable[orgManagedRowIndex].acronym;
@@ -154,6 +155,14 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
                 toast.success(data.message);
                 backToTable();
                 refreshOrgUsers();
+                const reloadSelectOrgUsersTable = true;
+                setReloadSelectOrgUsersTable(plaformAssistantDispatch, { reloadSelectOrgUsersTable });
+                const reloadGroupMembersTable = true;
+                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+                const reloadOrgsMembershipTable = true;
+                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;

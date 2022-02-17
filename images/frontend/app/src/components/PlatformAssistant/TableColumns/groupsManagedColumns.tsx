@@ -6,7 +6,7 @@ import JSZip from 'jszip';
 import DownloadFileIcon from '../Utils/DownloadFileIcon';
 import ExChangeIcon from '../Utils/ExchangeIcon';
 import AddUsersIcon from '../Utils/AddUsersIcon';
-import RemoveUsersIcon from '../UserOptions/RemoveUsersIcon';
+import RemoveUsersIcon from '../Utils/RemoveUsersIcon';
 import {
     setGroupManagedIdToCreateGroupMembers,
     setGroupManagedRowIndex,

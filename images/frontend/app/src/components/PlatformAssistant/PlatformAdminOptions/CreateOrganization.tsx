@@ -13,6 +13,7 @@ import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { ISelectGlobalUser } from '../TableColumns/selectGlobalUserColumns';
 import SelectGlobalUsers from './SelectGlobalUsers';
 import { IOrgInputData } from './OrgsContainer';
+import { setReloadGroupsMembershipTable, setReloadOrgsManagedTable, setReloadOrgsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -76,6 +77,7 @@ interface CreateOrganizationProps {
 }
 
 const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshOrgs, orgInputData, setOrgInputData }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [showCreateOrg, setShowCreateOrg] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [selectedUsersArray, setSelectedUsersArray] = useState<ISelectGlobalUser[]>([]);
@@ -149,6 +151,12 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 setIsSubmitting(false);
                 setOrgsOptionToShow(orgsDispatch, orgsOptionToShow);
                 refreshOrgs();
+                const reloadOrgsManagedTable = true;
+                setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
+                const reloadOrgsMembershipTable = true;
+                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });                
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;

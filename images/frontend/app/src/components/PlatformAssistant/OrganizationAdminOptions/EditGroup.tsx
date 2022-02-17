@@ -22,6 +22,7 @@ import { GROUPS_OPTIONS, GROUPS_PREVIOUS_OPTIONS } from '../Utils/platformAssist
 import { IGroup } from '../TableColumns/groupsColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
+import { setReloadDevicesTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -142,6 +143,7 @@ const EditGroup: FC<EditGroupProps> = ({
 }) => {
     const authDispatch = useAuthDispatch();
     const groupsDispatch = useGroupsDispatch();
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const groupId = useGroupIdToEdit();
     const editGroupInputData = useGroupInputData();
     const groupRowIndex = useGroupRowIndexToEdit();
@@ -178,6 +180,12 @@ const EditGroup: FC<EditGroupProps> = ({
                 setIsSubmitting(false);
                 setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
                 refreshGroups();
+                const reloadGroupsManagedTable = true;
+                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+                const reloadDevicesTable = true;
+                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
