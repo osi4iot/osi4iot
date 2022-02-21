@@ -24,6 +24,7 @@ import {
 } from './ViewerUtils';
 import Lut from './Lut';
 import FemSimulationObjects from './FemSimulationObjects';
+import { toast } from 'react-toastify';
 
 
 export interface ISensorObject {
@@ -117,7 +118,7 @@ interface ModelProps {
 	digitalTwinSimulatorSendData: boolean;
 	setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
 	setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
-	setInitialDigitalTwinSimulatorState: React.Dispatch<React.SetStateAction<Record<string, number>>>;
+	initialDigitalTwinSimulatorState: Record<string, number>;
 }
 
 
@@ -164,7 +165,7 @@ const Model: FC<ModelProps> = (
 		digitalTwinSimulatorSendData,
 		setFemMinValues,
 		setFemMaxValues,
-		setInitialDigitalTwinSimulatorState
+		initialDigitalTwinSimulatorState
 	}) => {
 	const camera = useThree((state) => state.camera);
 	const container = canvasRef.current as HTMLCanvasElement | null;
@@ -326,11 +327,6 @@ const Model: FC<ModelProps> = (
 											if (typeof value === 'number') {
 												clipValues[index] = value;
 												isSensorStateChanged = true;
-												setInitialDigitalTwinSimulatorState((prevValues: any) => {
-													const newValues = { ...prevValues };
-													newValues[fieldName] = value;
-													return newValues;
-												})
 											}
 										}
 									}
@@ -369,11 +365,6 @@ const Model: FC<ModelProps> = (
 											if (typeof value === 'number') {
 												clipValues[index] = value;
 												isAssetStateChanged = true;
-												setInitialDigitalTwinSimulatorState((prevValues: any) => {
-													const newValues = { ...prevValues };
-													newValues[fieldName] = value;
-													return newValues;
-												})
 											}
 										}
 									}
@@ -413,11 +404,6 @@ const Model: FC<ModelProps> = (
 											if (typeof value === 'number') {
 												clipValues[index] = value;
 												isGenericObjectsStateChanged = true;
-												setInitialDigitalTwinSimulatorState((prevValues: any) => {
-													const newValues = { ...prevValues };
-													newValues[fieldName] = value;
-													return newValues;
-												})
 											}
 										}
 									}
@@ -455,11 +441,6 @@ const Model: FC<ModelProps> = (
 											if (typeof value === 'number') {
 												clipValues[index] = value;
 												isfemSimulationObjectsStateChanged = true;
-												setInitialDigitalTwinSimulatorState((prevValues: any) => {
-													const newValues = { ...prevValues };
-													newValues[fieldName] = value;
-													return newValues;
-												})
 											}
 										}
 									}
@@ -531,12 +512,21 @@ const Model: FC<ModelProps> = (
 
 	useLayoutEffect(() => {
 		if (client && client.connected && digitalTwinSimulatorState !== undefined) {
-			if (digitalTwinModelMqttTopic && Object.keys(digitalTwinSimulatorState).length !== 0 && digitalTwinSimulatorSendData) {
-				const mqttTopic = digitalTwinModelMqttTopic.mqttTopic;
-				const message = JSON.stringify(digitalTwinSimulatorState);
-				if (lastMqttMessageSended !== message) {
-					client.publish(mqttTopic, message)
-					setLastMqttMessageSended(message);
+			if (digitalTwinModelMqttTopic && Object.keys(digitalTwinSimulatorState).length !== 0) {
+				if (digitalTwinSimulatorSendData) {
+					const mqttTopic = digitalTwinModelMqttTopic.mqttTopic;
+					const message = JSON.stringify(digitalTwinSimulatorState);
+					if (lastMqttMessageSended !== message) {
+						client.publish(mqttTopic, message)
+						setLastMqttMessageSended(message);
+					}
+				} else {
+					const dtSimStateString = JSON.stringify(digitalTwinSimulatorState);
+					const initialDTSimStateString = JSON.stringify(initialDigitalTwinSimulatorState);
+					if (dtSimStateString !== lastMqttMessageSended && dtSimStateString !== initialDTSimStateString) {
+						const warningMessage = "Warning: To use the digital twin simulator, reading the measurements from the sensors must be locked.";
+						toast.warning(warningMessage);
+					}
 				}
 			}
 		}

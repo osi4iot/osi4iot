@@ -33,7 +33,17 @@ import {
     useReloadSelectOrgUsersTable,
     setReloadSelectOrgUsersTable,
     useReloadGroupMembersTable,
-    setReloadGroupMembersTable
+    setReloadGroupMembersTable,
+    useReloadDevicesTable,
+    setReloadDevicesTable,
+    useReloadTopicsTable,
+    setReloadTopicsTable,
+    useReloadDashboardsTable,
+    setReloadDashboardsTable,
+    useReloadDigitalTwinsTable,
+    setReloadDigitalTwinsTable,
+    useReloadGroupsManagedTable,
+    setReloadGroupsManagedTable
 } from '../../../contexts/platformAssistantContext';
 import { GroupsManagedProvider } from '../../../contexts/groupsManagedOptions';
 import GroupsManagedContainer from './GroupsManagedContainer';
@@ -152,28 +162,27 @@ const GroupAdminOptions: FC<{}> = () => {
 
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadloors] = useState(false);
-    const [reloadGroupsManaged, setReloadGroupsManaged] = useState(false);
+    const reloadGroupsManagedTable = useReloadGroupsManagedTable();
     const reloadGroupMembersTable = useReloadGroupMembersTable();
-    const [reloadDevices, setReloadDevices] = useState(false);
-    const [reloadTopics, setReloadTopics] = useState(false);
-    const [reloadDashboards, setReloadDashboards] = useState(false);
-    const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
+    const reloadDevicesTable = useReloadDevicesTable();
+    const reloadTopicsTable = useReloadTopicsTable();
+    const reloadDashboardsTable = useReloadDashboardsTable();
+    const reloadDigitalTwinsTable = useReloadDigitalTwinsTable();
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
     const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
     const reloadSelectOrgUsersTable = useReloadSelectOrgUsersTable();
 
     const refreshGroupsManaged = useCallback(() => {
-        setReloadGroupsManaged(true);
         setGroupsManagedLoading(true);
-        setTimeout(() => setReloadGroupsManaged(false), 500);
-    }, []);
-
+        const reloadGroupsManagedTable = true;
+        setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+    }, [plaformAssistantDispatch]);
 
     const refreshDevices = useCallback(() => {
-        setReloadDevices(true);
         setDevicesLoading(true);
-        setTimeout(() => setReloadDevices(false), 500);
-    }, [])
+        const reloadDevicesTable = true;
+        setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+    }, [plaformAssistantDispatch])
 
 
     const refreshGroupMembers = useCallback(() => {
@@ -183,22 +192,22 @@ const GroupAdminOptions: FC<{}> = () => {
     }, [plaformAssistantDispatch])
 
     const refreshTopics = useCallback(() => {
-        setReloadTopics(true);
         setTopicsLoading(true);
-        setTimeout(() => setReloadTopics(false), 500);
-    }, [])
+        const reloadTopicsTable = true;
+        setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+    }, [plaformAssistantDispatch])
 
     const refreshDashboards = useCallback(() => {
-        setReloadDashboards(true);
         setDashboardsLoading(true);
-        setTimeout(() => setReloadDashboards(false), 500);
-    }, [])
+        const reloadDashboardsTable = true;
+        setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+    }, [plaformAssistantDispatch])
 
     const refreshDigitalTwins = useCallback(() => {
-        setReloadDigitalTwins(true);
         setDigitalTwinsLoading(true);
-        setTimeout(() => setReloadDigitalTwins(false), 500);
-    }, [])
+        const reloadDigitalTwinsTable = true;
+        setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+    }, [plaformAssistantDispatch])
 
     const refreshBuildings = useCallback(() => {
         setReloadBuildings(true);
@@ -303,7 +312,7 @@ const GroupAdminOptions: FC<{}> = () => {
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, orgsOfGroupManagedTable.length]);
 
     useEffect(() => {
-        if (groupsManagedTable.length === 0 || reloadGroupsManaged) {
+        if (groupsManagedTable.length === 0 || reloadGroupsManagedTable) {
             const config = axiosAuth(accessToken);
             const urlGroupsManaged = `https://${domainName}/admin_api/groups/user_managed`;
             axiosInstance(refreshToken, authDispatch)
@@ -316,6 +325,8 @@ const GroupAdminOptions: FC<{}> = () => {
                     })
                     setGroupsManagedTable(plaformAssistantDispatch, { groupsManaged });
                     setGroupsManagedLoading(false);
+                    const reloadGroupsManagedTable = false;
+                    setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -323,7 +334,14 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setGroupsManagedLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadGroupsManaged, groupsManagedTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadGroupsManagedTable,
+        groupsManagedTable.length
+    ]);
 
     useEffect(() => {
         if (groupMembersTable.length === 0 || reloadGroupMembersTable) {
@@ -375,7 +393,7 @@ const GroupAdminOptions: FC<{}> = () => {
     }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadSelectOrgUsersTable, selectOrgUsersTable.length]);
 
     useEffect(() => {
-        if (devicesTable.length === 0 || reloadDevices) {
+        if (devicesTable.length === 0 || reloadDevicesTable) {
             const config = axiosAuth(accessToken);
             const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
             axiosInstance(refreshToken, authDispatch)
@@ -384,6 +402,8 @@ const GroupAdminOptions: FC<{}> = () => {
                     const devices = response.data;
                     setDevicesTable(plaformAssistantDispatch, { devices });
                     setDevicesLoading(false);
+                    const reloadDevicesTable = false;
+                    setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -391,11 +411,18 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setDevicesLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDevices, devicesTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadDevicesTable,
+        devicesTable.length
+    ]);
 
 
     useEffect(() => {
-        if (topicsTable.length === 0 || reloadTopics) {
+        if (topicsTable.length === 0 || reloadTopicsTable) {
             const config = axiosAuth(accessToken);
             const urlTopics = `https://${domainName}/admin_api/topics/user_managed`;
             axiosInstance(refreshToken, authDispatch)
@@ -408,6 +435,8 @@ const GroupAdminOptions: FC<{}> = () => {
                     })
                     setTopicsTable(plaformAssistantDispatch, { topics });
                     setTopicsLoading(false);
+                    const reloadTopicsTable = false;
+                    setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -415,11 +444,17 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setTopicsLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadTopics, topicsTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadTopicsTable,
+        topicsTable.length
+    ]);
 
     useEffect(() => {
-        if (dashboardsTable.length === 0 || reloadDashboards) {
-
+        if (dashboardsTable.length === 0 || reloadDashboardsTable) {
             const config = axiosAuth(accessToken);
             const urlDashboards = `https://${domainName}/admin_api/dashboards/user_managed/`;
             axiosInstance(refreshToken, authDispatch)
@@ -428,6 +463,8 @@ const GroupAdminOptions: FC<{}> = () => {
                     const dashboards = response.data;
                     setDashboardsTable(plaformAssistantDispatch, { dashboards });
                     setDashboardsLoading(false);
+                    const reloadDashboardsTable = false;
+                    setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -436,10 +473,17 @@ const GroupAdminOptions: FC<{}> = () => {
             setDashboardsLoading(false);
         }
 
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDashboards, dashboardsTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadDashboardsTable,
+        dashboardsTable.length
+    ]);
 
     useEffect(() => {
-        if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
+        if (digitalTwinsTable.length === 0 || reloadDigitalTwinsTable) {
             const config = axiosAuth(accessToken);
             const urlDigitalTwins = `https://${domainName}/admin_api/digital_twins/user_managed`;
             axiosInstance(refreshToken, authDispatch)
@@ -448,6 +492,8 @@ const GroupAdminOptions: FC<{}> = () => {
                     const digitalTwins = response.data;
                     setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
                     setDigitalTwinsLoading(false);
+                    const reloadDigitalTwinsTable = false;
+                    setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
                 })
                 .catch((error) => {
                     const digitalTwins: never[] = [];
@@ -460,7 +506,14 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setDigitalTwinsLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDigitalTwins, digitalTwinsTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadDigitalTwinsTable,
+        digitalTwinsTable.length
+    ]);
 
 
 

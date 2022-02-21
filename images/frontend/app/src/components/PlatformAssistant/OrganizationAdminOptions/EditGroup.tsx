@@ -180,6 +180,7 @@ const EditGroup: FC<EditGroupProps> = ({
                 setIsSubmitting(false);
                 setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
                 refreshGroups();
+
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
                 const reloadDevicesTable = true;

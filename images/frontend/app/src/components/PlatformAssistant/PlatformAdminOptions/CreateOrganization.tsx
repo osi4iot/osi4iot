@@ -13,7 +13,22 @@ import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { ISelectGlobalUser } from '../TableColumns/selectGlobalUserColumns';
 import SelectGlobalUsers from './SelectGlobalUsers';
 import { IOrgInputData } from './OrgsContainer';
-import { setReloadGroupsMembershipTable, setReloadOrgsManagedTable, setReloadOrgsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadGroupsTable,
+    setReloadGroupsMembershipTable,
+    setReloadOrgsManagedTable,
+    setReloadOrgsMembershipTable,
+    usePlatformAssitantDispatch,
+    setReloadGroupsManagedTable,
+    setReloadGroupMembersTable,
+    setReloadDevicesTable,
+    setReloadDigitalTwinsTable,
+    setReloadDashboardsTable,
+    setReloadOrgsOfGroupsManagedTable,
+    setReloadOrgUsersTable,
+    setReloadTopicsTable
+} from '../../../contexts/platformAssistantContext';
+
 
 
 const FormContainer = styled.div`
@@ -153,10 +168,29 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 refreshOrgs();
                 const reloadOrgsManagedTable = true;
                 setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
+                const reloadOrgUsersTable = true;
+                setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
                 const reloadOrgsMembershipTable = true;
                 setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
+                const reloadGroupsTable = true;
+                setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
                 const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });                
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+                const reloadGroupsManagedTable = true;
+                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+                
+                const reloadOrgsOfGroupsManagedTable = true;
+                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+                const reloadGroupMembersTable = true;
+                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+                const reloadDevicesTable = true;
+                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadTopicsTable = true;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadDigitalTwinsTable = true;
+                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;

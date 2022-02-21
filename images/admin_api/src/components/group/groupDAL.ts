@@ -49,7 +49,8 @@ export const createGroup = async (
 	const teamData = { ...groupInput, orgId };
 	const orgKey = await getOrganizationKey(orgId);
 	const team = await grafanaApi.createTeam(orgId, teamData);
-	const folderData = { title: groupInput.name, email: groupInput.email };
+	const newFolderUid = uuidv4();
+	const folderData = { title: groupInput.name, uid: newFolderUid };
 	const folder = await grafanaApi.createFolder(folderData, orgKey);
 	const teamId = team.teamId;
 	const folderId = folder.id;
@@ -543,16 +544,10 @@ export const deleteGroup = async (group: IGroup, orgKey: string): Promise<string
 	await deleteNotificationChannelById(group.telegramNotificationChannelId);
 	await deleteNotificationChannelById(group.emailNotificationChannelId);
 	let message = "The group could not be deleted";
-	if (response.rows[0]) message = "Group deleted successfully";
+	if (response.rows[0]) {
+		message = "Group deleted successfully";
+	}
 	return message;
-};
-
-export const deleteGroupByName = async (groupName: string, orgKey: string): Promise<void> => {
-	const group = await getGroupByProp("name", groupName);
-	await pool.query('DELETE FROM grafanadb.group WHERE id = $1', [group.id]);
-	await grafanaApi.deleteFolderByUid(group.folderId, group.folderUid, orgKey);
-	await grafanaApi.deleteTeamById(group.orgId, group.teamId);
-	await deleteView(group.groupUid);
 };
 
 type settingType = IGrafanaNotificationChannelSettings | IEmailNotificationChannelSettings;

@@ -16,7 +16,13 @@ import {
 } from '../../../contexts/orgsOptions';
 import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IOrganization } from '../TableColumns/organizationsColumns';
-import { setReloadGroupsMembershipTable, setReloadOrgsManagedTable, setReloadOrgsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadGroupsMembershipTable,
+    setReloadOrgsManagedTable,
+    setReloadOrgsMembershipTable,
+    usePlatformAssitantDispatch,
+    setReloadGroupsTable
+} from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -122,6 +128,8 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                 setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
                 const reloadOrgsMembershipTable = true;
                 setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
+                const reloadGroupsTable = true;
+                setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })

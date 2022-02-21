@@ -1,4 +1,7 @@
 import pool from "../../config/dbconfig";
+import IDevice from "../device/device.interface";
+import ITopic from "../topic/topic.interface";
+import { getTopicsByDeviceId } from "../topic/topicDAL";
 import IMeasurement from "./measurement.interface";
 
 export const updateMeasurement = async (groupUid: string, topic: string, timestamp: string, newPayload: string): Promise<IMeasurement> => {
@@ -57,6 +60,17 @@ export const getLastMeasurements = async (groupUid: string, topic: string, count
 	return response.rows;
 };
 
+export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topicsArray: string[]): Promise<IMeasurement[]> => {
+	const response = await pool.query(`SELECT DISTINCT ON (topic) timestamp, topic, payload
+									FROM iot_data.thingData
+									WHERE group_uid = $1 AND
+									topic = ANY($2::text[])
+									ORDER BY topic DESC,
+											timestamp DESC
+									LIMIT $3;`, [groupUid, topicsArray, topicsArray.length]);
+	return response.rows;
+};
+
 export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
 	const response = await pool.query(`SELECT timestamp, topic, payload
 									FROM iot_data.thingData
@@ -102,5 +116,26 @@ export const getTotalRowsDuringMeasurements = async (
 									[groupUid, topic, start, end]);
 	return response.rows[0].count;
 };
+
+export const updateMeasurementsTopicByDevice = async (device: IDevice, newDeviceUid: string): Promise<void> => {
+	const measurementUpdateQueries: any[] = [];
+	const topics = await getTopicsByDeviceId(device.id);
+
+	topics.forEach(topic => {
+		const oldTopic = `Device_${device.deviceUid}/Topic_${topic.topicUid}`;
+		const newTopic = `Device_${newDeviceUid}/Topic_${topic.topicUid}`;
+		const query = pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`,
+			[newTopic, oldTopic]);
+		measurementUpdateQueries.push(query);
+	});
+
+	await Promise.all(measurementUpdateQueries)
+}
+
+export const updateMeasurementsTopicByTopic = async (device: IDevice, topic: ITopic, newTopicUid: string): Promise<void> => {
+	const oldTopic = `Device_${device.deviceUid}/Topic_${topic.topicUid}`;
+	const newTopic = `Device_${device.deviceUid}/Topic_${newTopicUid}`;
+	await pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`, [newTopic, oldTopic]);
+}
 
 

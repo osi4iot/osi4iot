@@ -15,7 +15,7 @@ import SelectOrgUsersOfOrgManaged from './SelectOrgUsersOfOrgManaged';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
-import { setReloadDevicesTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -212,10 +212,22 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 refreshGroups();
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
-                const reloadDevicesTable = true;
-                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+
+                const reloadOrgsOfGroupsManagedTable = true;
+                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+                const reloadGroupMembersTable = true;
+                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+                const reloadDevicesTable = true;
+                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadTopicsTable = true;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadDigitalTwinsTable = true;
+                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                toast.success(data.message);
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;

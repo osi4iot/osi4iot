@@ -8,6 +8,21 @@ import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setOrgIdToEdit, setOrgRowIndexToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgsOptions';
+import {
+    usePlatformAssitantDispatch,
+    setReloadGroupsMembershipTable,
+    setReloadGroupsTable,
+    setReloadOrgsManagedTable,
+    setReloadOrgsMembershipTable,
+    setReloadOrgUsersTable,
+    setReloadGroupsManagedTable,
+    setReloadGroupMembersTable,
+    setReloadDevicesTable,
+    setReloadDigitalTwinsTable,
+    setReloadDashboardsTable,
+    setReloadOrgsOfGroupsManagedTable,
+    setReloadTopicsTable
+} from '../../../contexts/platformAssistantContext';
 
 
 export interface IOrganization {
@@ -36,6 +51,7 @@ interface DeleteOrgModalProps {
 const domainName = getDomainName();
 
 const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isOrgDeleted, setIsOrgDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE ORGANIZATION";
@@ -63,7 +79,33 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
                 setIsOrgDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
+                const reloadOrgsManagedTable = true;
+                setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
+                const reloadOrgUsersTable = true;
+                setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
+                const reloadOrgsMembershipTable = true;
+                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
+                const reloadGroupsTable = true;
+                setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+                const reloadGroupsManagedTable = true;
+                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+
+                const reloadOrgsOfGroupsManagedTable = true;
+                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+                const reloadGroupMembersTable = true;
+                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+                const reloadDevicesTable = true;
+                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadTopicsTable = true;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadDigitalTwinsTable = true;
+                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
                 toast.success(data.message);
+                
                 hideModal();
             })
             .catch((error) => {

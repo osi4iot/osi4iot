@@ -1,4 +1,5 @@
 import pool from "../../config/dbconfig";
+import { getAllGroupsInOrganization } from "../group/groupDAL";
 import IDashboard from "./dashboard.interface";
 import IDashboardInfo from "./dashboardInfo.interfase";
 
@@ -85,4 +86,8 @@ export const getDashboardsInfoFromIdArray = async (idArray: number[]): Promise<I
 	return dashboardsInfo.concat(nonExistentDashboardsInfo);
 }
 
-
+export const deleteDashboardsByFolderId = async (folderId: number): Promise<void> => {
+	await pool.query(`DELETE FROM grafanadb.dashboard
+	                  WHERE id = $1 AND
+					  folder_id = $1;`, [folderId]);
+}

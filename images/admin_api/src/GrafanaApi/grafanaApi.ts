@@ -31,12 +31,6 @@ const optionsBasicAuthApiAdmin = {
 	json: true
 }
 
-const optionsBasicAuthPlatformAdmin = {
-	username: process_env.PLATFORM_ADMIN_USER_NAME,
-	password: process_env.PLATFORM_ADMIN_PASSWORD,
-	json: true
-}
-
 const optionsBasicAuthOrgAdmin = (orgId: number) => {
 	return {
 		username: `org_${orgId}_api_admin`,
@@ -462,7 +456,7 @@ export default class GrafanaApi implements IDashboardApi {
 
 	private generateOptionsToken(orgKey: string): IOptionsToken {
 		const optionsToken = {
-			headers: { "Authorization": `Bearer ${orgKey}` }
+			headers: { "Authorization": `Bearer ${orgKey}`, "Content-Type": "application/json", "Accept": "application/json" }
 		}
 		return optionsToken;
 	}

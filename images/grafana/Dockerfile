@@ -1,5 +1,6 @@
 #FROM grafana/grafana
-FROM grafana/grafana:8.2.1-ubuntu
+#FROM grafana/grafana:8.2.1-ubuntu
+FROM grafana/grafana:8.4.1-ubuntu
 COPY grafana.ini /etc/grafana/grafana.ini
 COPY data/default_datasource.yml /etc/grafana/provisioning/datasources/default.yml
 COPY entry_script.sh /src/scripts/entry_script.sh

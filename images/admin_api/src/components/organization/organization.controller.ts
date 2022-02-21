@@ -686,13 +686,14 @@ class OrganizationController implements IController {
 			const organization = await getOrganizationByProp(propName, propValue);
 			if (!organization) throw new ItemNotFoundException("The Organization", propName, propValue);
 			if (organization.id === 1) throw new HttpException(400, "Main organization can not be deleted");
-			await grafanaApi.deleteOrgApiAdminUser(organization.id);
-			const defaultOrgGroup = await getDefaultOrgGroup(organization.id);
-			const orgKey = await getOrganizationKey(organization.id);
-			await deleteGroup(defaultOrgGroup, orgKey);
-			await grafanaApi.deleteOrganizationById(organization.id);
 			await grafanaApi.switchOrgContextForAdmin(1);
-			res.status(200).json({ message: `Organization deleted successfully` });
+			await grafanaApi.deleteOrgApiAdminUser(organization.id);
+			const deleteOrgMessage = await grafanaApi.deleteOrganizationById(organization.id);
+			if (deleteOrgMessage.message === "Organization deleted") {
+				res.status(200).json({ message: `Organization deleted successfully` });
+			} else {
+				throw new HttpException(400, `Organization with id=${organization.id} could not be deleted`);
+			}
 		} catch (error) {
 			next(error);
 		}

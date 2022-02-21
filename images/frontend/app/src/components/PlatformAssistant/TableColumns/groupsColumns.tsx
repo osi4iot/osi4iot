@@ -16,6 +16,7 @@ import {
     useGroupsDispatch
 } from '../../../contexts/groupsOptions';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
+import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 export interface IGroup {
     id: number;
@@ -48,6 +49,7 @@ interface DeleteGroupModalProps {
 const domainName = getDomainName();
 
 const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId, refreshGroups }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isGroupDeleted, setIsGroupDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE GROUP";
@@ -76,6 +78,23 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
+                const reloadGroupsManagedTable = true;
+                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
+                const reloadGroupsMembershipTable = true;
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });                
+
+                const reloadOrgsOfGroupsManagedTable = true;
+                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+                const reloadGroupMembersTable = true;
+                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+                const reloadDevicesTable = true;
+                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadTopicsTable = true;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadDigitalTwinsTable = true;
+                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });                
                 hideModal();
             })
             .catch((error) => {

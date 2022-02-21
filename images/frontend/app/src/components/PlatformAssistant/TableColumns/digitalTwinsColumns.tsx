@@ -8,6 +8,7 @@ import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDigitalTwinIdToEdit, setDigitalTwinRowIndexToEdit, setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
+import { DigitalTwinSimulationParameter } from '../DigitalTwin3DViewer/ViewerUtils';
 
 export interface IDigitalTwin {
     id: number;
@@ -37,7 +38,7 @@ export interface IDigitalTwinSimulator {
     deviceId: number;
     name: string;
     description: string;
-    digitalTwinSimulationFormat: string;
+    digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
     sensorSimulationTopicId: number;
     mqttTopic: string;
 }

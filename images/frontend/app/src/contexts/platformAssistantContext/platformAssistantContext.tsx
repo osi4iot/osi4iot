@@ -99,6 +99,14 @@ export const useBuildingsTable = (): IBuilding[] => {
 	return context.buildings;
 }
 
+export const useReloadBuildingsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadBuildingsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadBuildingsTable;
+}
+
 export const useFloorsTable = (): IFloor[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
@@ -107,12 +115,28 @@ export const useFloorsTable = (): IFloor[] => {
 	return context.floors;
 }
 
+export const useReloadFloorsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadFloorsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadFloorsTable;
+}
+
 export const useGlobalUsersTable = (): IGlobalUser[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
 		throw new Error('useGlobalUsersTable must be used within a PlatformAssitantProvider');
 	}
 	return context.globalUsers;
+}
+
+export const useReloadGlobalUsersTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadGlobalUsersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadGlobalUsersTable;
 }
 
 export const useRefreshTokensTable = (): IRefreshToken[] => {
@@ -148,6 +172,14 @@ export const useOrgsOfGroupsManagedTable = (): IOrgOfGroupsManaged[] => {
 	return context.orgsOfGroupsManaged;
 }
 
+export const useReloadOrgsOfGroupsManagedTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadOrgsOfGroupsManagedTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadOrgsOfGroupsManagedTable;
+}
+
 export const useOrgUsersTable = (): IOrgUser[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
@@ -156,12 +188,28 @@ export const useOrgUsersTable = (): IOrgUser[] => {
 	return context.orgUsers;
 }
 
+export const useReloadOrgUsersTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadOrgUsersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadOrgUsersTable;
+}
+
 export const useGroupsTable = (): IGroup[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
 		throw new Error('useGroupsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.groups;
+}
+
+export const useReloadGroupsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadGroupsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadGroupsTable;
 }
 
 export const useGroupsManagedTable = (): IGroupManaged[] => {
@@ -220,12 +268,28 @@ export const useTopicsTable = (): ITopic[] => {
 	return context.topics;
 }
 
+export const useReloadTopicsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadTopicsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadTopicsTable;
+}
+
 export const useDashboardsTable = (): IDashboard[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
-		throw new Error('seDashboardsTable must be used within a PlatformAssitantProvider');
+		throw new Error('useDashboardsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.dashboards;
+}
+
+export const useReloadDashboardsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadDashboardsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadDashboardsTable;
 }
 
 export const useDigitalTwinsTable = (): IDigitalTwin[] => {
@@ -234,6 +298,14 @@ export const useDigitalTwinsTable = (): IDigitalTwin[] => {
 		throw new Error('useTopicsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.digitalTwins;
+}
+
+export const useReloadDigitalTwinsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadDigitalTwinsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadDigitalTwinsTable;
 }
 
 export const useUserProfileTable = (): IUserProfile => {

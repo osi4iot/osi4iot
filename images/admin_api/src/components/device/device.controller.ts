@@ -17,6 +17,7 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IDevice from "./device.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId} from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import { updateMeasurementsTopicByDevice } from "../mesurement/measurementDAL";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -227,6 +228,7 @@ class DeviceController implements IController {
 			const newDeviceUid = await changeDeviceUidByUid(device);
 			await updateDashboardsDataRawSqlOfDevice(device, newDeviceUid, dashboards);
 			await updateDeviceUidRawSqlAlertSettingOfGroup(req.group, device.deviceUid, newDeviceUid);
+			await updateMeasurementsTopicByDevice(device, newDeviceUid);
 			const message = { newDeviceUid };
 			res.status(200).json(message);
 		} catch (error) {

@@ -24,6 +24,12 @@ import {
     useFloorsTable,
     setBuildingsTable,
     setFloorsTable,
+    useReloadGlobalUsersTable,
+    setReloadGlobalUsersTable,
+    useReloadBuildingsTable,
+    useReloadFloorsTable,
+    setReloadBuildingsTable,
+    setReloadFloorsTable,
 
 } from '../../../contexts/platformAssistantContext';
 import { BuildingsProvider } from '../../../contexts/buildingsOptions';
@@ -121,9 +127,9 @@ const PlatformAdminOptions: FC<{}> = () => {
     const [refreshTokensLoading, setRefreshTokensLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ADMIN_OPTIONS.BUILDINGS);
     const [reloadOrgs, setReloadOrgs] = useState(false);
-    const [reloadBuildings, setReloadBuildings] = useState(false);
-    const [reloadFloors, setReloadFloors] = useState(false);
-    const [reloadGlobalUsers, setReloadGlobalUsers] = useState(false);
+    const reloadBuildingsTable = useReloadBuildingsTable();
+	const reloadFloorsTable = useReloadFloorsTable();
+    const reloadGlobalUsersTable = useReloadGlobalUsersTable();
     const [reloadRefreshTokens, setReloadRefreshTokens] = useState(false);
 
     const refreshOrgs = useCallback(() => {
@@ -133,23 +139,22 @@ const PlatformAdminOptions: FC<{}> = () => {
     }, []);
 
     const refreshBuildings = useCallback(() => {
-        setReloadBuildings(true);
         setBuildingsLoading(true);
-        setTimeout(() => setReloadBuildings(false), 500);
-    }, []);
+        const reloadBuildingsTable = true;
+        setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
+    }, [plaformAssistantDispatch]);
 
     const refreshFloors = useCallback(() => {
-        setReloadFloors(true);
         setFloorsLoading(true);
-        setTimeout(() => setReloadFloors(false), 500);
-    }, []);
+        const reloadFloorsTable = true;
+        setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
+    }, [plaformAssistantDispatch]);
 
     const refreshGlobalUsers = useCallback(() => {
-        setReloadGlobalUsers(true);
         setGlobalUsersLoading(true);
-        setTimeout(() => setReloadGlobalUsers(false), 500);
-    }, []);
-
+        const reloadGlobalUsersTable = true;
+        setReloadGlobalUsersTable(plaformAssistantDispatch, { reloadGlobalUsersTable });
+    }, [plaformAssistantDispatch]);
 
     const refreshRefreshTokens = useCallback(() => {
         setReloadRefreshTokens(true);
@@ -179,7 +184,7 @@ const PlatformAdminOptions: FC<{}> = () => {
     }, [accessToken, refreshToken, authDispatch, reloadOrgs, plaformAssistantDispatch, organizationsTable.length]);
 
     useEffect(() => {
-        if (buildingsTable.length === 0 || reloadBuildings) {
+        if (buildingsTable.length === 0 || reloadBuildingsTable) {
             const urlBuildings = `https://${domainName}/admin_api/buildings`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
@@ -188,6 +193,8 @@ const PlatformAdminOptions: FC<{}> = () => {
                     const buildings = response.data;
                     setBuildingsTable(plaformAssistantDispatch, { buildings });
                     setBuildingsLoading(false);
+                    const reloadBuildingsTable = false;
+                    setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -196,10 +203,17 @@ const PlatformAdminOptions: FC<{}> = () => {
         } else {
             setBuildingsLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, reloadBuildings, plaformAssistantDispatch, buildingsTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        reloadBuildingsTable,
+        plaformAssistantDispatch,
+        buildingsTable.length
+    ]);
 
     useEffect(() => {
-        if (floorsTable.length === 0 || reloadFloors) {
+        if (floorsTable.length === 0 || reloadFloorsTable) {
             const urlFloors = `https://${domainName}/admin_api/building_floors`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
@@ -208,6 +222,8 @@ const PlatformAdminOptions: FC<{}> = () => {
                     const floors = response.data;
                     setFloorsTable(plaformAssistantDispatch, { floors });
                     setFloorsLoading(false);
+                    const reloadFloorsTable = false;
+                    setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -216,10 +232,17 @@ const PlatformAdminOptions: FC<{}> = () => {
         } else {
             setFloorsLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, reloadFloors, plaformAssistantDispatch, floorsTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        reloadFloorsTable,
+        plaformAssistantDispatch,
+        floorsTable.length
+    ]);
 
     useEffect(() => {
-        if (globalUsersTable.length === 0 || reloadGlobalUsers) {
+        if (globalUsersTable.length === 0 || reloadGlobalUsersTable) {
             const config = axiosAuth(accessToken);
             const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
             axiosInstance(refreshToken, authDispatch)
@@ -233,6 +256,8 @@ const PlatformAdminOptions: FC<{}> = () => {
                     })
                     setGlobalUsersTable(plaformAssistantDispatch, { globalUsers });
                     setGlobalUsersLoading(false);
+                    const reloadGlobalUsersTable = false;
+                    setReloadGlobalUsersTable(plaformAssistantDispatch, { reloadGlobalUsersTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -241,7 +266,14 @@ const PlatformAdminOptions: FC<{}> = () => {
             setGlobalUsersLoading(false);
         }
 
-    }, [accessToken, refreshToken, authDispatch, reloadGlobalUsers, plaformAssistantDispatch, globalUsersTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        reloadGlobalUsersTable,
+        plaformAssistantDispatch,
+        globalUsersTable.length
+    ]);
 
     useEffect(() => {
         if (refreshTokensTable.length === 0 || reloadRefreshTokens) {

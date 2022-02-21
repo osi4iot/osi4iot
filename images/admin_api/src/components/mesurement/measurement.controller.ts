@@ -10,6 +10,7 @@ import {
 	deleteMeasurement,
 	deleteMeasurementsBeforeDate,
 	getDuringMeasurementsWithPagination,
+	getLastMeasurementsFromTopicsArray,
 	getLastMeasurements,
 	getMeasurement,
 	getTotalRowsDuringMeasurements,
@@ -20,6 +21,9 @@ import MeasurementRequestBodyDto from "./measurementRequestBody.dto";
 import MeasurementsWithPaginationDto from "./measurementsWithPagination.dto";
 import DeleteMeasurementsBeforeDateDto from "./deleteMeasurementsBeforeDate.dto";
 import LastMeasurementsDto from "./lastMeasurementsDto";
+import LastMeasurementsForTopicsIdArrayDto from "./lastMeasurmentsForTopicsIdArrayDto";
+import { getMqttTopicsInfoFromIdArray } from "../topic/topicDAL";
+import { generateSqlTopic } from "../digitalTwin/digitalTwinDAL";
 
 class MeasurementController implements IController {
 	public path = "/measurement";
@@ -45,6 +49,13 @@ class MeasurementController implements IController {
 				groupAdminAuth,
 				validationMiddleware<LastMeasurementsDto>(LastMeasurementsDto),
 				this.getLastMeasurements
+			)
+			.post(
+				`${this.path}s_last_from_topicsid_array/:groupId`,
+				groupExists,
+				groupAdminAuth,
+				validationMiddleware<LastMeasurementsForTopicsIdArrayDto>(LastMeasurementsForTopicsIdArrayDto),
+				this.getLastMeasurementsFromTopicsIdArray
 			)
 			.post(
 				`${this.path}s_pagination/:groupId`,
@@ -109,6 +120,28 @@ class MeasurementController implements IController {
 		}
 	};
 
+	private getLastMeasurementsFromTopicsIdArray = async (
+		req: IRequestWithGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const groupUid = req.group.groupUid;
+			const topicsId = req.body.topicsIdArray;
+			const topicsInfo = await getMqttTopicsInfoFromIdArray(topicsId);
+			const topicsArray: string[] = [];
+			topicsInfo.forEach(topicInfo => {
+				const sqlTopic = generateSqlTopic(topicInfo);
+				topicsArray.push(sqlTopic);
+			});
+			const measurements = await getLastMeasurementsFromTopicsArray(groupUid, topicsArray);
+			res.status(200).send(measurements);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+
 	private getMeasurementsWithPagination = async (
 		req: IRequestWithGroup,
 		res: Response,
@@ -133,7 +166,7 @@ class MeasurementController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			const {topic, timestamp, updatedPayload} = req.body;
+			const { topic, timestamp, updatedPayload } = req.body;
 			const groupUid = req.group.groupUid;
 			const existMeasurement = await getMeasurement(groupUid, topic, timestamp);
 			if (!existMeasurement) throw new ItemNotFoundException("The measurement", "timestamp", timestamp);

@@ -26,9 +26,10 @@ import {
 	FemSimObjectVisibilityState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { getDomainName } from '../../../tools/tools';
+import { axiosAuth, axiosInstance, getDomainName } from '../../../tools/tools';
 import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
+import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
 
 
 const CanvasContainer = styled.div`
@@ -255,7 +256,7 @@ const StyledDatButtom = styled(DatButton)`
 	}
 
 	.label-text {
-        width: 50% !important;
+        width: 90% !important;
 		margin: auto;
 		text-align: center;
     }
@@ -377,6 +378,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	digitalTwinGltfData,
 	close3DViewer
 }) => {
+	const { accessToken, refreshToken } = useAuthState();
+	const authDispatch = useAuthDispatch();
 	const canvasContainerRef = useRef(null);
 	const canvasRef = useRef(null);
 	const controlsRef = useRef() as any;
@@ -404,10 +407,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [initialAssetsVisibilityState, setInitialAssetsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
 	const [initialFemSimObjectsVisibilityState, setInitialFemSimObjectsVisibilityState] = useState<Record<string, FemSimObjectVisibilityState> | null>(null);
 	const [digitalTwinSimulatorSendData, setDigitalTwinSimulatorSendData] = useState(false);
-	const [digitalTwinSimulatorButtomLabel, setDigitalTwinSimulatorButtomLabel] = useState("SEND DATA");
+	const [lockReadingButtomLabel, setLockReadingButtomLabel] = useState("LOCK READ MEASUREMENTS");
 	const [femMinValues, setFemMinValues] = useState<number[]>([]);
 	const [femMaxValues, setFemMaxValues] = useState<number[]>([]);
 	const [initialDigitalTwinSimulatorState, setInitialDigitalTwinSimulatorState] = useState<Record<string, number>>({});
+	const [getLastMeasurementsButtomLabel, setGetLastMeasurementsButtomLabel] = useState("GET LAST MEASUREMENTS");
 
 	let femResultNames: string[] = [];
 	if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
@@ -415,15 +419,67 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			(resultField: { resultName: string; }) => resultField.resultName
 		);
 	}
-	const handleDigitalTwinSimulatorButtonClick = () => {
-		if (digitalTwinSimulatorButtomLabel === "SEND DATA") {
-			setDigitalTwinSimulatorButtomLabel("STOP SENDING DATA")
-		} else if (digitalTwinSimulatorButtomLabel === "STOP SENDING DATA") {
-			setDigitalTwinSimulatorButtomLabel("SEND DATA")
+
+
+	const handleGetLastMeasurementsButton = () => {
+		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
+		if (digitalTwinSelected && Object.keys(digitalTwinSimulationFormat).length !== 0) {
+			const topicsIdArray: number[] = [];
+			Object.keys(digitalTwinSimulationFormat).forEach(field => {
+				if (digitalTwinSimulationFormat[field].topicId !== undefined) {
+					const topicId = digitalTwinSimulationFormat[field].topicId;
+					if (!topicsIdArray.includes(topicId)) topicsIdArray.push(topicId);
+				}
+			})
+
+			if (topicsIdArray.length !== 0) {
+				setGetLastMeasurementsButtomLabel("LOADING...");
+				const groupId = digitalTwinSelected.groupId
+				const urlLastMeasurements = `https://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
+				const config = axiosAuth(accessToken);
+				const topicsIdArrayObj = { topicsIdArray }
+				axiosInstance(refreshToken, authDispatch)
+					.post(urlLastMeasurements, topicsIdArrayObj, config)
+					.then((response) => {
+						const lastMeasurements = response.data;
+						const newInitialDigitalTwinSimulatorState = { ...initialDigitalTwinSimulatorState };
+						lastMeasurements.forEach((measurement: { payload: Record<string, number> }) => {
+							const payload = measurement.payload;
+							Object.keys(payload).forEach(fieldName => {
+								if (newInitialDigitalTwinSimulatorState[fieldName] !== undefined) {
+									newInitialDigitalTwinSimulatorState[fieldName] = payload[fieldName];
+								}
+							});
+
+						});
+						setInitialDigitalTwinSimulatorState(newInitialDigitalTwinSimulatorState);
+						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
+					})
+					.catch((error) => {
+						console.log(error);
+						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
+					});
+			}
+		}
+	}
+
+	const handleLockReadMeasurementsButtonClick = () => {
+		if (lockReadingButtomLabel === "LOCK READ MEASUREMENTS") {
+			setLockReadingButtomLabel("UNLOCK READ MEASUREMENTS")
+		} else if (lockReadingButtomLabel === "UNLOCK READ MEASUREMENTS") {
+			handleGetLastMeasurementsButton();
+			setLockReadingButtomLabel("LOCK READ MEASUREMENTS")
 		}
 		setDigitalTwinSimulatorSendData(prevState => !prevState);
 	}
 
+	const handleControlPanelOpenAndClose = () => {
+		if (isControlPanelOpen) setIsControlPanelOpen(false);
+		else {
+			handleGetLastMeasurementsButton();
+			setIsControlPanelOpen(true);
+		}
+	}
 
 	const [opts, setOpts] = useState({
 		ambientLight: true,
@@ -534,12 +590,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	}, [initialDigitalTwinSimulatorState, digitalTwinGltfData.digitalTwinSimulationFormat])
 
 	useEffect(() => {
-		if (opts.femSimulationResult !== "None result" && femMinValues.length !== 0 && femMinValueRef && femMinValueRef.current ) {
+		if (opts.femSimulationResult !== "None result" && femMinValues.length !== 0 && femMinValueRef && femMinValueRef.current) {
 			const femMinValuesFiltered: number[] = [];
 			if (!opts.hideAllFemSimulationObjects) {
 				femSimulationObjects.forEach((obj, index) => {
 					const collectionName = obj.collectionName;
-					if(!opts.femSimulationObjectsVisibilityState[collectionName].hide) femMinValuesFiltered.push(femMinValues[index]);
+					if (!opts.femSimulationObjectsVisibilityState[collectionName].hide) femMinValuesFiltered.push(femMinValues[index]);
 				});
 			}
 
@@ -552,8 +608,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			} else {
 				(femMinValueRef.current as any).innerHTML = "Min value: -";
 			}
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		opts.femSimulationResult,
 		opts.hideAllFemSimulationObjects,
@@ -562,14 +618,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		femMinValues
 	]);
 
-    useEffect(() => {
+	useEffect(() => {
 		if (opts.femSimulationResult !== "None result" && femMaxValues.length !== 0 && femMaxValueRef && femMaxValueRef.current) {
 			const femMaxValuesFiltered: number[] = [];
 			if (!opts.hideAllFemSimulationObjects) {
 				femSimulationObjects.forEach((obj, index) => {
 					const collectionName = obj.collectionName;
-					if(!opts.femSimulationObjectsVisibilityState[collectionName].hide) femMaxValuesFiltered.push(femMaxValues[index]);
-				});	
+					if (!opts.femSimulationObjectsVisibilityState[collectionName].hide) femMaxValuesFiltered.push(femMaxValues[index]);
+				});
 			}
 
 			if (femMaxValuesFiltered.length !== 0) {
@@ -581,8 +637,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			} else {
 				(femMaxValueRef.current as any).innerHTML = "Max value: -";
 			}
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		opts.femSimulationResult,
 		opts.hideAllFemSimulationObjects,
@@ -591,7 +647,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		femMaxValues
 	]);
 
-	
+
 	return (
 		<>
 			{
@@ -686,7 +742,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								digitalTwinSimulatorSendData={digitalTwinSimulatorSendData}
 								setFemMinValues={setFemMinValues}
 								setFemMaxValues={setFemMaxValues}
-								setInitialDigitalTwinSimulatorState={setInitialDigitalTwinSimulatorState}
+								initialDigitalTwinSimulatorState={initialDigitalTwinSimulatorState}
 							/>
 						</Connector>
 					</Stage>
@@ -715,9 +771,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				<HeaderContainer>
 					<HeaderOptionsContainer >
 						{isControlPanelOpen ?
-							<CloseFolderIcon onClick={(e) => setIsControlPanelOpen(false)} />
+							// <CloseFolderIcon onClick={(e) => setIsControlPanelOpen(false)} />
+							// :
+							// <OpenFolderIcon onClick={(e) => setIsControlPanelOpen(true)} />
+							<CloseFolderIcon onClick={(e) => handleControlPanelOpenAndClose()} />
 							:
-							<OpenFolderIcon onClick={(e) => setIsControlPanelOpen(true)} />
+							<OpenFolderIcon onClick={(e) => handleControlPanelOpenAndClose()} />
 						}
 						<MqttConnectionDiv>
 							MQTT
@@ -931,7 +990,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 										/>
 									)
 								}
-								<StyledDatButtom label={digitalTwinSimulatorButtomLabel} onClick={handleDigitalTwinSimulatorButtonClick} />
+								<StyledDatButtom label={getLastMeasurementsButtomLabel} onClick={handleGetLastMeasurementsButton} />
+								<StyledDatButtom label={lockReadingButtomLabel} onClick={handleLockReadMeasurementsButtonClick} />
 							</DatFolder>
 						}
 					</StyledDataGui>

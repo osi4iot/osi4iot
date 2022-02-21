@@ -7,6 +7,7 @@ import pool from "../../config/dbconfig";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateDeviceDto from "./device.dto";
 import IDevice from "./device.interface";
+import { getTopicsByDeviceId } from "../topic/topicDAL";
 
 export const defaultGroupDeviceName = (group: IGroup, type: string): string => {
 	let deviceName: string;

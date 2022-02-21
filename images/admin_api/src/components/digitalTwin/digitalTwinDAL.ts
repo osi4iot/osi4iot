@@ -699,7 +699,7 @@ const generateMqttTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
 	return mqttTopic;
 }
 
-const generateSqlTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
+export const generateSqlTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
 	const sqlTopic = `Device_${mqttTopicInfo.deviceHash}/Topic_${mqttTopicInfo.topicHash}`;
 	return sqlTopic;
 }

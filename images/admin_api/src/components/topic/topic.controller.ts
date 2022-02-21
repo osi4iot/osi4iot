@@ -18,6 +18,8 @@ import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUse
 import { changeTopicUidByUid, createTopic, deleteTopicById, getAllTopics, getTopicByProp, getTopicsByGroupId, getTopicsByGroupsIdArray, getTopicsByOrgId, updateTopicById } from "./topicDAL";
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import { updateMeasurementsTopicByTopic } from "../mesurement/measurementDAL";
+import { getDeviceByProp } from "../device/deviceDAL";
 
 class TopicController implements IController {
 	public path = "/topic";
@@ -226,6 +228,8 @@ class TopicController implements IController {
 			const newTopicUid = await changeTopicUidByUid(topic);
 			await updateDashboardsDataRawSqlOfTopic(topic, newTopicUid, dashboards);
 			await updateTopicUidRawSqlAlertSettingOfGroup(req.group, topic.topicUid, newTopicUid);
+			const device = await getDeviceByProp("id", topic.deviceId);
+			await updateMeasurementsTopicByTopic(device, topic, newTopicUid)
 			const message = { newTopicUid };
 			res.status(200).json(message);
 		} catch (error) {

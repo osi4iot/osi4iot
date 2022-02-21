@@ -1,13 +1,12 @@
-import axios from "axios";
 import React, { FC, useEffect, useState } from "react";
 import styled from "styled-components";
 import Paho from "paho-mqtt";
 import Header from "../components/Layout/Header";
 import Main from "../components/Layout/Main";
 import ServerError from "../components/Tools/ServerError";
-import { useAuthState } from "../contexts/authContext";
+import { useAuthDispatch, useAuthState } from "../contexts/authContext";
 import { ChildrenProp } from "../interfaces/interfaces";
-import { getDomainName } from "../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName } from "../tools/tools";
 import MqttConnection from "../tools/MqttConnection";
 import { IDigitalTwinSimulator } from "../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
 import Slider from "../components/Tools/Slider";
@@ -38,17 +37,21 @@ const ConnectionLed = styled.span<ConnectionLedProps>`
 
 const FormContainer = styled.div`
 	position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
 	margin: 0 5px;
 	color: white;
 	margin: 10px 0;
-	padding: 10px 12px 90px 12px;
+	padding: 10px 12px;
 	width: 310px;
 	border: 2px solid #3274d9;
 	border-radius: 15px;
 `;
 
 const ParametersContainer = styled.div`
-    height: calc(100vh - 270px);
+    height: calc(100vh - 250px);
     width: 100%;
     padding: 0px 5px;
     overflow-y: auto;
@@ -111,6 +114,30 @@ const Select = styled.select`
 	}
 `;
 
+const GetLastMeasurementsButtom = styled.button`
+	width: 250px;
+	background-color: #3274d9;
+	padding: 8px;
+	color: white;
+	border: 1px solid #2c3235;
+	border-radius: 10px;
+	outline: none;
+	cursor: pointer;
+	box-shadow: 0 5px #173b70;
+	margin-bottom: 10px;
+
+	&:hover {
+		background-color: #2461c0;
+		padding: 8px;
+	}
+
+	&:active {
+		background-color: #2461c0;
+		box-shadow: 0 2px #173b70;
+		transform: translateY(4px);
+	}
+`;
+
 
 const domainName = getDomainName();
 
@@ -131,8 +158,10 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 	const [digitalTwinSelectedIndex, setDigitalTwinSelectedIndex] = useState(-1);
 	const [isMqttConnected, setIsMqttConnected] = useState(false);
 	const [paramValues, setParamValues] = useState<Record<string, number>>({});
-	const { accessToken, loading, errorMessage } = useAuthState();
+	const { accessToken, refreshToken, loading, errorMessage } = useAuthState();
+	const authDispatch = useAuthDispatch();
 	const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
+	const [getLastMeasurementsButtomLabel, setGetLastMeasurementsButtomLabel] = useState("GET LAST MEASUREMENTS");
 
 	const setParamValue = (path: string, value: number) => {
 		setParamValues((prevValues: Record<string, number>) => {
@@ -142,12 +171,53 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 		})
 	}
 
+	const handleGetLastMeasurementsButton = () => {
+		const digitalTwinSelected = digitalTwinSimulatorsManaged[digitalTwinSelectedIndex];
+		const digitalTwinSimulationFormat = digitalTwinSelected.digitalTwinSimulationFormat;
+		if (digitalTwinSelected && Object.keys(digitalTwinSimulationFormat).length !== 0) {
+			const topicsIdArray: number[] = [];
+			Object.keys(digitalTwinSimulationFormat).forEach((field: string) => {
+				if (digitalTwinSimulationFormat[field].topicId !== undefined) {
+					const topicId = digitalTwinSimulationFormat[field].topicId;
+					if (!topicsIdArray.includes(topicId)) topicsIdArray.push(topicId);
+				}
+			})
+
+			if (topicsIdArray.length !== 0) {
+				setGetLastMeasurementsButtomLabel("LOADING...");
+				const groupId = digitalTwinSelected.groupId
+				const urlLastMeasurements = `https://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
+				const config = axiosAuth(accessToken);
+				const topicsIdArrayObj = { topicsIdArray }
+				axiosInstance(refreshToken, authDispatch)
+					.post(urlLastMeasurements, topicsIdArrayObj, config)
+					.then((response) => {
+						const lastMeasurements = response.data;
+						const newParamValues = { ...paramValues};
+						lastMeasurements.forEach((measurement: { payload: Record<string, number> }) => {
+							const payload = measurement.payload;
+							Object.keys(payload).forEach(fieldName => {
+								if (newParamValues[fieldName] !== undefined) {
+									newParamValues[fieldName] = payload[fieldName];
+								}
+							});
+
+						});
+						setParamValues(newParamValues);
+						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
+					})
+					.catch((error) => {
+						console.log(error);
+						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
+					});
+			}
+		}
+	}
+
 	useEffect(() => {
 		const urlDigitalTwinSimulators = `https://${domainName}/admin_api/digital_twin_simulators/user_managed`;
-		const config = {
-			headers: { Authorization: `Bearer ${accessToken}` },
-		};
-		axios
+		const config = axiosAuth(accessToken);
+		axiosInstance(refreshToken, authDispatch)
 			.get(urlDigitalTwinSimulators, config)
 			.then((response) => {
 				const digitalTwinSimulatorsManaged: IDigitalTwinSimulator[] = response.data;
@@ -157,7 +227,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 			.catch((error) => {
 				console.log(error);
 			});
-	}, [accessToken]);
+	}, [accessToken, authDispatch, refreshToken]);
 
 
 	useEffect(() => {
@@ -206,6 +276,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 			setDigitalTwinSimulatorParams(digitalTwinSimulatorParams);
 			setParamValues(initialParamValues);
 		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [digitalTwinSimulatorsManaged, digitalTwinSelectedIndex]);
 
 	const handleDigitalTwinSelectChange = (e: React.FormEvent<HTMLSelectElement>) => {
@@ -256,7 +327,9 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 								})
 							}
 						</ParametersContainer>
-
+						<GetLastMeasurementsButtom onClick={handleGetLastMeasurementsButton}>
+							{getLastMeasurementsButtomLabel}
+						</GetLastMeasurementsButtom>
 					</FormContainer>
 				</>
 			</Main>

@@ -19,7 +19,8 @@ export const isRegistrationRequest = () => {
 export const getDomainName = () => {
     const location = window.location.href;
     let domainName = location.split("/")[2];
-    if (domainName === "localhost:3000") domainName = "localhost";  //Development case
+    //if (domainName === "localhost:3000") domainName = "localhost";  //Development case
+    if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu"; //OJO luego borrar
     return domainName;
 }
 

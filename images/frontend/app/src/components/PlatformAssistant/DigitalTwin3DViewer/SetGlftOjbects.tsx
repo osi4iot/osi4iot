@@ -82,19 +82,16 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             setInitialSensorsState(generateInitialSensorsState(
                 sensorObjects,
                 digitalTwinGltfData,
-                setInitialDigitalTwinSimulatorState
             ));
             setInitialAssetsState(generateInitialAssetsState(
                 digitalTwinSelected,
                 assetObjects,
                 digitalTwinGltfData,
-                setInitialDigitalTwinSimulatorState
             ));
             setInitialGenericObjectsState(generateInitialGenericObjectsState(
                 digitalTwinSelected,
                 genericObjects,
                 digitalTwinGltfData,
-                setInitialDigitalTwinSimulatorState
             ))
             if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
                 readFemSimulationInfo(
@@ -102,9 +99,17 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                     digitalTwinGltfData,
                     femSimulationObjects,
                     setInitialFemSimObjectsState,
-                    setFemSimulationGeneralInfo,
-                    setInitialDigitalTwinSimulatorState
+                    setFemSimulationGeneralInfo
                 )
+            }
+
+            const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
+            if (Object.keys(digitalTwinSimulationFormat).length !== 0) {
+                const initialDigitalTwinSimulatorState: Record<string, number> = {};
+                Object.keys(digitalTwinSimulationFormat).forEach(fieldName => {
+                    initialDigitalTwinSimulatorState[fieldName] = digitalTwinSimulationFormat[fieldName].defaultValue;
+                });
+                setInitialDigitalTwinSimulatorState(initialDigitalTwinSimulatorState);
             }
 
             const initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> = {}

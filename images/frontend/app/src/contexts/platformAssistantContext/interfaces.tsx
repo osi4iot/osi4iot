@@ -33,14 +33,20 @@ export interface PlatformAssistantContextProps {
 	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
 	buildings: IBuilding[];
+	reloadBuildingsTable: boolean;
 	floors: IFloor[];
+	reloadFloorsTable: boolean;
 	globalUsers: IGlobalUser[];
+	reloadGlobalUsersTable: boolean;
 	refreshTokens: IRefreshToken[];
 	orgsManaged: IOrgManaged[];
 	reloadOrgsManagedTable: boolean;
 	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
+	reloadOrgsOfGroupsManagedTable: boolean;
 	orgUsers: IOrgUser[];
+	reloadOrgUsersTable: boolean;
 	groups: IGroup[];
+	reloadGroupsTable: boolean;
 	groupsManaged: IGroupManaged[];
 	reloadGroupsManagedTable: boolean;
 	groupMembers: IGroupMember[];
@@ -48,8 +54,11 @@ export interface PlatformAssistantContextProps {
 	devices: IDevice[];
 	reloadDevicesTable: boolean;
 	topics: ITopic[];
+	reloadTopicsTable: boolean;
 	dashboards: IDashboard[];
+	reloadDashboardsTable: boolean;
 	digitalTwins: IDigitalTwin[];
+	reloadDigitalTwinsTable: boolean;
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
 	reloadOrgsMembershipTable: boolean;
@@ -67,14 +76,20 @@ export interface PlatformAssistantActionPayload {
 	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
 	buildings: IBuilding[];
+	reloadBuildingsTable: boolean;
 	floors: IFloor[];
+	reloadFloorsTable: boolean;
 	globalUsers: IGlobalUser[];
+	reloadGlobalUsersTable: boolean;
 	refreshTokens: IRefreshToken[];
 	orgsManaged: IOrgManaged[];
 	reloadOrgsManagedTable: boolean;
 	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
+	reloadOrgsOfGroupsManagedTable: boolean;
 	orgUsers: IOrgUser[];
+	reloadOrgUsersTable: boolean;
 	groups: IGroup[];
+	reloadGroupsTable: boolean;
 	groupsManaged: IGroupManaged[];
 	reloadGroupsManagedTable: boolean;
 	groupMembers: IGroupMember[];
@@ -82,8 +97,11 @@ export interface PlatformAssistantActionPayload {
 	devices: IDevice[];
 	reloadDevicesTable: boolean;
 	topics: ITopic[];
+	reloadTopicsTable: boolean;
 	dashboards: IDashboard[];
+	reloadDashboardsTable: boolean;
 	digitalTwins: IDigitalTwin[];
+	reloadDigitalTwinsTable: boolean;
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
 	reloadOrgsMembershipTable: boolean;
@@ -124,12 +142,24 @@ export interface IGlobalUsersTable {
 	globalUsers: IGlobalUser[];
 }
 
+export interface IReloadGlobalUsersTable {
+	reloadGlobalUsersTable: boolean;
+}
+
 export interface IBuildingsTable {
 	buildings: IBuilding[];
 }
 
+export interface IReloadBuildingsTable {
+	reloadBuildingsTable: boolean;
+}
+
 export interface IFloorsTable {
 	floors: IFloor[];
+}
+
+export interface IReloadFloorsTable {
+	reloadFloorsTable: boolean;
 }
 
 export interface IRefreshTokensTable {
@@ -148,12 +178,24 @@ export interface IOrgsOfGroupsManagedTable {
 	orgsOfGroupsManaged: IOrgOfGroupsManaged[];
 }
 
+export interface IReloadOrgsOfGroupsManagedTable {
+	reloadOrgsOfGroupsManagedTable: boolean;
+}
+
 export interface IOrgUsersTable {
 	orgUsers: IOrgUser[];
 }
 
+export interface IReloadOrgUsersTable {
+	reloadOrgUsersTable: boolean;
+}
+
 export interface IGroupsTable {
 	groups: IGroup[];
+}
+
+export interface IReloadGroupsTable {
+	reloadGroupsTable: boolean;
 }
 
 export interface IGroupsManagedTable {
@@ -204,13 +246,27 @@ export interface ITopicsTable {
 	topics: ITopic[];
 }
 
+export interface IReloadTopicsTable {
+	reloadTopicsTable: boolean;
+}
+
+
 export interface IDashboardsTable {
 	dashboards: IDashboard[];
+}
+
+export interface IReloadDashboardsTable {
+	reloadDashboardsTable: boolean;
 }
 
 export interface IDigitalTwinsTable {
 	digitalTwins: IDigitalTwin[];
 }
+
+export interface IReloadDigitalTwinsTable {
+	reloadDigitalTwinsTable: boolean;
+}
+
 
 
 

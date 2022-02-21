@@ -22,6 +22,12 @@ import {
 	setReloadGroupsManagedTable,
 	useReloadDevicesTable,
 	setReloadDevicesTable,
+	useReloadBuildingsTable,
+	useReloadFloorsTable,
+	setReloadBuildingsTable,
+	setReloadFloorsTable,
+	useReloadOrgsOfGroupsManagedTable,
+	setReloadOrgsOfGroupsManagedTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import GeolocationContainer from '../Geolocation/GeolocationContainer';
@@ -167,12 +173,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [deviceLoading, setDevicesLoading] = useState(true);
 	const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
 	const [digitalTwinGltfData, setDigitalTwinGltfData] = useState<IDigitalTwinGltfData | null>(null);
-	const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
-	const [reloadBuildings, setReloadBuildings] = useState(false);
-	const [reloadFloors, setReloadloors] = useState(false);
-	const [reloadOrgsOfGroupsManaged, setReloadOrgsOfGroupsManaged] = useState(false);
+	const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);;
+	const reloadBuildingsTable = useReloadBuildingsTable();
+	const reloadFloorsTable = useReloadFloorsTable();
+	const reloadOrgsOfGroupsManagedTable = useReloadOrgsOfGroupsManagedTable();
 	const reloadGroupsManagedTable = useReloadGroupsManagedTable();
-	// const [reloadDevices, setReloadDevices] = useState(false);
 	const reloadDevicesTable = useReloadDevicesTable();
 	const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
 	const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
@@ -188,22 +193,22 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
 
 	const refreshBuildings = useCallback(() => {
-		setReloadBuildings(true);
 		setBuildingsLoading(true);
-		setTimeout(() => setReloadBuildings(false), 500);
-	}, [])
+		const reloadBuildingsTable = true;
+		setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
+	}, [plaformAssistantDispatch])
 
 	const refreshFloors = useCallback(() => {
-		setReloadloors(true);
 		setFloorsLoading(true);
-		setTimeout(() => setReloadloors(false), 500);
-	}, [])
+		const reloadFloorsTable = true;
+		setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
+	}, [plaformAssistantDispatch])
 
-	const refreshOrgsOfGroupsManaged = useCallback(() => {
-		setReloadOrgsOfGroupsManaged(true);
+	const refreshOrgsOfGroupsManaged = useCallback(() => {;
 		setOrgsOfGroupsManagedLoading(true);
-		setTimeout(() => setReloadOrgsOfGroupsManaged(false), 500);
-	}, [])
+		const reloadOrgsOfGroupsManagedTable = true;
+		setReloadOrgsOfGroupsManagedTable (plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+	}, [plaformAssistantDispatch])
 
 	const refreshGroupsManaged = useCallback(() => {
 		setGroupsManagedLoading(true);
@@ -291,7 +296,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 
 	useEffect(() => {
-		if (buildingsTable.length === 0 || reloadBuildings) {
+		if (buildingsTable.length === 0 || reloadBuildingsTable) {
 			const urlBuildings = `https://${domainName}/admin_api/buildings/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
 			axiosInstance(refreshToken, authDispatch)
@@ -305,6 +310,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const outerBounds = findBounds(buildingsFiltered);
 					setOuterBounds(outerBounds);
 					setInitialOuterBounds(outerBounds);
+					const reloadBuildingsTable = false;
+					setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
 				})
 				.catch((error) => {
 					console.log(error);
@@ -317,12 +324,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		refreshToken,
 		authDispatch,
 		plaformAssistantDispatch,
-		reloadBuildings,
+		reloadBuildingsTable,
 		buildingsTable.length
 	]);
 
 	useEffect(() => {
-		if (floorsTable.length === 0 || reloadFloors) {
+		if (floorsTable.length === 0 || reloadFloorsTable) {
 			const urlFloors = `https://${domainName}/admin_api/building_floors/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
 			axiosInstance(refreshToken, authDispatch)
@@ -333,6 +340,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setFloorsLoading(false);
 					const floorsFiltered = filterFloors(floors);
 					setFloorsFiltered(floorsFiltered);
+					const reloadFloorsTable = false;
+					setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
 				})
 				.catch((error) => {
 					console.log(error);
@@ -345,12 +354,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		refreshToken,
 		authDispatch,
 		plaformAssistantDispatch,
-		reloadFloors,
+		reloadFloorsTable,
 		floorsTable.length
 	]);
 
 	useEffect(() => {
-		if (orgsOfGroupsManagedTable.length === 0 || reloadOrgsOfGroupsManaged) {
+		if (orgsOfGroupsManagedTable.length === 0 || reloadOrgsOfGroupsManagedTable) {
 			const urlOrgsManaged = `https://${domainName}/admin_api/organizations/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
 			axiosInstance(refreshToken, authDispatch)
@@ -359,6 +368,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const orgsOfGroupsManaged = response.data;
 					setOrgsOfGroupsManagedTable(plaformAssistantDispatch, { orgsOfGroupsManaged });
 					setOrgsOfGroupsManagedLoading(false);
+					const reloadOrgsOfGroupsManagedTable = false;
+					setReloadOrgsOfGroupsManagedTable (plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
 				})
 				.catch((error) => {
 					console.log(error);
@@ -371,7 +382,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		refreshToken,
 		authDispatch,
 		plaformAssistantDispatch,
-		reloadOrgsOfGroupsManaged,
+		reloadOrgsOfGroupsManagedTable,
 		orgsOfGroupsManagedTable.length
 	]);
 

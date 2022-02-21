@@ -27,7 +27,16 @@ import {
 	IReloadSelectOrgUsersTable,
 	IReloadGroupMembersTable,
 	IRealoadOrgsMembershipTable,
-	IReloadGroupsMembershipTable
+	IReloadGroupsMembershipTable,
+	IReloadGroupsTable,
+	IReloadOrgUsersTable,
+	IReloadTopicsTable,
+	IReloadDashboardsTable,
+	IReloadDigitalTwinsTable,
+	IReloadOrgsOfGroupsManagedTable,
+	IReloadGlobalUsersTable,
+	IReloadBuildingsTable,
+	IReloadFloorsTable
 
 } from "./interfaces";
 
@@ -55,12 +64,25 @@ export function setBuildingsTable(plaformAssistantDispatch: PlatformAssistantDis
 	plaformAssistantDispatch({ type: 'BUILDINGS_TABLE', payload: data });
 }
 
+export function setReloadBuildingsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadBuildingsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_BUILDINGS_TABLE', payload: data });
+}
+
 export function setFloorsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IFloorsTable) {
 	plaformAssistantDispatch({ type: 'FLOORS_TABLE', payload: data });
 }
 
+export function setReloadFloorsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadFloorsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_FLOORS_TABLE', payload: data });
+}
+
+
 export function setGlobalUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IGlobalUsersTable) {
 	plaformAssistantDispatch({ type: 'GLOBAL_USERS_TABLE', payload: data });
+}
+
+export function setReloadGlobalUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadGlobalUsersTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_GLOBAL_USERS_TABLE', payload: data });
 }
 
 export function setRefreshTokensTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IRefreshTokensTable) {
@@ -76,19 +98,35 @@ export function setReloadOrgsManagedTable(plaformAssistantDispatch: PlatformAssi
 	plaformAssistantDispatch({ type: 'RELOAD_ORGS_MANAGED_TABLE', payload: data });
 }
 
-
-export function setOrgsOfGroupsManagedTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrgsOfGroupsManagedTable) {
+export function setOrgsOfGroupsManagedTable(
+	plaformAssistantDispatch: PlatformAssistantDispatch,
+	data: IOrgsOfGroupsManagedTable
+) {
 	plaformAssistantDispatch({ type: 'ORGS_OF_GROUPS_MANAGED_TABLE', payload: data });
+}
+
+export function setReloadOrgsOfGroupsManagedTable(
+	plaformAssistantDispatch: PlatformAssistantDispatch,
+	data: IReloadOrgsOfGroupsManagedTable
+) {
+	plaformAssistantDispatch({ type: 'RELOAD_ORGS_OF_GROUPS_MANAGED_TABLE', payload: data });
 }
 
 export function setOrgUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrgUsersTable) {
 	plaformAssistantDispatch({ type: 'ORGS_USERS_TABLE', payload: data });
 }
 
+export function setReloadOrgUsersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadOrgUsersTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_ORGS_USERS_TABLE', payload: data });
+}
+
 export function setGroupsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IGroupsTable) {
 	plaformAssistantDispatch({ type: 'GROUPS_TABLE', payload: data });
 }
 
+export function setReloadGroupsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadGroupsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_GROUPS_TABLE', payload: data });
+}
 
 export function setGroupsManagedTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IGroupsManagedTable) {
 	plaformAssistantDispatch({ type: 'GROUPS_MANAGED_TABLE', payload: data });
@@ -114,17 +152,28 @@ export function setReloadDevicesTable(plaformAssistantDispatch: PlatformAssistan
 	plaformAssistantDispatch({ type: 'RELOAD_DEVICES_TABLE', payload: data });
 }
 
-
 export function setTopicsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: ITopicsTable) {
 	plaformAssistantDispatch({ type: 'TOPICS_TABLE', payload: data });
+}
+
+export function setReloadTopicsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadTopicsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_TOPICS_TABLE', payload: data });
 }
 
 export function setDashboardsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IDashboardsTable) {
 	plaformAssistantDispatch({ type: 'DASHBOARDS_TABLE', payload: data });
 }
 
+export function setReloadDashboardsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadDashboardsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_DASHBOARDS_TABLE', payload: data });
+}
+
 export function setDigitalTwinsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IDigitalTwinsTable) {
 	plaformAssistantDispatch({ type: 'DIGITAL_TWIN_TABLE', payload: data });
+}
+
+export function setReloadDigitalTwinsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadDigitalTwinsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_DIGITAL_TWIN_TABLE', payload: data });
 }
 
 export function setUserProfileTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IUserProfileTable) {

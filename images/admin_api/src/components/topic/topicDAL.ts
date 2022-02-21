@@ -167,6 +167,24 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 	return response.rows;
 };
 
+export const getTopicsByDeviceId = async (deviceId: number): Promise<ITopic[]> => {
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
+									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
+									grafanadb.topic.topic_type AS "topicType",
+									grafanadb.topic.topic_name AS "topicName",
+									grafanadb.topic.description,
+									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.created, grafanadb.topic.updated
+									FROM grafanadb.topic
+									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
+									WHERE grafanadb.topic.device_id = $1
+									ORDER BY grafanadb.device.org_id ASC,
+											grafanadb.device.group_id ASC,
+											grafanadb.topic.id  ASC`, [deviceId]);
+	return response.rows;
+};
+
 export const checkIfExistTopics = async (topicsIdArray: number[]): Promise<string> => {
 	let message = "OK";
 	const response = await pool.query(`SELECT grafanadb.topic.id FROM grafanadb.topic
