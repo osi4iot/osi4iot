@@ -466,7 +466,8 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 					color: materialColor,
 					emissive: noEmitColor,
 					transparent: true,
-					opacity: 1
+					opacity: 1,
+					side: 2
 				});
 				objMaterial.name = `${obj.name}_material`;
 			}
@@ -480,7 +481,8 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 			color: materialColor,
 			emissive: noEmitColor,
 			transparent: true,
-			opacity: 1
+			opacity: 1,
+			side: 2
 		});
 	}
 

@@ -50,6 +50,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         Object.assign(femSimulationObject.node.material) :
         Object.assign(femSimulationObject.femResultMaterial);
 
+    material.transparent = (defOpacity * opacity) === 1 ? false : true;
     let lastIntervalTime = 0;
     const meshResult = digitalTwinGltfData.femSimulationData.meshResults[meshIndex];
     let deformationFields: string[] = [];
