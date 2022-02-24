@@ -145,7 +145,7 @@ export const generateInitialSensorsState = (
 						}
 
 					} else {
-						if (obj.node.userData.clipMinValues && obj.node.userData.clipMinValues[index]) {
+						if (obj.node.userData.clipMinValues && obj.node.userData.clipMinValues[index] !== undefined) {
 							clipValues.push(obj.node.userData.clipMinValues[index]);
 						} else clipValues.push(null);
 					}
@@ -206,7 +206,7 @@ export const generateInitialAssetsState = (
 						}
 
 					} else {
-						if (obj.node.userData.clipMinValues && obj.node.userData.clipMinValues[index]) {
+						if (obj.node.userData.clipMinValues && obj.node.userData.clipMinValues[index] !== undefined) {
 							clipValues.push(obj.node.userData.clipMinValues[index]);
 						} else clipValues.push(null);
 					}
@@ -251,7 +251,7 @@ export const generateInitialGenericObjectsState = (
 						}
 
 					} else {
-						if (obj.node.userData.clipMinValues && obj.node.userData.clipMinValues[index]) {
+						if (obj.node.userData.clipMinValues && obj.node.userData.clipMinValues[index] !== undefined) {
 							clipValues.push(obj.node.userData.clipMinValues[index]);
 						} else clipValues.push(null);
 					}
@@ -311,7 +311,7 @@ export const generateInitialFemSimObjectsState = (
 						}
 
 					} else {
-						if (obj.node.userData.clipMinValues && obj.node.userData.clipMinValues[index]) {
+						if (obj.node.userData.clipMinValues && obj.node.userData.clipMinValues[index] !== undefined) {
 							clipValues.push(obj.node.userData.clipMinValues[index]);
 						} else clipValues.push(null);
 					}

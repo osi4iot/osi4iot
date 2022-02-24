@@ -282,6 +282,7 @@ const Model: FC<ModelProps> = (
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [camera, container, setSensorsState, setAssetsState])
 
+
 	useLayoutEffect(() => {
 		if (message) {
 			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
