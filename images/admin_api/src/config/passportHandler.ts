@@ -73,6 +73,27 @@ export default function passportInitialize(): void {
 	);
 
 	passport.use(
+		"master_device_access_jwt",
+		new JwtStrategy(
+			optsAccessToken,
+			// prettier-ignore
+			async (jwtPayload, done) => {
+				let user;
+				try {
+					user = await getUserdByEmailOrLogin(jwtPayload.email);
+					user.accesTokenExpirationDate = jwtPayload.exp;
+					if (!user || jwtPayload.action !== "access") {
+						return done(null, false);
+					}
+					return done(null, user);
+				} catch (err) {
+					return done(err, null); // Error in DB
+				}
+			}
+		)
+	);
+
+	passport.use(
 		"register_jwt",
 		new JwtStrategy(
 			optsAccessToken,

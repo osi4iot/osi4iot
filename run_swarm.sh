@@ -32,18 +32,24 @@ if [[ $NUMBER_OF_NODES > 1 ]]; then
     printf "Input nfs server ip: "
     read NFS_SERVER_IP
     export NFS_SERVER_IP=$NFS_SERVER_IP
-    printf "Input username for the nfs server:"
+    printf "Input username for the nfs server: "
     read NFS_USERNAME
     export NFS_USERNAME=$NFS_USERNAME
+    printf "Input virtual ip: "
+    read VIRTUAL_IP
+    export VIRTUAL_IP=$VIRTUAL_IP
+    printf "Input network inteface: "
+    read NETWORK_INTERFACE
+    export NETWORK_INTERFACE=$NETWORK_INTERFACE
 fi
 
 export $(cat ./config/admin_api/admin_api.conf | grep DOMAIN_NAME)
 export NODE_ID=$(docker info -f '{{.Swarm.NodeID}}')
 docker node update --label-add primary=true $NODE_ID
 
-traefik_network=$(docker network ls | grep traefik-public)
+traefik_network=$(docker network ls | grep traefik_public)
 if [[ "$traefik_network" == "" ]]; then
-  docker network create -d overlay --opt encrypted=true traefik-public
+  docker network create -d overlay --opt encrypted=true traefik_public
 fi
 
 agent_network=$(docker network ls | grep agent_network)
@@ -96,6 +102,7 @@ else
 fi
 
 docker stack deploy --resolve-image changed -c osi4iot_stack.yml osi4iot
+docker stack deploy --resolve-image changed -c master_devices_stack.yml masterdevs
 
 sp="/-\|"
 sc=0
@@ -134,7 +141,7 @@ if [[ "$(docker service ls | grep osi4iot_admin_api | grep 3/3)" == "" ]]; then
   done
   endspin
 
-  docker service scale osi4iot_admin_api=3
+  # docker service scale osi4iot_admin_api=3
 fi
 
 do=true && [[ "$(docker service ls | grep 0/1)" == "" || "$(docker service ls | grep 0/3)" == "" ]] && do=false

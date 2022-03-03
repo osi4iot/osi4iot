@@ -1,7 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { basicGroupAdminAuth, groupAdminAuth, groupAdminMasterDeviceAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
@@ -15,9 +15,10 @@ import LoginDto from "../Authentication/login.dto";
 import { updateDeviceUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IDevice from "./device.interface";
-import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId} from "../group/groupDAL";
+import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByDevice } from "../mesurement/measurementDAL";
+import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -85,6 +86,12 @@ class DeviceController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreateDeviceDto>(CreateDeviceDto),
 				this.createDevice
+			)
+			.get(
+				"/master_device_authentication/:groupId",
+				groupExists,
+				groupAdminMasterDeviceAuth,
+				this.masterDeviceAuthentication
 			)
 
 	}
@@ -253,6 +260,20 @@ class DeviceController implements IController {
 				message = { message: `The device with name: ${deviceData.name} already exist` };
 			}
 			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private masterDeviceAuthentication = async (
+		req: IRequestWithUserAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const user = req.user;
+			const response = { user }
+			res.status(200).send(response);
 		} catch (error) {
 			next(error);
 		}

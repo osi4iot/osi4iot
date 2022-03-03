@@ -538,6 +538,54 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Foreing key in table ${tableAlertNotification} couldd not be added: %s`, err.message);
 		}
 
+		const tableMasterDevice = "grafanadb.master_device";
+		const queryStringMasterDevice = `
+			CREATE TABLE IF NOT EXISTS ${tableMasterDevice}(
+				id serial PRIMARY KEY,
+				device_hash VARCHAR(40) UNIQUE,
+				org_id bigint,
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
+				CONSTRAINT fk_org_id
+					FOREIGN KEY(org_id)
+					REFERENCES grafanadb.org(id)
+					ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_device_hash
+			ON grafanadb.master_device(device_hash);`;
+
+		try {
+			await pool.query(queryStringMasterDevice);
+			logger.log("info", `Table ${tableMasterDevice} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableMasterDevice} can not be created: %s`, err.message);
+		}
+
+		const tableDeviceMasterDevice = "grafanadb.device_mdevice";
+		const queryStringDeviceMasterDevice = `
+			CREATE TABLE IF NOT EXISTS ${tableDeviceMasterDevice}(
+				device_id bigint,
+				master_device_id bigint,
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
+				CONSTRAINT fk_device_id
+					FOREIGN KEY(device_id)
+					REFERENCES grafanadb.device(id)
+					ON DELETE CASCADE,
+				CONSTRAINT fk_master_device_id
+					FOREIGN KEY(master_device_id)
+					REFERENCES grafanadb.master_device(id)
+					ON DELETE CASCADE
+			);`;
+
+		try {
+			await pool.query(queryStringDeviceMasterDevice);
+			logger.log("info", `Table ${tableDeviceMasterDevice} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableDeviceMasterDevice} can not be created: %s`, err.message);
+		}
+
 		pool.end(() => {
 			logger.log("info", `Migration pool has ended`);
 		})

@@ -22,7 +22,7 @@ export async function loginUser(authDispatch: AuthDispatch, loginPayload: LoginD
 		authDispatch({ type: 'LOGIN_ERROR', error: data.errors[0] });
 		console.log(data.errors[0]);
 		return;
-	} catch (error) {
+	} catch (error: any) {
 		const message = error.response.data.message;
 		authDispatch({ type: 'LOGIN_ERROR', error: message });
 	}

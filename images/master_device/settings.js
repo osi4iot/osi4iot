@@ -17,6 +17,10 @@
 // The `https` setting requires the `fs` module. Uncomment the following
 // to make it available:
 // var fs = require("fs");
+const needle = require("needle");
+process.env.TOKEN = "";
+process.env.TOKEN_EXPIRATION_DATE = "";
+process.env.USER_NAME = "";
 
 module.exports = {
     // the tcp port that the Node-RED web server is listening on
@@ -135,12 +139,50 @@ module.exports = {
     // To password protect the Node-RED editor and admin API, the following
     // property can be used. See http://nodered.org/docs/security.html for details.
     adminAuth: {
-        type: "credentials",
-        users: [{
-            username: process.env.NODE_RED_ADMIN,
-            password: process.env.NODE_RED_ADMIN_HASH,
-            permissions: "*"
-        }]
+        tokens: function (token) {
+            return new Promise(function (resolve, reject) {
+                // Do whatever work is needed to check token is valid
+
+                if (
+                    process.env.TOKEN === "" &&
+                    process.env.TOKEN_EXPIRATION_DATE === "" &&
+                    process.env.USER_NAME === ""
+                ) {
+                    const optionsToken = {
+                        headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Accept": "application/json" }
+                    };
+                    const url = `admin_api:3200/master_device_authentication/${process.env.GROUP_ID}`;
+
+                    needle('get', url, optionsToken)
+                        .then(function (resp) {
+                            const loggedUser = resp.body.user;
+                            if (loggedUser && loggedUser.accesTokenExpirationDate && loggedUser.login) {
+                                process.env.TOKEN = token;
+                                process.env.TOKEN_EXPIRATION_DATE = loggedUser.accesTokenExpirationDate;
+                                process.env.USER_NAME = loggedUser.login;
+                                const user = { username: loggedUser.login, permissions: '*' };
+                                resolve(user);
+                            } else {
+                                resolve(null);
+                            }
+                        })
+                        .catch(function (err) {
+                            reject("User without group admin permissions");
+                        });
+                } else {
+                    const date = Date.now() / 1000;
+                    if (token === process.env.TOKEN && date < parseInt(process.env.TOKEN_EXPIRATION_DATE, 10)) {
+                        const user = { username: process.env.USER_NAME, permissions: '*' };
+                        resolve(user);
+                    } else {
+                        process.env.TOKEN = "";
+                        process.env.TOKEN_EXPIRATION_DATE = "";
+                        process.env.USER_NAME = "";
+                        resolve(null);
+                    }
+                }
+            });
+        },
     },
 
     // To password protect the node-defined HTTP endpoints (httpNodeRoot), or

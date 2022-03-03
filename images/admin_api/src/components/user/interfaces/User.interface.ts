@@ -10,4 +10,5 @@ export default interface IUser {
 	isDisabled: boolean;
 	lastSeenAt: string;
 	lastSeenAtAge: string;
+	accesTokenExpirationDate?: number;
 }

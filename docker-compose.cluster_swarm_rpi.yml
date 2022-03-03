@@ -1,6 +1,21 @@
 version: "3.8"
 
 services:
+  keepalived:
+    image: lolhens/keepalived-swarm:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /usr/bin/docker:/usr/bin/docker:ro
+    networks:
+      - internal_net
+    deploy:
+      mode: global
+      placement:
+        constraints: [node.role == manager]
+    environment:
+      KEEPALIVED_VIRTUAL_IPS: ${VIRTUAL_IP}
+      KEEPALIVED_INTERFACE: ${NETWORK_INTERFACE}
+
   traefik:
     image: ghcr.io/osi4iot/traefik:${TRAEFIK_TAG:-latest}
     command:
@@ -14,7 +29,7 @@ services:
       - --providers.docker=true
       - --providers.docker.swarmMode=true
       - --providers.docker.exposedbydefault=false
-      - --providers.docker.network=traefik-public
+      - --providers.docker.network=traefik_public
       - --api
       - --accesslog
       - --log
@@ -48,7 +63,7 @@ services:
       - "443:443"
       - "8080:8080"
     networks:
-      - traefik-public
+      - traefik_public
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # - /etc/timezone:/etc/timezone:ro
@@ -128,7 +143,7 @@ services:
       - "8000:8000"
       - "9000:9000"
     networks:
-      - traefik-public
+      - traefik_public
       - agent_network
     deploy:
       mode: replicated
@@ -164,7 +179,7 @@ services:
       # - /etc/localtime:/etc/localtime:ro 
     networks:
       - internal_net
-      - traefik-public
+      - traefik_public
     deploy:
       placement:
         constraints: [ node.role == worker ]
@@ -220,7 +235,7 @@ services:
     user: "${UID}:${GID}"
     networks:
       - internal_net
-      - traefik-public
+      - traefik_public
     volumes:
       - nodered_data:/data
       # - /etc/timezone:/etc/timezone:ro
@@ -274,7 +289,7 @@ services:
     user: "${UID}:${GID}"
     networks:
       - internal_net
-      - traefik-public
+      - traefik_public
     volumes:
       - grafana_data:/var/lib/grafana
       # - /etc/timezone:/etc/timezone:ro
@@ -318,7 +333,7 @@ services:
     image: ghcr.io/osi4iot/admin_api:${ADMIN_API_TAG:-latest}
     networks:
       - internal_net
-      - traefik-public
+      - traefik_public
     volumes:
       - admin_api_log:/app/logs
       # - /etc/timezone:/etc/timezone:ro
@@ -375,7 +390,7 @@ services:
         target: /run/configs/frontend.conf
         mode: 0444
     networks:
-      - traefik-public
+      - traefik_public
     command: nginx -g "daemon off";
     # volumes:
     #   - /etc/timezone:/etc/timezone:ro
@@ -406,7 +421,7 @@ services:
 networks:
   agent_network:
     external: true
-  traefik-public:
+  traefik_public:
     external: true
   internal_net:
     external: true

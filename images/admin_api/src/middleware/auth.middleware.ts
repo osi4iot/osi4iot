@@ -122,7 +122,6 @@ export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Respons
 		if (!user) {
 			return next(new HttpException(401, "You are not allowed to access."));
 		}
-		const { groupId } = req.params;
 		const orgId = req.group.orgId;
 		const group = req.group;
 
@@ -136,6 +135,32 @@ export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Respons
 		return next();
 	})(req, res, next);
 };
+
+export const groupAdminMasterDeviceAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+	passport.authenticate("master_device_access_jwt", { session: false }, async (err, user, info) => {
+		if (info) {
+			return next(new HttpException(401, info.message));
+		}
+		if (err) {
+			return next(err);
+		}
+		if (!user) {
+			return next(new HttpException(401, "You are not allowed to access."));
+		}
+		const orgId = req.group.orgId;
+		const group = req.group;
+
+		let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, group, orgId);
+		if (user.isGrafanaAdmin) isGroupAdmin = true;
+
+		if (user && !isGroupAdmin) {
+			return next(new HttpException(401, "You don't have group administrator privileges."));
+		}
+		req.user = user;
+		return next();
+	})(req, res, next);
+};
+
 
 export const basicGroupAdminAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
 	passport.authenticate("local-login", { session: false }, async (err, user, info) => {
