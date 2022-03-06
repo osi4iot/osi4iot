@@ -15,7 +15,7 @@ import SelectOrgUsersOfOrgManaged from './SelectOrgUsersOfOrgManaged';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
-import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadMasterDevicesTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -205,7 +205,6 @@ const CreateGroup: FC<CreateGroupProps> = ({
             .post(url, groupData, config)
             .then((response) => {
                 const data = response.data;
-                toast.success(data.message);
                 const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
@@ -214,6 +213,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+                const reloadMasterDevicesTable = true;
+                setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
 
                 const reloadOrgsOfGroupsManagedTable = true;
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });

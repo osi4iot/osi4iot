@@ -32,6 +32,8 @@ import {
     useReloadOrgUsersTable,
     setReloadOrgUsersTable,
     setReloadGlobalUsersTable,
+    useMasterDevicesTable,
+    setMasterDevicesTable,
 } from '../../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
 import { filterBuildings } from '../../../tools/filterBuildings';
@@ -39,6 +41,8 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { filterFloors } from '../../../tools/filterFloors';
 import { IGlobalUser } from '../TableColumns/globalUsersColumns';
+import { MasterDevicesProvider } from '../../../contexts/masterDevicesOptions';
+import MasterDevicesInOrgsContainer from './MasterDevicesInOrgsContainer';
 
 
 const OrganizationAdminOptionsContainer = styled.div`
@@ -119,22 +123,25 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const buildingsTable = useBuildingsTable();
     const floorsTable = useFloorsTable();
     const orgsManagedTable = useOrgsManagedTable();
+    const masterDevicesTable = useMasterDevicesTable();
     const orgUsersTable = useOrgUsersTable();
     const groupsTable = useGroupsTable();
     const globalUsersTable = useGlobalUsersTable();
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
+    const [masterDevicesLoading, setMasterDevicesLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
     const [orgUsersLoading, setOrgUsersLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(ORG_ADMIN_OPTIONS.ORGS_MANAGED);
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
     const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
-    
+
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadloors] = useState(false);
     const reloadOrgsManagedTable = useReloadOrgsManagedTable();
+    const [reloadMasterDevices, setReloadMasterDevices] = useState(false);
     const reloadOrgUsersTable = useReloadOrgUsersTable();
     const reloadGroupsTable = useReloadGroupsTable();
 
@@ -143,6 +150,12 @@ const OrganizationAdminOptions: FC<{}> = () => {
         const reloadOrgsManagedTable = true;
         setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
     }, [plaformAssistantDispatch]);
+
+    const refreshMasterDevices = useCallback(() => {
+        setReloadMasterDevices(true);
+        setMasterDevicesLoading(true);
+        setTimeout(() => setReloadMasterDevices(false), 500);
+    }, []);
 
 
     const refreshOrgUsers = useCallback(() => {
@@ -155,7 +168,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const refreshGroups = useCallback(() => {
         setGroupsLoading(true);
         const reloadGroupsTable = true;
-        setReloadGroupsTable(plaformAssistantDispatch, {  reloadGroupsTable });
+        setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
     }, [plaformAssistantDispatch])
 
     const refreshBuildings = useCallback(() => {
@@ -270,6 +283,37 @@ const OrganizationAdminOptions: FC<{}> = () => {
     ]);
 
     useEffect(() => {
+        if (masterDevicesTable.length === 0 || reloadMasterDevices) {
+            const urlMasterDevices = `https://${domainName}/admin_api/master_devices/user_managed`;
+            const config = axiosAuth(accessToken);
+            axiosInstance(refreshToken, authDispatch)
+                .get(urlMasterDevices, config)
+                .then((response) => {
+                    const masterDevices = response.data;
+                    masterDevices.forEach((masterDevice: { groupId: string | null; deviceId: string | null; }) => {
+                        if (masterDevice.groupId === null) masterDevice.groupId = "-";
+                        if (masterDevice.deviceId === null) masterDevice.deviceId = "-";
+                    });
+                    setMasterDevicesTable(plaformAssistantDispatch, { masterDevices });
+                    setMasterDevicesLoading(false);
+                })
+                .catch((error) => {
+                    console.log(error);
+                });
+
+        } else {
+            setMasterDevicesLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        reloadMasterDevices,
+        plaformAssistantDispatch,
+        masterDevicesTable.length
+    ]);
+
+    useEffect(() => {
         if (orgUsersTable.length === 0 || reloadOrgUsersTable) {
             const config = axiosAuth(accessToken);
             const urlOrganizationUsers = `https://${domainName}/admin_api/organization_users/user_orgs_managed/`;
@@ -318,7 +362,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setGroupsTable(plaformAssistantDispatch, { groups });
                     setGroupsLoading(false);
                     const reloadGroupsTable = false;
-                    setReloadGroupsTable(plaformAssistantDispatch, {  reloadGroupsTable });
+                    setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
                 })
                 .catch((error) => {
                     console.log(error);
@@ -342,7 +386,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
-                    const globalUsers = response.data.filter((user: IGlobalUser ) => user.login.slice(-9) !== "api_admin");
+                    const globalUsers = response.data.filter((user: IGlobalUser) => user.login.slice(-9) !== "api_admin");
                     globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
                         user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
                         user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
@@ -385,35 +429,52 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.GROUPS} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.GROUPS)}>
                     Groups
                 </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.MASTER_DEVICES_IN_ORGS} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.MASTER_DEVICES_IN_ORGS)}>
+                    Master devices in orgs
+                </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
-                {(buildingsLoading || floorsLoading || orgsManagedLoading || groupsLoading || orgUsersLoading || globalUsersLoading) ?
-                    <Loader />
-                    :
-                    <>
-                        {optionToShow === ORG_ADMIN_OPTIONS.ORGS_MANAGED &&
-                            <OrgsManagedProvider>
-                                <OrgsManagedContainer orgsManaged={orgsManagedTable} refreshOrgsManaged={refreshOrgsManaged} refreshOrgUsers={refreshOrgUsers} />
-                            </OrgsManagedProvider>
-                        }
-                        {optionToShow === ORG_ADMIN_OPTIONS.ORG_USERS &&
-                            <OrgUsersProvider>
-                                <OrgUsersContainer orgUsers={orgUsersTable} refreshOrgUsers={refreshOrgUsers} />
-                            </OrgUsersProvider>
-                        }
-                        {optionToShow === ORG_ADMIN_OPTIONS.GROUPS &&
-                            <GroupsProvider>
-                                <GroupsContainer
-                                    buildingsFiltered={buildingsFiltered}
-                                    floorsFiltered={floorsFiltered}
-                                    groups={groupsTable}
-                                    refreshGroups={refreshGroups}
-                                    refreshBuildings={refreshBuildings}
-                                    refreshFloors={refreshFloors}
-                                />
-                            </GroupsProvider>
-                        }
-                    </>
+                {
+                    (
+                        buildingsLoading ||
+                        floorsLoading ||
+                        orgsManagedLoading ||
+                        groupsLoading ||
+                        orgUsersLoading ||
+                        globalUsersLoading ||
+                        masterDevicesLoading
+                    ) ?
+                        <Loader />
+                        :
+                        <>
+                            {optionToShow === ORG_ADMIN_OPTIONS.ORGS_MANAGED &&
+                                <OrgsManagedProvider>
+                                    <OrgsManagedContainer orgsManaged={orgsManagedTable} refreshOrgsManaged={refreshOrgsManaged} refreshOrgUsers={refreshOrgUsers} />
+                                </OrgsManagedProvider>
+                            }
+                            {optionToShow === ORG_ADMIN_OPTIONS.ORG_USERS &&
+                                <OrgUsersProvider>
+                                    <OrgUsersContainer orgUsers={orgUsersTable} refreshOrgUsers={refreshOrgUsers} />
+                                </OrgUsersProvider>
+                            }
+                            {optionToShow === ORG_ADMIN_OPTIONS.GROUPS &&
+                                <GroupsProvider>
+                                    <GroupsContainer
+                                        buildingsFiltered={buildingsFiltered}
+                                        floorsFiltered={floorsFiltered}
+                                        groups={groupsTable}
+                                        refreshGroups={refreshGroups}
+                                        refreshBuildings={refreshBuildings}
+                                        refreshFloors={refreshFloors}
+                                    />
+                                </GroupsProvider>
+                            }
+                            {optionToShow === ORG_ADMIN_OPTIONS.MASTER_DEVICES_IN_ORGS &&
+                                <MasterDevicesProvider>
+                                    <MasterDevicesInOrgsContainer masterDevices={masterDevicesTable} refreshMasterDevices={refreshMasterDevices}/>
+                                </MasterDevicesProvider>
+                            }
+                        </>
                 }
             </ContentContainer>
         </>
@@ -421,3 +482,4 @@ const OrganizationAdminOptions: FC<{}> = () => {
 }
 
 export default OrganizationAdminOptions;
+

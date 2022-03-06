@@ -9,8 +9,11 @@ import ITopicUpdate from "./topicUpdate.interface";
 
 export const demoTopicName = (group: IGroup, device: IDevice, sensorType: string): string => {
 	let topicName: string;
-	if (device.type === "Mobile") topicName = `${group.acronym.replace(/ /g, "_")}_mobile_default_${sensorType.replace(/ /g, "_")}`;
-	else topicName = `${group.acronym.replace(/ /g, "_")}_generic_default_${sensorType.replace(/ /g, "_")}`;
+	if (device.type === "Main master") {
+		topicName = `${group.acronym.replace(/ /g, "_")}_main_master_${sensorType.replace(/ /g, "_")}`;
+	} else if (device.type === "Generic") {
+		topicName = `${group.acronym.replace(/ /g, "_")}_generic_default_${sensorType.replace(/ /g, "_")}`;
+	}
 	return topicName;
 }
 

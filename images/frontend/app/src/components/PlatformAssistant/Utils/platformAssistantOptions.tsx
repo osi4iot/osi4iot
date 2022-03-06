@@ -22,6 +22,7 @@ export const PLATFORM_ASSISTANT_HOME_OPTIONS = {
 
 export const PLATFORM_ADMIN_OPTIONS = {
     ORGS: "Organizations",
+    MASTER_DEVICES: "Master devices",
     BUILDINGS: "Buildings",
     FLOORS: "Floors",
     GLOBAL_USERS: "Global users",
@@ -47,6 +48,12 @@ export const FLOORS_OPTIONS = {
     EDIT_FLOOR: "Edit floor",
 }
 
+export const MASTER_DEVICES_OPTIONS = {
+    TABLE: "Table",
+    CREATE_MASTER_DEVICE: "Create master device",
+    EDIT_MASTER_DEVICE: "Edit master device",
+}
+
 export const GLOBAL_USERS_OPTIONS = {
     TABLE: "Table",
     CREATE_GLOBAL_USER: "Create global user",
@@ -64,6 +71,7 @@ export const ORG_ADMIN_OPTIONS = {
     ORGS_MANAGED: "Orgs Managed",
     ORG_USERS: "Orgs users",
     GROUPS: "Groups",
+    MASTER_DEVICES_IN_ORGS: "Master devices in orgs"
 }
 
 export const ORGS_MANAGED_OPTIONS = {

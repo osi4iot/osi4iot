@@ -7,12 +7,14 @@ import pool from "../../config/dbconfig";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateDeviceDto from "./device.dto";
 import IDevice from "./device.interface";
-import { getTopicsByDeviceId } from "../topic/topicDAL";
+import HttpException from "../../exceptions/HttpException";
+import { createDeviceMasterDevice, getMasterDevicesUnlinked } from "../masterDevice/masterDeviceDAL";
+import IMasterDevice from "../masterDevice/masterDevice.interface";
 
 export const defaultGroupDeviceName = (group: IGroup, type: string): string => {
 	let deviceName: string;
-	if (type === "Mobile") deviceName = `${group.acronym.replace(/ /g, "_")}_mobile_default`;
-	else deviceName = `${group.acronym.replace(/ /g, "_")}_generic_default`;
+	if (type === "Main master") deviceName = `${group.acronym.replace(/ /g, "_")}_main_master`;
+	else if (type === "Generic") deviceName = `${group.acronym.replace(/ /g, "_")}_generic_default`;
 	return deviceName;
 }
 
@@ -41,7 +43,7 @@ export const updateDeviceByProp = async (propName: string, propValue: (string | 
 	const query = `UPDATE grafanadb.device SET name = $1, description = $2,
 				geolocation = $3, type = $4, updated = NOW()
 				WHERE grafanadb.device.${propName} = $5;`;
-	const result = await pool.query(query, [
+	await pool.query(query, [
 		device.name,
 		device.description,
 		`(${device.longitude},${device.latitude})`,
@@ -62,24 +64,41 @@ export const deleteDeviceByProp = async (propName: string, propValue: (string | 
 	await pool.query(`DELETE FROM grafanadb.device WHERE ${propName} = $1`, [propValue]);
 };
 
-export const createDevice = async (group: IGroup, deviceInput: CreateDeviceDto): Promise<IDevice> => {
+export const createDevice = async (group: IGroup, deviceInput: CreateDeviceDto, masterDevicesUnlinkedInOrg?: IMasterDevice[]): Promise<IDevice> => {
 	const deviceUid = nanoid().replace(/-/g, "x");
 	const orgId = group.orgId;
 	const groupId = group.id;
 	const deviceUpdated: IDevice = { ...deviceInput, orgId, groupId, deviceUid };
-	const device = await insertDevice(deviceUpdated);
-	return device;
+	let newDevice: IDevice;
+	if (deviceInput.type === "Main master" || deviceInput.type === "Master") {
+		let masterDevicesUnlinked: IMasterDevice[] = [];
+		if (masterDevicesUnlinkedInOrg !== undefined) masterDevicesUnlinked = masterDevicesUnlinkedInOrg;
+		else {
+			masterDevicesUnlinked = await getMasterDevicesUnlinked(group.orgId);
+		}
+		if (masterDevicesUnlinked.length === 0) {
+			throw new HttpException(400, `The org with id: ${orgId} not have master device available`)
+		}
+		newDevice = await insertDevice(deviceUpdated);
+		await createDeviceMasterDevice(newDevice.id, masterDevicesUnlinked[0].id);
+	} else {
+		newDevice = await insertDevice(deviceUpdated);
+	}
+	return newDevice;
 };
 
 export const getDeviceByProp = async (propName: string, propValue: (string | number)): Promise<IDevice> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
-	                                grafanadb.device.name, grafanadb.device.description,
+									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
+									grafanadb.master_device.md_hash AS "masterDeviceHash",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
+									FULL JOIN grafanadb.device_mdevice ON grafanadb.device_mdevice.device_id = grafanadb.device.id
+									FULL JOIN grafanadb.master_device ON grafanadb.master_device.id = grafanadb.device_mdevice.master_device_id
 									WHERE grafanadb.device.${propName} = $1`, [propValue]);
 	return response.rows[0];
 }
@@ -90,9 +109,13 @@ export const getAllDevices = async (): Promise<IDevice[]> => {
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
+									grafanadb.master_device.md_hash AS "masterDeviceHash",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
+									FULL JOIN grafanadb.device_mdevice ON grafanadb.device_mdevice.device_id = grafanadb.device.id
+									FULL JOIN grafanadb.master_device ON grafanadb.master_device.id = grafanadb.device_mdevice.master_device_id
+									WHERE grafanadb.device.id IS NOT NULL
 									ORDER BY grafanadb.device.id  ASC;`);
 	return response.rows;
 }
@@ -109,14 +132,18 @@ export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> =
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
+									grafanadb.master_device.md_hash AS "masterDeviceHash",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									WHERE grafanadb.device.group_id = $1`, [groupId]);
+									FULL JOIN grafanadb.device_mdevice ON grafanadb.device_mdevice.device_id = grafanadb.device.id
+									FULL JOIN grafanadb.master_device ON grafanadb.master_device.id = grafanadb.device_mdevice.master_device_id
+									WHERE grafanadb.device.group_id = $1
+									ORDER BY grafanadb.device.id  ASC`, [groupId]);
 	return response.rows;
 };
 
-export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDevice[]> => {
+export const getMainMasterDeviceByGroupId = async (groupId: number): Promise<IDevice[]> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
@@ -125,7 +152,25 @@ export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promis
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									WHERE grafanadb.device.group_id = ANY($1::bigint[])`, [groupsIdArray]);
+									WHERE grafanadb.device.group_id = $1 AND grafanadb.device.type = $2`,
+									[groupId, "Main master"]);
+	return response.rows[0];
+};
+
+export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDevice[]> => {
+	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
+									grafanadb.device.name, grafanadb.device.description,
+									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
+									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
+									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
+									grafanadb.master_device.md_hash AS "masterDeviceHash",
+									grafanadb.device.created, grafanadb.device.updated
+									FROM grafanadb.device
+									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
+									FULL JOIN grafanadb.device_mdevice ON grafanadb.device_mdevice.device_id = grafanadb.device.id
+									FULL JOIN grafanadb.master_device ON grafanadb.master_device.id = grafanadb.device_mdevice.master_device_id
+									WHERE grafanadb.device.group_id = ANY($1::bigint[])
+									ORDER BY grafanadb.device.id  ASC`, [groupsIdArray]);
 	return response.rows;
 };
 
@@ -145,7 +190,8 @@ export const getDevicesByOrgId = async (orgId: number): Promise<IDevice[]> => {
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									WHERE grafanadb.device.org_id = $1`, [orgId]);
+									WHERE grafanadb.device.org_id = $1
+									ORDER BY grafanadb.device.id  ASC`, [orgId]);
 	return response.rows;
 };
 

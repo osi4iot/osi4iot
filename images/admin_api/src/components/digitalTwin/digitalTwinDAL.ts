@@ -267,7 +267,7 @@ export const checkIfLoggedUserManageTopicsAndDashboard = async (
 
 export const demoDigitalTwinName = (group: IGroup, deviceType: string): string => {
 	let digitalTwinName: string;
-	if (deviceType === "Mobile") digitalTwinName = `${group.acronym.replace(/ /g, "_")}_mobile_default_DT`;
+	if (deviceType === "Main master") digitalTwinName = `${group.acronym.replace(/ /g, "_")}_main_master_demo_DT`;
 	else digitalTwinName = `${group.acronym.replace(/ /g, "_")}_generic_default_DT`;
 	return digitalTwinName;
 }

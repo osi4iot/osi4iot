@@ -22,6 +22,8 @@ export const initialState = {
     selectOrgUsers: [],
     reloadSelectOrgUsersTable: true,
     organizations: [],
+    masterDevices: [],
+    reloadMasterDevicesTable: true,
     buildings: [],
     reloadBuildingsTable: true,
     floors: [],
@@ -89,6 +91,18 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
             return {
                 ...initialState,
                 organizations: action.payload.organizations
+            };
+
+        case "MASTER_DEVICES_TABLE":
+            return {
+                ...initialState,
+                masterDevices: action.payload.masterDevices
+            };
+
+        case "RELOAD_MASTER_DEVICES_TABLE":
+            return {
+                ...initialState,
+                reloadMasterDevicesTable: action.payload.reloadMasterDevicesTable
             };
 
         case "BUILDINGS_TABLE":
@@ -293,6 +307,8 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 selectOrgUsers: [],
                 reloadSelectOrgUsersTable: true,
                 organizations: [],
+                masterDevices: [],
+                reloadMasterDevicesTable: true,
                 buildings: [],
                 reloadBuildingsTable: true,
                 floors: [],

@@ -141,7 +141,7 @@ if [[ "$(docker service ls | grep osi4iot_admin_api | grep 3/3)" == "" ]]; then
   done
   endspin
 
-  # docker service scale osi4iot_admin_api=3
+  docker service scale osi4iot_admin_api=3
 fi
 
 do=true && [[ "$(docker service ls | grep 0/1)" == "" || "$(docker service ls | grep 0/3)" == "" ]] && do=false

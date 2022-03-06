@@ -52,6 +52,7 @@ import { createTopic, demoTopicName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
+import { getMasterDevicesUnlinked } from "../masterDevice/masterDeviceDAL";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -251,6 +252,10 @@ class GroupController implements IController {
 			const existentGroup = await getGroupByProp("name", groupInput.name);
 			if (existentGroup) throw new AlreadyExistingItemException("A", "Group", ["name"], [groupInput.name]);
 			const usersArray = await getOrganizationUsersByEmailArray(orgId, groupInput.groupAdminDataArray.map(user => user.email));
+			const masterDevicesUnlinkedInOrg = await getMasterDevicesUnlinked(orgId);
+			if (masterDevicesUnlinkedInOrg.length === 0) {
+				throw new HttpException(400, `The org with id: ${orgId} not have master devices available`)
+			}
 			if (usersArray.length !== groupInput.groupAdminDataArray.length) {
 				throw new HttpException(404, "All the administrators of the group must be members of the organization");
 			} else {
@@ -275,34 +280,34 @@ class GroupController implements IController {
 			const devicesDistance = 0.00002;
 			const defaultGroupDeviceData = [
 				{
+					name: defaultGroupDeviceName(groupCreated, "Main master"),
+					description: `Main generic device of the group ${groupCreated.name}`,
+					latitude: centerLatitude,
+					longitude: (centerLongitude - devicesDistance),
+					type: "Main master"
+				},
+				{
 					name: defaultGroupDeviceName(groupCreated, "Generic"),
 					description: `Default generic device of the group ${groupCreated.name}`,
 					latitude: centerLatitude,
-					longitude: (centerLongitude - devicesDistance),
-					type: "Generic"
-				},
-				{
-					name: defaultGroupDeviceName(groupCreated, "Mobile"),
-					description: `Default mobile device of the group ${groupCreated.name}`,
-					latitude: centerLatitude,
 					longitude: (centerLongitude + devicesDistance),
-					type: "Mobile"
+					type: "Generic"
 				}
 			];
-			const device1 = await createDevice(groupCreated, defaultGroupDeviceData[0]);
+			const device1 = await createDevice(groupCreated, defaultGroupDeviceData[0], masterDevicesUnlinkedInOrg);
 			const device2 = await createDevice(groupCreated, defaultGroupDeviceData[1]);
 
 			const defaultDeviceTopicsData = [
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(groupCreated, device1, "Temperature"),
-					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
+					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated, "Main master")} device`,
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
 				},
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(groupCreated, device2, "Accelerometer"),
-					description: `Accelerometer for ${defaultGroupDeviceName(groupCreated, "Mobile")} device`,
+					description: `Accelerometer for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
 					payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
 				},
 			];
@@ -317,8 +322,8 @@ class GroupController implements IController {
 
 			const defaultDeviceDigitalTwinsData = [
 				{
-					name: demoDigitalTwinName(groupCreated, "Generic"),
-					description: `Demo digital twin for default generic device of the group ${groupCreated.acronym}`,
+					name: demoDigitalTwinName(groupCreated, "Main master"),
+					description: `Demo digital twin for main master device of the group ${groupCreated.acronym}`,
 					type: "Grafana dashboard",
 					dashboardId: dashboardsId[0],
 					gltfData: "{}",
@@ -330,8 +335,8 @@ class GroupController implements IController {
 					digitalTwinSimulationFormat: "{}"
 				},
 				{
-					name: demoDigitalTwinName(groupCreated, "Mobile"),
-					description: `Demo digital twin for default mobile device of the group ${groupCreated.acronym}`,
+					name: demoDigitalTwinName(groupCreated, "Generic"),
+					description: `Demo digital twin for default generic device of the group ${groupCreated.acronym}`,
 					type: "Grafana dashboard",
 					dashboardId: dashboardsId[1],
 					gltfData: "{}",

@@ -8,6 +8,7 @@ import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/glo
 import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
 import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
 import { IGroupManaged } from '../../components/PlatformAssistant/TableColumns/groupsManagedColumns';
+import { IMasterDevice } from '../../components/PlatformAssistant/TableColumns/masterDevicesColumns';
 import { IMembershipInGroups } from '../../components/PlatformAssistant/TableColumns/membershipInGroups';
 import { IMembershipInOrgs } from '../../components/PlatformAssistant/TableColumns/membershipInOrgs';
 import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
@@ -89,6 +90,22 @@ export const useOrganizationsTable = (): IOrganization[] => {
 		throw new Error('useOrganizationsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.organizations;
+}
+
+export const useMasterDevicesTable = (): IMasterDevice[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useMasterDevicesTable must be used within a PlatformAssitantProvider');
+	}
+	return context.masterDevices;
+}
+
+export const useReloadMasterDevicesTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadMasterDevicesTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadMasterDevicesTable;
 }
 
 export const useBuildingsTable = (): IBuilding[] => {

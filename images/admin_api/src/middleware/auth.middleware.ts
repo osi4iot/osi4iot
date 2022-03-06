@@ -3,8 +3,9 @@ import { NextFunction, Response } from "express";
 import IRequestWithUser from "../interfaces/requestWithUser.interface";
 import HttpException from "../exceptions/HttpException";
 import { isThisUserAdminOfSomeOrg, isThisUserOrgAdmin } from "../components/user/userDAL";
-import { haveThisUserGroupAdminPermissions } from "../components/group/groupDAL";
+import { getGroupByProp, haveThisUserGroupAdminPermissions } from "../components/group/groupDAL";
 import IRequestWithUserAndGroup from "../components/group/interfaces/requestWithUserAndGroup.interface";
+import { getMasterDeviceByProp } from "../components/masterDevice/masterDeviceDAL";
 
 export const registerAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
 	passport.authenticate("register_jwt", { session: false }, (err, user, info) => {
@@ -100,7 +101,7 @@ export const organizationAdminAuth = async (req: IRequestWithUser, res: Response
 		}
 		const { orgId } = req.params;
 
-		let isOrganizationAdmin = await isThisUserOrgAdmin(user.id, parseInt(orgId,10));
+		let isOrganizationAdmin = await isThisUserOrgAdmin(user.id, parseInt(orgId, 10));
 		if (user.isGrafanaAdmin) isOrganizationAdmin = true;
 
 		if (user && !isOrganizationAdmin) {
@@ -123,9 +124,9 @@ export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Respons
 			return next(new HttpException(401, "You are not allowed to access."));
 		}
 		const orgId = req.group.orgId;
-		const group = req.group;
+		const teamId = req.group.teamId;
 
-		let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, group, orgId);
+		let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, teamId, orgId);
 		if (user.isGrafanaAdmin) isGroupAdmin = true;
 
 		if (user && !isGroupAdmin) {
@@ -136,7 +137,7 @@ export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Respons
 	})(req, res, next);
 };
 
-export const groupAdminMasterDeviceAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+export const groupAdminMasterDeviceAuth = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 	passport.authenticate("master_device_access_jwt", { session: false }, async (err, user, info) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
@@ -147,14 +148,18 @@ export const groupAdminMasterDeviceAuth = async (req: IRequestWithUserAndGroup, 
 		if (!user) {
 			return next(new HttpException(401, "You are not allowed to access."));
 		}
-		const orgId = req.group.orgId;
-		const group = req.group;
+		const { masterDeviceHash } = req.params;
+		const masterDevice = await getMasterDeviceByProp("md_hash", masterDeviceHash);
+		if (masterDevice) {
+			const group = await getGroupByProp("id", masterDevice.groupId)
+			let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, group.teamId, group.orgId);
+			if (user.isGrafanaAdmin) isGroupAdmin = true;
 
-		let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, group, orgId);
-		if (user.isGrafanaAdmin) isGroupAdmin = true;
-
-		if (user && !isGroupAdmin) {
-			return next(new HttpException(401, "You don't have group administrator privileges."));
+			if (user && !isGroupAdmin) {
+				return next(new HttpException(401, "You don't have group administrator privileges."));
+			}
+		} else {
+			return next(new HttpException(404, `Not exits any master device with hash= ${masterDeviceHash}`));
 		}
 		req.user = user;
 		return next();
@@ -177,9 +182,9 @@ export const basicGroupAdminAuth = async (req: IRequestWithUserAndGroup, res: Re
 		}
 
 		const orgId = req.group.orgId;
-		const group = req.group;
+		const teamId = req.group.teamId;
 
-		let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, group, orgId);
+		let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, teamId, orgId);
 		if (user.isGrafanaAdmin) isGroupAdmin = true;
 
 		if (user && !isGroupAdmin) {

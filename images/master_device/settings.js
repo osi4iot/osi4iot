@@ -151,7 +151,7 @@ module.exports = {
                     const optionsToken = {
                         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Accept": "application/json" }
                     };
-                    const url = `admin_api:3200/master_device_authentication/${process.env.GROUP_ID}`;
+                    const url = `admin_api:3200/master_device_authentication/${process.env.MASTER_DEVICE_HASH}`;
 
                     needle('get', url, optionsToken)
                         .then(function (resp) {

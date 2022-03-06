@@ -209,7 +209,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 			.get(urlDevices, config)
 			.then((response) => {
 				const devices: IDevice[] = response.data;
-				const devicesManaged = devices.filter(device => device.type === "Mobile");
+				const devicesManaged = devices.filter(device => device.type === "Generic");
 				const devicesManagedIdsArray = devicesManaged.map(device => device.id);
 				setDevicesManaged(devicesManaged);
 				axios

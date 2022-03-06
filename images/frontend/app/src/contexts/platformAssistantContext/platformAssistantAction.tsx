@@ -36,7 +36,9 @@ import {
 	IReloadOrgsOfGroupsManagedTable,
 	IReloadGlobalUsersTable,
 	IReloadBuildingsTable,
-	IReloadFloorsTable
+	IReloadFloorsTable,
+	IMasterDevicesTable,
+	IReloadMasterDevicesTable
 
 } from "./interfaces";
 
@@ -58,6 +60,14 @@ export function setReloadSelectOrgUsersTable(plaformAssistantDispatch: PlatformA
 
 export function setOrganizationsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IOrganizationsTable) {
 	plaformAssistantDispatch({ type: 'ORGANIZATIONS_TABLE', payload: data });
+}
+
+export function setMasterDevicesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IMasterDevicesTable) {
+	plaformAssistantDispatch({ type: 'MASTER_DEVICES_TABLE', payload: data });
+}
+
+export function setReloadMasterDevicesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadMasterDevicesTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_MASTER_DEVICES_TABLE', payload: data });
 }
 
 export function setBuildingsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IBuildingsTable) {

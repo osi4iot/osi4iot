@@ -19,6 +19,7 @@ import {
     setDevicesPreviousOption
 } from '../../../contexts/devicesOptions/devicesAction';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
+import { setReloadMasterDevicesTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -83,16 +84,24 @@ const SelectLocationButton = styled.button`
 	}
 `;
 
-const deviceTypeOptions = [
+const deviceTypeOptions1 = [
+    {
+        label: "Main master",
+        value: "Main master"
+    }
+];
+
+const deviceTypeOptions2 = [
     {
         label: "Generic",
         value: "Generic"
     },
     {
-        label: "Mobile",
-        value: "Mobile"
+        label: "Master",
+        value: "Master"
     }
 ];
+
 
 const deviceInitInputFormData = {
     groupId: 0,
@@ -120,6 +129,7 @@ const EditDevice: FC<EditDeviceProps> = ({
     selectLocationOption,
     refreshDevices
 }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -127,6 +137,7 @@ const EditDevice: FC<EditDeviceProps> = ({
     const deviceId = useDeviceIdToEdit();
     const deviceRowIndex = useDeviceRowIndexToEdit();
     const initialDeviceData = useDeviceInputData();
+    const deviceTypeOptions = initialDeviceData.type === "Main master" ? deviceTypeOptions1 : deviceTypeOptions2;
 
     useEffect(() => {
         const devicesPreviousOption = { devicesPreviousOption:  DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE };
@@ -165,6 +176,10 @@ const EditDevice: FC<EditDeviceProps> = ({
                 setIsSubmitting(false);
                 setDevicesOptionToShow(devicesDispatch, devicesOptionToShow);
                 refreshDevices();
+                if (initialDeviceData.type === "Generic" && values.type === "Master") {
+                    const reloadMasterDevicesTable = true;
+                    setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
+                }
 
             })
             .catch((error) => {

@@ -1,7 +1,7 @@
 import fs from "fs";
 import { logger } from "./winston";
 
-interface IProcessEnv extends Record<string, string> {
+interface IProcessEnv extends Record<string, string | string[][]> {
 	PLATFORM_NAME: string;
 	DOMAIN_NAME: string;
 	PLATFORM_PHRASE: string;
@@ -34,6 +34,7 @@ interface IProcessEnv extends Record<string, string> {
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: string;
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: string;
 	TELEGRAM_BOTTOKEN: string;
+	MASTER_DEVICE_HASHES: string[][];
 }
 
 const process_env: IProcessEnv = {
@@ -69,6 +70,7 @@ const process_env: IProcessEnv = {
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 	TELEGRAM_BOTTOKEN: process.env.TELEGRAM_BOTTOKEN,
+	MASTER_DEVICE_HASHES: []
 };
 
 const readDockerFiles = (dockerFileName: string) => {
@@ -80,8 +82,13 @@ const readDockerFiles = (dockerFileName: string) => {
 				const splittedLine = line.split("=");
 				if (splittedLine.length === 2) {
 					const envName = splittedLine[0];
-					const envValue = splittedLine[1].replace(/"/g,"");
-					process_env[envName] = envValue;
+					if (envName.slice(-20) === "MASTER_DEVICE_HASHES") {
+						const envValues = splittedLine[1].replace(/"/g,"").split(",");
+						process_env.MASTER_DEVICE_HASHES.push(envValues);
+					} else {
+						const envValue = splittedLine[1].replace(/"/g,"");
+						process_env[envName] = envValue;
+					}
 				}
 			});
 
@@ -92,6 +99,7 @@ const readDockerFiles = (dockerFileName: string) => {
 };
 
 readDockerFiles("/run/secrets/admin_api.txt");
+readDockerFiles("/run/secrets/master_devices.txt");
 readDockerFiles("/run/configs/admin_api.conf");
 
 

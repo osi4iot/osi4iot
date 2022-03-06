@@ -26,7 +26,8 @@ import {
     setReloadDashboardsTable,
     setReloadOrgsOfGroupsManagedTable,
     setReloadOrgUsersTable,
-    setReloadTopicsTable
+    setReloadTopicsTable,
+    setReloadMasterDevicesTable
 } from '../../../contexts/platformAssistantContext';
 
 
@@ -178,6 +179,8 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+                const reloadMasterDevicesTable = true;
+                setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
                 
                 const reloadOrgsOfGroupsManagedTable = true;
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });

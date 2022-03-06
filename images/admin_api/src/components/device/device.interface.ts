@@ -7,6 +7,7 @@ export default interface IDevice {
 	type: string;
 	groupUid?: string;
 	deviceUid: string;
+	masterDeviceHash?: string;
 	longitude: number;
 	latitude: number;
 	created?: string;

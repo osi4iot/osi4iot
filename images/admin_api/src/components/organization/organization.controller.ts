@@ -24,7 +24,8 @@ import {
 	getOrganizationsManagedByUserId,
 	updateOrgUserRoleInDefaultOrgGroup,
 	organizationsWhichTheLoggedUserIsUser,
-	getOrganizationsWithIdsArray
+	getOrganizationsWithIdsArray,
+	getNumOrganizations
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -33,7 +34,6 @@ import {
 	getOrganizationUsers,
 	createOrganizationUsers,
 	getOrganizationUserByProp,
-	updateOrganizationUser,
 	getUsersIdByEmailsArray,
 	isUsersDataCorrect,
 	getOrganizationUsersWithGrafanaAdmin,
@@ -46,7 +46,7 @@ import HttpException from "../../exceptions/HttpException";
 import CreateUsersArrayDto from "../user/interfaces/UsersArray.dto";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
-import { createGroup, defaultOrgGroupName, deleteGroup, getAllGroupsInOrganization, getDefaultOrgGroup, getGroupMemberByProp, getGroupMembers, getGroupsManagedByUserId, getGroupsOfOrgIdWhereUserIdIsMember, getOrgsIdArrayForGroupsManagedByUserId, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
+import { createGroup, defaultOrgGroupName, getAllGroupsInOrganization, getGroupMemberByProp, getGroupMembers, getGroupsManagedByUserId, getGroupsOfOrgIdWhereUserIdIsMember, getOrgsIdArrayForGroupsManagedByUserId, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
@@ -63,6 +63,7 @@ import { createTopic, demoTopicName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
+import { createMasterDevicesInOrg } from "../masterDevice/masterDeviceDAL";
 
 
 class OrganizationController implements IController {
@@ -269,6 +270,10 @@ class OrganizationController implements IController {
 
 	private createOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
+			const numOrgs = await getNumOrganizations();
+			if ( (numOrgs+1) > process_env.MASTER_DEVICE_HASHES.length) {
+				throw new HttpException(400, "There are no more master devices hashes available for a new org.")
+			}
 			const organizationData: CreateOrganizationDto = req.body;
 			organizationData.acronym = organizationData.acronym.replace(/ /g, "_").toUpperCase();
 			const orgGrafanaDTO: IOrganizationGrafanaDTO = { name: organizationData.name };
@@ -286,7 +291,7 @@ class OrganizationController implements IController {
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				await grafanaApi.createOrgApiAdminUser(newOrg.orgId);
 				await updateOrganizationByProp("id", newOrg.orgId, organizationData);
-				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g,"")}`
+				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g, "")}`
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
 				await grafanaApi.switchOrgContextForAdmin(newOrg.orgId);
 				const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
@@ -294,7 +299,7 @@ class OrganizationController implements IController {
 				const apiKeyId = await getApiKeyIdByName(apyKeyName);
 				await insertOrganizationToken(newOrg.orgId, apiKeyId, hashedApiKey);
 				await grafanaApi.changeUserRoleInOrganization(newOrg.orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
-				const dataSourceName = `iot_${organizationData.acronym.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
+				const dataSourceName = `iot_${organizationData.acronym.replace(/ /g, "_").replace(/"/g, "").toLowerCase()}_db`;
 				await createDefaultOrgDataSource(newOrg.orgId, dataSourceName, apiKeyObj.key);
 				const groupAdminDataArray: CreateGroupAdminDto[] = [];
 				const platformAdminEmail = process_env.PLATFORM_ADMIN_EMAIL;
@@ -319,11 +324,11 @@ class OrganizationController implements IController {
 						})
 				});
 				const groupName = defaultOrgGroupName(organizationData.name, organizationData.acronym);
-				const defaultOrgGroupAcronym = `${organizationData.acronym.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}_GRAL`;
+				const defaultOrgGroupAcronym = `${organizationData.acronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_GRAL`;
 				const defaultOrgGroup = {
 					name: groupName,
 					acronym: defaultOrgGroupAcronym,
-					email: `${organizationData.acronym.replace(/ /g, "_").replace(/"/g,"").toLocaleLowerCase()}_general@test.com`,
+					email: `${organizationData.acronym.replace(/ /g, "_").replace(/"/g, "").toLocaleLowerCase()}_general@test.com`,
 					telegramChatId: organizationData.telegramChatId,
 					telegramInvitationLink: organizationData.telegramInvitationLink,
 					folderPermission: ("Viewer" as FolderPermissionOption),
@@ -336,20 +341,22 @@ class OrganizationController implements IController {
 				const group = await createGroup(newOrg.orgId, defaultOrgGroup, organizationData.name, true);
 				await addOrgUsersToDefaultOrgGroup(newOrg.orgId, organizationData.orgAdminArray);
 				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
+
+				await createMasterDevicesInOrg(process_env.MASTER_DEVICE_HASHES[newOrg.orgId - 1], newOrg.orgId)
 				const defaultGroupDeviceData = [
+					{
+						name: defaultGroupDeviceName(group, "Main master"),
+						description: `Main master device of the group ${defaultOrgGroupAcronym}`,
+						latitude: 0,
+						longitude: 0,
+						type: "Main master"
+					},
 					{
 						name: defaultGroupDeviceName(group, "Generic"),
 						description: `Default generic device of the group ${defaultOrgGroupAcronym}`,
 						latitude: 0,
 						longitude: 0,
 						type: "Generic"
-					},
-					{
-						name: defaultGroupDeviceName(group, "Mobile"),
-						description: `Default mobile device of the group ${defaultOrgGroupAcronym}`,
-						latitude: 0,
-						longitude: 0,
-						type: "Mobile"
 					}
 				];
 				const device1 = await createDevice(group, defaultGroupDeviceData[0]);
@@ -362,7 +369,8 @@ class OrganizationController implements IController {
 						description: `Temperature sensor for default generic device of the group ${group.acronym}`,
 						payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
 					},
-					{	topicType: "dev2pdb",
+					{
+						topicType: "dev2pdb",
 						topicName: demoTopicName(group, device2, "Accelerometer"),
 						description: `Accelerometer for default mobile device of the group ${group.acronym}`,
 						payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
@@ -378,8 +386,8 @@ class OrganizationController implements IController {
 
 				const defaultDeviceDigitalTwinsData = [
 					{
-						name: demoDigitalTwinName(group, "Generic"),
-						description: `Demo digital twin for default generic device of the group ${group.acronym}`,
+						name: demoDigitalTwinName(group, "Main master"),
+						description: `Demo digital twin for main master device of the group ${group.acronym}`,
 						type: "Grafana dashboard",
 						dashboardId: dashboardsId[0],
 						gltfData: "{}",
@@ -391,8 +399,8 @@ class OrganizationController implements IController {
 						digitalTwinSimulationFormat: "{}"
 					},
 					{
-						name: demoDigitalTwinName(group, "Mobile"),
-						description: `Demo digital twin for default mobile device of the group ${group.acronym}`,
+						name: demoDigitalTwinName(group, "Generic"),
+						description: `Demo digital twin for default generic device of the group ${group.acronym}`,
 						type: "Grafana dashboard",
 						dashboardId: dashboardsId[1],
 						gltfData: "{}",

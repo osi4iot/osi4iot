@@ -1,14 +1,14 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { basicGroupAdminAuth, groupAdminAuth, groupAdminMasterDeviceAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
 import CreateDeviceDto from "./device.dto";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
-import { changeDeviceUidByUid, createDevice, deleteDeviceByProp, getAllDevices, getDeviceByProp, getDevicesByGroupId, getDevicesByGroupsIdArray, getDevicesByOrgId, updateDeviceByProp } from "./deviceDAL";
+import { changeDeviceUidByUid, createDevice, deleteDeviceByProp, getAllDevices, getDeviceByProp, getDevicesByGroupId, getDevicesByGroupsIdArray, getDevicesByOrgId, getMainMasterDeviceByGroupId, updateDeviceByProp } from "./deviceDAL";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfDevice } from "../group/dashboardDAL";
 import LoginDto from "../Authentication/login.dto";
@@ -18,7 +18,8 @@ import IDevice from "./device.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByDevice } from "../mesurement/measurementDAL";
-import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
+import { createDeviceMasterDevice, getMasterDevicesUnlinked } from "../masterDevice/masterDeviceDAL";
+import HttpException from "../../exceptions/HttpException";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -86,12 +87,6 @@ class DeviceController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreateDeviceDto>(CreateDeviceDto),
 				this.createDevice
-			)
-			.get(
-				"/master_device_authentication/:groupId",
-				groupExists,
-				groupAdminMasterDeviceAuth,
-				this.masterDeviceAuthentication
 			)
 
 	}
@@ -194,6 +189,9 @@ class DeviceController implements IController {
 			if (!this.isValidDevicePropName(propName)) throw new InvalidPropNameExeception(propName);
 			const device = await getDeviceByProp(propName, propValue);
 			if (!device) throw new ItemNotFoundException("The device", propName, propValue);
+			if (device.type === "Main master") {
+				throw new HttpException(400, `The main maser device can not be deleted`)
+			}
 			await deleteDeviceByProp(propName, propValue);
 			const message = { message: "Device deleted successfully" }
 			res.status(200).json(message);
@@ -203,7 +201,7 @@ class DeviceController implements IController {
 	};
 
 	private updateDeviceByProp = async (
-		req: Request,
+		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
@@ -213,6 +211,16 @@ class DeviceController implements IController {
 			if (!this.isValidDevicePropName(propName)) throw new InvalidPropNameExeception(propName);
 			let device = await getDeviceByProp(propName, propValue);
 			if (!device) throw new ItemNotFoundException("The device", propName, propValue);
+			if (device.type === "Generic" && deviceData.type === "Master") {
+				const group = req.group;
+				const orgId = group.orgId;
+				const masterDevicesUnlinked = await getMasterDevicesUnlinked(group.orgId);
+				if (masterDevicesUnlinked.length === 0) {
+					throw new HttpException(400, `The org with id: ${orgId} not have any master device available`)
+				} else {
+					await createDeviceMasterDevice(device.id, masterDevicesUnlinked[0].id);
+				}
+			}
 			device = { ...device, ...deviceData };
 			await updateDeviceByProp(propName, propValue, device);
 			const message = { message: "Device updated successfully" }
@@ -260,20 +268,6 @@ class DeviceController implements IController {
 				message = { message: `The device with name: ${deviceData.name} already exist` };
 			}
 			res.status(200).send(message);
-		} catch (error) {
-			next(error);
-		}
-	};
-
-	private masterDeviceAuthentication = async (
-		req: IRequestWithUserAndGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
-		try {
-			const user = req.user;
-			const response = { user }
-			res.status(200).send(response);
 		} catch (error) {
 			next(error);
 		}

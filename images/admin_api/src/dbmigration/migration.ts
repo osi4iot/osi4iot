@@ -1,6 +1,6 @@
 // import pool from "../../config/dbconfig";
 import { logger } from "../config/winston";
-import { Pool, QueryResult } from "pg";
+import { Pool } from "pg";
 import grafanaApi from "../GrafanaApi"
 import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
 import { addMembersToGroup, createGroup, defaultOrgGroupName } from "../components/group/groupDAL";
@@ -12,6 +12,10 @@ import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOpt
 import { createTopic, demoTopicName } from "../components/topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinName } from "../components/digitalTwin/digitalTwinDAL";
 import process_env from "../config/api_config";
+import IDevice from "../components/device/device.interface";
+import {  createMasterDevicesInOrg } from "../components/masterDevice/masterDeviceDAL";
+import IMasterDevice from "../components/masterDevice/masterDevice.interface";
+import ITopicUpdate from "../components/topic/topicUpdate.interface";
 
 
 export async function dataBaseInitialization() {
@@ -399,6 +403,57 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, err.message);
 		}
 
+		const tableMasterDevice = "grafanadb.master_device";
+		const queryStringMasterDevice = `
+			CREATE TABLE IF NOT EXISTS ${tableMasterDevice}(
+				id serial PRIMARY KEY,
+				md_hash VARCHAR(40) UNIQUE,
+				org_id bigint,
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
+				CONSTRAINT fk_org_id
+					FOREIGN KEY(org_id)
+					REFERENCES grafanadb.org(id)
+					ON DELETE CASCADE
+			);
+
+			CREATE INDEX IF NOT EXISTS idx_md_hash
+			ON grafanadb.master_device(md_hash);`;
+
+		let mainMasterDevice: IMasterDevice;
+		try {
+			await pool.query(queryStringMasterDevice);
+			const masterDevices = await createMasterDevicesInOrg(process_env.MASTER_DEVICE_HASHES[0], 1);
+			mainMasterDevice = masterDevices[0];
+			logger.log("info", `Table ${tableMasterDevice} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableMasterDevice} can not be created: %s`, err.message);
+		}
+
+		const tableDeviceMasterDevice = "grafanadb.device_mdevice";
+		const queryStringDeviceMasterDevice = `
+			CREATE TABLE IF NOT EXISTS ${tableDeviceMasterDevice}(
+				device_id bigint,
+				master_device_id bigint,
+				created TIMESTAMPTZ,
+				updated TIMESTAMPTZ,
+				CONSTRAINT fk_device_id
+					FOREIGN KEY(device_id)
+					REFERENCES grafanadb.device(id)
+					ON DELETE CASCADE,
+				CONSTRAINT fk_master_device_id
+					FOREIGN KEY(master_device_id)
+					REFERENCES grafanadb.master_device(id)
+					ON DELETE CASCADE
+			);`;
+
+		try {
+			await pool.query(queryStringDeviceMasterDevice);
+			logger.log("info", `Table ${tableDeviceMasterDevice} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Table ${tableDeviceMasterDevice} can not be created: %s`, err.message);
+		}
+
 		const tableThingData = "iot_data.thingData";
 		const queryStringAlterThingData = `
 			ALTER TABLE ${tableThingData}
@@ -420,7 +475,22 @@ export async function dataBaseInitialization() {
 
 		try {
 			await pool.query(queryStringAlterThingData);
+			logger.log("info", `Foreing key in table ${tableThingData} has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Foreing key in table ${tableThingData} could not be created: %s`, err.message);
+		}
+
+		let device1: IDevice;
+		let device2: IDevice;
+		try {
 			const defaultGroupDevicesData = [
+				{
+					name: defaultGroupDeviceName(group, "Main master"),
+					description: `Main master device of the group ${mainOrgGroupAcronym}`,
+					latitude: 0,
+					longitude: 0,
+					type: "Main master"
+				},
 				{
 					name: defaultGroupDeviceName(group, "Generic"),
 					description: `Default generic device of the group ${mainOrgGroupAcronym}`,
@@ -428,34 +498,41 @@ export async function dataBaseInitialization() {
 					longitude: 0,
 					type: "Generic"
 				},
-				{
-					name: defaultGroupDeviceName(group, "Mobile"),
-					description: `Default mobile device of the group ${mainOrgGroupAcronym}`,
-					latitude: 0,
-					longitude: 0,
-					type: "Mobile"
-				},
 			];
-			const device1 = await createDevice(group, defaultGroupDevicesData[0]);
-			const device2 = await createDevice(group, defaultGroupDevicesData[1]);
+			device1 = await createDevice(group, defaultGroupDevicesData[0]);
+			device2 = await createDevice(group, defaultGroupDevicesData[1]);
+			logger.log("info", `Default group devices has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Default group devices could not be created: %s`, err.message);
+		}
 
+
+		let topic1: ITopicUpdate;
+		let topic2: ITopicUpdate;
+		try {
 			const defaultDeviceTopicsData = [
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(group, device1, "Temperature"),
-					description: `Temperature sensor for ${defaultGroupDeviceName(group, "Generic")} device`,
+					description: `Temperature sensor for ${defaultGroupDeviceName(group, "Main master")} device`,
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
 				},
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(group, device2, "Accelerometer"),
-					description: `Accelerometer for ${defaultGroupDeviceName(group, "Mobile")} device`,
+					description: `Accelerometer for ${defaultGroupDeviceName(group, "Generic")} device`,
 					payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
 				},
 			];
-			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
-			const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
+			topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
+			topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
 
+			logger.log("info", `Default device topics has been created sucessfully`);
+		} catch (err) {
+			logger.log("error", `Default device topics could not be created: %s`, err.message);
+		}
+
+		try {
 			const dashboardsId: number[] = [];
 
 			[dashboardsId[0], dashboardsId[1]] =
@@ -463,8 +540,8 @@ export async function dataBaseInitialization() {
 
 			const defaultDeviceDigitalTwinsData = [
 				{
-					name: demoDigitalTwinName(group, "Generic"),
-					description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
+					name: demoDigitalTwinName(group, "Main master"),
+					description: `Demo digital twin for main master device of the group ${mainOrgGroupAcronym}`,
 					type: "Grafana dashboard",
 					dashboardId: dashboardsId[0],
 					gltfData: "{}",
@@ -476,8 +553,8 @@ export async function dataBaseInitialization() {
 					digitalTwinSimulationFormat: "{}"
 				},
 				{
-					name: demoDigitalTwinName(group, "Mobile"),
-					description: `Demo digital twin for default mobile device of the group ${mainOrgGroupAcronym}`,
+					name: demoDigitalTwinName(group, "Generic"),
+					description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
 					type: "Grafana dashboard",
 					dashboardId: dashboardsId[1],
 					gltfData: "{}",
@@ -493,11 +570,10 @@ export async function dataBaseInitialization() {
 			await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
 			await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
 
-			logger.log("info", `Foreing key in table ${tableThingData} has been created sucessfully`);
+			logger.log("info", `Default device digital twins has been created sucessfully`);
 		} catch (err) {
-			logger.log("error", `Foreing key in table ${tableThingData} could not be created: %s`, err.message);
+			logger.log("error", `Default device digital twins could not be created: %s`, err.message);
 		}
-
 
 		const tableRefreshToken = "grafanadb.refresh_token";
 		const queryStringtableRefreshToken = `
@@ -538,53 +614,6 @@ export async function dataBaseInitialization() {
 			logger.log("error", `Foreing key in table ${tableAlertNotification} couldd not be added: %s`, err.message);
 		}
 
-		const tableMasterDevice = "grafanadb.master_device";
-		const queryStringMasterDevice = `
-			CREATE TABLE IF NOT EXISTS ${tableMasterDevice}(
-				id serial PRIMARY KEY,
-				device_hash VARCHAR(40) UNIQUE,
-				org_id bigint,
-				created TIMESTAMPTZ,
-				updated TIMESTAMPTZ,
-				CONSTRAINT fk_org_id
-					FOREIGN KEY(org_id)
-					REFERENCES grafanadb.org(id)
-					ON DELETE CASCADE
-			);
-
-			CREATE INDEX IF NOT EXISTS idx_device_hash
-			ON grafanadb.master_device(device_hash);`;
-
-		try {
-			await pool.query(queryStringMasterDevice);
-			logger.log("info", `Table ${tableMasterDevice} has been created sucessfully`);
-		} catch (err) {
-			logger.log("error", `Table ${tableMasterDevice} can not be created: %s`, err.message);
-		}
-
-		const tableDeviceMasterDevice = "grafanadb.device_mdevice";
-		const queryStringDeviceMasterDevice = `
-			CREATE TABLE IF NOT EXISTS ${tableDeviceMasterDevice}(
-				device_id bigint,
-				master_device_id bigint,
-				created TIMESTAMPTZ,
-				updated TIMESTAMPTZ,
-				CONSTRAINT fk_device_id
-					FOREIGN KEY(device_id)
-					REFERENCES grafanadb.device(id)
-					ON DELETE CASCADE,
-				CONSTRAINT fk_master_device_id
-					FOREIGN KEY(master_device_id)
-					REFERENCES grafanadb.master_device(id)
-					ON DELETE CASCADE
-			);`;
-
-		try {
-			await pool.query(queryStringDeviceMasterDevice);
-			logger.log("info", `Table ${tableDeviceMasterDevice} has been created sucessfully`);
-		} catch (err) {
-			logger.log("error", `Table ${tableDeviceMasterDevice} can not be created: %s`, err.message);
-		}
 
 		pool.end(() => {
 			logger.log("info", `Migration pool has ended`);

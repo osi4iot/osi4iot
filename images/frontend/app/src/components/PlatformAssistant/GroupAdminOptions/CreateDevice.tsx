@@ -14,6 +14,7 @@ import { IDeviceInputData } from '../../../contexts/devicesOptions/interfaces';
 import { setDeviceBuildingId, setDeviceGroupId, setDeviceInputData } from '../../../contexts/devicesOptions/devicesAction';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { setReloadMasterDevicesTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -84,8 +85,8 @@ const deviceTypeOptions = [
         value: "Generic"
     },
     {
-        label: "Mobile",
-        value: "Mobile"
+        label: "Master",
+        value: "Master"
     }
 ];
 
@@ -106,6 +107,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
     groupsManaged,
     selectLocationOption
 }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -147,6 +149,11 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                 setIsSubmitting(false);
                 setDevicesOptionToShow(devicesDispatch, devicesOptionToShow);
                 refreshDevices();
+
+                if (values.type === "Master") {
+                    const reloadMasterDevicesTable = true;
+                    setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
+                }
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
