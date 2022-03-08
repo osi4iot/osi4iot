@@ -375,6 +375,8 @@ interface MapProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
+    masterDeviceSelected: IDevice | null;
+    selectMasterDevice: (masterDeviceSelected: IDevice | null) => void;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinsSelected: IDigitalTwin) => void;
     refreshBuildings: () => void;
@@ -416,6 +418,8 @@ const Map: FC<MapProps> = (
         selectGroup,
         deviceSelected,
         selectDevice,
+        masterDeviceSelected,
+        selectMasterDevice,
         digitalTwinSelected,
         selectDigitalTwin,
         refreshBuildings,
@@ -489,6 +493,8 @@ const Map: FC<MapProps> = (
                     deviceDataArray={devices}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}
+                    masterDeviceSelected={masterDeviceSelected}
+                    selectMasterDevice={selectMasterDevice}
                     digitalTwins={digitalTwins}
                     digitalTwinSelected={digitalTwinSelected}
                     selectDigitalTwin={selectDigitalTwin}

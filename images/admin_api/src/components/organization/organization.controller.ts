@@ -203,14 +203,20 @@ class OrganizationController implements IController {
 		if (user.isGrafanaAdmin) {
 			organizations = await getOrganizations();
 		} else {
+			let orgsManagedIdArray: number[] = [];
 			organizations = await getOrganizationsManagedByUserId(user.id);
-			const orgsManagedIdArray = organizations.map(org => org.id);
+			if (organizations.length !== 0) {
+				orgsManagedIdArray = organizations.map(org => org.id);
+			}
 			const groups = await getGroupsManagedByUserId(user.id);
 			if (groups.length !== 0) {
 				const orgIdsArray = groups.map(group => group.orgId);
 				const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray)
 				orgsOfGroupsManaged.forEach(org => {
-					if (orgsManagedIdArray.indexOf(org.id) === -1) organizations.push(org);
+					if (orgsManagedIdArray.length !== 0 && orgsManagedIdArray.indexOf(org.id) === -1) organizations.push(org);
+					else {
+						organizations.push(org);
+					}
 				})
 			}
 		}

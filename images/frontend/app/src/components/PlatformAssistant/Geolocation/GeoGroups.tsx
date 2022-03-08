@@ -37,6 +37,8 @@ interface GeoGroupsProps {
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
+    masterDeviceSelected: IDevice | null;
+    selectMasterDevice: (masterDeviceSelected: IDevice | null) => void;
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
@@ -57,6 +59,8 @@ const GeoGroups: FC<GeoGroupsProps> = (
         deviceDataArray,
         deviceSelected,
         selectDevice,
+        masterDeviceSelected,
+        selectMasterDevice,
         digitalTwins,
         digitalTwinSelected,
         selectDigitalTwin,
@@ -94,6 +98,8 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         deviceDataArray={deviceDataArray}
                         deviceSelected={deviceSelected}
                         selectDevice={selectDevice}
+                        masterDeviceSelected={masterDeviceSelected}
+                        selectMasterDevice={selectMasterDevice}
                         digitalTwins={digitalTwins}
                         digitalTwinSelected={digitalTwinSelected}
                         selectDigitalTwin={selectDigitalTwin}

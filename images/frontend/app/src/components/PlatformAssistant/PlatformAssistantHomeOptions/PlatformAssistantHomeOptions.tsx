@@ -189,6 +189,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [orgSelected, setOrgSelected] = useState<IOrgOfGroupsManaged | null>(null);
 	const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
 	const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
+	const [masterDeviceSelected, setMasterDeviceSelected] = useState<IDevice | null>(null);
 	const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
 
@@ -204,10 +205,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
 	}, [plaformAssistantDispatch])
 
-	const refreshOrgsOfGroupsManaged = useCallback(() => {;
+	const refreshOrgsOfGroupsManaged = useCallback(() => {
+		;
 		setOrgsOfGroupsManagedLoading(true);
 		const reloadOrgsOfGroupsManagedTable = true;
-		setReloadOrgsOfGroupsManagedTable (plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+		setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
 	}, [plaformAssistantDispatch])
 
 	const refreshGroupsManaged = useCallback(() => {
@@ -262,6 +264,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 	const selectDevice = (device: IDevice) => {
 		setDeviceSelected(device);
+	}
+
+	const selectMasterDevice = (masterDevice: IDevice | null) => {
+		setMasterDeviceSelected(masterDevice);
 	}
 
 	const selectDigitalTwin = (digitalTwin: IDigitalTwin) => {
@@ -369,7 +375,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setOrgsOfGroupsManagedTable(plaformAssistantDispatch, { orgsOfGroupsManaged });
 					setOrgsOfGroupsManagedLoading(false);
 					const reloadOrgsOfGroupsManagedTable = false;
-					setReloadOrgsOfGroupsManagedTable (plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+					setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
 				})
 				.catch((error) => {
 					console.log(error);
@@ -527,6 +533,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									selectGroup={selectGroup}
 									deviceSelected={deviceSelected}
 									selectDevice={selectDevice}
+									masterDeviceSelected={masterDeviceSelected}
+									selectMasterDevice={selectMasterDevice}
 									digitalTwinSelected={digitalTwinSelected}
 									selectDigitalTwin={selectDigitalTwin}
 									refreshBuildings={refreshBuildings}

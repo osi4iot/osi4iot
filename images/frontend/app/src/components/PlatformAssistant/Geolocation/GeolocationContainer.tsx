@@ -64,6 +64,8 @@ interface GeolocationContainerProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
+    masterDeviceSelected: IDevice | null;
+    selectMasterDevice: (masterDeviceSelected: IDevice | null) => void;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     refreshBuildings: () => void;
@@ -98,6 +100,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         selectGroup,
         deviceSelected,
         selectDevice,
+        masterDeviceSelected,
+        selectMasterDevice,
         selectDigitalTwin,
         digitalTwinSelected,
         refreshBuildings,
@@ -215,6 +219,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectGroup={selectGroup}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}
+                    masterDeviceSelected={masterDeviceSelected}
+                    selectMasterDevice={selectMasterDevice}
                     selectDigitalTwin={selectDigitalTwin}
                     digitalTwinSelected={digitalTwinSelected}
                     refreshBuildings={refreshBuildings}

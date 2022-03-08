@@ -295,7 +295,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (orgsOfGroupManagedTable.length === 0) {
             const config = axiosAuth(accessToken);
-            const urlOrgsOfGroupsManaged = `https://${domainName}/admin_api/organization/user_groups_managed`;
+            const urlOrgsOfGroupsManaged = `https://${domainName}/admin_api/organizations/user_groups_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsOfGroupsManaged, config)
                 .then((response) => {

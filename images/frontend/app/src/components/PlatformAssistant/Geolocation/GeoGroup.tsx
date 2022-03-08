@@ -13,6 +13,7 @@ import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import GeoMasterDevice from "./GeoMasterDevice";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";
@@ -28,7 +29,7 @@ const setGroupStyle = (groupStatus: string, isSelected: boolean) => {
 
     let color = NORMAL;
     if (isSelected) color = SELECTED;
-    
+
     return {
         stroke: true,
         color,
@@ -56,6 +57,8 @@ interface GeoGroupProps {
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
+    masterDeviceSelected: IDevice | null;
+    selectMasterDevice: (masterDeviceSelected: IDevice | null) => void;
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
@@ -73,6 +76,8 @@ const GeoGroup: FC<GeoGroupProps> = (
         deviceDataArray,
         deviceSelected,
         selectDevice,
+        masterDeviceSelected,
+        selectMasterDevice,
         digitalTwins,
         digitalTwinSelected,
         selectDigitalTwin,
@@ -116,15 +121,27 @@ const GeoGroup: FC<GeoGroupProps> = (
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
                         {
-                            deviceDataArrayFiltered.map(deviceData =>
-                                <GeoDevice
-                                    key={deviceData.id}
-                                    deviceData={deviceData}
-                                    deviceSelected={deviceSelected}
-                                    selectDevice={selectDevice}
-                                    digitalTwinsState={digitalTwinsState}
-                                />
-                            )
+                            deviceDataArrayFiltered.map(deviceData => {
+                                return deviceData.type === "Generic" ?
+                                    <GeoDevice
+                                        key={deviceData.id}
+                                        deviceData={deviceData}
+                                        deviceSelected={deviceSelected}
+                                        selectDevice={selectDevice}
+                                        selectMasterDevice={selectMasterDevice}
+                                        digitalTwinsState={digitalTwinsState}
+                                    />
+                                    :
+                                    <GeoMasterDevice
+                                        key={deviceData.id}
+                                        deviceData={deviceData}
+                                        deviceSelected={deviceSelected}
+                                        selectDevice={selectDevice}
+                                        masterDeviceSelected={masterDeviceSelected}
+                                        selectMasterDevice={selectMasterDevice}
+                                        digitalTwinsState={digitalTwinsState}
+                                    />
+                            })
                         }
                         {
                             deviceSelected &&

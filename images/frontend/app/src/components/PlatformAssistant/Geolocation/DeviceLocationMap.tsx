@@ -19,9 +19,9 @@ import { IFeatureCollection, spacesDivider } from '../../../tools/spacesDivider'
 import { IDevice } from '../TableColumns/devicesColumns';
 import { useDeviceIdToEdit, useDevicesPreviousOption } from '../../../contexts/devicesOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { DeviceSvgImage } from './GeoDevice';
 import calcGeoBounds from '../../../tools/calcGeoBounds';
 import { DEVICES_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
+import { DeviceSvgImage } from './DeviceSvgImage';
 
 
 const MapContainerStyled = styled(MapContainer)`
