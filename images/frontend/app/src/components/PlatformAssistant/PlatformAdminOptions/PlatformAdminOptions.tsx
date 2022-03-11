@@ -30,19 +30,12 @@ import {
     useReloadFloorsTable,
     setReloadBuildingsTable,
     setReloadFloorsTable,
-    setMasterDevicesTable,
-    setReloadMasterDevicesTable,
-    useReloadMasterDevicesTable,
-    useMasterDevicesTable,
-
 } from '../../../contexts/platformAssistantContext';
 import { BuildingsProvider } from '../../../contexts/buildingsOptions';
 import BuildingsContainer from './BuildingsContainer';
 import { FloorsProvider } from '../../../contexts/floorsOptions';
 import FloorsContainer from './FloorsContainer';
 import { IGlobalUser } from '../TableColumns/globalUsersColumns';
-import { MasterDevicesProvider } from '../../../contexts/masterDevicesOptions';
-import MasterDevicesContainer from './MasterDevicesContainer';
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;
@@ -122,20 +115,18 @@ const PlatformAdminOptions: FC<{}> = () => {
     const authDispatch = useAuthDispatch();
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const organizationsTable = useOrganizationsTable();
-    const masterDevicesTable = useMasterDevicesTable();
     const buildingsTable = useBuildingsTable();
     const floorsTable = useFloorsTable();
     const globalUsersTable = useGlobalUsersTable();
     const refreshTokensTable = useRefreshTokensTable();
     const [orgsLoading, setOrgsLoading] = useState(true);
-    const [masterDevicesLoading, setMasterDevicesLoading] = useState(true);
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
     const [refreshTokensLoading, setRefreshTokensLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(PLATFORM_ADMIN_OPTIONS.BUILDINGS);
     const [reloadOrgs, setReloadOrgs] = useState(false);
-    const reloadMasterDevicesTable = useReloadMasterDevicesTable();
+
     const reloadBuildingsTable = useReloadBuildingsTable();
     const reloadFloorsTable = useReloadFloorsTable();
     const reloadGlobalUsersTable = useReloadGlobalUsersTable();
@@ -146,12 +137,6 @@ const PlatformAdminOptions: FC<{}> = () => {
         setOrgsLoading(true);
         setTimeout(() => setReloadOrgs(false), 500);
     }, []);
-
-    const refreshMasterDevices = useCallback(() => {
-        setMasterDevicesLoading(true);
-        const reloadMasterDevicesTable = true;
-        setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
-    }, [plaformAssistantDispatch]);
 
     const refreshBuildings = useCallback(() => {
         setBuildingsLoading(true);
@@ -205,38 +190,6 @@ const PlatformAdminOptions: FC<{}> = () => {
         organizationsTable.length
     ]);
 
-    useEffect(() => {
-        if (masterDevicesTable.length === 0 || reloadMasterDevicesTable) {
-            const urlMasterDevices = `https://${domainName}/admin_api/master_devices/user_managed`;
-            const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken, authDispatch)
-                .get(urlMasterDevices, config)
-                .then((response) => {
-                    const masterDevices = response.data;
-                    masterDevices.forEach((masterDevice: { groupId: string | null; deviceId: string | null; }) => {
-                        if (masterDevice.groupId === null) masterDevice.groupId = "-";
-                        if (masterDevice.deviceId === null) masterDevice.deviceId = "-";
-                    });
-                    setMasterDevicesTable(plaformAssistantDispatch, { masterDevices });
-                    setMasterDevicesLoading(false);
-                    const reloadMasterDevicesTable = false;
-                    setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
-                })
-                .catch((error) => {
-                    console.log(error);
-                });
-
-        } else {
-            setMasterDevicesLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        reloadMasterDevicesTable,
-        plaformAssistantDispatch,
-        masterDevicesTable.length
-    ]);
 
     useEffect(() => {
         if (buildingsTable.length === 0 || reloadBuildingsTable) {
@@ -370,9 +323,6 @@ const PlatformAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.ORGS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.ORGS)}>
                     Organizations
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.MASTER_DEVICES} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.MASTER_DEVICES)}>
-                    Master devices
-                </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS} onClick={() => clickHandler(PLATFORM_ADMIN_OPTIONS.GLOBAL_USERS)}>
                     Global users
                 </OptionContainer>
@@ -385,7 +335,7 @@ const PlatformAdminOptions: FC<{}> = () => {
             </PlatformAdminOptionsContainer>
             <ContentContainer >
                 <>
-                    {(orgsLoading || masterDevicesLoading || buildingsLoading || floorsLoading || globalUsersLoading || refreshTokensLoading) ?
+                    {(orgsLoading || buildingsLoading || floorsLoading || globalUsersLoading || refreshTokensLoading) ?
                         <Loader />
                         :
                         <>
@@ -393,12 +343,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                                 <OrgsProvider>
                                     <OrgsContainer organizations={organizationsTable} refreshOrgs={refreshOrgs} />
                                 </OrgsProvider>
-                            }
-                            {optionToShow === PLATFORM_ADMIN_OPTIONS.MASTER_DEVICES &&
-                                <MasterDevicesProvider>
-                                    <MasterDevicesContainer masterDevices={masterDevicesTable} refreshMasterDevices={refreshMasterDevices} />
-                                </MasterDevicesProvider>
-                            }                            
+                            }                          
                             {optionToShow === PLATFORM_ADMIN_OPTIONS.BUILDINGS &&
                                 <BuildingsProvider>
                                     <BuildingsContainer buildings={buildingsTable} refreshBuildings={refreshBuildings} />

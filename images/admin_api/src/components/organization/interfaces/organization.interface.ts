@@ -8,6 +8,7 @@ export default interface IOrganization {
 	state: string;
 	country: string;
 	buildingId: number;
+	orgHash: string;
 }
 
 export interface IOrganizationWichTheLoggedUserIsUser {

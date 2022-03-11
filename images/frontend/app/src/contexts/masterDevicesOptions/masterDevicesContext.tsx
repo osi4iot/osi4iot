@@ -38,18 +38,3 @@ export const useMasterDevicesOptionToShow = (): string => {
 	return context.masterDevicesOptionToShow;
 }
 
-export const useMasterDeviceIdToEdit = (): number => {
-	const context = useContext(MasterDevicesStateContext);
-	if (context === undefined) {
-		throw new Error('useMasterDeviceIdToEdit must be used within a MasterDevicesProvider');
-	}
-	return context.masterDeviceIdToEdit;
-}
-
-export const useMasterDeviceRowIndexToEdit = (): number => {
-	const context = useContext(MasterDevicesStateContext);
-	if (context === undefined) {
-		throw new Error('useMasterDeviceRowIndexToEdit must be used within a MasterDevicesProvider');
-	}
-	return context.masterDeviceRowIndexToEdit;
-}

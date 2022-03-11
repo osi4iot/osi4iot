@@ -39,6 +39,10 @@ class CreateOrganizationDto {
 	@ValidateNested({ each: true })
 	@Type(() => CreateUserDto)
 	public orgAdminArray: CreateUserDto[];
+
+	@ValidateIf((obj) => obj.orgHash !== undefined)
+	@IsString()
+	public orgHash?: string;
 }
 
 export default CreateOrganizationDto;

@@ -45,6 +45,16 @@ export const updateOrganizationByProp = async (propName: string, propValue: (str
 	await pool.query(query, queryArray);
 }
 
+export const updateOrganizationHashById = async (orgId: number, newOrgHash: string): Promise<void> => {
+	const query = `UPDATE grafanadb.org SET org_hash = $1 WHERE id = $2;`;
+	const queryArray =
+		[
+			newOrgHash,
+			orgId
+		];
+	await pool.query(query, queryArray);
+}
+
 export const getApiKeyIdByName = async (apiKeyName: string): Promise<number> => {
 	const result = await pool.query(`SELECT id FROM grafanadb.api_key WHERE name = $1`,
 		[apiKeyName]);
@@ -58,7 +68,7 @@ export const insertOrganizationToken = async (orgId: number, apiKeyId: number, h
 
 export const getOrganizations = async (): Promise<IOrganization[]> => {
 	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode",
-					state, country, building_id AS "buildingId"
+					state, country, building_id AS "buildingId", org_hash AS "orgHash"
 					FROM grafanadb.org
 					ORDER BY id ASC;`;
 	const result = await pool.query(query);
@@ -67,7 +77,7 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 
 export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promise<IOrganization[]> => {
 	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode",
-					state, country, building_id AS "buildingId"
+					state, country, building_id AS "buildingId", org_hash AS "orgHash"
 					FROM grafanadb.org
 					WHERE id = ANY($1::integer[])
 					ORDER BY id ASC;`;
@@ -83,7 +93,7 @@ export const getNumOrganizations = async (): Promise<number> => {
 
 export const getOrganizationByProp = async (propName: string, propValue: (string | number)): Promise<IOrganization> => {
 	const query = `SELECT id, org.name, acronym, address1 as adress, city, grafanadb.org.zip_code as "zipCode",
-					 state, country, building_id AS "buildingId"
+					 state, country, building_id AS "buildingId", org_hash AS "orgHash"
 					FROM grafanadb.org WHERE ${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
 	return result.rows[0];
@@ -163,7 +173,8 @@ export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser
 
 export const getOrganizationsManagedByUserId = async (userId: number): Promise<IOrganization[]> => {
 	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, address1 as address, city,
-	                grafanadb.org.zip_code as "zipCode", state, country, building_id AS "buildingId"
+	                grafanadb.org.zip_code as "zipCode", state, country, building_id AS "buildingId",
+					org_hash AS "orgHash"
 					FROM grafanadb.org
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
 					WHERE grafanadb.org_user.user_id = $1 AND grafanadb.org_user.role = $2

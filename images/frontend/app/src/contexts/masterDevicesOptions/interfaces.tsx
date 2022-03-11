@@ -4,14 +4,10 @@ export interface MasterDevicesDispatch {
 
 export interface MasterDevicesContextProps {
 	masterDevicesOptionToShow: string;
-	masterDeviceIdToEdit: number;
-	masterDeviceRowIndexToEdit: number;
 }
 
 export interface MasterDevicesActionPayload {
 	masterDevicesOptionToShow: string;
-	masterDeviceIdToEdit: number;
-	masterDeviceRowIndexToEdit: number;
 }
 
 export interface MasterDevicesAction {
@@ -24,10 +20,3 @@ export interface IMasterDevicesOptionToShow {
 	masterDevicesOptionToShow: string;
 }
 
-export interface IMasterDeviceIdToEdit {
-	masterDeviceIdToEdit: number;
-}
-
-export interface IMasterDeviceRowIndexToEdit {
-	masterDeviceRowIndexToEdit: number;
-}

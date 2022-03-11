@@ -280,7 +280,11 @@ class OrganizationController implements IController {
 			if ( (numOrgs+1) > process_env.MASTER_DEVICE_HASHES.length) {
 				throw new HttpException(400, "There are no more master devices hashes available for a new org.")
 			}
+			if ( (numOrgs+1) > process_env.ORG_HASHES.length) {
+				throw new HttpException(400, "There are no more org hashes available for a new org.");
+			}
 			const organizationData: CreateOrganizationDto = req.body;
+			organizationData.orgHash = process_env.ORG_HASHES[numOrgs];
 			organizationData.acronym = organizationData.acronym.replace(/ /g, "_").toUpperCase();
 			const orgGrafanaDTO: IOrganizationGrafanaDTO = { name: organizationData.name };
 			const exits_OrganizationWithName = await exitsOrganizationWithName(organizationData.name);

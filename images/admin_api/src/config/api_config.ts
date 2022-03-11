@@ -1,7 +1,7 @@
 import fs from "fs";
 import { logger } from "./winston";
 
-interface IProcessEnv extends Record<string, string | string[][]> {
+interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	PLATFORM_NAME: string;
 	DOMAIN_NAME: string;
 	PLATFORM_PHRASE: string;
@@ -34,7 +34,9 @@ interface IProcessEnv extends Record<string, string | string[][]> {
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: string;
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: string;
 	TELEGRAM_BOTTOKEN: string;
+	ORG_HASHES: string[];
 	MASTER_DEVICE_HASHES: string[][];
+	REPLICA: string;
 }
 
 const process_env: IProcessEnv = {
@@ -70,7 +72,9 @@ const process_env: IProcessEnv = {
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 	TELEGRAM_BOTTOKEN: process.env.TELEGRAM_BOTTOKEN,
-	MASTER_DEVICE_HASHES: []
+	ORG_HASHES: [],
+	MASTER_DEVICE_HASHES: [],
+	REPLICA: process.env.REPLICA,
 };
 
 const readDockerFiles = (dockerFileName: string) => {
@@ -83,23 +87,25 @@ const readDockerFiles = (dockerFileName: string) => {
 				if (splittedLine.length === 2) {
 					const envName = splittedLine[0];
 					if (envName.slice(-20) === "MASTER_DEVICE_HASHES") {
-						const envValues = splittedLine[1].replace(/"/g,"").split(",");
+						const envValues = splittedLine[1].replace(/"/g, "").split(",");
 						process_env.MASTER_DEVICE_HASHES.push(envValues);
+					} else if (envName.slice(0,3) === "ORG" && envName.slice(-4) === "HASH") {
+						const envValues = splittedLine[1].replace(/"/g, "");
+						process_env.ORG_HASHES.push(envValues);
 					} else {
-						const envValue = splittedLine[1].replace(/"/g,"");
+						const envValue = splittedLine[1].replace(/"/g, "");
 						process_env[envName] = envValue;
 					}
 				}
 			});
 
 		} catch (err) {
-			logger.log("error",  `An error occurred while trying to read the file: ${dockerFileName}:  %s`, err.message);
+			logger.log("error", `An error occurred while trying to read the file: ${dockerFileName}:  %s`, err.message);
 		}
 	}
 };
 
 readDockerFiles("/run/secrets/admin_api.txt");
-readDockerFiles("/run/secrets/master_devices.txt");
 readDockerFiles("/run/configs/admin_api.conf");
 
 

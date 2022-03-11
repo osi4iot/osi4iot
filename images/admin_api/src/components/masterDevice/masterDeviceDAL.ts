@@ -65,6 +65,15 @@ export const updateMasterDeviceByProp = async (propName: string, propValue: (str
 	]);
 };
 
+export const updateMasterDeviceHashById = async (masterDeviceId: number, newMasterDeviceHash: string): Promise<void> => {
+	const query = `UPDATE grafanadb.master_device SET md_hash = $1, updated = NOW()
+				WHERE grafanadb.master_device.id = $2;`;
+	await pool.query(query, [
+		newMasterDeviceHash,
+		masterDeviceId
+	]);
+};
+
 export const createMasterDevicesInOrg = async (masterDeviceHashes: string[], orgId: number): Promise<IMasterDevice[]> => {
 	const masterDeviceQueries = [];
 	for (let imdevice = 0; imdevice < masterDeviceHashes.length; imdevice++) {

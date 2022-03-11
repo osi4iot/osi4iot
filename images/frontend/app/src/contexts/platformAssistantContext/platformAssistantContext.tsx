@@ -8,7 +8,7 @@ import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/glo
 import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
 import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
 import { IGroupManaged } from '../../components/PlatformAssistant/TableColumns/groupsManagedColumns';
-import { IMasterDevice } from '../../components/PlatformAssistant/TableColumns/masterDevicesColumns';
+import { IMasterDeviceInOrgsColumns } from '../../components/PlatformAssistant/TableColumns/masterDevicesInOrgsColumns';
 import { IMembershipInGroups } from '../../components/PlatformAssistant/TableColumns/membershipInGroups';
 import { IMembershipInOrgs } from '../../components/PlatformAssistant/TableColumns/membershipInOrgs';
 import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
@@ -92,7 +92,7 @@ export const useOrganizationsTable = (): IOrganization[] => {
 	return context.organizations;
 }
 
-export const useMasterDevicesTable = (): IMasterDevice[] => {
+export const useMasterDevicesTable = (): IMasterDeviceInOrgsColumns[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
 		throw new Error('useMasterDevicesTable must be used within a PlatformAssitantProvider');

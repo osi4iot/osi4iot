@@ -10,7 +10,6 @@ export interface IMasterDeviceInOrgsColumns {
 }
 
 
-
 export const MASTER_DEVICE_IN_ORGS_COLUMNS: Column<IMasterDeviceInOrgsColumns>[] = [
     {
         Header: "Id",

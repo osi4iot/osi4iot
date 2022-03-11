@@ -35,6 +35,7 @@ export interface IOrganization {
     state: string;
     country: string;
     buildingId: string;
+    orgHash: string;
 }
 
 interface IOrganizationColumn extends IOrganization {
@@ -196,6 +197,11 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             accessor: "buildingId",
             disableFilters: true
         },
+        {
+            Header: "Org hash",
+            accessor: "orgHash",
+            disableFilters: true
+        },        
         {
             Header: "",
             accessor: "edit",

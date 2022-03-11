@@ -8,7 +8,7 @@ import { IGlobalUser } from "../../components/PlatformAssistant/TableColumns/glo
 import { IGroupMember } from "../../components/PlatformAssistant/TableColumns/groupMemberColumns";
 import { IGroup } from "../../components/PlatformAssistant/TableColumns/groupsColumns";
 import { IGroupManaged } from "../../components/PlatformAssistant/TableColumns/groupsManagedColumns";
-import { IMasterDevice } from "../../components/PlatformAssistant/TableColumns/masterDevicesColumns";
+import { IMasterDeviceInOrgsColumns } from "../../components/PlatformAssistant/TableColumns/masterDevicesInOrgsColumns";
 import { IMembershipInGroups } from "../../components/PlatformAssistant/TableColumns/membershipInGroups";
 import { IMembershipInOrgs } from "../../components/PlatformAssistant/TableColumns/membershipInOrgs";
 import { IOrganization } from "../../components/PlatformAssistant/TableColumns/organizationsColumns";
@@ -33,7 +33,7 @@ export interface PlatformAssistantContextProps {
 	selectOrgUsers: ISelectOrgUser[];
 	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
-	masterDevices: IMasterDevice[];
+	masterDevices: IMasterDeviceInOrgsColumns[];
 	reloadMasterDevicesTable: boolean;
 	buildings: IBuilding[];
 	reloadBuildingsTable: boolean;
@@ -78,7 +78,7 @@ export interface PlatformAssistantActionPayload {
 	selectOrgUsers: ISelectOrgUser[];
 	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
-	masterDevices: IMasterDevice[];
+	masterDevices: IMasterDeviceInOrgsColumns[];
 	reloadMasterDevicesTable: boolean;
 	buildings: IBuilding[];
 	reloadBuildingsTable: boolean;
@@ -144,7 +144,7 @@ export interface IOrganizationsTable {
 }
 
 export interface IMasterDevicesTable {
-	masterDevices: IMasterDevice[];
+	masterDevices: IMasterDeviceInOrgsColumns[];
 }
 
 export interface IReloadMasterDevicesTable {

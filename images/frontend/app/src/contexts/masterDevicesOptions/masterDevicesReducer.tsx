@@ -6,8 +6,6 @@ import {
 
 export const initialState = {
     masterDevicesOptionToShow: MASTER_DEVICES_OPTIONS.TABLE,
-    masterDeviceIdToEdit: 0,
-    masterDeviceRowIndexToEdit: 0
 };
 
 export const MasterDevicesReducer = (initialState: MasterDevicesContextProps, action: MasterDevicesAction) => {
@@ -16,18 +14,6 @@ export const MasterDevicesReducer = (initialState: MasterDevicesContextProps, ac
             return {
                 ...initialState,
                 masterDevicesOptionToShow: action.payload.masterDevicesOptionToShow
-            };
-
-        case "MASTER_DEVICE_ID_TO_EDIT":
-            return {
-                ...initialState,
-                masterDeviceIdToEdit: action.payload.masterDeviceIdToEdit
-            };
-        
-        case "MASTER_DEVICE_ROW_INDEX_TO_EDIT":
-            return {
-                ...initialState,
-                masterDeviceRowIndexToEdit: action.payload.masterDeviceRowIndexToEdit
             };
         default:
             throw new Error(`Unhandled action type: ${action.type}`);

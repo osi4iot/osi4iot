@@ -116,33 +116,33 @@ endspin() {
 }
 
 
-printf '\n%s' "Initializing grafana database  "
-grafana_healthy=$(docker service ls | grep osi4iot_grafana | grep 3/3)
-timescaledb_healthy=$(docker service ls | grep osi4iot_postgres | grep 1/1)
-do=true && [[ $grafana_healthy != "" &&  $timescaledb_healthy != "" ]] && do=false
-while $do ; do
-  spin
-  grafana_healthy=$(docker service ls | grep osi4iot_grafana | grep 3/3)
-  timescaledb_healthy=$(docker service ls | grep osi4iot_postgres | grep 1/1)
-  do=true && [[ $grafana_healthy != "" &&  $timescaledb_healthy != "" ]] && do=false
-  sleep 0.5
-done
-endspin
+# printf '\n%s' "Initializing grafana database  "
+# grafana_healthy=$(docker service ls | grep osi4iot_grafana | grep 3/3)
+# timescaledb_healthy=$(docker service ls | grep osi4iot_postgres | grep 1/1)
+# do=true && [[ $grafana_healthy != "" &&  $timescaledb_healthy != "" ]] && do=false
+# while $do ; do
+#   spin
+#   grafana_healthy=$(docker service ls | grep osi4iot_grafana | grep 3/3)
+#   timescaledb_healthy=$(docker service ls | grep osi4iot_postgres | grep 1/1)
+#   do=true && [[ $grafana_healthy != "" &&  $timescaledb_healthy != "" ]] && do=false
+#   sleep 0.5
+# done
+# endspin
 
-if [[ "$(docker service ls | grep osi4iot_admin_api | grep 3/3)" == "" ]]; then
-  echo "Initializing platform database:"
-  echo ""
-  docker service scale osi4iot_admin_api=1
-  do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
-  while $do ; do
-    spin
-    do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
-    sleep 0.5
-  done
-  endspin
+# if [[ "$(docker service ls | grep osi4iot_admin_api | grep 3/3)" == "" ]]; then
+#   echo "Initializing platform database:"
+#   echo ""
+#   docker service scale osi4iot_admin_api=1
+#   do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
+#   while $do ; do
+#     spin
+#     do=true && [[ "$(docker service ls | grep osi4iot_admin_api | grep 1/1)" != "" ]] && do=false
+#     sleep 0.5
+#   done
+#   endspin
 
-  docker service scale osi4iot_admin_api=3
-fi
+#  docker service scale osi4iot_admin_api=3
+# fi
 
 do=true && [[ "$(docker service ls | grep 0/1)" == "" || "$(docker service ls | grep 0/3)" == "" ]] && do=false
 printf '\n%s' "Waiting until all containers be ready  "

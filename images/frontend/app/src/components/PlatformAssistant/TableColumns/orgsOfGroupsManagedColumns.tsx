@@ -16,6 +16,7 @@ export interface IOrgOfGroupsManaged {
     longitude: number;
     geoJsonData: FeatureCollection;
     buildingId: number;
+    orgHash: string;
 }
 
 

@@ -6,7 +6,7 @@ import path from "path";
 import HealthCheckController from "./utils/healthCheck/healthCheck.controller";
 import AuthenticationController from "./components/Authentication/authentication.controller";
 import { logger } from "./config/winston";
-import { dataBaseInitialization } from "./dbmigration/migration";
+import { dataBaseInitialization } from "./initialization/migration";
 import OrganizationController from "./components/organization/organization.controller";
 import ApplicationController from "./components/application/application.controller";
 import GroupController from "./components/group/group.controller";
@@ -21,7 +21,8 @@ import MasterDeviceController from "./components/masterDevice/masterDevice.contr
 
 async function main(): Promise<void> {
 	try {
-		dataBaseInitialization();
+		await dataBaseInitialization();
+
 		// prettier-ignore
 		const app = new App([
 			new HealthCheckController(),
