@@ -1,5 +1,5 @@
 const execSync = require('child_process').execSync;
-const execShellCommand = require('./execShellCommand')
+const execShellCommand = require('./execShellCommand');
 
 module.exports = async () => {
     const response = execSync("docker service ls");
