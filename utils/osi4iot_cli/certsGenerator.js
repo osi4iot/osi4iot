@@ -14,19 +14,6 @@ module.exports = async (osi4iotState) => {
         const domain_certs_dir = "./certs/domain_certs"
         if (!fs.existsSync(domain_certs_dir)) {
             fs.mkdirSync(domain_certs_dir);
-
-            fs.writeFile('./certs/domain_certs/iot_platform.key', osi4iotState.certs.domain_certs.private_key, function (err) {
-                if (err) throw err;
-            });
-        
-            fs.writeFile('./certs/domain_certs/iot_platform_ca.pem', osi4iotState.certs.domain_certs.ssl_ca_pem, function (err) {
-                if (err) throw err;
-            });
-
-            fs.writeFile('./certs/domain_certs/iot_platform_cert.cer', osi4iotState.certs.domain_certs.ssl_cert_crt, function (err) {
-                if (err) throw err;
-            });
-
         }
 
         const mqtt_certs_dir = "./certs/mqtt_certs"
@@ -43,6 +30,13 @@ module.exports = async (osi4iotState) => {
             fs.mkdirSync(nodered_dir);
         }
     }
+
+
+    fs.writeFileSync('./certs/domain_certs/iot_platform.key', osi4iotState.certs.domain_certs.private_key);
+
+    fs.writeFileSync('./certs/domain_certs/iot_platform_ca.pem', osi4iotState.certs.domain_certs.ssl_ca_pem);
+
+    fs.writeFileSync('./certs/domain_certs/iot_platform_cert.cer', osi4iotState.certs.domain_certs.ssl_cert_crt);
 
 
     let ca = {
@@ -65,13 +59,9 @@ module.exports = async (osi4iotState) => {
         osi4iotState.certs.mqtt_certs.ca_certs.mqtt_certs_ca_key_name = `mqtt_certs_ca_key_${md5(ca.cert)}`;
         osi4iotState.certs.mqtt_certs.ca_certs.expiration_timestamp = expiration_timestamp;
 
-        fs.writeFile('./certs/mqtt_certs/ca_certs/ca.key', ca.key, function (err) {
-            if (err) throw err;
-        });
-    
-        fs.writeFile('./certs/mqtt_certs/ca_certs/ca.crt', ca.cert, function (err) {
-            if (err) throw err;
-        });
+        fs.writeFileSync('./certs/mqtt_certs/ca_certs/ca.key', ca.key);
+
+        fs.writeFileSync('./certs/mqtt_certs/ca_certs/ca.crt', ca.cert);
     }
 
     const broker_server_crt = osi4iotState.certs.mqtt_certs.broker.server_crt;
@@ -90,13 +80,9 @@ module.exports = async (osi4iotState) => {
         osi4iotState.certs.mqtt_certs.broker.mqtt_broker_key_name = `mqtt_broker_key_${md5(broker.key)}`;
         osi4iotState.certs.mqtt_certs.broker.expiration_timestamp = defaultExpirationTimestamp;
 
-        fs.writeFile('./certs/mqtt_certs/broker/server.key', broker.key, function (err) {
-            if (err) throw err;
-        });
-    
-        fs.writeFile('./certs/mqtt_certs/broker/server.crt', broker.cert, function (err) {
-            if (err) throw err;
-        });
+        fs.writeFileSync('./certs/mqtt_certs/broker/server.key', broker.key);
+
+        fs.writeFileSync('./certs/mqtt_certs/broker/server.crt', broker.cert);
     }
 
     const nodered_client_crt = osi4iotState.certs.mqtt_certs.nodered.client_crt;
@@ -116,13 +102,9 @@ module.exports = async (osi4iotState) => {
         osi4iotState.certs.mqtt_certs.nodered.mqtt_nodered_client_key_name = `mqtt_nodered_client_key_${md5(nodered.key)}`;
         osi4iotState.certs.mqtt_certs.nodered.expiration_timestamp = defaultExpirationTimestamp;
 
-        fs.writeFile('./certs/mqtt_certs/nodered/client.key', nodered.key, function (err) {
-            if (err) throw err;
-        });
-    
-        fs.writeFile('./certs/mqtt_certs/nodered/client.crt', nodered.cert, function (err) {
-            if (err) throw err;
-        });
+        fs.writeFileSync('./certs/mqtt_certs/nodered/client.key', nodered.key);
+
+        fs.writeFileSync('./certs/mqtt_certs/nodered/client.crt', nodered.cert);
     }
 
     const masterDeviceCertsPromises = []
@@ -140,7 +122,7 @@ module.exports = async (osi4iotState) => {
                     caKey: ca.key,
                     caCert: ca.cert
                 });
-    
+
                 masterDeviceCertsPromises.push(promise);
             }
 
@@ -166,14 +148,12 @@ module.exports = async (osi4iotState) => {
                 const masterDeviceClientKey = `./certs/mqtt_certs/org_${iorg}_master_device_${idev}/client.key`;
                 fs.writeFileSync(masterDeviceClientKey, masterDeviceCerts[counter].key);
                 osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key = masterDeviceCerts[counter].key;
-                const client_key_name = `org_${iorg}_master_device_${idev}_mqtt_client_key_name`;
-                osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1][client_key_name] = `org_${iorg}_master_device_${idev}_mqtt_client_key_${md5(masterDeviceCerts[counter].key)}`
+                osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name = `org_${iorg}_mdev_${idev}_key_${md5(masterDeviceCerts[counter].key)}`
 
                 const masterDeviceClientCert = `./certs/mqtt_certs/org_${iorg}_master_device_${idev}/client.crt`;
                 fs.writeFileSync(masterDeviceClientCert, masterDeviceCerts[counter].cert);
                 osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt = masterDeviceCerts[counter].cert;
-                const client_crt_name = `org_${iorg}_master_device_${idev}_mqtt_client_cert_name`;
-                osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1][client_crt_name] = `org_${iorg}_master_device_${idev}_mqtt_client_cert_${md5(masterDeviceCerts[counter].cert)}`
+                osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name = `org_${iorg}_mdev_${idev}_cert_${md5(masterDeviceCerts[counter].cert)}`
 
                 osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp = defaultExpirationTimestamp;
                 counter++;

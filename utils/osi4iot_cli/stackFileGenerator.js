@@ -1,4 +1,3 @@
-const { nanoid } = require('nanoid');
 const yaml = require('js-yaml');
 const os = require('os');
 const fs = require('fs');
@@ -23,7 +22,7 @@ const defaultServiceImageVersion = {
     master_device: defaultVersion || 'latest'
 }
 
-module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, numOrgs = 1, numMasterDevicesPerOrg=[3]) => {
+module.exports = (osi4iotState) => {
     const arch = os.arch();
     let platformArch = 'x86_64';
     if (arch === 'x64') {
@@ -34,7 +33,9 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
         throw new Error('Only x64 or arm64 architectures are supported');
     }
 
-    const nfsServerIP = "";
+    const nfsServerIP = osi4iotState.platformInfo.NFS_SERVER_IP;
+    const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
+    const serviceImageVersion = defaultServiceImageVersion;
 
     const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
     const currentNodeId = execSync("docker info -f '{{.Swarm.NodeID}}'");
@@ -119,7 +120,7 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                     },
                     {
                         source: 'iot_platform_cert',
-                        target: ' /mosquitto/wss_certs/iot_platform_cert.cer',
+                        target: '/mosquitto/wss_certs/iot_platform_cert.cer',
                         mode: 0444
                     },
                     {
@@ -242,7 +243,7 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                         'traefik.http.middlewares.pgadmin4-prefix.stripprefix.forceslash=false',
                         'traefik.http.middlewares.pgadmin4-header.headers.customrequestheaders.X-Script-Name=/pgadmin4/',
                         `traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.regex=https://${domainName}/(pgadmin4*)`,
-                        `traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.replacement=https://${domainName}/$${1}"`,
+                        `traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
                         'traefik.http.routers.pgadmin4.entrypoints=websecure',
                         'traefik.http.routers.pgadmin4.tls=true',
                         'traefik.http.routers.pgadmin4.service=pgadmin4',
@@ -300,7 +301,7 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                 user: '${UID}:${GID}',
                 networks: [
                     'internal_net',
-                    ' traefik_public'
+                    'traefik_public'
                 ],
                 volumes: [
                     'nodered_data:/data'
@@ -353,7 +354,7 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                         'traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false',
                         'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/nodered/',
                         `traefik.http.middlewares.nodered-redirectregex.redirectregex.regex=https://${domainName}/(nodered*)`,
-                        `traefik.http.middlewares.nodered-redirectregex.redirectregex.replacement=https://${domainName}/$${1}"`,
+                        `traefik.http.middlewares.nodered-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
                         'traefik.http.routers.nodered.entrypoints=websecure',
                         'traefik.http.routers.nodered.tls=true',
                         'traefik.http.routers.nodered.service=nodered',
@@ -399,7 +400,7 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                         'traefik.http.middlewares.grafana-prefix.stripprefix.forceslash=false',
                         'traefik.http.middlewares.grafana-header.headers.customrequestheaders.X-Script-Name=/grafana/',
                         `traefik.http.middlewares.grafana-redirectregex.redirectregex.regex=https://${domainName}/(grafana*)`,
-                        `traefik.http.middlewares.grafana-redirectregex.redirectregex.replacement=https://${domainName}/$${1}"`,
+                        `traefik.http.middlewares.grafana-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
                         'traefik.http.routers.grafana.entrypoints=websecure',
                         'traefik.http.routers.grafana.tls=true',
                         'traefik.http.routers.grafana.service=grafana',
@@ -428,7 +429,8 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                 }
             },
             admin_api: {
-                image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
+                // image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
+                image: "admin_api_aux",
                 networks: [
                     'internal_net',
                     'traefik_public'
@@ -439,7 +441,7 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                 working_dir: '/app',
                 secrets: [
                     {
-                        source: ' mqtt_certs_ca_cert',
+                        source: 'mqtt_certs_ca_cert',
                         target: 'ca.crt',
                         mode: 0444
                     },
@@ -486,7 +488,7 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                         'traefik.http.middlewares.admin_api-prefix.stripprefix.forceslash=false',
                         'traefik.http.middlewares.admin_api-header.headers.customrequestheaders.X-Script-Name=/admin_api/',
                         `traefik.http.middlewares.admin_api-redirectregex.redirectregex.regex=https://${domainName}/(admin_api*)`,
-                        `traefik.http.middlewares.admin_api-redirectregex.redirectregex.replacement=https://${domainName}/$${1}"`,
+                        `traefik.http.middlewares.admin_api-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
                         'traefik.http.routers.admin_api.entrypoints=websecure',
                         'traefik.http.routers.admin_api.tls=true',
                         'traefik.http.routers.admin_api.service=admin_api',
@@ -574,37 +576,46 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
         },
         secrets: {
             iot_platform_ca: {
-                file: './certs/domain_certs/iot_platform_ca.pem'
+                file: './certs/domain_certs/iot_platform_ca.pem',
+                name: osi4iotState.certs.domain_certs.iot_platform_ca_name
             },
             iot_platform_cert: {
-                file: './certs/domain_certs/iot_platform_cert.cer'
+                file: './certs/domain_certs/iot_platform_cert.cer',
+                name: osi4iotState.certs.domain_certs.iot_platform_cert_name
             },
             iot_platform_key: {
-                file: './certs/domain_certs/iot_platform.key'
+                file: './certs/domain_certs/iot_platform.key',
+                name: osi4iotState.certs.domain_certs.iot_platform_key_name
             },
             mqtt_certs_ca_cert: {
-                file: './certs/mqtt_certs/ca_certs/ca.crt'
+                file: './certs/mqtt_certs/ca_certs/ca.crt',
+                name: osi4iotState.certs.mqtt_certs.ca_certs.mqtt_certs_ca_cert_name
             },
             mqtt_certs_ca_key: {
-                file: './certs/mqtt_certs/ca_certs/ca.key'
+                file: './certs/mqtt_certs/ca_certs/ca.key',
+                name: osi4iotState.certs.mqtt_certs.ca_certs.mqtt_certs_ca_key_name
             },
             mqtt_broker_cert: {
-                file: './certs/mqtt_certs/broker/server.crt'
+                file: './certs/mqtt_certs/broker/server.crt',
+                name: osi4iotState.certs.mqtt_certs.broker.mqtt_broker_cert_name
             },
             mqtt_broker_key: {
-                file: './certs/mqtt_certs/broker/server.key'
+                file: './certs/mqtt_certs/broker/server.key',
+                name: osi4iotState.certs.mqtt_certs.broker.mqtt_broker_key_name
             },
             mqtt_nodered_client_cert: {
-                file: './certs/mqtt_certs/nodered/client.crt'
+                file: './certs/mqtt_certs/nodered/client.crt',
+                name: osi4iotState.certs.mqtt_certs.nodered.mqtt_nodered_client_cert_name
             },
             mqtt_nodered_client_key: {
-                file: './certs/mqtt_certs/nodered/client.key'
+                file: './certs/mqtt_certs/nodered/client.key',
+                name: osi4iotState.certs.mqtt_certs.nodered.mqtt_nodered_client_key_name
             },
             pgadmin4: {
                 file: './secrets/pgadmin4.txt'
             },
             postgres_grafana: {
-                file: ' ./secrets/postgres_grafana.txt'
+                file: './secrets/postgres_grafana.txt'
             },
             postgres_user: {
                 file: './secrets/postgres_user.txt'
@@ -715,20 +726,22 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
         }
     }
 
-    for (iorg = 1; iorg <= numOrgs; iorg++) {
+    for (iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
         const orgMasterDeviceHashes = [];
-        const orgHash = nanoid(16).replace(/-/g, "x").replace(/_/g, "x");
+        const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
         if (numSwarmNodes === 1) {
             execSync(`docker node update --label-add org_hash=${orgHash} ${currentNodeId}`);
         }
-        for (idevice = 1; idevice <= numMasterDevicesPerOrg; idevice++) {
-            const masterDeviceHash = nanoid(16).replace(/-/g, "x").replace(/_/g, "x");
+        const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
+        for (idev = 1; idev <= num_master_devices; idev++) {
+            const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
             orgMasterDeviceHashes.push(masterDeviceHash);
 
-            const serviceName = `org_${iorg}_master_device_${idevice}`;
+            const serviceName = `org_${iorg}_master_device_${idev}`;
             const masterDeviceHashPath = `master_device_${masterDeviceHash}`
             osi4iotStackObj.services[serviceName] = {
-                image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
+                // image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
+                image: "master_device",
                 user: "${UID}:${GID}",
                 networks: [
                     "internal_net",
@@ -768,8 +781,8 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
                         `traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header,${serviceName}-redirectregex`,
                         `traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
                         `traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
-                        `traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.regex=https://\${DOMAIN_NAME}/(${masterDeviceHashPath}*)`,
-                        `traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.replacement=https://\${DOMAIN_NAME}/\$\${1}"`,
+                        `traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.regex=https://${domainName}/(${masterDeviceHashPath}*)`,
+                        `traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
                         `traefik.http.routers.${serviceName}.entrypoints=websecure`,
                         `traefik.http.routers.${serviceName}.tls=true`,
                         `traefik.http.routers.${serviceName}.service=${serviceName}`,
@@ -788,20 +801,14 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
             };
 
             osi4iotStackObj.secrets[`${serviceName}_mqtt_client_cert`] = {
-                file: `./certs/mqtt_certs/${serviceName}/client.crt`
+                file: `./certs/mqtt_certs/${serviceName}/client.crt`,
+                name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name
             }
 
             osi4iotStackObj.secrets[`${serviceName}_mqtt_client_key`] = {
-                file: `./certs/mqtt_certs/${serviceName}/client.key`
+                file: `./certs/mqtt_certs/${serviceName}/client.key`,
+                name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name
             }
-        }
-        const orgMasterDeviceHashesString = orgMasterDeviceHashes.join(",");
-        const orgMasterDeviceHashesText = `ORG_${iorg}_MASTER_DEVICE_HASHES=${orgMasterDeviceHashesString}\n`;
-
-        if (iorg == 1) {
-            fs.writeFileSync("./secrets/master_devices.txt", orgMasterDeviceHashesText);
-        } else {
-            fs.appendFileSync("./secrets/master_devices.txt", orgMasterDeviceHashesText);
         }
     }
 
@@ -811,6 +818,7 @@ module.exports = (domainName, serviceImageVersion = defaultServiceImageVersion, 
         },
         lineWidth: -1
     })
+    fs.writeFileSync('./osi4iot_stack.yml', osi4iotStackYML);
 
     return osi4iotStackYML;
 }

@@ -102,7 +102,6 @@ else
 fi
 
 docker stack deploy --resolve-image changed -c osi4iot_stack.yml osi4iot
-docker stack deploy --resolve-image changed -c master_devices_stack.yml masterdevs
 
 sp="/-\|"
 sc=0

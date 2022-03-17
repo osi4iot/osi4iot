@@ -5,7 +5,12 @@ const timezoneValidator = require('timezone-validator');
 const { nanoid } = require('nanoid');
 const execSync = require('child_process').execSync;
 const bcrypt = require('bcryptjs');
+const md5 = require('md5');
 const certsGenerator = require('./certsGenerator');
+const secretsGenerator = require('./secretsGenerator');
+const configGenerator = require('./configGenerator');
+const stackFileGenerator = require('./stackFileGenerator');
+var clc = require("cli-color");
 
 module.exports = async () => {
     const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
@@ -442,7 +447,7 @@ module.exports = async () => {
                 }
             }
         ])
-        .then((answers) => {
+        .then(async (answers) => {
             const osi4iotState = {
                 platformInfo: {
                     PLATFORM_NAME: answers.PLATFORM_NAME,
@@ -453,8 +458,8 @@ module.exports = async () => {
                     MAIN_ORGANIZATION_ADDRESS1: answers.MAIN_ORGANIZATION_ADDRESS1,
                     MAIN_ORGANIZATION_CITY: answers.MAIN_ORGANIZATION_CITY,
                     MAIN_ORGANIZATION_ZIP_CODE: answers.MAIN_ORGANIZATION_ZIP_CODE,
-                    MAIN_ORGANIZATION_STATE: answers.MAIN_ORGANIZATION_ZIP_CODE,
-                    MAIN_ORGANIZATION_COUNTRY: answers.MAIN_ORGANIZATION_STATE,
+                    MAIN_ORGANIZATION_STATE: answers.MAIN_ORGANIZATION_STATE,
+                    MAIN_ORGANIZATION_COUNTRY: answers.MAIN_ORGANIZATION_COUNTRY,
                     MIN_LONGITUDE: answers.MIN_LONGITUDE,
                     MAX_LONGITUDE: answers.MAX_LONGITUDE,
                     MIN_LATITUDE: answers.MIN_LATITUDE,
@@ -462,11 +467,11 @@ module.exports = async () => {
                     DEFAULT_TIME_ZONE: answers.DEFAULT_TIME_ZONE,
                     REGISTRATION_TOKEN_LIFETIME: answers.REGISTRATION_TOKEN_LIFETIME,
                     REFRESH_TOKEN_LIFETIME: answers.REFRESH_TOKEN_LIFETIME,
-                    REFRESH_TOKEN_SECRET: nanoid().replace(/-/g, "x"),
-                    ACCESS_TOKEN_SECRET: nanoid().replace(/-/g, "x"),
+                    REFRESH_TOKEN_SECRET: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+                    ACCESS_TOKEN_SECRET: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
                     ACCESS_TOKEN_LIFETIME: answers.ACCESS_TOKEN_LIFETIME,
                     MQTT_SSL_CERTS_VALIDITY_DAYS: answers.MQTT_SSL_CERTS_VALIDITY_DAYS,
-                    ENCRYPTION_SECRET_KEY: nanoid(32).replace(/-/g, "x"),
+                    ENCRYPTION_SECRET_KEY: nanoid(32).replace(/-/g, "x").replace(/_/g, "X"),
                     PLATFORM_ADMIN_FIRST_NAME: answers.PLATFORM_ADMIN_FIRST_NAME,
                     PLATFORM_ADMIN_SURNAME: answers.PLATFORM_ADMIN_SURNAME,
                     PLATFORM_ADMIN_USER_NAME: answers.PLATFORM_ADMIN_USER_NAME,
@@ -481,9 +486,9 @@ module.exports = async () => {
                     NOTIFICATIONS_EMAIL_PASSWORD: answers.NOTIFICATIONS_EMAIL_PASSWORD,
                     MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: answers.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
                     MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: answers.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
-                    MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN: answers.MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN,
-                    GRAFANA_DB_PASSWORD: nanoid().replace(/-/g, "x"),
-                    GRAFANA_DATASOURCE_PASSWORD: nanoid().replace(/-/g, "x"),
+                    TELEGRAM_BOTTOKEN: answers.TELEGRAM_BOTTOKEN,
+                    GRAFANA_DB_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+                    GRAFANA_DATASOURCE_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
                     NODE_RED_ADMIN: answers.PLATFORM_ADMIN_USER_NAME,
                     NODE_RED_ADMIN_HASH: bcrypt.hashSync(answers.PLATFORM_ADMIN_PASSWORD, 8),
                     PGADMIN_DEFAULT_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
@@ -495,8 +500,11 @@ module.exports = async () => {
                 certs: {
                     domain_certs: {
                         private_key: answers.DOMAIN_SSL_PRIVATE_KEY,
+                        iot_platform_key_name: `iot_platform_key_${md5(answers.DOMAIN_SSL_PRIVATE_KEY)}`,
                         ssl_ca_pem: answers.DOMAIN_SSL_CA_CERT,
-                        ssl_cert_crt: answers.DOMAIN_SSL_CERTICATE
+                        iot_platform_ca_name: `iot_platform_ca_${md5(answers.DOMAIN_SSL_CA_CERT)}`,
+                        ssl_cert_crt: answers.DOMAIN_SSL_CERTICATE,
+                        iot_platform_cert_name: `iot_platform_cert_${md5(answers.DOMAIN_SSL_CERTICATE)}`
                     },
                     mqtt_certs: {
                         ca_certs: {
@@ -527,29 +535,32 @@ module.exports = async () => {
 
             for (let iorg = 1; iorg <= parseInt(answers.MAX_NUMBER_ORGS_EXPECTED, 10); iorg++) {
                 osi4iotState.certs.mqtt_certs.organizations[iorg - 1] = {
-                    org_hash: nanoid().replace(/-/g, "x"),
+                    org_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
                     master_devices: []
                 }
                 for (let idev = 1; idev <= parseInt(answers.DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG, 10); idev++) {
                     osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1] = {
                         client_crt: "",
                         client_key: "",
-                        expiration_timestamp: 0
+                        expiration_timestamp: 0,
+                        md_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X")
                     }
-                    const client_crt_name = `org_${iorg}_master_device_${idev}_mqtt_client_cert_name`;
-                    const client_key_name = `org_${iorg}_master_device_${idev}_mqtt_client_key_name`;
-                    osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1][client_crt_name] = "";
-                    osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1][client_key_name] = "";
+                    osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name = "";
+                    osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name = "";
                 }
             }
 
-            certsGenerator(osi4iotState)
-                .then(() => {
-                    const osi4iotStateFile = JSON.stringify(osi4iotState);
-                    fs.writeFileSync('./osi4iot_state_file.json', osi4iotStateFile);
-                });
-        
-            
+            console.log(clc.green('\nCreating certificates...'))
+            await certsGenerator(osi4iotState);
+            const osi4iotStateFile = JSON.stringify(osi4iotState);
+            fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+
+            console.log(clc.green('Creating secrets...'))
+            secretsGenerator(osi4iotState);
+            console.log(clc.green('Creating configs...'))
+            configGenerator(osi4iotState);
+            console.log(clc.green('Creating stack file...'))
+            stackFileGenerator(osi4iotState);
         })
         .catch((error) => {
             if (error.isTtyError) {
@@ -558,5 +569,6 @@ module.exports = async () => {
                 console.log("Error in osi4iot cli: ", error)
             }
         })
+
 
 }
