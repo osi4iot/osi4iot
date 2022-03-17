@@ -4,6 +4,7 @@ const runStack = require('./runStack');
 const stopStack = require('./stopStack');
 const stackStatus = require('./stackStatus');
 const cleanStack = require('./cleanStack');
+const execSync = require('child_process').execSync;
 
 const osi4iotCli = async () => {
     const myArgs = process.argv.slice(2);

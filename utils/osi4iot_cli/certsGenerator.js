@@ -32,17 +32,34 @@ module.exports = async (osi4iotState) => {
     }
 
 
-    fs.writeFileSync('./certs/domain_certs/iot_platform.key', osi4iotState.certs.domain_certs.private_key);
+    if (!fs.existsSync('./certs/domain_certs/iot_platform.key')) {
+        fs.writeFileSync('./certs/domain_certs/iot_platform.key', osi4iotState.certs.domain_certs.private_key);
+        osi4iotState.certs.domain_certs.iot_platform_key_name = `iot_platform_key_${md5(osi4iotState.certs.domain_certs.private_key)}`;
+    }
 
-    fs.writeFileSync('./certs/domain_certs/iot_platform_ca.pem', osi4iotState.certs.domain_certs.ssl_ca_pem);
+    if (!fs.existsSync('./certs/domain_certs/iot_platform_ca.pem')) {
+        fs.writeFileSync('./certs/domain_certs/iot_platform_ca.pem', osi4iotState.certs.domain_certs.ssl_ca_pem);
+        const iotPlatformCa = execSync('openssl x509 -enddate -noout -in ./certs/domain_certs/iot_platform_ca.pem');
+        const iotPlatformCaExpDate = iotPlatformCa.toString().split("=")[1];
+        const iotPlatformCaExpTimestamp = Date.parse(iotPlatformCaExpDate);
+        osi4iotState.certs.domain_certs.ca_pem_expiration_timestamp = iotPlatformCaExpTimestamp;
+        osi4iotState.certs.domain_certs.iot_platform_ca_name = `iot_platform_ca_${md5(osi4iotState.certs.domain_certs.ssl_ca_pem)}`;
+    }
 
-    fs.writeFileSync('./certs/domain_certs/iot_platform_cert.cer', osi4iotState.certs.domain_certs.ssl_cert_crt);
-
+    if (!fs.existsSync('./certs/domain_certs/iot_platform_cert.cer')) {
+        fs.writeFileSync('./certs/domain_certs/iot_platform_cert.cer', osi4iotState.certs.domain_certs.ssl_cert_crt);
+        const iotPlatformCert = execSync('openssl x509 -enddate -noout -in ./certs/domain_certs/iot_platform_ca.pem');
+        const iotPlatformCertExpDate = iotPlatformCert.toString().split("=")[1];
+        const iotPlatformCertExpTimestamp = Date.parse(iotPlatformCertExpDate);
+        osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp = iotPlatformCertExpTimestamp;
+        osi4iotState.certs.domain_certs.iot_platform_cert_name= `iot_platform_cert_${md5(osi4iotState.certs.domain_certs.ssl_cert_crt)}`;
+    }
 
     let ca = {
         key: osi4iotState.certs.mqtt_certs.ca_certs.ca_key,
         cert: osi4iotState.certs.mqtt_certs.ca_certs.ca_crt
     };
+
     if ((ca.key === "" && ca.cert === "") || parseInt(osi4iotState.certs.mqtt_certs.ca_certs.expiration_timestamp, 10) < limitTimestamp) {
         // create a certificate authority
         ca = await mkcert.createCA({

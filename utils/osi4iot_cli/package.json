@@ -6,6 +6,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cli-color": "^2.0.1",
+    "crypto": "^1.0.1",
     "inquirer": "^8.2.1",
     "js-yaml": "^4.1.0",
     "md5": "^2.3.0",

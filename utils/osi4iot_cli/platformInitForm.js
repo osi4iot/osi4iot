@@ -11,6 +11,7 @@ const secretsGenerator = require('./secretsGenerator');
 const configGenerator = require('./configGenerator');
 const stackFileGenerator = require('./stackFileGenerator');
 var clc = require("cli-color");
+const { X509Certificate } = require('crypto');
 
 module.exports = async () => {
     const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
@@ -314,7 +315,7 @@ module.exports = async () => {
             },
             {
                 name: 'NOTIFICATIONS_EMAIL_ADDRESS',
-                message: 'Notification email address: ',
+                message: 'Email account for platform notifications: ',
                 validate: function (email) {
                     valid = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
                     if (valid) {
@@ -326,7 +327,7 @@ module.exports = async () => {
             },
             {
                 name: 'NOTIFICATIONS_EMAIL_PASSWORD',
-                message: 'Notification email password: ',
+                message: 'Email account password: ',
                 validate: function (password) {
                     let valid = /^[A-Za-z]\w{7,30}$/.test(password);
                     if (valid) {
@@ -500,11 +501,13 @@ module.exports = async () => {
                 certs: {
                     domain_certs: {
                         private_key: answers.DOMAIN_SSL_PRIVATE_KEY,
-                        iot_platform_key_name: `iot_platform_key_${md5(answers.DOMAIN_SSL_PRIVATE_KEY)}`,
+                        iot_platform_key_name: "",
                         ssl_ca_pem: answers.DOMAIN_SSL_CA_CERT,
-                        iot_platform_ca_name: `iot_platform_ca_${md5(answers.DOMAIN_SSL_CA_CERT)}`,
+                        iot_platform_ca_name: "",
                         ssl_cert_crt: answers.DOMAIN_SSL_CERTICATE,
-                        iot_platform_cert_name: `iot_platform_cert_${md5(answers.DOMAIN_SSL_CERTICATE)}`
+                        iot_platform_cert_name: "",
+                        ca_pem_expiration_timestamp: 0,
+                        cert_crt_expiration_timestamp: 0
                     },
                     mqtt_certs: {
                         ca_certs: {
@@ -559,8 +562,10 @@ module.exports = async () => {
             secretsGenerator(osi4iotState);
             console.log(clc.green('Creating configs...'))
             configGenerator(osi4iotState);
-            console.log(clc.green('Creating stack file...'))
+            console.log(clc.green('Creating stack file...\n'))
             stackFileGenerator(osi4iotState);
+            
+            await runStack();
         })
         .catch((error) => {
             if (error.isTtyError) {
