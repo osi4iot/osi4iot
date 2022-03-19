@@ -109,7 +109,7 @@ module.exports = async (osi4iotState = null) => {
                         } else {
                             console.log("\nRemoving unused containers and images.");
                             execSync("docker system prune --force");
-                            console.log(clc.green("\nOsi4iot platform is ready to be used !!!"))
+                            console.log(clc.green("\nOSI4IOT platform is ready to be used !!!"))
                             process.stdout.write('\u001B[?25h');
                             resolve("Finish");
                         }
@@ -137,7 +137,7 @@ module.exports = async (osi4iotState = null) => {
                                     if (!continuar) {
                                         console.log("\nRemoving unused containers and images.");
                                         execSync("docker system prune --force");
-                                        console.log(clc.green("\nOsi4iot platform is ready to be used !!!"))
+                                        console.log(clc.green("\nOSI4IOT platform is ready to be used !!!"))
                                         process.stdout.write('\u001B[?25h');
                                         clearInterval(this);
                                     }
