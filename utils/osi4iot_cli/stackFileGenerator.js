@@ -295,9 +295,7 @@ module.exports = (osi4iotState) => {
                 }
             },
             nodered: {
-                image: platformArch === 'x86_64' ?
-                    `ghcr.io/osi4iot/nodered:${serviceImageVersion['nodered']}` :
-                    `ghcr.io/osi4iot/nodered_arm64:${serviceImageVersion['nodered_arm64']}`,
+                image: `ghcr.io/osi4iot/nodered:${serviceImageVersion['nodered']}`,
                 user: '${UID}:${GID}',
                 networks: [
                     'internal_net',
@@ -307,8 +305,7 @@ module.exports = (osi4iotState) => {
                     'nodered_data:/data'
                 ],
                 environment: [
-                    'USE_DEFAULT_FLOWS=false',
-                    'IS_NODERED_VOLUME_ALREADY_CREATED=true'
+                    `IS_NODERED_VOLUME_ALREADY_CREATED=${osi4iotState.platformInfo.IS_NODERED_VOLUME_ALREADY_CREATED === 'true'}`
                 ],
                 secrets: [
                     {
@@ -429,8 +426,7 @@ module.exports = (osi4iotState) => {
                 }
             },
             admin_api: {
-                // image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
-                image: "admin_api_aux",
+                image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
                 networks: [
                     'internal_net',
                     'traefik_public'
@@ -663,66 +659,66 @@ module.exports = (osi4iotState) => {
         }
 
         osi4iotStackObj.volumes['mosquitto_log'] = {
-              driver: 'local',
+            driver: 'local',
             driver_opts: {
                 type: 'nfs',
                 o: `nfsvers=4,addr=${nfsServerIP},rw`,
                 device: ':/var/nfs/mosquitto_log'
-              }
+            }
         }
 
         osi4iotStackObj.volumes['nodered_data'] = {
-              driver: 'local',
+            driver: 'local',
             driver_opts: {
                 type: 'nfs',
                 o: `nfsvers=4,addr=${nfsServerIP},rw`,
                 device: ':/var/nfs/nodered_data'
-              }
+            }
         }
-           
+
         osi4iotStackObj.volumes['pgdata'] = {
-              driver: 'local',
-              driver_opts: {
-                  type: 'nfs',
-                  o: `nfsvers=4,addr=${nfsServerIP},rw`,
-                  device: ':/var/nfs/pgdata'
-              }
+            driver: 'local',
+            driver_opts: {
+                type: 'nfs',
+                o: `nfsvers=4,addr=${nfsServerIP},rw`,
+                device: ':/var/nfs/pgdata'
+            }
         }
 
         osi4iotStackObj.volumes['pgadmin4_data'] = {
-              driver: 'local',
+            driver: 'local',
             driver_opts: {
                 type: 'nfs',
                 o: `nfsvers=4,addr=${nfsServerIP},rw`,
                 device: ':/var/nfs/pgadmin4_data'
-              }
+            }
         }
 
         osi4iotStackObj.volumes['portainer_data'] = {
-              driver: 'local',
-                driver_opts: {
-                    type: 'nfs',
-                    o: `nfsvers=4,addr=${nfsServerIP},rw`,
-                    device: ':/var/nfs/portainer_data'   
-              }
+            driver: 'local',
+            driver_opts: {
+                type: 'nfs',
+                o: `nfsvers=4,addr=${nfsServerIP},rw`,
+                device: ':/var/nfs/portainer_data'
+            }
         }
 
         osi4iotStackObj.volumes['grafana_data'] = {
-              driver: 'local',
+            driver: 'local',
             driver_opts: {
                 type: 'nfs',
                 o: 'nfsvers=4,addr=${NFS_SERVER_IP},rw',
                 device: ':/var/nfs/grafana_data'
-              }
+            }
         }
 
         osi4iotStackObj.volumes['admin_api_log'] = {
-              driver: 'local',
+            driver: 'local',
             driver_opts: {
                 type: 'nfs',
                 o: `nfsvers=4,addr=${nfsServerIP},rw`,
                 device: ':/var/nfs/admin_api_log'
-              }
+            }
         }
     }
 
@@ -735,13 +731,13 @@ module.exports = (osi4iotState) => {
         const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
         for (idev = 1; idev <= num_master_devices; idev++) {
             const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
+            const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].is_volume_created;
             orgMasterDeviceHashes.push(masterDeviceHash);
 
             const serviceName = `org_${iorg}_master_device_${idev}`;
             const masterDeviceHashPath = `master_device_${masterDeviceHash}`
             osi4iotStackObj.services[serviceName] = {
-                // image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
-                image: "master_device",
+                image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
                 user: "${UID}:${GID}",
                 networks: [
                     "internal_net",
@@ -751,7 +747,8 @@ module.exports = (osi4iotState) => {
                     `${serviceName}_data:/data`
                 ],
                 environment: [
-                    `MASTER_DEVICE_HASH=${masterDeviceHash}`
+                    `MASTER_DEVICE_HASH=${masterDeviceHash}`,
+                    `IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED=${isVolumeCreated === 'true'}`
                 ],
                 secrets: [
                     {
@@ -776,7 +773,7 @@ module.exports = (osi4iotState) => {
                     },
                     labels: [
                         "traefik.enable=true",
-                        `traefik.http.routers.${serviceName}.rule=Host(\`\${DOMAIN_NAME}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
+                        `traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
                         `traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${masterDeviceHashPath}`,
                         `traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header,${serviceName}-redirectregex`,
                         `traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
@@ -790,15 +787,23 @@ module.exports = (osi4iotState) => {
                     ]
                 }
             }
-                
-            if (numSwarmNodes > 1) {
-                osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.org_hash==${orgHash}`);
-            }
 
             const masterDeviceVolume = `${serviceName}_data`;
-            osi4iotStackObj.volumes[masterDeviceVolume] = {
-                driver: "local"
-            };
+            if (numSwarmNodes > 1) {
+                osi4iotStackObj.volumes[masterDeviceVolume] = {
+                    driver: 'local',
+                    driver_opts: {
+                        type: 'nfs',
+                        o: `nfsvers=4,addr=${nfsServerIP},rw`,
+                        device: `:/var/nfs/${masterDeviceVolume}`
+                    }
+                }
+                osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.org_hash==${orgHash}`);
+            } else {
+                osi4iotStackObj.volumes[masterDeviceVolume] = {
+                    driver: "local"
+                };
+            }
 
             osi4iotStackObj.secrets[`${serviceName}_mqtt_client_cert`] = {
                 file: `./certs/mqtt_certs/${serviceName}/client.crt`,

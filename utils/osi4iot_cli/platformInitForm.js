@@ -5,13 +5,11 @@ const timezoneValidator = require('timezone-validator');
 const { nanoid } = require('nanoid');
 const execSync = require('child_process').execSync;
 const bcrypt = require('bcryptjs');
-const md5 = require('md5');
 const certsGenerator = require('./certsGenerator');
 const secretsGenerator = require('./secretsGenerator');
 const configGenerator = require('./configGenerator');
 const stackFileGenerator = require('./stackFileGenerator');
 var clc = require("cli-color");
-const { X509Certificate } = require('crypto');
 
 module.exports = async () => {
     const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
@@ -497,6 +495,8 @@ module.exports = async () => {
                     NFS_SERVER_IP: answers.NFS_SERVER_IP || '127.0.0.1',
                     FLOATING_IP_ADDRES: answers.FLOATING_IP_ADDRES || '127.0.0.1',
                     NETWORK_INTERFACE: answers.NETWORK_INTERFACE || 'eth0',
+                    IS_NODERED_VOLUME_ALREADY_CREATED: 'false',
+                    DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG: parseInt(answers.DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG, 10)
                 },
                 certs: {
                     domain_certs: {
@@ -546,7 +546,8 @@ module.exports = async () => {
                         client_crt: "",
                         client_key: "",
                         expiration_timestamp: 0,
-                        md_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X")
+                        md_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
+                        is_volume_created: 'false'
                     }
                     osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name = "";
                     osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name = "";

@@ -1,4 +1,4 @@
-FROM nodered/node-red:2.0.6-12
+FROM nodered/node-red:2.2.2-16
 
 COPY --chown=node-red:node-red flows_cred.json /tmp
 COPY --chown=node-red:node-red flows.json /tmp

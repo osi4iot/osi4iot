@@ -12,7 +12,7 @@ module.exports = (cmd) => {
             reject(msg.toString())
         });
         child.on('close', (code) => {
-            resolve("Command exit with code: ", code);
+            resolve(code);
         });
     });
 }

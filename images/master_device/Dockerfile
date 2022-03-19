@@ -1,6 +1,6 @@
-FROM nodered/node-red:2.2.2-14
+FROM nodered/node-red:2.2.2-16
 
-COPY --chown=node-red:node-red flows_cred.json /tmp
+COPY --chown=node-red:node-red flows.json /tmp
 COPY --chown=node-red:node-red settings.js /tmp
 COPY entry_script.sh /src/scripts/entry_script.sh
 USER root
@@ -8,5 +8,8 @@ RUN chmod +x /src/scripts/entry_script.sh
 USER node-red
 
 RUN npm install needle
+RUN npm install node-red-contrib-modbus
+RUN npm install node-red-contrib-opcua
+RUN npm install node-red-contrib-bacnet
 
 ENTRYPOINT ["/src/scripts/entry_script.sh"]

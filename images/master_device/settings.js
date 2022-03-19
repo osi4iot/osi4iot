@@ -161,6 +161,7 @@ module.exports = {
                                 process.env.TOKEN_EXPIRATION_DATE = loggedUser.accesTokenExpirationDate;
                                 process.env.USER_NAME = loggedUser.login;
                                 const user = { username: loggedUser.login, permissions: '*' };
+                                process.env.TEST_MQTT_TOPIC = `master_device_${process.env.MASTER_DEVICE_HASH}/#`;
                                 resolve(user);
                             } else {
                                 resolve(null);
@@ -272,7 +273,7 @@ module.exports = {
     functionGlobalContext: {
         // os:require('os'),
         // jfive:require("johnny-five"),
-        // j5board:require("johnny-five").Board({repl:false})
+        // j5board:require("johnny-five").Board({repl:false}
     },
     // `global.keys()` returns a list of all properties set in global context.
     // This allows them to be displayed in the Context Sidebar within the editor.

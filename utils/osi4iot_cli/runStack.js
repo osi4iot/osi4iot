@@ -7,6 +7,9 @@ const checkIfConfigsAreCreated = require('./checkIfConfigsAreCreated');
 const secretsGenerator = require('./secretsGenerator');
 const configGenerator = require('./configGenerator');
 const stackFileGenerator = require('./stackFileGenerator');
+const checkIfAllNoderedVolumesAreCreated = require('./checkIfAllNoderedVolumesAreCreated');
+const markAsCreatedAllNoderedVolumes = require('./markAsCreatedAllNoderedVolumes');
+const certsGenerator = require('./certsGenerator');
 var clc = require("cli-color");
 const dots = [
     "       ",
@@ -64,7 +67,7 @@ module.exports = async (osi4iotState = null) => {
                 const osi4iotStateFile = JSON.stringify(osi4iotState);
                 fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
             }
-                
+
         }
     }
 
@@ -81,30 +84,70 @@ module.exports = async (osi4iotState = null) => {
         execSync("docker network create -d overlay --opt encrypted=true internal_net");
     }
 
-    let index = 0
     process.stdout.write('\u001B[?25l');
-    console.log("Deploying docker swarm stack:");
+    console.log(clc.green("Deploying docker swarm stack:"));
     execShellCommand("docker stack deploy --resolve-image changed -c osi4iot_stack.yml osi4iot")
         .then(() => {
-            setInterval(function () {
-                process.stdout.write(`\rWaiting until all services be ready ${dots[index]}`);
-                index = index < (dots.length - 1) ? index + 1 : 0;
-                let text = execSync("docker service ls");
-                let continuar = text.indexOf(" 0/1 ") !== -1 ||
-                    text.indexOf(" 0/3 ") !== -1 ||
-                    text.indexOf(" 1/3 ") !== -1 ||
-                    text.indexOf(" 2/3 ") !== -1;
-                if (!continuar) {
-                    console.log("\nRemoving unused containers and images.");
-                    execSync("docker system prune --force");
-                    console.log(clc.green("\nOsi4iot platform is ready to be used !!!"))
-                    process.stdout.write('\u001B[?25h');
-                    clearInterval(this);
-                }
-            }, 1000);
+            return new Promise(function (resolve, reject) {
+                let index = 0
+                setInterval(function () {
+                    process.stdout.write(`\rWaiting until all services be ready ${dots[index]}`);
+                    index = index < (dots.length - 1) ? index + 1 : 0;
+                    let text = execSync("docker service ls");
+                    let continuar = text.indexOf(" 0/1 ") !== -1 ||
+                        text.indexOf(" 0/3 ") !== -1 ||
+                        text.indexOf(" 1/3 ") !== -1 ||
+                        text.indexOf(" 2/3 ") !== -1;
+                    if (!continuar) {
+                        clearInterval(this);
+                        if (!checkIfAllNoderedVolumesAreCreated(osi4iotState)) {
+                            markAsCreatedAllNoderedVolumes(osi4iotState);
+                            const osi4iotStateFile = JSON.stringify(osi4iotState);
+                            fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+                            stackFileGenerator(osi4iotState);
+                            resolve("Redeploy stack")
+                        } else {
+                            console.log("\nRemoving unused containers and images.");
+                            execSync("docker system prune --force");
+                            console.log(clc.green("\nOsi4iot platform is ready to be used !!!"))
+                            process.stdout.write('\u001B[?25h');
+                            resolve("Finish");
+                        }
+                    }
+                }, 1000);
+            })
+        })
+        .then((command) => {
+            if (command === "Redeploy stack") {
+                console.log(clc.green("\n\nRedeploy stack for early created volumes"));
+                execShellCommand("docker stack deploy --resolve-image changed -c osi4iot_stack.yml osi4iot")
+                    .then((exitCode) => {
+                        if (exitCode === 0) {
+                            let index = 0;
+                            let timeCounter = 0;
+                            setInterval(function () {
+                                process.stdout.write(`\rWaiting to nodered and master_devices services be ready ${dots[index]}`);
+                                index = index < (dots.length - 1) ? index + 1 : 0;
+                                if (timeCounter >= 30) {
+                                    let text = execSync("docker service ls").toString();
+                                    let continuar = text.indexOf(" 0/1 ") !== -1 ||
+                                        text.indexOf(" 0/3 ") !== -1 ||
+                                        text.indexOf(" 1/3 ") !== -1 ||
+                                        text.indexOf(" 2/3 ") !== -1;
+                                    if (!continuar) {
+                                        console.log("\nRemoving unused containers and images.");
+                                        execSync("docker system prune --force");
+                                        console.log(clc.green("\nOsi4iot platform is ready to be used !!!"))
+                                        process.stdout.write('\u001B[?25h');
+                                        clearInterval(this);
+                                    }
+                                } else timeCounter++;
+                            }, 1000);
+                        }
+                    })
+            }
         })
         .catch((error) => {
             console.log(clc.red("Docker stack could not be deployed. Error: ", error));
-        });
-
+        })
 }
