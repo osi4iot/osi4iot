@@ -408,23 +408,6 @@ module.exports = (osi4iotState) => {
                     ]
                 }
             },
-            grafana_renderer: {
-                image: `ghcr.io/osi4iot/grafana_renderer:${serviceImageVersion['grafana_renderer']}`,
-                networks: [
-                    'internal_net'
-                ],
-                ports: [
-                    '8081'
-                ],
-                environment: [
-                    'ENABLE_METRICS=true'
-                ],
-                deploy: {
-                    placement: {
-                        constraints: ['node.platform.arch==x86_64']
-                    }
-                }
-            },
             admin_api: {
                 image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
                 networks: [
@@ -645,6 +628,26 @@ module.exports = (osi4iotState) => {
             },
             frontend_conf: {
                 file: './config/frontend/frontend.conf'
+            }
+        }
+    }
+
+    if (platformArch = 'x86_64') {
+        osi4iotStackObj.services["grafana_renderer"] = {
+            image: `ghcr.io/osi4iot/grafana_renderer:${serviceImageVersion['grafana_renderer']}`,
+            networks: [
+                'internal_net'
+            ],
+            ports: [
+                '8081'
+            ],
+            environment: [
+                'ENABLE_METRICS=true'
+            ],
+            deploy: {
+                placement: {
+                    constraints: ['node.platform.arch==x86_64']
+                }
             }
         }
     }
