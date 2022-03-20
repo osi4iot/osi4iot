@@ -632,7 +632,7 @@ module.exports = (osi4iotState) => {
         }
     }
 
-    if (platformArch = 'x86_64') {
+    if (platformArch === 'x86_64') {
         osi4iotStackObj.services["grafana_renderer"] = {
             image: `ghcr.io/osi4iot/grafana_renderer:${serviceImageVersion['grafana_renderer']}`,
             networks: [
