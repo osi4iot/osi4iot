@@ -2,10 +2,11 @@ const fs = require('fs');
 const inquirer = require('inquirer');
 const runStack = require('./runStack');
 const { nanoid } = require('nanoid');
+const updateAdminApiSecrets = require('./updateAdminApiSecrets');
 
 module.exports = () => {
     if (!fs.existsSync('./osi4iot_state.json')) {
-        console.log(clc.red("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
+        console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
         return;
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
@@ -18,7 +19,16 @@ module.exports = () => {
                     name: 'numOrgsToAdd',
                     message: `Currently there are ${currentNumOrgs} orgs in the platform. How many orgs do you want to add?: `,
                     default: 1,
-                    type: 'number'
+                    type: 'number',
+                    validate: (newNum) => {
+                        if ((newNum - Math.floor(newNum)) !== 0.0) {
+                            return "Please enter an integer number greater or equal to 1."
+                        }
+                        if (newNum < 1) {
+                            return "At least one organization must be added"
+                        }
+                        return true;
+                    }
                 }
             ])
             .then(async (answers) => {
@@ -40,6 +50,7 @@ module.exports = () => {
                             osi4iotState.certs.mqtt_certs.organizations[iorg].master_devices[idev - 1].client_key_name = "";
                         }
                     }
+                    updateAdminApiSecrets(osi4iotState);
                     const osi4iotStateFile = JSON.stringify(osi4iotState);
                     fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
                 }

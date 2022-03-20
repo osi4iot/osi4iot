@@ -623,7 +623,8 @@ module.exports = (osi4iotState) => {
                 file: './secrets/grafana.txt'
             },
             admin_api: {
-                file: './secrets/admin_api.txt'
+                file: './secrets/admin_api.txt',
+                name: osi4iotState.admin_api_secret_name
             },
             nodered: {
                 file: './secrets/nodered.txt'

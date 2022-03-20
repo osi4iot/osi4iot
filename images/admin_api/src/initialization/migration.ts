@@ -50,43 +50,45 @@ export async function dataBaseInitialization() {
 			process.exit(1);
 		}
 
-		if (process_env.REPLICA === "1" && result0.rows[0].count !== 0) {
-			const queryStringAlterOrg = `ALTER TABLE grafanadb.org
-			ADD COLUMN acronym varchar(20) UNIQUE,
-			ADD COLUMN building_id bigint,
-			ADD COLUMN org_hash varchar(20) UNIQUE`;
-			try {
-				await client.query(queryStringAlterOrg);
-				logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
-			} catch (err) {
-				logger.log("error", `Column acronym can not be added sucessfully to Table ${tableOrg}: %s`, err.message);
-			}
+		if (process_env.REPLICA === "1") {
 
-			const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5,
-									state = $6, country = $7, building_id = $8, org_hash = $9 WHERE name = $10`;
-			const parameterArrayUpdateOrg = [
-				process_env.MAIN_ORGANIZATION_NAME,
-				process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
-				process_env.MAIN_ORGANIZATION_ADDRESS1,
-				process_env.MAIN_ORGANIZATION_CITY,
-				process_env.MAIN_ORGANIZATION_ZIP_CODE,
-				process_env.MAIN_ORGANIZATION_STATE,
-				process_env.MAIN_ORGANIZATION_COUNTRY,
-				1,
-				process_env.ORG_HASHES[0],
-				"Main Org."
-			];
+			if (result0.rows[0].count !== 0) {
+				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
+											ADD COLUMN acronym varchar(20) UNIQUE,
+											ADD COLUMN building_id bigint,
+											ADD COLUMN org_hash varchar(20) UNIQUE`;
+				try {
+					await client.query(queryStringAlterOrg);
+					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
+				} catch (err) {
+					logger.log("error", `Column acronym can not be added sucessfully to Table ${tableOrg}: %s`, err.message);
+				}
 
-			try {
-				await client.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
-				logger.log("info", `Table ${tableOrg} has been updated sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableOrg} can not be updated: %s`, err.message);
-			}
+				const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5,
+											state = $6, country = $7, building_id = $8, org_hash = $9 WHERE name = $10`;
+				const parameterArrayUpdateOrg = [
+					process_env.MAIN_ORGANIZATION_NAME,
+					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
+					process_env.MAIN_ORGANIZATION_ADDRESS1,
+					process_env.MAIN_ORGANIZATION_CITY,
+					process_env.MAIN_ORGANIZATION_ZIP_CODE,
+					process_env.MAIN_ORGANIZATION_STATE,
+					process_env.MAIN_ORGANIZATION_COUNTRY,
+					1,
+					process_env.ORG_HASHES[0],
+					"Main Org."
+				];
+
+				try {
+					await client.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
+					logger.log("info", `Table ${tableOrg} has been updated sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableOrg} can not be updated: %s`, err.message);
+				}
 
 
-			const tableBuilding = "grafanadb.building";
-			const queryStringBuilding = `
+				const tableBuilding = "grafanadb.building";
+				const queryStringBuilding = `
 				CREATE TABLE IF NOT EXISTS ${tableBuilding}(
 					id serial PRIMARY KEY,
 					name VARCHAR(190) UNIQUE,
@@ -100,24 +102,24 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_building_name
 				ON grafanadb.building(name);`;
 
-			try {
-				await client.query(queryStringBuilding);
-				logger.log("info", `Table ${tableBuilding} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableBuilding} can not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringBuilding);
+					logger.log("info", `Table ${tableBuilding} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableBuilding} can not be created: %s`, err.message);
+				}
 
-			const queryStringInsertBuilding = `INSERT INTO ${tableBuilding} (name, geolocation, created, updated) VALUES ($1, $2, NOW(), NOW())`;
-			const queryParametersInsertBuilding = [process_env.MAIN_ORGANIZATION_NAME, `(0,0)`];
-			try {
-				await client.query(queryStringInsertBuilding, queryParametersInsertBuilding);
-				logger.log("info", `Data in table ${tableBuilding} has been inserted sucessfully`);
-			} catch (err) {
-				logger.log("error", `Data in table ${tableBuilding} con not been inserted: %s`, err.message);
-			}
+				const queryStringInsertBuilding = `INSERT INTO ${tableBuilding} (name, geolocation, created, updated) VALUES ($1, $2, NOW(), NOW())`;
+				const queryParametersInsertBuilding = [process_env.MAIN_ORGANIZATION_NAME, `(0,0)`];
+				try {
+					await client.query(queryStringInsertBuilding, queryParametersInsertBuilding);
+					logger.log("info", `Data in table ${tableBuilding} has been inserted sucessfully`);
+				} catch (err) {
+					logger.log("error", `Data in table ${tableBuilding} con not been inserted: %s`, err.message);
+				}
 
-			const tableFloor = "grafanadb.floor";
-			const queryStringFloor = `
+				const tableFloor = "grafanadb.floor";
+				const queryStringFloor = `
 				CREATE TABLE IF NOT EXISTS ${tableFloor}(
 					id serial PRIMARY KEY,
 					building_id bigint,
@@ -135,77 +137,77 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_floor_building_id_floor_number
 				ON grafanadb.floor(building_id,floor_number)`;
 
-			try {
-				await client.query(queryStringFloor);
-				logger.log("info", `Table ${tableFloor} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableFloor} can not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringFloor);
+					logger.log("info", `Table ${tableFloor} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableFloor} can not be created: %s`, err.message);
+				}
 
-			const queryStringInsertFloor = `INSERT INTO ${tableFloor} (building_id, floor_number, created, updated) VALUES ($1, $2, NOW(), NOW())`;
-			const queryParametersInsertFloor = [1, 0];
-			try {
-				await client.query(queryStringInsertFloor, queryParametersInsertFloor);
-				logger.log("info", `Data in table ${tableFloor} has been inserted sucessfully`);
-			} catch (err) {
-				logger.log("error", `Data in table ${tableFloor} con not been inserted: %s`, err.message);
-			}
+				const queryStringInsertFloor = `INSERT INTO ${tableFloor} (building_id, floor_number, created, updated) VALUES ($1, $2, NOW(), NOW())`;
+				const queryParametersInsertFloor = [1, 0];
+				try {
+					await client.query(queryStringInsertFloor, queryParametersInsertFloor);
+					logger.log("info", `Data in table ${tableFloor} has been inserted sucessfully`);
+				} catch (err) {
+					logger.log("error", `Data in table ${tableFloor} con not been inserted: %s`, err.message);
+				}
 
-			const tableUser = "grafanadb.user";
-			const queryStringAlterUser = `ALTER TABLE grafanadb.user
+				const tableUser = "grafanadb.user";
+				const queryStringAlterUser = `ALTER TABLE grafanadb.user
 									ADD COLUMN first_name varchar(127),
 									ADD COLUMN surname varchar(127),
 									ADD COLUMN telegram_id varchar(40) UNIQUE`;
-			try {
-				await client.query(queryStringAlterUser);
-				logger.log("info", `Column telegram_id has been added sucessfully to Table ${tableUser}`);
-			} catch (err) {
-				logger.log("error", `Column telegram_id can not be added sucessfully to Table ${tableUser}: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringAlterUser);
+					logger.log("info", `Column telegram_id has been added sucessfully to Table ${tableUser}`);
+				} catch (err) {
+					logger.log("error", `Column telegram_id can not be added sucessfully to Table ${tableUser}: %s`, err.message);
+				}
 
-			const plaformAdminUser = {
-				id: 2,
-				name: `${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
-				firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
-				surname: process_env.PLATFORM_ADMIN_SURNAME,
-				email: process_env.PLATFORM_ADMIN_EMAIL,
-				login: process_env.PLATFORM_ADMIN_USER_NAME,
-				password: process_env.PLATFORM_ADMIN_PASSWORD,
-				telegramId: process_env.PLATFORM_ADMIN_TELEGRAM_ID,
-				OrgId: 1
-			}
-			await grafanaApi.createUser(plaformAdminUser);
-			await grafanaApi.createOrgApiAdminUser(1);
+				const plaformAdminUser = {
+					id: 2,
+					name: `${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
+					firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
+					surname: process_env.PLATFORM_ADMIN_SURNAME,
+					email: process_env.PLATFORM_ADMIN_EMAIL,
+					login: process_env.PLATFORM_ADMIN_USER_NAME,
+					password: process_env.PLATFORM_ADMIN_PASSWORD,
+					telegramId: process_env.PLATFORM_ADMIN_TELEGRAM_ID,
+					OrgId: 1
+				}
+				await grafanaApi.createUser(plaformAdminUser);
+				await grafanaApi.createOrgApiAdminUser(1);
 
-			const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE id = $4';
-			try {
-				await client.query(queryStringUpdateUser,
-					[
-						process_env.PLATFORM_ADMIN_FIRST_NAME,
-						process_env.PLATFORM_ADMIN_SURNAME,
-						`${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
-						2
-					]);
-			} catch (err) {
-				logger.log("error", `Platform admin user can not be updated: %s`, err.message);
-			}
-			await grafanaApi.giveGrafanaAdminPermissions(2);
-			await grafanaApi.changeUserRoleInOrganization(1, 2, "Admin");
+				const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE id = $4';
+				try {
+					await client.query(queryStringUpdateUser,
+						[
+							process_env.PLATFORM_ADMIN_FIRST_NAME,
+							process_env.PLATFORM_ADMIN_SURNAME,
+							`${process_env.PLATFORM_ADMIN_FIRST_NAME} ${process_env.PLATFORM_ADMIN_SURNAME}`,
+							2
+						]);
+				} catch (err) {
+					logger.log("error", `Platform admin user can not be updated: %s`, err.message);
+				}
+				await grafanaApi.giveGrafanaAdminPermissions(2);
+				await grafanaApi.changeUserRoleInOrganization(1, 2, "Admin");
 
 
-			let apiKeyMainOrg: string;
-			try {
-				const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}`
-				const apiKeyData = { name: apyKeyName, role: "Admin" };
-				const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
-				apiKeyMainOrg = apiKeyObj.key;
-				logger.log("info", `Api key token created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Api key token created could not be created: %s`, err.message);
-			}
+				let apiKeyMainOrg: string;
+				try {
+					const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}`
+					const apiKeyData = { name: apyKeyName, role: "Admin" };
+					const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
+					apiKeyMainOrg = apiKeyObj.key;
+					logger.log("info", `Api key token created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Api key token created could not be created: %s`, err.message);
+				}
 
-			const tableOrgToken = "grafanadb.org_token";
-			const queryStringOrgToken = `
+				const tableOrgToken = "grafanadb.org_token";
+				const queryStringOrgToken = `
 				CREATE TABLE IF NOT EXISTS ${tableOrgToken}(
 					id serial PRIMARY KEY,
 					org_id bigint,
@@ -224,30 +226,30 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_org_token_org_id
 				ON grafanadb.org_token(org_id);`;
 
-			try {
-				await client.query(queryStringOrgToken);
-				logger.log("info", `Table ${tableOrgToken} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableOrgToken} can not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringOrgToken);
+					logger.log("info", `Table ${tableOrgToken} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableOrgToken} can not be created: %s`, err.message);
+				}
 
-			const queryStringInsertOrgToken = `INSERT INTO ${tableOrgToken} (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`
-			const hashedApiKey = encrypt(apiKeyMainOrg);
-			const queryParametersInsertOrgToken = [1, 1, hashedApiKey];
-			try {
-				await client.query(queryStringInsertOrgToken, queryParametersInsertOrgToken);
-				logger.log("info", `Data in table ${tableOrgToken} has been inserted sucessfully`);
-			} catch (err) {
-				logger.log("error", `Data in table ${tableOrgToken} con not been inserted: %s`, err.message);
-			}
+				const queryStringInsertOrgToken = `INSERT INTO ${tableOrgToken} (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`
+				const hashedApiKey = encrypt(apiKeyMainOrg);
+				const queryParametersInsertOrgToken = [1, 1, hashedApiKey];
+				try {
+					await client.query(queryStringInsertOrgToken, queryParametersInsertOrgToken);
+					logger.log("info", `Data in table ${tableOrgToken} has been inserted sucessfully`);
+				} catch (err) {
+					logger.log("error", `Data in table ${tableOrgToken} con not been inserted: %s`, err.message);
+				}
 
-			let group: IGroup;
-			const mainOrgGroupName = defaultOrgGroupName(process_env.MAIN_ORGANIZATION_NAME, process_env.MAIN_ORGANIZATION_ACRONYM);
-			const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_GRAL`;
-			const orgAcronym = process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
-			const orgName = process_env.MAIN_ORGANIZATION_NAME;
-			const tableGroup = "grafanadb.group";
-			const queryStringGroup = `
+				let group: IGroup;
+				const mainOrgGroupName = defaultOrgGroupName(process_env.MAIN_ORGANIZATION_NAME, process_env.MAIN_ORGANIZATION_ACRONYM);
+				const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_GRAL`;
+				const orgAcronym = process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
+				const orgName = process_env.MAIN_ORGANIZATION_NAME;
+				const tableGroup = "grafanadb.group";
+				const queryStringGroup = `
 				CREATE TABLE IF NOT EXISTS ${tableGroup}(
 					id serial PRIMARY KEY,
 					org_id bigint,
@@ -288,42 +290,42 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_group_group_uid
 				ON grafanadb.group(group_uid);`;
 
-			try {
-				await client.query(queryStringGroup);
-				const mainOrgGroupAdmin = {
-					userId: 2,
-					firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
-					surname: process_env.PLATFORM_ADMIN_SURNAME,
-					email: process_env.PLATFORM_ADMIN_EMAIL
+				try {
+					await client.query(queryStringGroup);
+					const mainOrgGroupAdmin = {
+						userId: 2,
+						firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
+						surname: process_env.PLATFORM_ADMIN_SURNAME,
+						email: process_env.PLATFORM_ADMIN_EMAIL
+					}
+					const defaultMainOrgGroup = {
+						name: mainOrgGroupName,
+						acronym: mainOrgGroupAcronym,
+						email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toLocaleLowerCase()}_general@test.com`,
+						telegramChatId: process_env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
+						telegramInvitationLink: process_env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
+						folderPermission: ("Viewer" as FolderPermissionOption),
+						groupAdminDataArray: [mainOrgGroupAdmin],
+						floorNumber: 0,
+						featureIndex: 0,
+					}
+					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
+					await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
+					const groupMember = {
+						userId: 2,
+						firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
+						surname: process_env.PLATFORM_ADMIN_SURNAME,
+						email: process_env.PLATFORM_ADMIN_EMAIL,
+						roleInGroup: "Admin" as RoleInGroupOption
+					}
+					await addMembersToGroup(group, [groupMember])
+					logger.log("info", `Table ${tableGroup} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);
 				}
-				const defaultMainOrgGroup = {
-					name: mainOrgGroupName,
-					acronym: mainOrgGroupAcronym,
-					email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g, "").toLocaleLowerCase()}_general@test.com`,
-					telegramChatId: process_env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
-					telegramInvitationLink: process_env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
-					folderPermission: ("Viewer" as FolderPermissionOption),
-					groupAdminDataArray: [mainOrgGroupAdmin],
-					floorNumber: 0,
-					featureIndex: 0,
-				}
-				group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
-				await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
-				const groupMember = {
-					userId: 2,
-					firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
-					surname: process_env.PLATFORM_ADMIN_SURNAME,
-					email: process_env.PLATFORM_ADMIN_EMAIL,
-					roleInGroup: "Admin" as RoleInGroupOption
-				}
-				await addMembersToGroup(group, [groupMember])
-				logger.log("info", `Table ${tableGroup} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);
-			}
 
-			const tableDevice = "grafanadb.device";
-			const queryStringDevice = `
+				const tableDevice = "grafanadb.device";
+				const queryStringDevice = `
 				CREATE TABLE IF NOT EXISTS ${tableDevice}(
 					id serial PRIMARY KEY,
 					org_id bigint,
@@ -348,15 +350,15 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_device_name
 				ON grafanadb.device(name);`;
 
-			try {
-				await client.query(queryStringDevice);
-				logger.log("info", `Table ${tableDevice} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableDevice} can not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringDevice);
+					logger.log("info", `Table ${tableDevice} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableDevice} can not be created: %s`, err.message);
+				}
 
-			const tableTopic = "grafanadb.topic";
-			const queryStringTopic = `
+				const tableTopic = "grafanadb.topic";
+				const queryStringTopic = `
 				CREATE TABLE IF NOT EXISTS ${tableTopic}(
 					id serial PRIMARY KEY,
 					device_id bigint,
@@ -376,15 +378,15 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_topic_name
 				ON grafanadb.topic(topic_name);`;
 
-			try {
-				await client.query(queryStringTopic);
-				logger.log("info", `Table ${tableTopic} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableTopic} can not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringTopic);
+					logger.log("info", `Table ${tableTopic} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableTopic} can not be created: %s`, err.message);
+				}
 
-			const tableDigitalTwin = "grafanadb.digital_twin";
-			const queryStringDigitalTwin = `
+				const tableDigitalTwin = "grafanadb.digital_twin";
+				const queryStringDigitalTwin = `
 				CREATE TABLE IF NOT EXISTS ${tableDigitalTwin}(
 					id serial PRIMARY KEY,
 					device_id bigint,
@@ -419,15 +421,15 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_digital_twin_name
 				ON grafanadb.digital_twin(name);`;
 
-			try {
-				await client.query(queryStringDigitalTwin);
-				logger.log("info", `Table ${tableDigitalTwin} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringDigitalTwin);
+					logger.log("info", `Table ${tableDigitalTwin} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, err.message);
+				}
 
-			const tableMasterDevice = "grafanadb.master_device";
-			const queryStringMasterDevice = `
+				const tableMasterDevice = "grafanadb.master_device";
+				const queryStringMasterDevice = `
 				CREATE TABLE IF NOT EXISTS ${tableMasterDevice}(
 					id serial PRIMARY KEY,
 					md_hash VARCHAR(40) UNIQUE,
@@ -443,18 +445,18 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_md_hash
 				ON grafanadb.master_device(md_hash);`;
 
-			let mainMasterDevice: IMasterDevice;
-			try {
-				await client.query(queryStringMasterDevice);
-				const masterDevices = await createMasterDevicesInOrg(process_env.MASTER_DEVICE_HASHES[0], 1);
-				mainMasterDevice = masterDevices[0];
-				logger.log("info", `Table ${tableMasterDevice} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableMasterDevice} can not be created: %s`, err.message);
-			}
+				let mainMasterDevice: IMasterDevice;
+				try {
+					await client.query(queryStringMasterDevice);
+					const masterDevices = await createMasterDevicesInOrg(process_env.MASTER_DEVICE_HASHES[0], 1);
+					mainMasterDevice = masterDevices[0];
+					logger.log("info", `Table ${tableMasterDevice} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableMasterDevice} can not be created: %s`, err.message);
+				}
 
-			const tableDeviceMasterDevice = "grafanadb.device_mdevice";
-			const queryStringDeviceMasterDevice = `
+				const tableDeviceMasterDevice = "grafanadb.device_mdevice";
+				const queryStringDeviceMasterDevice = `
 				CREATE TABLE IF NOT EXISTS ${tableDeviceMasterDevice}(
 					device_id bigint,
 					master_device_id bigint,
@@ -470,15 +472,15 @@ export async function dataBaseInitialization() {
 						ON DELETE CASCADE
 				);`;
 
-			try {
-				await client.query(queryStringDeviceMasterDevice);
-				logger.log("info", `Table ${tableDeviceMasterDevice} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableDeviceMasterDevice} can not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringDeviceMasterDevice);
+					logger.log("info", `Table ${tableDeviceMasterDevice} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableDeviceMasterDevice} can not be created: %s`, err.message);
+				}
 
-			const tableThingData = "iot_data.thingData";
-			const queryStringAlterThingData = `
+				const tableThingData = "iot_data.thingData";
+				const queryStringAlterThingData = `
 				ALTER TABLE ${tableThingData}
 					ADD CONSTRAINT fk_group_uid
 					FOREIGN KEY(group_uid)
@@ -496,110 +498,110 @@ export async function dataBaseInitialization() {
 						ON DELETE CASCADE
 						ON UPDATE CASCADE;`;
 
-			try {
-				await client.query(queryStringAlterThingData);
-				logger.log("info", `Foreing key in table ${tableThingData} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Foreing key in table ${tableThingData} could not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringAlterThingData);
+					logger.log("info", `Foreing key in table ${tableThingData} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Foreing key in table ${tableThingData} could not be created: %s`, err.message);
+				}
 
-			let device1: IDevice;
-			let device2: IDevice;
-			try {
-				const defaultGroupDevicesData = [
-					{
-						name: defaultGroupDeviceName(group, "Main master"),
-						description: `Main master device of the group ${mainOrgGroupAcronym}`,
-						latitude: 0,
-						longitude: 0,
-						type: "Main master"
-					},
-					{
-						name: defaultGroupDeviceName(group, "Generic"),
-						description: `Default generic device of the group ${mainOrgGroupAcronym}`,
-						latitude: 0,
-						longitude: 0,
-						type: "Generic"
-					},
-				];
-				device1 = await createDevice(group, defaultGroupDevicesData[0]);
-				device2 = await createDevice(group, defaultGroupDevicesData[1]);
-				logger.log("info", `Default group devices has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Default group devices could not be created: %s`, err.message);
-			}
+				let device1: IDevice;
+				let device2: IDevice;
+				try {
+					const defaultGroupDevicesData = [
+						{
+							name: defaultGroupDeviceName(group, "Main master"),
+							description: `Main master device of the group ${mainOrgGroupAcronym}`,
+							latitude: 0,
+							longitude: 0,
+							type: "Main master"
+						},
+						{
+							name: defaultGroupDeviceName(group, "Generic"),
+							description: `Default generic device of the group ${mainOrgGroupAcronym}`,
+							latitude: 0,
+							longitude: 0,
+							type: "Generic"
+						},
+					];
+					device1 = await createDevice(group, defaultGroupDevicesData[0]);
+					device2 = await createDevice(group, defaultGroupDevicesData[1]);
+					logger.log("info", `Default group devices has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Default group devices could not be created: %s`, err.message);
+				}
 
 
-			let topic1: ITopicUpdate;
-			let topic2: ITopicUpdate;
-			try {
-				const defaultDeviceTopicsData = [
-					{
-						topicType: "dev2pdb",
-						topicName: demoTopicName(group, device1, "Temperature"),
-						description: `Temperature sensor for ${defaultGroupDeviceName(group, "Main master")} device`,
-						payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
-					},
-					{
-						topicType: "dev2pdb",
-						topicName: demoTopicName(group, device2, "Accelerometer"),
-						description: `Accelerometer for ${defaultGroupDeviceName(group, "Generic")} device`,
-						payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
-					},
-				];
-				topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
-				topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
+				let topic1: ITopicUpdate;
+				let topic2: ITopicUpdate;
+				try {
+					const defaultDeviceTopicsData = [
+						{
+							topicType: "dev2pdb",
+							topicName: demoTopicName(group, device1, "Temperature"),
+							description: `Temperature sensor for ${defaultGroupDeviceName(group, "Main master")} device`,
+							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
+						},
+						{
+							topicType: "dev2pdb",
+							topicName: demoTopicName(group, device2, "Accelerometer"),
+							description: `Accelerometer for ${defaultGroupDeviceName(group, "Generic")} device`,
+							payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+						},
+					];
+					topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
+					topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
 
-				logger.log("info", `Default device topics has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Default device topics could not be created: %s`, err.message);
-			}
+					logger.log("info", `Default device topics has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Default device topics could not be created: %s`, err.message);
+				}
 
-			try {
-				const dashboardsId: number[] = [];
+				try {
+					const dashboardsId: number[] = [];
 
-				[dashboardsId[0], dashboardsId[1]] =
-					await createDemoDashboards(orgAcronym, group, [device1, device2], [topic1, topic2]);
+					[dashboardsId[0], dashboardsId[1]] =
+						await createDemoDashboards(orgAcronym, group, [device1, device2], [topic1, topic2]);
 
-				const defaultDeviceDigitalTwinsData = [
-					{
-						name: demoDigitalTwinName(group, "Main master"),
-						description: `Demo digital twin for main master device of the group ${mainOrgGroupAcronym}`,
-						type: "Grafana dashboard",
-						dashboardId: dashboardsId[0],
-						gltfData: "{}",
-						gltfFileName: "-",
-						gltfFileLastModifDateString: "-",
-						femSimulationData: "{}",
-						femSimDataFileName: "-",
-						femSimDataFileLastModifDateString: "-",
-						digitalTwinSimulationFormat: "{}"
-					},
-					{
-						name: demoDigitalTwinName(group, "Generic"),
-						description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
-						type: "Grafana dashboard",
-						dashboardId: dashboardsId[1],
-						gltfData: "{}",
-						gltfFileName: "-",
-						gltfFileLastModifDateString: "-",
-						femSimulationData: "{}",
-						femSimDataFileName: "-",
-						femSimDataFileLastModifDateString: "-",
-						digitalTwinSimulationFormat: "{}"
-					},
-				];
+					const defaultDeviceDigitalTwinsData = [
+						{
+							name: demoDigitalTwinName(group, "Main master"),
+							description: `Demo digital twin for main master device of the group ${mainOrgGroupAcronym}`,
+							type: "Grafana dashboard",
+							dashboardId: dashboardsId[0],
+							gltfData: "{}",
+							gltfFileName: "-",
+							gltfFileLastModifDateString: "-",
+							femSimulationData: "{}",
+							femSimDataFileName: "-",
+							femSimDataFileLastModifDateString: "-",
+							digitalTwinSimulationFormat: "{}"
+						},
+						{
+							name: demoDigitalTwinName(group, "Generic"),
+							description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
+							type: "Grafana dashboard",
+							dashboardId: dashboardsId[1],
+							gltfData: "{}",
+							gltfFileName: "-",
+							gltfFileLastModifDateString: "-",
+							femSimulationData: "{}",
+							femSimDataFileName: "-",
+							femSimDataFileLastModifDateString: "-",
+							digitalTwinSimulationFormat: "{}"
+						},
+					];
 
-				await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
-				await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
+					await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
+					await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
 
-				logger.log("info", `Default device digital twins has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Default device digital twins could not be created: %s`, err.message);
-			}
+					logger.log("info", `Default device digital twins has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Default device digital twins could not be created: %s`, err.message);
+				}
 
-			const tableRefreshToken = "grafanadb.refresh_token";
-			const queryStringtableRefreshToken = `
+				const tableRefreshToken = "grafanadb.refresh_token";
+				const queryStringtableRefreshToken = `
 				CREATE TABLE IF NOT EXISTS ${tableRefreshToken}(
 					id serial PRIMARY KEY,
 					user_id bigint,
@@ -615,34 +617,34 @@ export async function dataBaseInitialization() {
 				CREATE INDEX IF NOT EXISTS idx_refresh_token
 				ON grafanadb.refresh_token(token);`;
 
-			try {
-				await client.query(queryStringtableRefreshToken);
-				logger.log("info", `Table ${tableRefreshToken} has been created sucessfully`);
-			} catch (err) {
-				logger.log("error", `Table ${tableRefreshToken} can not be created: %s`, err.message);
-			}
+				try {
+					await client.query(queryStringtableRefreshToken);
+					logger.log("info", `Table ${tableRefreshToken} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableRefreshToken} can not be created: %s`, err.message);
+				}
 
-			const tableAlertNotification = "grafanadb.alert_notification";
-			const queryStringAlterAlertNotification = `
+				const tableAlertNotification = "grafanadb.alert_notification";
+				const queryStringAlterAlertNotification = `
 					ALTER TABLE grafanadb.alert_notification
 						ADD CONSTRAINT fk_org_id
 						FOREIGN KEY(org_id)
 						REFERENCES grafanadb.org(id)
 							ON DELETE CASCADE;`;
 
-			try {
-				await client.query(queryStringAlterAlertNotification);
-				logger.log("info", `Foreing key in table ${tableAlertNotification} has been added sucessfully`);
-			} catch (err) {
-				logger.log("error", `Foreing key in table ${tableAlertNotification} couldd not be added: %s`, err.message);
+				try {
+					await client.query(queryStringAlterAlertNotification);
+					logger.log("info", `Foreing key in table ${tableAlertNotification} has been added sucessfully`);
+				} catch (err) {
+					logger.log("error", `Foreing key in table ${tableAlertNotification} couldd not be added: %s`, err.message);
+				}
+
+
+				pool.end(() => {
+					logger.log("info", `Migration pool has ended`);
+				})
 			}
-
-
-			pool.end(() => {
-				logger.log("info", `Migration pool has ended`);
-			})
-
-			await updateOrganizationHashes()
+			await updateOrganizationHashes();
 		}
 	} else {
 		process.exit(1);

@@ -5,11 +5,12 @@ const timezoneValidator = require('timezone-validator');
 const { nanoid } = require('nanoid');
 const execSync = require('child_process').execSync;
 const bcrypt = require('bcryptjs');
+var clc = require("cli-color");
 const certsGenerator = require('./certsGenerator');
 const secretsGenerator = require('./secretsGenerator');
 const configGenerator = require('./configGenerator');
 const stackFileGenerator = require('./stackFileGenerator');
-var clc = require("cli-color");
+const runStack = require('./runStack');
 
 module.exports = async () => {
     const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
@@ -289,7 +290,7 @@ module.exports = async () => {
             },
             {
                 name: 'MAIN_ORGANIZATION_TELEGRAM_CHAT_ID',
-                message: 'Main organization telegram chat id: ',
+                message: 'Telegram chat id for main organization default group: ',
                 validate: function (telegramChatId) {
                     let valid = false;
                     if (telegramChatId !== "" && Number.isInteger(Number(telegramChatId))) valid = true;
@@ -302,7 +303,7 @@ module.exports = async () => {
             },
             {
                 name: 'MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK',
-                message: 'Main organization telegram invitation link: ',
+                message: 'Telegram invitation link for main organization default group: ',
                 validate: function (url) {
                     if (validUrl.isUri(url)) {
                         return true;
@@ -469,7 +470,7 @@ module.exports = async () => {
                     REFRESH_TOKEN_SECRET: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
                     ACCESS_TOKEN_SECRET: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
                     ACCESS_TOKEN_LIFETIME: answers.ACCESS_TOKEN_LIFETIME,
-                    MQTT_SSL_CERTS_VALIDITY_DAYS: answers.MQTT_SSL_CERTS_VALIDITY_DAYS,
+                    MQTT_SSL_CERTS_VALIDITY_DAYS: parseInt(answers.MQTT_SSL_CERTS_VALIDITY_DAYS, 10),
                     ENCRYPTION_SECRET_KEY: nanoid(32).replace(/-/g, "x").replace(/_/g, "X"),
                     PLATFORM_ADMIN_FIRST_NAME: answers.PLATFORM_ADMIN_FIRST_NAME,
                     PLATFORM_ADMIN_SURNAME: answers.PLATFORM_ADMIN_SURNAME,
@@ -565,8 +566,8 @@ module.exports = async () => {
             configGenerator(osi4iotState);
             console.log(clc.green('Creating stack file...\n'))
             stackFileGenerator(osi4iotState);
-            
-            await runStack();
+
+            await runStack(osi4iotState);
         })
         .catch((error) => {
             if (error.isTtyError) {

@@ -1,6 +1,7 @@
 const mkcert = require('mkcert');
 const fs = require('fs');
 const md5 = require('md5');
+const execSync = require('child_process').execSync;
 
 module.exports = async (osi4iotState) => {
     const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -108,7 +109,7 @@ module.exports = async (osi4iotState) => {
     if ((nodered_client_crt === "" && nodered_client_key === "") || nodered_expiration_timestamp < limitTimestamp) {
         const nodered = await mkcert.createCert({
             domains: ['mqtt_nodered'],
-            validityDays: 365,
+            validityDays: defaultValidityDays,
             caKey: ca.key,
             caCert: ca.cert
         });
@@ -135,7 +136,7 @@ module.exports = async (osi4iotState) => {
             if ((mdevices_client_crt === "" && mdevices_client_key === "") || mdevices_exp_timestamp < limitTimestamp) {
                 const promise = mkcert.createCert({
                     domains: [`org_${iorg}_master_device_${idev}`],
-                    validityDays: 365,
+                    validityDays: defaultValidityDays,
                     caKey: ca.key,
                     caCert: ca.cert
                 });

@@ -4,8 +4,8 @@ const runStack = require('./runStack');
 const stopStack = require('./stopStack');
 const stackStatus = require('./stackStatus');
 const cleanStack = require('./cleanStack');
-const addOrganization = require('./addOrganizations');
-const addMasterDevicesToOrg = require('./addMasterDevicesToOrg');
+const addOrganizations = require('./addOrganizations');
+const modifyNumMasterDevicesInOrg = require('./modifyNumMasterDevicesInOrg');
 
 module.exports = () => {
     inquirer
@@ -15,14 +15,17 @@ module.exports = () => {
                 message: 'Choose one of the following options: ',
                 default: 'Init platform',
                 type: 'list',
+                pageSize: 8,
+                loop: false,
                 choices: [
                     'Init platform',
                     'Run platform',
-                    'Add organization',
-                    'Add master devices to org',
+                    'Add organizations',
+                    'Modify number of master devices in org',
                     'Stop platform',
                     'Platform status',
                     'Clean platform',
+                    'Exit'
                 ]
 
             }
@@ -35,11 +38,11 @@ module.exports = () => {
                 case 'Run platform':
                     await runStack();
                     break;
-                case 'Add organization':
-                    await addOrganization();
+                case 'Add organizations':
+                    await addOrganizations();
                     break;
-                case 'Add master devices to org':
-                    await addMasterDevicesToOrg();
+                case 'Modify number of master devices in org':
+                    await modifyNumMasterDevicesInOrg();
                     break;
                 case 'Stop platform':
                     await stopStack();
@@ -49,6 +52,8 @@ module.exports = () => {
                     break;
                 case 'Clean platform':
                     await cleanStack();
+                    break;
+                case 'Exit':
                     break;
             }
 

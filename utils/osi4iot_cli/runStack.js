@@ -25,7 +25,7 @@ const dots = [
 module.exports = async (osi4iotState = null) => {
     if (!osi4iotState) {
         if (!fs.existsSync('./osi4iot_state.json')) {
-            console.log(clc.red("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
+            console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
             return;
         } else {
             const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
@@ -36,7 +36,7 @@ module.exports = async (osi4iotState = null) => {
             try {
                 certsUpdateIsNeedeed = checkCertsValidity(osi4iotState);
             } catch (error) {
-                console.log(clc.red(error));
+                console.log(clc.redBright(error));
                 return;
             }
 
@@ -86,7 +86,7 @@ module.exports = async (osi4iotState = null) => {
 
     process.stdout.write('\u001B[?25l');
     console.log(clc.green("Deploying docker swarm stack:"));
-    execShellCommand("docker stack deploy --resolve-image changed -c osi4iot_stack.yml osi4iot")
+    execShellCommand("docker stack deploy --resolve-image changed --prune -c osi4iot_stack.yml osi4iot")
         .then(() => {
             return new Promise(function (resolve, reject) {
                 let index = 0
@@ -109,7 +109,7 @@ module.exports = async (osi4iotState = null) => {
                         } else {
                             console.log("\nRemoving unused containers and images.");
                             execSync("docker system prune --force");
-                            console.log(clc.green("\nOSI4IOT platform is ready to be used !!!"))
+                            console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!"))
                             process.stdout.write('\u001B[?25h');
                             resolve("Finish");
                         }
@@ -120,7 +120,7 @@ module.exports = async (osi4iotState = null) => {
         .then((command) => {
             if (command === "Redeploy stack") {
                 console.log(clc.green("\n\nRedeploy stack for early created volumes"));
-                execShellCommand("docker stack deploy --resolve-image changed -c osi4iot_stack.yml osi4iot")
+                execShellCommand("docker stack deploy --resolve-image changed --prune -c osi4iot_stack.yml osi4iot")
                     .then((exitCode) => {
                         if (exitCode === 0) {
                             let index = 0;
@@ -137,7 +137,7 @@ module.exports = async (osi4iotState = null) => {
                                     if (!continuar) {
                                         console.log("\nRemoving unused containers and images.");
                                         execSync("docker system prune --force");
-                                        console.log(clc.green("\nOSI4IOT platform is ready to be used !!!"))
+                                        console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!"))
                                         process.stdout.write('\u001B[?25h');
                                         clearInterval(this);
                                     }
@@ -148,6 +148,6 @@ module.exports = async (osi4iotState = null) => {
             }
         })
         .catch((error) => {
-            console.log(clc.red("Docker stack could not be deployed. Error: ", error));
+            console.log(clc.redBright("Docker stack could not be deployed. Error: ", error));
         })
 }
