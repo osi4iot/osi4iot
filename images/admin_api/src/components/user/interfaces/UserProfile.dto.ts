@@ -19,9 +19,6 @@ class UserProfileDto {
 
 	@IsString()
 	public login: string;
-
-	@IsString()
-	public telegramId: string;
 }
 
 export default UserProfileDto;

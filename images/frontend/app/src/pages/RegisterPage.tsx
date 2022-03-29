@@ -57,8 +57,7 @@ const initialFormValues = {
 	surname: "",
 	login: "",
 	email: "",
-	password: "",
-	telegramId: "",
+	password: ""
 };
 
 const RegisterPage: FC<{}> = () => {
@@ -120,7 +119,6 @@ const RegisterPage: FC<{}> = () => {
 		login: Yup.string().required('Required'),
 		email: Yup.string().email().required('Required'),
 		password: Yup.string().min(4, "At least 4 characters are required").required('Required'),
-		telegramId: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
 	});
 
 	const onCancel = (e: SyntheticEvent) => {
@@ -177,12 +175,6 @@ const RegisterPage: FC<{}> = () => {
 													label='Password'
 													name='password'
 													type='password'
-												/>
-												<FormikControl
-													control='input'
-													label='TelegramId'
-													name='telegramId'
-													type='text'
 												/>
 											</ControlsContainer>
 											<FormButtons

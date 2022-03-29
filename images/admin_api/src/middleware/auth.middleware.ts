@@ -137,7 +137,7 @@ export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Respons
 	})(req, res, next);
 };
 
-export const groupAdminMasterDeviceAuth = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+export const groupAdminMasterDeviceAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
 	passport.authenticate("master_device_access_jwt", { session: false }, async (err, user, info) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
@@ -151,7 +151,8 @@ export const groupAdminMasterDeviceAuth = async (req: IRequestWithUser, res: Res
 		const { masterDeviceHash } = req.params;
 		const masterDevice = await getMasterDeviceByProp("md_hash", masterDeviceHash);
 		if (masterDevice) {
-			const group = await getGroupByProp("id", masterDevice.groupId)
+			const group = await getGroupByProp("id", masterDevice.groupId);
+			req.group = group;
 			let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, group.teamId, group.orgId);
 			if (user.isGrafanaAdmin) isGroupAdmin = true;
 

@@ -153,7 +153,10 @@ const ChangeTopicHashModal: FC<ChangeTopicHashModalProps> = ({ rowIndex, groupId
                 setIsTopicHashChanged(true);
                 setIsSubmitting(false);
                 const data = response.data;
-                toast.success(data.message);
+                if (data.newTopicUid !== undefined) {
+                    const message = "Topic hash changed successfully."
+                    toast.success(message);
+                }                
                 hideModal();
             })
             .catch((error) => {

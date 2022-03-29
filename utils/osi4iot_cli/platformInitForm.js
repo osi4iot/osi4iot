@@ -6,14 +6,16 @@ const { nanoid } = require('nanoid');
 const execSync = require('child_process').execSync;
 const bcrypt = require('bcryptjs');
 var clc = require("cli-color");
+const removeCerts = require('./removeCerts');
 const certsGenerator = require('./certsGenerator');
 const secretsGenerator = require('./secretsGenerator');
 const configGenerator = require('./configGenerator');
 const stackFileGenerator = require('./stackFileGenerator');
 const runStack = require('./runStack');
 
-module.exports = async () => {
+const platformInitiation = () => {
     const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
+
     inquirer
         .prompt([
             {
@@ -555,7 +557,8 @@ module.exports = async () => {
                 }
             }
 
-            console.log(clc.green('\nCreating certificates...'))
+            console.log(clc.green('\nCreating certificates...'));
+            removeCerts(osi4iotState);
             await certsGenerator(osi4iotState);
             const osi4iotStateFile = JSON.stringify(osi4iotState);
             fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
@@ -576,6 +579,29 @@ module.exports = async () => {
                 console.log("Error in osi4iot cli: ", error)
             }
         })
+}
 
+module.exports = async () => {
+    if (fs.existsSync('./osi4iot_state.json')) {
+        inquirer
+            .prompt([{
+                name: 'confirm_platform_initiation',
+                type: 'confirm',
+                message: 'An state file already exits. Do you want to reinitate the plataform anyway? ',
+            }
+            ])
+            .then((answers) => {
+                if (answers.confirm_platform_initiation) platformInitiation();
+            })
+            .catch((error) => {
+                if (error.isTtyError) {
+                    // Prompt couldn't be rendered in the current environment
+                } else {
+                    // Something else went wrong
+                }
+            });
+    } else {
+        platformInitiation();
+    }
 
 }

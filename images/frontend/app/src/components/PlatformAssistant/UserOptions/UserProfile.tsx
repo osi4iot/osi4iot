@@ -74,7 +74,6 @@ export interface IUserProfile {
     surname: string;
     login: string;
     email: string;
-    telegramId: string;
 }
 
 
@@ -107,9 +106,6 @@ const UserProfile: FC<UserProfileProps> = ({ userProfile, refreshUserProfile }) 
                     </UserProfileItem>
                     <UserProfileItem>
                         <ItemType>Username: </ItemType><ItemValue>{userProfile.login}</ItemValue>
-                    </UserProfileItem>
-                    <UserProfileItem>
-                        <ItemType>TelegramId:</ItemType><ItemValue>{userProfile.telegramId}</ItemValue>
                     </UserProfileItem>
                     <ButtonsContainer>
                         <Button onClick={() => changeUserProfileOptionToShow(USER_PROFILE_OPTIONS.EDIT_USER_PROFILE)}>

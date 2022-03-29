@@ -9,12 +9,13 @@ import DeleteModal from '../../Tools/DeleteModal';
 import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDigitalTwinIdToEdit, setDigitalTwinRowIndexToEdit, setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
 import { DigitalTwinSimulationParameter } from '../DigitalTwin3DViewer/ViewerUtils';
+import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 export interface IDigitalTwin {
     id: number;
     groupId: number;
     deviceId: number;
-    name: string;
+    digitalTwinUid: string;
     description: string;
     type: string;
     dashboardId: string;
@@ -23,11 +24,6 @@ export interface IDigitalTwin {
     femSimDataFileName: string;
     femSimDataFileLastModifDateString: string;
     digitalTwinSimulationFormat: string;
-    sensorSimulationTopicId: number;
-	assetStateTopicId: number;
-	assetStateSimulationTopicId: number;
-	femResultModalValuesTopicId: number;
-	femResultModalValuesSimulationTopicId: number;
     dashboardUrl: string;
 }
 
@@ -36,7 +32,7 @@ export interface IDigitalTwinSimulator {
     orgId: number;
     groupId: number;
     deviceId: number;
-    name: string;
+    digitalTwinUid: string;
     description: string;
     digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
     sensorSimulationTopicId: number;
@@ -59,6 +55,7 @@ interface DeleteDigitalTwinModalProps {
 const domainName = getDomainName();
 
 const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, groupId, deviceId, digitalTwinId, refreshDigitalTwins }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isDigitalTwinDeleted, setIsDigitalTwinDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE DIGIAL TWIN";
@@ -85,9 +82,16 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
             .then((response) => {
                 setIsDigitalTwinDeleted(true);
                 setIsSubmitting(false);
+
+                const reloadTopicsTable = true;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
+
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
@@ -150,8 +154,8 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             filter: 'equals'
         },
         {
-            Header: "Name",
-            accessor: "name"
+            Header: "Reference",
+            accessor: "digitalTwinUid"
         },
         {
             Header: "Description",
@@ -192,32 +196,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             Header: "digitalTwinSimulationFormat",
             accessor: "digitalTwinSimulationFormat",
             disableFilters: true
-        },
-        {
-            Header: "sensorSimulationTopicId",
-            accessor: "sensorSimulationTopicId",
-            disableFilters: true
-        },
-        {
-            Header: "assetStateTopicId",
-            accessor: "assetStateTopicId",
-            disableFilters: true
-        },
-        {
-            Header: "assetStateSimulationTopicId",
-            accessor: "assetStateSimulationTopicId",
-            disableFilters: true
-        },
-        {
-            Header: "femResultModalValuesTopicId",
-            accessor: "femResultModalValuesTopicId",
-            disableFilters: true
-        },
-        {
-            Header: "femResultModalValuesSimulationTopicId",
-            accessor: "femResultModalValuesSimulationTopicId",
-            disableFilters: true
-        },        
+        },     
         {
             Header: "",
             accessor: "edit",

@@ -162,10 +162,14 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
                 setIsDeviceHashChanged(true);
                 setIsSubmitting(false);
                 const data = response.data;
-                toast.success(data.message);
+                if (data.newDeviceUid !== undefined) {
+                    const message = "Device hash changed successfully."
+                    toast.success(message);
+                }
                 hideModal();
             })
             .catch((error) => {
+                console.log("error.response.data.message=", error.response.data.message)
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
                 setIsSubmitting(false);

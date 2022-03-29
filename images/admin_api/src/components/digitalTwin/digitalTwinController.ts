@@ -15,7 +15,6 @@ import CreateDigitalTwinDto from "./digitalTwin.dto";
 import {
 	addMqttTopicsData,
 	addDashboardUrls,
-	checkIfLoggedUserManageTopicsAndDashboard,
 	createDigitalTwin,
 	deleteDigitalTwinById,
 	getAllDigitalTwins,
@@ -27,17 +26,20 @@ import {
 	getNumDigitalTwinsByDeviceId,
 	getStateOfAllDigitalTwins,
 	getStateOfDigitalTwinsByGroupsIdArray,
-	getTopicsIdFromDigitalTwin,
 	updateDigitalTwinById,
 	getAllDigitalTwinSimulators,
 	getDigitalTwinSimulatorsByGroupsIdArray,
-	addMqttTopicsToDigitalTwinSimulators
+	addMqttTopicsToDigitalTwinSimulators,
+	getDigitalTwinMqttTopicsInfoFromByDTIdsArray,
+	generateDigitalTwinMqttTopics,
+	verifyAndCorrectDigitalTwinTopics,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import HttpException from "../../exceptions/HttpException";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
+import IRequestWithUserAndDeviceAndGroup from "../group/interfaces/requestWithUserAndDeviceAndGroup.interface";
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
@@ -76,6 +78,12 @@ class DigitalTwinController implements IController {
 				groupExists,
 				groupAdminAuth,
 				this.getDigitalTwinsInGroup
+			)
+			.get(
+				`${this.path}_mqtt_topics_in_group/:groupId`,
+				groupExists,
+				groupAdminAuth,
+				this.getDigitalTwinMqttTopicsInGroup
 			)
 			.get(
 				`${this.path}/:groupId/:propName/:propValue`,
@@ -233,6 +241,22 @@ class DigitalTwinController implements IController {
 		}
 	};
 
+	private getDigitalTwinMqttTopicsInGroup = async (
+		req: IRequestWithGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const digitalTwinsInGroup = await getDigitalTwinsByGroupId(req.group.id);
+			const digitalTwinIdsArray = digitalTwinsInGroup.map(digitalTwin => digitalTwin.id);
+			const digitalTwinMqttTopicsInfo = await getDigitalTwinMqttTopicsInfoFromByDTIdsArray(digitalTwinIdsArray);
+			const digitalTwinMqttTopics = generateDigitalTwinMqttTopics(digitalTwinMqttTopicsInfo);
+			res.status(200).send(digitalTwinMqttTopics);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private getDigitalTwinByProp = async (
 		req: IRequestWithGroup,
 		res: Response,
@@ -274,7 +298,7 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!digitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
-			await deleteDigitalTwinById(parseInt(digitalTwinId, 10));
+			await deleteDigitalTwinById(digitalTwin);
 			const message = { message: "Digital twin deleted successfully" }
 			res.status(200).json(message);
 		} catch (error) {
@@ -283,28 +307,19 @@ class DigitalTwinController implements IController {
 	};
 
 	private updateDigitalTwinById = async (
-		req: IRequestWithUser,
+		req: IRequestWithUserAndDeviceAndGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const digitalTwinData = req.body;
+			const device = req.device;
+			const group = req.group;
 			const { digitalTwinId } = req.params;
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!existentDigitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
-			const digitalTwinUpdate = { ...existentDigitalTwin, ...digitalTwinData };
-			let newTopicsId: number[] = [];
-			if (digitalTwinUpdate.type === "Gltf 3D model") newTopicsId = getTopicsIdFromDigitalTwin(digitalTwinUpdate);
-			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboard(
-				req.user,
-				digitalTwinUpdate.type,
-				newTopicsId,
-				digitalTwinUpdate.dashboardId
-			);
-			if (checkPrivilegesMessage !== "OK") {
-				throw new HttpException(400, checkPrivilegesMessage);
-			}
-
+			const digitalTwinUpdate: IDigitalTwin = { ...existentDigitalTwin, ...digitalTwinData };
+			await verifyAndCorrectDigitalTwinTopics(digitalTwinUpdate);
 			await updateDigitalTwinById(parseInt(digitalTwinId, 10), digitalTwinUpdate);
 			const message = { message: "Digital twin updated successfully" }
 			res.status(200).json(message);
@@ -314,40 +329,30 @@ class DigitalTwinController implements IController {
 	};
 
 	private createDigitalTwin = async (
-		req: IRequestWithUser,
+		req: IRequestWithUserAndDeviceAndGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const digitalTwinData: CreateDigitalTwinDto = req.body;
-			const deviceId = parseInt(req.params.deviceId, 10);
-			const topicsId = getTopicsIdFromDigitalTwin(digitalTwinData);
-			const checkPrivilegesMessage = await checkIfLoggedUserManageTopicsAndDashboard(
-				req.user,
-				digitalTwinData.type,
-				topicsId,
-				digitalTwinData.dashboardId
-			);
-
-			if (checkPrivilegesMessage !== "OK") {
-				throw new HttpException(400, checkPrivilegesMessage);
-			}
+			const device = req.device;
+			const group = req.group;
 
 			let message: { message: string };
-			const existDigitalTwin = await getDigitalTwinByProp("name", digitalTwinData.name)
+			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid)
 			if (!existDigitalTwin) {
-				const numDigitalTwinsInDevice = await getNumDigitalTwinsByDeviceId(deviceId);
+				const numDigitalTwinsInDevice = await getNumDigitalTwinsByDeviceId(device.id);
 				if (numDigitalTwinsInDevice === 12) {
 					throw new HttpException(400, "The maximun number of digital twins by device is 12.");
 				}
-				const digitalTwin = await createDigitalTwin(deviceId, digitalTwinData);
+				const digitalTwin = await createDigitalTwin(group, device, digitalTwinData);
 				if (digitalTwin) {
 					message = { message: `A new digital twin has been created` };
 				} else {
 					throw new HttpException(400, "The dashboardUid inputted is not correct");
 				}
 			} else {
-				message = { message: `A digital twin with name: ${digitalTwinData.name} already exist` };
+				message = { message: `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist` };
 			}
 			res.status(200).send(message);
 		} catch (error) {
@@ -356,7 +361,7 @@ class DigitalTwinController implements IController {
 	};
 
 	private isValidTopicPropName = (propName: string) => {
-		const validPropName = ["id", "name"];
+		const validPropName = ["id", "digital_twin_uid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
 

@@ -75,8 +75,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
                 surname: "",
                 email: "",
                 login: "",
-                password: "",
-                telegramId: ""
+                password: ""
             }
         ]
     }
@@ -90,11 +89,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
                     email: Yup.string().email("Enter a valid email").max(190, "The maximum number of characters allowed is 190").required('Required'),
                     login: Yup.string()
                         .matches(/^[a-zA-Z0-9._-]*$/g, "Only the following characters are allowed for username: a-zA-Z0-9._-")
-                        .max(190, "The maximum number of characters allowed is 190"),
-                    telegramId: Yup.string()
-                        .matches(/^[a-zA-Z0-9_]*$/g, "Only the following characters are allowed for TelegramId: a-zA-Z0-9_")
-                        .min(5, "The minimum number of characters allowed is 5")
-                        .max(32, "The maximum number of characters allowed is 32")
+                        .max(190, "The maximum number of characters allowed is 190")
                 })
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied
@@ -138,9 +133,9 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
                                         control='inputArrayRows'
                                         label='Global user'
                                         name='users'
-                                        labelArray={['First name *', 'Surname *', 'Email *', 'Username', 'Password', 'TelegramId']}
-                                        nameArray={['firstName', 'surname', 'email', 'login', 'password', 'telegramId']}
-                                        typeArray={['text', 'text', 'email', 'text', 'password', 'text']}
+                                        labelArray={['First name *', 'Surname *', 'Email *', 'Username', 'Password']}
+                                        nameArray={['firstName', 'surname', 'email', 'login', 'password']}
+                                        typeArray={['text', 'text', 'email', 'text', 'password']}
                                         addLabel="global user"
                                     />
                                 </ControlsContainer>

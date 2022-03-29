@@ -5,5 +5,4 @@ export default interface IUserDTO {
 	password: string;
 	OrgId?: number;
 	roleInOrg?: string;
-	telegramId?: string;
 }

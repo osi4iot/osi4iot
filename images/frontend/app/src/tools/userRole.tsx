@@ -14,20 +14,8 @@ export const getUserRoleAndRedirect = (accessToken: string, platformAssistantDis
         .then((response) => {
             const data = response.data;
             setUserRole(platformAssistantDispatch, data);
-            switch (data.userRole) {
-                case "PlatformAdmin":
-                    history.push(PLATFORM_ASSISTANT_ROUTES.PLATFORM_ADMIN);
-                  break;
-                case "OrgAdmin":
-                    history.push(PLATFORM_ASSISTANT_ROUTES.ORG_ADMIN);
-                  break;
-                case "GroupAdmin":
-                    history.push(PLATFORM_ASSISTANT_ROUTES.GROUP_ADMIN);
-                  break;
-                default:
-                    history.push(PLATFORM_ASSISTANT_ROUTES.USER);
-                    break;
-              }
+            history.push(PLATFORM_ASSISTANT_ROUTES.HOME);
+
         })
         .catch((error) => {
             console.log(error);

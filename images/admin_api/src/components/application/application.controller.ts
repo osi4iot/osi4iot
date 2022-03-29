@@ -129,7 +129,7 @@ class ApplicationController implements IController {
 			let message: { message: string };
 			if (nonExistingUsersArray.length !== 0) {
 				if (!(await isUsersDataCorrect(nonExistingUsersArray)))
-					throw new HttpException(400, "The same values of name, login, email and / or telegramId of some of the users is already taken.")
+					throw new HttpException(400, "The same values of name, login and email of some of the users is already taken.")
 				const msg_users = await createGlobalUsers(nonExistingUsersArray);
 				const globalUsersCreated = msg_users.filter(msg => msg.message === "User created");
 				const numNewGlobalUsers = globalUsersCreated.length;

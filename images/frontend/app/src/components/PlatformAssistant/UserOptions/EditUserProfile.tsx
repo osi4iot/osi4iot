@@ -37,7 +37,6 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
         surname: Yup.string().required('Required'),
         login: Yup.string().required('Required'),
         email: Yup.string().email("Enter a valid email").required('Required'),
-        telegramId: Yup.string().required('Required'),
     });
 
     useEffect(() => {
@@ -100,12 +99,6 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
                                     label='Email'
                                     name='email'
                                     type='email'
-                                />
-                                <FormikControl
-                                    control='input'
-                                    label='TelegramId'
-                                    name='telegramId'
-                                    type='text'
                                 />
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

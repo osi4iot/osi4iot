@@ -1,4 +1,3 @@
-// import pool from "../../config/dbconfig";
 import { logger } from "../config/winston";
 import { Pool } from "pg";
 import grafanaApi from "../GrafanaApi"
@@ -10,7 +9,7 @@ import { createDevice, defaultGroupDeviceName } from "../components/device/devic
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import { createTopic, demoTopicName } from "../components/topic/topicDAL";
-import { createDigitalTwin, demoDigitalTwinName } from "../components/digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../components/digitalTwin/digitalTwinDAL";
 import process_env from "../config/api_config";
 import IDevice from "../components/device/device.interface";
 import { createMasterDevicesInOrg } from "../components/masterDevice/masterDeviceDAL";
@@ -156,13 +155,12 @@ export async function dataBaseInitialization() {
 				const tableUser = "grafanadb.user";
 				const queryStringAlterUser = `ALTER TABLE grafanadb.user
 									ADD COLUMN first_name varchar(127),
-									ADD COLUMN surname varchar(127),
-									ADD COLUMN telegram_id varchar(40) UNIQUE`;
+									ADD COLUMN surname varchar(127)`;
 				try {
 					await client.query(queryStringAlterUser);
-					logger.log("info", `Column telegram_id has been added sucessfully to Table ${tableUser}`);
+					logger.log("info", `Columns first_name and surnanme have been added sucessfully to Table ${tableUser}`);
 				} catch (err) {
-					logger.log("error", `Column telegram_id can not be added sucessfully to Table ${tableUser}: %s`, err.message);
+					logger.log("error", `Columns first_name and surnanme can not be added sucessfully to Table ${tableUser}: %s`, err.message);
 				}
 
 				const plaformAdminUser = {
@@ -173,13 +171,12 @@ export async function dataBaseInitialization() {
 					email: process_env.PLATFORM_ADMIN_EMAIL,
 					login: process_env.PLATFORM_ADMIN_USER_NAME,
 					password: process_env.PLATFORM_ADMIN_PASSWORD,
-					telegramId: process_env.PLATFORM_ADMIN_TELEGRAM_ID,
 					OrgId: 1
 				}
 				await grafanaApi.createUser(plaformAdminUser);
 				await grafanaApi.createOrgApiAdminUser(1);
 
-				const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE id = $4';
+				const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, name = $3 WHERE id = $4';
 				try {
 					await client.query(queryStringUpdateUser,
 						[
@@ -390,7 +387,7 @@ export async function dataBaseInitialization() {
 				CREATE TABLE IF NOT EXISTS ${tableDigitalTwin}(
 					id serial PRIMARY KEY,
 					device_id bigint,
-					name VARCHAR(190) UNIQUE,
+					digital_twin_uid VARCHAR(40) UNIQUE,
 					description VARCHAR(190),
 					type VARCHAR(40),
 					dashboard_id bigint,
@@ -418,14 +415,39 @@ export async function dataBaseInitialization() {
 							ON DELETE CASCADE
 				);
 
-				CREATE INDEX IF NOT EXISTS idx_digital_twin_name
-				ON grafanadb.digital_twin(name);`;
+				CREATE INDEX IF NOT EXISTS idx_digital_twin_uid
+				ON grafanadb.digital_twin(digital_twin_uid);`;
 
 				try {
 					await client.query(queryStringDigitalTwin);
 					logger.log("info", `Table ${tableDigitalTwin} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, err.message);
+				}
+
+				const tableDigitalTwinTopic = "grafanadb.digital_twin_topic";
+				const queryStringDigitalTwinTopic = `
+				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinTopic}(
+					digital_twin_id bigint,
+					topic_id bigint,
+					topic_type VARCHAR(40),
+					created TIMESTAMPTZ,
+					updated TIMESTAMPTZ,
+					CONSTRAINT fk_digital_twin_id
+						FOREIGN KEY(digital_twin_id)
+						REFERENCES grafanadb.digital_twin(id)
+						ON DELETE CASCADE,
+					CONSTRAINT fk_topic_id
+						FOREIGN KEY(topic_id)
+						REFERENCES grafanadb.topic(id)
+						ON DELETE CASCADE
+				);`;
+
+				try {
+					await client.query(queryStringDigitalTwinTopic);
+					logger.log("info", `Table ${tableDigitalTwinTopic} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
 				}
 
 				const tableMasterDevice = "grafanadb.master_device";
@@ -565,10 +587,9 @@ export async function dataBaseInitialization() {
 
 					const defaultDeviceDigitalTwinsData = [
 						{
-							name: demoDigitalTwinName(group, "Main master"),
-							description: `Demo digital twin for main master device of the group ${mainOrgGroupAcronym}`,
+							digitalTwinUid: generateDigitalTwinUid(),
+							description: demoDigitalTwinDescription(group, "Main master"),
 							type: "Grafana dashboard",
-							dashboardId: dashboardsId[0],
 							gltfData: "{}",
 							gltfFileName: "-",
 							gltfFileLastModifDateString: "-",
@@ -578,10 +599,9 @@ export async function dataBaseInitialization() {
 							digitalTwinSimulationFormat: "{}"
 						},
 						{
-							name: demoDigitalTwinName(group, "Generic"),
-							description: `Demo digital twin for default generic device of the group ${mainOrgGroupAcronym}`,
+							digitalTwinUid: generateDigitalTwinUid(),
+							description: demoDigitalTwinDescription(group, "Generic"),
 							type: "Grafana dashboard",
-							dashboardId: dashboardsId[1],
 							gltfData: "{}",
 							gltfFileName: "-",
 							gltfFileLastModifDateString: "-",
@@ -592,8 +612,8 @@ export async function dataBaseInitialization() {
 						},
 					];
 
-					await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
-					await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
+					await createDigitalTwin(group, device1, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
+					await createDigitalTwin(group, device2, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
 
 					logger.log("info", `Default device digital twins has been created sucessfully`);
 				} catch (err) {

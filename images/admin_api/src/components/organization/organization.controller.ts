@@ -60,7 +60,7 @@ import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic, demoTopicName } from "../topic/topicDAL";
-import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
 import { createMasterDevicesInOrg } from "../masterDevice/masterDeviceDAL";
@@ -294,7 +294,7 @@ class OrganizationController implements IController {
 				if (exits_OrganizationWithAcronym) throw new AlreadyExistingItemException("An", "Organization", ["acronym"], [organizationData.acronym]);
 			} else {
 				if (!(await isUsersDataCorrect(organizationData.orgAdminArray)))
-					throw new HttpException(400, "The same values of name, login, email and/or telegramId of some user already exists.")
+					throw new HttpException(400, "The same values of name, login and email of some user already exists.")
 				if (!(await existsBuildingWithId(organizationData.buildingId))) {
 					throw new HttpException(400, "There is no building with the indicated buildingId")
 				}
@@ -396,10 +396,9 @@ class OrganizationController implements IController {
 
 				const defaultDeviceDigitalTwinsData = [
 					{
-						name: demoDigitalTwinName(group, "Main master"),
-						description: `Demo digital twin for main master device of the group ${group.acronym}`,
+						digitalTwinUid: generateDigitalTwinUid(),
+						description: demoDigitalTwinDescription(group, "Main master"),
 						type: "Grafana dashboard",
-						dashboardId: dashboardsId[0],
 						gltfData: "{}",
 						gltfFileName: "-",
 						gltfFileLastModifDateString: "-",
@@ -409,10 +408,9 @@ class OrganizationController implements IController {
 						digitalTwinSimulationFormat: "{}"
 					},
 					{
-						name: demoDigitalTwinName(group, "Generic"),
-						description: `Demo digital twin for default generic device of the group ${group.acronym}`,
+						digitalTwinUid: generateDigitalTwinUid(),
+						description: demoDigitalTwinDescription(group, "Generic"),
 						type: "Grafana dashboard",
-						dashboardId: dashboardsId[1],
 						gltfData: "{}",
 						gltfFileName: "-",
 						gltfFileLastModifDateString: "-",
@@ -423,8 +421,8 @@ class OrganizationController implements IController {
 					},
 				];
 
-				await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
-				await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
+				await createDigitalTwin(group, device1, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
+				await createDigitalTwin(group, device2, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
 			}
 			const message = { message: "Organization created successfully" }
 			res.status(201).send(message);
@@ -444,7 +442,7 @@ class OrganizationController implements IController {
 			orgUserData.OrgId = organization.id;
 			const existUser = await getUserLoginDatadByEmailOrLogin(orgUserData.email);
 			if (!existUser && !(await isUsersDataCorrect([orgUserData])))
-				throw new HttpException(400, "The same values of name, login, email and / or telegramId of some of the users is already taken.")
+				throw new HttpException(400, "The same values of name, login and email of some of the users is already taken.")
 			let user_msg: IMessage;
 			if (!orgUserData.roleInOrg) orgUserData.roleInOrg = "Viewer";
 			else {
@@ -505,7 +503,7 @@ class OrganizationController implements IController {
 			const orgId = organization.id;
 			if (nonExistingUserArray.length !== 0) {
 				if (!(await isUsersDataCorrect(nonExistingUserArray)))
-					throw new HttpException(400, "The same values of name, login, email and / or telegramId of some of the users is already taken.")
+					throw new HttpException(400, "The same values of name, login and email of some of the users is already taken.")
 				const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
 				msg_users.forEach((msg, index) => nonExistingUserArray[index].id = msg.id);
 				await addOrgUsersToDefaultOrgGroup(organization.id, nonExistingUserArray);

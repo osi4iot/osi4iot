@@ -17,6 +17,7 @@ import {
 	updateMasterDeviceByProp
 } from "./masterDeviceDAL";
 import HttpException from "../../exceptions/HttpException";
+import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 
 class MasterDeviceController implements IController {
 	public path = "/master_device";
@@ -186,13 +187,14 @@ class MasterDeviceController implements IController {
 	};
 
 	private masterDeviceAuthentication = async (
-		req: Request,
+		req: IRequestWithUserAndGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const user = req.user;
-			const response = { user }
+			const groupId = req.group.id;
+			const response = { user, groupId }
 			res.status(200).send(response);
 		} catch (error) {
 			next(error);

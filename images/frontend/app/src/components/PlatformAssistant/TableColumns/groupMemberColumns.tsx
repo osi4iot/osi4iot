@@ -22,7 +22,6 @@ export interface IGroupMember {
     surname: string;
     login: string;
     email: string;
-    telegramId: string;
     roleInGroup: string;
 }
 
@@ -143,11 +142,6 @@ export const Create_GROUP_MEMBERS_COLUMNS = (refreshGroupMembers: () => void): C
         {
             Header: "Email",
             accessor: "email"
-        },
-        {
-            Header: "TelegramId",
-            accessor: "telegramId",
-            disableFilters: true
         },
         {
             Header: "Role",

@@ -84,12 +84,10 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 digitalTwinGltfData,
             ));
             setInitialAssetsState(generateInitialAssetsState(
-                digitalTwinSelected,
                 assetObjects,
                 digitalTwinGltfData,
             ));
             setInitialGenericObjectsState(generateInitialGenericObjectsState(
-                digitalTwinSelected,
                 genericObjects,
                 digitalTwinGltfData,
             ))

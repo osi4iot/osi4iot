@@ -49,7 +49,7 @@ import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic, demoTopicName } from "../topic/topicDAL";
-import { createDigitalTwin, demoDigitalTwinName } from "../digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { getMasterDevicesUnlinked } from "../masterDevice/masterDeviceDAL";
@@ -322,10 +322,9 @@ class GroupController implements IController {
 
 			const defaultDeviceDigitalTwinsData = [
 				{
-					name: demoDigitalTwinName(groupCreated, "Main master"),
-					description: `Demo digital twin for main master device of the group ${groupCreated.acronym}`,
+					digitalTwinUid: generateDigitalTwinUid(),
+					description: demoDigitalTwinDescription(groupCreated, "Main master"),
 					type: "Grafana dashboard",
-					dashboardId: dashboardsId[0],
 					gltfData: "{}",
 					gltfFileName: "-",
 					gltfFileLastModifDateString: "-",
@@ -335,10 +334,9 @@ class GroupController implements IController {
 					digitalTwinSimulationFormat: "{}"
 				},
 				{
-					name: demoDigitalTwinName(groupCreated, "Generic"),
-					description: `Demo digital twin for default generic device of the group ${groupCreated.acronym}`,
+					digitalTwinUid: generateDigitalTwinUid(),
+					description: demoDigitalTwinDescription(groupCreated, "Generic"),
 					type: "Grafana dashboard",
-					dashboardId: dashboardsId[1],
 					gltfData: "{}",
 					gltfFileName: "-",
 					gltfFileLastModifDateString: "-",
@@ -349,8 +347,8 @@ class GroupController implements IController {
 				},
 			];
 
-			await createDigitalTwin(device1.id, defaultDeviceDigitalTwinsData[0]);
-			await createDigitalTwin(device2.id, defaultDeviceDigitalTwinsData[1]);
+			await createDigitalTwin(groupCreated, device1, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
+			await createDigitalTwin(groupCreated, device2, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
 
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;

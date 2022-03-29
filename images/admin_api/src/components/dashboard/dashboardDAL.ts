@@ -1,9 +1,8 @@
 import pool from "../../config/dbconfig";
-import { getAllGroupsInOrganization } from "../group/groupDAL";
 import IDashboard from "./dashboard.interface";
 import IDashboardInfo from "./dashboardInfo.interfase";
 
-export const getDashboardById = async (dashboardId: string): Promise<IDashboard> => {
+export const getDashboardById = async (dashboardId: number): Promise<IDashboard> => {
 	const response = await pool.query(`SELECT grafanadb.dashboard.id, grafanadb.group.org_id as "orgId",
 									grafanadb.group.id as "groupId", grafanadb.dashboard.slug,
 									grafanadb.dashboard.title,  grafanadb.dashboard.uid,

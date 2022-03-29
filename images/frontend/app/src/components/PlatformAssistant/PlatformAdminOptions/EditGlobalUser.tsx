@@ -90,7 +90,6 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
         email: globalUsers[globalUserRowIndex].email,
         login: globalUsers[globalUserRowIndex].login,
         password: "",
-        telegramId: globalUsers[globalUserRowIndex].telegramId,
         isGrafanaAdmin: globalUsers[globalUserRowIndex].roleInPlatform === "Admin" ? true : false
     }
 
@@ -105,11 +104,6 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
         password: Yup.string()
             .matches(/^[a-zA-Z0-9.-_\\@\\#\\$\\%]*$/g, "Only the following characters are allowed for password: a-zA-Z0-9.-_@#$%")
             .max(190, "The maximum number of characters allowed is 100"),
-        telegramId: Yup.string()
-            .matches(/^[a-zA-Z0-9_]*$/g, "Only the following characters are allowed for TelegramId: a-zA-Z0-9_")
-            .min(5, "The minimum number of characters allowed is 5")
-            .max(32, "The maximum number of characters allowed is 32")
-            .required('Required'),
         isGrafanaAdmin: Yup.boolean().required('Required'),
     });
 
@@ -156,12 +150,6 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
                                         label='Password'
                                         name='password'
                                         type='password'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Telegram Id'
-                                        name='telegramId'
-                                        type='text'
                                     />
                                     <FormikControl
                                         control='select'

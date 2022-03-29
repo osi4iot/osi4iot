@@ -20,10 +20,5 @@ export default interface IDigitalTwinGltfData {
 	id?: number;
 	gltfData: string;
 	femSimulationData: string;
-	sensorSimulationTopicId: number;
-	assetStateTopicId: number;
-	assetStateSimulationTopicId: number;
-	femResultModalValuesTopicId: number;
-	femResultModalValuesSimulationTopicId: number;
 	mqttTopicsData: IMqttTopicDataShort[];
 }

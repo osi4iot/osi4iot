@@ -4503,9 +4503,6 @@
 				},
 				"password": {
 					"type": "string"
-				},			
-				"telegramId": {
-					"type": "string"
 				}
 			}
 		},
@@ -4525,9 +4522,6 @@
 					"type": "string"
 				},
 				"email": {
-					"type": "string"
-				},			
-				"telegramId": {
 					"type": "string"
 				}
 			}
@@ -4801,9 +4795,6 @@
 				},
 				"password": {
 					"type": "string"
-				},
-				"telegramId": {
-					"type": "string"
 				}
 			}
 		},		
@@ -5012,9 +5003,6 @@
 				"password": {
 					"type": "string"
 				},
-				"telegramId": {
-					"type": "string"
-				},
 				"roleInOrg": {
 					"type": "string",
 					"default": "Viewer"
@@ -5045,9 +5033,6 @@
 					"type": "string"
 				},
 				"roleInOrg": {
-					"type": "string"
-				},
-				"telegramId": {
 					"type": "string"
 				},
 				"lastSeenAt": {
@@ -5091,9 +5076,6 @@
 				},
 				"password": {
 					"type": "string"
-				},
-				"telegramId": {
-					"type": "string"
 				}
 			},
 			"required": [
@@ -5117,9 +5099,6 @@
 					"type": "string"
 				},
 				"password": {
-					"type": "string"
-				},
-				"telegramId": {
 					"type": "string"
 				},
 				"isGrafanaAdmin": {
@@ -5154,9 +5133,6 @@
 					"type": "string"
 				},
 				"login": {
-					"type": "string"
-				},
-				"telegramId": {
 					"type": "string"
 				},
 				"isGrafanaAdmin": {
@@ -5349,11 +5325,7 @@
 				},							
 				"email": {
 					"type": "string"
-				},
-				"telegramId": {
-					"type": "string",
-					"default": "Viewer"
-				},				
+				},			
 				"roleInGroup": {
 					"type": "string",
 					"default": "Viewer"

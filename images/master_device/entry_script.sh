@@ -7,8 +7,8 @@ if [[ "$IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED" == false ]]
 then
     mv /tmp/flows.json /data
 
-    search1=CLIENT_ID
-    replace1="master_device_$MASTER_DEVICE_HASH"
+    search1=MQTT_CLIENT_ID
+    replace1="Client_master_device_$MASTER_DEVICE_HASH"
     sed -i "s/${search1}/${replace1}/g" /data/flows.json
 
     search2=MQTT_TOPIC_TEST

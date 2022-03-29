@@ -16,9 +16,6 @@ class UserRegisterDto {
 	public email: string;
 
 	@IsString()
-	public telegramId: string;
-
-	@IsString()
 	public password: string;
 }
 

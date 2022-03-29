@@ -16,7 +16,6 @@ export interface IGlobalUser {
     surname: string;
     login: string;
     email: string;
-    telegramId: string;
     roleInPlatform: string;
     lastSeenAtAge: string;
 
@@ -131,11 +130,6 @@ export const Create_GLOBAL_USERS_COLUMNS = (refreshGlobalUsers: () => void): Col
         {
             Header: "Email",
             accessor: "email"
-        },
-        {
-            Header: "TelegramId",
-            accessor: "telegramId",
-            disableFilters: true
         },
         {
             Header: "Role",

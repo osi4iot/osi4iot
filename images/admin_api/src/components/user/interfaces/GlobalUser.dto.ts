@@ -21,10 +21,6 @@ class CreateGlobalUserDto {
 	@ValidateIf((obj) => obj.password !== undefined)
 	@IsString()
 	public password: string;
-
-	@ValidateIf((obj) => obj.telegramId !== undefined)
-	@IsString()
-	public telegramId?: string;
 }
 
 export default CreateGlobalUserDto;

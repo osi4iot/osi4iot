@@ -14,6 +14,7 @@ import { setDigitalTwinsOptionToShow, useDigitalTwinIdToEdit, useDigitalTwinRowI
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import Loader from '../../Tools/Loader';
 import formatDateString from '../../../tools/formatDate';
+import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -137,24 +138,19 @@ interface EditDigitalTwinProps {
 }
 
 type FormikType = FormikProps<{
-    name: string;
+    digitalTwinUid: string;
     description: string;
     type: string;
-    dashboardId: string;
     gltfFileName: string;
     gltfFileLastModifDateString: string;
     femSimDataFileName: string;
     femSimDataFileLastModifDateString: string;
     digitalTwinSimulationFormat: string;
-    sensorSimulationTopicId: number;
-    assetStateTopicId: number;
-    assetStateSimulationTopicId: number;
-    femResultModalValuesTopicId: number;
-    femResultModalValuesSimulationTopicId: number;
 }>;
 
 const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, refreshDigitalTwins }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const digitalTwinsDispatch = useDigitalTwinsDispatch();
@@ -243,21 +239,15 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         const femSimFileDate = values.femSimDataFileLastModifDateString === "-" ? "-" : new Date(values.femSimDataFileLastModifDateString);
 
         const digitalTwinData = {
-            name: values.name,
+            digitalTwinUid: values.digitalTwinUid,
             description: values.description,
             type: values.type,
-            dashboardId: parseInt(values.dashboardId, 10),
             gltfData: JSON.stringify(digitalTwinGltfData),
             gltfFileName: values.gltfFileName,
             gltfFileLastModifDateString: gltfFileDate.toString(),
             femSimulationData: JSON.stringify(digitalTwinFemSimData),
             femSimDataFileName: values.femSimDataFileName,
             femSimDataFileLastModifDateString: femSimFileDate.toString(),
-            sensorSimulationTopicId: values.sensorSimulationTopicId,
-            assetStateTopicId: values.assetStateTopicId,
-            assetStateSimulationTopicId: values.assetStateSimulationTopicId,
-            femResultModalValuesTopicId: values.femResultModalValuesTopicId,
-            femResultModalValuesSimulationTopicId: values.femResultModalValuesSimulationTopicId,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
         }
 
@@ -270,6 +260,11 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 setIsSubmitting(false);
                 setDigitalTwinsOptionToShow(digitalTwinsDispatch, digitalTwinsOptionToShow);
                 refreshDigitalTwins();
+
+                const reloadTopicsTable = true;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
@@ -279,27 +274,20 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     }
 
     const initialDigitalTwinData = {
-        name: digitalTwins[digitalTwinRowIndex].name,
+        digitalTwinUid: digitalTwins[digitalTwinRowIndex].digitalTwinUid,
         description: digitalTwins[digitalTwinRowIndex].description,
         type: digitalTwins[digitalTwinRowIndex].type,
-        dashboardId: digitalTwins[digitalTwinRowIndex].dashboardId,
         gltfFileName: digitalTwins[digitalTwinRowIndex].gltfFileName,
         gltfFileLastModifDateString: formatDateString(digitalTwins[digitalTwinRowIndex].gltfFileLastModifDateString),
         femSimDataFileName: digitalTwins[digitalTwinRowIndex].femSimDataFileName,
         femSimDataFileLastModifDateString: formatDateString(digitalTwins[digitalTwinRowIndex].femSimDataFileLastModifDateString),
-        sensorSimulationTopicId: digitalTwins[digitalTwinRowIndex].sensorSimulationTopicId,
-        assetStateTopicId: digitalTwins[digitalTwinRowIndex].assetStateTopicId,
-        assetStateSimulationTopicId: digitalTwins[digitalTwinRowIndex].assetStateSimulationTopicId,
-        femResultModalValuesTopicId: digitalTwins[digitalTwinRowIndex].femResultModalValuesTopicId,
-        femResultModalValuesSimulationTopicId: digitalTwins[digitalTwinRowIndex].femResultModalValuesSimulationTopicId,
         digitalTwinSimulationFormat: JSON.stringify(digitalTwins[digitalTwinRowIndex].digitalTwinSimulationFormat, null, 4)
     }
 
     const validationSchema = Yup.object().shape({
-        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        digitalTwinUid: Yup.string().max(25, "The maximum number of characters allowed is 25").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
-        dashboardId: Yup.number().required('Required'),
         gltfFileName: Yup.string().when("type", {
             is: "Gltf 3D model",
             then: Yup.string().required("Must enter gltfFileName")
@@ -315,27 +303,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         femSimDataFileLastModifDateString: Yup.string().when("type", {
             is: "Gltf 3D model",
             then: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Must enter femSimDataFileLastModifDateString")
-        }),
-        sensorSimulationTopicId: Yup.number().when("type", {
-            is: "Gltf 3D model",
-            then: Yup.number().required("Must enter sensor simulation topic id")
-        }),        
-        assetStateTopicId: Yup.number().when("type", {
-            is: "Gltf 3D model",
-            then: Yup.number().required("Must enter assets state topic id")
-        }),
-        assetStateSimulationTopicId: Yup.number().when("type", {
-            is: "Gltf 3D model",
-            then: Yup.number().required("Must enter assets state simulation topic id")
-        }),
-        femResultModalValuesTopicId: Yup.number().when("type", {
-            is: "Gltf 3D model",
-            then: Yup.number().required("Must enter fem tesult modal values topic id")
-        }),
-        femResultModalValuesSimulationTopicId: Yup.number().when("type", {
-            is: "Gltf 3D model",
-            then: Yup.number().required("Must enter fem tesult modal values simulation topic id")
-        }),        
+        }),       
         digitalTwinSimulationFormat: Yup.string().when("type", {
             is: "Gltf 3D model",
             then: Yup.string().required("Must enter Digital twin simulation format")
@@ -441,20 +409,14 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                 <ControlsContainer>
                                                     <FormikControl
                                                         control='input'
-                                                        label='Name'
-                                                        name='name'
+                                                        label='Ref'
+                                                        name='digitalTwinUid'
                                                         type='text'
                                                     />
                                                     <FormikControl
                                                         control='input'
                                                         label='Description'
                                                         name='description'
-                                                        type='text'
-                                                    />
-                                                    <FormikControl
-                                                        control='input'
-                                                        label='DashboardId'
-                                                        name='dashboardId'
                                                         type='text'
                                                     />
                                                     <FormikControl
@@ -525,37 +487,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                                         {localFemSimFileLabel}
                                                                     </FileButton>
                                                                 </SelectDataFilenButtonContainer>
-                                                            </DataFileContainer>
-                                                            <FormikControl
-                                                                control='input'
-                                                                label='Sensors simulation topicId'
-                                                                name='sensorSimulationTopicId'
-                                                                type='text'
-                                                            />
-                                                            <FormikControl
-                                                                control='input'
-                                                                label='Assets state topicId'
-                                                                name='assetStateTopicId'
-                                                                type='text'
-                                                            />
-                                                            <FormikControl
-                                                                control='input'
-                                                                label='Assets state simulation topicId'
-                                                                name='assetStateSimulationTopicId'
-                                                                type='text'
-                                                            />
-                                                            <FormikControl
-                                                                control='input'
-                                                                label='Fem result modal values topicId'
-                                                                name='femResultModalValuesTopicId'
-                                                                type='text'
-                                                            />
-                                                            <FormikControl
-                                                                control='input'
-                                                                label='Fem result modal values simulation topicId'
-                                                                name='femResultModalValuesSimulationTopicId'
-                                                                type='text'
-                                                            />                                                            
+                                                            </DataFileContainer>                                                           
                                                             <FormikControl
                                                                 control='textarea'
                                                                 label='Digital twin simulation format'

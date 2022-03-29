@@ -306,7 +306,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 									{digitalTwinSimulatorsManaged.map((dts, index) => {
 										return (
 											<option value={index} key={dts.id}>
-												{dts.name}, GroupId= {dts.groupId}
+												{dts.digitalTwinUid}, GroupId= {dts.groupId}
 											</option>
 										);
 									})}

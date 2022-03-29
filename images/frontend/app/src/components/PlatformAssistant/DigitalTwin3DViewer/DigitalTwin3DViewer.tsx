@@ -420,7 +420,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		);
 	}
 
-
 	const handleGetLastMeasurementsButton = () => {
 		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
 		if (digitalTwinSelected && Object.keys(digitalTwinSimulationFormat).length !== 0) {

@@ -719,7 +719,7 @@ export const getGroupMembers = async (group: IGroup): Promise<IGroupMember[]> =>
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
 	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.user.id AS "userId", grafanadb.user.first_name AS "firstName",
 	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
-					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
+					grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
 					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
@@ -735,7 +735,7 @@ export const getGroupMembersInTeamIdArray = async (teamIdsArray: number[]): Prom
 	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.user.id AS "userId",
 					grafanadb.user.first_name AS "firstName",
 	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
-					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
+					grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
 					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
@@ -751,7 +751,7 @@ export const getGroupMembersByEmailsArray = async (group: IGroup, emailsArray: s
 	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.user.id AS "userId",
 					grafanadb.user.first_name AS "firstName",
 	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
-					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
+					grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
 					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id
@@ -766,7 +766,7 @@ export const getGroupMemberByProp = async (group: IGroup, propName: string, prop
 	const query = `SELECT grafanadb.group.id AS "groupId", grafanadb.user.id AS "userId",
 					grafanadb.user.first_name AS "firstName",
 	                grafanadb.user.surname, grafanadb.user.login, grafanadb.user.email,
-					grafanadb.user.telegram_id as "telegramId", grafanadb.team_member.permission AS "roleInGroup"
+					grafanadb.team_member.permission AS "roleInGroup"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.team_member ON grafanadb.team_member.user_id = grafanadb.user.id
 					INNER JOIN grafanadb.group ON grafanadb.group.team_id = grafanadb.team_member.team_id

@@ -3,7 +3,7 @@ export default interface IDigitalTwin {
 	orgId: number;
 	groupId: number;
 	deviceId: number;
-	name: string;
+	digitalTwinUid: string;
 	description: string;
 	type: string;
 	dashboardId: number;
@@ -14,11 +14,6 @@ export default interface IDigitalTwin {
 	femSimDataFileName: string;
 	femSimDataFileLastModifDateString: string;
 	digitalTwinSimulationFormat: string;
-	sensorSimulationTopicId: number;
-	assetStateTopicId: number;
-	assetStateSimulationTopicId: number;
-	femResultModalValuesTopicId: number;
-	femResultModalValuesSimulationTopicId: number;
 	created?: string;
 	updated?: string;
 	dashboardUrl: string;

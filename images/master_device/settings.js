@@ -21,6 +21,28 @@ const needle = require("needle");
 process.env.TOKEN = "";
 process.env.TOKEN_EXPIRATION_DATE = "";
 process.env.USER_NAME = "";
+process.env.GROUP_ID = "0";
+
+const getDTMqttTopics = async function () {
+    const token = process.env.TOKEN;
+    const groupId = process.env.GROUP_ID;
+    let dTMqttTopics = {};
+    if (token !== "" && groupId !== "0") {
+        const optionsToken = {
+            headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Accept": "application/json" }
+        };
+        const urlDTMqttTopics = `admin_api:3200/digital_twin_mqtt_topics_in_group/${groupId}`;
+        dTMqttTopics = await needle('get', urlDTMqttTopics, optionsToken)
+            .then(function (resp2) {
+                const dTMqttTopics = resp2.body;
+                return dTMqttTopics;
+            })
+            .catch(function (err) {
+                console.log("User without group admin permissions");
+            });
+    }
+    return dTMqttTopics;
+};
 
 module.exports = {
     // the tcp port that the Node-RED web server is listening on
@@ -142,11 +164,11 @@ module.exports = {
         tokens: function (token) {
             return new Promise(function (resolve, reject) {
                 // Do whatever work is needed to check token is valid
-
                 if (
                     process.env.TOKEN === "" &&
                     process.env.TOKEN_EXPIRATION_DATE === "" &&
-                    process.env.USER_NAME === ""
+                    process.env.USER_NAME === "" &&
+                    process.env.GROUP_ID === "0"
                 ) {
                     const optionsToken = {
                         headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Accept": "application/json" }
@@ -154,14 +176,15 @@ module.exports = {
                     const url = `admin_api:3200/master_device_authentication/${process.env.MASTER_DEVICE_HASH}`;
 
                     needle('get', url, optionsToken)
-                        .then(function (resp) {
-                            const loggedUser = resp.body.user;
-                            if (loggedUser && loggedUser.accesTokenExpirationDate && loggedUser.login) {
+                        .then(function (resp1) {
+                            const loggedUser = resp1.body.user;
+                            const groupId = resp1.body.groupId;
+                            if (loggedUser && loggedUser.accesTokenExpirationDate && loggedUser.login && groupId) {
                                 process.env.TOKEN = token;
                                 process.env.TOKEN_EXPIRATION_DATE = loggedUser.accesTokenExpirationDate;
                                 process.env.USER_NAME = loggedUser.login;
+                                process.env.GROUP_ID = groupId;
                                 const user = { username: loggedUser.login, permissions: '*' };
-                                process.env.TEST_MQTT_TOPIC = `master_device_${process.env.MASTER_DEVICE_HASH}/#`;
                                 resolve(user);
                             } else {
                                 resolve(null);
@@ -179,6 +202,7 @@ module.exports = {
                         process.env.TOKEN = "";
                         process.env.TOKEN_EXPIRATION_DATE = "";
                         process.env.USER_NAME = "";
+                        process.env.GROUP_ID = "0";
                         resolve(null);
                     }
                 }
@@ -271,9 +295,11 @@ module.exports = {
     // can be accessed in a function block as:
     //    global.get("os")
     functionGlobalContext: {
+        getDTMqttTopics
         // os:require('os'),
         // jfive:require("johnny-five"),
         // j5board:require("johnny-five").Board({repl:false}
+
     },
     // `global.keys()` returns a list of all properties set in global context.
     // This allows them to be displayed in the Context Sidebar within the editor.
@@ -283,21 +309,16 @@ module.exports = {
     // By default, the property is set to false to avoid accidental exposure of
     // their values. Setting this to true will cause the keys to be listed.
     exportGlobalContextKeys: false,
-
-    functionGlobalContext: {
-        //mysql: require('mysql')
-    },
-
     // Context Storage
     // The following property can be used to enable context storage. The configuration
     // provided here will enable file-based context that flushes to disk every 30 seconds.
     // Refer to the documentation for further options: https://nodered.org/docs/api/context/
     //
-    //contextStorage: {
-    //    default: {
-    //        module:"localfilesystem"
-    //    },
-    //},
+    contextStorage: {
+       default: {
+           module:"localfilesystem"
+       },
+    },
 
     // The following property can be used to order the categories in the editor
     // palette. If a node's category is not in the list, the category will get

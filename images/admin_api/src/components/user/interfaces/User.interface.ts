@@ -5,7 +5,6 @@ export default interface IUser {
 	surname: string;
 	login: string;
 	email: string;
-	telegramId: string;
 	isGrafanaAdmin: boolean;
 	isDisabled: boolean;
 	lastSeenAt: string;

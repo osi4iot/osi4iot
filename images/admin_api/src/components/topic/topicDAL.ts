@@ -63,6 +63,10 @@ export const deleteTopicById = async (topicId: number): Promise<void> => {
 	await pool.query(`DELETE FROM grafanadb.topic WHERE grafanadb.topic.id = $1`, [topicId]);
 };
 
+export const deleteTopicByIdsArray = async (topicIdsArray: number[]): Promise<void> => {
+	await pool.query(`DELETE FROM grafanadb.topic WHERE grafanadb.topic.id = ANY($1::bigint[]);`, [topicIdsArray]);
+};
+
 export const createTopic = async (deviceId: number, topicInput: CreateTopicDto): Promise<ITopicUpdate> => {
 	const topicUid = nanoid().replace(/-/g, "x");
 	const topicUpdated: ITopicUpdate = { ...topicInput, topicUid, deviceId };
@@ -83,6 +87,22 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									WHERE grafanadb.topic.${propName} = $1`, [propValue]);
 	return response.rows[0];
+}
+
+export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number): Promise<ITopic[]> => {
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
+                                    grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
+									grafanadb.topic.topic_type AS "topicType",
+	                                grafanadb.topic.topic_name AS "topicName",
+									grafanadb.topic.description,
+									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.created, grafanadb.topic.updated
+									FROM grafanadb.topic
+									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
+									INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.topic_id = grafanadb.topic.id
+									WHERE grafanadb.digital_twin_topic.digital_twin_id = $1`, [digitalTwinId]);
+	return response.rows;
 }
 
 export const getAllTopics = async (): Promise<ITopic[]> => {

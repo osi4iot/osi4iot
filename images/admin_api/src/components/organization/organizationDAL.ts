@@ -163,7 +163,7 @@ export const addAdminToOrganization = async (orgId: number, orgAdminArray: Creat
 }
 
 export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser>[]> => {
-	const query = `SELECT grafanadb.user.id, name, login, email, telegram_id as "telegramId"
+	const query = `SELECT grafanadb.user.id, name, login, email
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.org_user.role = $2`

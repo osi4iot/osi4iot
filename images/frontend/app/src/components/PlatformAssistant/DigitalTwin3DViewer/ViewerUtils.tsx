@@ -64,11 +64,6 @@ export interface IDigitalTwinGltfData {
 	femSimulationData: any;
 	femSimulationUrl: string | null;
 	mqttTopicsData: IMqttTopicData[];
-	assetStateSimulationTopicId: number;
-	assetStateTopicId: number;
-	femResultModalValuesSimulationTopicId: number;
-	femResultModalValuesTopicId: number;
-	sensorSimulationTopicId: number;
 	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
 }
 
@@ -159,12 +154,11 @@ export const generateInitialSensorsState = (
 }
 
 export const generateInitialAssetsState = (
-	digitalTwinSelected: IDigitalTwin,
 	assetObjects: IAssetObject[],
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
 	const initialAssetsState: Record<string, AssetState> = {};
-	const assetStateTopicId = digitalTwinSelected.assetStateTopicId;
+	const assetStateTopicId = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm_as2pdb")[0].topicId;
 	assetObjects.forEach(obj => {
 		const objName = obj.node.name;
 		const assetState: AssetState = { stateString: "ok", highlight: false, clipValues: [] };
@@ -221,7 +215,6 @@ export const generateInitialAssetsState = (
 }
 
 export const generateInitialGenericObjectsState = (
-	digitalTwinSelected: IDigitalTwin,
 	genericObjects: IGenericObject[],
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
@@ -266,13 +259,12 @@ export const generateInitialGenericObjectsState = (
 }
 
 export const generateInitialFemSimObjectsState = (
-	digitalTwinSelected: IDigitalTwin,
 	femSimulationObjects: IFemSimulationObject[],
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
 	const highlight = false;
 	const initialFemSimObjectsState: FemSimulationObjectState[] = [];
-	const femResultModalValuesTopic = digitalTwinSelected.femResultModalValuesTopicId;
+	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm_fmv2pdb")[0].topicId;
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const payloadObject = lastMeasurement?.payload as any;
 	const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
@@ -872,7 +864,6 @@ export const readFemSimulationInfo = (
 
 	setInitialFemSimObjectsState(
 		generateInitialFemSimObjectsState(
-			digitalTwinSelected,
 			femSimulationObjects,
 			digitalTwinGltfData,
 		)

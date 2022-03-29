@@ -22,10 +22,6 @@ class CreateUserDto {
 	@IsString()
 	public password: string;
 
-	@ValidateIf((obj) => obj.telegramId !== undefined)
-	@IsString()
-	public telegramId?: string;
-
 	@ValidateIf((obj) => obj.isGrafanaAdmin !== undefined)
 	@IsBoolean()
 	public isGrafanaAdmin?: boolean;

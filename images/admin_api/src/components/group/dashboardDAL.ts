@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import pool from "../../config/dbconfig";
-import getDomainUrl from "../../utils/helpers/getDomainUrl";
 import IDevice from "../device/device.interface";
 import ITopic from "../topic/topic.interface";
 import ITopicUpdate from "../topic/topicUpdate.interface";
@@ -16,6 +15,8 @@ import IAlert from "./interfaces/Alert.interface";
 import IDashboardData from "./interfaces/DashboardData.interface";
 import IGroup from "./interfaces/Group.interface";
 import process_env from "../../config/api_config";
+import { getOrganizationByProp } from "../organization/organizationDAL";
+import { defaultDashboard } from "./defaultDashboards/defaultDashboard";
 
 export const insertDashboard = async (orgId: number, folderId: number, title: string, data: any): Promise<any> => {
 	const now = new Date();
@@ -29,6 +30,11 @@ export const insertDashboard = async (orgId: number, folderId: number, title: st
 		[1, slug, title, data, orgId, now, now, -1, -1, 0, '', folderId, false, false, uuid]
 	);
 	return response.rows[0];
+};
+
+
+export const deleteDashboard = async (dashboardId: number): Promise<void> => {
+	await pool.query(`DELETE FROM grafanadb.dashboard WHERE grafanadb.dashboard.id = $1`, [dashboardId]);
 };
 
 export const getDashboardsDataOfGroup = async (group: IGroup): Promise<IDashboardData[]> => {
@@ -136,7 +142,7 @@ export const insertPreference = async (orgId: number, homeDashboardId: number): 
 
 export const createHomeDashboard = async (orgId: number, orgAcronym: string, orgName: string, folderId: number): Promise<void> => {
 	const homeDashboard = JSON.parse(homeDashboardJson);
-	const title = `Home ${orgAcronym.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}`;
+	const title = `Home ${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}`;
 	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 	const html_content = `<br/>\n<h1>${platformName}</h1>\n<h2>${orgName}</h2>\n`
 	homeDashboard.panels[0].options.content = html_content;
@@ -158,7 +164,7 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 };
 
 export const createDemoDashboards = async (orgAcronym: string, group: IGroup, devices: IDevice[], topics: ITopicUpdate[]): Promise<number[]> => {
-	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
+	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toLowerCase()}_db`;
 	const dataSource = await getDataSourceByProp("name", dataSourceName);
 	const grouAcronym = group.acronym;
 	const tempDashboard = JSON.parse(tempDashboardJson);
@@ -210,6 +216,26 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 
 	return [tempDashboardCreated.id, accelDashboardCreated.id];
 };
+
+export const createDashboard = async (group: IGroup, device: IDevice, topic: ITopicUpdate, digitalTwinUid: string): Promise<number> => {
+	const org = await getOrganizationByProp("id", group.orgId);
+	const dataSourceName = `iot_${org.acronym.replace(/ /g, "_").replace(/"/g, "").toLowerCase()}_db`;
+	const dataSource = await getDataSourceByProp("name", dataSourceName);
+	const dashboard = JSON.parse(defaultDashboard);
+	const dashboardTitle = `${digitalTwinUid} dashboard`;
+	dashboard.uid = uuidv4();
+	dashboard.title = dashboardTitle;
+	const tableHash = `Table_${group.groupUid}`;
+	const deviceHash = `Device_${device.deviceUid}`;
+	const topicHash = `Topic_${topic.topicUid}`;
+	const rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'parameter' AS DOUBLE PRECISION) AS \"Parameter\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topicHash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	dashboard.panels[0].targets[0].rawSql = rawSql;
+	dashboard.panels[0].targets[0].datasource.uid = dataSource.uid;
+	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboardTitle, dashboard);
+
+	return dashboardCreated.id;
+};
+
 
 
 const createTempDemoAlert = (orgId: number, dashboardId: number, panelId: number, settings: any): Partial<IAlert> => {

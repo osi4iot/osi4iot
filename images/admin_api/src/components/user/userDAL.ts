@@ -26,7 +26,7 @@ export const getUsersIdByEmailsArray = async (emailArray: string[]): Promise<(Pa
 
 export const getUserByProp = async (propName: string, propValue: string | number): Promise<IUser> => {
 	const response: QueryResult = await
-		pool.query(`SELECT id, name, login, email, telegram_id as "telegramId", is_admin as "isGrafanaAdmin",
+		pool.query(`SELECT id, name, login, email, is_admin as "isGrafanaAdmin",
 					is_disabled as "isDisabled", last_seen_at as lastSeenAt,
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user WHERE ${propName} = $1`, [propValue]);
@@ -34,7 +34,7 @@ export const getUserByProp = async (propName: string, propValue: string | number
 };
 
 export const getGlobalUsers = async (): Promise<IUser[]> => {
-	const query = `SELECT id, first_name as "firstName", surname, login, email, telegram_id as "telegramId",
+	const query = `SELECT id, first_name as "firstName", surname, login, email,
 					is_admin as "isGrafanaAdmin", is_disabled as "isDisabled", last_seen_at as lastSeenAt,
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
@@ -46,7 +46,7 @@ export const getGlobalUsers = async (): Promise<IUser[]> => {
 export const getUserdByEmailOrLogin = async (emailOrLogin: string): Promise<IUser> => {
 	const response: QueryResult = await
 		pool.query(`SELECT id, first_name as "firstName", surname, login, email,
-					telegram_id as "telegramId", is_admin as "isGrafanaAdmin",
+					is_admin as "isGrafanaAdmin",
 					is_disabled as "isDisabled", last_seen_at as "lastSeenAt",
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user WHERE email = $1 OR login = $1`, [emailOrLogin]);
@@ -56,7 +56,6 @@ export const getUserdByEmailOrLogin = async (emailOrLogin: string): Promise<IUse
 export const createOrganizationUsers = async (orgId: number, usersData: CreateUserDto[]) => {
 	usersData.forEach(user => {
 		if (!user.name || user.name === "") user.name = `${user.firstName} ${user.surname}`
-		if (!user.telegramId || user.telegramId === "") user.telegramId = user.name;
 		if (!user.OrgId) user.OrgId = orgId;
 		if (!user.login || user.login === "") {
 			const username = `${user.firstName.replace(/ /g, ".").toLocaleLowerCase()}.${user.surname.replace(/ /g, ".").toLocaleLowerCase()}`;
@@ -74,8 +73,8 @@ export const createOrganizationUsers = async (orgId: number, usersData: CreateUs
 		const usersModificationQuery = [];
 		for (let i = 0; i < usersData.length; i++) {
 			usersModificationQuery[i] =
-				pool.query('UPDATE grafanadb.user SET first_name = $1, surname = $2, telegram_id = $3 WHERE email = $4',
-					[usersData[i].firstName, usersData[i].surname, usersData[i].telegramId, usersData[i].email]);
+				pool.query('UPDATE grafanadb.user SET first_name = $1, surname = $2 WHERE email = $3',
+					[usersData[i].firstName, usersData[i].surname, usersData[i].email]);
 		}
 		await Promise.all(usersModificationQuery);
 
@@ -199,8 +198,8 @@ export const getOrganizationUsersByEmailArray = async (orgId: number, emailsArra
 export const updateOrganizationUser = async (userData: IUserInOrg | UserRegisterDto) => {
 	const name = `${userData.firstName} ${userData.surname}`
 	const query = `UPDATE grafanadb.user
-                	SET  name = $1, first_name = $2, surname = $3,  login = $4, email = $5, telegram_id = $6
-		       		WHERE id = $7`;
+                	SET  name = $1, first_name = $2, surname = $3,  login = $4, email = $5
+		       		WHERE id = $6`;
 	await pool.query(query,
 		[
 			name,
@@ -208,7 +207,6 @@ export const updateOrganizationUser = async (userData: IUserInOrg | UserRegister
 			userData.surname,
 			userData.login,
 			userData.email,
-			userData.telegramId,
 			userData.userId
 		]);
 };
@@ -217,7 +215,7 @@ export const updateOrganizationUser = async (userData: IUserInOrg | UserRegister
 export const updateGlobalUser = async (userData: IUser) => {
 	const name = `${userData.firstName} ${userData.surname}`
 	const query = `UPDATE grafanadb.user
-                	SET  name = $1, first_name = $2, surname = $3, login = $4, email = $5, telegram_id = $6, is_admin = $7
+                	SET  name = $1, first_name = $2, surname = $3, login = $4, email = $5, is_admin = $7
 		       		WHERE id = $8`;
 	await pool.query(query,
 		[
@@ -226,7 +224,6 @@ export const updateGlobalUser = async (userData: IUser) => {
 			userData.surname,
 			userData.login,
 			userData.email,
-			userData.telegramId,
 			userData.isGrafanaAdmin,
 			userData.id
 		]);
@@ -235,8 +232,8 @@ export const updateGlobalUser = async (userData: IUser) => {
 export const updateUserProfileById = async (userData: CreateUserDto) => {
 	const name = `${userData.firstName} ${userData.surname}`
 	const query = `UPDATE grafanadb.user
-                	SET  name = $1, first_name = $2, surname = $3, login = $4, email = $5, telegram_id = $6
-		       		WHERE id = $7`;
+                	SET  name = $1, first_name = $2, surname = $3, login = $4, email = $5
+		       		WHERE id = $6`;
 	await pool.query(query,
 		[
 			name,
@@ -244,7 +241,6 @@ export const updateUserProfileById = async (userData: CreateUserDto) => {
 			userData.surname,
 			userData.login,
 			userData.email,
-			userData.telegramId,
 			userData.id
 		]);
 };
@@ -254,8 +250,7 @@ export const isUsersDataCorrect = async (usersInputData: (CreateUserDto | Create
 	const namesArray = usersInputData.map(user => user.name);
 	const emailsArray = usersInputData.map(user => user.email);
 	const loginArray = usersInputData.map(user => user.login).filter(item => !!item);
-	const telegramIdArray = usersInputData.map(user => user.telegramId).filter(item => !!item);
-	if ((loginArray.length !== 0 || telegramIdArray.length !== 0) && (namesArray.length !== loginArray.length && namesArray.length !== telegramIdArray.length)) {
+	if ((loginArray.length !== 0) && (namesArray.length !== loginArray.length)) {
 		throw new Error('Each user must have the same amount of data');
 	}
 	const forbiddenUserNames = loginArray.filter(username => username.slice(-9) === "api_admin")
@@ -264,22 +259,20 @@ export const isUsersDataCorrect = async (usersInputData: (CreateUserDto | Create
 	}
 
 	const response: QueryResult =
-		await pool.query(`SELECT id, name, login, email, telegram_id FROM grafanadb.user
+		await pool.query(`SELECT id, name, login, email FROM grafanadb.user
 						WHERE name =  ANY($1::varchar(225)[])
 						OR login =  ANY($2::varchar(190)[])
-						OR email =  ANY($3::varchar(190)[])
-						OR telegram_id = ANY($4::varchar(200)[])`,
-			[namesArray, loginArray, emailsArray, telegramIdArray]);
+						OR email =  ANY($3::varchar(190)[])`,
+			[namesArray, loginArray, emailsArray]);
 	const existentUsers = response.rows;
 
 	if (existentUsers.length > usersInputData.length) return false;
 	for (const user of existentUsers) {
 		const sameName = namesArray.indexOf(user.name) !== -1;
 		const sameEmail = emailsArray.indexOf(user.email) !== -1;
-		if (loginArray.length !== 0 && telegramIdArray.length !== 0) {
+		if (loginArray.length !== 0) {
 			const sameLogin = loginArray.indexOf(user.login) !== -1;
-			const sameTelegramId = telegramIdArray.indexOf(user.telegram_id) !== -1;
-			if ((sameName && sameEmail && sameLogin && sameTelegramId) !== (sameName || sameEmail || sameLogin || sameTelegramId)) return false;
+			if ((sameName && sameEmail && sameLogin) !== (sameName || sameEmail || sameLogin)) return false;
 		} else {
 			if ((sameName && sameEmail) !== (sameName || sameEmail)) return false;
 		}
@@ -291,12 +284,11 @@ export const isUsersDataCorrect = async (usersInputData: (CreateUserDto | Create
 export const isUserProfileDataCorrect = async (userProfileData: UserProfileDto): Promise<boolean> => {
 	userProfileData.name = `${userProfileData.firstName} ${userProfileData.surname}`
 	const response: QueryResult =
-		await pool.query(`SELECT id, name, login, email, telegram_id FROM grafanadb.user
+		await pool.query(`SELECT id, name, login, email FROM grafanadb.user
 						WHERE name = $1
 						OR login =  $2
-						OR email =  $3
-						OR telegram_id = $4`,
-			[userProfileData.name, userProfileData.login, userProfileData.email, userProfileData.telegramId]);
+						OR email =  $3`,
+			[userProfileData.name, userProfileData.login, userProfileData.email]);
 	const existentUsers = response.rows;
 
 	if (existentUsers.length > 1) return false;

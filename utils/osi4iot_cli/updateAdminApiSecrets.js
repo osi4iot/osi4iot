@@ -26,7 +26,6 @@ module.exports = (osi4iotState) => {
         `PLATFORM_ADMIN_USER_NAME=${osi4iotState.platformInfo.PLATFORM_ADMIN_USER_NAME}\n`,
         `PLATFORM_ADMIN_EMAIL=${osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL}\n`,
         `PLATFORM_ADMIN_PASSWORD=${osi4iotState.platformInfo.PLATFORM_ADMIN_PASSWORD}\n`,
-        `PLATFORM_ADMIN_TELEGRAM_ID=1111111111111\n`,
         `GRAFANA_ADMIN_PASSWORD=${osi4iotState.platformInfo.GRAFANA_ADMIN_PASSWORD}\n`,
         `POSTGRES_USER=${osi4iotState.platformInfo.POSTGRES_USER}\n`,
         `POSTGRES_PASSWORD=${osi4iotState.platformInfo.POSTGRES_PASSWORD}\n`,

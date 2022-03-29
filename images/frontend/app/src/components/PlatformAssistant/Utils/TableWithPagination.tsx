@@ -371,12 +371,7 @@ const hiddenColumnCondition = (col: any) => {
         col.Header === "gltfFileLastModifDateString" ||
         col.Header === "femSimDataFileName" ||
         col.Header === "femSimDataFileLastModifDateString" ||
-        col.Header === "digitalTwinSimulationFormat" ||
-        col.Header === "sensorSimulationTopicId" ||
-        col.Header === "assetStateTopicId" ||
-        col.Header === "assetStateSimulationTopicId" ||
-        col.Header === "femResultModalValuesTopicId" ||
-        col.Header === "femResultModalValuesSimulationTopicId";
+        col.Header === "digitalTwinSimulationFormat"
 
     return condition;
 }
@@ -403,7 +398,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
     const columnsWidth = columnsTable.map(column => {
         if (typeof column.Header !== 'function') {
             const headerName = (column.Header as string);
-            if (headerName.slice(-2) === "Id" && headerName !== "TelegramId") return "100px"
+            if (headerName.slice(-2) === "Id") return "100px"
             else return "auto"
         } else return "auto";
     });
@@ -412,8 +407,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
     const columnsMaxWidth = columnsTable.map(column => {
         if (typeof column.Header !== 'function') {
             const headerName = (column.Header as string);
-            if (headerName.slice(-2) === "Id" && headerName !== "TelegramId") return "100px"
-            else if (headerName === "Payload format") return "450px";
+            if (headerName === "Payload format") return "450px";
             else if (headerName === "Refresh tokens") return "1200px";
             else return "auto"
         } else return "auto";

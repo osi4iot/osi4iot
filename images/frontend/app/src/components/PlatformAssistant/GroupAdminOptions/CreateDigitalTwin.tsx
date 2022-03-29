@@ -2,6 +2,7 @@ import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
+import { nanoid } from "nanoid";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
 import { toast } from "react-toastify";
@@ -12,6 +13,7 @@ import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
 import { useFilePicker } from 'use-file-picker';
 import formatDateString from '../../../tools/formatDate';
+import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -114,15 +116,15 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
     openFileSelector();
 }
 
+
 const domainName = getDomainName();
 
 const initialDigitalTwinData = {
     groupId: "",
     deviceId: "",
-    name: "",
     description: "",
     type: "Grafana dashboard",
-    dashboardId: "",
+    digitalTwinUid: "",
     gltfFileName: "-",
     gltfFileLastModifDateString: "-",
     femSimDataFileName: "-",
@@ -150,10 +152,9 @@ interface CreateDigitalTwinProps {
 type FormikType = FormikProps<{
     groupId: string;
     deviceId: string;
-    name: string;
+    digitalTwinUid: string;
     description: string;
     type: string;
-    dashboardId: string;
     gltfFileName: string;
     gltfFileLastModifDateString: string;
     femSimDataFileName: string;
@@ -162,6 +163,8 @@ type FormikType = FormikProps<{
 }>
 
 const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDigitalTwins }) => {
+    initialDigitalTwinData.digitalTwinUid = `DT_${nanoid(20).replace(/-/g, "x").replace(/_/g, "X")}`
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -209,10 +212,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         const femSimFileDate = values.femSimDataFileLastModifDateString === "-" ? "-" : new Date(values.femSimDataFileLastModifDateString);
 
         const digitalTwinData = {
-            name: values.name,
             description: values.description,
             type: values.type,
-            dashboardId: parseInt(values.dashboardId, 10),
+            digitalTwinUid: values.digitalTwinUid,
             gltfData: JSON.stringify(digitalTwinGltfData),
             gltfFileName: values.gltfFileName,
             gltfFileLastModifDateString: gltfFileDate.toString(),
@@ -232,6 +234,11 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 setIsSubmitting(false);
                 setDigitalTwinsOptionToShow(digitalTwinsDispatch, digitalTwinsOptionToShow);
                 refreshDigitalTwins();
+
+                const reloadTopicsTable = true;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
@@ -243,10 +250,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
         deviceId: Yup.number().required('Required'),
-        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        digitalTwinUid: Yup.string().max(23, "The maximum number of characters allowed is 23").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
-        dashboardId: Yup.number().required('Required'),
         gltfFileName: Yup.string().when("type", {
             is: "Gltf 3D model",
             then: Yup.string().required("Must enter gltfFileName")
@@ -375,20 +381,14 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         />
                                         <FormikControl
                                             control='input'
-                                            label='Name'
-                                            name='name'
+                                            label='DigitalTwinUid'
+                                            name='digitalTwinUid'
                                             type='text'
                                         />
                                         <FormikControl
                                             control='input'
                                             label='Description'
                                             name='description'
-                                            type='text'
-                                        />
-                                        <FormikControl
-                                            control='input'
-                                            label='DashboardId'
-                                            name='dashboardId'
                                             type='text'
                                         />
                                         <FormikControl

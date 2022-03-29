@@ -175,6 +175,7 @@ const Model: FC<ModelProps> = (
 	const [genericObjectsState, setGenericObjectsState] = useState<Record<string, GenericObjectState>>(initialGenericObjectsState);
 	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
+	const clipSimulationTopicId = mqttTopicsData.filter(topic => topic.topicType === "dev_sim_2dtm")[0].topicId;
 	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
 	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicType === "dev_sim_2dtm")[0] || null;
 	const { message } = useSubscription(mqttTopics);
@@ -288,7 +289,6 @@ const Model: FC<ModelProps> = (
 			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
 			const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
 			const messageTopicType = mqttTopicsData[mqttTopicIndex].topicType;
-			const clipSimulationTopicId = digitalTwinGltfData.sensorSimulationTopicId;
 			let mqttMessage: any;
 			try {
 				mqttMessage = JSON.parse(message.message as string);
@@ -339,7 +339,7 @@ const Model: FC<ModelProps> = (
 								const clipValues = [...sensorsNewState[objName].clipValues];
 								const fieldNames: string[] = obj.node.userData.clipFieldNames;
 								if (fieldNames !== undefined && fieldNames.length !== 0) {
-									fieldNames.forEach((fieldName,index) => {
+									fieldNames.forEach((fieldName, index) => {
 										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
 											const value = mqttMessage[fieldName];
 											if (typeof value === 'number') {
@@ -350,7 +350,7 @@ const Model: FC<ModelProps> = (
 									});
 									sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
 								}
-							}							
+							}
 						});
 
 						assetObjects.forEach((obj) => {
@@ -377,7 +377,7 @@ const Model: FC<ModelProps> = (
 								const clipValues = [...assestsNewState[objName].clipValues];
 								const fieldNames: string[] = obj.node.userData.clipFieldNames;
 								if (fieldNames !== undefined && fieldNames.length !== 0) {
-									fieldNames.forEach((fieldName,index) => {
+									fieldNames.forEach((fieldName, index) => {
 										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
 											const value = mqttMessage[fieldName];
 											if (typeof value === 'number') {
@@ -388,7 +388,7 @@ const Model: FC<ModelProps> = (
 									});
 									assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
 								}
-							}								
+							}
 
 						});
 
@@ -416,7 +416,7 @@ const Model: FC<ModelProps> = (
 								const clipValues = [...genericObjectNewState[objName].clipValues];
 								const fieldNames: string[] = obj.node.userData.clipFieldNames;
 								if (fieldNames !== undefined && fieldNames.length !== 0) {
-									fieldNames.forEach((fieldName,index) => {
+									fieldNames.forEach((fieldName, index) => {
 										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
 											const value = mqttMessage[fieldName];
 											if (typeof value === 'number') {
@@ -427,7 +427,7 @@ const Model: FC<ModelProps> = (
 									});
 									genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
 								}
-							}						
+							}
 						});
 
 						femSimulationObjects.forEach((obj, index) => {
@@ -453,7 +453,7 @@ const Model: FC<ModelProps> = (
 								const clipValues = [...femSimulationObjectsNewState[index].clipValues];
 								const fieldNames: string[] = obj.node.userData.clipFieldNames;
 								if (fieldNames !== undefined && fieldNames.length !== 0) {
-									fieldNames.forEach((fieldName,index) => {
+									fieldNames.forEach((fieldName, index) => {
 										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
 											const value = mqttMessage[fieldName];
 											if (typeof value === 'number') {
@@ -464,7 +464,7 @@ const Model: FC<ModelProps> = (
 									});
 									femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
 								}
-							}	
+							}
 
 						});
 					}

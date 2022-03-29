@@ -163,9 +163,6 @@ class AuthenticationController implements IController {
 				const errorMessage = "The email indicated not match with the user email in database";
 				throw new HttpException(400, errorMessage);
 			}
-			if (registerDto.telegramId === "") {
-				registerDto.telegramId = user.telegramId;
-			}
 			registerDto.userId = user.id;
 			const { message } = await this.grafanaRepository.changeUserPassword(user.id, registerDto.password);
 			await updateOrganizationUser(registerDto);
@@ -205,8 +202,7 @@ class AuthenticationController implements IController {
 				firstName: user.firstName,
 				surname: user.surname,
 				email: user.email,
-				login: user.login,
-				telegramId: user.telegramId,
+				login: user.login
 			}
 			res.status(200).json(userData);
 		} catch (error) {
@@ -224,12 +220,11 @@ class AuthenticationController implements IController {
 				user.firstName === userData.firstName &&
 				user.surname === userData.surname &&
 				user.email === userData.email &&
-				user.login === userData.login &&
-				user.telegramId === userData.telegramId
+				user.login === userData.login
 			)) {
 				const isUpdateUserDataCorrect = await isUserProfileDataCorrect(userData);
 				if (!isUpdateUserDataCorrect)
-					throw new HttpException(400, "The inputted values of name, login, email and/or telegramId already exists for another user.")
+					throw new HttpException(400, "The inputted values of name, login and email already exists for another user.")
 				await updateUserProfileById(userData as CreateUserDto);
 			}
 			const message = { message: "User profile updated succesfully" };

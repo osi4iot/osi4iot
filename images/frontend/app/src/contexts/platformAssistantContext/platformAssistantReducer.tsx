@@ -10,7 +10,6 @@ const initialUserProfile = {
     surname: "",
     login: "",
     email: "",
-    telegramId: "",
 }
 
 export const initialState = {
