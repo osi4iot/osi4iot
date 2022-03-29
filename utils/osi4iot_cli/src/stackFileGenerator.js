@@ -647,7 +647,11 @@ module.exports = (osi4iotState) => {
             ],
             deploy: {
                 placement: {
-                    constraints: ['node.platform.arch==x86_64']
+                    constraints: [
+                        'node.platform.arch==x86_64',
+                        `node.role==${workerMode}`,
+                        'node.labels.platform_worker==true'
+                    ]
                 }
             }
         }
@@ -682,7 +686,7 @@ module.exports = (osi4iotState) => {
             driver_opts: {
                 type: 'nfs',
                 o: `nfsvers=4,addr=${nfsServerIP},rw`,
-                device: ':/var/nfs/mosquitto_data '
+                device: ':/var/nfs/mosquitto_data'
             }
         }
 
@@ -735,7 +739,7 @@ module.exports = (osi4iotState) => {
             driver: 'local',
             driver_opts: {
                 type: 'nfs',
-                o: 'nfsvers=4,addr=${NFS_SERVER_IP},rw',
+                o: `nfsvers=4,addr=${nfsServerIP},rw`,
                 device: ':/var/nfs/grafana_data'
             }
         }
@@ -847,7 +851,8 @@ module.exports = (osi4iotState) => {
 
     const osi4iotStackYML = yaml.dump(osi4iotStackObj, {
         'styles': {
-            '!!null': 'canonical' // dump null as ~
+            '!!null': 'canonical', // dump null as ~
+            '!!int': 'octal'
         },
         lineWidth: -1
     })
