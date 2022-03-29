@@ -570,15 +570,57 @@ const platformInitiation = () => {
             console.log(clc.green('Creating stack file...\n'))
             stackFileGenerator(osi4iotState);
 
-            await runStack(osi4iotState);
+            await confirmWorkerNodesLabelsAndRunStack(numSwarmNodes, osi4iotState);
         })
         .catch((error) => {
             if (error.isTtyError) {
-                // Prompt couldn't be rendered in the current environment
+                console.log("Prompt couldn't be rendered in the current environment")
             } else {
                 console.log("Error in osi4iot cli: ", error)
             }
         })
+}
+
+const confirmWorkerNodesLabelsAndRunStack = async (numSwarmNodes, osi4iotState) => {
+    if (numSwarmNodes === 1) {
+        await runStack(osi4iotState);
+    } else {
+        console.log(clc.yellowBright("NOTE: Before continuing, type the following commands on the organization worker nodes:"));
+        for (iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
+            console.log(clc.yellowBright(`\nOrganization ${iorg}:`));
+            const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
+            const command = `    docker node update --label-add org_hash=${orgHash}`
+            console.log(clc.yellowBright(command));
+        }
+        console.log("");
+    
+        inquirer
+            .prompt([{
+                name: 'confirm_labels_added',
+                type: 'confirm',
+                message: 'Are all organization worker node labels added?',
+                validate: function (confirmation) {
+                    if (confirmation) {
+                        return true;
+                    } else {
+                        return "Please add the organization worker node labels before run the platform";
+                    }
+                } 
+            }
+            ])
+            .then(async (answers) => {
+                if (answers.confirm_labels_added) {
+                    await runStack(osi4iotState);
+                }
+            })
+            .catch((error) => {
+                if (error.isTtyError) {
+                    console.log("Prompt couldn't be rendered in the current environment")
+                } else {
+                    console.log("Error in osi4iot cli: ", error)
+                }
+            });
+    }
 }
 
 module.exports = async () => {
@@ -595,9 +637,9 @@ module.exports = async () => {
             })
             .catch((error) => {
                 if (error.isTtyError) {
-                    // Prompt couldn't be rendered in the current environment
+                    console.log("Prompt couldn't be rendered in the current environment")
                 } else {
-                    // Something else went wrong
+                    console.log("Error in osi4iot cli: ", error)
                 }
             });
     } else {

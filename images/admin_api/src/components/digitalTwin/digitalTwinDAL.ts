@@ -6,7 +6,6 @@ import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
 import IDigitalTwinUpdate from "./digitalTwinUpdate.interface";
 import {
-	getDashboardById,
 	getDashboardsInfoFromIdArray,
 	markInexistentDashboards
 } from "../dashboard/dashboardDAL";
@@ -14,7 +13,6 @@ import {
 	createTopic,
 	deleteTopicByIdsArray,
 	getMqttTopicsInfoFromIdArray,
-	getSensorTopicsOfDTByDigitalTwinId,
 	markInexistentTopics
 } from "../topic/topicDAL";
 import IMqttTopicInfo from "../topic/mqttTopicInfo.interface";
@@ -29,7 +27,6 @@ import IDevice from "../device/device.interface";
 import { createDashboard, deleteDashboard } from "../group/dashboardDAL";
 import ITopicUpdate from "../topic/topicUpdate.interface";
 import IMqttDigitalTwinTopicInfo from "./mqttDigitalTwinTopicInfo.interface";
-import HttpException from "../../exceptions/HttpException";
 
 export const getTopicSensorTypesFromDigitalTwin = (digitalTwin: Partial<IDigitalTwin>): string[] => {
 	const topicTypes: string[] = [];
@@ -71,10 +68,9 @@ const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: strin
 	const keys = Object.keys(digitalTwinSimulationFormatObj);
 	const payloadObj: Record<string, {type: string, units: string}> = {};
 	keys.forEach(key => {
-		payloadObj[key] = {
-			type: "number",
-			units: "m"
-		}
+		payloadObj[key] = {} as any;
+		payloadObj[key].type = "number";
+		payloadObj[key].units = digitalTwinSimulationFormatObj[key].units;
 	});
 	const payload = JSON.stringify(payloadObj);
 	return payload;
@@ -116,7 +112,7 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: IDigi
 					topicType: "dev2pdb",
 					topicName: `${digitalTwinUid}_${topicSensorTypesToAdd[i]}`,
 					description: `Device to platform db for ${digitalTwinUid}`,
-					payloadFormat: '{"parameter": "number"}'
+					payloadFormat: '{"parameter": "number", "units": "m"}'
 				};
 				const topicSensorQuery = createTopic(deviceId, sensorTopicData);
 				topicSensorQueries.push(topicSensorQuery)
@@ -519,7 +515,7 @@ export const createDigitalTwin = async (
 			topicType: "dev_sim_2dtm",
 			topicName: `${digitalTwinUid}_dev_sim_2dtm`,
 			description: `Simulated device to DTM for ${digitalTwinUid}`,
-			payloadFormat: digitalTwinInput.digitalTwinSimulationFormat
+			payloadFormat: generateSensorSimulationTopicPayload(digitalTwinInput.digitalTwinSimulationFormat)
 		};
 		const sensorSimulationTopic = await createTopic(deviceId, sensorSimulationTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, sensorSimulationTopic.id, "dev_sim_2dtm");

@@ -409,8 +409,7 @@ module.exports = (osi4iotState) => {
                 }
             },
             admin_api: {
-                // image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
-                image: 'admin_api_aux',
+                image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
                 networks: [
                     'internal_net',
                     'traefik_public'
@@ -480,10 +479,9 @@ module.exports = (osi4iotState) => {
                 }
             },
             frontend: {
-                // image: platformArch === 'x86_64' ?
-                //     `ghcr.io/osi4iot/frontend:${serviceImageVersion['frontend']}` :
-                //     `ghcr.io/osi4iot/frontend_arm64:${serviceImageVersion['frontend_arm64']}`,
-                image: 'frontend_aux',
+                image: platformArch === 'x86_64' ?
+                    `ghcr.io/osi4iot/frontend:${serviceImageVersion['frontend']}` :
+                    `ghcr.io/osi4iot/frontend_arm64:${serviceImageVersion['frontend_arm64']}`,
                 configs: [
                     {
                         source: 'frontend_conf',
@@ -743,8 +741,7 @@ module.exports = (osi4iotState) => {
             const serviceName = `org_${iorg}_master_device_${idev}`;
             const masterDeviceHashPath = `master_device_${masterDeviceHash}`
             osi4iotStackObj.services[serviceName] = {
-                // image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
-                image: 'master_device',
+                image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
                 user: "${UID}:${GID}",
                 networks: [
                     "internal_net",

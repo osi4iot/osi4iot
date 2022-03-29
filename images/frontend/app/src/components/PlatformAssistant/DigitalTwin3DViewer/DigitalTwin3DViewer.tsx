@@ -979,15 +979,21 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							(Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).length !== 0) &&
 							<DatFolder title='Digital twin simulator' closed={true}>
 								{
-									Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).map(paramName =>
-										<StyledDatNumberDTSimulator
-											label={`${digitalTwinGltfData.digitalTwinSimulationFormat[paramName].label || paramName}:`}
+									Object.keys(digitalTwinGltfData.digitalTwinSimulationFormat).map(paramName => {
+										let label = paramName;
+										const dtsLabel = digitalTwinGltfData.digitalTwinSimulationFormat[paramName].label;
+										const dtsUnits = digitalTwinGltfData.digitalTwinSimulationFormat[paramName].units;
+										if (dtsLabel !== undefined && dtsUnits !== undefined) {
+											label = `${dtsLabel} (${dtsUnits}) :`
+										}
+										return <StyledDatNumberDTSimulator
+											label={label}
 											path={`digitalTwinSimulatorState[${paramName}]`}
 											min={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].minValue}
 											max={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].maxValue}
 											step={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].step}
 										/>
-									)
+									})
 								}
 								<StyledDatButtom label={getLastMeasurementsButtomLabel} onClick={handleGetLastMeasurementsButton} />
 								<StyledDatButtom label={lockReadingButtomLabel} onClick={handleLockReadMeasurementsButtonClick} />

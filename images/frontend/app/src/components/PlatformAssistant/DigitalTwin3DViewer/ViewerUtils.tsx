@@ -54,6 +54,7 @@ export interface DigitalTwinSimulationParameter {
 	defaultValue: number;
 	step: number;
 	label: string;
+	units: string;
 	topicId: number;
 }
 

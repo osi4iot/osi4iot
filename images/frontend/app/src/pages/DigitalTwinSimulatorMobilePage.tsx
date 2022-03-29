@@ -145,6 +145,7 @@ let mqttClient: (Paho.Client | null) = null;
 
 interface IDTSParam {
 	path: string;
+	units?: string;
 	label: string;
 	minValue: number;
 	maxValue: number;
@@ -263,9 +264,10 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 			const digitalTwinSimulatorParams: IDTSParam[] = [];
 			const initialParamValues: Record<string, number> = {};
 			digitalTwinSimulatorParamNames.forEach(paramPath => {
+				const label = `${digitalTwinSimulatorFormat[paramPath].label} (${digitalTwinSimulatorFormat[paramPath].units}) `
 				const digitalTwinSimulatorParam = {
 					path: paramPath,
-					label: digitalTwinSimulatorFormat[paramPath].label,
+					label,
 					minValue: digitalTwinSimulatorFormat[paramPath].minValue,
 					maxValue: digitalTwinSimulatorFormat[paramPath].maxValue,
 					step: digitalTwinSimulatorFormat[paramPath].step,

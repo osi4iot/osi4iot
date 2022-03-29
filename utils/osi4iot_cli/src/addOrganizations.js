@@ -54,7 +54,7 @@ module.exports = () => {
                     const osi4iotStateFile = JSON.stringify(osi4iotState);
                     fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
                 }
-                await runStack();
+                await confirmWorkerNodesLabelsAndRunStack(osi4iotState, currentNumOrgs, numOrgsToAdd);
             })
             .catch((error) => {
                 if (error.isTtyError) {
@@ -64,7 +64,43 @@ module.exports = () => {
                 }
             })
 
+    }
+}
 
-        //runStack(osi4iot)
+const confirmWorkerNodesLabelsAndRunStack = async (osi4iotState, currentNumOrgs, numOrgsToAdd) => {
+    const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
+    if (numSwarmNodes === 1) {
+        await runStack(osi4iotState);
+    } else {
+        console.log(clc.yellowBright("NOTE: Before continuing, type the following commands on the organization worker nodes:"));
+        const orgIni = currentNumOrgs + 1;
+        const orgEnd = currentNumOrgs + numOrgsToAdd;
+        for (iorg = orgIni; iorg <= orgEnd; iorg++) {
+            console.log(clc.yellowBright(`\nOrganization ${iorg}:`));
+            const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
+            const command = `    docker node update --label-add org_hash=${orgHash}`
+            console.log(clc.yellowBright(command));
+        }
+        console.log("");
+    
+        inquirer
+            .prompt([{
+                name: 'confirm_labels_added',
+                type: 'confirm',
+                message: 'Are new organization worker node labels added?',
+            }
+            ])
+            .then(async (answers) => {
+                if (answers.confirm_labels_added) {
+                    await runStack(osi4iotState);
+                }
+            })
+            .catch((error) => {
+                if (error.isTtyError) {
+                    console.log("Prompt couldn't be rendered in the current environment")
+                } else {
+                    console.log("Error in osi4iot cli: ", error)
+                }
+            });
     }
 }
