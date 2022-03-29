@@ -441,7 +441,7 @@ const platformInitiation = () => {
                 default: 'eth0',
                 when: () => numSwarmNodes > 1,
                 validate: function (networkInterface) {
-                    if (networkInterface.length < 4) {
+                    if (networkInterface.length >= 4) {
                         return true;
                     } else {
                         return "Please type at least 4 characters";
