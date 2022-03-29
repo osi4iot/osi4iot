@@ -57,6 +57,6 @@ utils/osi4iot_cli/osi4iot_stack.yml
 utils/osi4iot_cli/certs
 utils/osi4iot_cli/config
 utils/osi4iot_cli/secrets
-!utils/osi4iot_cli/dist
+utils/osi4iot_cli/dist
 !README.md
 
