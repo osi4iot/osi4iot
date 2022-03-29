@@ -1,0 +1,1 @@
+FROM lolhens/keepalived-swarm:latest

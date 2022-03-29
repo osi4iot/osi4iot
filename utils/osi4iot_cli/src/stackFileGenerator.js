@@ -19,7 +19,8 @@ const defaultServiceImageVersion = {
     admin_api: defaultVersion || 'latest',
     frontend: defaultVersion || 'latest',
     frontend_arm64: defaultVersion || 'latest',
-    master_device: defaultVersion || 'latest'
+    master_device: defaultVersion || 'latest',
+    keepalived: defaultVersion || 'latest'
 }
 
 module.exports = (osi4iotState) => {
@@ -653,6 +654,29 @@ module.exports = (osi4iotState) => {
     }
 
     if (numSwarmNodes > 1) {
+        if (platformArch === 'x86_64') {
+            osi4iotStackObj.services["keepalived"] = {
+                image: `ghcr.io/osi4iot/keepalived:${serviceImageVersion['keepalived']}`,
+                volumes: [
+                    '/var/run/docker.sock:/var/run/docker.sock',
+                    '/usr/bin/docker:/usr/bin/docker:ro'
+                ],
+                networks: [
+                    'internal_net'
+                ],
+                environment: [
+                    `KEEPALIVED_VIRTUAL_IPS=${osi4iotState.platformInfo.FLOATING_IP_ADDRES}`,
+                    `KEEPALIVED_INTERFACE=${osi4iotState.platformInfo.NETWORK_INTERFACE}`
+                ],
+                deploy: {
+                    mode: 'global',
+                    placement: {
+                        constraints: ["node.role==manager"]
+                    }
+                }
+            }
+        }
+
         osi4iotStackObj.volumes['mosquitto_data'] = {
             driver: 'local',
             driver_opts: {
