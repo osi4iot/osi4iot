@@ -8,6 +8,7 @@
     "cli-color": "^2.0.1",
     "crypto": "^1.0.1",
     "inquirer": "^8.2.1",
+    "inquirer-table-prompt": "^0.2.1",
     "js-yaml": "^4.1.0",
     "md5": "^2.3.0",
     "mkcert": "^1.5.0",

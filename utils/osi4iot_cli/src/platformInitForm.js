@@ -1,5 +1,7 @@
 const fs = require('fs');
 const inquirer = require('inquirer');
+const tablePrompt = require('inquirer-table-prompt');
+inquirer.registerPrompt("table", tablePrompt);
 const validUrl = require('valid-url');
 const timezoneValidator = require('timezone-validator');
 const { nanoid } = require('nanoid');
@@ -97,6 +99,131 @@ const platformInitiation = () => {
                 }
             },
             {
+                name: 'MAX_NUMBER_ORGS_EXPECTED',
+                message: 'Maximum number of organizations expected: ',
+                default: 2,
+                validate: function (maxNumOrgs) {
+                    let valid = false;
+                    if (maxNumOrgs !== "" && Number.isInteger(Number(maxNumOrgs))) valid = true;
+                    if (valid) {
+                        return true;
+                    } else {
+                        return "Please type an integer number";
+                    }
+                }
+            },
+            {
+                name: 'DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG',
+                message: 'Default maximum number of master devices per organization: ',
+                default: 3,
+                validate: function (maxNumMasterDevicePerOrg) {
+                    let valid = false;
+                    if (maxNumMasterDevicePerOrg !== "" && Number.isInteger(Number(maxNumMasterDevicePerOrg))) valid = true;
+                    if (valid) {
+                        return true;
+                    } else {
+                        return "Please type an integer number";
+                    }
+                }
+            },
+        ])
+        .then(answers => {
+            if (numSwarmNodes > 1) {
+                workerNodeFunctionQuestion(answers, numSwarmNodes);
+            } else {
+                finalQuestions(answers, numSwarmNodes);
+            }
+
+        });
+
+}
+
+
+const workerNodeFunctionQuestion = (oldAnswer, numSwarmNodes) => {
+    const masterNodes = [];
+    const workerNodes = [];
+    const workerNodesRows = [];
+    const outputLines = execSync("docker node ls").toString().split('\n');
+    for (let iline = 1; iline < outputLines.length; iline++) {
+        const lineWordsArray = outputLines[iline].split(' ').filter(elem => elem !== '').filter(elem => elem !== '*');
+        if (lineWordsArray.length === 5 && lineWordsArray[3] === 'Active') {
+            const value = workerNodes.length;
+            const name = lineWordsArray[1];
+            workerNodes.push(name);
+            const workerNodeRow = { name, value }
+            workerNodesRows.push(workerNodeRow);
+        }
+
+        if (lineWordsArray.length === 6 && lineWordsArray[3] === 'Active') {
+            const name = lineWordsArray[1];
+            masterNodes.push(name);
+        }        
+    }
+
+    const numOrgs = parseInt(oldAnswer.MAX_NUMBER_ORGS_EXPECTED, 10);
+    const workerFunctionColumns = [
+        {
+            name: "Platform",
+            value: "platform_worker"
+        },
+    ];
+
+    for (let iorg = 1; iorg <= numOrgs; iorg++) {
+        const workerFunctionColumn = {
+            name: `Org ${iorg}`,
+            value: `org_${iorg}`
+        }
+        workerFunctionColumns.push(workerFunctionColumn);
+    }
+
+    inquirer
+        .prompt([
+            {
+                type: "table",
+                name: "workerNodesFunction",
+                message: "Choose the function of every worker node",
+                pageSize: workerNodesRows.length,
+                columns: workerFunctionColumns,
+                rows: workerNodesRows
+            }
+        ])
+        .then(newAnswers => {
+            const answers = { ...oldAnswer, masterNodes, workerNodes, ...newAnswers }
+            finalQuestions(answers, numSwarmNodes)
+        });
+}
+
+const generateNodesLabelsAndRunStack = async (numSwarmNodes, osi4iotState) => {
+    if (numSwarmNodes === 1) {
+        await runStack(osi4iotState);
+    } else {
+        const prioritiesArray = [300, 200, 100];
+        for (let inode = 1; inode <= osi4iotState.MASTER_NODES; inode++) {
+            const nodeName = osi4iotState.MASTER_NODES[inode - 1];
+            const priority = prioritiesArray[inode - 1];
+            execSync(`docker node update --label-add KEEPALIVED_PRIORITY=${priority} ${nodeName}`);
+        }
+
+        for (let inode = 1; inode <= osi4iotState.WORKER_NODES; inode++) {
+            const workerNodeFunction = osi4iotState.WORKER_NODES_FUNCTION[inode-1];
+            const nodeName = osi4iotState.WORKER_NODES[inode-1];
+            execSync(`docker node update --label-rm platform_worker --label-rm org_hash ${nodeName}`);
+            if (workerNodeFunction === 'platform_worker') {
+                execSync(`docker node update --label-add  platform_worker=true ${nodeName}`);
+            } else if (workerNodeFunction.slice(0,3) === 'org') {
+                const iorg = parseInt(workerNodeFunction.split("_")[1], 10);
+                const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
+                execSync(`docker node update --label-add  org_hash=${orgHash} ${nodeName}`);
+            }
+        }
+        await runStack(osi4iotState);
+    }
+}
+
+const finalQuestions = (oldAnswers, numSwarmNodes) => {
+    inquirer
+        .prompt([
+            {
                 name: 'MIN_LONGITUDE',
                 message: 'Min longitude of the geographical zone of the platform: ',
                 default: -10.56884765625,
@@ -169,34 +296,6 @@ const platformInitiation = () => {
                         return true;
                     } else {
                         return "Please tye a valid timezone";
-                    }
-                }
-            },
-            {
-                name: 'MAX_NUMBER_ORGS_EXPECTED',
-                message: 'Maximum number of organizations expected: ',
-                default: 2,
-                validate: function (maxNumOrgs) {
-                    let valid = false;
-                    if (maxNumOrgs !== "" && Number.isInteger(Number(maxNumOrgs))) valid = true;
-                    if (valid) {
-                        return true;
-                    } else {
-                        return "Please type an integer number";
-                    }
-                }
-            },
-            {
-                name: 'DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG',
-                message: 'Default maximum number of master devices per organization: ',
-                default: 3,
-                validate: function (maxNumMasterDevicePerOrg) {
-                    let valid = false;
-                    if (maxNumMasterDevicePerOrg !== "" && Number.isInteger(Number(maxNumMasterDevicePerOrg))) valid = true;
-                    if (valid) {
-                        return true;
-                    } else {
-                        return "Please type an integer number";
                     }
                 }
             },
@@ -449,7 +548,8 @@ const platformInitiation = () => {
                 }
             }
         ])
-        .then(async (answers) => {
+        .then(async (newAnswers) => {
+            const answers = { ...oldAnswers, ...newAnswers }
             const osi4iotState = {
                 platformInfo: {
                     PLATFORM_NAME: answers.PLATFORM_NAME,
@@ -499,7 +599,10 @@ const platformInitiation = () => {
                     FLOATING_IP_ADDRES: answers.FLOATING_IP_ADDRES || '127.0.0.1',
                     NETWORK_INTERFACE: answers.NETWORK_INTERFACE || 'eth0',
                     IS_NODERED_VOLUME_ALREADY_CREATED: 'false',
-                    DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG: parseInt(answers.DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG, 10)
+                    DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG: parseInt(answers.DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG, 10),
+                    MASTER_NODES: answers.masterNodes,
+                    WORKER_NODES: answers.workerNodes,
+                    WORKER_NODES_FUNCTION: answers.workerNodesFunction,
                 },
                 certs: {
                     domain_certs: {
@@ -557,20 +660,20 @@ const platformInitiation = () => {
                 }
             }
 
-            console.log(clc.green('\nCreating certificates...'));
-            removeCerts(osi4iotState);
-            await certsGenerator(osi4iotState);
-            const osi4iotStateFile = JSON.stringify(osi4iotState);
-            fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+            // console.log(clc.green('\nCreating certificates...'));
+            // removeCerts(osi4iotState);
+            // await certsGenerator(osi4iotState);
+            // const osi4iotStateFile = JSON.stringify(osi4iotState);
+            // fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 
-            console.log(clc.green('Creating secrets...'))
-            secretsGenerator(osi4iotState);
-            console.log(clc.green('Creating configs...'))
-            configGenerator(osi4iotState);
-            console.log(clc.green('Creating stack file...\n'))
-            stackFileGenerator(osi4iotState);
+            // console.log(clc.green('Creating secrets...'))
+            // secretsGenerator(osi4iotState);
+            // console.log(clc.green('Creating configs...'))
+            // configGenerator(osi4iotState);
+            // console.log(clc.green('Creating stack file...\n'))
+            // stackFileGenerator(osi4iotState);
 
-            await confirmWorkerNodesLabelsAndRunStack(numSwarmNodes, osi4iotState);
+            await generateNodesLabelsAndRunStack(numSwarmNodes, osi4iotState);
         })
         .catch((error) => {
             if (error.isTtyError) {
@@ -579,48 +682,6 @@ const platformInitiation = () => {
                 console.log("Error in osi4iot cli: ", error)
             }
         })
-}
-
-const confirmWorkerNodesLabelsAndRunStack = async (numSwarmNodes, osi4iotState) => {
-    if (numSwarmNodes === 1) {
-        await runStack(osi4iotState);
-    } else {
-        console.log(clc.yellowBright("NOTE: Before continuing, type the following commands on the organization worker nodes:"));
-        for (iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
-            console.log(clc.yellowBright(`\nOrganization ${iorg}:`));
-            const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
-            const command = `    docker node update --label-add org_hash=${orgHash}`
-            console.log(clc.yellowBright(command));
-        }
-        console.log("");
-    
-        inquirer
-            .prompt([{
-                name: 'confirm_labels_added',
-                type: 'confirm',
-                message: 'Are all organization worker node labels added?',
-                validate: function (confirmation) {
-                    if (confirmation) {
-                        return true;
-                    } else {
-                        return "Please add the organization worker node labels before run the platform";
-                    }
-                } 
-            }
-            ])
-            .then(async (answers) => {
-                if (answers.confirm_labels_added) {
-                    await runStack(osi4iotState);
-                }
-            })
-            .catch((error) => {
-                if (error.isTtyError) {
-                    console.log("Prompt couldn't be rendered in the current environment")
-                } else {
-                    console.log("Error in osi4iot cli: ", error)
-                }
-            });
-    }
 }
 
 module.exports = async () => {
