@@ -7,7 +7,7 @@ const timezoneValidator = require('timezone-validator');
 const { nanoid } = require('nanoid');
 const execSync = require('child_process').execSync;
 const bcrypt = require('bcryptjs');
-var clc = require("cli-color");
+const clc = require("cli-color");
 const removeCerts = require('./removeCerts');
 const certsGenerator = require('./certsGenerator');
 const secretsGenerator = require('./secretsGenerator');
@@ -188,6 +188,11 @@ const workerNodeFunctionQuestion = (oldAnswer, numSwarmNodes) => {
             }
         ])
         .then(newAnswers => {
+            for (let inode = 0; inode < workerNodesRows.length; inode++) {
+                if (newAnswers.workerNodesFunction[inode] === undefined) {
+                    newAnswers.workerNodesFunction = "undefined";
+                }
+            }
             const answers = { ...oldAnswer, masterNodes, workerNodes, ...newAnswers }
             finalQuestions(answers, numSwarmNodes)
         });
@@ -198,19 +203,27 @@ const generateNodesLabelsAndRunStack = async (numSwarmNodes, osi4iotState) => {
         await runStack(osi4iotState);
     } else {
         const prioritiesArray = [300, 200, 100];
-        for (let inode = 1; inode <= osi4iotState.MASTER_NODES; inode++) {
-            const nodeName = osi4iotState.MASTER_NODES[inode - 1];
+        for (let inode = 1; inode <= osi4iotState.platformInfo.MASTER_NODES.length; inode++) {
+            const nodeName = osi4iotState.platformInfo.MASTER_NODES[inode - 1];
             const priority = prioritiesArray[inode - 1];
             execSync(`docker node update --label-add KEEPALIVED_PRIORITY=${priority} ${nodeName}`);
         }
 
-        for (let inode = 1; inode <= osi4iotState.WORKER_NODES; inode++) {
-            const workerNodeFunction = osi4iotState.WORKER_NODES_FUNCTION[inode-1];
-            const nodeName = osi4iotState.WORKER_NODES[inode-1];
-            execSync(`docker node update --label-rm platform_worker --label-rm org_hash ${nodeName}`);
+        for (let inode = 1; inode <= osi4iotState.platformInfo.WORKER_NODES.length; inode++) {
+            const workerNodeFunction = osi4iotState.platformInfo.WORKER_NODES_FUNCTION[inode-1];
+            const nodeName = osi4iotState.platformInfo.WORKER_NODES[inode - 1];
+
             if (workerNodeFunction === 'platform_worker') {
+                const labelString = execSync(`docker node inspect ${nodeName}`);
+                if (labelString.includes("org_hash")) {
+                    execSync(`docker node update --label-rm org_hash ${nodeName}`);
+                }
                 execSync(`docker node update --label-add  platform_worker=true ${nodeName}`);
-            } else if (workerNodeFunction.slice(0,3) === 'org') {
+            } else if (workerNodeFunction.slice(0, 3) === 'org') {
+                const labelString = execSync(`docker node inspect ${nodeName}`);
+                if (labelString.includes("platform_worker")) {
+                    execSync(`docker node update --label-rm platform_worker ${nodeName}`);
+                }
                 const iorg = parseInt(workerNodeFunction.split("_")[1], 10);
                 const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
                 execSync(`docker node update --label-add  org_hash=${orgHash} ${nodeName}`);
@@ -660,18 +673,18 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
                 }
             }
 
-            // console.log(clc.green('\nCreating certificates...'));
-            // removeCerts(osi4iotState);
-            // await certsGenerator(osi4iotState);
-            // const osi4iotStateFile = JSON.stringify(osi4iotState);
-            // fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+            console.log(clc.green('\nCreating certificates...'));
+            removeCerts(osi4iotState);
+            await certsGenerator(osi4iotState);
+            const osi4iotStateFile = JSON.stringify(osi4iotState);
+            fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 
-            // console.log(clc.green('Creating secrets...'))
-            // secretsGenerator(osi4iotState);
-            // console.log(clc.green('Creating configs...'))
-            // configGenerator(osi4iotState);
-            // console.log(clc.green('Creating stack file...\n'))
-            // stackFileGenerator(osi4iotState);
+            console.log(clc.green('Creating secrets...'))
+            secretsGenerator(osi4iotState);
+            console.log(clc.green('Creating configs...'))
+            configGenerator(osi4iotState);
+            console.log(clc.green('Creating stack file...\n'))
+            stackFileGenerator(osi4iotState);
 
             await generateNodesLabelsAndRunStack(numSwarmNodes, osi4iotState);
         })
