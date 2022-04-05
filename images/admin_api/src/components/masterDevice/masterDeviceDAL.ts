@@ -30,7 +30,7 @@ export const getMasterDevicesByOrgsIdArray = async (orgsIdArray: number[]): Prom
 									FROM grafanadb.master_device
 									FULL JOIN grafanadb.device_mdevice ON grafanadb.device_mdevice.master_device_id = grafanadb.master_device.id
 									FULL JOIN grafanadb.device ON grafanadb.device.id = grafanadb.device_mdevice.device_id
-									WHERE grafanadb.master_device.org_id = ANY($1::bigint[]) AND WHERE grafanadb.master_device.id IS NOT NULL
+									WHERE grafanadb.master_device.org_id = ANY($1::bigint[]) AND grafanadb.master_device.id IS NOT NULL
 									ORDER BY grafanadb.master_device.id ASC,
 											grafanadb.master_device.org_id ASC,
 											grafanadb.device.group_id ASC,

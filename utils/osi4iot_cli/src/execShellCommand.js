@@ -1,7 +1,7 @@
-const { spawn } = require('child_process');
+import { spawn } from 'child_process';
 
-module.exports = (cmd) => {
-    commandParameters = cmd.split(" ");
+export default function(cmd) {
+    const commandParameters = cmd.split(" ");
     return new Promise(function (resolve, reject) {
         const child = spawn(commandParameters[0], [...commandParameters.slice(1)]);
         child.stdout.on('data', (chunk) => {

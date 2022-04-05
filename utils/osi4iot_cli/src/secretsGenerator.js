@@ -1,7 +1,7 @@
-const fs = require('fs');
-const updateAdminApiSecrets = require('./updateAdminApiSecrets');
+import fs from 'fs';
+import updateAdminApiSecrets from './updateAdminApiSecrets.js';
 
-module.exports = (osi4iotState) => {
+export default function(osi4iotState) {
 
     const secrets_dir = "./secrets"
     if (!fs.existsSync(secrets_dir)) fs.mkdirSync(secrets_dir);

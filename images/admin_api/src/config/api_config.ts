@@ -78,7 +78,7 @@ const process_env: IProcessEnv = {
 const readDockerFiles = (dockerFileName: string) => {
 	if (fs.existsSync(dockerFileName)) {
 		try {
-			const data = fs.readFileSync(dockerFileName, 'UTF-8');
+			const data = fs.readFileSync(dockerFileName, {encoding:'utf8', flag:'r'});
 			const lines = data.split(/\r?\n/);
 			lines.forEach((line) => {
 				const splittedLine = line.split("=");

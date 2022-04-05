@@ -1,8 +1,8 @@
-const fs = require('fs');
+import fs from 'fs';
 
-module.exports = () => {
+export default function() {
     let areConfigsCreated = true;
-    
+
     const admin_api_conf_dir = "./config/admin_api";
     if (!fs.existsSync(admin_api_conf_dir)) {
         areConfigsCreated = false;

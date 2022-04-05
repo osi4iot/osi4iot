@@ -1,7 +1,7 @@
-const execSync = require('child_process').execSync;
-var clc = require("cli-color");
+import {execSync} from 'child_process';
+import clc from 'cli-color';
 
-module.exports = async () => {
+export default async function() {
     const response = execSync("docker service ls").toString();
     const numServices = response.split('\n').length - 2;
     if (numServices === 0) {

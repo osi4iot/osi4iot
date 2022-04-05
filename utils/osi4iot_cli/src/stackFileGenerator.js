@@ -1,7 +1,7 @@
-const yaml = require('js-yaml');
-const os = require('os');
-const fs = require('fs');
-const execSync = require('child_process').execSync;
+import yaml from 'js-yaml';
+import os from 'os';
+import fs from 'fs';
+import { execSync } from 'child_process';
 
 const defaultVersion = '1.1.0'
 
@@ -23,7 +23,7 @@ const defaultServiceImageVersion = {
     keepalived: defaultVersion || 'latest'
 }
 
-module.exports = (osi4iotState) => {
+export default function(osi4iotState) {
     const arch = os.arch();
     let platformArch = 'x86_64';
     if (arch === 'x64') {
@@ -78,12 +78,12 @@ module.exports = (osi4iotState) => {
                     {
                         source: 'iot_platform_cert',
                         target: 'iot_platform_cert.cer',
-                        mode: 0400
+                        mode: 0o400
                     },
                     {
                         source: 'iot_platform_key',
                         target: 'iot_platform.key',
-                        mode: 0400
+                        mode: 0o400
                     }
 
                 ],
@@ -117,39 +117,39 @@ module.exports = (osi4iotState) => {
                     {
                         source: 'iot_platform_ca',
                         target: '/mosquitto/wss_certs/iot_platform_ca.pem',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'iot_platform_cert',
                         target: '/mosquitto/wss_certs/iot_platform_cert.cer',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'iot_platform_key',
                         target: '/mosquitto/wss_certs/iot_platform.key',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'mqtt_certs_ca_cert',
                         target: '/mosquitto/mqtt_certs/ca.crt',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'mqtt_broker_cert',
                         target: '/mosquitto/mqtt_certs/server.crt',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'mqtt_broker_key',
                         target: '/mosquitto/mqtt_certs/server.key',
-                        mode: 0444
+                        mode: 0o444
                     }
                 ],
                 configs: [
                     {
                         source: 'mosquitto_conf',
                         target: '/mosquitto/config/mosquitto.conf',
-                        mode: 0440
+                        mode: 0o440
                     }
                 ],
                 deploy: {
@@ -165,7 +165,7 @@ module.exports = (osi4iotState) => {
             agent: {
                 image: `ghcr.io/osi4iot/portainer_agent:${serviceImageVersion['agent']}`,
                 environment: [
-                    AGENT_CLUSTER_ADDR = 'tasks.agent'
+                    "AGENT_CLUSTER_ADDR=tasks.agent"
                 ],
                 volumes: [
                     '/var/run/docker.sock:/var/run/docker.sock',
@@ -219,7 +219,7 @@ module.exports = (osi4iotState) => {
                     {
                         source: 'pgadmin4',
                         target: 'pgadmin4.txt',
-                        mode: 0400
+                        mode: 0o400
                     }
                 ],
                 volumes: [
@@ -261,17 +261,17 @@ module.exports = (osi4iotState) => {
                     {
                         source: 'postgres_user',
                         target: 'postgres_user.txt',
-                        mode: 0400
+                        mode: 0o400
                     },
                     {
                         source: 'postgres_password',
                         target: 'postgres_password.txt',
-                        mode: 0400
+                        mode: 0o400
                     },
                     {
                         source: 'postgres_grafana',
                         target: 'postgres_grafana.txt',
-                        mode: 0400
+                        mode: 0o400
                     }
 
                 ],
@@ -312,29 +312,29 @@ module.exports = (osi4iotState) => {
                     {
                         source: 'mqtt_certs_ca_cert',
                         target: '/data/certs/ca.crt',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'mqtt_nodered_client_cert',
                         target: '/data/certs/client.crt',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'mqtt_nodered_client_key',
                         target: '/data/certs/client.key',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'nodered',
                         target: 'nodered.txt',
-                        mode: 0400
+                        mode: 0o400
                     }
                 ],
                 configs: [
                     {
                         source: 'nodered_conf',
                         target: '/run/configs/nodered.conf',
-                        mode: 0440
+                        mode: 0o440
                     }
                 ],
                 deploy: {
@@ -374,14 +374,14 @@ module.exports = (osi4iotState) => {
                     {
                         source: 'grafana',
                         target: 'grafana.txt',
-                        mode: 0400
+                        mode: 0o400
                     }
                 ],
                 configs: [
                     {
                         source: 'grafana_conf',
                         target: '/run/configs/grafana.conf',
-                        mode: 0444
+                        mode: 0o444
                     }
                 ],
                 deploy: {
@@ -410,7 +410,8 @@ module.exports = (osi4iotState) => {
                 }
             },
             admin_api: {
-                image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
+                // image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
+                image: 'admin_api_aux',
                 networks: [
                     'internal_net',
                     'traefik_public'
@@ -423,24 +424,24 @@ module.exports = (osi4iotState) => {
                     {
                         source: 'mqtt_certs_ca_cert',
                         target: 'ca.crt',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'mqtt_certs_ca_key',
                         target: 'ca.key',
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: 'admin_api',
                         target: 'admin_api.txt',
-                        mode: 0444
+                        mode: 0o444
                     }
                 ],
                 configs: [
                     {
                         source: 'admin_api_conf',
                         target: '/run/configs/admin_api.conf',
-                        mode: 0444
+                        mode: 0o444
                     }
 
                 ],
@@ -487,7 +488,7 @@ module.exports = (osi4iotState) => {
                     {
                         source: 'frontend_conf',
                         target: '/run/configs/frontend.conf',
-                        mode: 0444
+                        mode: 0o444
                     }
                 ],
                 networks: [
@@ -754,14 +755,14 @@ module.exports = (osi4iotState) => {
         }
     }
 
-    for (iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
+    for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
         const orgMasterDeviceHashes = [];
         const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
         if (numSwarmNodes === 1) {
             execSync(`docker node update --label-add org_hash=${orgHash} ${currentNodeId}`);
         }
         const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
-        for (idev = 1; idev <= num_master_devices; idev++) {
+        for (let idev = 1; idev <= num_master_devices; idev++) {
             const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
             const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].is_volume_created;
             orgMasterDeviceHashes.push(masterDeviceHash);
@@ -786,17 +787,17 @@ module.exports = (osi4iotState) => {
                     {
                         source: "mqtt_certs_ca_cert",
                         target: "/data/certs/ca.crt",
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: `${serviceName}_mqtt_client_cert`,
                         target: "/data/certs/client.crt",
-                        mode: 0444
+                        mode: 0o444
                     },
                     {
                         source: `${serviceName}_mqtt_client_key`,
                         target: "/data/certs/client.key",
-                        mode: 0444
+                        mode: 0o444
                     }
                 ],
                 deploy: {

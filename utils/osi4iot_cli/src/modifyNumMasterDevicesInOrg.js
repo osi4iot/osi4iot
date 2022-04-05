@@ -1,16 +1,17 @@
-const fs = require('fs');
-const inquirer = require('inquirer');
-const runStack = require('./runStack');
-const { nanoid } = require('nanoid');
-const updateAdminApiSecrets = require('./updateAdminApiSecrets');
+import fs from 'fs';
+import inquirer from 'inquirer';
+import { nanoid } from 'nanoid';
+import clc from 'cli-color';
+import runStack from './runStack.js';
+import updateAdminApiSecrets from './updateAdminApiSecrets.js';
 
-module.exports = async () => {
+export default function() {
     if (!fs.existsSync('./osi4iot_state.json')) {
         console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
         return;
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
-        osi4iotState = JSON.parse(osi4iotStateText);
+        const osi4iotState = JSON.parse(osi4iotStateText);
         const currentNumOrgs = osi4iotState.certs.mqtt_certs.organizations.length;
         const masterDevicesInOrgs = [];
         let orgIndex = 0;

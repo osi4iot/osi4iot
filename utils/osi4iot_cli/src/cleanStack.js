@@ -1,7 +1,7 @@
-const execSync = require('child_process').execSync;
-const execShellCommand = require('./execShellCommand');
+import { execSync } from 'child_process';
+import execShellCommand from './execShellCommand.js';
 
-module.exports = async () => {
+export default async function() {
     const response = execSync("docker service ls");
     const numServices = response.toString().split('\n').length - 2;
     if (numServices !== 0) {

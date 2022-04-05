@@ -1,7 +1,7 @@
-const fs = require('fs');
-const md5 = require('md5');
+import fs from 'fs';
+import md5 from 'md5';
 
-module.exports = (osi4iotState) => {
+export default function(osi4iotState) {
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const limitTimestamp = currentTimestamp - 3600 * 24 * 15; //15 days of margin
 
@@ -51,9 +51,9 @@ module.exports = (osi4iotState) => {
         certsUpdateIsNeedeed = true;
     }
 
-    for (iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
+    for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
         const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
-        for (idev = 1; idev <= num_master_devices; idev++) {
+        for (let idev = 1; idev <= num_master_devices; idev++) {
             if (osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp < limitTimestamp) {
                 certsUpdateIsNeedeed = true;
             }

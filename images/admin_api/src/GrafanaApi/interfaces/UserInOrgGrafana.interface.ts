@@ -1,5 +1,5 @@
 export default interface IUserInOrgGrafana {
-	orgId: SVGAnimatedNumberList
+	orgId: number;
 	userId: number;
 	email: string;
 	name: string;

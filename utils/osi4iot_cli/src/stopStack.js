@@ -1,5 +1,5 @@
-const execShellCommand = require('./execShellCommand');
+import execShellCommand from './execShellCommand.js';
 
-module.exports = async () => {
+export default async function() {
     await execShellCommand("docker stack rm osi4iot");
 }

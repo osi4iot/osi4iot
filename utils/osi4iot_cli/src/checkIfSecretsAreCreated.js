@@ -1,10 +1,10 @@
-const fs = require('fs');
+import fs from 'fs';
 
-module.exports = (osi4iotState) => {
+export default function(osi4iotState) {
     let areSecretsCreated = true;
     if (!fs.existsSync('./secrets/admin_api.txt')) {
         areSecretsCreated = false;
-    } 
+    }
 
     if (!fs.existsSync('./secrets/grafana.txt')) {
         areSecretsCreated = false;

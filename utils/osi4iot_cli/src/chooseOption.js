@@ -1,13 +1,13 @@
-const inquirer = require('inquirer');
-const platformInitForm = require('./platformInitForm');
-const runStack = require('./runStack');
-const stopStack = require('./stopStack');
-const stackStatus = require('./stackStatus');
-const cleanStack = require('./cleanStack');
-const addOrganizations = require('./addOrganizations');
-const modifyNumMasterDevicesInOrg = require('./modifyNumMasterDevicesInOrg');
+import inquirer from 'inquirer';
+import platformInitForm from './platformInitForm.js';
+import runStack from './runStack.js';
+import stopStack from './stopStack.js';
+import stackStatus from './stackStatus.js';
+import cleanStack from './cleanStack.js';
+import addOrganizations from './addOrganizations.js';
+import modifyNumMasterDevicesInOrg from './modifyNumMasterDevicesInOrg.js';
 
-module.exports = () => {
+export default function() {
     inquirer
         .prompt([
             {

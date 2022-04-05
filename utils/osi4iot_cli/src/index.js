@@ -1,12 +1,12 @@
-const platformInitForm = require('./platformInitForm');
-const runStack = require('./runStack');
-const stopStack = require('./stopStack');
-const stackStatus = require('./stackStatus');
-const cleanStack = require('./cleanStack');
-const chooseOption = require('./chooseOption');
-const addOrganizations = require('./addOrganizations');
-const addMasterDevicesToOrg = require('./modifyNumMasterDevicesInOrg');
-var clc = require("cli-color");
+import clc from 'cli-color';
+import platformInitForm from './platformInitForm.js';
+import runStack from './runStack.js';
+import stopStack from './stopStack.js';
+import stackStatus from './stackStatus.js';
+import cleanStack from './cleanStack.js';
+import chooseOption from './chooseOption.js';
+import addOrganizations from './addOrganizations.js';
+import modifyNumMasterDevicesInOrg from './modifyNumMasterDevicesInOrg.js';
 
 const cliOptions = [
     '- init: Request information for configuration and initiate plataform.',
@@ -32,7 +32,7 @@ const osi4iotCli = async () => {
                 await addOrganizations();
                 break;
             case 'num_mdevices':
-                await addMasterDevicesToOrg();
+                await modifyNumMasterDevicesInOrg();
                 break;
             case 'stop':
                 await stopStack();

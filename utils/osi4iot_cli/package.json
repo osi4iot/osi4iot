@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
+  "type": "module",
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cli-color": "^2.0.1",

@@ -1,23 +1,22 @@
-const fs = require('fs');
-const inquirer = require('inquirer');
-const tablePrompt = require('inquirer-table-prompt');
-inquirer.registerPrompt("table", tablePrompt);
-const validUrl = require('valid-url');
-const timezoneValidator = require('timezone-validator');
-const { nanoid } = require('nanoid');
-const execSync = require('child_process').execSync;
-const bcrypt = require('bcryptjs');
-const clc = require("cli-color");
-const removeCerts = require('./removeCerts');
-const certsGenerator = require('./certsGenerator');
-const secretsGenerator = require('./secretsGenerator');
-const configGenerator = require('./configGenerator');
-const stackFileGenerator = require('./stackFileGenerator');
-const runStack = require('./runStack');
+import fs from 'fs';
+import validUrl from 'valid-url';
+import timezoneValidator from 'timezone-validator';
+import { nanoid } from 'nanoid';
+import { execSync } from 'child_process';
+import bcrypt from 'bcryptjs';
+import clc from "cli-color";
+import removeCerts from './removeCerts.js';
+import certsGenerator from './certsGenerator.js';
+import secretsGenerator from './secretsGenerator.js';
+import configGenerator from './configGenerator.js';
+import stackFileGenerator from './stackFileGenerator.js';
+import runStack from './runStack.js';
+import inquirer from './inquirer.js';
+
 
 const platformInitiation = () => {
     const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
-
+    
     inquirer
         .prompt([
             {
@@ -78,7 +77,7 @@ const platformInitiation = () => {
                 name: 'PLATFORM_ADMIN_EMAIL',
                 message: 'Platform admin email: ',
                 validate: function (email) {
-                    valid = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
+                    const valid = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
                     if (valid) {
                         return true;
                     } else {
@@ -90,7 +89,7 @@ const platformInitiation = () => {
                 name: 'PLATFORM_ADMIN_PASSWORD',
                 message: 'Platform admin password: ',
                 validate: function (password) {
-                    let valid = /^[A-Za-z]\w{7,14}$/.test(password);
+                    const valid = /^[A-Za-z]\w{7,14}$/.test(password);
                     if (valid) {
                         return true;
                     } else {
@@ -104,11 +103,11 @@ const platformInitiation = () => {
                 default: 2,
                 validate: function (maxNumOrgs) {
                     let valid = false;
-                    if (maxNumOrgs !== "" && Number.isInteger(Number(maxNumOrgs))) valid = true;
+                    if (maxNumOrgs !== "" && Number.isInteger(Number(maxNumOrgs)) && Number(maxNumOrgs) >= 1) valid = true;
                     if (valid) {
                         return true;
                     } else {
-                        return "Please type an integer number";
+                        return "Please type an integer number greater or equal to one";
                     }
                 }
             },
@@ -157,7 +156,7 @@ const workerNodeFunctionQuestion = (oldAnswer, numSwarmNodes) => {
         if (lineWordsArray.length === 6 && lineWordsArray[3] === 'Active') {
             const name = lineWordsArray[1];
             masterNodes.push(name);
-        }        
+        }
     }
 
     const numOrgs = parseInt(oldAnswer.MAX_NUMBER_ORGS_EXPECTED, 10);
@@ -210,7 +209,7 @@ const generateNodesLabelsAndRunStack = async (numSwarmNodes, osi4iotState) => {
         }
 
         for (let inode = 1; inode <= osi4iotState.platformInfo.WORKER_NODES.length; inode++) {
-            const workerNodeFunction = osi4iotState.platformInfo.WORKER_NODES_FUNCTION[inode-1];
+            const workerNodeFunction = osi4iotState.platformInfo.WORKER_NODES_FUNCTION[inode - 1];
             const nodeName = osi4iotState.platformInfo.WORKER_NODES[inode - 1];
 
             if (workerNodeFunction === 'platform_worker') {
@@ -393,7 +392,7 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
             },
             {
                 name: 'TELEGRAM_BOTTOKEN',
-                message: 'Telegram boottoken: ',
+                message: 'Telegram boottoken for main organization default group: ',
                 validate: function (text) {
                     if (text.length >= 20) {
                         return true;
@@ -430,7 +429,7 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
                 name: 'NOTIFICATIONS_EMAIL_ADDRESS',
                 message: 'Email account for platform notifications: ',
                 validate: function (email) {
-                    valid = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
+                    const valid = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
                     if (valid) {
                         return true;
                     } else {
@@ -697,7 +696,7 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
         })
 }
 
-module.exports = async () => {
+export default async function () {
     if (fs.existsSync('./osi4iot_state.json')) {
         inquirer
             .prompt([{

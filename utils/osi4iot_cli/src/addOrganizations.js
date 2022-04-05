@@ -1,20 +1,19 @@
-const fs = require('fs');
-const inquirer = require('inquirer');
-const runStack = require('./runStack');
-const { nanoid } = require('nanoid');
-const clc = require("cli-color");
-const execSync = require('child_process').execSync;
-const updateAdminApiSecrets = require('./updateAdminApiSecrets');
+import fs from 'fs';
+import inquirer from 'inquirer';
+import { nanoid } from 'nanoid';
+import clc from 'cli-color';
+import { execSync } from 'child_process'
+import runStack from './runStack.js';
+import updateAdminApiSecrets from './updateAdminApiSecrets.js';
 
-module.exports = () => {
+export default function() {
     if (!fs.existsSync('./osi4iot_state.json')) {
         console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
         return;
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
-        osi4iotState = JSON.parse(osi4iotStateText);
+        const osi4iotState = JSON.parse(osi4iotStateText);
         const currentNumOrgs = osi4iotState.certs.mqtt_certs.organizations.length;
-        const defaultMaxNumMasterDevPerOrg = osi4iotState.platformInfo.DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG;
         inquirer
             .prompt([
                 {
@@ -132,6 +131,7 @@ const generateWorkerNodesLabelsAndRunStack = async (osi4iotState, currentNumOrgs
 }
 
 const updateSecretsAndRunStack = async (osi4iotState, currentNumOrgs, numOrgsToAdd) => {
+    const defaultMaxNumMasterDevPerOrg = osi4iotState.platformInfo.DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG;
     for (let iorg = currentNumOrgs; iorg < (currentNumOrgs + numOrgsToAdd); iorg++) {
         osi4iotState.certs.mqtt_certs.organizations[iorg] = {
             org_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
@@ -152,5 +152,5 @@ const updateSecretsAndRunStack = async (osi4iotState, currentNumOrgs, numOrgsToA
     updateAdminApiSecrets(osi4iotState);
     const osi4iotStateFile = JSON.stringify(osi4iotState);
     fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
-    await runStack(osi4iotState);
+    await runStack();
 }

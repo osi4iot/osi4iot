@@ -1,9 +1,9 @@
-const mkcert = require('mkcert');
-const fs = require('fs');
-const md5 = require('md5');
-const execSync = require('child_process').execSync;
+import mkcert from 'mkcert';
+import fs from 'fs';
+import md5 from 'md5';
+import { execSync } from 'child_process';
 
-module.exports = async (osi4iotState) => {
+export default async function(osi4iotState) {
     const currentTimestamp = Math.floor(Date.now() / 1000);
     const limitTimestamp = currentTimestamp - 3600 * 24 * 15; //15 days of margin
     const defaultValidityDays = osi4iotState.platformInfo.MQTT_SSL_CERTS_VALIDITY_DAYS;
@@ -53,7 +53,7 @@ module.exports = async (osi4iotState) => {
         const iotPlatformCertExpDate = iotPlatformCert.toString().split("=")[1];
         const iotPlatformCertExpTimestamp = Date.parse(iotPlatformCertExpDate);
         osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp = iotPlatformCertExpTimestamp;
-        osi4iotState.certs.domain_certs.iot_platform_cert_name= `iot_platform_cert_${md5(osi4iotState.certs.domain_certs.ssl_cert_crt)}`;
+        osi4iotState.certs.domain_certs.iot_platform_cert_name = `iot_platform_cert_${md5(osi4iotState.certs.domain_certs.ssl_cert_crt)}`;
     }
 
     let ca = {
@@ -126,9 +126,9 @@ module.exports = async (osi4iotState) => {
     }
 
     const masterDeviceCertsPromises = []
-    for (iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
+    for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
         const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
-        for (idev = 1; idev <= num_master_devices; idev++) {
+        for (let idev = 1; idev <= num_master_devices; idev++) {
             const mdevices_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt;
             const mdevices_client_key = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key;
             const mdevices_exp_timestamp = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp;
@@ -150,9 +150,9 @@ module.exports = async (osi4iotState) => {
     const masterDeviceCerts = await Promise.all(masterDeviceCertsPromises).catch(err => console.log("Error in master device certs ", err));
 
     let counter = 0;
-    for (iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
+    for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
         const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
-        for (idev = 1; idev <= num_master_devices; idev++) {
+        for (let idev = 1; idev <= num_master_devices; idev++) {
             const mdevices_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt;
             const mdevices_client_key = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key;
             const mdevices_exp_timestamp = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp;

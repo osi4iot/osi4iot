@@ -1,4 +1,4 @@
-const fs = require('fs');
+import fs from 'fs';
 
 const insertQuotesInText = (key, value, carrReturn) => {
     let text = `${key}=${value}${carrReturn}`;
@@ -6,8 +6,7 @@ const insertQuotesInText = (key, value, carrReturn) => {
     return text;
 }
 
-module.exports = (osi4iotState) => {
-
+export default function(osi4iotState) {
     const config_dir = "./config"
     if (!fs.existsSync(config_dir)) {
         fs.mkdirSync(config_dir);
@@ -43,14 +42,14 @@ module.exports = (osi4iotState) => {
     const adminApiConfig = [
         `PLATFORM_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "_")}\n`,
         `DOMAIN_NAME=${osi4iotState.platformInfo.DOMAIN_NAME}\n`,
-        insertQuotesInText("PLATFORM_PHRASE", osi4iotState.platformInfo.PLATFORM_PHRASE,"\n"),
-        insertQuotesInText("MAIN_ORGANIZATION_NAME", osi4iotState.platformInfo.MAIN_ORGANIZATION_NAME,"\n"),
+        insertQuotesInText("PLATFORM_PHRASE", osi4iotState.platformInfo.PLATFORM_PHRASE, "\n"),
+        insertQuotesInText("MAIN_ORGANIZATION_NAME", osi4iotState.platformInfo.MAIN_ORGANIZATION_NAME, "\n"),
         `MAIN_ORGANIZATION_ACRONYM=${osi4iotState.platformInfo.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")}\n`,
-        insertQuotesInText("MAIN_ORGANIZATION_ADDRESS1", osi4iotState.platformInfo.MAIN_ORGANIZATION_ADDRESS1,"\n"),
-        insertQuotesInText("MAIN_ORGANIZATION_CITY", osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY,"\n"),
+        insertQuotesInText("MAIN_ORGANIZATION_ADDRESS1", osi4iotState.platformInfo.MAIN_ORGANIZATION_ADDRESS1, "\n"),
+        insertQuotesInText("MAIN_ORGANIZATION_CITY", osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY, "\n"),
         `MAIN_ORGANIZATION_ZIP_CODE=${osi4iotState.platformInfo.MAIN_ORGANIZATION_ZIP_CODE}\n`,
-        insertQuotesInText("MAIN_ORGANIZATION_STATE", osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE,"\n"),
-        insertQuotesInText("MAIN_ORGANIZATION_COUNTRY", osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY,""),
+        insertQuotesInText("MAIN_ORGANIZATION_STATE", osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE, "\n"),
+        insertQuotesInText("MAIN_ORGANIZATION_COUNTRY", osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY, ""),
     ];
 
     if (fs.existsSync('./config/admin_api/admin_api.conf')) {
@@ -85,7 +84,7 @@ module.exports = (osi4iotState) => {
     const grafanaConfig = [
         `DOMAIN_NAME=${osi4iotState.platformInfo.DOMAIN_NAME}\n`,
         `DEFAULT_TIME_ZONE=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}\n`,
-        insertQuotesInText("MAIN_ORGANIZATION_NAME", osi4iotState.platformInfo.MAIN_ORGANIZATION_NAME,"\n"),
+        insertQuotesInText("MAIN_ORGANIZATION_NAME", osi4iotState.platformInfo.MAIN_ORGANIZATION_NAME, "\n"),
         `MAIN_ORGANIZATION_ACRONYM=${osi4iotState.platformInfo.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")}`,
     ];
 

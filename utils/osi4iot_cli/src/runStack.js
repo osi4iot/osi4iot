@@ -1,16 +1,17 @@
-const fs = require('fs');
-const execSync = require('child_process').execSync;
-const execShellCommand = require('./execShellCommand')
-const checkCertsValidity = require('./checkCertsValidity');
-const checkIfSecretsAreCreated = require('./checkIfSecretsAreCreated');
-const checkIfConfigsAreCreated = require('./checkIfConfigsAreCreated');
-const secretsGenerator = require('./secretsGenerator');
-const configGenerator = require('./configGenerator');
-const stackFileGenerator = require('./stackFileGenerator');
-const checkIfAllNoderedVolumesAreCreated = require('./checkIfAllNoderedVolumesAreCreated');
-const markAsCreatedAllNoderedVolumes = require('./markAsCreatedAllNoderedVolumes');
-const certsGenerator = require('./certsGenerator');
-var clc = require("cli-color");
+import fs from 'fs';
+import clc from 'cli-color';
+import { execSync } from 'child_process';
+import execShellCommand from './execShellCommand.js';
+import checkCertsValidity from './checkCertsValidity.js';
+import checkIfSecretsAreCreated from './checkIfSecretsAreCreated.js';
+import checkIfConfigsAreCreated from './checkIfConfigsAreCreated.js';
+import secretsGenerator from './secretsGenerator.js';
+import configGenerator from './configGenerator.js';
+import stackFileGenerator from './stackFileGenerator.js';
+import checkIfAllNoderedVolumesAreCreated from './checkIfAllNoderedVolumesAreCreated.js';
+import markAsCreatedAllNoderedVolumes from './markAsCreatedAllNoderedVolumes.js';
+import certsGenerator from './certsGenerator.js';
+
 const dots = [
     "       ",
     ".      ",
@@ -22,7 +23,7 @@ const dots = [
     ".......",
 ];
 
-module.exports = async (osi4iotState = null) => {
+export default async function(osi4iotState = null) {
     if (!osi4iotState) {
         if (!fs.existsSync('./osi4iot_state.json')) {
             console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
@@ -109,7 +110,7 @@ module.exports = async (osi4iotState = null) => {
                         } else {
                             console.log("\nRemoving unused containers and images.");
                             execSync("docker system prune --force");
-                            console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!"))
+                            console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!\n"));
                             process.stdout.write('\u001B[?25h');
                             resolve("Finish");
                         }
@@ -137,7 +138,7 @@ module.exports = async (osi4iotState = null) => {
                                     if (!continuar) {
                                         console.log("\nRemoving unused containers and images.");
                                         execSync("docker system prune --force");
-                                        console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!"))
+                                        console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!\n"))
                                         process.stdout.write('\u001B[?25h');
                                         clearInterval(this);
                                     }
