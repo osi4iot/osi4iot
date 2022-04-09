@@ -39,7 +39,7 @@ const HeaderSignInSignOut = styled.div`
 `;
 
 let platformName = "IOT PLATFORM";
-if (window._env_.PLATFORM_NAME) {
+if (window._env_ && window._env_.PLATFORM_NAME) {
 	platformName = `${window._env_.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
 }
 

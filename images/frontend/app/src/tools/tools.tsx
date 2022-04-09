@@ -82,11 +82,11 @@ export const axiosInstance = (refreshToken: string, authDispatch: any): AxiosSta
 
     const udpateTokenUrl = `https://${domainName}/admin_api/auth/update_token`;
     const config = axiosAuth(refreshToken);
-    
+
     // Function that will be called to refresh authorization
-	const refreshAuthLogic = (failedRequest: any) => axios.patch(udpateTokenUrl, null, config).then(tokenRefreshResponse => {
-		const data = tokenRefreshResponse.data;
-		localStorage.setItem('iot_platform_auth', JSON.stringify(data));
+    const refreshAuthLogic = (failedRequest: any) => axios.patch(udpateTokenUrl, null, config).then(tokenRefreshResponse => {
+        const data = tokenRefreshResponse.data;
+        localStorage.setItem('iot_platform_auth', JSON.stringify(data));
 		authDispatch({ type: 'REFRESH_TOKEN', payload: data });
         failedRequest.response.config.headers['Authorization'] = 'Bearer ' + tokenRefreshResponse.data.accessToken;
         return Promise.resolve();

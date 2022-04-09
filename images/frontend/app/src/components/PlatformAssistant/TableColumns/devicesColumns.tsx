@@ -169,7 +169,6 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
                 hideModal();
             })
             .catch((error) => {
-                console.log("error.response.data.message=", error.response.data.message)
                 const errorMessage = error.response.data.message;
                 toast.error(errorMessage);
                 setIsSubmitting(false);
