@@ -23,7 +23,10 @@ const dots = [
     ".......",
 ];
 
-export default async function(osi4iotState = null) {
+export default async function (osi4iotState = null, dockerHost = null) {
+    if (!dockerHost) {
+        dockerHost = findManagerDockerHost(osi4iotState.platformInfo.NODES_DATA);
+    }
     if (!osi4iotState) {
         if (!fs.existsSync('./osi4iot_state.json')) {
             console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
@@ -72,29 +75,34 @@ export default async function(osi4iotState = null) {
         }
     }
 
-    const networks = execSync("docker network ls");
+    const networks = execSync(`docker ${dockerHost} network ls`);
     if (networks.indexOf("traefik_public") === -1) {
-        execSync("docker network create -d overlay --opt encrypted=true traefik_public");
+        execSync(`docker ${dockerHost} network create -d overlay --opt encrypted=true traefik_public`);
     }
 
     if (networks.indexOf("agent_network") === -1) {
-        execSync("docker network create -d overlay --opt encrypted=true agent_network");
+        execSync(`docker ${dockerHost} network create -d overlay --opt encrypted=true agent_network`);
     }
 
     if (networks.indexOf("internal_net") === -1) {
-        execSync("docker network create -d overlay --opt encrypted=true internal_net");
+        execSync(`docker ${dockerHost} network create -d overlay --opt encrypted=true internal_net`);
     }
 
     process.stdout.write('\u001B[?25l');
     console.log(clc.green("Deploying docker swarm stack:"));
-    execShellCommand("docker stack deploy --resolve-image changed --prune -c osi4iot_stack.yml osi4iot")
+    execShellCommand(`docker ${dockerHost} stack deploy --resolve-image changed --prune -c osi4iot_stack.yml osi4iot`)
         .then(() => {
             return new Promise(function (resolve, reject) {
                 let index = 0
                 setInterval(function () {
                     process.stdout.write(`\rWaiting until all services be ready ${dots[index]}`);
                     index = index < (dots.length - 1) ? index + 1 : 0;
-                    let text = execSync("docker service ls");
+                    let text;
+                    try {
+                        text = execSync(`docker ${dockerHost} service ls`);
+                    } catch (err) {
+                        reject("Error listing docker services.")
+                    }
                     let continuar = text.indexOf(" 0/1 ") !== -1 ||
                         text.indexOf(" 0/3 ") !== -1 ||
                         text.indexOf(" 1/3 ") !== -1 ||
@@ -121,7 +129,7 @@ export default async function(osi4iotState = null) {
         .then((command) => {
             if (command === "Redeploy stack") {
                 console.log(clc.green("\n\nRedeploy stack for early created volumes"));
-                execShellCommand("docker stack deploy --resolve-image changed --prune -c osi4iot_stack.yml osi4iot")
+                execShellCommand(`docker ${dockerHost} stack deploy --resolve-image changed --prune -c osi4iot_stack.yml osi4iot`)
                     .then((exitCode) => {
                         if (exitCode === 0) {
                             let index = 0;
@@ -130,7 +138,7 @@ export default async function(osi4iotState = null) {
                                 process.stdout.write(`\rWaiting to nodered and master_devices services be ready ${dots[index]}`);
                                 index = index < (dots.length - 1) ? index + 1 : 0;
                                 if (timeCounter >= 30) {
-                                    let text = execSync("docker service ls").toString();
+                                    let text = execSync(`docker ${dockerHost} service ls`).toString();
                                     let continuar = text.indexOf(" 0/1 ") !== -1 ||
                                         text.indexOf(" 0/3 ") !== -1 ||
                                         text.indexOf(" 1/3 ") !== -1 ||
@@ -149,6 +157,7 @@ export default async function(osi4iotState = null) {
             }
         })
         .catch((error) => {
-            console.log(clc.redBright("Docker stack could not be deployed. Error: ", error));
+            const errorMessage = `Docker stack could not be deployed. Error: ${error}`;
+            throw new Error(errorMessage);
         })
 }

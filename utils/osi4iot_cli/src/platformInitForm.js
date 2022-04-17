@@ -12,11 +12,11 @@ import configGenerator from './configGenerator.js';
 import stackFileGenerator from './stackFileGenerator.js';
 import runStack from './runStack.js';
 import inquirer from './inquirer.js';
+import findManagerDockerHost from './findManagerDockerHost.js';
+import nodesConfiguration from './nodesConfiguration.js';
 
 
 const platformInitiation = () => {
-    const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
-    
     inquirer
         .prompt([
             {
@@ -98,12 +98,12 @@ const platformInitiation = () => {
                 }
             },
             {
-                name: 'MAX_NUMBER_ORGS_EXPECTED',
-                message: 'Maximum number of organizations expected: ',
-                default: 2,
-                validate: function (maxNumOrgs) {
+                name: 'NUMBER_OF_SWARM_NODES',
+                message: 'Number of nodes in the platform: ',
+                default: 1,
+                validate: function (numOfNodes) {
                     let valid = false;
-                    if (maxNumOrgs !== "" && Number.isInteger(Number(maxNumOrgs)) && Number(maxNumOrgs) >= 1) valid = true;
+                    if (numOfNodes !== "" && Number.isInteger(Number(numOfNodes)) && Number(numOfNodes) >= 1) valid = true;
                     if (valid) {
                         return true;
                     } else {
@@ -112,127 +112,163 @@ const platformInitiation = () => {
                 }
             },
             {
-                name: 'DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG',
-                message: 'Default maximum number of master devices per organization: ',
-                default: 3,
-                validate: function (maxNumMasterDevicePerOrg) {
+                name: 'IS_LOCAL_INSTALLATION',
+                message: 'Is a local installation: ',
+                type: 'confirm',
+                when: (answers) => answers.NUMBER_OF_SWARM_NODES === 1,
+                validate: function (numOfNodes) {
                     let valid = false;
-                    if (maxNumMasterDevicePerOrg !== "" && Number.isInteger(Number(maxNumMasterDevicePerOrg))) valid = true;
+                    if (numOfNodes !== "" && Number.isInteger(Number(numOfNodes)) && Number(numOfNodes) >= 1) valid = true;
                     if (valid) {
                         return true;
                     } else {
-                        return "Please type an integer number";
+                        return "Please type an integer number greater or equal to one";
+                    }
+                }
+            }
+        ])
+        .then(async (prevAnswers) => {
+            const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
+            const isLocalInstallation = prevAnswers.IS_LOCAL_INSTALLATION;
+            const nodesData = []
+            if (numSwarmNodes > 1 || !isLocalInstallation) {
+                for (let inode = 1; inode <= numSwarmNodes; inode++) {
+                    await swarmNodesQuestions(prevAnswers, inode).then(answers => {
+                        nodesData.push(answers);
+                    });
+                }
+            } else {
+                nodesData.push({ nodeHostName: "localhost", nodeIP: "localhost", nodeUserName: "", nodeRole: "Manager" });
+            }
+            const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
+            finalQuestions(newAnswers, numSwarmNodes);
+        });
+
+}
+
+const swarmNodesQuestions = async (prevAnswers, inode) => {
+    const defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
+    const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
+    console.log(clc.whiteBright(`\nNode ${inode} data:`));
+    return inquirer
+        .prompt([
+            {
+                name: "nodeHostName",
+                message: "Node hostname:",
+                validate: function (nodeName) {
+                    if (nodeName.length >= 5) {
+                        return true;
+                    } else {
+                        return "Please type at least 5 characters";
                     }
                 }
             },
+            {
+                name: "nodeIP",
+                message: "Node IP address:",
+                validate: function (nodeIP) {
+                    const valid = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(nodeIP)
+                    if (valid) {
+                        return true;
+                    } else {
+                        return "Please type a valid IP address";
+                    }
+                }
+            },
+            {
+                name: "nodeUserName",
+                message: "Node user name:",
+                default: defaultUserName,
+                validate: function (nodeUserName) {
+                    if (nodeUserName.length >= 5) {
+                        return true;
+                    } else {
+                        return "Please type at least 5 characters";
+                    }
+                }
+            },
+            {
+                name: "nodeRole",
+                message: "Node role in the platform:",
+                type: 'list',
+                default: "Manager",
+                choices: ["Manager", "Platform worker", "Generic org worker", "Exclusive org worker", "NFS server"],
+                when: () => numSwarmNodes > 1
+            },
         ])
         .then(answers => {
-            if (numSwarmNodes > 1) {
-                workerNodeFunctionQuestion(answers, numSwarmNodes);
-            } else {
-                finalQuestions(answers, numSwarmNodes);
-            }
-
-        });
-
-}
-
-
-const workerNodeFunctionQuestion = (oldAnswer, numSwarmNodes) => {
-    const masterNodes = [];
-    const workerNodes = [];
-    const workerNodesRows = [];
-    const outputLines = execSync("docker node ls").toString().split('\n');
-    for (let iline = 1; iline < outputLines.length; iline++) {
-        const lineWordsArray = outputLines[iline].split(' ').filter(elem => elem !== '').filter(elem => elem !== '*');
-        if (lineWordsArray.length === 5 && lineWordsArray[3] === 'Active') {
-            const value = workerNodes.length;
-            const name = lineWordsArray[1];
-            workerNodes.push(name);
-            const workerNodeRow = { name, value }
-            workerNodesRows.push(workerNodeRow);
-        }
-
-        if (lineWordsArray.length === 6 && lineWordsArray[3] === 'Active') {
-            const name = lineWordsArray[1];
-            masterNodes.push(name);
-        }
-    }
-
-    const numOrgs = parseInt(oldAnswer.MAX_NUMBER_ORGS_EXPECTED, 10);
-    const workerFunctionColumns = [
-        {
-            name: "Platform",
-            value: "platform_worker"
-        },
-    ];
-
-    for (let iorg = 1; iorg <= numOrgs; iorg++) {
-        const workerFunctionColumn = {
-            name: `Org ${iorg}`,
-            value: `org_${iorg}`
-        }
-        workerFunctionColumns.push(workerFunctionColumn);
-    }
-
-    inquirer
-        .prompt([
-            {
-                type: "table",
-                name: "workerNodesFunction",
-                message: "Choose the function of every worker node",
-                pageSize: workerNodesRows.length,
-                columns: workerFunctionColumns,
-                rows: workerNodesRows
-            }
-        ])
-        .then(newAnswers => {
-            for (let inode = 0; inode < workerNodesRows.length; inode++) {
-                if (newAnswers.workerNodesFunction[inode] === undefined) {
-                    newAnswers.workerNodesFunction = "undefined";
-                }
-            }
-            const answers = { ...oldAnswer, masterNodes, workerNodes, ...newAnswers }
-            finalQuestions(answers, numSwarmNodes)
+            const userName = answers.nodeUserName;
+            const nodeIP = answers.nodeIP;
+            if (numSwarmNodes === 1) answers.nodeRole = "Manager";
+            //OJO execSync(`ssh-copy-id -i ./.osi4iot_keys/osi4iot_ed25519 ${userName}@${nodeIP}`, { stdio: 'ignore' })
+            return answers;
         });
 }
 
-const generateNodesLabelsAndRunStack = async (numSwarmNodes, osi4iotState) => {
-    if (numSwarmNodes === 1) {
-        await runStack(osi4iotState);
+const removeNodeLabels = (dockerHost, nodeName, labelsArray) => {
+    const labelString = execSync(`docker ${dockerHost} node inspect ${nodeName}`);
+    for (let ilabel = 0; ilabel < labelsArray.length; ilabel++) {
+        const label = labelsArray[ilabel];
+        if (labelString.includes(label)) {
+            execSync(`docker ${dockerHost} node update --label-rm ${label} ${nodeName}`);
+        }
+    }
+}
+
+const generateNodesLabelsAndRunStack = async (osi4iotState) => {
+    const nodesData = osi4iotState.platformInfo.NODES_DATA;
+    const dockerHost = findManagerDockerHost(nodesData);
+    if (nodesData.length === 1) {
+        await runStack(osi4iotState, dockerHost);
     } else {
         const prioritiesArray = [300, 200, 100];
-        for (let inode = 1; inode <= osi4iotState.platformInfo.MASTER_NODES.length; inode++) {
-            const nodeName = osi4iotState.platformInfo.MASTER_NODES[inode - 1];
-            const priority = prioritiesArray[inode - 1];
-            execSync(`docker node update --label-add KEEPALIVED_PRIORITY=${priority} ${nodeName}`);
-        }
-
-        for (let inode = 1; inode <= osi4iotState.platformInfo.WORKER_NODES.length; inode++) {
-            const workerNodeFunction = osi4iotState.platformInfo.WORKER_NODES_FUNCTION[inode - 1];
-            const nodeName = osi4iotState.platformInfo.WORKER_NODES[inode - 1];
-
-            if (workerNodeFunction === 'platform_worker') {
-                const labelString = execSync(`docker node inspect ${nodeName}`);
-                if (labelString.includes("org_hash")) {
-                    execSync(`docker node update --label-rm org_hash ${nodeName}`);
-                }
-                execSync(`docker node update --label-add  platform_worker=true ${nodeName}`);
-            } else if (workerNodeFunction.slice(0, 3) === 'org') {
-                const labelString = execSync(`docker node inspect ${nodeName}`);
-                if (labelString.includes("platform_worker")) {
-                    execSync(`docker node update --label-rm platform_worker ${nodeName}`);
-                }
-                const iorg = parseInt(workerNodeFunction.split("_")[1], 10);
-                const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
-                execSync(`docker node update --label-add  org_hash=${orgHash} ${nodeName}`);
+        let priorityIndex = 0;
+        for (let inode = 0; inode < nodesData.length; inode++) {
+            const nodeRole = nodesData[inode].nodeRole;
+            const nodeName = nodesData[inode].nodeHostName;
+            if (nodeRole === "Manager") {
+                const priority = prioritiesArray[priorityIndex];
+                execSync(`docker ${dockerHost} node update --label-add KEEPALIVED_PRIORITY=${priority} ${nodeName}`);
+                priorityIndex++;
+                removeNodeLabels(dockerHost, nodeName, ["platform_worker", "generic_org_worker", "org_hash"]);
+            } else if (nodeRole === "Platform worker") {
+                execSync(`docker ${dockerHost} node update --label-add  platform_worker=true ${nodeName}`);
+                removeNodeLabels(dockerHost, nodeName, ["KEEPALIVED_PRIORITY", "generic_org_worker", "org_hash"]);
+            } else if (nodeRole === "Generic org worker") {
+                execSync(`docker ${dockerHost} node update --label-add  generic_org_worker=true ${nodeName}`);
+                removeNodeLabels(dockerHost, nodeName, ["KEEPALIVED_PRIORITY", "KEEPALIVED_PRIORITY", "org_hash"]);
+            } else if (nodeRole === "Exclusive org worker") {
+                const orgHash = osi4iotState.certs.mqtt_certs.organizations[0].org_hash;
+                execSync(`docker ${dockerHost} node update --label-add org_hash=${orgHash} ${nodeName}`);
+                removeNodeLabels(dockerHost, nodeName, ["platform_worker", "generic_org_worker", "KEEPALIVED_PRIORITY"]);
             }
         }
-        await runStack(osi4iotState);
+        await runStack(osi4iotState, dockerHost);
     }
 }
 
-const finalQuestions = (oldAnswers, numSwarmNodes) => {
+const finalQuestions = (oldAnswers) => {
+    const nodesData = oldAnswers.NODES_DATA;
+    let managerNodes = [];
+    const workerNodesRows = [];
+    const orgWorkerSelection = [
+        {
+            name: "Select",
+            value: "selected"
+        }
+    ];
+
+    if (nodesData.length !== 0) {
+        managerNodes = nodesData.filter(node => node.nodeRole === "Manager");
+        const exclusiveOrgWorkerNodes = nodesData.filter(node => node.nodeRole === "Exclusive org worker");
+        if (exclusiveOrgWorkerNodes.length !== 0) {
+            for (let inode = 1; inode <= exclusiveOrgWorkerNodes.length; inode++) {
+                const workerNodesRow = { name: exclusiveOrgWorkerNodes[inode - 1].nodeHostName, value: inode };
+                workerNodesRows.push(workerNodesRow);
+            }
+        }
+    }
+
     inquirer
         .prompt([
             {
@@ -391,7 +427,7 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
                 }
             },
             {
-                name: 'TELEGRAM_BOTTOKEN',
+                name: 'MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN',
                 message: 'Telegram boottoken for main organization default group: ',
                 validate: function (text) {
                     if (text.length >= 20) {
@@ -425,6 +461,35 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
                     }
                 }
             },
+            {
+                name: 'ARE_MAIN_ORG_SERVICES_DEPLOYED_IN_EXCLUSIVE_NODES',
+                message: 'Main organization services will be deployed in exclusive org worker nodes',
+                type: "confirm",
+                when: () => workerNodesRows.length !== 0
+            },
+            {
+                name: 'MAIN_ORGANIZATION_EXCLUSIVE_WORKER_NODES',
+                type: "table",
+                message: "Choose the worker nodes for the main organization",
+                pageSize: workerNodesRows.length,
+                columns: orgWorkerSelection,
+                rows: workerNodesRows,
+                when: (answers) => workerNodesRows.length !== 0 && answers.ARE_MAIN_ORG_SERVICES_DEPLOYED_IN_EXCLUSIVE_NODES
+            },
+            {
+                name: 'NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG',
+                message: 'Number of master devices in main org: ',
+                default: 3,
+                validate: function (numOfMD) {
+                    let valid = false;
+                    if (numOfMD !== "" && Number.isInteger(Number(numOfMD)) && Number(numOfMD) >= 1) valid = true;
+                    if (valid) {
+                        return true;
+                    } else {
+                        return "Please type an integer number greater or equal to one";
+                    }
+                }
+            },            
             {
                 name: 'NOTIFICATIONS_EMAIL_ADDRESS',
                 message: 'Email account for platform notifications: ',
@@ -521,24 +586,11 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
                 }
             },
             {
-                name: 'NFS_SERVER_IP',
-                message: 'Nfs server IP: ',
-                when: () => numSwarmNodes > 1,
-                validate: function (ipAddress) {
-                    valid = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipAddress)
-                    if (valid) {
-                        return true;
-                    } else {
-                        return "Please type a valid IP address";
-                    }
-                }
-            },
-            {
                 name: 'FLOATING_IP_ADDRES',
                 message: 'Floating IP address: ',
-                when: () => numSwarmNodes > 1,
+                when: () => managerNodes.length > 1,
                 validate: function (ipAddress) {
-                    valid = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipAddress)
+                    const valid = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipAddress)
                     if (valid) {
                         return true;
                     } else {
@@ -550,7 +602,7 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
                 name: 'NETWORK_INTERFACE',
                 message: 'Manager nodes network interface: ',
                 default: 'eth0',
-                when: () => numSwarmNodes > 1,
+                when: () => managerNodes.length > 1,
                 validate: function (networkInterface) {
                     if (networkInterface.length >= 4) {
                         return true;
@@ -560,132 +612,164 @@ const finalQuestions = (oldAnswers, numSwarmNodes) => {
                 }
             }
         ])
-        .then(async (newAnswers) => {
-            const answers = { ...oldAnswers, ...newAnswers }
-            const osi4iotState = {
-                platformInfo: {
-                    PLATFORM_NAME: answers.PLATFORM_NAME,
-                    DOMAIN_NAME: answers.DOMAIN_NAME,
-                    PLATFORM_PHRASE: answers.PLATFORM_PHRASE,
-                    MAIN_ORGANIZATION_NAME: answers.MAIN_ORGANIZATION_NAME,
-                    MAIN_ORGANIZATION_ACRONYM: answers.MAIN_ORGANIZATION_ACRONYM,
-                    MAIN_ORGANIZATION_ADDRESS1: answers.MAIN_ORGANIZATION_ADDRESS1,
-                    MAIN_ORGANIZATION_CITY: answers.MAIN_ORGANIZATION_CITY,
-                    MAIN_ORGANIZATION_ZIP_CODE: answers.MAIN_ORGANIZATION_ZIP_CODE,
-                    MAIN_ORGANIZATION_STATE: answers.MAIN_ORGANIZATION_STATE,
-                    MAIN_ORGANIZATION_COUNTRY: answers.MAIN_ORGANIZATION_COUNTRY,
-                    MIN_LONGITUDE: answers.MIN_LONGITUDE,
-                    MAX_LONGITUDE: answers.MAX_LONGITUDE,
-                    MIN_LATITUDE: answers.MIN_LATITUDE,
-                    MAX_LATITUDE: answers.MAX_LATITUDE,
-                    DEFAULT_TIME_ZONE: answers.DEFAULT_TIME_ZONE,
-                    REGISTRATION_TOKEN_LIFETIME: answers.REGISTRATION_TOKEN_LIFETIME,
-                    REFRESH_TOKEN_LIFETIME: answers.REFRESH_TOKEN_LIFETIME,
-                    REFRESH_TOKEN_SECRET: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
-                    ACCESS_TOKEN_SECRET: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
-                    ACCESS_TOKEN_LIFETIME: answers.ACCESS_TOKEN_LIFETIME,
-                    MQTT_SSL_CERTS_VALIDITY_DAYS: parseInt(answers.MQTT_SSL_CERTS_VALIDITY_DAYS, 10),
-                    ENCRYPTION_SECRET_KEY: nanoid(32).replace(/-/g, "x").replace(/_/g, "X"),
-                    PLATFORM_ADMIN_FIRST_NAME: answers.PLATFORM_ADMIN_FIRST_NAME,
-                    PLATFORM_ADMIN_SURNAME: answers.PLATFORM_ADMIN_SURNAME,
-                    PLATFORM_ADMIN_USER_NAME: answers.PLATFORM_ADMIN_USER_NAME,
-                    PLATFORM_ADMIN_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
-                    PLATFORM_ADMIN_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
-                    GRAFANA_ADMIN_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
-                    POSTGRES_USER: answers.PLATFORM_ADMIN_USER_NAME,
-                    POSTGRES_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
-                    POSTGRES_DB: "iot_platform_db",
-                    NOTIFICATIONS_EMAIL_USER: answers.NOTIFICATIONS_EMAIL_ADDRESS,
-                    NOTIFICATIONS_EMAIL_ADDRESS: answers.NOTIFICATIONS_EMAIL_ADDRESS,
-                    NOTIFICATIONS_EMAIL_PASSWORD: answers.NOTIFICATIONS_EMAIL_PASSWORD,
-                    MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: answers.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
-                    MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: answers.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
-                    TELEGRAM_BOTTOKEN: answers.TELEGRAM_BOTTOKEN,
-                    GRAFANA_DB_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
-                    GRAFANA_DATASOURCE_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
-                    NODE_RED_ADMIN: answers.PLATFORM_ADMIN_USER_NAME,
-                    NODE_RED_ADMIN_HASH: bcrypt.hashSync(answers.PLATFORM_ADMIN_PASSWORD, 8),
-                    PGADMIN_DEFAULT_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
-                    PGADMIN_DEFAULT_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
-                    NFS_SERVER_IP: answers.NFS_SERVER_IP || '127.0.0.1',
-                    FLOATING_IP_ADDRES: answers.FLOATING_IP_ADDRES || '127.0.0.1',
-                    NETWORK_INTERFACE: answers.NETWORK_INTERFACE || 'eth0',
-                    IS_NODERED_VOLUME_ALREADY_CREATED: 'false',
-                    DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG: parseInt(answers.DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG, 10),
-                    MASTER_NODES: answers.masterNodes,
-                    WORKER_NODES: answers.workerNodes,
-                    WORKER_NODES_FUNCTION: answers.workerNodesFunction,
-                },
-                certs: {
-                    domain_certs: {
-                        private_key: answers.DOMAIN_SSL_PRIVATE_KEY,
-                        iot_platform_key_name: "",
-                        ssl_ca_pem: answers.DOMAIN_SSL_CA_CERT,
-                        iot_platform_ca_name: "",
-                        ssl_cert_crt: answers.DOMAIN_SSL_CERTICATE,
-                        iot_platform_cert_name: "",
-                        ca_pem_expiration_timestamp: 0,
-                        cert_crt_expiration_timestamp: 0
+        .then((newAnswers) => {
+            const answers = { ...oldAnswers, ...newAnswers };
+            console.log("");
+            inquirer
+                .prompt([
+                    {
+                        type: 'confirm',
+                        name: 'confirmation',
+                        message: 'Confirm that all the above answers are correct ',
                     },
-                    mqtt_certs: {
-                        ca_certs: {
-                            ca_crt: "",
-                            mqtt_certs_ca_cert_name: "",
-                            ca_key: "",
-                            mqtt_certs_ca_key_name: "",
-                            expiration_timestamp: 0
-                        },
-                        broker: {
-                            server_crt: "",
-                            mqtt_broker_cert_name: "",
-                            server_key: "",
-                            mqtt_broker_key_name: "",
-                            expiration_timestamp: 0
-                        },
-                        nodered: {
-                            client_crt: "",
-                            mqtt_nodered_client_cert_name: "",
-                            client_key: "",
-                            mqtt_nodered_client_key_name: "",
-                            expiration_timestamp: 0
-                        },
-                        organizations: []
+                ])
+                .then(async (confirmationAnswer) => {
+                    if (!confirmationAnswer.confirmation) {
+                        console.log("");
+                        platformInitiation();
+                    } else {
+                        const mainOrgExclusiveWorkerNodes = [];
+                        for (let inode = 0; inode < workerNodesRows.length; inode++) {
+                            if (answers.MAIN_ORGANIZATION_EXCLUSIVE_WORKER_NODES[inode] === "selected") {
+                                mainOrgExclusiveWorkerNodes.push(workerNodesRows[inode].name)
+                            }
+                        }
+
+                        const osi4iotState = {
+                            platformInfo: {
+                                PLATFORM_NAME: answers.PLATFORM_NAME,
+                                DOMAIN_NAME: answers.DOMAIN_NAME,
+                                PLATFORM_PHRASE: answers.PLATFORM_PHRASE,
+                                PLATFORM_ADMIN_FIRST_NAME: answers.PLATFORM_ADMIN_FIRST_NAME,
+                                PLATFORM_ADMIN_SURNAME: answers.PLATFORM_ADMIN_SURNAME,
+                                PLATFORM_ADMIN_USER_NAME: answers.PLATFORM_ADMIN_USER_NAME,
+                                PLATFORM_ADMIN_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
+                                PLATFORM_ADMIN_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
+                                NODES_DATA: answers.NODES_DATA,
+                                MIN_LONGITUDE: answers.MIN_LONGITUDE,
+                                MAX_LONGITUDE: answers.MAX_LONGITUDE,
+                                MIN_LATITUDE: answers.MIN_LATITUDE,
+                                MAX_LATITUDE: answers.MAX_LATITUDE,
+                                DEFAULT_TIME_ZONE: answers.DEFAULT_TIME_ZONE,
+                                MAIN_ORGANIZATION_NAME: answers.MAIN_ORGANIZATION_NAME,
+                                MAIN_ORGANIZATION_ACRONYM: answers.MAIN_ORGANIZATION_ACRONYM,
+                                MAIN_ORGANIZATION_ADDRESS1: answers.MAIN_ORGANIZATION_ADDRESS1,
+                                MAIN_ORGANIZATION_CITY: answers.MAIN_ORGANIZATION_CITY,
+                                MAIN_ORGANIZATION_ZIP_CODE: answers.MAIN_ORGANIZATION_ZIP_CODE,
+                                MAIN_ORGANIZATION_STATE: answers.MAIN_ORGANIZATION_STATE,
+                                MAIN_ORGANIZATION_COUNTRY: answers.MAIN_ORGANIZATION_COUNTRY,
+                                MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN: answers.MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN,
+                                MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: answers.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
+                                MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: answers.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
+                                MAIN_ORGANIZATION_EXCLUSIVE_WORKER_NODES: mainOrgExclusiveWorkerNodes,
+                                NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG: parseInt(answers.NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG, 10),
+                                NOTIFICATIONS_EMAIL_USER: answers.NOTIFICATIONS_EMAIL_ADDRESS,
+                                NOTIFICATIONS_EMAIL_ADDRESS: answers.NOTIFICATIONS_EMAIL_ADDRESS,
+                                NOTIFICATIONS_EMAIL_PASSWORD: answers.NOTIFICATIONS_EMAIL_PASSWORD,
+                                REGISTRATION_TOKEN_LIFETIME: answers.REGISTRATION_TOKEN_LIFETIME,
+                                REFRESH_TOKEN_LIFETIME: answers.REFRESH_TOKEN_LIFETIME,
+                                REFRESH_TOKEN_SECRET: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+                                ACCESS_TOKEN_SECRET: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+                                ACCESS_TOKEN_LIFETIME: answers.ACCESS_TOKEN_LIFETIME,
+                                MQTT_SSL_CERTS_VALIDITY_DAYS: parseInt(answers.MQTT_SSL_CERTS_VALIDITY_DAYS, 10),
+                                FLOATING_IP_ADDRES: answers.FLOATING_IP_ADDRES || '127.0.0.1',
+                                NETWORK_INTERFACE: answers.NETWORK_INTERFACE || 'eth0',
+                                ENCRYPTION_SECRET_KEY: nanoid(32).replace(/-/g, "x").replace(/_/g, "X"),
+                                GRAFANA_ADMIN_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
+                                POSTGRES_USER: answers.PLATFORM_ADMIN_USER_NAME,
+                                POSTGRES_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
+                                POSTGRES_DB: "iot_platform_db",
+                                GRAFANA_DB_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+                                GRAFANA_DATASOURCE_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+                                NODE_RED_ADMIN: answers.PLATFORM_ADMIN_USER_NAME,
+                                NODE_RED_ADMIN_HASH: bcrypt.hashSync(answers.PLATFORM_ADMIN_PASSWORD, 8),
+                                PGADMIN_DEFAULT_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
+                                PGADMIN_DEFAULT_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
+                                NFS_SERVER_IP: answers.NFS_SERVER_IP || '127.0.0.1',
+                                IS_NODERED_VOLUME_ALREADY_CREATED: 'false',
+                                NODES_DATA: answers.NODES_DATA
+                            },
+                            certs: {
+                                domain_certs: {
+                                    private_key: answers.DOMAIN_SSL_PRIVATE_KEY,
+                                    iot_platform_key_name: "",
+                                    ssl_ca_pem: answers.DOMAIN_SSL_CA_CERT,
+                                    iot_platform_ca_name: "",
+                                    ssl_cert_crt: answers.DOMAIN_SSL_CERTICATE,
+                                    iot_platform_cert_name: "",
+                                    ca_pem_expiration_timestamp: 0,
+                                    cert_crt_expiration_timestamp: 0
+                                },
+                                mqtt_certs: {
+                                    ca_certs: {
+                                        ca_crt: "",
+                                        mqtt_certs_ca_cert_name: "",
+                                        ca_key: "",
+                                        mqtt_certs_ca_key_name: "",
+                                        expiration_timestamp: 0
+                                    },
+                                    broker: {
+                                        server_crt: "",
+                                        mqtt_broker_cert_name: "",
+                                        server_key: "",
+                                        mqtt_broker_key_name: "",
+                                        expiration_timestamp: 0
+                                    },
+                                    nodered: {
+                                        client_crt: "",
+                                        mqtt_nodered_client_cert_name: "",
+                                        client_key: "",
+                                        mqtt_nodered_client_key_name: "",
+                                        expiration_timestamp: 0
+                                    },
+                                    organizations: []
+                                }
+                            }
+                        }
+
+                        osi4iotState.certs.mqtt_certs.organizations[0] = {
+                            org_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
+                            master_devices: []
+                        }
+                        for (let idev = 1; idev <= answers.NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG; idev++) {
+                            osi4iotState.certs.mqtt_certs.organizations[0].master_devices[idev - 1] = {
+                                client_crt: "",
+                                client_key: "",
+                                expiration_timestamp: 0,
+                                md_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
+                                is_volume_created: 'false'
+                            }
+                            osi4iotState.certs.mqtt_certs.organizations[0].master_devices[idev - 1].client_crt_name = "";
+                            osi4iotState.certs.mqtt_certs.organizations[0].master_devices[idev - 1].client_key_name = "";
+                        }
+
+                        try {
+                            console.log(clc.green('\nConfigurating nodes in the cluster...'));
+                            await nodesConfiguration(osi4iotState);
+    
+                            console.log(clc.green('\nJoining nodes to swarm:'));
+                            joinNodesToSwarm(answers.NODES_DATA);
+    
+                            console.log(clc.green('\nCreating certificates...'));
+                            removeCerts(osi4iotState);
+                            await certsGenerator(osi4iotState);
+                            const osi4iotStateFile = JSON.stringify(osi4iotState);
+                            fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+    
+                            console.log(clc.green('Creating secrets...'))
+                            secretsGenerator(osi4iotState);
+                            console.log(clc.green('Creating configs...'))
+                            configGenerator(osi4iotState);
+                            console.log(clc.green('Creating stack file...\n'))
+                            stackFileGenerator(osi4iotState);
+    
+                            await generateNodesLabelsAndRunStack(osi4iotState);
+                        } catch (error) {
+                            console.log(clc.redBright(error));
+                        }
                     }
-                }
-            }
+                });
 
-            for (let iorg = 1; iorg <= parseInt(answers.MAX_NUMBER_ORGS_EXPECTED, 10); iorg++) {
-                osi4iotState.certs.mqtt_certs.organizations[iorg - 1] = {
-                    org_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
-                    master_devices: []
-                }
-                for (let idev = 1; idev <= parseInt(answers.DEFAULT_MAX_NUMBER_MASTER_DEVICES_PER_ORG, 10); idev++) {
-                    osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1] = {
-                        client_crt: "",
-                        client_key: "",
-                        expiration_timestamp: 0,
-                        md_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
-                        is_volume_created: 'false'
-                    }
-                    osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name = "";
-                    osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name = "";
-                }
-            }
-
-            console.log(clc.green('\nCreating certificates...'));
-            removeCerts(osi4iotState);
-            await certsGenerator(osi4iotState);
-            const osi4iotStateFile = JSON.stringify(osi4iotState);
-            fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
-
-            console.log(clc.green('Creating secrets...'))
-            secretsGenerator(osi4iotState);
-            console.log(clc.green('Creating configs...'))
-            configGenerator(osi4iotState);
-            console.log(clc.green('Creating stack file...\n'))
-            stackFileGenerator(osi4iotState);
-
-            await generateNodesLabelsAndRunStack(numSwarmNodes, osi4iotState);
         })
         .catch((error) => {
             if (error.isTtyError) {
@@ -702,7 +786,7 @@ export default async function () {
             .prompt([{
                 name: 'confirm_platform_initiation',
                 type: 'confirm',
-                message: 'An state file already exits. Do you want to reinitate the plataform anyway? ',
+                message: 'An state file already exits. Do you want to reinitate the platform anyway? ',
             }
             ])
             .then((answers) => {
@@ -718,5 +802,85 @@ export default async function () {
     } else {
         platformInitiation();
     }
+}
 
+const joinNodesToSwarm = (nodesData) => {
+    const numNodes = nodesData.length;
+    let outputResult = "OK";
+    if (numNodes === 1) {
+        const userName = nodesData[0].nodeUserName;
+        const nodeIP = nodesData[0].nodeIP;
+        const nodeHostName = nodesData[0].nodeHostName;
+        if (nodeIP === "localhost") {
+            try {
+                execSync("docker swarm leave --force", { stdio: 'ignore' });
+            } catch (error) {
+                //do nothing
+            }
+            try {
+                console.log(clc.green('Joining localhost to swarm...'));
+                execSync("docker swarm init", { stdio: 'ignore' });
+            } catch (err) {
+                console.log(clc.redBright('Error joining localhost to swarm.'));
+                outputResult = "Failed";
+            }
+        } else {
+            try {
+                execSync(`docker -H ssh://${userName}@${nodeIP} swarm leave --force`, { stdio: 'ignore' });
+            } catch (error) {
+                //do nothing
+            }
+            try {
+                console.log(clc.green(`Joining node ${nodeHostName} to swarm...`));
+                execSync(`docker -H ssh://${userName}@${nodeIP} swarm init`, { stdio: 'ignore' });
+            } catch (err) {
+                console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.`));
+                outputResult = "Failed";
+            }
+        }
+    } else {
+        let joinWorkerCommand = "";
+        let joinManagerCommand = "";
+        let isMainManagerJoined = false;
+        for (let inode = 1; inode <= nodesData; inode++) {
+            const userName = nodesData[inode - 1].nodeUserName;
+            const nodeIP = nodesData[inode - 1].nodeIP;
+            const nodeRole = nodesData[inode - 1].nodeRole;
+            const nodeHostName = nodesData[inode - 1].nodeHostName;
+            try {
+                execSync(`docker -H ssh://${userName}@${nodeIP} swarm leave --force`, { stdio: 'ignore' });
+            } catch (error) {
+                //do nothing
+            }
+            try {
+                if (nodeRole === "Manager") {
+                    if (!isMainManagerJoined) {
+                        console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
+                        joinWorkerCommand = execSync(`docker -H ssh://${userName}@${nodeIP} swarm init`)
+                            .toString()
+                            .split("\n")[4]
+                            .trim();
+                        joinManagerCommand = execSync(`docker -H ssh://${userName}@${nodeIP} swarm join-token manager`)
+                            .toString()
+                            .split("\n")[2]
+                            .trim();
+                        isMainManagerJoined = true;
+                    } else {
+                        console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
+                        execSync(joinManagerCommand, { stdio: 'ignore' })
+                    }
+                } else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
+                    console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
+                    execSync(joinWorkerCommand, { stdio: 'ignore' });
+                }
+            } catch (err) {
+                console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.`));
+                outputResult = "Failed";
+            }
+        }
+    }
+
+    if (outputResult === "Failed") {
+        throw new Error("Error joining nodes to swarm");
+    }
 }

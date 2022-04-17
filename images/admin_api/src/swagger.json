@@ -77,7 +77,7 @@
 		"/auth/register": {
 			"patch": {
 				"tags": ["Authentication"],
-				"summary": "User registration in the plataform",
+				"summary": "User registration in the platform",
 				"requestBody": {
 					"description": "User registration data",
 					"required": true,

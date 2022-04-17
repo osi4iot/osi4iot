@@ -1,4 +1,5 @@
 import fs from 'fs';
+import clc from "cli-color";
 
 export default function(osi4iotState) {
     try {
@@ -68,6 +69,6 @@ export default function(osi4iotState) {
             }
         }
     } catch (error) {
-        console.log("Error remove certs files: ", error)
+        throw new Error("Error removing certs files")
     }
 };

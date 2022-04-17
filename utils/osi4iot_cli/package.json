@@ -4,6 +4,15 @@
   "main": "index.js",
   "license": "MIT",
   "type": "module",
+  "scripts": {
+    "build:clean": "rm -rf lib",
+    "prebuild": "yarn build:clean",
+    "build": "babel ./src --out-dir ./lib --source-maps",
+    "build_linux_x64": "pkg -t node12-linux-x64 -o ./dist/linux_x64/osi4iot ./lib/index.js",
+    "build_linux_arm64": "pkg -t node12-linux-arm64 -o ./dist/linux_arm64/osi4iot ./lib/index.js",
+    "build:prod": "yarn build && yarn build_linux_x64 && yarn build_linux_arm64",
+    "start": "babel-node ./src/index.js"
+  },
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cli-color": "^2.0.1",
@@ -16,5 +25,12 @@
     "nanoid": "^3.3.1",
     "timezone-validator": "^1.0.3",
     "valid-url": "^1.0.9"
+  },
+  "devDependencies": {
+    "@babel/cli": "^7.17.6",
+    "@babel/core": "^7.17.9",
+    "@babel/node": "^7.16.8",
+    "@babel/plugin-transform-runtime": "^7.17.0",
+    "@babel/preset-env": "^7.16.11"
   }
 }
