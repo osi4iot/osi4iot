@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 
 export default function(cmd) {
-    const commandParameters = cmd.split(" ");
+    const commandParameters = cmd.split(" ").filter(param => param !== "");
     return new Promise(function (resolve, reject) {
         const child = spawn(commandParameters[0], [...commandParameters.slice(1)]);
         child.stdout.on('data', (chunk) => {

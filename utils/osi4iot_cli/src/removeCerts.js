@@ -1,5 +1,4 @@
 import fs from 'fs';
-import clc from "cli-color";
 
 export default function(osi4iotState) {
     try {
@@ -59,8 +58,10 @@ export default function(osi4iotState) {
 
                 for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
                     const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
+                    const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
                     for (let idev = 1; idev <= num_master_devices; idev++) {
-                        const masterDeviceCertsDir = `./certs/mqtt_certs/org_${iorg}_master_device_${idev}`;
+                        const md_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
+                        const masterDeviceCertsDir = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}`;
                         if (fs.existsSync(masterDeviceCertsDir)) {
                             fs.rmSync(masterDeviceCertsDir, { recursive: true, force: true });
                         }

@@ -127,15 +127,17 @@ export default async function(osi4iotState) {
 
     const masterDeviceCertsPromises = []
     for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
+        const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
         const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
         for (let idev = 1; idev <= num_master_devices; idev++) {
             const mdevices_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt;
             const mdevices_client_key = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key;
             const mdevices_exp_timestamp = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp;
+            const md_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
 
             if ((mdevices_client_crt === "" && mdevices_client_key === "") || mdevices_exp_timestamp < limitTimestamp) {
                 const promise = mkcert.createCert({
-                    domains: [`org_${iorg}_master_device_${idev}`],
+                    domains: [`org_${org_acronym}_md_${md_hash}`],
                     validityDays: defaultValidityDays,
                     caKey: ca.key,
                     caCert: ca.cert
@@ -152,26 +154,28 @@ export default async function(osi4iotState) {
     let counter = 0;
     for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
         const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
+        const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
         for (let idev = 1; idev <= num_master_devices; idev++) {
             const mdevices_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt;
             const mdevices_client_key = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key;
             const mdevices_exp_timestamp = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp;
+            const md_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
 
             if ((mdevices_client_crt === "" && mdevices_client_key === "") || mdevices_exp_timestamp < limitTimestamp) {
-                const masterDeviceCertsDir = `./certs/mqtt_certs/org_${iorg}_master_device_${idev}`;
+                const masterDeviceCertsDir = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}`;
                 if (!fs.existsSync(masterDeviceCertsDir)) {
                     fs.mkdirSync(masterDeviceCertsDir);
                 }
 
-                const masterDeviceClientKey = `./certs/mqtt_certs/org_${iorg}_master_device_${idev}/client.key`;
+                const masterDeviceClientKey = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}/client.key`;
                 fs.writeFileSync(masterDeviceClientKey, masterDeviceCerts[counter].key);
                 osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key = masterDeviceCerts[counter].key;
-                osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name = `org_${iorg}_mdev_${idev}_key_${md5(masterDeviceCerts[counter].key)}`
+                osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name = `org_${org_acronym}_md_${md_hash}_key_${md5(masterDeviceCerts[counter].key)}`
 
-                const masterDeviceClientCert = `./certs/mqtt_certs/org_${iorg}_master_device_${idev}/client.crt`;
+                const masterDeviceClientCert = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}/client.crt`;
                 fs.writeFileSync(masterDeviceClientCert, masterDeviceCerts[counter].cert);
                 osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt = masterDeviceCerts[counter].cert;
-                osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name = `org_${iorg}_mdev_${idev}_cert_${md5(masterDeviceCerts[counter].cert)}`
+                osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name = `org_${org_acronym}_md_${md_hash}_cert_${md5(masterDeviceCerts[counter].cert)}`
 
                 osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp = defaultExpirationTimestamp;
                 counter++;

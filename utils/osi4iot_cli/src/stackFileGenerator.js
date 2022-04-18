@@ -13,7 +13,6 @@ const defaultServiceImageVersion = {
     pgadmin4: defaultVersion || 'latest',
     postgres: defaultVersion || 'latest',
     nodered: defaultVersion || 'latest',
-    nodered_arm64: defaultVersion || 'latest',
     grafana: defaultVersion || 'latest',
     grafana_renderer: 'latest',
     admin_api: defaultVersion || 'latest',
@@ -23,27 +22,45 @@ const defaultServiceImageVersion = {
     keepalived: defaultVersion || 'latest'
 }
 
-export default function(osi4iotState) {
-    const arch = os.arch();
+export default function (osi4iotState) {
+    let existAtLeastOnex86_64ArchNode = false;
     let platformArch = 'x86_64';
-    if (arch === 'x64') {
-        platformArch = 'x86_64'
-    } else if (arch === 'arm64') {
-        platformArch = 'aarch64';
+    const nodesData = osi4iotState.platformInfo.NODES_DATA;
+    const numSwarmNodes = nodesData.length;
+    if (numSwarmNodes === 1) {
+        const nodeArch = nodesData[0].nodeArch;
+        if (nodeArch === "aarch64") platformArch = 'aarch64';
+        else if (nodeArch === "x86_64") platformArch = 'x86_64';
+        else {
+            throw new Error('Only x64 or arm64 architectures are supported');
+        }
     } else {
-        throw new Error('Only x64 or arm64 architectures are supported');
+        for (let inode = 0; inode < nodesData.length; inode++) {
+            const nodeRole = nodesData[inode].nodeRole;
+            const nodeArch = nodesData[inode].nodeArch;
+            if (!(nodeArch === "x86_64" || nodeArch === "aarch64")) {
+                throw new Error('Only x64 or arm64 architectures are supported');
+            }
+            if (nodeRole === "Platform worker" && nodeArch === "x86_64") {
+                existAtLeastOnex86_64ArchNode = true;
+            }
+        }
     }
+ 
 
     const nfsServerIP = osi4iotState.platformInfo.NFS_SERVER_IP;
     const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
     const serviceImageVersion = defaultServiceImageVersion;
 
-    const numSwarmNodes = execSync("docker node ls").toString().split('\n').length - 2;
-    const currentNodeId = execSync("docker info -f '{{.Swarm.NodeID}}'");
-    let workerMode = 'worker';
+    let workerConstraintsArray = [
+        `node.role==worker`,
+        'node.labels.platform_worker==true'
+    ];
+
     if (numSwarmNodes === 1) {
-        workerMode = 'manager';
-        execSync(`docker node update --label-add platform_worker=true ${currentNodeId}`);
+        workerConstraintsArray = [
+            `node.role==manager`
+        ]
     }
 
     const osi4iotStackObj = {
@@ -155,10 +172,7 @@ export default function(osi4iotState) {
                 deploy: {
                     replicas: 1,
                     placement: {
-                        constraints: [
-                            `node.role==${workerMode}`,
-                            'node.labels.platform_worker==true'
-                        ]
+                        constraints: workerConstraintsArray
                     }
                 }
             },
@@ -231,10 +245,7 @@ export default function(osi4iotState) {
                 ],
                 deploy: {
                     placement: {
-                        constraints: [
-                            `node.role==${workerMode}`,
-                            'node.labels.platform_worker==true'
-                        ]
+                        constraints: workerConstraintsArray
                     },
                     labels: [
                         'traefik.enable=true',
@@ -288,10 +299,7 @@ export default function(osi4iotState) {
                     mode: 'replicated',
                     replicas: 1,
                     placement: {
-                        constraints: [
-                            `node.role==${workerMode}`,
-                            'node.labels.platform_worker==true'
-                        ]
+                        constraints: workerConstraintsArray
                     }
                 }
             },
@@ -339,10 +347,7 @@ export default function(osi4iotState) {
                 ],
                 deploy: {
                     placement: {
-                        constraints: [
-                            `node.role==${workerMode}`,
-                            'node.labels.platform_worker==true'
-                        ]
+                        constraints: workerConstraintsArray
                     },
                     labels: [
                         'traefik.enable=true',
@@ -410,8 +415,7 @@ export default function(osi4iotState) {
                 }
             },
             admin_api: {
-                // image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
-                image: 'admin_api_aux',
+                image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
                 networks: [
                     'internal_net',
                     'traefik_public'
@@ -455,10 +459,7 @@ export default function(osi4iotState) {
                     mode: 'replicated',
                     replicas: 3,
                     placement: {
-                        constraints: [
-                            `node.role==${workerMode}`,
-                            'node.labels.platform_worker==true'
-                        ]
+                        constraints: workerConstraintsArray
                     },
                     labels: [
                         'traefik.enable=true',
@@ -499,10 +500,7 @@ export default function(osi4iotState) {
                     mode: 'replicated',
                     replicas: 3,
                     placement: {
-                        constraints: [
-                            `node.role==${workerMode}`,
-                            'node.labels.platform_worker==true'
-                        ]
+                        constraints: workerConstraintsArray
                     },
                     labels: [
                         'traefik.enable=true',
@@ -648,11 +646,7 @@ export default function(osi4iotState) {
             ],
             deploy: {
                 placement: {
-                    constraints: [
-                        'node.platform.arch==x86_64',
-                        `node.role==${workerMode}`,
-                        'node.labels.platform_worker==true'
-                    ]
+                    constraints: [...workerConstraintsArray, 'node.platform.arch==x86_64']
                 }
             }
         }
@@ -758,16 +752,14 @@ export default function(osi4iotState) {
     for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
         const orgMasterDeviceHashes = [];
         const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
-        if (numSwarmNodes === 1) {
-            execSync(`docker node update --label-add org_hash=${orgHash} ${currentNodeId}`);
-        }
+        const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
         const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
         for (let idev = 1; idev <= num_master_devices; idev++) {
             const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
             const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].is_volume_created;
             orgMasterDeviceHashes.push(masterDeviceHash);
 
-            const serviceName = `org_${iorg}_master_device_${idev}`;
+            const serviceName = `org_${org_acronym}_md_${masterDeviceHash}`;
             const masterDeviceHashPath = `master_device_${masterDeviceHash}`
             osi4iotStackObj.services[serviceName] = {
                 image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,

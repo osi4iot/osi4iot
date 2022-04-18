@@ -11,6 +11,7 @@ import stackFileGenerator from './stackFileGenerator.js';
 import checkIfAllNoderedVolumesAreCreated from './checkIfAllNoderedVolumesAreCreated.js';
 import markAsCreatedAllNoderedVolumes from './markAsCreatedAllNoderedVolumes.js';
 import certsGenerator from './certsGenerator.js';
+import findManagerDockerHost from './findManagerDockerHost.js';
 
 const dots = [
     "       ",
@@ -24,9 +25,6 @@ const dots = [
 ];
 
 export default async function (osi4iotState = null, dockerHost = null) {
-    if (!dockerHost) {
-        dockerHost = findManagerDockerHost(osi4iotState.platformInfo.NODES_DATA);
-    }
     if (!osi4iotState) {
         if (!fs.existsSync('./osi4iot_state.json')) {
             console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
@@ -34,6 +32,9 @@ export default async function (osi4iotState = null, dockerHost = null) {
         } else {
             const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
             osi4iotState = JSON.parse(osi4iotStateText);
+            if (!dockerHost) {
+                dockerHost = findManagerDockerHost(osi4iotState.platformInfo.NODES_DATA);
+            }
 
             let osi4iotStateFileNeedToBeUpdated = false;
             let certsUpdateIsNeedeed = false;

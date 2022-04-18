@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import validUrl from 'valid-url';
 import timezoneValidator from 'timezone-validator';
 import { nanoid } from 'nanoid';
@@ -115,22 +116,13 @@ const platformInitiation = () => {
                 name: 'IS_LOCAL_INSTALLATION',
                 message: 'Is a local installation: ',
                 type: 'confirm',
-                when: (answers) => answers.NUMBER_OF_SWARM_NODES === 1,
-                validate: function (numOfNodes) {
-                    let valid = false;
-                    if (numOfNodes !== "" && Number.isInteger(Number(numOfNodes)) && Number(numOfNodes) >= 1) valid = true;
-                    if (valid) {
-                        return true;
-                    } else {
-                        return "Please type an integer number greater or equal to one";
-                    }
-                }
+                when: (answers) => answers.NUMBER_OF_SWARM_NODES === 1
             }
         ])
         .then(async (prevAnswers) => {
             const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
             const isLocalInstallation = prevAnswers.IS_LOCAL_INSTALLATION;
-            const nodesData = []
+            const nodesData = [];
             if (numSwarmNodes > 1 || !isLocalInstallation) {
                 for (let inode = 1; inode <= numSwarmNodes; inode++) {
                     await swarmNodesQuestions(prevAnswers, inode).then(answers => {
@@ -138,7 +130,11 @@ const platformInitiation = () => {
                     });
                 }
             } else {
-                nodesData.push({ nodeHostName: "localhost", nodeIP: "localhost", nodeUserName: "", nodeRole: "Manager" });
+                const nodeArchitecture = os.arch();
+                let nodeArch = "x86_64";
+                if (nodeArchitecture === "x64") nodeArch = "x86_64";
+                else if (nodeArchitecture === "arm64") nodeArch = "aarch64";
+                nodesData.push({ nodeHostName: "localhost", nodeIP: "localhost", nodeUserName: "", nodeRole: "Manager", nodeArch });
             }
             const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
             finalQuestions(newAnswers, numSwarmNodes);
@@ -199,8 +195,12 @@ const swarmNodesQuestions = async (prevAnswers, inode) => {
         .then(answers => {
             const userName = answers.nodeUserName;
             const nodeIP = answers.nodeIP;
-            if (numSwarmNodes === 1) answers.nodeRole = "Manager";
-            //OJO execSync(`ssh-copy-id -i ./.osi4iot_keys/osi4iot_ed25519 ${userName}@${nodeIP}`, { stdio: 'ignore' })
+            if (numSwarmNodes === 1) {
+                answers.nodeRole = "Manager";
+            }
+            execSync(`ssh-copy-id -i ./.osi4iot_keys/osi4iot_ed25519 ${userName}@${nodeIP}`, { stdio: 'ignore' });
+            answers.nodeArch = execSync(`ssh ${userName}@${nodeIP} uname -m`).toString().trim();
+            console.log("");
             return answers;
         });
 }
@@ -729,6 +729,7 @@ const finalQuestions = (oldAnswers) => {
 
                         osi4iotState.certs.mqtt_certs.organizations[0] = {
                             org_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
+                            org_acronym: answers.MAIN_ORGANIZATION_ACRONYM.toLowerCase(),
                             master_devices: []
                         }
                         for (let idev = 1; idev <= answers.NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG; idev++) {
@@ -736,7 +737,7 @@ const finalQuestions = (oldAnswers) => {
                                 client_crt: "",
                                 client_key: "",
                                 expiration_timestamp: 0,
-                                md_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
+                                md_hash: nanoid(10).replace(/-/g, "x").replace(/_/g, "X"),
                                 is_volume_created: 'false'
                             }
                             osi4iotState.certs.mqtt_certs.organizations[0].master_devices[idev - 1].client_crt_name = "";
@@ -813,6 +814,7 @@ const joinNodesToSwarm = (nodesData) => {
         const nodeHostName = nodesData[0].nodeHostName;
         if (nodeIP === "localhost") {
             try {
+                console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
                 execSync("docker swarm leave --force", { stdio: 'ignore' });
             } catch (error) {
                 //do nothing

@@ -1,4 +1,5 @@
 import fs from 'fs';
+import os from 'os';
 import clc from 'cli-color';
 import { execSync } from 'child_process';
 import platformInitForm from './platformInitForm.js';
@@ -85,9 +86,24 @@ const osi4iotCli = async () => {
 }
 
 const loadSSHAgentWarnning = () => {
-    console.log(clc.yellowBright("\nBefore running osi4iot is necessary to add ssh key certificates."));
-    console.log(clc.yellowBright("Type the following commands in the shell to get it:"));
-    console.log(clc.yellowBright("\neval `ssh-agent -s` && ssh-add ./.osi4iot_keys/osi4iot_ed25519\n"));
+    console.log(clc.yellowBright("\nBefore running osi4iot is necessary to start the ssh-agent and load the key certificate files in it."));
+    const platform = os.platform();
+    if (platform === "linux") {
+        console.log(clc.yellowBright("Type the following commands in the shell to get it:"));
+        console.log(clc.yellowBright("\neval `ssh-agent -s` && ssh-add ./.osi4iot_keys/osi4iot_ed25519\n"));
+        console.log(clc.yellowBright("To remove the previous loaded keys type the following command:"));
+        console.log(clc.yellowBright("\nssh-add -D\n"));
+    } else if (platform === "win32") {
+        console.log(clc.yellowBright("In Windows by default the ssh-agent service is disabled. Allow it to be manually started for the next step to work."));
+        console.log(clc.yellowBright("Type the following command but make sure you're running as an Administrator:"));
+        console.log(clc.yellowBright("\nGet-Service ssh-agent | Set-Service -StartupType Manual\n"));
+        console.log(clc.yellowBright("To start the ssh-agent service and load the key files in it type the following command:"));
+        console.log(clc.yellowBright("\nStart-Service sshd; ssh-add ./.osi4iot_keys/osi4iot_ed25519\n"));
+        console.log(clc.yellowBright("To remove the previous loaded keys type the following command:"));
+        console.log(clc.yellowBright("\nssh-add -D\n"));
+    } else {
+        console.log(clc.redBright("\nError: Only linux and win32 platform are supported"));
+    }
 }
 
 osi4iotCli();
