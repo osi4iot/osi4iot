@@ -7,7 +7,7 @@ import cleanStack from './cleanStack.js';
 import addOrganizations from './addOrganizations.js';
 import modifyNumMasterDevicesInOrg from './modifyNumMasterDevicesInOrg.js';
 
-export default function() {
+export default function () {
     inquirer
         .prompt([
             {

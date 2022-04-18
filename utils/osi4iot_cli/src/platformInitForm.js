@@ -3,7 +3,7 @@ import os from 'os';
 import validUrl from 'valid-url';
 import timezoneValidator from 'timezone-validator';
 import { nanoid } from 'nanoid';
-import { execSync } from 'child_process';
+import { execSync, exec } from 'child_process';
 import bcrypt from 'bcryptjs';
 import clc from "cli-color";
 import removeCerts from './removeCerts.js';
@@ -192,13 +192,13 @@ const swarmNodesQuestions = async (prevAnswers, inode) => {
                 when: () => numSwarmNodes > 1
             },
         ])
-        .then(answers => {
+        .then(async (answers) => {
             const userName = answers.nodeUserName;
             const nodeIP = answers.nodeIP;
             if (numSwarmNodes === 1) {
                 answers.nodeRole = "Manager";
             }
-            execSync(`ssh-copy-id -i ./.osi4iot_keys/osi4iot_ed25519 ${userName}@${nodeIP}`, { stdio: 'ignore' });
+            await sshCopyId(userName, nodeIP)
             answers.nodeArch = execSync(`ssh ${userName}@${nodeIP} uname -m`).toString().trim();
             console.log("");
             return answers;
@@ -489,7 +489,7 @@ const finalQuestions = (oldAnswers) => {
                         return "Please type an integer number greater or equal to one";
                     }
                 }
-            },            
+            },
             {
                 name: 'NOTIFICATIONS_EMAIL_ADDRESS',
                 message: 'Email account for platform notifications: ',
@@ -747,23 +747,23 @@ const finalQuestions = (oldAnswers) => {
                         try {
                             console.log(clc.green('\nConfigurating nodes in the cluster...'));
                             await nodesConfiguration(osi4iotState);
-    
+
                             console.log(clc.green('\nJoining nodes to swarm:'));
                             joinNodesToSwarm(answers.NODES_DATA);
-    
+
                             console.log(clc.green('\nCreating certificates...'));
                             removeCerts(osi4iotState);
                             await certsGenerator(osi4iotState);
                             const osi4iotStateFile = JSON.stringify(osi4iotState);
                             fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
-    
+
                             console.log(clc.green('Creating secrets...'))
                             secretsGenerator(osi4iotState);
                             console.log(clc.green('Creating configs...'))
                             configGenerator(osi4iotState);
                             console.log(clc.green('Creating stack file...\n'))
                             stackFileGenerator(osi4iotState);
-    
+
                             await generateNodesLabelsAndRunStack(osi4iotState);
                         } catch (error) {
                             console.log(clc.redBright(error));
@@ -885,4 +885,18 @@ const joinNodesToSwarm = (nodesData) => {
     if (outputResult === "Failed") {
         throw new Error("Error joining nodes to swarm");
     }
+}
+
+function sshCopyId(userName, nodeIP) {
+    const localNodePlatform = os.platform();
+    return new Promise(function (resolve, reject) {
+        setTimeout(() => {
+            if (localNodePlatform === "linux") {
+                execSync(`ssh-copy-id -i ./.osi4iot_keys/osi4iot_ed25519 ${userName}@${nodeIP}`, { stdio: 'ignore' });
+            } else if (localNodePlatform === "win32") {
+                execSync(`cat ./.osi4iot_keys/osi4iot_ed25519.pub | ssh ${userName}@${nodeIP} "umask 077; test -d .ssh || mkdir .ssh ; cat >> .ssh/authorized_keys || exit 1"`, { stdio: 'inherit', shell: 'powershell.exe' });
+            }
+            resolve("done")
+        }, 200);
+    });
 }

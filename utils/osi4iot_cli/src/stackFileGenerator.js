@@ -1,7 +1,5 @@
 import yaml from 'js-yaml';
-import os from 'os';
 import fs from 'fs';
-import { execSync } from 'child_process';
 
 const defaultVersion = '1.1.0'
 
