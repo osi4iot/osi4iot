@@ -29,7 +29,7 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7,
-	building_id = $8  WHERE ${propName} = $9;`;
+	building_id = $8, org_hash = $9  WHERE ${propName} = $10;`;
 	const queryArray =
 		[
 			orgData.name,
@@ -40,6 +40,7 @@ export const updateOrganizationByProp = async (propName: string, propValue: (str
 			orgData.state,
 			orgData.country,
 			orgData.buildingId,
+			orgData.orgHash,
 			propValue
 		];
 	await pool.query(query, queryArray);

@@ -76,9 +76,9 @@ export const updateMasterDeviceHashById = async (masterDeviceId: number, newMast
 
 export const createMasterDevicesInOrg = async (masterDeviceHashes: string[], orgId: number): Promise<IMasterDevice[]> => {
 	const masterDeviceQueries = [];
-	for (let imdevice = 0; imdevice < masterDeviceHashes.length; imdevice++) {
+	for (const masterDeviceHash of masterDeviceHashes) {
 		const masterDeviceInput: CreateMasterDeviceDto = {
-			masterDeviceHash: process_env.MASTER_DEVICE_HASHES[orgId-1][imdevice],
+			masterDeviceHash,
 			orgId
 		}
 		const masterDeviceQuery = await createMasterDevice(masterDeviceInput);

@@ -17,7 +17,6 @@ import {
 	getOrganizationByProp,
 	updateOrganizationByProp,
 	createDefaultOrgDataSource,
-	getOrganizationKey,
 	addAdminToOrganization,
 	addOrgUsersToDefaultOrgGroup,
 	addUsersToOrganizationAndMembersToDefaultOrgGroup,
@@ -25,7 +24,6 @@ import {
 	updateOrgUserRoleInDefaultOrgGroup,
 	organizationsWhichTheLoggedUserIsUser,
 	getOrganizationsWithIdsArray,
-	getNumOrganizations
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -276,15 +274,7 @@ class OrganizationController implements IController {
 
 	private createOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const numOrgs = await getNumOrganizations();
-			if ( (numOrgs+1) > process_env.MASTER_DEVICE_HASHES.length) {
-				throw new HttpException(400, "There are no more master devices hashes available for a new org.")
-			}
-			if ( (numOrgs+1) > process_env.ORG_HASHES.length) {
-				throw new HttpException(400, "There are no more org hashes available for a new org.");
-			}
 			const organizationData: CreateOrganizationDto = req.body;
-			organizationData.orgHash = process_env.ORG_HASHES[numOrgs];
 			organizationData.acronym = organizationData.acronym.replace(/ /g, "_").toUpperCase();
 			const orgGrafanaDTO: IOrganizationGrafanaDTO = { name: organizationData.name };
 			const exits_OrganizationWithName = await exitsOrganizationWithName(organizationData.name);
@@ -352,7 +342,7 @@ class OrganizationController implements IController {
 				await addOrgUsersToDefaultOrgGroup(newOrg.orgId, organizationData.orgAdminArray);
 				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
 
-				await createMasterDevicesInOrg(process_env.MASTER_DEVICE_HASHES[newOrg.orgId - 1], newOrg.orgId)
+				await createMasterDevicesInOrg(organizationData.masterDeviceHashes, newOrg.orgId)
 				const defaultGroupDeviceData = [
 					{
 						name: defaultGroupDeviceName(group, "Main master"),

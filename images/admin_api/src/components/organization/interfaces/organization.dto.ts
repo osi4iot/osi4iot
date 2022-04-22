@@ -2,7 +2,6 @@ import { Type } from "class-transformer";
 import { IsNumber, IsString, ValidateIf, ValidateNested } from "class-validator";
 import CreateUserDto from "../../user/interfaces/User.dto";
 
-
 class CreateOrganizationDto {
 	@IsString()
 	public name: string;
@@ -28,6 +27,12 @@ class CreateOrganizationDto {
 	@IsNumber()
 	public buildingId: number;
 
+	@IsString()
+	public orgHash: string;
+
+	@IsString({each: true})
+	public masterDeviceHashes: string[];
+
 	@ValidateIf((obj) => obj.telegramInvitationLink !== undefined)
 	@IsString()
 	public telegramInvitationLink?: string;
@@ -39,10 +44,6 @@ class CreateOrganizationDto {
 	@ValidateNested({ each: true })
 	@Type(() => CreateUserDto)
 	public orgAdminArray: CreateUserDto[];
-
-	@ValidateIf((obj) => obj.orgHash !== undefined)
-	@IsString()
-	public orgHash?: string;
 }
 
 export default CreateOrganizationDto;

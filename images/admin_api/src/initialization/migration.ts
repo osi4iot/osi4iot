@@ -15,7 +15,6 @@ import IDevice from "../components/device/device.interface";
 import { createMasterDevicesInOrg } from "../components/masterDevice/masterDeviceDAL";
 import IMasterDevice from "../components/masterDevice/masterDevice.interface";
 import ITopicUpdate from "../components/topic/topicUpdate.interface";
-import { updateOrganizationHashes } from "./updateOrganizationHashes";
 import needle from "needle";
 
 
@@ -74,7 +73,7 @@ export async function dataBaseInitialization() {
 					process_env.MAIN_ORGANIZATION_STATE,
 					process_env.MAIN_ORGANIZATION_COUNTRY,
 					1,
-					process_env.ORG_HASHES[0],
+					process_env.MAIN_ORG_HASH,
 					"Main Org."
 				];
 
@@ -470,7 +469,7 @@ export async function dataBaseInitialization() {
 				let mainMasterDevice: IMasterDevice;
 				try {
 					await client.query(queryStringMasterDevice);
-					const masterDevices = await createMasterDevicesInOrg(process_env.MASTER_DEVICE_HASHES[0], 1);
+					const masterDevices = await createMasterDevicesInOrg(process_env.MAIN_ORG_MASTER_DEVICE_HASHES, 1);
 					mainMasterDevice = masterDevices[0];
 					logger.log("info", `Table ${tableMasterDevice} has been created sucessfully`);
 				} catch (err) {
@@ -664,7 +663,6 @@ export async function dataBaseInitialization() {
 					logger.log("info", `Migration pool has ended`);
 				})
 			}
-			await updateOrganizationHashes();
 		}
 	} else {
 		process.exit(1);

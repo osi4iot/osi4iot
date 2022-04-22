@@ -33,8 +33,8 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: string;
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: string;
 	TELEGRAM_BOTTOKEN: string;
-	ORG_HASHES: string[];
-	MASTER_DEVICE_HASHES: string[][];
+	MAIN_ORG_HASH: string;
+	MAIN_ORG_MASTER_DEVICE_HASHES: string[];
 	REPLICA: string;
 }
 
@@ -70,8 +70,8 @@ const process_env: IProcessEnv = {
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 	TELEGRAM_BOTTOKEN: process.env.TELEGRAM_BOTTOKEN,
-	ORG_HASHES: [],
-	MASTER_DEVICE_HASHES: [],
+	MAIN_ORG_HASH: process.env.MAIN_ORG_HASH,
+	MAIN_ORG_MASTER_DEVICE_HASHES: [],
 	REPLICA: process.env.REPLICA,
 };
 
@@ -84,12 +84,9 @@ const readDockerFiles = (dockerFileName: string) => {
 				const splittedLine = line.split("=");
 				if (splittedLine.length === 2) {
 					const envName = splittedLine[0];
-					if (envName.slice(-20) === "MASTER_DEVICE_HASHES") {
+					if (envName === "MAIN_ORG_MASTER_DEVICE_HASHES") {
 						const envValues = splittedLine[1].replace(/"/g, "").split(",");
-						process_env.MASTER_DEVICE_HASHES.push(envValues);
-					} else if (envName.slice(0,3) === "ORG" && envName.slice(-4) === "HASH") {
-						const envValues = splittedLine[1].replace(/"/g, "");
-						process_env.ORG_HASHES.push(envValues);
+						process_env.MAIN_ORG_MASTER_DEVICE_HASHES.push(...envValues);
 					} else {
 						const envValue = splittedLine[1].replace(/"/g, "");
 						process_env[envName] = envValue;

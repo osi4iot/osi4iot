@@ -17,6 +17,7 @@
   "dependencies": {
     "bcryptjs": "^2.4.3",
     "cli-color": "^2.0.1",
+    "cli-table3": "^0.6.2",
     "crypto": "^1.0.1",
     "inquirer": "^8.2.1",
     "inquirer-table-prompt": "^0.2.1",
@@ -24,6 +25,7 @@
     "md5": "^2.3.0",
     "mkcert": "^1.5.0",
     "nanoid": "^3.3.1",
+    "needle": "^3.1.0",
     "timezone-validator": "^1.0.3",
     "valid-url": "^1.0.9"
   },
