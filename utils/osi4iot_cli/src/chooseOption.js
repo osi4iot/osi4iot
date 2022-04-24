@@ -4,7 +4,7 @@ import platformInitForm from './platformInitForm.js';
 import runStack from './runStack.js';
 import stopStack from './stopStack.js';
 import stackStatus from './stackStatus.js';
-import cleanStack from './cleanStack.js';
+import deletePlatform from './deletePlatform.js';
 import createOrganization from './createOrganization.js';
 import modifyNumMasterDevicesInOrg from './modifyNumMasterDevicesInOrg.js';
 import getOrganizations from './getOrganizations.js';
@@ -24,6 +24,7 @@ export const chooseOption = () => {
 				choices: [
 					'Init platform',
 					'Run platform',
+					'Clear screen',
 					'List organizations',
 					'Create organization',
 					'Update organization',
@@ -32,10 +33,9 @@ export const chooseOption = () => {
 					'Add node',
 					'Update node',
 					'Remove node',
-					'Stop platform',
 					'Platform status',
-					'Clean platform',
-					'Clear screen',
+					'Stop platform',
+					'Delete platform',
 					'Exit'
 				]
 
@@ -48,6 +48,9 @@ export const chooseOption = () => {
 					break;
 				case 'Run platform':
 					await runStack();
+					break;
+				case 'Clear screen':
+					clearScreen();
 					break;
 				case 'List organizations':
 					await getOrganizations();
@@ -64,17 +67,14 @@ export const chooseOption = () => {
 				case 'Modify number of master devices in org':
 					await modifyNumMasterDevicesInOrg();
 					break;
-				case 'Stop platform':
-					await stopStack();
-					break;
 				case 'Platform status':
 					await stackStatus();
 					break;
-				case 'Clean platform':
-					await cleanStack();
+				case 'Stop platform':
+					await stopStack();
 					break;
-				case 'Clear screen':
-					clearScreen();
+				case 'Delete platform':
+					deletePlatform();
 					break;
 				case 'Exit':
 					break;
@@ -83,7 +83,7 @@ export const chooseOption = () => {
 		})
 		.catch((error) => {
 			if (error.isTtyError) {
-				// Prompt couldn't be rendered in the current environment
+				console.log("Prompt couldn't be rendered in the current environment");
 			} else {
 				console.log("Error in osi4iot cli: ", error)
 			}

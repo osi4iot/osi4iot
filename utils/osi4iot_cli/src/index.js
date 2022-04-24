@@ -6,7 +6,7 @@ import platformInitForm from './platformInitForm.js';
 import runStack from './runStack.js';
 import stopStack from './stopStack.js';
 import stackStatus from './stackStatus.js';
-import cleanStack from './cleanStack.js';
+import deletePlatform from './deletePlatform.js';
 import { chooseOption } from './chooseOption.js';
 import createOrganization from './createOrganization.js';
 import modifyNumMasterDevicesInOrg from './modifyNumMasterDevicesInOrg.js';
@@ -43,8 +43,8 @@ const osi4iotCli = async () => {
 			case 'status':
 				await stackStatus();
 				break;
-			case 'clean':
-				await cleanStack();
+			case 'delete_platform':
+				deletePlatform();
 				break;
 			case 'help':
 				console.log(clc.yellowBright("The osi4iot cli syntax is:\n"));

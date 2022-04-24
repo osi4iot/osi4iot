@@ -76,7 +76,7 @@ export default function () {
 					})
 					.catch((error) => {
 						if (error.isTtyError) {
-							// Prompt couldn't be rendered in the current environment
+							console.log("Prompt couldn't be rendered in the current environment");
 						} else {
 							console.log("Error in osi4iot cli: ", error)
 						}
@@ -84,7 +84,7 @@ export default function () {
 			})
 			.catch((error) => {
 				if (error.isTtyError) {
-					// Prompt couldn't be rendered in the current environment
+					console.log("Prompt couldn't be rendered in the current environment");
 				} else {
 					console.log("Error in osi4iot cli: ", error)
 				}

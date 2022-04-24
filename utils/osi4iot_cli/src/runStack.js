@@ -13,6 +13,7 @@ import markAsCreatedAllNoderedVolumes from './markAsCreatedAllNoderedVolumes.js'
 import certsGenerator from './certsGenerator.js';
 import findManagerDockerHost from './findManagerDockerHost.js';
 import { chooseOption } from './chooseOption.js';
+import pruneSystemAndVolumes from './pruneSystemAndVolumes.js';
 
 const dots = [
 	"       ",
@@ -118,8 +119,8 @@ export default async function (osi4iotState = null, dockerHost = null) {
 							stackFileGenerator(osi4iotState);
 							resolve("Redeploy stack")
 						} else {
-							console.log("\nRemoving unused containers and images.");
-							execSync("docker system prune --force");
+							console.log("\nRemoving unused containers, volumes and images.");
+							pruneSystemAndVolumes(osi4iotState);
 							console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!\n"));
 							process.stdout.write('\u001B[?25h');
 							resolve("Finish");
@@ -146,8 +147,8 @@ export default async function (osi4iotState = null, dockerHost = null) {
 										text.indexOf(" 1/3 ") !== -1 ||
 										text.indexOf(" 2/3 ") !== -1;
 									if (!continuar) {
-										console.log("\nRemoving unused containers and images.");
-										execSync("docker system prune --force");
+										console.log("\nRemoving unused containers, volumes and images.");
+										pruneSystemAndVolumes(osi4iotState);
 										console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!\n"))
 										process.stdout.write('\u001B[?25h');
 										clearInterval(this);

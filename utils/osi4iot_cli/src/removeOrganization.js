@@ -93,8 +93,8 @@ export default async function () {
 				])
 				.then(async (answers) => {
 					const orgId = parseInt(answers.orgId);
-					const orgToRemove = orgs.filter(org => org.id === orgId)[0];
-					await requestRemoveOrg(accessToken, osi4iotState, orgToRemove);
+					const orgData = orgs.filter(org => org.id === orgId)[0];
+					await requestRemoveOrg(accessToken, osi4iotState, orgData);
 				});
 		} else {
 			console.log("\n");
@@ -104,6 +104,7 @@ export default async function () {
 }
 
 const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
+
 	const optionsToken = {
 		rejectUnauthorized: false,
 		headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json", "Accept": "application/json" }
@@ -120,7 +121,8 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 		if (response.message === "Organization deleted successfully") {
 			console.log(clc.greenBright("\Organization deleted successfully\n"));
 
-			const orgIndex = osi4iotState.certs.mqtt_certs.organizations.map(org => org.org_acronym).indexOf(orgData.acronym);
+			const orgAcronym = orgData.acronym.toLowerCase()
+			const orgIndex = osi4iotState.certs.mqtt_certs.organizations.map(org => org.org_acronym).indexOf(orgAcronym);
 			const orgToRemove = osi4iotState.certs.mqtt_certs.organizations[orgIndex];
 			osi4iotState.certs.mqtt_certs.organizations.splice(orgIndex, 1);
 
@@ -135,7 +137,7 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 			removeOrgWorkerNodeLabels(dockerHost, orgToRemove);
 
 			removeMqttCertsFiles(orgToRemove);
-
+			
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
 			if (nfsNode !== undefined) {
 				const org_acronym = orgToRemove.org_acronym;

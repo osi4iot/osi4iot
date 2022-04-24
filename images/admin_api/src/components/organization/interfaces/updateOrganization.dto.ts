@@ -23,16 +23,13 @@ class UpdateOrganizationDto {
 	public country: string;
 
 	@IsNumber()
-	public longitude: number;
-
-	@IsNumber()
-	public latitude: number;
-
-	@IsNumber()
 	public buildingId: number;
 
-	@IsNumber()
-	public floorOrgId: number;
+	@IsString()
+	public orgHash: string;
+
+	@IsString({each: true})
+	public masterDeviceHashes: string[];
 }
 
 export default UpdateOrganizationDto;

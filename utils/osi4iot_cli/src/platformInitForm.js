@@ -3,7 +3,7 @@ import os from 'os';
 import validUrl from 'valid-url';
 import timezoneValidator from 'timezone-validator';
 import { nanoid } from 'nanoid';
-import { execSync, exec } from 'child_process';
+import { execSync } from 'child_process';
 import bcrypt from 'bcryptjs';
 import clc from "cli-color";
 import removeCerts from './removeCerts.js';
@@ -16,7 +16,7 @@ import inquirer from './inquirer.js';
 import findManagerDockerHost from './findManagerDockerHost.js';
 import nodesConfiguration from './nodesConfiguration.js';
 import generateNodeLabels from './generateNodeLabels.js';
-
+import pruneSystemAndVolumes from './pruneSystemAndVolumes.js';
 
 const platformInitiation = () => {
 	inquirer
@@ -710,6 +710,9 @@ const finalQuestions = (oldAnswers) => {
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
 							joinNodesToSwarm(answers.NODES_DATA);
+
+							console.log(clc.green('\nRemoving previous docker images and volumes...'));
+							pruneSystemAndVolumes(osi4iotState);
 
 							console.log(clc.green('\nCreating certificates...'));
 							removeCerts(osi4iotState);

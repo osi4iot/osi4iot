@@ -22,20 +22,31 @@ export default function (nodesData) {
 			}
 		} else {
 			const managerNodes = nodesData.filter(node => node.nodeRole === "Manager");
+			let isManagerActiveFound = false;
 			for (let inode = 0; inode < managerNodes.length; inode++) {
 				const userName = managerNodes[inode].nodeUserName;
 				const nodeIP = managerNodes[inode].nodeIP;
 				try {
-					const outputLines = execSync(`docker -H ssh://${userName}@${nodeIP} node ls`).toString().split('\n');
-					if (outputLines !== "" && !outputLines.includes("This node is not a swarm manager")) {
-						dockerHost = `-H ssh://${userName}@${nodeIP}`;
-						break;
+					if (nodeIP === "localhost") {
+						const outputLines = execSync(`docker node ls`).toString().split('\n');
+						if (outputLines !== "" && !outputLines.includes("This node is not a swarm manager")) {
+							dockerHost = "";
+							isManagerActiveFound = true;
+							break;
+						}
+					} else {
+						const outputLines = execSync(`docker -H ssh://${userName}@${nodeIP} node ls`).toString().split('\n');
+						if (outputLines !== "" && !outputLines.includes("This node is not a swarm manager")) {
+							dockerHost = `-H ssh://${userName}@${nodeIP}`;
+							isManagerActiveFound = true;
+							break;
+						}
 					}
 				} catch (error) {
 					//do nothing
 				}
 			}
-			if (dockerHost === "") {
+			if (!isManagerActiveFound) {
 				throw new Error("Could not be found an active manager for the cluster")
 			}
 		}
