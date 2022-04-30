@@ -103,7 +103,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 				}
 				newNode.nodeArch = nodeArch
 			} else {
-				const localNodeArch = os.platform();
+				const localNodeArch = os.arch();
 				if (localNodeArch === "x64") {
 					newNode.nodeArch = "x86_64";
 				} else if (localNodeArch === "arm64") {
