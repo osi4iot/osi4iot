@@ -415,8 +415,7 @@ export default function (osi4iotState) {
 				}
 			},
 			admin_api: {
-				// image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
-				image: "admin_api_aux",
+				image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
 				networks: [
 					'internal_net',
 					'traefik_public'
