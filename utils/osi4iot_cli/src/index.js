@@ -20,8 +20,6 @@ const cliOptions = [
 const osi4iotCli = async () => {
 	const myArgs = process.argv.slice(2);
 
-	execSync(`ssh -qtt dicapua@192.168.1.77 'sudo bash docker_install.sh'`, { stdio: 'inherit' });
-
 	if (myArgs[0]) {
 		switch (myArgs[0]) {
 			case 'init':
