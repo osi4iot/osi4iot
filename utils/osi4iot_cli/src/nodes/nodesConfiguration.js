@@ -56,7 +56,7 @@ const installUFW = (nodeData) => {
 			execSync(`sudo bash ./installation_scripts/ufw_install.sh "${nodeRole}"`, { stdio: 'inherit'})
 		} else {
 			execSync(`scp ./installation_scripts/ufw_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-			execSync(`ssh ${userName}@${nodeIP} sudo bash ufw_install.sh "${nodeRole}"`, { stdio: 'inherit'})
+			execSync(`ssh ${userName}@${nodeIP} 'sudo bash ufw_install.sh "${nodeRole}"'`, { stdio: 'inherit'})
 			execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/ufw_install.sh`);
 		}
 		return "OK";
@@ -107,7 +107,7 @@ export default async function (nodesData, organizations) {
 			for (const org of organizations) {
 				const org_acronym = org.org_acronym;
 				const md_hashes_array = org.master_devices.map(md => md.md_hash).join(",");
-				await addNFSFolders(nodesData[inode], org_acronym, md_hashes_array);
+				addNFSFolders(nodesData[inode], org_acronym, md_hashes_array);
 			}
 
 		} else {
