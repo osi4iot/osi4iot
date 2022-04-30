@@ -85,11 +85,11 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 				}
 			},
 		])
-		.then(async (answers) => {
-			const userName = answers.nodeUserName;
-			const nodeIP = answers.nodeIP;
+		.then(async (newNode) => {
+			const userName = newNode.nodeUserName;
+			const nodeIP = newNode.nodeIP;
 			if (numSwarmNodes === 1) {
-				answers.nodeRole = "Manager";
+				newNode.nodeRole = "Manager";
 			}
 
 			let status = "OK";
@@ -115,7 +115,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 
 			console.log("");
 			if (status === "OK") {
-				return answers;
+				return newNode;
 			} else {
 				await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, inode);
 			}
