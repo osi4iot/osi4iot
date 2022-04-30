@@ -38,4 +38,4 @@ elif [[ $node_role == "NFS server" ]]; then
     ufw allow 2049/tcp
 fi
 
-ufw reload
+sudo ufw enable
