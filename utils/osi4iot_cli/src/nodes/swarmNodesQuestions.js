@@ -1,3 +1,4 @@
+import os from 'os';
 import clc from "cli-color";
 import inquirer from 'inquirer';
 import { execSync } from 'child_process';
