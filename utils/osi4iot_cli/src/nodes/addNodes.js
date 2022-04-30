@@ -41,7 +41,7 @@ export default function () {
                 if (warnings.length === 0) {
                     try {
                         console.log(clc.green('\nConfigurating new nodes...'));
-                        await nodesConfiguration(newNodes);
+                        nodesConfiguration(newNodes);
     
                         console.log(clc.green('\nJoining nodes to swarm:'));
                         joinNodesToSwarm(newNodes);

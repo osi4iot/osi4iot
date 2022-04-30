@@ -96,7 +96,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 			let status = "OK";
 			if (nodeIP !== "localhost") {
 				await sshCopyId(userName, nodeIP);
-				const nodeArch = execSync(`ssh ${userName}@${nodeIP} uname -m`).toString().trim();
+				const nodeArch = execSync(`ssh ${userName}@${nodeIP} 'uname -m'`).toString().trim();
 				if (!(nodeArch === "x86_64" || nodeArch === "aarch64")) {
 					console.log(clc.redBright("Error: Only are supported amd64 and arm64 architectures"));
 					status = "Failed";

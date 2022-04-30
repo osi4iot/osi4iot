@@ -1,10 +1,9 @@
 import { execSync } from 'child_process';
 import clc from "cli-color";
 import fs from 'fs';
-import execShellCommand from '../generic_tools/execShellCommand.js';
 import addNFSFolders from '../generic_tools/addNFSFolders.js';
 
-const installDocker = async (nodeData, isLocalDeploy) => {
+const installDocker = (nodeData, isLocalDeploy) => {
 	const nodeHostName = nodeData.nodeHostName;
 	const userName = nodeData.nodeUserName;
 	const nodeIP = nodeData.nodeIP;
@@ -25,12 +24,11 @@ const installDocker = async (nodeData, isLocalDeploy) => {
 	} else {
 		try {
 			if (nodeIP === "localhost") {
-				await execShellCommand(`sudo bash ./installation_scripts/docker_install.sh`)
+				execSync(`sudo bash ./installation_scripts/docker_install.sh`, { stdio: 'inherit'})
 			} else {
 				execSync(`scp ./installation_scripts/docker_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-				// await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash docker_install.sh`)
-				execSync(`ssh ${userName}@${nodeIP} sudo bash docker_install.sh`, { stdio: 'inherit'})
-				execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/docker_install.sh`);
+				execSync(`ssh ${userName}@${nodeIP} 'sudo bash docker_install.sh'`, { stdio: 'inherit'})
+				execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/docker_install.sh'`);
 			}
 			return "OK";
 		} catch (err) {
@@ -58,7 +56,7 @@ const installUFW = (nodeData) => {
 		} else {
 			execSync(`scp ./installation_scripts/ufw_install.sh ${userName}@${nodeIP}:/home/${userName}`);
 			execSync(`ssh ${userName}@${nodeIP} 'sudo bash ufw_install.sh "${nodeRole}"'`, { stdio: 'inherit'})
-			execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/ufw_install.sh`);
+			execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/ufw_install.sh'`);
 		}
 		return "OK";
 	} catch (err) {
@@ -79,8 +77,8 @@ const installNFS = (nodeData, ips_array) => {
 	}
 	try {
 		execSync(`scp ./installation_scripts/nfs_server_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-		execSync(`ssh ${userName}@${nodeIP} sudo bash nfs_server_install.sh" "${ips_array}"`, { stdio: 'inherit'})
-		execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/nfs_server_install.sh`);
+		execSync(`ssh ${userName}@${nodeIP} 'sudo bash nfs_server_install.sh" "${ips_array}"'`, { stdio: 'inherit'})
+		execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/nfs_server_install.sh'`);
 		return "OK";
 	} catch (err) {
 		console.log(clc.bgRedBright(`Error installing nfs in node: ${nodeHostName}\n`))
@@ -112,7 +110,7 @@ export default async function (nodesData, organizations) {
 			}
 
 		} else {
-			const ouputDocker = await installDocker(nodesData[inode], isLocalDeploy);
+			const ouputDocker = installDocker(nodesData[inode], isLocalDeploy);
 			if (ouputDocker !== "OK") outputResults = "Failed";
 		}
 	}

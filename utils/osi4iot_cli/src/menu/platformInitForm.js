@@ -136,7 +136,7 @@ const platformInitiation = () => {
 				let nodeArch = "x86_64";
 				if (nodeArchitecture === "x64") nodeArch = "x86_64";
 				else if (nodeArchitecture === "arm64") nodeArch = "aarch64";
-				const whoami = execSync(`ssh ${userName}@${nodeIP} uname -m`).toString();
+				const whoami = execSync(`ssh ${userName}@${nodeIP} 'uname -m'`).toString();
 				let nodeUserName = whoami;
 				if (whoami.includes("\\")) {
 					nodeUserName = whoami.split("\\")[1];
@@ -627,7 +627,7 @@ const finalQuestions = (oldAnswers) => {
 						try {
 							console.log(clc.green('\nConfigurating nodes in the cluster...'));
 							const organizations = osi4iotState.certs.mqtt_certs.organizations;
-							await nodesConfiguration(answers.NODES_DATA, organizations);
+							nodesConfiguration(answers.NODES_DATA, organizations);
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
 							joinNodesToSwarm(answers.NODES_DATA);
