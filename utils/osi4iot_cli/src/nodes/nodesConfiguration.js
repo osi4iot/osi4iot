@@ -28,7 +28,8 @@ const installDocker = async (nodeData, isLocalDeploy) => {
 				await execShellCommand(`sudo bash ./installation_scripts/docker_install.sh`)
 			} else {
 				execSync(`scp ./installation_scripts/docker_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-				await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash docker_install.sh`)
+				// await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash docker_install.sh`)
+				execSync(`ssh ${userName}@${nodeIP} sudo bash docker_install.sh`, { stdio: 'inherit'})
 				execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/docker_install.sh`);
 			}
 			return "OK";
