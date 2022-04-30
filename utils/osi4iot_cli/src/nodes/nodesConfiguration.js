@@ -48,9 +48,13 @@ const installUFW = async (nodeData) => {
 	}
 
 	try {
-		execSync(`scp ./installation_scripts/ufw_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-		await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash ufw_install.sh "${nodeRole}"`)
-		execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/ufw_install.sh`);
+		if (nodeIP === "localhost") {
+			await execShellCommand(`sudo bash ./installation_scripts/ufw_install.sh "${nodeRole}"`)
+		} else {
+			execSync(`scp ./installation_scripts/ufw_install.sh ${userName}@${nodeIP}:/home/${userName}`);
+			await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash ufw_install.sh "${nodeRole}"`)
+			execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/ufw_install.sh`);
+		}
 		return "OK";
 	} catch (err) {
 		return `Error installing ufw in node: ${nodeHostName}\n`;
