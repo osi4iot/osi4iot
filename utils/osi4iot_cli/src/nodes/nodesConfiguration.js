@@ -25,7 +25,7 @@ const installDocker = async (nodeData, isLocalDeploy) => {
 	} else {
 		try {
 			if (nodeIP === "localhost") {
-				await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash ./installation_scriptsdocker_install.sh`)
+				await execShellCommand(`sudo bash ./installation_scripts/docker_install.sh`)
 			} else {
 				execSync(`scp ./installation_scripts/docker_install.sh ${userName}@${nodeIP}:/home/${userName}`);
 				await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash docker_install.sh`)
@@ -38,7 +38,7 @@ const installDocker = async (nodeData, isLocalDeploy) => {
 	}
 }
 
-const installUFW = async (nodeData) => {
+const installUFW = (nodeData) => {
 	const nodeHostName = nodeData.nodeHostName;
 	const userName = nodeData.nodeUserName;
 	const nodeIP = nodeData.nodeIP;
@@ -53,11 +53,10 @@ const installUFW = async (nodeData) => {
 
 	try {
 		if (nodeIP === "localhost") {
-			// await execShellCommand(`sudo bash ./installation_scripts/ufw_install.sh "${nodeRole}"`)
 			execSync(`sudo bash ./installation_scripts/ufw_install.sh "${nodeRole}"`, { stdio: 'inherit'})
 		} else {
 			execSync(`scp ./installation_scripts/ufw_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-			await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash ufw_install.sh "${nodeRole}"`)
+			execSync(`ssh ${userName}@${nodeIP} sudo bash ufw_install.sh "${nodeRole}"`, { stdio: 'inherit'})
 			execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/ufw_install.sh`);
 		}
 		return "OK";
@@ -66,7 +65,7 @@ const installUFW = async (nodeData) => {
 	}
 }
 
-const installNFS = async (nodeData, ips_array) => {
+const installNFS = (nodeData, ips_array) => {
 	const nodeHostName = nodeData.nodeHostName;
 	const userName = nodeData.nodeUserName;
 	const nodeIP = nodeData.nodeIP;
@@ -79,7 +78,7 @@ const installNFS = async (nodeData, ips_array) => {
 	}
 	try {
 		execSync(`scp ./installation_scripts/nfs_server_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-		await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash nfs_server_install.sh" "${ips_array}"`)
+		execSync(`ssh ${userName}@${nodeIP} sudo bash nfs_server_install.sh" "${ips_array}"`, { stdio: 'inherit'})
 		execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/nfs_server_install.sh`);
 		return "OK";
 	} catch (err) {
@@ -99,11 +98,11 @@ export default async function (nodesData, organizations) {
 	for (let inode = 0; inode < numNodes; inode++) {
 		const nodeRole = nodesData[inode].nodeRole;
 		if (!isLocalDeploy) {
-			const ouputUFW = await installUFW(nodesData[inode]);
+			const ouputUFW = installUFW(nodesData[inode]);
 			if (ouputUFW !== "OK") outputResults = "Failed";
 		}
 		if (nodeRole === "NFS server") {
-			const outputNFS = await installNFS(nodesData[inode], ips_array);
+			const outputNFS = installNFS(nodesData[inode], ips_array);
 			if (outputNFS !== "OK") outputResults = "Failed";
 			for (const org of organizations) {
 				const org_acronym = org.org_acronym;

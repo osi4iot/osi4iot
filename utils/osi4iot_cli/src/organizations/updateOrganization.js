@@ -474,7 +474,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 				}
 				if (currentNumMasterDevicesInOrg > orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
 					const md_hashes_array = orgData.masterDeviceHashesToRemove.join(",");
-					await removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
+					removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
 				}
 			}
 

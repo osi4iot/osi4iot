@@ -142,7 +142,7 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 			if (nfsNode !== undefined) {
 				const org_acronym = orgToRemove.org_acronym;
 				const md_hashes_array = orgToRemove.master_devices.map(md => md.md_hash).join(",");
-				await removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
+				removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
 			}
 
 			await runStack(osi4iotState, dockerHost);
