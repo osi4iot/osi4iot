@@ -24,9 +24,13 @@ const installDocker = async (nodeData, isLocalDeploy) => {
 		}
 	} else {
 		try {
-			execSync(`scp ./installation_scripts/docker_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-			await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash docker_install.sh`)
-			execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/docker_install.sh`);
+			if (nodeIP === "localhost") {
+				await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash ./installation_scriptsdocker_install.sh`)
+			} else {
+				execSync(`scp ./installation_scripts/docker_install.sh ${userName}@${nodeIP}:/home/${userName}`);
+				await execShellCommand(`ssh ${userName}@${nodeIP} sudo bash docker_install.sh`)
+				execSync(`ssh ${userName}@${nodeIP} rm /home/${userName}/docker_install.sh`);
+			}
 			return "OK";
 		} catch (err) {
 			return `Error installing docker in node: ${nodeHostName}\n`;
