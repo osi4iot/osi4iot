@@ -13,6 +13,10 @@ import IMessage from "../../GrafanaApi/interfaces/Message";
 import IUserInOrg from "../user/interfaces/UserInOrg.interface";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 import process_env from "../../config/api_config";
+import IMasterDevice from "../masterDevice/masterDevice.interface";
+import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
+import { createMasterDevice, deleteMasterDeviceById } from "../masterDevice/masterDeviceDAL";
+import CreateMasterDeviceDto from "../masterDevice/masterDevice.dto";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
@@ -240,4 +244,38 @@ export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IU
 	return message;
 }
 
+export const updateMasterDevicesInOrg = async (currentMasterDevicesInOrg: IMasterDevice[], newOrganizationData: UpdateOrganizationDto) => {
+	const masterDeviceToCreateQuerries = [];
+	const masterDeviceToRemoveQuerries = [];
+	if (currentMasterDevicesInOrg.length > newOrganizationData.masterDeviceHashes.length) {
+		const newMasterDeviceHashes = newOrganizationData.masterDeviceHashes;
+		const masterDevicesToRemove = currentMasterDevicesInOrg.filter(md => !newMasterDeviceHashes.includes(md.masterDeviceHash));
+		for (const masterDevice of masterDevicesToRemove) {
+			masterDeviceToRemoveQuerries.push(deleteMasterDeviceById(masterDevice.id));
+		}
+	}
+
+	if (currentMasterDevicesInOrg.length < newOrganizationData.masterDeviceHashes.length) {
+		const newMasterDeviceHashes = newOrganizationData.masterDeviceHashes;
+		const currentMasterDeviceHashes = currentMasterDevicesInOrg.map(md => md.masterDeviceHash);
+		const masterDeviceHashesToCreate = newMasterDeviceHashes.filter(mdHash => !currentMasterDeviceHashes.includes(mdHash));
+		for (const masterDeviceHash of masterDeviceHashesToCreate) {
+			const orgId = newOrganizationData.id;
+			const masterDeviceInput: CreateMasterDeviceDto = {
+				masterDeviceHash,
+				orgId
+			}
+			masterDeviceToCreateQuerries.push(createMasterDevice(masterDeviceInput));
+		}
+	}
+
+	if (masterDeviceToCreateQuerries.length !== 0) {
+		await Promise.all(masterDeviceToCreateQuerries);
+	}
+
+	if (masterDeviceToRemoveQuerries.length !== 0) {
+		await Promise.all(masterDeviceToRemoveQuerries);
+	}
+
+}
 

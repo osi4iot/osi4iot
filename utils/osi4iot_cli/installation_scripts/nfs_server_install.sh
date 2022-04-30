@@ -1,8 +1,7 @@
 #!/bin/bash
 
-org_acronym=$1
-md_hashes_array=($(echo "$2" | tr ',' '\n'))
-ips_array=($(echo "$3" | tr ',' '\n'))
+
+ips_array=($(echo "$1" | tr ',' '\n'))
 
 REQUIRED_PKG="nfs-kernel-server"
 if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
@@ -56,13 +55,6 @@ if [ ! -d  /var/nfs/pgdata ]; then
     sudo chown nobody:nogroup /var/nfs/portainer_data
 fi
 
-for (( i=0; i<=${#md_hashes_array[@]}; i++ )); do
-    md_folder="/var/nfs/org_${org_acronym}_md_${md_hashes_array[$i]}"
-    if [ ! -d  $md_folder ]; then
-        sudo mkdir $md_folder
-        sudo chown nobody:nogroup $md_folder
-    fi
-done
 
 if [ ! -d /etc/exports ]; then
     sudo mkdir /etc/exports

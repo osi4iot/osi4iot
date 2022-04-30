@@ -24,6 +24,7 @@ import {
 	updateOrgUserRoleInDefaultOrgGroup,
 	organizationsWhichTheLoggedUserIsUser,
 	getOrganizationsWithIdsArray,
+	updateMasterDevicesInOrg,
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -61,7 +62,7 @@ import { createTopic, demoTopicName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
-import { createMasterDevicesInOrg } from "../masterDevice/masterDeviceDAL";
+import { createMasterDevicesInOrg, getMasterDevicesByOrgsIdArray } from "../masterDevice/masterDeviceDAL";
 
 
 class OrganizationController implements IController {
@@ -678,6 +679,8 @@ class OrganizationController implements IController {
 			const oldOrganizationData = await getOrganizationByProp(propName, propValue);
 			if (!oldOrganizationData) throw new ItemNotFoundException("The organization", propName, propValue);
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
+			const currentMasterDevicesInOrg = await getMasterDevicesByOrgsIdArray([oldOrganizationData.id]);
+			await updateMasterDevicesInOrg(currentMasterDevicesInOrg, newOrganizationData);
 			await updateOrganizationByProp(propName, propValue, newOrganizationData);
 			res.status(200).json({ message: `Organization updated successfully` });
 		} catch (error) {

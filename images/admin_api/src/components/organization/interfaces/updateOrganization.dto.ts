@@ -1,6 +1,8 @@
-import { IsBoolean, IsNumber, IsString, ValidateIf } from "class-validator";
+import { IsNumber, IsString } from "class-validator";
 
 class UpdateOrganizationDto {
+	id?: number;
+
 	@IsString()
 	public name: string;
 

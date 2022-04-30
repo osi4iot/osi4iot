@@ -2,21 +2,18 @@ import fs from 'fs';
 import os from 'os';
 import clc from 'cli-color';
 import { execSync } from 'child_process';
-import platformInitForm from './platformInitForm.js';
-import runStack from './runStack.js';
-import stopStack from './stopStack.js';
-import stackStatus from './stackStatus.js';
-import deletePlatform from './deletePlatform.js';
-import { chooseOption } from './chooseOption.js';
-import createOrganization from './createOrganization.js';
-import modifyNumMasterDevicesInOrg from './modifyNumMasterDevicesInOrg.js';
+import platformInitForm from './menu/platformInitForm.js';
+import runStack from './menu/runStack.js';
+import stopStack from './menu/stopStack.js';
+import stackStatus from './menu/stackStatus.js';
+import deletePlatform from './menu/deletePlatform.js';
+import { chooseOption } from './menu/chooseOption.js';
 
 const cliOptions = [
 	'- init: Request information for configuration and initiate platform.',
 	'- run: Update configuration if required and deploy platform.',
-	'- add_org: Add new organization and re-deploy platform.',
-	'- num_mdevices: Modify the number of master devices in the selected org and re-deploy platform.',
 	'- stop: Stop all services in platform.',
+	'- status: Show current state of the platform.',
 	'- clean: Stop all services and remove images and volumes in platform.',
 ];
 
@@ -30,12 +27,6 @@ const osi4iotCli = async () => {
 				break;
 			case 'run':
 				await runStack();
-				break;
-			case 'create_org':
-				await createOrganization();
-				break;
-			case 'num_mdevices':
-				await modifyNumMasterDevicesInOrg();
 				break;
 			case 'stop':
 				await stopStack();
