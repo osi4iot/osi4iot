@@ -1,3 +1,4 @@
+import fs from 'fs';
 import { execSync } from 'child_process';
 import clc from 'cli-color';
 import { chooseOption } from './chooseOption.js';
