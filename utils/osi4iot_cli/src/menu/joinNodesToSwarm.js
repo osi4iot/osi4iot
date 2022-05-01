@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import clc from 'cli-color';
 
 function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+	return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 export default async function (nodesData) {
@@ -12,7 +12,7 @@ export default async function (nodesData) {
 		const userName = nodesData[0].nodeUserName;
 		const nodeIP = nodesData[0].nodeIP;
 		const nodeHostName = nodesData[0].nodeHostName;
-		if (nodeIP === "localhost") {
+		if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
 			try {
 				console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
 				execSync("docker swarm leave --force", { stdio: 'ignore' });
@@ -50,7 +50,7 @@ export default async function (nodesData) {
 			const nodeRole = nodesData[inode - 1].nodeRole;
 			const nodeHostName = nodesData[inode - 1].nodeHostName;
 			let dockerHost = `-H ssh://${userName}@${nodeIP}`;
-			if (nodeIP === "localhost") dockerHost = "";
+			if (nodeIP === "localhost" || nodeIP === "127.0.0.1") dockerHost = "";
 
 			try {
 				execSync(`docker ${dockerHost} swarm leave --force`, { stdio: 'ignore' });

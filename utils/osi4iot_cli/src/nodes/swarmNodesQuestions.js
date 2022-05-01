@@ -47,7 +47,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 				validate: function (nodeIP) {
 					if (!nodeIPs.includes(nodeIP)) {
 						const validIP = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(nodeIP)
-						if (validIP || nodeIP === "localhost") {
+						if (validIP || (nodeIP === "localhost" || nodeIP === "127.0.0.1") ) {
 							choosenNodeIP = nodeIP;
 							return true;
 						} else {
@@ -78,7 +78,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 				choices: ["Manager", "Platform worker", "Generic org worker", "Exclusive org worker", "NFS server"],
 				when: () => numSwarmNodes > 1,
 				validate: function (nodeRole) {
-					if (choosenNodeIP === "localhost" && nodeRole !== "Manager") {
+					if ((choosenNodeIP === "localhost"  || choosenNodeIP === "127.0.0.1") && nodeRole !== "Manager") {
 						return "A localhost node must have manager role";
 					} else {
 						return true;
@@ -94,7 +94,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 			}
 
 			let status = "OK";
-			if (nodeIP !== "localhost") {
+			if (!(nodeIP === "localhost" || nodeIP === "127.0.0.1")) {
 				await sshCopyId(userName, nodeIP);
 				const nodeArch = execSync(`ssh ${userName}@${nodeIP} 'uname -m'`).toString().trim();
 				if (!(nodeArch === "x86_64" || nodeArch === "aarch64")) {

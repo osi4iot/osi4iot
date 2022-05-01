@@ -120,7 +120,7 @@ export default async function (osi4iotState = null, dockerHost = null) {
 							resolve("Redeploy stack")
 						} else {
 							console.log("\nRemoving unused containers, volumes and images.");
-							pruneSystemAndVolumes(osi4iotState);
+							pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 							console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!\n"));
 							process.stdout.write('\u001B[?25h');
 							resolve("Finish");
@@ -148,7 +148,7 @@ export default async function (osi4iotState = null, dockerHost = null) {
 										text.indexOf(" 2/3 ") !== -1;
 									if (!continuar) {
 										console.log("\nRemoving unused containers, volumes and images.");
-										pruneSystemAndVolumes(osi4iotState);
+										pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 										console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!\n"))
 										process.stdout.write('\u001B[?25h');
 										clearInterval(this);

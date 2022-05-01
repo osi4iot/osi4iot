@@ -17,11 +17,11 @@ const installUFW = (nodeData) => {
 	}
 
 	try {
-		if (nodeIP === "localhost") {
-			execSync(`sudo bash ./installation_scripts/ufw_install.sh "${nodeRole}"`, { stdio: 'inherit'})
+		if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
+			execSync(`sudo bash ./installation_scripts/ufw_install.sh "${nodeRole}"`, { stdio: 'inherit' })
 		} else {
 			execSync(`scp ./installation_scripts/ufw_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-			execSync(`ssh ${userName}@${nodeIP} 'sudo bash ufw_install.sh "${nodeRole}"'`, { stdio: 'inherit'})
+			execSync(`ssh ${userName}@${nodeIP} 'sudo bash ufw_install.sh "${nodeRole}"'`, { stdio: 'inherit' })
 			execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/ufw_install.sh'`);
 		}
 		return "OK";
@@ -43,7 +43,7 @@ const installNFS = (nodeData, ips_array) => {
 	}
 	try {
 		execSync(`scp ./installation_scripts/nfs_server_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-		execSync(`ssh ${userName}@${nodeIP} 'sudo bash nfs_server_install.sh" "${ips_array}"'`, { stdio: 'inherit'})
+		execSync(`ssh ${userName}@${nodeIP} 'sudo bash nfs_server_install.sh" "${ips_array}"'`, { stdio: 'inherit' })
 		execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/nfs_server_install.sh'`);
 		return "OK";
 	} catch (err) {
@@ -55,7 +55,7 @@ const installNFS = (nodeData, ips_array) => {
 export default async function (nodesData, organizations) {
 	const numNodes = nodesData.length;
 	let isLocalDeploy = false;
-	if (numNodes === 1 && nodesData[0].nodeIP === "localhost") {
+	if (numNodes === 1 && (nodesData[0].nodeIP === "localhost" || nodesData[0].nodeIP === "127.0.0.1")) {
 		isLocalDeploy = true;
 	}
 	const ips_array = nodesData.map(node => node.nodeIP).join(",");;

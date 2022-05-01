@@ -3,7 +3,7 @@ import { execSync } from 'child_process';
 export default function (nodesData) {
 	const numSwarmNodes = nodesData.length;
 	let isLocalDeploy = false;
-	if (numSwarmNodes === 1 && nodesData[0].nodeIP === "localhost") {
+	if (numSwarmNodes === 1 && (nodesData[0].nodeIP === "localhost" || nodesData[0].nodeIP === "127.0.0.1")) {
 		isLocalDeploy = true;
 	}
 	let dockerHost = "";
@@ -27,7 +27,7 @@ export default function (nodesData) {
 				const userName = managerNodes[inode].nodeUserName;
 				const nodeIP = managerNodes[inode].nodeIP;
 				try {
-					if (nodeIP === "localhost") {
+					if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
 						const outputLines = execSync(`docker node ls`).toString().split('\n');
 						if (outputLines !== "" && !outputLines.includes("This node is not a swarm manager")) {
 							dockerHost = "";

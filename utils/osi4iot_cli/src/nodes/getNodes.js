@@ -46,7 +46,7 @@ export default async function (osi4iotState) {
             orgs = orgsInNodes[nodeData.nodeHostName].join(", ");
         } else {
             orgs = "-";
-            if (nodesData.length === 1 && nodeData.nodeIP === "localhost") {
+            if (nodesData.length === 1 && (nodeData.nodeIP === "localhost" || nodeData.nodeIP === "127.0.0.1")) {
                 orgs = "All orgs";
             }
         }

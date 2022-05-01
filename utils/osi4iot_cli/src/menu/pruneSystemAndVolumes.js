@@ -5,7 +5,7 @@ export default function (nodesDataIni) {
     for (const nodeData of nodesData) {
         const userName = nodeData.nodeUserName;
         const nodeIP = nodeData.nodeIP;
-        const dockerHost = nodeIP === "localhost" ? "" : `-H ssh://${userName}@${nodeIP}`;
+        const dockerHost = (nodeIP === "localhost" || nodeIP === "127.0.0.1") ? "" : `-H ssh://${userName}@${nodeIP}`;
         execSync(`docker ${dockerHost} system prune --force`);
         execSync(`docker ${dockerHost} volume prune --force`);
     }
