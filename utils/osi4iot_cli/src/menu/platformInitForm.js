@@ -630,7 +630,7 @@ const finalQuestions = (oldAnswers) => {
 							nodesConfiguration(answers.NODES_DATA, organizations);
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
-							joinNodesToSwarm(answers.NODES_DATA);
+							await joinNodesToSwarm(answers.NODES_DATA);
 
 							console.log(clc.green('\nRemoving previous docker images and volumes...'));
 							pruneSystemAndVolumes(answers.NODES_DATA);

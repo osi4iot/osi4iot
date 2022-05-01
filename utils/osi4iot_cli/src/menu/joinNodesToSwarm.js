@@ -64,25 +64,23 @@ export default async function (nodesData) {
 						joinWorkerCommand = execSync(`docker ${dockerHost} swarm init`)
 							.toString()
 							.split("\n")[4]
-							.trim();
-						console.log("joinWorkerCommand=", joinWorkerCommand);
+							.trim();;
 						joinManagerCommand = execSync(`docker ${dockerHost} swarm join-token manager`)
 							.toString()
 							.split("\n")[2]
 							.trim();
-						console.log("joinManagerCommand=", joinManagerCommand);
 						isMainManagerJoined = true;
 						await sleep(1000);
 					} else {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-						execSync(joinManagerCommand, { stdio: 'ignore' })
+						execSync(joinManagerCommand, { stdio: 'inherit' })
 					}
 				} else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
 					console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-					execSync(joinWorkerCommand, { stdio: 'ignore' });
+					execSync(joinWorkerCommand, { stdio: 'inherit' });
 				}
 			} catch (err) {
-				console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.`));
+				console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.:`, err.toString()));
 				outputResult = "Failed";
 			}
 		}
