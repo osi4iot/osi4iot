@@ -61,10 +61,12 @@ export default function (nodesData) {
 							.toString()
 							.split("\n")[4]
 							.trim();
+						console.log("joinWorkerCommand=", joinWorkerCommand);
 						joinManagerCommand = execSync(`docker ${dockerHost} swarm join-token manager`)
 							.toString()
 							.split("\n")[2]
 							.trim();
+						console.log("joinManagerCommand=", joinManagerCommand);
 						isMainManagerJoined = true;
 					} else {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
