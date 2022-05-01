@@ -57,7 +57,7 @@ export default function (nodesData) {
 				if (nodeRole === "Manager") {
 					if (!isMainManagerJoined) {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-						joinWorkerCommand = execSync(`docker ${dockerHost}} swarm init`)
+						joinWorkerCommand = execSync(`docker ${dockerHost} swarm init`)
 							.toString()
 							.split("\n")[4]
 							.trim();
