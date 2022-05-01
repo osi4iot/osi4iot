@@ -1,4 +1,5 @@
 import clc from "cli-color";
+import { execSync } from 'child_process';
 
 export default async function (osi4iotState, dockerHost) {
 	const nodesData = osi4iotState.platformInfo.NODES_DATA;
