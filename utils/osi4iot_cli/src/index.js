@@ -9,6 +9,7 @@ import stackStatus from './menu/stackStatus.js';
 import deletePlatform from './menu/deletePlatform.js';
 import { chooseOption } from './menu/chooseOption.js';
 
+
 const cliOptions = [
 	'- init: Request information for configuration and initiate platform.',
 	'- run: Update configuration if required and deploy platform.',

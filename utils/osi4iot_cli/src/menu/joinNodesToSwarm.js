@@ -40,13 +40,16 @@ export default function (nodesData) {
 		let joinWorkerCommand = "";
 		let joinManagerCommand = "";
 		let isMainManagerJoined = false;
-		for (let inode = 1; inode <= nodesData; inode++) {
+		for (let inode = 1; inode <= nodesData.length; inode++) {
 			const userName = nodesData[inode - 1].nodeUserName;
 			const nodeIP = nodesData[inode - 1].nodeIP;
 			const nodeRole = nodesData[inode - 1].nodeRole;
 			const nodeHostName = nodesData[inode - 1].nodeHostName;
+			let dockerHost = `-H ssh://${userName}@${nodeIP}`;
+			if (nodeIP === "localhost") dockerHost = "";
+
 			try {
-				execSync(`docker -H ssh://${userName}@${nodeIP} swarm leave --force`, { stdio: 'ignore' });
+				execSync(`docker ${dockerHost} swarm leave --force`, { stdio: 'ignore' });
 			} catch (error) {
 				//do nothing
 			}
@@ -54,11 +57,11 @@ export default function (nodesData) {
 				if (nodeRole === "Manager") {
 					if (!isMainManagerJoined) {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-						joinWorkerCommand = execSync(`docker -H ssh://${userName}@${nodeIP} swarm init`)
+						joinWorkerCommand = execSync(`docker ${dockerHost}} swarm init`)
 							.toString()
 							.split("\n")[4]
 							.trim();
-						joinManagerCommand = execSync(`docker -H ssh://${userName}@${nodeIP} swarm join-token manager`)
+						joinManagerCommand = execSync(`docker ${dockerHost} swarm join-token manager`)
 							.toString()
 							.split("\n")[2]
 							.trim();

@@ -102,6 +102,15 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 					status = "Failed";
 				}
 				newNode.nodeArch = nodeArch
+				try {
+					const checkDockerInstallation = execSync(`ssh ${userName}@${nodeIP} 'which docker && docker --version'`).toString();
+					if (checkDockerInstallation) {
+						console.log(clc.greenBright("Docker is installed"))
+					}
+				} catch (err) {
+					console.log(clc.redBright("Error: Docker is not installed in this node"))
+					status = "Failed";
+				}
 			} else {
 				const localNodeArch = os.arch();
 				if (localNodeArch === "x64") {
@@ -112,7 +121,18 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 					console.log(clc.redBright("Error: Only amd64 and arm64 architectures are supported"));
 					status = "Failed";
 				}
+
+				try {
+					const checkDockerInstallation = execSync("which docker && docker --version").toString();
+					if (checkDockerInstallation) {
+						console.log(clc.greenBright("Docker is installed"))
+					}
+				} catch (err) {
+					console.log(clc.redBright("Error: Docker is not installed in this node"))
+					status = "Failed";
+				}
 			}
+
 
 			console.log("");
 			if (status === "OK") {

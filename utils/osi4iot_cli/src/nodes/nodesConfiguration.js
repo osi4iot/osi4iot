@@ -3,40 +3,6 @@ import clc from "cli-color";
 import fs from 'fs';
 import addNFSFolders from '../generic_tools/addNFSFolders.js';
 
-const installDocker = (nodeData, isLocalDeploy) => {
-	const nodeHostName = nodeData.nodeHostName;
-	const userName = nodeData.nodeUserName;
-	const nodeIP = nodeData.nodeIP;
-	console.log(clc.green(`\nInstalling docker in node ${nodeHostName}...`));
-	if (!fs.existsSync('./installation_scripts')) {
-		fs.mkdirSync('./installation_scripts');
-	}
-	if (!fs.existsSync('./installation_scripts/docker_install.sh')) {
-		execSync("curl -o ./installation_scripts/docker_install.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/installation_scripts/docker_install.sh", { stdio: 'ignore' });
-	}
-	if (isLocalDeploy) {
-		try {
-			execSync("bash ./installation_scripts/docker_install.sh");
-			return "OK";
-		} catch (err) {
-			return `Error installing docker in node: ${nodeHostName}\n`;
-		}
-	} else {
-		try {
-			if (nodeIP === "localhost") {
-				execSync(`sudo bash ./installation_scripts/docker_install.sh`, { stdio: 'inherit'})
-			} else {
-				execSync(`scp ./installation_scripts/docker_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-				execSync(`ssh ${userName}@${nodeIP} 'sudo bash docker_install.sh'`, { stdio: 'inherit'})
-				execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/docker_install.sh'`);
-			}
-			return "OK";
-		} catch (err) {
-			return `Error installing docker in node: ${nodeHostName}\n`;
-		}
-	}
-}
-
 const installUFW = (nodeData) => {
 	const nodeHostName = nodeData.nodeHostName;
 	const userName = nodeData.nodeUserName;
@@ -108,10 +74,6 @@ export default async function (nodesData, organizations) {
 				const md_hashes_array = org.master_devices.map(md => md.md_hash).join(",");
 				addNFSFolders(nodesData[inode], org_acronym, md_hashes_array);
 			}
-
-		} else {
-			const ouputDocker = installDocker(nodesData[inode], isLocalDeploy);
-			if (ouputDocker !== "OK") outputResults = "Failed";
 		}
 	}
 
