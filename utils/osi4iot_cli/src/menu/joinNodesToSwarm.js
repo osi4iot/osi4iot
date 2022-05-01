@@ -1,7 +1,11 @@
 import { execSync } from 'child_process';
 import clc from 'cli-color';
 
-export default function (nodesData) {
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+export default async function (nodesData) {
 	const numNodes = nodesData.length;
 	let outputResult = "OK";
 	if (numNodes === 1) {
@@ -68,6 +72,7 @@ export default function (nodesData) {
 							.trim();
 						console.log("joinManagerCommand=", joinManagerCommand);
 						isMainManagerJoined = true;
+						await sleep(1000);
 					} else {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
 						execSync(joinManagerCommand, { stdio: 'ignore' })
