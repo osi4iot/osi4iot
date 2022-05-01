@@ -73,11 +73,11 @@ export default async function (nodesData) {
 						await sleep(1000);
 					} else {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-						execSync(joinManagerCommand, { stdio: 'inherit' })
+						execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`, { stdio: 'inherit' })
 					}
 				} else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
 					console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-					execSync(joinWorkerCommand, { stdio: 'inherit' });
+					execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`, { stdio: 'inherit' });
 				}
 			} catch (err) {
 				console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.:`, err.toString()));
