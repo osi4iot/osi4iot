@@ -17,7 +17,6 @@ export default function () {
         const nodesData = osi4iotState.platformInfo.NODES_DATA;
         getNodes(osi4iotState);
 
-        console.log("\n");
         inquirer
             .prompt([
                 {
