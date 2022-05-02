@@ -8,6 +8,7 @@ import generateNodeLabels from './generateNodeLabels.js';
 import pruneSystemAndVolumes from '../menu/pruneSystemAndVolumes.js';
 import swarmNodesQuestions from './swarmNodesQuestions.js';
 import checkClusterRunViability from './checkClusterRunViability.js';
+import updateServices from '../menu/updateServices.js';
 
 export default function () {
     if (!fs.existsSync('./osi4iot_state.json')) {
@@ -58,13 +59,12 @@ export default function () {
                         osi4iotState.platformInfo.NODES_DATA.push(...newNodes);
                         const osi4iotStateFile = JSON.stringify(osi4iotState);
                         fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
-    
-                        console.log(clc.green('Creating stack file...\n'))
-                        stackFileGenerator(osi4iotState);
-    
+
+                        console.log(clc.green('Generating node labels...\n'))
                         generateNodeLabels(osi4iotState, dockerHost);
-    
-                        await runStack(osi4iotState, dockerHost);
+
+                        console.log(clc.green('Updating services...\n'))
+                        updateServices(dockerHost, newNodes, osi4iotState.certs.mqtt_certs.organizations);
                     }
                 } else {
                     const warningsText = warnings.join("\n");
