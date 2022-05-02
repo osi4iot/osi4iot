@@ -10,7 +10,7 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 	let joinWorkerCommand = "";
 	let joinManagerCommand = "";
 	console.log("Paso por aqui 0 dockerHost=", dockerHost)
-	if (!dockerHost) {
+	if (dockerHost === null) {
 		console.log("Paso por aqui 1 !!!!")
 		if (deployLocation === "Local deploy") {
 			try {
