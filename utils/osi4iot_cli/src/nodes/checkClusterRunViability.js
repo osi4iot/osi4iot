@@ -1,7 +1,8 @@
-export default function (nodesData) {
+export default function (nodesData, organizations) {
     const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
     const numPlatformWorkerNodes = nodesData.filter(node => node.nodeRole === "Platform worker").length;
     const numGenericOrgWorkerNodes = nodesData.filter(node => node.nodeRole === "Generic org worker").length;
+    const exclusiveOrgWorkerNodes = nodesData.filter(node => node.nodeRole === "Exclusive org worker").map(node => node.nodeHostName);
     const numNFSNodes = nodesData.filter(node => node.nodeRole === "NFS server").length;
 
     const warnings = [];
@@ -19,7 +20,21 @@ export default function (nodesData) {
         }
 
         if (numManagerNodes % 2 === 0 || numManagerNodes > 7) {
-            warnings.push("- An odd number of manager nodes less than or equal to seven is required. For example: 1, 3, 5 or 7.");
+            warnings.push("- An odd number of manager nodes less than or equal to seven is recommended. For example: 1, 3, 5 or 7.");
+        }
+
+        const exclusiveOrgWorkerNodesAvailability = true;
+        for (const org of organizations) {
+            if (org.exclusiveWorkerNodes.length !== 0) {
+                for (const workerNodeName of org.exclusiveWorkerNodes) {
+                    if (!exclusiveOrgWorkerNodes.includes(workerNodeName)) {
+                        exclusiveOrgWorkerNodesAvailability = false
+                    }
+                }
+            }
+        }
+        if (!exclusiveOrgWorkerNodesAvailability) {
+            warnings.push("- There is not org worker nodes availability to deploy some org services.");
         }
     }
 

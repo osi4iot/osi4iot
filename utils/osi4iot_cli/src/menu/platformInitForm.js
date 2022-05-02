@@ -17,7 +17,7 @@ import findManagerDockerHost from './findManagerDockerHost.js';
 import nodesConfiguration from '../nodes/nodesConfiguration.js';
 import generateNodeLabels from '../nodes/generateNodeLabels.js';
 import pruneSystemAndVolumes from './pruneSystemAndVolumes.js';
-import joinNodesToSwarm from './joinNodesToSwarm.js';
+import joinNodesToSwarm from '../nodes/joinNodesToSwarm.js';
 import swarmNodesQuestions from '../nodes/swarmNodesQuestions.js';
 
 const platformInitiation = () => {
