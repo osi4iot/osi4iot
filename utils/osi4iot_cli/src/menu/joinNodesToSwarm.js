@@ -89,9 +89,6 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 				const nodeIP = nodesData[inode - 1].nodeIP;
 				const nodeRole = nodesData[inode - 1].nodeRole;
 				const nodeHostName = nodesData[inode - 1].nodeHostName;
-				let dockerHost = `-H ssh://${userName}@${nodeIP}`;
-				if (nodeIP === "localhost" || nodeIP === "127.0.0.1") dockerHost = "";
-
 				try {
 					execSync(`docker ${dockerHost} swarm leave --force`, { stdio: 'ignore' });
 				} catch (error) {
