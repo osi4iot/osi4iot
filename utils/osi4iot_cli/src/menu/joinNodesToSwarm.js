@@ -9,7 +9,9 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 	let outputResult = "OK";
 	let joinWorkerCommand = "";
 	let joinManagerCommand = "";
+	console.log("Paso por aqui 0 dockerHost=", dockerHost)
 	if (!dockerHost) {
+		console.log("Paso por aqui 1 !!!!")
 		if (deployLocation === "Local deploy") {
 			try {
 				console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
@@ -68,7 +70,7 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 			}
 		}
 	} else {
-		console.log("Paso por aqui !!!!")
+		console.log("Paso por aqui 2!!!!")
 		try {
 			joinWorkerCommand = execSync(`docker ${dockerHost} swarm join-token worker`)
 				.toString()
