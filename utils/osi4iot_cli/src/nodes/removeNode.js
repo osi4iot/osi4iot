@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { execSync } from 'child_process';
 import clc from "cli-color";
 import getNodes from './getNodes.js';
 import inquirer from 'inquirer';
