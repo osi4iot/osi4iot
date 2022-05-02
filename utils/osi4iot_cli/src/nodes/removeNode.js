@@ -8,10 +8,6 @@ import checkClusterRunViability from './checkClusterRunViability.js';
 import updateServices from '../menu/updateServices.js';
 import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 
-function sleep(ms) {
-	return new Promise(resolve => setTimeout(resolve, ms));
-}
-
 export default function () {
     if (!fs.existsSync('./osi4iot_state.json')) {
         console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
@@ -53,7 +49,7 @@ export default function () {
                     if (nodeToRemoveData.nodeRole === "Exclusive org worker") {
                         for (const org of osi4iotState.certs.mqtt_certs.organizations) {
                             if (org.exclusiveWorkerNodes.length !== 0) {
-                                if (org.exclusiveWorkerNodes.includes(nodeToRemoveData.nodeHostName)) {
+                                if (org.exclusiveWorkerNodes.includes(nodeToRemove.nodeHostName)) {
                                     org.exclusiveWorkerNodes = org.exclusiveWorkerNodes.filter(node => node !== nodeToRemove.nodeHostName);
                                 }
                             }
@@ -80,7 +76,14 @@ const removeNodeOfSwarmCluster = async (dockerHost, nodeData) => {
     const nodeHostName = nodeData.nodeHostName;
     try {
         execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
-        await sleep(10000);
+
+        let swarmNodeListRows = execSync(`docker ${dockerHost} node ls`).toString().split("\n");
+        let isNodeDown = swarmNodeListRows.filter(row => row.includes(nodeHostName) && row.includes("Down")).length !== 0;
+        do {
+            swarmNodeListRows = execSync(`docker ${dockerHost} node ls`).toString().split("\n");
+            isNodeDown = swarmNodeListRows.filter(row => row.includes(nodeHostName) && row.includes("Down")).length !== 0;
+        } while (!isNodeDown);
+
         execSync(`docker ${dockerHost} node rm ${nodeHostName}`);
     } catch (err) {
         console.log(clc.redBright("Error removing node from swarm cluster: ", err));
