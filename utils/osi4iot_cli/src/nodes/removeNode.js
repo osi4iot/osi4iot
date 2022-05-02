@@ -75,7 +75,7 @@ const removeNodeOfSwarmCluster = (dockerHost, nodeData) => {
     const nodeIP = nodeData.nodeIP;
     const nodeHostName = nodeData.nodeHostName;
     try {
-        execSync(`ssh ${userName}@${nodeIP} 'docker system prune --force'`);
+        execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
         execSync(`docker ${dockerHost} node rm ${nodeHostName}`);
     } catch (err) {
         console.log(clc.redBright("Error removing node from swarm cluster: ", err));
