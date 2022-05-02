@@ -39,7 +39,7 @@ export default function () {
                 const dockerHost = findManagerDockerHost(currentNodesData);
                 const numNodesToAdd = answer.numNodesToAdd;
                 const newNodes = await swarmNodesQuestions(numNodesToAdd, currentNodesData, defaultUserName);
-                const warnings = checkClusterRunViability([...currentNodesData, ...newNodes]);
+                const warnings = checkClusterRunViability([...currentNodesData, ...newNodes], osi4iotState.certs.mqtt_certs.organizations);
                 const status = "OK"
                 if (warnings.length === 0) {
                     try {

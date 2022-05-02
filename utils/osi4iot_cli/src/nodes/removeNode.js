@@ -34,7 +34,7 @@ export default function () {
             .then(async (answers) => {
                 const index = answers.index - 1;
                 const newNodesData = nodesData.filter((node, idx) => idx !== index);
-                const warnings = checkClusterRunViability(newNodesData);
+                const warnings = checkClusterRunViability(newNodesData, osi4iotState.certs.mqtt_certs.organizations);
                 if (warnings.length === 0) {
                     const dockerHost = findManagerDockerHost(newNodesData);
                     const nodeToRemove = nodesData[index];
