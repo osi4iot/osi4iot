@@ -21,7 +21,7 @@ export default function () {
                     name: "index",
                     message: "Select the index of the node you want to remove:",
                     validate: function (index) {
-                        if (index>= 1 && index <=nodesData.length ) {
+                        if (index >= 1 && index <= nodesData.length) {
                             return true;
                         } else {
                             return "Please type an index of the above table";
@@ -30,6 +30,18 @@ export default function () {
                 }
             ])
             .then(async (answers) => {
+                const index = answers.index - 1;
+                const newNodesData = nodesData.filter((node, idx) => idx !== index);
+                console.log("newNodesData=", newNodesData)
+                const warnings = checkClusterRunViability(newNodesData);
+                if (warnings.length === 0) {
+                    const dockerHost = findManagerDockerHost(newNodesData);
+
+                } else {
+                    const warningsText = warnings.join("\n");
+                    console.log(clc.yellowBright(`Can not be remove the indicated node:\n${warningsText}`))
+                }
+                console.log("");
                 chooseOption();
             });
 

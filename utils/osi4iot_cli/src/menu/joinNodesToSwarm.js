@@ -31,11 +31,13 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 				const nodeIP = nodesData[inode - 1].nodeIP;
 				const nodeRole = nodesData[inode - 1].nodeRole;
 				const nodeHostName = nodesData[inode - 1].nodeHostName;
-				let host = `-H ssh://${userName}@${nodeIP}`;
-				if (nodeIP === "localhost" || nodeIP === "127.0.0.1") host = "";
 
 				try {
-					execSync(`docker ${host} swarm leave --force`, { stdio: 'ignore' });
+					if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
+						execSync(`docker swarm leave --force`, { stdio: 'ignore' });
+					} else {
+						execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`, { stdio: 'ignore' });
+					}
 				} catch (error) {
 					//do nothing
 				}
@@ -43,14 +45,25 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 					if (nodeRole === "Manager") {
 						if (!isMainManagerJoined) {
 							console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-							joinWorkerCommand = execSync(`docker ${host} swarm init`)
-								.toString()
-								.split("\n")[4]
-								.trim();
-							joinManagerCommand = execSync(`docker ${host} swarm join-token manager`)
-								.toString()
-								.split("\n")[2]
-								.trim();
+							if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
+								joinWorkerCommand = execSync(`docker swarm init`)
+									.toString()
+									.split("\n")[4]
+									.trim();
+								joinManagerCommand = execSync(`docker swarm join-token manager`)
+									.toString()
+									.split("\n")[2]
+									.trim();
+							} else {
+								joinWorkerCommand = execSync(`ssh ${userName}@${nodeIP} 'docker swarm init'`)
+									.toString()
+									.split("\n")[4]
+									.trim();
+								joinManagerCommand = execSync(`ssh ${userName}@${nodeIP} 'docker swarm join-token manager'`)
+									.toString()
+									.split("\n")[2]
+									.trim();
+							}
 							isMainManagerJoined = true;
 							await sleep(1000);
 						} else {
