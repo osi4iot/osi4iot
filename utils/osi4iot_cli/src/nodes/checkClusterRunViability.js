@@ -15,7 +15,7 @@ export default function (nodesData) {
         }
 
         if ((numManagerNodes > 1 || numPlatformWorkerNodes > 1 || numGenericOrgWorkerNodes > 1) && numNFSNodes === 0) {
-            warnings.push("- For a multinode cluster an NFS node server is required.");
+            // warnings.push("- For a multinode cluster an NFS node server is required.");
         }
 
         if (numManagerNodes % 2 === 0 || numManagerNodes > 7) {
