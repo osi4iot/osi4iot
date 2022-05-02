@@ -95,25 +95,10 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 					//do nothing
 				}
 				try {
+					console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
 					if (nodeRole === "Manager") {
-						if (!isMainManagerJoined) {
-							console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-							joinWorkerCommand = execSync(`docker ${dockerHost} swarm init`)
-								.toString()
-								.split("\n")[4]
-								.trim();
-							joinManagerCommand = execSync(`docker ${dockerHost} swarm join-token manager`)
-								.toString()
-								.split("\n")[2]
-								.trim();
-							isMainManagerJoined = true;
-							await sleep(1000);
-						} else {
-							console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-							execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`)
-						}
+						execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`)
 					} else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
-						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
 						execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`);
 					}
 				} catch (err) {
