@@ -73,6 +73,7 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 				.toString()
 				.split("\n")[2]
 				.trim();
+			console.log("joinWorkerCommand=", joinWorkerCommand)
 
 			joinManagerCommand = execSync(`docker ${dockerHost} swarm join-token manager`)
 				.toString()
@@ -83,30 +84,30 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 			outputResult = "Failed";
 		}
 
-		if (outputResult == "OK") {
-			for (let inode = 1; inode <= nodesData.length; inode++) {
-				const userName = nodesData[inode - 1].nodeUserName;
-				const nodeIP = nodesData[inode - 1].nodeIP;
-				const nodeRole = nodesData[inode - 1].nodeRole;
-				const nodeHostName = nodesData[inode - 1].nodeHostName;
-				try {
-					execSync(`docker ${dockerHost} swarm leave --force`, { stdio: 'ignore' });
-				} catch (error) {
-					//do nothing
-				}
-				try {
-					console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-					if (nodeRole === "Manager") {
-						execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`)
-					} else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
-						execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`);
-					}
-				} catch (err) {
-					console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.:`, err.toString()));
-					outputResult = "Failed";
-				}
-			}
-		}
+		// if (outputResult == "OK") {
+		// 	for (let inode = 1; inode <= nodesData.length; inode++) {
+		// 		const userName = nodesData[inode - 1].nodeUserName;
+		// 		const nodeIP = nodesData[inode - 1].nodeIP;
+		// 		const nodeRole = nodesData[inode - 1].nodeRole;
+		// 		const nodeHostName = nodesData[inode - 1].nodeHostName;
+		// 		try {
+		// 			execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`, { stdio: 'ignore' });
+		// 		} catch (error) {
+		// 			//do nothing
+		// 		}
+		// 		try {
+		// 			console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
+		// 			if (nodeRole === "Manager") {
+		// 				execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`)
+		// 			} else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
+		// 				execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`);
+		// 			}
+		// 		} catch (err) {
+		// 			console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.:`, err.toString()));
+		// 			outputResult = "Failed";
+		// 		}
+		// 	}
+		// }
 	}
 
 	if (outputResult === "Failed") {
