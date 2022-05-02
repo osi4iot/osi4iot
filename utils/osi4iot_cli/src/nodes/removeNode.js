@@ -5,6 +5,7 @@ import inquirer from 'inquirer';
 import { chooseOption } from '../menu/chooseOption.js';
 import checkClusterRunViability from './checkClusterRunViability.js';
 import updateServices from '../menu/updateServices.js';
+import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 
 export default function () {
     if (!fs.existsSync('./osi4iot_state.json')) {
