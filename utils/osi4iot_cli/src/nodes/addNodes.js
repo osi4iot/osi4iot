@@ -34,6 +34,7 @@ export default function () {
                 },
             ])
             .then(async (answer) => {
+                const dockerHost = findManagerDockerHost(currentNodesData);
                 const numNodesToAdd = answer.numNodesToAdd;
                 const newNodes = await swarmNodesQuestions(numNodesToAdd, currentNodesData, defaultUserName);
                 const warnings = checkClusterRunViability([...currentNodesData, ...newNodes]);
@@ -44,7 +45,7 @@ export default function () {
                         nodesConfiguration(newNodes);
     
                         console.log(clc.green('\nJoining nodes to swarm:'));
-                        joinNodesToSwarm(newNodes);
+                        joinNodesToSwarm(newNodes, osi4iotState.platformInfo.DEPLOY_LOCATION, dockerHost);
     
                         console.log(clc.green('\nRemoving previous docker images and volumes...'));
                         pruneSystemAndVolumes(newNodes);
@@ -61,7 +62,6 @@ export default function () {
                         console.log(clc.green('Creating stack file...\n'))
                         stackFileGenerator(osi4iotState);
     
-                        const dockerHost = findManagerDockerHost(currentNodesData);
                         generateNodeLabels(osi4iotState, dockerHost);
     
                         await runStack(osi4iotState, dockerHost);
@@ -70,10 +70,8 @@ export default function () {
                     const warningsText = warnings.join("\n");
                     console.log(clc.yellowBright(`The indicated node configuration is not correct:\n${warningsText}`))
                 }
-
                 console.log("");
                 chooseOption();
-
             });
     }
 }

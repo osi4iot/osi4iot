@@ -24,6 +24,13 @@ const platformInitiation = () => {
 	inquirer
 		.prompt([
 			{
+				name: "DEPLOY_LOCATION",
+				message: "Platform deployment location:",
+				type: 'list',
+				default: "Local deploy",
+				choices: ["Local deploy", "Remote deploy", "AWS deploy"],
+			},			
+			{
 				name: 'PLATFORM_NAME',
 				message: 'Platform name: ',
 				default: 'IOT_PLATFORM',
@@ -34,7 +41,7 @@ const platformInitiation = () => {
 						return "Please type at least 4 characters";
 					}
 				}
-			},
+			},			
 			{
 				name: 'DOMAIN_NAME',
 				message: 'Domain name: '
@@ -105,6 +112,7 @@ const platformInitiation = () => {
 				name: 'NUMBER_OF_SWARM_NODES',
 				message: 'Number of nodes in the platform: ',
 				default: 1,
+				when: (answers) => answers.DEPLOY_LOCATION !== "Local deploy",
 				validate: function (numOfNodes) {
 					let valid = false;
 					if (numOfNodes !== "" && Number.isInteger(Number(numOfNodes)) && Number(numOfNodes) >= 1) valid = true;
@@ -114,12 +122,6 @@ const platformInitiation = () => {
 						return "Please type an integer number greater or equal to one";
 					}
 				}
-			},
-			{
-				name: 'IS_LOCAL_INSTALLATION',
-				message: 'Is a local installation: ',
-				type: 'confirm',
-				when: (answers) => answers.NUMBER_OF_SWARM_NODES === 1
 			}
 		])
 		.then(async (prevAnswers) => {
@@ -517,6 +519,7 @@ const finalQuestions = (oldAnswers) => {
 					} else {
 						const osi4iotState = {
 							platformInfo: {
+								DEPLOY_LOCATION: answers.DEPLOY_LOCATION,
 								PLATFORM_NAME: answers.PLATFORM_NAME,
 								DOMAIN_NAME: answers.DOMAIN_NAME,
 								PLATFORM_PHRASE: answers.PLATFORM_PHRASE,
@@ -630,7 +633,7 @@ const finalQuestions = (oldAnswers) => {
 							nodesConfiguration(answers.NODES_DATA, organizations);
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
-							await joinNodesToSwarm(answers.NODES_DATA);
+							await joinNodesToSwarm(answers.NODES_DATA, answers.DEPLOY_LOCATION);
 
 							console.log(clc.green('\nRemoving previous docker images and volumes...'));
 							pruneSystemAndVolumes(answers.NODES_DATA);
