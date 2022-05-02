@@ -8,6 +8,10 @@ import checkClusterRunViability from './checkClusterRunViability.js';
 import updateServices from '../menu/updateServices.js';
 import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 
+function sleep(ms) {
+	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 export default function () {
     if (!fs.existsSync('./osi4iot_state.json')) {
         console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
@@ -41,7 +45,7 @@ export default function () {
                     const nodeToRemove = nodesData[index];
 
                     console.log(clc.green('Removing node from swarm cluster...\n'))
-                    removeNodeOfSwarmCluster(dockerHost, nodeToRemove);
+                    await removeNodeOfSwarmCluster(dockerHost, nodeToRemove);
 
                     console.log(clc.green('Updating services...\n'));
                     updateServices(dockerHost, [nodeToRemove], osi4iotState.certs.mqtt_certs.organizations);
@@ -70,12 +74,13 @@ export default function () {
     }
 }
 
-const removeNodeOfSwarmCluster = (dockerHost, nodeData) => {
+const removeNodeOfSwarmCluster = async (dockerHost, nodeData) => {
     const userName = nodeData.nodeUserName;
     const nodeIP = nodeData.nodeIP;
     const nodeHostName = nodeData.nodeHostName;
     try {
         execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
+        await sleep(10000);
         execSync(`docker ${dockerHost} node rm ${nodeHostName}`);
     } catch (err) {
         console.log(clc.redBright("Error removing node from swarm cluster: ", err));
