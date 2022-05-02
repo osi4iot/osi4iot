@@ -68,6 +68,7 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 			}
 		}
 	} else {
+		console.log("Paso por aqui !!!!")
 		try {
 			joinWorkerCommand = execSync(`docker ${dockerHost} swarm join-token worker`)
 				.toString()
