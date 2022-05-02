@@ -4,6 +4,7 @@ import inquirer from 'inquirer';
 import { chooseOption } from '../menu/chooseOption.js';
 import nodesConfiguration from './nodesConfiguration.js';
 import joinNodesToSwarm from '../menu/joinNodesToSwarm.js';
+import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 import generateNodeLabels from './generateNodeLabels.js';
 import pruneSystemAndVolumes from '../menu/pruneSystemAndVolumes.js';
 import swarmNodesQuestions from './swarmNodesQuestions.js';
