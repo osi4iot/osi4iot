@@ -55,11 +55,11 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 							await sleep(1000);
 						} else {
 							console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-							execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`, { stdio: 'inherit' })
+							execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`)
 						}
 					} else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-						execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`, { stdio: 'inherit' });
+						execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`);
 					}
 				} catch (err) {
 					console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.:`, err.toString()));
@@ -110,11 +110,11 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 							await sleep(1000);
 						} else {
 							console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-							execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`, { stdio: 'inherit' })
+							execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`)
 						}
 					} else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-						execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`, { stdio: 'inherit' });
+						execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`);
 					}
 				} catch (err) {
 					console.log(clc.redBright(`Error joining ${nodeHostName} node to swarm.:`, err.toString()));
