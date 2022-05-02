@@ -46,7 +46,7 @@ export default function () {
                     console.log(clc.green('Updating services...\n'));
                     updateServices(dockerHost, [nodeToRemove], osi4iotState.certs.mqtt_certs.organizations);
 
-                    if (nodeToRemoveData.nodeRole === "Exclusive org worker") {
+                    if (nodeToRemove.nodeRole === "Exclusive org worker") {
                         for (const org of osi4iotState.certs.mqtt_certs.organizations) {
                             if (org.exclusiveWorkerNodes.length !== 0) {
                                 if (org.exclusiveWorkerNodes.includes(nodeToRemove.nodeHostName)) {
