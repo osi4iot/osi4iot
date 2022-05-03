@@ -11,7 +11,7 @@ import updateOrganization from '../organizations/updateOrganization.js';
 import removeOrganization from '../organizations/removeOrganization.js';
 import listNodes from '../nodes/listNodes.js';
 import addNodes from '../nodes/addNodes.js';
-import updateNode from '../nodes/updateNode.js';
+import updateDomainCerts from './updateDomainCerts.js';
 import removeNode from '../nodes/removeNode.js';
 
 export const chooseOption = () => {
@@ -34,8 +34,8 @@ export const chooseOption = () => {
 					'Remove organization',
 					'List nodes',
 					'Add nodes',
-					'Update node',
 					'Remove node',
+					'Update domain certs',
 					'Platform status',
 					'Stop platform',
 					'Delete platform',
@@ -73,11 +73,11 @@ export const chooseOption = () => {
 				case 'Add nodes':
 					addNodes();
 					break;
-				case 'Update node':
-					updateNode();
-					break;
 				case 'Remove node':
 					removeNode();
+					break;
+				case 'Update domain certs':
+					updateDomainCerts();
 					break;
 				case 'Platform status':
 					await stackStatus();

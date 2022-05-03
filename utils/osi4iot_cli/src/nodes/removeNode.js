@@ -40,7 +40,7 @@ export default function () {
                     const dockerHost = findManagerDockerHost(newNodesData);
                     const nodeToRemove = nodesData[index];
 
-                    console.log(clc.green('Removing node from swarm cluster...\n'))
+                    console.log(clc.green('Removing node of swarm cluster...\n'))
                     await removeNodeOfSwarmCluster(dockerHost, nodeToRemove);
 
                     console.log(clc.green('Updating services...\n'));

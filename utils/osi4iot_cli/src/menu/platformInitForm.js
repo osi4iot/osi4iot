@@ -19,6 +19,7 @@ import generateNodeLabels from '../nodes/generateNodeLabels.js';
 import pruneSystemAndVolumes from './pruneSystemAndVolumes.js';
 import joinNodesToSwarm from '../nodes/joinNodesToSwarm.js';
 import swarmNodesQuestions from '../nodes/swarmNodesQuestions.js';
+import { existsCountry, giveCountryCode } from '../generic_tools/countryCodes.js';
 
 const platformInitiation = () => {
 	inquirer
@@ -29,7 +30,7 @@ const platformInitiation = () => {
 				type: 'list',
 				default: "Local deploy",
 				choices: ["Local deploy", "Remote deploy", "AWS deploy"],
-			},			
+			},
 			{
 				name: 'PLATFORM_NAME',
 				message: 'Platform name: ',
@@ -41,7 +42,7 @@ const platformInitiation = () => {
 						return "Please type at least 4 characters";
 					}
 				}
-			},			
+			},
 			{
 				name: 'DOMAIN_NAME',
 				message: 'Domain name: '
@@ -322,8 +323,8 @@ const finalQuestions = (oldAnswers) => {
 			{
 				name: 'MAIN_ORGANIZATION_COUNTRY',
 				message: 'Main organization country: ',
-				validate: function (text) {
-					if (text.length >= 4) {
+				validate: function (country) {
+					if (existsCountry(country)) {
 						return true;
 					} else {
 						return "Please type at least a valid country";
@@ -404,19 +405,33 @@ const finalQuestions = (oldAnswers) => {
 				}
 			},
 			{
+				name: 'DOMAIN_CERTS_TYPE',
+				message: 'Choose the type of domain certs to be used: ',
+				default: 'Autosigned certs',
+				type: 'list',
+				choices: [
+					"Self-signed certs",
+					"Certs provided by an CA",
+					"Let's encrypt certs",
+				]
+			},
+			{
 				name: 'DOMAIN_SSL_PRIVATE_KEY',
 				message: 'Domain SSL private key: ',
-				type: 'editor'
+				type: 'editor',
+				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
 			{
 				name: 'DOMAIN_SSL_CA_CERT',
 				message: 'Domain SSL CA certificates only as intermediate(s)/root only, PEM encoded: ',
-				type: 'editor'
+				type: 'editor',
+				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
 			{
 				name: 'DOMAIN_SSL_CERTICATE',
 				message: 'Domain SSL certificate only, PEM encoded: ',
-				type: 'editor'
+				type: 'editor',
+				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
 			{
 				name: 'REGISTRATION_TOKEN_LIFETIME',
@@ -517,11 +532,18 @@ const finalQuestions = (oldAnswers) => {
 						console.log("");
 						platformInitiation();
 					} else {
+						if (answers.DOMAIN_CERTS_TYPE === "Self-signed certs") {
+							answers.DOMAIN_SSL_PRIVATE_KEY = "";
+							answers.DOMAIN_SSL_CA_CERT = "";
+							answers.DOMAIN_SSL_CERTICATE = "";
+						}
+
 						const osi4iotState = {
 							platformInfo: {
 								DEPLOY_LOCATION: answers.DEPLOY_LOCATION,
 								PLATFORM_NAME: answers.PLATFORM_NAME,
 								DOMAIN_NAME: answers.DOMAIN_NAME,
+								DOMAIN_CERTS_TYPE: answers.DOMAIN_CERTS_TYPE,
 								PLATFORM_PHRASE: answers.PLATFORM_PHRASE,
 								PLATFORM_ADMIN_FIRST_NAME: answers.PLATFORM_ADMIN_FIRST_NAME,
 								PLATFORM_ADMIN_SURNAME: answers.PLATFORM_ADMIN_SURNAME,

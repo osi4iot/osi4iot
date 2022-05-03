@@ -46,8 +46,7 @@ export default function () {
                         console.log(clc.green('\nConfigurating new nodes...'));
                         nodesConfiguration(newNodes);
     
-                        console.log(clc.green('\nJoining nodes to swarm:'));
-                        osi4iotState.platformInfo.DEPLOY_LOCATION = "Remote deploy"; //luego borrar
+                        console.log(clc.green('\nJoining nodes to swarm cluster:'));
                         await joinNodesToSwarm(newNodes, osi4iotState.platformInfo.DEPLOY_LOCATION, dockerHost);
     
                         console.log(clc.green('\nRemoving previous docker images and volumes...'));
