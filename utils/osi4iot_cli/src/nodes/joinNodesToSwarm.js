@@ -12,7 +12,6 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 	if (dockerHost === null) {
 		if (deployLocation === "Local deploy") {
 			try {
-				console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
 				execSync("docker swarm leave --force", { stdio: 'ignore' });
 			} catch (error) {
 				//do nothing

@@ -46,10 +46,10 @@ export default async function (osi4iotState) {
 		const iotPlatformCaExpTimestamp = osi4iotState.certs.domain_certs.ca_pem_expiration_timestamp;
 		if ((domainCA.key === "" && domainCA.cert === "") || parseInt(iotPlatformCaExpTimestamp, 10) < limitTimestamp) {
 			domainCA = await mkcert.createCA({
-				organization: answers.MAIN_ORGANIZATION_ACRONYM.toUpperCase(),
-				countryCode: giveCountryCode(answers.MAIN_ORGANIZATION_COUNTRY),
-				state: answers.MAIN_ORGANIZATION_STATE,
-				locality: answers.MAIN_ORGANIZATION_CITY,
+				organization: osi4iotState.platformInfo.MAIN_ORGANIZATION_ACRONYM.toUpperCase(),
+				countryCode: giveCountryCode(osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY),
+				state: osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE,
+				locality: osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY,
 				validityDays: 3650
 			});
 			osi4iotState.certs.domain_certs.private_key = domainCA.key;
@@ -59,7 +59,7 @@ export default async function (osi4iotState) {
 		const iotPlatformCertExpTimestamp = osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp;
 		if (osi4iotState.certs.domain_certs.ssl_cert_crt === "" || parseInt(iotPlatformCertExpTimestamp, 10) < limitTimestamp) {
 			const domainCert = await mkcert.createCert({
-				domains: [answers.DOMAIN_NAME],
+				domains: [osi4iotState.platformInfo.DOMAIN_NAME],
 				validityDays: 3650,
 				caKey: domainCA.key,
 				caCert: domainCA.cert
@@ -109,8 +109,8 @@ export default async function (osi4iotState) {
 		mqttCa = await mkcert.createCA({
 			organization: osi4iotState.platformInfo.MAIN_ORGANIZATION_ACRONYM.toUpperCase(),
 			countryCode: giveCountryCode(osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY),
-			state: answers.MAIN_ORGANIZATION_STATE,
-			locality: answers.MAIN_ORGANIZATION_CITY,
+			state: osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE,
+			locality: osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY,
 			validityDays: 3650
 		});
 		const expiration_timestamp = currentTimestamp + 3600 * 24 * 3650;

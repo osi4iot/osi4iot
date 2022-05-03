@@ -127,9 +127,8 @@ const platformInitiation = () => {
 		])
 		.then(async (prevAnswers) => {
 			const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
-			const isLocalInstallation = prevAnswers.IS_LOCAL_INSTALLATION;
 			let nodesData = [];
-			if (numSwarmNodes > 1 || !isLocalInstallation) {
+			if (!prevAnswers.DEPLOY_LOCATION === "Local deploy") {
 				const defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
 				const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
 				const currentNodesData = [];
@@ -139,12 +138,13 @@ const platformInitiation = () => {
 				let nodeArch = "x86_64";
 				if (nodeArchitecture === "x64") nodeArch = "x86_64";
 				else if (nodeArchitecture === "arm64") nodeArch = "aarch64";
-				const whoami = execSync(`ssh ${userName}@${nodeIP} 'uname -m'`).toString();
+				const whoami = execSync("whoami").toString();
 				let nodeUserName = whoami;
 				if (whoami.includes("\\")) {
 					nodeUserName = whoami.split("\\")[1];
 				}
-				nodesData.push({ nodeHostName: "localhost", nodeIP: "localhost", nodeUserName, nodeRole: "Manager", nodeArch });
+				const nodeHostName = execSync("whoami").toString().toLowerCase();
+				nodesData.push({ nodeHostName, nodeIP: "localhost", nodeUserName, nodeRole: "Manager", nodeArch });
 			}
 			const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
 			finalQuestions(newAnswers, numSwarmNodes);

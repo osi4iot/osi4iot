@@ -134,16 +134,21 @@ export default function (osi4iotState) {
 		"keyfile /mosquitto/mqtt_certs/server.key\n",
 		"require_certificate true\n",
 		"use_identity_as_username true\n",
-		"\n",
-		"\n",
-		"# MQTT over WSS\n",
-		"listener 9001\n",
-		"protocol websockets\n",
-		"cafile /mosquitto/wss_certs/iot_platform_ca.pem\n",
-		"certfile /mosquitto/wss_certs/iot_platform_cert.cer\n",
-		"keyfile /mosquitto/wss_certs/iot_platform.key\n",
-		"allow_anonymous true"
 	]
+
+	if (osi4iotState.platformInfo.DEPLOY_LOCATION !== "Local deploy") {
+		mosquittoConfig.push(
+			"\n",
+			"\n",
+			"# MQTT over WSS\n",
+			"listener 9001\n",
+			"protocol websockets\n",
+			"cafile /mosquitto/wss_certs/iot_platform_ca.pem\n",
+			"certfile /mosquitto/wss_certs/iot_platform_cert.cer\n",
+			"keyfile /mosquitto/wss_certs/iot_platform.key\n",
+			"allow_anonymous true"
+		)
+	}
 
 	if (fs.existsSync('./config/mosquitto/mosquitto.conf')) {
 		fs.rmSync('./config/mosquitto/mosquitto.conf');
