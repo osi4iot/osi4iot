@@ -245,7 +245,6 @@ const countryList = [
 ];
 
 export const giveCountryCode = (countryName) => {
-    countryName = countryName.toUpperCase();
     const searchedCountry = countryList.filter(country => country.name === countryName)[0];
     if (searchedCountry !== undefined) {
         return searchedCountry.code;
@@ -253,7 +252,6 @@ export const giveCountryCode = (countryName) => {
 }
 
 export const existsCountry = (countryName) => {
-    countryName = countryName.toUpperCase();
     const existCountry = countryList.filter(country => country.name === countryName).length === 1;
     return existCountry;
 }

@@ -64,6 +64,10 @@ export default function () {
 											console.log(clc.green("\nRemoving all docker images..."));
 											removeAllPlatformImages(osi4iotState);
 
+											console.log(clc.green("\nRemoving nodes of swarm cluster..."));
+											removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
+
+											console.log(clc.green("\nRemoving directories..."));
 											removeDirectories();
 											resolve("Finish");
 										}
@@ -81,6 +85,10 @@ export default function () {
 						console.log(clc.green("\nRemoving all docker images..."));
 						removeAllPlatformImages(osi4iotState);
 
+						console.log(clc.green("\nRemoving nodes of swarm cluster..."));
+						removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
+
+						console.log(clc.green("\nRemoving directories..."));
 						removeDirectories();
 					}
 				} else {
@@ -136,5 +144,13 @@ const removeDirectories = () => {
 	const state_file = "./osi4iot_state.json"
 	if (fs.existsSync(state_file)) {
 		fs.rmSync(state_file, { recursive: true, force: true });
+	}
+}
+
+const removeNodesOfSwarmCluster = (nodesData) => {
+	for (const nodeData in nodesData) {
+		const userName = nodeData.nodeUserName;
+		const nodeIP = nodeData.nodeIP;
+		execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
 	}
 }

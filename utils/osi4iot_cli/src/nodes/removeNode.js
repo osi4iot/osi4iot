@@ -86,6 +86,6 @@ const removeNodeOfSwarmCluster = async (dockerHost, nodeData) => {
 
         execSync(`docker ${dockerHost} node rm ${nodeHostName}`);
     } catch (err) {
-        console.log(clc.redBright("Error removing node from swarm cluster: ", err));
+        console.log(clc.redBright("Error removing node of swarm cluster: ", err));
     }
 }
