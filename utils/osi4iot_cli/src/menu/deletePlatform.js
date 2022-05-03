@@ -3,7 +3,7 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import execShellCommand from '../generic_tools/execShellCommand.js';
 import findManagerDockerHost from './findManagerDockerHost.js';
-import removeAllDockerVolumes from './pruneSystemAndVolumes.js'
+import pruneSystemAndVolumes from './pruneSystemAndVolumes.js'
 import inquirer from '../generic_tools/inquirer.js';
 import { chooseOption } from './chooseOption.js';
 
@@ -59,7 +59,7 @@ export default function () {
 										if (!continuar) {
 											clearInterval(this);
 											console.log(clc.green("\nRemoving all docker volumes..."));
-											removeAllDockerVolumes(osi4iotState);
+											pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 					
 											console.log(clc.green("\nRemoving all docker images..."));
 											removeAllPlatformImages(osi4iotState);
@@ -76,7 +76,7 @@ export default function () {
 							})
 					} else {
 						console.log(clc.green("\nRemoving all docker volumes..."));
-						removeAllDockerVolumes(osi4iotState);
+						pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
 						console.log(clc.green("\nRemoving all docker images..."));
 						removeAllPlatformImages(osi4iotState);
