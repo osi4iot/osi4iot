@@ -2,6 +2,10 @@ import fs from 'fs';
 import clc from "cli-color";
 import inquirer from 'inquirer';
 import { chooseOption } from './chooseOption.js';
+import certsGenerator from '../config_tools/certsGenerator.js';
+import stackFileGenerator from '../config_tools/stackFileGenerator.js';
+import runStack from './runStack.js';
+import findManagerDockerHost from './findManagerDockerHost.js';
 
 export default async function () {
     if (!fs.existsSync('./osi4iot_state.json')) {
@@ -10,6 +14,8 @@ export default async function () {
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
+        const nodesData = osi4iotState.platformInfo.NODES_DATA;
+        const dockerHost = findManagerDockerHost(nodesData);
 
         if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs") {
             console.log(clc.green("\nLet's encrypt certs are updated automatically\n"))

@@ -148,9 +148,13 @@ const removeDirectories = () => {
 }
 
 const removeNodesOfSwarmCluster = (nodesData) => {
-	for (const nodeData in nodesData) {
+	for (const nodeData of nodesData) {
 		const userName = nodeData.nodeUserName;
 		const nodeIP = nodeData.nodeIP;
-		execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
+		if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
+			execSync("docker swarm leave --force");
+		} else {
+			execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
+		}
 	}
 }

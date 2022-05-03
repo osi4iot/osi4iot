@@ -19,7 +19,8 @@ import generateNodeLabels from '../nodes/generateNodeLabels.js';
 import pruneSystemAndVolumes from './pruneSystemAndVolumes.js';
 import joinNodesToSwarm from '../nodes/joinNodesToSwarm.js';
 import swarmNodesQuestions from '../nodes/swarmNodesQuestions.js';
-import { existsCountry, giveCountryCode } from '../generic_tools/countryCodes.js';
+import { existsCountry } from '../generic_tools/countryCodes.js';
+import { chooseOption } from './chooseOption.js';
 
 const platformInitiation = () => {
 	inquirer
@@ -128,23 +129,24 @@ const platformInitiation = () => {
 		.then(async (prevAnswers) => {
 			const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
 			let nodesData = [];
-			if (!prevAnswers.DEPLOY_LOCATION === "Local deploy") {
-				const defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
-				const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
-				const currentNodesData = [];
-				nodesData = await swarmNodesQuestions(numSwarmNodes, currentNodesData, defaultUserName);
-			} else {
+			if (prevAnswers.DEPLOY_LOCATION === "Local deploy") {
 				const nodeArchitecture = os.arch();
 				let nodeArch = "x86_64";
 				if (nodeArchitecture === "x64") nodeArch = "x86_64";
 				else if (nodeArchitecture === "arm64") nodeArch = "aarch64";
-				const whoami = execSync("whoami").toString();
+				const whoami = execSync("whoami").toString().replace('\n','').replace('\r','').toLowerCase();
 				let nodeUserName = whoami;
 				if (whoami.includes("\\")) {
 					nodeUserName = whoami.split("\\")[1];
 				}
-				const nodeHostName = execSync("whoami").toString().toLowerCase();
-				nodesData.push({ nodeHostName, nodeIP: "localhost", nodeUserName, nodeRole: "Manager", nodeArch });
+				const nodeHostName = execSync("hostname").toString().replace('\n','').replace('\r','').toLowerCase();
+				nodesData.push({ nodeHostName, nodeIP: "localhost", nodeUserName, nodeRole: "Manager", nodeArch });				
+			} else {
+				const defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
+				const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
+				const currentNodesData = [];
+				nodesData = await swarmNodesQuestions(numSwarmNodes, currentNodesData, defaultUserName);
+
 			}
 			const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
 			finalQuestions(newAnswers, numSwarmNodes);
@@ -704,6 +706,7 @@ export default async function () {
 			])
 			.then((answers) => {
 				if (answers.confirm_platform_initiation) platformInitiation();
+				else chooseOption();
 			})
 			.catch((error) => {
 				if (error.isTtyError) {

@@ -6,6 +6,11 @@ export default function (nodesData, organizations) {
     const numNFSNodes = nodesData.filter(node => node.nodeRole === "NFS server").length;
 
     const warnings = [];
+
+    if (nodesData.length === 0) {
+        warnings.push("- At least a node in the cluster is required.");
+    }
+
     if (nodesData.length === 1 && numManagerNodes !== 1) {
         warnings.push("- For only one node cluster a manager role is required.");
     }
