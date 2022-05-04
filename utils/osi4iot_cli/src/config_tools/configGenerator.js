@@ -136,7 +136,7 @@ export default function (osi4iotState) {
 		"use_identity_as_username true\n",
 	]
 
-	if (osi4iotState.platformInfo.DEPLOY_LOCATION !== "Local deploy") {
+	if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION !== "Local deployment") {
 		mosquittoConfig.push(
 			"\n",
 			"\n",

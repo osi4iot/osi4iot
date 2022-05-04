@@ -10,7 +10,7 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 	let joinWorkerCommand = "";
 	let joinManagerCommand = "";
 	if (dockerHost === null) {
-		if (deployLocation === "Local deploy") {
+		if (deployLocation === "Local deployment") {
 			try {
 				execSync("docker swarm leave --force", { stdio: 'ignore' });
 			} catch (error) {

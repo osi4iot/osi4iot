@@ -47,7 +47,7 @@ export default function () {
                         nodesConfiguration(newNodes);
     
                         console.log(clc.green('\nJoining nodes to swarm cluster:'));
-                        await joinNodesToSwarm(newNodes, osi4iotState.platformInfo.DEPLOY_LOCATION, dockerHost);
+                        await joinNodesToSwarm(newNodes, osi4iotState.platformInfo.DEPLOYMENT_LOCATION, dockerHost);
     
                         console.log(clc.green('\nRemoving previous docker images and volumes...'));
                         pruneSystemAndVolumes(newNodes);

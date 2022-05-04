@@ -23,15 +23,12 @@ import { existsCountry } from '../generic_tools/countryCodes.js';
 import { chooseOption } from './chooseOption.js';
 
 const platformInitiation = () => {
+	const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
+	const osi4iotStateInitial = JSON.parse(osi4iotStateText);
+	const deploymentLocation = osi4iotStateInitial.platformInfo.DEPLOYMENT_LOCATION;
+
 	inquirer
 		.prompt([
-			{
-				name: "DEPLOY_LOCATION",
-				message: "Platform deployment location:",
-				type: 'list',
-				default: "Local deploy",
-				choices: ["Local deploy", "Remote deploy", "AWS deploy"],
-			},
 			{
 				name: 'PLATFORM_NAME',
 				message: 'Platform name:',
@@ -114,7 +111,7 @@ const platformInitiation = () => {
 				name: 'NUMBER_OF_SWARM_NODES',
 				message: 'Number of nodes in the platform:',
 				default: 1,
-				when: (answers) => answers.DEPLOY_LOCATION !== "Local deploy",
+				when: () => deploymentLocation !== "Local deployment",
 				validate: function (numOfNodes) {
 					let valid = false;
 					if (numOfNodes !== "" && Number.isInteger(Number(numOfNodes)) && Number(numOfNodes) >= 1) valid = true;
@@ -129,7 +126,7 @@ const platformInitiation = () => {
 		.then(async (prevAnswers) => {
 			const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
 			let nodesData = [];
-			if (prevAnswers.DEPLOY_LOCATION === "Local deploy") {
+			if (deploymentLocation === "Local deployment") {
 				const nodeArchitecture = os.arch();
 				let nodeArch = "x86_64";
 				if (nodeArchitecture === "x64") nodeArch = "x86_64";
@@ -149,32 +146,14 @@ const platformInitiation = () => {
 
 			}
 			const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
-			finalQuestions(newAnswers, numSwarmNodes);
+			finalQuestions(newAnswers, deploymentLocation);
 		});
 
 }
 
-const finalQuestions = (oldAnswers) => {
+const finalQuestions = (oldAnswers, deploymentLocation) => {
 	const nodesData = oldAnswers.NODES_DATA;
-	let managerNodes = [];
-	const workerNodesRows = [];
-	const orgWorkerSelection = [
-		{
-			name: "Select",
-			value: "selected"
-		}
-	];
-
-	if (nodesData.length !== 0) {
-		managerNodes = nodesData.filter(node => node.nodeRole === "Manager");
-		const exclusiveOrgWorkerNodes = nodesData.filter(node => node.nodeRole === "Exclusive org worker");
-		if (exclusiveOrgWorkerNodes.length !== 0) {
-			for (let inode = 1; inode <= exclusiveOrgWorkerNodes.length; inode++) {
-				const workerNodesRow = { name: exclusiveOrgWorkerNodes[inode - 1].nodeHostName, value: inode };
-				workerNodesRows.push(workerNodesRow);
-			}
-		}
-	}
+	let managerNodes = nodesData.filter(node => node.nodeRole === "Manager");
 
 	inquirer
 		.prompt([
@@ -542,7 +521,7 @@ const finalQuestions = (oldAnswers) => {
 
 						const osi4iotState = {
 							platformInfo: {
-								DEPLOY_LOCATION: answers.DEPLOY_LOCATION,
+								DEPLOYMENT_LOCATION: deploymentLocation,
 								PLATFORM_NAME: answers.PLATFORM_NAME,
 								DOMAIN_NAME: answers.DOMAIN_NAME,
 								DOMAIN_CERTS_TYPE: answers.DOMAIN_CERTS_TYPE,
@@ -657,7 +636,7 @@ const finalQuestions = (oldAnswers) => {
 							nodesConfiguration(answers.NODES_DATA, organizations);
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
-							await joinNodesToSwarm(answers.NODES_DATA, answers.DEPLOY_LOCATION);
+							await joinNodesToSwarm(answers.NODES_DATA, deploymentLocation);
 
 							console.log(clc.green('\nRemoving previous docker images and volumes...'));
 							pruneSystemAndVolumes(answers.NODES_DATA);
@@ -697,24 +676,31 @@ const finalQuestions = (oldAnswers) => {
 
 export default async function () {
 	if (fs.existsSync('./osi4iot_state.json')) {
-		inquirer
-			.prompt([{
-				name: 'confirm_platform_initiation',
-				type: 'confirm',
-				message: 'An state file already exits. Do you want to reinitate the platform anyway?',
-			}
-			])
-			.then((answers) => {
-				if (answers.confirm_platform_initiation) platformInitiation();
-				else chooseOption();
-			})
-			.catch((error) => {
-				if (error.isTtyError) {
-					console.log("Prompt couldn't be rendered in the current environment")
-				} else {
-					console.log("Error in osi4iot cli: ", error)
+		const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
+		const osi4iotState = JSON.parse(osi4iotStateText);
+		
+		if (osi4iotState.platformInfo.NODES_DATA !== undefined && osi4iotState.platformInfo.NODES_DATA.length !== 0) {
+			inquirer
+				.prompt([{
+					name: 'confirm_platform_initiation',
+					type: 'confirm',
+					message: 'An state file already exits. Do you want to reinitate the platform anyway?',
 				}
-			});
+				])
+				.then((answers) => {
+					if (answers.confirm_platform_initiation) platformInitiation();
+					else chooseOption();
+				})
+				.catch((error) => {
+					if (error.isTtyError) {
+						console.log("Prompt couldn't be rendered in the current environment")
+					} else {
+						console.log("Error in osi4iot cli: ", error)
+					}
+				});
+		} else {
+			platformInitiation();
+		}
 	} else {
 		platformInitiation();
 	}
