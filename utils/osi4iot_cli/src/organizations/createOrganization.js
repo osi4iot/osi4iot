@@ -58,7 +58,7 @@ export default async function () {
 				.prompt([
 					{
 						name: 'ORGANIZATION_NAME',
-						message: 'Organization name: ',
+						message: 'Organization name:',
 						validate: function (text) {
 							if (text.length >= 4) {
 								return true;
@@ -69,7 +69,7 @@ export default async function () {
 					},
 					{
 						name: 'ORGANIZATION_ACRONYM',
-						message: 'Organization acronym: ',
+						message: 'Organization acronym:',
 						validate: function (text) {
 							if (text.length >= 3 && text.length <= 11) {
 								return true;
@@ -80,7 +80,7 @@ export default async function () {
 					},
 					{
 						name: 'ORGANIZATION_ADDRESS',
-						message: 'Organization address: ',
+						message: 'Organization address:',
 						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_ADDRESS1,
 						validate: function (text) {
 							if (text.length >= 4) {
@@ -92,7 +92,7 @@ export default async function () {
 					},
 					{
 						name: 'ORGANIZATION_CITY',
-						message: 'Organization city: ',
+						message: 'Organization city:',
 						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY,
 						validate: function (text) {
 							if (text.length >= 4) {
@@ -104,7 +104,7 @@ export default async function () {
 					},
 					{
 						name: 'ORGANIZATION_ZIP_CODE',
-						message: 'Organization zip code: ',
+						message: 'Organization zip code:',
 						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_ZIP_CODE,
 						validate: function (text) {
 							if (text.length >= 5) {
@@ -116,7 +116,7 @@ export default async function () {
 					},
 					{
 						name: 'ORGANIZATION_STATE',
-						message: 'Organization state/province: ',
+						message: 'Organization state/province:',
 						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE,
 						validate: function (text) {
 							if (text.length >= 4) {
@@ -128,7 +128,7 @@ export default async function () {
 					},
 					{
 						name: 'ORGANIZATION_COUNTRY',
-						message: 'Organization country: ',
+						message: 'Organization country:',
 						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY,
 						validate: function (text) {
 							if (text.length >= 4) {
@@ -140,7 +140,7 @@ export default async function () {
 					},
 					{
 						name: 'BUILDING_ID',
-						message: 'Building id: ',
+						message: 'Building id:',
 						default: 1,
 						validate: function (buildingId) {
 							let valid = false;
@@ -154,7 +154,7 @@ export default async function () {
 					},
 					{
 						name: 'ORGANIZATION_TELEGRAM_CHAT_ID',
-						message: 'Telegram chat id for organization default group: ',
+						message: 'Telegram chat id for organization default group:',
 						validate: function (telegramChatId) {
 							let valid = false;
 							if (telegramChatId !== "" && Number.isInteger(Number(telegramChatId))) valid = true;
@@ -167,7 +167,7 @@ export default async function () {
 					},
 					{
 						name: 'ORGANIZATION_TELEGRAM_INVITATION_LINK',
-						message: 'Telegram invitation link for organization default group: ',
+						message: 'Telegram invitation link for organization default group:',
 						validate: function (url) {
 							if (validUrl.isUri(url)) {
 								return true;
@@ -193,7 +193,7 @@ export default async function () {
 					},
 					{
 						name: 'NUMBER_OF_MASTER_DEVICES_IN_ORG',
-						message: 'Number of master devices in org: ',
+						message: 'Number of master devices in org:',
 						default: 3,
 						validate: function (numOfMD) {
 							let valid = false;
@@ -207,7 +207,7 @@ export default async function () {
 					},
 					{
 						name: 'ORG_ADMIN_FIRST_NAME',
-						message: 'Org admin first name: ',
+						message: 'Org admin first name:',
 						validate: function (platformName) {
 							if (platformName.length >= 2) {
 								return true;
@@ -218,7 +218,7 @@ export default async function () {
 					},
 					{
 						name: 'ORG_ADMIN_SURNAME',
-						message: 'Org admin last name: ',
+						message: 'Org admin last name:',
 						validate: function (platformName) {
 							if (platformName.length >= 2) {
 								return true;
@@ -229,7 +229,7 @@ export default async function () {
 					},
 					{
 						name: 'ORG_ADMIN_EMAIL',
-						message: 'Org admin email: ',
+						message: 'Org admin email:',
 						validate: function (email) {
 							const valid = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
 							if (valid) {

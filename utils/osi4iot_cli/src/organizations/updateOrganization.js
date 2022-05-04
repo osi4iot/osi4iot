@@ -153,7 +153,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 		.prompt([
 			{
 				name: 'ORGANIZATION_NAME',
-				message: 'Organization name: ',
+				message: 'Organization name:',
 				default: orgToUpdate.name,
 				validate: function (text) {
 					if (text.length >= 4) {
@@ -165,7 +165,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			},
 			{
 				name: 'ORGANIZATION_ACRONYM',
-				message: 'Organization acronym: ',
+				message: 'Organization acronym:',
 				default: orgToUpdate.acronym,
 				validate: function (text) {
 					if (text.length >= 3 && text.length <= 11) {
@@ -177,7 +177,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			},
 			{
 				name: 'ORGANIZATION_ADDRESS',
-				message: 'Organization address: ',
+				message: 'Organization address:',
 				default: orgToUpdate.address,
 				validate: function (text) {
 					if (text.length >= 4) {
@@ -189,7 +189,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			},
 			{
 				name: 'ORGANIZATION_CITY',
-				message: 'Organization city: ',
+				message: 'Organization city:',
 				default: orgToUpdate.city,
 				validate: function (text) {
 					if (text.length >= 4) {
@@ -201,7 +201,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			},
 			{
 				name: 'ORGANIZATION_ZIP_CODE',
-				message: 'Organization zip code: ',
+				message: 'Organization zip code:',
 				default: orgToUpdate.zipCode,
 				validate: function (text) {
 					if (text.length >= 5) {
@@ -213,7 +213,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			},
 			{
 				name: 'ORGANIZATION_STATE',
-				message: 'Organization state/province: ',
+				message: 'Organization state/province:',
 				default: orgToUpdate.state,
 				validate: function (text) {
 					if (text.length >= 4) {
@@ -225,7 +225,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			},
 			{
 				name: 'ORGANIZATION_COUNTRY',
-				message: 'Organization country: ',
+				message: 'Organization country:',
 				default: orgToUpdate.country,
 				validate: function (text) {
 					if (text.length >= 4) {
@@ -237,7 +237,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			},
 			{
 				name: 'BUILDING_ID',
-				message: 'Building id: ',
+				message: 'Building id:',
 				default: orgToUpdate.buildingId,
 				validate: function (buildingId) {
 					let valid = false;
@@ -274,7 +274,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			},
 			{
 				name: 'NUMBER_OF_MASTER_DEVICES_IN_ORG',
-				message: 'Number of master devices in org: ',
+				message: 'Number of master devices in org:',
 				default: masterDevicesInOrg.length,
 				validate: function (numOfMD) {
 					let valid = false;

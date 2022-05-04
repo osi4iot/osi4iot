@@ -36,17 +36,17 @@ export default async function () {
                 .prompt([
                     {
                         name: 'DOMAIN_SSL_PRIVATE_KEY',
-                        message: 'Domain SSL private key: ',
+                        message: 'Domain SSL private key:',
                         type: 'editor',
                     },
                     {
                         name: 'DOMAIN_SSL_CA_CERT',
-                        message: 'Domain SSL CA certificates only as intermediate(s)/root only, PEM encoded: ',
+                        message: 'Domain SSL CA certificates only as intermediate(s)/root only, PEM encoded:',
                         type: 'editor',
                     },
                     {
                         name: 'DOMAIN_SSL_CERTICATE',
-                        message: 'Domain SSL certificate only, PEM encoded: ',
+                        message: 'Domain SSL certificate only, PEM encoded:',
                         type: 'editor',
                     },
                 ])

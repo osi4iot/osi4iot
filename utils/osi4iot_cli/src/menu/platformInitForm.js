@@ -34,7 +34,7 @@ const platformInitiation = () => {
 			},
 			{
 				name: 'PLATFORM_NAME',
-				message: 'Platform name: ',
+				message: 'Platform name:',
 				default: 'IOT_PLATFORM',
 				validate: function (platformName) {
 					if (platformName.length >= 4) {
@@ -46,16 +46,16 @@ const platformInitiation = () => {
 			},
 			{
 				name: 'DOMAIN_NAME',
-				message: 'Domain name: '
+				message: 'Domain name:'
 			},
 			{
 				name: 'PLATFORM_PHRASE',
-				message: 'Platform motivational phrase: ',
+				message: 'Platform motivational phrase:',
 				default: 'Open source integration for internet of things'
 			},
 			{
 				name: 'PLATFORM_ADMIN_FIRST_NAME',
-				message: 'Platform admin first name: ',
+				message: 'Platform admin first name:',
 				validate: function (platformName) {
 					if (platformName.length >= 2) {
 						return true;
@@ -66,7 +66,7 @@ const platformInitiation = () => {
 			},
 			{
 				name: 'PLATFORM_ADMIN_SURNAME',
-				message: 'Platform admin last name: ',
+				message: 'Platform admin last name:',
 				validate: function (platformName) {
 					if (platformName.length >= 2) {
 						return true;
@@ -77,7 +77,7 @@ const platformInitiation = () => {
 			},
 			{
 				name: 'PLATFORM_ADMIN_USER_NAME',
-				message: 'Platform admin user name: ',
+				message: 'Platform admin user name:',
 				validate: function (platformName) {
 					if (platformName.length >= 6) {
 						return true;
@@ -88,7 +88,7 @@ const platformInitiation = () => {
 			},
 			{
 				name: 'PLATFORM_ADMIN_EMAIL',
-				message: 'Platform admin email: ',
+				message: 'Platform admin email:',
 				validate: function (email) {
 					const valid = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
 					if (valid) {
@@ -100,7 +100,7 @@ const platformInitiation = () => {
 			},
 			{
 				name: 'PLATFORM_ADMIN_PASSWORD',
-				message: 'Platform admin password: ',
+				message: 'Platform admin password:',
 				validate: function (password) {
 					const valid = /^[A-Za-z]\w{7,14}$/.test(password);
 					if (valid) {
@@ -112,7 +112,7 @@ const platformInitiation = () => {
 			},
 			{
 				name: 'NUMBER_OF_SWARM_NODES',
-				message: 'Number of nodes in the platform: ',
+				message: 'Number of nodes in the platform:',
 				default: 1,
 				when: (answers) => answers.DEPLOY_LOCATION !== "Local deploy",
 				validate: function (numOfNodes) {
@@ -180,7 +180,7 @@ const finalQuestions = (oldAnswers) => {
 		.prompt([
 			{
 				name: 'MIN_LONGITUDE',
-				message: 'Min longitude of the geographical zone of the platform: ',
+				message: 'Min longitude of the geographical zone of the platform:',
 				default: -10.56884765625,
 				validate: function (longitude) {
 					let valid = false;
@@ -196,7 +196,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAX_LONGITUDE',
-				message: 'Max longitude of the geographical zone of the platform: ',
+				message: 'Max longitude of the geographical zone of the platform:',
 				default: 1.42822265625,
 				validate: function (longitude) {
 					let valid = false;
@@ -212,7 +212,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MIN_LATITUDE',
-				message: 'Min latitude of the geographical zone of the platform: ',
+				message: 'Min latitude of the geographical zone of the platform:',
 				default: 35.55010533588552,
 				validate: function (latitude) {
 					let valid = false;
@@ -228,7 +228,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAX_LATITUDE',
-				message: 'Max latitude of the geographical zone of the platform: ',
+				message: 'Max latitude of the geographical zone of the platform:',
 				default: 44.134913443750726,
 				validate: function (latitude) {
 					let valid = false;
@@ -244,7 +244,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'DEFAULT_TIME_ZONE',
-				message: 'Default time zone: ',
+				message: 'Default time zone:',
 				default: 'Europe/Madrid',
 				validate: function (timezone) {
 					if (timezoneValidator(timezone)) {
@@ -256,7 +256,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_NAME',
-				message: 'Main organization name: ',
+				message: 'Main organization name:',
 				default: 'My main org',
 				validate: function (text) {
 					if (text.length >= 4) {
@@ -268,7 +268,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_ACRONYM',
-				message: 'Main organization acronym: ',
+				message: 'Main organization acronym:',
 				default: 'MYORG',
 				validate: function (text) {
 					if (text.length >= 3 && text.length <= 11) {
@@ -280,7 +280,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_ADDRESS1',
-				message: 'Main organization address: ',
+				message: 'Main organization address:',
 				validate: function (text) {
 					if (text.length >= 4) {
 						return true;
@@ -291,7 +291,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_CITY',
-				message: 'Main organization city: ',
+				message: 'Main organization city:',
 				validate: function (text) {
 					if (text.length >= 4) {
 						return true;
@@ -302,7 +302,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_ZIP_CODE',
-				message: 'Main organization zip code: ',
+				message: 'Main organization zip code:',
 				validate: function (text) {
 					if (text.length >= 5) {
 						return true;
@@ -313,7 +313,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_STATE',
-				message: 'Main organization state/province: ',
+				message: 'Main organization state/province:',
 				validate: function (text) {
 					if (text.length >= 4) {
 						return true;
@@ -324,7 +324,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_COUNTRY',
-				message: 'Main organization country: ',
+				message: 'Main organization country:',
 				validate: function (country) {
 					if (existsCountry(country)) {
 						return true;
@@ -335,7 +335,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN',
-				message: 'Telegram boottoken for main organization default group: ',
+				message: 'Telegram boottoken for main organization default group:',
 				validate: function (text) {
 					if (text.length >= 20) {
 						return true;
@@ -346,7 +346,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_TELEGRAM_CHAT_ID',
-				message: 'Telegram chat id for main organization default group: ',
+				message: 'Telegram chat id for main organization default group:',
 				validate: function (telegramChatId) {
 					let valid = false;
 					if (telegramChatId !== "" && Number.isInteger(Number(telegramChatId))) valid = true;
@@ -359,7 +359,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK',
-				message: 'Telegram invitation link for main organization default group: ',
+				message: 'Telegram invitation link for main organization default group:',
 				validate: function (url) {
 					if (validUrl.isUri(url)) {
 						return true;
@@ -370,7 +370,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG',
-				message: 'Number of master devices in main org: ',
+				message: 'Number of master devices in main org:',
 				default: 3,
 				validate: function (numOfMD) {
 					let valid = false;
@@ -384,7 +384,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'NOTIFICATIONS_EMAIL_ADDRESS',
-				message: 'Email account for platform notifications: ',
+				message: 'Email account for platform notifications:',
 				validate: function (email) {
 					const valid = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(email)
 					if (valid) {
@@ -396,7 +396,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'NOTIFICATIONS_EMAIL_PASSWORD',
-				message: 'Email account password: ',
+				message: 'Email account password:',
 				validate: function (password) {
 					let valid = /^[A-Za-z]\w{7,30}$/.test(password);
 					if (valid) {
@@ -408,7 +408,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'DOMAIN_CERTS_TYPE',
-				message: 'Choose the type of domain certs to be used: ',
+				message: 'Choose the type of domain certs to be used:',
 				default: 'Autosigned certs',
 				type: 'list',
 				choices: [
@@ -419,25 +419,25 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'DOMAIN_SSL_PRIVATE_KEY',
-				message: 'Domain SSL private key: ',
+				message: 'Domain SSL private key:',
 				type: 'editor',
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
 			{
 				name: 'DOMAIN_SSL_CA_CERT',
-				message: 'Domain SSL CA certificates only as intermediate(s)/root only, PEM encoded: ',
+				message: 'Domain SSL CA certificates only as intermediate(s)/root only, PEM encoded:',
 				type: 'editor',
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
 			{
 				name: 'DOMAIN_SSL_CERTICATE',
-				message: 'Domain SSL certificate only, PEM encoded: ',
+				message: 'Domain SSL certificate only, PEM encoded:',
 				type: 'editor',
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
 			{
 				name: 'REGISTRATION_TOKEN_LIFETIME',
-				message: 'Registration token lifetime in seconds: ',
+				message: 'Registration token lifetime in seconds:',
 				default: 86400,
 				validate: function (tokenLifeTime) {
 					let valid = false;
@@ -451,7 +451,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'ACCESS_TOKEN_LIFETIME',
-				message: 'Access token lifetime in seconds: ',
+				message: 'Access token lifetime in seconds:',
 				default: 86400,
 				validate: function (tokenLifeTime) {
 					let valid = false;
@@ -465,7 +465,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'REFRESH_TOKEN_LIFETIME',
-				message: 'Refresh token lifetime in seconds: ',
+				message: 'Refresh token lifetime in seconds:',
 				default: 31536000,
 				validate: function (tokenLifeTime) {
 					let valid = false;
@@ -479,7 +479,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'MQTT_SSL_CERTS_VALIDITY_DAYS',
-				message: 'Mqtt ssl certs validity days: ',
+				message: 'Mqtt ssl certs validity days:',
 				default: 365,
 				validate: function (validityDays) {
 					let valid = false;
@@ -493,7 +493,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'FLOATING_IP_ADDRES',
-				message: 'Floating IP address: ',
+				message: 'Floating IP address:',
 				when: () => managerNodes.length > 1,
 				validate: function (ipAddress) {
 					const valid = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipAddress)
@@ -506,7 +506,7 @@ const finalQuestions = (oldAnswers) => {
 			},
 			{
 				name: 'NETWORK_INTERFACE',
-				message: 'Manager nodes network interface: ',
+				message: 'Manager nodes network interface:',
 				default: 'eth0',
 				when: () => managerNodes.length > 1,
 				validate: function (networkInterface) {
@@ -526,7 +526,7 @@ const finalQuestions = (oldAnswers) => {
 					{
 						type: 'confirm',
 						name: 'confirmation',
-						message: 'Confirm that all the above answers are correct ',
+						message: 'Confirm that all the above answers are correct',
 					},
 				])
 				.then(async (confirmationAnswer) => {
@@ -701,7 +701,7 @@ export default async function () {
 			.prompt([{
 				name: 'confirm_platform_initiation',
 				type: 'confirm',
-				message: 'An state file already exits. Do you want to reinitate the platform anyway? ',
+				message: 'An state file already exits. Do you want to reinitate the platform anyway?',
 			}
 			])
 			.then((answers) => {
