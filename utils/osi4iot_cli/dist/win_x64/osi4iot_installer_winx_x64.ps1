@@ -21,7 +21,7 @@ if (Get-PSDrive $DestinationDrive -ErrorAction SilentlyContinue) {
         $ProgressPreference = 'SilentlyContinue'
         Invoke-WebRequest -Uri $source -OutFile $DestinationPath
         $ProgressPreference = 'Continue'
-        Write-Host "Osi4iot_cli file downloaded."
+        Write-Host "osi4iot_cli downloaded."
 
         Write-Host "Updating path."
         $persistedPaths = [Environment]::GetEnvironmentVariable('Path', 'User') -split ';'
