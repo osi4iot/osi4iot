@@ -152,9 +152,17 @@ const removeNodesOfSwarmCluster = (nodesData) => {
 		const userName = nodeData.nodeUserName;
 		const nodeIP = nodeData.nodeIP;
 		if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
-			execSync("docker swarm leave --force");
+			try {
+				execSync("docker swarm leave --force");
+			} catch (err) {
+				//do nothing
+			}
 		} else {
-			execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
+			try {
+				execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
+			} catch (err) {
+				//do nothing
+			}
 		}
 	}
 }

@@ -9,7 +9,6 @@
     "prebuild": "yarn build:clean",
     "build": "babel ./src --out-dir ./lib --source-maps",
     "build_win_x64": "pkg -t node16-win-x64 -o ./dist/win_x64/osi4iot.exe ./lib/index.js",
-    "postbuild_win_x64": "mkdir /mnt/c/osi4iot_cli && cp ./dist/win_x64/osi4iot.exe /mnt/c/osi4iot_cli/osi4iot.exe",
     "build_linux_x64": "pkg -t node16-linux-x64 -o ./dist/linux_x64/osi4iot ./lib/index.js",
     "postbuild_linux_x64": "sudo cp ./dist/linux_x64/osi4iot /usr/local/bin/osi4iot",
     "build_linux_arm64": "pkg -t node16-linux-arm64 -o ./dist/linux_arm64/osi4iot ./lib/index.js",
