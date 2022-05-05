@@ -58,11 +58,8 @@ export default function () {
 											text.indexOf(" 3/3 ") !== -1;
 										if (!continuar) {
 											clearInterval(this);
-											console.log(clc.green("\nRemoving all docker volumes..."));
+											console.log(clc.green("\nRemoving all docker images and volumes..."));
 											pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
-					
-											console.log(clc.green("\nRemoving all docker images..."));
-											removeAllPlatformImages(osi4iotState);
 
 											console.log(clc.green("\nRemoving nodes of swarm cluster..."));
 											removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
@@ -79,11 +76,8 @@ export default function () {
 								throw new Error(errorMessage);
 							})
 					} else {
-						console.log(clc.green("\nRemoving all docker volumes..."));
+						console.log(clc.green("\nRemoving all docker images and volumes..."));
 						pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
-
-						console.log(clc.green("\nRemoving all docker images..."));
-						removeAllPlatformImages(osi4iotState);
 
 						console.log(clc.green("\nRemoving nodes of swarm cluster..."));
 						removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
@@ -105,15 +99,6 @@ export default function () {
 	}
 }
 
-const removeAllPlatformImages = (osi4iotState) => {
-	const nodesData = osi4iotState.platformInfo.NODES_DATA.filter(node => node.nodeRole !== "NFS server");
-	for (const nodeData of nodesData) {
-		const userName = nodeData.nodeUserName;
-		const nodeIP = nodeData.nodeIP;
-		const dockerHost = (nodeIP === "localhost" || nodeIP === "127.0.0.1") ? "" : `-H ssh://${userName}@${nodeIP}`;
-		execSync(`docker ${dockerHost} system prune --force`);
-	}
-}
 
 const removeDirectories = () => {
 	console.log(clc.green("\nRemoving certs directory..."));
@@ -154,13 +139,13 @@ const removeNodesOfSwarmCluster = (nodesData) => {
 		if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
 			console.log("Paso por aqui....")
 			try {
-				execSync("docker swarm leave --force");
+				execSync("docker swarm leave --force", { stdio: 'ignore' });
 			} catch (err) {
 				//do nothing
 			}
 		} else {
 			try {
-				execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`);
+				execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`, { stdio: 'ignore' });
 			} catch (err) {
 				//do nothing
 			}
