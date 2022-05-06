@@ -21,7 +21,7 @@ const cliOptions = [
 const osi4iotCli = async () => {
     
     try {
-        execSync("docker swarm leave --force", { stdio: 'inherit' });
+        execSync("docker swarm leave --force", { stdio: 'ignore' });
     } catch (err) {
         //do nothing
     }
