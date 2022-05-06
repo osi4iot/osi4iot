@@ -19,13 +19,6 @@ const cliOptions = [
 ];
 
 const osi4iotCli = async () => {
-    
-    try {
-        execSync("docker swarm leave --force", { stdio: 'ignore' });
-    } catch (err) {
-        //do nothing
-    }
-
     const myArgs = process.argv.slice(2);
 
     if (!fs.existsSync("./osi4iot_state.json")) {
