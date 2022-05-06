@@ -167,11 +167,11 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 				name: 'ORGANIZATION_ACRONYM',
 				message: 'Organization acronym:',
 				default: orgToUpdate.acronym,
-				validate: function (text) {
-					if (text.length >= 3 && text.length <= 11) {
+				validate: function (orgAcronym) {
+					if (orgAcronym === orgToUpdate.acronym) {
 						return true;
 					} else {
-						return "Please type between 3 and 11 characters";
+						return "Org acronym can not be modified.";
 					}
 				}
 			},

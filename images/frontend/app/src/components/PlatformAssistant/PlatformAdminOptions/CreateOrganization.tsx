@@ -12,7 +12,7 @@ import { setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgsOpti
 import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { ISelectGlobalUser } from '../TableColumns/selectGlobalUserColumns';
 import SelectGlobalUsers from './SelectGlobalUsers';
-import { IOrgInputData } from './OrgsContainer';
+import { IOrgInputData } from './OrgContainerOld';
 import {
     setReloadGroupsTable,
     setReloadGroupsMembershipTable,
