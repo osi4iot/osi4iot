@@ -7,6 +7,10 @@ import pruneSystemAndVolumes from './pruneSystemAndVolumes.js'
 import inquirer from '../generic_tools/inquirer.js';
 import { chooseOption } from './chooseOption.js';
 
+// function sleep(ms) {
+// 	return new Promise(resolve => setTimeout(resolve, ms));
+// }
+
 const dots = [
 	"       ",
 	".      ",
@@ -44,45 +48,45 @@ export default function () {
 								return new Promise(function (resolve, reject) {
 									let index = 0
 									setInterval(function () {
-										process.stdout.write(`\rWaiting until all services be removed ${dots[index]}`);
+										process.stdout.write(`\rWaiting until all containers be stopped ${dots[index]}`);
 										index = index < (dots.length - 1) ? index + 1 : 0;
-										let text;
+										let osi4iotContainerList;
 										try {
-											text = execSync(`docker ${dockerHost} service ls`);
+											const containerList = execSync(`docker ${dockerHost} ps`).toString().split("\n");
+											osi4iotContainerList = containerList.filter(container => container.includes("osi4iot"))
 										} catch (err) {
-											reject("Error listing docker services.")
+											reject("Error listing docker containers.")
 										}
-										let continuar = text.indexOf(" 1/1 ") !== -1 ||
-											text.indexOf(" 1/3 ") !== -1 ||
-											text.indexOf(" 2/3 ") !== -1 ||
-											text.indexOf(" 3/3 ") !== -1;
-										if (!continuar) {
+
+										if (osi4iotContainerList.length === 0) {
 											clearInterval(this);
-											console.log(clc.green("\nRemoving all docker images and volumes..."));
-											pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
-
-											console.log(clc.green("\nRemoving nodes of swarm cluster..."));
-											removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
-
-											console.log(clc.green("\nRemoving directories..."));
-											removeDirectories();
 											resolve("Finish");
 										}
 									}, 1000);
 								})
+							})
+							.then(() => {
+								console.log(clc.green("Removing all docker images and volumes..."));
+								pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
+
+								console.log(clc.green("Removing nodes of swarm cluster..."));
+								removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
+
+								console.log(clc.green("Removing directories..."));
+								removeDirectories();
 							})
 							.catch((error) => {
 								const errorMessage = `Error removing docker stack. Error: ${error}`;
 								throw new Error(errorMessage);
 							})
 					} else {
-						console.log(clc.green("\nRemoving all docker images and volumes..."));
+						console.log(clc.green("Removing all docker images and volumes..."));
 						pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
-						console.log(clc.green("\nRemoving nodes of swarm cluster..."));
+						console.log(clc.green("Removing nodes of swarm cluster..."));
 						removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
 
-						console.log(clc.green("\nRemoving directories..."));
+						console.log(clc.green("Removing directories..."));
 						removeDirectories();
 					}
 				} else {

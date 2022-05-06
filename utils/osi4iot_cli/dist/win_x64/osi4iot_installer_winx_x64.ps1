@@ -28,6 +28,7 @@ if (Get-PSDrive $DestinationDrive -ErrorAction SilentlyContinue) {
         if ($persistedPaths -notcontains $DestinationFolder) {
             $persistedPaths = $persistedPaths + $DestinationFolder | where { $_ }
             [Environment]::SetEnvironmentVariable('Path', $persistedPaths -join ';', 'User')
+            Write-Host "osi4iot_cli installed."
         }
     } else {
         $Warning = "The folder $UserFolder not exits."
