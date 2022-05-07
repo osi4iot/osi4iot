@@ -287,7 +287,6 @@ export default function (osi4iotState) {
 
 				],
 				volumes: [
-
 					'pgdata:/var/lib/postgresql/data'
 				],
 				environment: [

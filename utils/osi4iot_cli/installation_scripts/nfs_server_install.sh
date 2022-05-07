@@ -39,6 +39,11 @@ if [ ! -d  /var/nfs/nodered_data ]; then
     sudo chown nobody:nogroup /var/nfs/nodered_data
 fi
 
+if [ ! -d  /var/nfs/portainer_data ]; then
+    sudo mkdir /var/nfs/portainer_data
+    sudo chown nobody:nogroup /var/nfs/portainer_data
+fi
+
 if [ ! -d  /var/nfs/pgadmin4_data ]; then
     sudo mkdir /var/nfs/pgadmin4_data
     sudo chown nobody:nogroup /var/nfs/pgadmin4_data
