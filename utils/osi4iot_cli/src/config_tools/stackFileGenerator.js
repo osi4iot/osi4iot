@@ -48,7 +48,7 @@ export default function (osi4iotState) {
 	}
 
 
-	const nfsServerIP = osi4iotState.platformInfo.NFS_SERVER_IP;
+	const nfsServerIP = osi4iotState.platformInfo.NODES_DATA.filter(node => node.nodeRole === "NFS server")[0].nodeIP || "127.0.0.1";
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
 	const serviceImageVersion = defaultServiceImageVersion;
 

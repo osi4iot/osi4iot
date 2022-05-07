@@ -570,7 +570,6 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 								NODE_RED_ADMIN_HASH: bcrypt.hashSync(answers.PLATFORM_ADMIN_PASSWORD, 8),
 								PGADMIN_DEFAULT_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
 								PGADMIN_DEFAULT_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
-								NFS_SERVER_IP: answers.NFS_SERVER_IP || '127.0.0.1',
 								IS_NODERED_VOLUME_ALREADY_CREATED: 'false',
 								NODES_DATA: answers.NODES_DATA
 							},

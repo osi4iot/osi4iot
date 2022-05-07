@@ -55,10 +55,6 @@ if [ ! -d  /var/nfs/pgdata ]; then
 fi
 
 
-if [ ! -f /etc/exports ]; then
-    sudo mkdir /etc/exports
-fi
-
 for (( i=0; i<${#ips_array[@]}; i++ )); do
     newline="/var/nfs ${ips_array[$i]}(rw,sync,no_root_squash,no_subtree_check)"
     if ! grep -Fxq "$newline" "/etc/exports"; then
