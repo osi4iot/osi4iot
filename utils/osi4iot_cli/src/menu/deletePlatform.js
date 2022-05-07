@@ -66,13 +66,13 @@ export default function () {
 								})
 							})
 							.then(() => {
-								console.log(clc.green("Removing all docker images and volumes..."));
+								console.log(clc.green("\nRemoving all docker images and volumes..."));
 								pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
 								console.log(clc.green("Removing nodes of swarm cluster..."));
 								removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
 
-								console.log(clc.green("Removing directories..."));
+								console.log(clc.green("\nRemoving platform directories and files..."));
 								removeDirectories();
 							})
 							.catch((error) => {
@@ -80,13 +80,13 @@ export default function () {
 								throw new Error(errorMessage);
 							})
 					} else {
-						console.log(clc.green("Removing all docker images and volumes..."));
+						console.log(clc.green("\nRemoving all docker images and volumes..."));
 						pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
 						console.log(clc.green("Removing nodes of swarm cluster..."));
 						removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
 
-						console.log(clc.green("Removing directories..."));
+						console.log(clc.green("\nRemoving platform directories and files..."));
 						removeDirectories();
 					}
 				} else {
@@ -105,7 +105,7 @@ export default function () {
 
 
 const removeDirectories = () => {
-	console.log(clc.green("\nRemoving certs directory..."));
+	console.log(clc.green("Removing certs directory..."));
 	const certs_dir = "./certs"
 	if (fs.existsSync(certs_dir)) {
 		fs.rmSync(certs_dir, { recursive: true, force: true });
