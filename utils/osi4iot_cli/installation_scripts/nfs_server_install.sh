@@ -1,6 +1,5 @@
 #!/bin/bash
 
-
 ips_array=($(echo "$1" | tr ',' '\n'))
 
 REQUIRED_PKG="nfs-kernel-server"

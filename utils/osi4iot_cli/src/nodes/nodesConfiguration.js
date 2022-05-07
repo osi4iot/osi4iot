@@ -43,7 +43,7 @@ const installNFS = (nodeData, ips_array) => {
 	}
 	try {
 		execSync(`scp ./installation_scripts/nfs_server_install.sh ${userName}@${nodeIP}:/home/${userName}`);
-		execSync(`ssh ${userName}@${nodeIP} 'sudo bash nfs_server_install.sh" "${ips_array}"'`, { stdio: 'inherit' })
+		execSync(`ssh ${userName}@${nodeIP} 'sudo bash nfs_server_install.sh "${ips_array}"'`, { stdio: 'inherit' })
 		execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/nfs_server_install.sh'`);
 		return "OK";
 	} catch (err) {
@@ -58,7 +58,7 @@ export default async function (nodesData, organizations) {
 	if (numNodes === 1 && (nodesData[0].nodeIP === "localhost" || nodesData[0].nodeIP === "127.0.0.1")) {
 		isLocalDeploy = true;
 	}
-	const ips_array = nodesData.map(node => node.nodeIP).join(",");;
+	const ips_array = nodesData.filter(node => node.nodeRole !== "NFS server").map(node => node.nodeIP).join(",");
 	let outputResults = "OK";
 	for (let inode = 0; inode < numNodes; inode++) {
 		const nodeRole = nodesData[inode].nodeRole;
