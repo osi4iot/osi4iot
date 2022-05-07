@@ -134,6 +134,13 @@ const removeDirectories = () => {
 	if (fs.existsSync(state_file)) {
 		fs.rmSync(state_file, { recursive: true, force: true });
 	}
+
+	console.log(clc.green("Removing ssh keys..."));
+	const ssh_keys_dir = "./osi4iot_keys";
+	if (fs.existsSyncs(ssh_keys_dir)) {
+		execSync("ssh-add -D");
+		fs.rmSync(ssh_keys_dir, { recursive: true, force: true });
+	}
 }
 
 const removeNodesOfSwarmCluster = (nodesData) => {

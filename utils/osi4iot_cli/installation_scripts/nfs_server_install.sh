@@ -56,7 +56,7 @@ if [ ! -d  /var/nfs/pgdata ]; then
 fi
 
 
-if [ ! -d /etc/exports ]; then
+if [ ! -f /etc/exports ]; then
     sudo mkdir /etc/exports
 fi
 

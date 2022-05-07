@@ -38,8 +38,8 @@ const installNFS = (nodeData, ips_array) => {
 	if (!fs.existsSync('./installation_scripts')) {
 		fs.mkdirSync('./installation_scripts');
 	}
-	if (!fs.existsSync('./installation_scripts/ufw_install.sh')) {
-		execSync("curl -o ./installation_scripts/ufw_install.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/installation_scripts/nfs_server_install.sh", { stdio: 'ignore' });
+	if (!fs.existsSync('./installation_scripts/nfs_server_install.sh')) {
+		execSync("curl -o ./installation_scripts/nfs_server_install.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/installation_scripts/nfs_server_install.sh", { stdio: 'ignore' });
 	}
 	try {
 		execSync(`scp ./installation_scripts/nfs_server_install.sh ${userName}@${nodeIP}:/home/${userName}`);
@@ -47,7 +47,7 @@ const installNFS = (nodeData, ips_array) => {
 		execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/nfs_server_install.sh'`);
 		return "OK";
 	} catch (err) {
-		console.log(clc.bgRedBright(`Error installing nfs in node: ${nodeHostName}\n`))
+		console.log(clc.redBright(`Error installing nfs in node: ${nodeHostName}\n`))
 		return "Failed";
 	}
 }

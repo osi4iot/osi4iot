@@ -18,6 +18,6 @@ export default function (nfsNode, org_acronym, md_hashes_array) {
         execSync(`ssh ${userName}@${nodeIP} 'sudo bash remove_nfs_folders.sh ${org_acronym} "${md_hashes_array}"'`, )
         execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/remove_nfs_folders.sh'`);
     } catch (err) {
-        console.log(clc.bgRedBright(`Error removing nfs folders in node: ${nodeHostName}\n`))
+        console.log(clc.redBright(`Error removing nfs folders in node: ${nodeHostName}\n`))
     }
 }

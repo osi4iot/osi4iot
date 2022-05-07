@@ -18,6 +18,6 @@ export default function (nfsNode, org_acronym, md_hashes_array) {
         execSync(`ssh ${userName}@${nodeIP} 'sudo bash add_nfs_folders.sh ${org_acronym} "${md_hashes_array}"'`, { stdio: 'inherit'})
         execSync(`ssh ${userName}@${nodeIP} 'rm /home/${userName}/add_nfs_folders.sh'`);
     } catch (err) {
-        console.log(clc.bgRedBright(`Error adding nfs folders in node: ${nodeHostName}\n`))
+        console.log(clc.redBright(`Error adding nfs folders in node: ${nodeHostName}\n`))
     }
 }

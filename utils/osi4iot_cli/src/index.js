@@ -128,7 +128,7 @@ const osi4iotWelcome = () => {
                 console.log(clc.redBright("\nSorry, deployment in AWS are not developed yet\n"));
             } else {
                 createOsi4iotStateFile(answers.DEPLOYMENT_LOCATION);
-                if (answers.DEPLOYMENT_LOCATION === "Remote deploy") {
+                if (answers.DEPLOYMENT_LOCATION === "Remote deployment") {
                     console.log(clc.whiteBright("\nGenerating ssh keys:"));
                     const keys_dir = "./.osi4iot_keys"
                     fs.mkdirSync(keys_dir);
