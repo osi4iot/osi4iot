@@ -1,4 +1,4 @@
-export default function (nodesData, organizations) {
+export default function (nodesData, organizations = null) {
     const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
     const numPlatformWorkerNodes = nodesData.filter(node => node.nodeRole === "Platform worker").length;
     const numGenericOrgWorkerNodes = nodesData.filter(node => node.nodeRole === "Generic org worker").length;
@@ -28,18 +28,20 @@ export default function (nodesData, organizations) {
             warnings.push("- An odd number of manager nodes less than or equal to seven is recommended. For example: 1, 3, 5 or 7.");
         }
 
-        const exclusiveOrgWorkerNodesAvailability = true;
-        for (const org of organizations) {
-            if (org.exclusiveWorkerNodes.length !== 0) {
-                for (const workerNodeName of org.exclusiveWorkerNodes) {
-                    if (!exclusiveOrgWorkerNodes.includes(workerNodeName)) {
-                        exclusiveOrgWorkerNodesAvailability = false
+        if (organizations) {
+            const exclusiveOrgWorkerNodesAvailability = true;
+            for (const org of organizations) {
+                if (org.exclusiveWorkerNodes.length !== 0) {
+                    for (const workerNodeName of org.exclusiveWorkerNodes) {
+                        if (!exclusiveOrgWorkerNodes.includes(workerNodeName)) {
+                            exclusiveOrgWorkerNodesAvailability = false
+                        }
                     }
                 }
             }
-        }
-        if (!exclusiveOrgWorkerNodesAvailability) {
-            warnings.push("- There is not org worker nodes availability to deploy some org services.");
+            if (!exclusiveOrgWorkerNodesAvailability) {
+                warnings.push("- There is not org worker nodes availability to deploy some org services.");
+            }
         }
     }
 

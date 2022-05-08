@@ -124,7 +124,6 @@ const platformInitiation = () => {
 			}
 		])
 		.then(async (prevAnswers) => {
-			const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
 			let nodesData = [];
 			if (deploymentLocation === "Local deployment") {
 				const nodeArchitecture = os.arch();

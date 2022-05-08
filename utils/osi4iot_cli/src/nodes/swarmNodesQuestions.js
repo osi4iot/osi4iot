@@ -3,18 +3,30 @@ import clc from "cli-color";
 import inquirer from 'inquirer';
 import { execSync } from 'child_process';
 import sshCopyId from '../generic_tools/sshCopyId.js';
+import checkClusterRunViability from './checkClusterRunViability.js';
 
 export default async function (numberOfNodesToAdd, prevNodesData, defaultUserName) {
 	const numSwarmNodes = prevNodesData.length + numberOfNodesToAdd;
-	const newNodesData = [];
-	const nodesData = [...prevNodesData];
+	let newNodesData = [];
+	let nodesData = [...prevNodesData];
 
-	for (let inode = 1; inode <= numberOfNodesToAdd; inode++) {
-		await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, inode).then(answers => {
-			newNodesData.push(answers);
-			nodesData.push(answers);
-		});
-	}
+	let warnings = [];
+	do {
+		for (let inode = 1; inode <= numberOfNodesToAdd; inode++) {
+			await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, inode).then(answers => {
+				newNodesData.push(answers);
+				nodesData.push(answers);
+			});
+		}
+		warnings = checkClusterRunViability(newNodesData);
+		if (warnings.length !== 0) {
+			newNodesData = [];
+			nodesData = [...prevNodesData];
+			const warningsText = warnings.join("\n");
+			console.log(clc.yellowBright(`The indicated nodes configuration is not correct:\n${warningsText}`));
+			console.log(clc.greenBright(`\nPlease enter the nodes configuration again:`));
+		}
+	  } while (warnings.length !== 0);
 
 	return newNodesData;
 }
