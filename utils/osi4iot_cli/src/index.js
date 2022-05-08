@@ -19,6 +19,17 @@ const cliOptions = [
 ];
 
 const osi4iotCli = async () => {
+	console.log(clc.green("Removing ssh keys..."));
+    const ssh_keys_dir = "./.osi4iot_keys";
+    console.log("Paso por aqui 0")
+	if (fs.existsSync(ssh_keys_dir)) {
+		console.log("Paso por aqui 1")
+		execSync("ssh-add -D");
+		console.log("Paso por aqui 2")
+		fs.rmSync(ssh_keys_dir, { recursive: true, force: true });
+		console.log("Paso por aqui 3")
+	}
+
     const myArgs = process.argv.slice(2);
 
     if (!fs.existsSync("./osi4iot_state.json")) {

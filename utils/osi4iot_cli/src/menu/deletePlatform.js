@@ -149,7 +149,7 @@ const removeDirectories = () => {
 
 	console.log(clc.green("Removing ssh keys..."));
 	const ssh_keys_dir = "./.osi4iot_keys";
-	if (fs.existsSyncs(ssh_keys_dir)) {
+	if (fs.existsSync(ssh_keys_dir)) {
 		execSync("ssh-add -D");
 		fs.rmSync(ssh_keys_dir, { recursive: true, force: true });
 	}
