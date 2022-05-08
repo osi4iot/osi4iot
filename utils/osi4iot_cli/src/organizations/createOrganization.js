@@ -37,7 +37,7 @@ export default async function () {
 				const exclusiveOrgWorkerNodes = nodesData.filter(node => node.nodeRole === "Exclusive org worker");
 				if (exclusiveOrgWorkerNodes.length !== 0) {
 					const alreadyUsedNodes = [];
-					for (let iorg = 0; iorg <= currentOrgs.length; iorg++) {
+					for (let iorg = 0; iorg < currentOrgs.length; iorg++) {
 						if (currentOrgs[iorg].exclusiveWorkerNodes.length !== 0) {
 							alreadyUsedNodes.push(...currentOrgs[iorg].exclusiveWorkerNodes);
 						}
@@ -242,7 +242,7 @@ export default async function () {
 				])
 				.then(async (answers) => {
 					const orgExclusiveWorkerNodes = [];
-					if (workerNodesRows.length !== 0) {
+					if (answers.ARE_ORG_SERVICES_DEPLOYED_IN_EXCLUSIVE_NODES && workerNodesRows.length !== 0) {
 						for (let inode = 0; inode < workerNodesRows.length; inode++) {
 							if (answers.ORGANIZATION_EXCLUSIVE_WORKER_NODES[inode] === "selected") {
 								orgExclusiveWorkerNodes.push(workerNodesRows[inode].name)
@@ -333,6 +333,7 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 
 			const nodesData = osi4iotState.platformInfo.NODES_DATA;
 			const dockerHost = findManagerDockerHost(nodesData);
+			console.log(clc.green('Generating node labels...\n'))
 			generateNodeLabels(osi4iotState, dockerHost);
 
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];

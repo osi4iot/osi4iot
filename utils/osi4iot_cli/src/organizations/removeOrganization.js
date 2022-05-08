@@ -155,7 +155,7 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 
 const removeOrgWorkerNodeLabels = (dockerHost, orgToRemove) => {
 	if (orgToRemove.exclusiveWorkerNodes.length !== 0) {
-		for (node in orgToRemove.exclusiveWorkerNodes) {
+		for (const node in orgToRemove.exclusiveWorkerNodes) {
 			execSync(`docker ${dockerHost} node update --label-rm org_hash ${node.nodeName}`);
 		}
 	}

@@ -3,7 +3,7 @@ import fs from 'fs';
 import { execSync } from 'child_process';
 import execShellCommand from '../generic_tools/execShellCommand.js';
 import findManagerDockerHost from './findManagerDockerHost.js';
-import pruneSystemAndVolumes from './pruneSystemAndVolumes.js'
+import cleanSystemAndVolumes from './cleanSystemAndVolumes.js'
 import inquirer from '../generic_tools/inquirer.js';
 import { chooseOption } from './chooseOption.js';
 
@@ -67,7 +67,7 @@ export default function () {
 							})
 							.then(() => {
 								console.log(clc.green("\nRemoving all docker images and volumes..."));
-								pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
+								cleanSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
 								console.log(clc.green("Removing nodes of swarm cluster..."));
 								removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
@@ -87,7 +87,7 @@ export default function () {
 							})
 					} else {
 						console.log(clc.green("\nRemoving all docker images and volumes..."));
-						pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
+						cleanSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
 						console.log(clc.green("Removing nodes of swarm cluster..."));
 						removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
@@ -133,6 +133,12 @@ const removeDirectories = () => {
 	const secrets_dir = "./secrets"
 	if (fs.existsSync(secrets_dir)) {
 		fs.rmSync(secrets_dir, { recursive: true, force: true });
+	}
+
+	console.log(clc.green("Removing installation_scripts directory..."));
+	const installation_scripts_dir = "./installation_scripts"
+	if (fs.existsSync(installation_scripts_dir)) {
+		fs.rmSync(installation_scripts_dir, { recursive: true, force: true });
 	}
 
 	console.log(clc.green("Removing stack file ..."));

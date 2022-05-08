@@ -6,7 +6,7 @@ import nodesConfiguration from './nodesConfiguration.js';
 import joinNodesToSwarm from './joinNodesToSwarm.js';
 import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 import generateNodeLabels from './generateNodeLabels.js';
-import pruneSystemAndVolumes from '../menu/pruneSystemAndVolumes.js';
+import cleanSystemAndVolumes from '../menu/cleanSystemAndVolumes.js';
 import swarmNodesQuestions from './swarmNodesQuestions.js';
 import checkClusterRunViability from './checkClusterRunViability.js';
 import updateServices from '../menu/updateServices.js';
@@ -37,25 +37,35 @@ export default function () {
             ])
             .then(async (answer) => {
                 const dockerHost = findManagerDockerHost(currentNodesData);
-                const numNodesToAdd = answer.numNodesToAdd;
-                const newNodes = await swarmNodesQuestions(numNodesToAdd, currentNodesData, defaultUserName);
-                const warnings = checkClusterRunViability([...currentNodesData, ...newNodes], osi4iotState.certs.mqtt_certs.organizations);
+                const numNodesToAdd = parseInt(answer.numNodesToAdd, 10);
+                let warnings = [];
+                let newNodes = [];
+                do {
+                    newNodes = await swarmNodesQuestions(numNodesToAdd, currentNodesData, defaultUserName);
+                    warnings = checkClusterRunViability([...currentNodesData, ...newNodes], osi4iotState.certs.mqtt_certs.organizations);
+                    if (warnings.length !== 0) {
+                        const warningsText = warnings.join("\n");
+                        console.log(clc.yellowBright(`The indicated nodes configuration is not correct:\n${warningsText}`));
+                        console.log(clc.greenBright(`\nPlease enter the nodes configuration again:`));
+                    }
+                } while (warnings.length !== 0)
+
                 const status = "OK"
                 if (warnings.length === 0) {
                     try {
                         console.log(clc.green('\nConfigurating new nodes...'));
                         nodesConfiguration(newNodes);
-    
+
                         console.log(clc.green('\nJoining nodes to swarm cluster:'));
                         await joinNodesToSwarm(newNodes, osi4iotState.platformInfo.DEPLOYMENT_LOCATION, dockerHost);
-    
+
                         console.log(clc.green('\nRemoving previous docker images and volumes...'));
-                        pruneSystemAndVolumes(newNodes);
+                        cleanSystemAndVolumes(newNodes);
                     } catch (err) {
                         console.log(clc.redBright("Error: ", err));
                         status = "Failed";
                     }
-    
+
                     if (status === "OK") {
                         osi4iotState.platformInfo.NODES_DATA.push(...newNodes);
                         const osi4iotStateFile = JSON.stringify(osi4iotState);

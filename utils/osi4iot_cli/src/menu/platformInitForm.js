@@ -16,7 +16,7 @@ import inquirer from '../generic_tools/inquirer.js';
 import findManagerDockerHost from './findManagerDockerHost.js';
 import nodesConfiguration from '../nodes/nodesConfiguration.js';
 import generateNodeLabels from '../nodes/generateNodeLabels.js';
-import pruneSystemAndVolumes from './pruneSystemAndVolumes.js';
+import cleanSystemAndVolumes from './cleanSystemAndVolumes.js';
 import joinNodesToSwarm from '../nodes/joinNodesToSwarm.js';
 import swarmNodesQuestions from '../nodes/swarmNodesQuestions.js';
 import { existsCountry } from '../generic_tools/countryCodes.js';
@@ -637,7 +637,7 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 							await joinNodesToSwarm(answers.NODES_DATA, deploymentLocation);
 
 							console.log(clc.green('\nRemoving previous docker images and volumes...'));
-							pruneSystemAndVolumes(answers.NODES_DATA);
+							cleanSystemAndVolumes(answers.NODES_DATA);
 
 							console.log(clc.green('\nCreating certificates...'));
 							removeCerts(osi4iotState);
@@ -654,6 +654,7 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 
 							const nodesData = osi4iotState.platformInfo.NODES_DATA;
 							const dockerHost = findManagerDockerHost(nodesData);
+							console.log(clc.green('Generating node labels...\n'))
 							generateNodeLabels(osi4iotState, dockerHost);
 							await runStack(osi4iotState, dockerHost);
 						} catch (error) {

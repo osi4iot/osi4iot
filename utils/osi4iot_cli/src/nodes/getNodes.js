@@ -19,7 +19,6 @@ export default async function (osi4iotState) {
         }
     }
 
-
     const table = new Table({
         head: [
             clc.cyanBright('Index'),
@@ -39,13 +38,14 @@ export default async function (osi4iotState) {
     let index = 0;
     for (const nodeData of nodesData) {
         index++;
-        let orgs;
+        let orgs = "-";
         if (nodeData.nodeRole === "Generic org worker") {
             orgs = orgsInGenericWorkers.join(", ");
         } else if (nodeData.nodeRole === "Exclusive org worker") {
-            orgs = orgsInNodes[nodeData.nodeHostName].join(", ");
+            if (orgsInNodes[nodeData.nodeHostName] !== undefined) {
+                orgs = orgsInNodes[nodeData.nodeHostName].join(", ");
+            } 
         } else {
-            orgs = "-";
             if (nodesData.length === 1) {
                 orgs = "All orgs";
             }

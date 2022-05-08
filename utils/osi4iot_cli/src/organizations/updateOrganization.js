@@ -463,6 +463,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 
 			const nodesData = osi4iotState.platformInfo.NODES_DATA;
 			const dockerHost = findManagerDockerHost(nodesData);
+			console.log(clc.green('Generating node labels...\n'))
 			generateNodeLabels(osi4iotState, dockerHost);
 
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];

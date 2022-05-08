@@ -4,7 +4,6 @@ import { execSync } from 'child_process';
 export default async function (osi4iotState, dockerHost) {
 	const nodesData = osi4iotState.platformInfo.NODES_DATA;
 	if (nodesData.length > 1) {
-		console.log(clc.green("Generating node labels..."));
 		const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
 		const prioritiesArray = [300, 200, 100];
 		let priorityIndex = 0;
