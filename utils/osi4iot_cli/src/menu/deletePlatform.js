@@ -72,6 +72,12 @@ export default function () {
 								console.log(clc.green("Removing nodes of swarm cluster..."));
 								removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
 
+								const NFS_ServerNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
+								if (NFS_ServerNode !== undefined) {
+									console.log(clc.green("Removing NFS server..."));
+									removeNFS_Server(NFS_ServerNode);
+								}
+
 								console.log(clc.green("\nRemoving platform directories and files..."));
 								removeDirectories();
 							})
@@ -85,6 +91,12 @@ export default function () {
 
 						console.log(clc.green("Removing nodes of swarm cluster..."));
 						removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
+
+						const NFS_ServerNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
+						if (NFS_ServerNode !== undefined) {
+							console.log(clc.green("Removing NFS server..."));
+							removeNFS_Server(NFS_ServerNode);
+						}
 
 						console.log(clc.green("\nRemoving platform directories and files..."));
 						removeDirectories();
@@ -136,7 +148,7 @@ const removeDirectories = () => {
 	}
 
 	console.log(clc.green("Removing ssh keys..."));
-	const ssh_keys_dir = "./osi4iot_keys";
+	const ssh_keys_dir = "./.osi4iot_keys";
 	if (fs.existsSyncs(ssh_keys_dir)) {
 		execSync("ssh-add -D");
 		fs.rmSync(ssh_keys_dir, { recursive: true, force: true });
@@ -144,7 +156,8 @@ const removeDirectories = () => {
 }
 
 const removeNodesOfSwarmCluster = (nodesData) => {
-	for (const nodeData of nodesData) {
+	const nodesInSwarm = nodesData.filter(node => node.nodeRole !== "NFS server");
+	for (const nodeData of nodesInSwarm) {
 		const userName = nodeData.nodeUserName;
 		const nodeIP = nodeData.nodeIP;
 		if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
@@ -160,5 +173,16 @@ const removeNodesOfSwarmCluster = (nodesData) => {
 				//do nothing
 			}
 		}
+	}
+}
+
+const removeNFS_Server = (nodeData) => {
+	const userName = nodeData.nodeUserName;
+	const nodeIP = nodeData.nodeIP;
+	try {
+		execSync(`ssh ${userName}@${nodeIP} 'sudo service nfs-kernel-server stop'`, { stdio: 'ignore' });
+		execSync(`ssh ${userName}@${nodeIP} 'sudo rm -rf /var/nfs'`, { stdio: 'ignore' });
+	} catch (err) {
+		console.log(clc.redBright("\nError removing NFS server."));
 	}
 }
