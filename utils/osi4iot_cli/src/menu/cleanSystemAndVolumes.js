@@ -8,7 +8,17 @@ export default function (nodesDataIni) {
         const dockerHost = (nodeIP === "localhost" || nodeIP === "127.0.0.1") ? "" : `-H ssh://${userName}@${nodeIP}`;
         try {
             execSync(`docker ${dockerHost} image rm $(docker ${dockerHost} image ls -q) --force`, { stdio: 'ignore' });
+        } catch (err) {
+            //do nothing
+        }
+
+        try {
             execSync(`docker ${dockerHost} image network $(docker ${dockerHost} network ls -q) --force`, { stdio: 'ignore' });
+        } catch (err) {
+            //do nothing
+        }
+
+        try {
             execSync(`docker ${dockerHost} volume rm $(docker ${dockerHost} volume ls -q) --force`, { stdio: 'ignore' });
         } catch (err) {
             //do nothing

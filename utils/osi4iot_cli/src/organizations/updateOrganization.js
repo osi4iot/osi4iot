@@ -468,10 +468,10 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
 			if (nfsNode !== undefined) {
-				const org_acronym = orgData.org_acronym;
+				const org_acronym = orgData.ORGANIZATION_ACRONYM.toLowerCase();
 				if (currentNumMasterDevicesInOrg < orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
 					const md_hashes_array = masterDevicesHashesToAdd.join(",");
-					await addNFSFolders(nfsNode, org_acronym, md_hashes_array);
+					addNFSFolders(nfsNode, org_acronym, md_hashes_array);
 				}
 				if (currentNumMasterDevicesInOrg > orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
 					const md_hashes_array = orgData.masterDeviceHashesToRemove.join(",");

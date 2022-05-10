@@ -26,6 +26,7 @@ const platformInitiation = () => {
 	const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 	const osi4iotStateInitial = JSON.parse(osi4iotStateText);
 	const deploymentLocation = osi4iotStateInitial.platformInfo.DEPLOYMENT_LOCATION;
+	let mainOrgAdminPassword;
 
 	inquirer
 		.prompt([
@@ -96,12 +97,33 @@ const platformInitiation = () => {
 				}
 			},
 			{
-				name: 'PLATFORM_ADMIN_PASSWORD',
+				name: 'PLATFORM_ADMIN_PASSWORD_INI',
 				message: 'Platform admin password:',
+				type: 'password',
+				mask: "*",
 				validate: function (password) {
 					const valid = /^[A-Za-z]\w{7,14}$/.test(password);
 					if (valid) {
+						mainOrgAdminPassword = password;
 						return true;
+					} else {
+						return "Please type a password with 7 to 15 characters which contain only characters, numeric digits, underscore and first character must be a letter";
+					}
+				}
+			},
+			{
+				name: 'PLATFORM_ADMIN_PASSWORD',
+				message: 'Retype platform admin password:',
+				type: 'password',
+				mask: "*",
+				validate: function (password) {
+					const valid = /^[A-Za-z]\w{7,14}$/.test(password);
+					if (valid) {
+						if (mainOrgAdminPassword === password) {
+							return true;
+						} else {
+							return "The password typed not match with previous one"
+						}
 					} else {
 						return "Please type a password with 7 to 15 characters which contain only characters, numeric digits, underscore and first character must be a letter";
 					}

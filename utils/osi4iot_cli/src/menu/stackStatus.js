@@ -20,11 +20,12 @@ export default async function () {
 				console.log(clc.greenBright("\nNodes joined to the swarm cluster:\n"));
 				console.log(response1);
 
-				const response2 = execSync(`docker ${dockerHost} service ls`).toString();
-				const numServices = response2.split('\n').length - 2;
+				const response2 = execSync(`docker ${dockerHost} service ls`).toString().split('\n');
+				const services = response2.filter(line => !line.includes("osi4iot_system_prune"));
+				const numServices = services.length - 2;
 				if (numServices !== 0) {
 					console.log(clc.greenBright("\nServices running in the platform:\n"));
-					console.log(response2);
+					console.log(services.join('\n'));
 				} else {
 					console.log(clc.yellowBright("No stack has been deployed. \nUse the command 'osi4iot run' to deployed it."));
 				}

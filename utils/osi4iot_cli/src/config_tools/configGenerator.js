@@ -136,7 +136,7 @@ export default function (osi4iotState) {
 		"use_identity_as_username true\n",
 	]
 
-	if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION !== "Local deployment") {
+	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Self-signed certs" ) {
 		mosquittoConfig.push(
 			"\n",
 			"\n",

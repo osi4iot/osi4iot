@@ -102,14 +102,15 @@ export default async function (osi4iotState = null, dockerHost = null) {
 					index = index < (dots.length - 1) ? index + 1 : 0;
 					let text;
 					try {
-						text = execSync(`docker ${dockerHost} service ls`);
+						text = execSync(`docker ${dockerHost} service ls`).toString();
 					} catch (err) {
 						reject("Error listing docker services.")
 					}
-					let continuar = text.indexOf(" 0/1 ") !== -1 ||
-						text.indexOf(" 0/3 ") !== -1 ||
-						text.indexOf(" 1/3 ") !== -1 ||
-						text.indexOf(" 2/3 ") !== -1;
+					const services = text.split('\n').filter(line => !line.includes("osi4iot_system_prune")).join('\n');
+					let continuar = services.includes(" 0/1 ") ||
+						services.includes(" 0/3 ") ||
+						services.includes(" 1/3 ") ||
+						services.includes(" 2/3 ");
 					if (!continuar) {
 						clearInterval(this);
 						if (!checkIfAllNoderedVolumesAreCreated(osi4iotState)) {
@@ -142,10 +143,11 @@ export default async function (osi4iotState = null, dockerHost = null) {
 								index = index < (dots.length - 1) ? index + 1 : 0;
 								if (timeCounter >= 30) {
 									let text = execSync(`docker ${dockerHost} service ls`).toString();
-									let continuar = text.indexOf(" 0/1 ") !== -1 ||
-										text.indexOf(" 0/3 ") !== -1 ||
-										text.indexOf(" 1/3 ") !== -1 ||
-										text.indexOf(" 2/3 ") !== -1;
+									const services = text.split('\n').filter(line => !line.includes("osi4iot_system_prune")).join('\n');
+									let continuar = services.includes(" 0/1 ") ||
+										services.includes(" 0/3 ") ||
+										services.includes(" 1/3 ") ||
+										services.includes(" 2/3 ");
 									if (!continuar) {
 										console.log("\nRemoving unused containers, volumes and images.");
 										pruneSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);

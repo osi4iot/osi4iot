@@ -135,12 +135,17 @@ const osi4iotWelcome = () => {
                         fs.mkdirSync(keys_dir);
                         execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_ed25519 -t ed25519", { stdio: 'ignore' });
                     }
-                    const sshKeysOutput = execSync("ssh-add -l").toString();
-                    if (sshKeysOutput.search("ED25519") === -1) {
+                    try {
+                        const sshKeysOutput = execSync("ssh-add -l", { stdio: 'ignore' }).toString();
+                        if (sshKeysOutput.search("ED25519") === -1) {
+                            loadSSHAgentWarnning();
+                        } else {
+                            chooseOption();
+                        }
+                    } catch (err) {
                         loadSSHAgentWarnning();
-                    } else {
-                        chooseOption();
                     }
+
                 } else {
                     console.log("");
                     chooseOption();
