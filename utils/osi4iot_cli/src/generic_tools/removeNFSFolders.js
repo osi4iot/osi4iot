@@ -11,7 +11,8 @@ export default function (nfsNode, org_acronym, md_hashes_array) {
         fs.mkdirSync('./installation_scripts');
     }
     if (!fs.existsSync('./installation_scripts/remove_nfs_folders.sh')) {
-        execSync("curl -o ./installation_scripts/remove_nfs_folders.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/installation_scripts/remove_nfs_folders.sh", { stdio: 'ignore' });
+        execSync("curl -o ./installation_scripts/remove_nfs_folders.sh hhttps://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/installation_scripts/remove_nfs_folders.sh", { stdio: 'ignore' });
+        
     }
     try {
         execSync(`scp ./installation_scripts/remove_nfs_folders.sh ${userName}@${nodeIP}:/home/${userName}`);
