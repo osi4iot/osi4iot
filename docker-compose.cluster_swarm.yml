@@ -446,49 +446,49 @@ volumes:
     driver_opts:
       type: nfs
       o: nfsvers=4,addr=${NFS_SERVER_IP},rw
-      device: ":/var/nfs/mosquitto_data"   
+      device: ":/var/nfs_osi4iot/mosquitto_data"   
   mosquitto_log:
     driver: local
     driver_opts:
       type: nfs
       o: nfsvers=4,addr=${NFS_SERVER_IP},rw
-      device: ":/var/nfs/mosquitto_log"  
+      device: ":/var/nfs_osi4iot/mosquitto_log"  
   nodered_data:
     driver: local
     driver_opts:
       type: nfs
       o: nfsvers=4,addr=${NFS_SERVER_IP},rw
-      device: ":/var/nfs/nodered_data"
+      device: ":/var/nfs_osi4iot/nodered_data"
   pgdata:
     driver: local
     driver_opts:
       type: nfs
       o: nfsvers=4,addr=${NFS_SERVER_IP},rw
-      device: ":/var/nfs/pgdata"
+      device: ":/var/nfs_osi4iot/pgdata"
   pgadmin4_data:
     driver: local
     driver_opts:
       type: nfs
       o: nfsvers=4,addr=${NFS_SERVER_IP},rw
-      device: ":/var/nfs/pgadmin4_data"
+      device: ":/var/nfs_osi4iot/pgadmin4_data"
   portainer_data:
     driver: local
     driver_opts:
       type: nfs
       o: nfsvers=4,addr=${NFS_SERVER_IP},rw
-      device: ":/var/nfs/portainer_data"     
+      device: ":/var/nfs_osi4iot/portainer_data"     
   grafana_data:
     driver: local
     driver_opts:
       type: nfs
       o: nfsvers=4,addr=${NFS_SERVER_IP},rw
-      device: ":/var/nfs/grafana_data"
+      device: ":/var/nfs_osi4iot/grafana_data"
   admin_api_log:
     driver: local
     driver_opts:
       type: nfs
       o: nfsvers=4,addr=${NFS_SERVER_IP},rw
-      device: ":/var/nfs/admin_api_log"    
+      device: ":/var/nfs_osi4iot/admin_api_log"    
 
 secrets:
   iot_platform_ca:

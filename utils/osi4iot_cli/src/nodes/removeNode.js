@@ -46,6 +46,12 @@ export default function () {
                     console.log(clc.green('Updating services...\n'));
                     updateServices(dockerHost, [nodeToRemove], osi4iotState.certs.mqtt_certs.organizations);
 
+                    const nfsServerNode = newNodesData.filter(node => node.nodeRole === "NFS Server")[0];
+                    if (nfsServerNode !== undefined) {
+                        const nodeToRemove = nodesData[index];
+                        removeNodeOfNfsServer(nodeToRemove.nodeIP, nfsServerNode);
+                    }
+
                     if (nodeToRemove.nodeRole === "Exclusive org worker") {
                         for (const org of osi4iotState.certs.mqtt_certs.organizations) {
                             if (org.exclusiveWorkerNodes.length !== 0) {
@@ -87,5 +93,16 @@ const removeNodeOfSwarmCluster = async (dockerHost, nodeData) => {
         execSync(`docker ${dockerHost} node rm ${nodeHostName}`);
     } catch (err) {
         console.log(clc.redBright("Error removing node of swarm cluster: ", err));
+    }
+}
+
+const removeNodeOfNfsServer = (nfsServerNode, nodeIP) => {
+    const nfsUserName = nfsServerNode.nodeUserName;
+    const nfsNodeIP = nfsServerNode.nodeIP;
+    const textToMatch = `nfs_osi4iot ${nodeIP}`
+    try {
+        execSync(`ssh ${nfsUserName}@${nfsNodeIP} "sudo sed -i '/${textToMatch}/d' /etc/exports"`);
+    } catch (err) {
+        console.log(clc.redBright("Error removing node of nfs server: ", err));
     }
 }

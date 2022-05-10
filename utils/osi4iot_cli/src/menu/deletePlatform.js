@@ -187,7 +187,8 @@ const removeNFS_Server = (nodeData) => {
 	const nodeIP = nodeData.nodeIP;
 	try {
 		execSync(`ssh ${userName}@${nodeIP} 'sudo service nfs-kernel-server stop'`, { stdio: 'ignore' });
-		execSync(`ssh ${userName}@${nodeIP} 'sudo rm -rf /var/nfs'`, { stdio: 'ignore' });
+		execSync(`ssh ${userName}@${nodeIP} 'sudo rm -rf /var/nfs_osi4iot'`, { stdio: 'ignore' });
+		execSync(`ssh ${userName}@${nodeIP} "sudo sed -i '/nfs_osi4iot/d' /etc/exports"`, { stdio: 'ignore' });
 	} catch (err) {
 		console.log(clc.redBright("\nError removing NFS server."));
 	}

@@ -9,54 +9,54 @@ then
     sudo apt-get install nfs-kernel-server -y
 fi
 
-if [ ! -d /var/nfs ]; then
-    sudo mkdir /var/nfs
-    sudo chown nobody:nogroup /var/nfs
+if [ ! -d /var/nfs_osi4iot ]; then
+    sudo mkdir /var/nfs_osi4iot
+    sudo chown nobody:nogroup /var/nfs_osi4iot
 fi
 
-if [ ! -d /var/nfs/admin_api_log ]; then
-    sudo mkdir /var/nfs/admin_api_log
-    sudo chown nobody:nogroup /var/nfs/admin_api_log
+if [ ! -d /var/nfs_osi4iot/admin_api_log ]; then
+    sudo mkdir /var/nfs_osi4iot/admin_api_log
+    sudo chown nobody:nogroup /var/nfs_osi4iot/admin_api_log
 fi
 
-if [ ! -d /var/nfs/grafana_data ]; then
-    sudo mkdir /var/nfs/grafana_data
-    sudo chown nobody:nogroup /var/nfs/grafana_data
+if [ ! -d /var/nfs_osi4iot/grafana_data ]; then
+    sudo mkdir /var/nfs_osi4iot/grafana_data
+    sudo chown nobody:nogroup /var/nfs_osi4iot/grafana_data
 fi
 
-if [ ! -d /var/nfs/mosquitto_data ]; then
-    sudo mkdir /var/nfs/mosquitto_data
-    sudo chown nobody:nogroup /var/nfs/mosquitto_data
+if [ ! -d /var/nfs_osi4iot/mosquitto_data ]; then
+    sudo mkdir /var/nfs_osi4iot/mosquitto_data
+    sudo chown nobody:nogroup /var/nfs_osi4iot/mosquitto_data
 fi
 
-if [ ! -d /var/nfs/mosquitto_log ]; then
-    sudo mkdir /var/nfs/mosquitto_log
-    sudo chown nobody:nogroup /var/nfs/mosquitto_log
+if [ ! -d /var/nfs_osi4iot/mosquitto_log ]; then
+    sudo mkdir /var/nfs_osi4iot/mosquitto_log
+    sudo chown nobody:nogroup /var/nfs_osi4iot/mosquitto_log
 fi
 
-if [ ! -d  /var/nfs/nodered_data ]; then
-    sudo mkdir /var/nfs/nodered_data
-    sudo chown nobody:nogroup /var/nfs/nodered_data
+if [ ! -d  /var/nfs_osi4iot/nodered_data ]; then
+    sudo mkdir /var/nfs_osi4iot/nodered_data
+    sudo chown nobody:nogroup /var/nfs_osi4iot/nodered_data
 fi
 
-if [ ! -d  /var/nfs/portainer_data ]; then
-    sudo mkdir /var/nfs/portainer_data
-    sudo chown nobody:nogroup /var/nfs/portainer_data
+if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
+    sudo mkdir /var/nfs_osi4iot/portainer_data
+    sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
 fi
 
-if [ ! -d  /var/nfs/pgadmin4_data ]; then
-    sudo mkdir /var/nfs/pgadmin4_data
-    sudo chown nobody:nogroup /var/nfs/pgadmin4_data
+if [ ! -d  /var/nfs_osi4iot/pgadmin4_data ]; then
+    sudo mkdir /var/nfs_osi4iot/pgadmin4_data
+    sudo chown nobody:nogroup /var/nfs_osi4iot/pgadmin4_data
 fi
 
-if [ ! -d  /var/nfs/pgdata ]; then
-    sudo mkdir /var/nfs/pgdata
-    sudo chown nobody:nogroup /var/nfs/pgdata
+if [ ! -d  /var/nfs_osi4iot/pgdata ]; then
+    sudo mkdir /var/nfs_osi4iot/pgdata
+    sudo chown nobody:nogroup /var/nfs_osi4iot/pgdata
 fi
 
-if [ ! -d  /var/nfs/pgdata ]; then
-    sudo mkdir /var/nfs/portainer_data
-    sudo chown nobody:nogroup /var/nfs/portainer_data
+if [ ! -d  /var/nfs_osi4iot/pgdata ]; then
+    sudo mkdir /var/nfs_osi4iot/portainer_data
+    sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
 fi
 
 

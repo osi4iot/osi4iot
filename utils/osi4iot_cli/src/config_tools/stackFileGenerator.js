@@ -4,6 +4,7 @@ import fs from 'fs';
 const defaultVersion = '1.1.0'
 
 const defaultServiceImageVersion = {
+	system_prune: defaultVersion || 'latest',
 	traefik: defaultVersion || 'latest',
 	mosquitto: defaultVersion || 'latest',
 	agent: defaultVersion || 'latest',
@@ -66,6 +67,19 @@ export default function (osi4iotState) {
 	const osi4iotStackObj = {
 		version: "3.8",
 		services: {
+			system_prune: {
+				image: `ghcr.io/osi4iot/system_prune:${serviceImageVersion['traefik']}`,
+				volumes: [
+					'/var/run/docker.sock:/var/run/docker.sock'
+				],
+				command: 'docker system prune --all --force',
+				deploy: {
+					mode: "global",
+					restart_policy: {
+						delay: "24h"
+					}
+				}
+			},
 			traefik: {
 				image: `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`,
 				command: [
@@ -681,7 +695,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs/mosquitto_data'
+					device: ':/var/nfs_osi4iot/mosquitto_data'
 				}
 			}
 
@@ -690,7 +704,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs/mosquitto_log'
+					device: ':/var/nfs_osi4iot/mosquitto_log'
 				}
 			}
 
@@ -699,7 +713,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs/nodered_data'
+					device: ':/var/nfs_osi4iot/nodered_data'
 				}
 			}
 
@@ -708,7 +722,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs/pgdata'
+					device: ':/var/nfs_osi4iot/pgdata'
 				}
 			}
 
@@ -717,7 +731,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs/pgadmin4_data'
+					device: ':/var/nfs_osi4iot/pgadmin4_data'
 				}
 			}
 
@@ -726,7 +740,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs/portainer_data'
+					device: ':/var/nfs_osi4iot/portainer_data'
 				}
 			}
 
@@ -735,7 +749,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs/grafana_data'
+					device: ':/var/nfs_osi4iot/grafana_data'
 				}
 			}
 
@@ -744,7 +758,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs/admin_api_log'
+					device: ':/var/nfs_osi4iot/admin_api_log'
 				}
 			}
 		}
@@ -822,7 +836,7 @@ export default function (osi4iotState) {
 					driver_opts: {
 						type: 'nfs',
 						o: `nfsvers=4,addr=${nfsServerIP},rw`,
-						device: `:/var/nfs/${masterDeviceVolume}`
+						device: `:/var/nfs_osi4iot/${masterDeviceVolume}`
 					}
 				}
 			} else {
