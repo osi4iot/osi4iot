@@ -130,10 +130,17 @@ const osi4iotWelcome = () => {
                 createOsi4iotStateFile(answers.DEPLOYMENT_LOCATION);
                 if (answers.DEPLOYMENT_LOCATION === "Remote deployment") {
                     console.log(clc.whiteBright("\nGenerating ssh keys:"));
-                    const keys_dir = "./.osi4iot_keys"
-                    fs.mkdirSync(keys_dir);
-                    execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_ed25519 -t ed25519", { stdio: 'ignore' });
-                    loadSSHAgentWarnning();
+                    const keys_dir = "./.osi4iot_keys";
+                    if (!fs.existsSync(keys_dir)) {
+                        fs.mkdirSync(keys_dir);
+                        execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_ed25519 -t ed25519", { stdio: 'ignore' });
+                    }
+                    const sshKeysOutput = execSync("ssh-add -l").toString();
+                    if (sshKeysOutput.search("ED25519") === -1) {
+                        loadSSHAgentWarnning();
+                    } else {
+                        chooseOption();
+                    }
                 } else {
                     console.log("");
                     chooseOption();

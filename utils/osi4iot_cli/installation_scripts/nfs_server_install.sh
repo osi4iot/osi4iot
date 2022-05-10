@@ -61,7 +61,7 @@ fi
 
 
 for (( i=0; i<${#ips_array[@]}; i++ )); do
-    newline="/var/nfs ${ips_array[$i]}(rw,sync,no_root_squash,no_subtree_check)"
+    newline="/var/nfs_osi4iot ${ips_array[$i]}(rw,sync,no_root_squash,no_subtree_check)"
     if ! grep -Fxq "$newline" "/etc/exports"; then
         echo $newline >> /etc/exports
     fi
