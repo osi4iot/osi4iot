@@ -2,6 +2,7 @@ import needle from 'needle';
 import fs from 'fs';
 import clc from "cli-color";
 import Table from 'cli-table3';
+import { execSync } from 'child_process';
 import inquirer from '../generic_tools/inquirer.js';
 import login from '../menu/login.js';
 import { chooseOption } from '../menu/chooseOption.js';
