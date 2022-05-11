@@ -14,6 +14,7 @@ import listNodes from '../nodes/listNodes.js';
 import addNodes from '../nodes/addNodes.js';
 import updateDomainCerts from './updateDomainCerts.js';
 import removeNode from '../nodes/removeNode.js';
+import clearScreen from './clearScreen.js';
 
 export const chooseOption = () => {
 	inquirer
@@ -101,14 +102,4 @@ export const chooseOption = () => {
 				console.log("Error in osi4iot cli: ", error)
 			}
 		})
-}
-
-const clearScreen = () => {
-	const localNodePlatform = os.platform();
-	if (localNodePlatform === "linux") {
-		execSync("clear", { stdio: 'inherit' });
-	} else if (localNodePlatform === "win32") {
-		execSync("cls", { stdio: 'inherit' });
-	}
-	chooseOption();
 }

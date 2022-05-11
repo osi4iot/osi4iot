@@ -260,10 +260,9 @@ export default async function () {
 					}
 				})
 		} else {
-			console.log(clc.redBright("Login error\n"));
+			console.log("\n");
 			chooseOption();
 		}
-
 	}
 }
 

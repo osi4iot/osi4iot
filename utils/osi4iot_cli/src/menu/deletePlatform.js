@@ -6,6 +6,7 @@ import findManagerDockerHost from './findManagerDockerHost.js';
 import cleanSystemAndVolumes from './cleanSystemAndVolumes.js'
 import inquirer from '../generic_tools/inquirer.js';
 import { chooseOption } from './chooseOption.js';
+import clearScreen from "./clearScreen.js";
 
 // function sleep(ms) {
 // 	return new Promise(resolve => setTimeout(resolve, ms));
@@ -27,91 +28,95 @@ export default function () {
 		console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
 		return;
 	} else {
-		inquirer
-			.prompt([{
-				name: 'confirm_clean_stack',
-				type: 'confirm',
-				message: 'With this command the platform will stop and all related images and volumes are going be deleted. Are you sure to continue?',
-			}
-			])
-			.then(async (answers) => {
-				if (answers.confirm_clean_stack) {
-					const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
-					const osi4iotState = JSON.parse(osi4iotStateText);
-					const nodesData = osi4iotState.platformInfo.NODES_DATA;
-					const dockerHost = findManagerDockerHost(nodesData);
-					const response = execSync(`docker ${dockerHost} service ls`);
-					const numServices = response.toString().split('\n').length - 2;
-					if (numServices !== 0) {
-						execShellCommand(`docker ${dockerHost} stack rm osi4iot`)
-							.then(() => {
-								return new Promise(function (resolve, reject) {
-									let index = 0
-									setInterval(function () {
-										process.stdout.write(`\rWaiting until all containers be stopped ${dots[index]}`);
-										index = index < (dots.length - 1) ? index + 1 : 0;
-										let osi4iotContainerList;
-										try {
-											const containerList = execSync(`docker ${dockerHost} ps`).toString().split("\n");
-											osi4iotContainerList = containerList.filter(container => container.includes("osi4iot"))
-										} catch (err) {
-											reject("Error listing docker containers.")
-										}
+		const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
+		const osi4iotState = JSON.parse(osi4iotStateText);
+		const nodesData = osi4iotState.platformInfo.NODES_DATA;
+		if (nodesData && nodesData.length) {
+			inquirer
+				.prompt([{
+					name: 'confirm_clean_stack',
+					type: 'confirm',
+					message: 'With this command the platform will stop and all related images and volumes are going be deleted. Are you sure to continue?',
+				}
+				])
+				.then(async (answers) => {
+					if (answers.confirm_clean_stack) {
+						const dockerHost = findManagerDockerHost(nodesData);
+						const response = execSync(`docker ${dockerHost} service ls`);
+						const numServices = response.toString().split('\n').length - 2;
+						if (numServices !== 0) {
+							execShellCommand(`docker ${dockerHost} stack rm osi4iot`)
+								.then(() => {
+									return new Promise(function (resolve, reject) {
+										let index = 0
+										setInterval(function () {
+											process.stdout.write(`\rWaiting until all containers be stopped ${dots[index]}`);
+											index = index < (dots.length - 1) ? index + 1 : 0;
+											let osi4iotContainerList;
+											try {
+												const containerList = execSync(`docker ${dockerHost} ps`).toString().split("\n");
+												osi4iotContainerList = containerList.filter(container => container.includes("osi4iot"))
+											} catch (err) {
+												reject("Error listing docker containers.")
+											}
 
-										if (osi4iotContainerList.length === 0) {
-											clearInterval(this);
-											resolve("Finish");
-										}
-									}, 1000);
+											if (osi4iotContainerList.length === 0) {
+												clearInterval(this);
+												resolve("Finish");
+											}
+										}, 1000);
+									})
 								})
-							})
-							.then(() => {
-								console.log(clc.green("\nRemoving all docker images and volumes..."));
-								cleanSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
+								.then(() => {
+									console.log(clc.green("\nRemoving all docker images and volumes..."));
+									cleanSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
-								console.log(clc.green("Removing nodes of swarm cluster..."));
-								removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
+									console.log(clc.green("Removing nodes of swarm cluster..."));
+									removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
 
-								const NFS_ServerNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
-								if (NFS_ServerNode !== undefined) {
-									console.log(clc.green("Removing NFS server..."));
-									removeNFS_Server(NFS_ServerNode);
-								}
+									const NFS_ServerNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
+									if (NFS_ServerNode !== undefined) {
+										console.log(clc.green("Removing NFS server..."));
+										removeNFS_Server(NFS_ServerNode);
+									}
 
-								console.log(clc.green("\nRemoving platform directories and files..."));
-								removeDirectories();
-							})
-							.catch((error) => {
-								const errorMessage = `Error removing docker stack. Error: ${error}`;
-								throw new Error(errorMessage);
-							})
-					} else {
-						console.log(clc.green("\nRemoving all docker images and volumes..."));
-						cleanSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
+									console.log(clc.green("\nRemoving platform directories and files..."));
+									removeDirectories();
+								})
+								.catch((error) => {
+									const errorMessage = `Error removing docker stack. Error: ${error}`;
+									throw new Error(errorMessage);
+								})
+						} else {
+							console.log(clc.green("\nRemoving all docker images and volumes..."));
+							cleanSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
-						console.log(clc.green("Removing nodes of swarm cluster..."));
-						removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
+							console.log(clc.green("Removing nodes of swarm cluster..."));
+							removeNodesOfSwarmCluster(osi4iotState.platformInfo.NODES_DATA);
 
-						const NFS_ServerNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
-						if (NFS_ServerNode !== undefined) {
-							console.log(clc.green("Removing NFS server..."));
-							removeNFS_Server(NFS_ServerNode);
+							const NFS_ServerNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
+							if (NFS_ServerNode !== undefined) {
+								console.log(clc.green("Removing NFS server..."));
+								removeNFS_Server(NFS_ServerNode);
+							}
+
+							console.log(clc.green("\nRemoving platform directories and files..."));
+							removeDirectories();
 						}
-
-						console.log(clc.green("\nRemoving platform directories and files..."));
-						removeDirectories();
+					} else {
+						chooseOption();
 					}
-				} else {
-					chooseOption();
-				}
-			})
-			.catch((error) => {
-				if (error.isTtyError) {
-					console.log("Prompt couldn't be rendered in the current environment")
-				} else {
-					console.log("Error in osi4iot cli: ", error)
-				}
-			});
+				})
+				.catch((error) => {
+					if (error.isTtyError) {
+						console.log("Prompt couldn't be rendered in the current environment")
+					} else {
+						console.log("Error in osi4iot cli: ", error)
+					}
+				});
+		} else {
+			clearScreen();
+		}
 	}
 }
 

@@ -44,7 +44,7 @@ export default async function (osi4iotState) {
         } else if (nodeData.nodeRole === "Exclusive org worker") {
             if (orgsInNodes[nodeData.nodeHostName] !== undefined) {
                 orgs = orgsInNodes[nodeData.nodeHostName].join(", ");
-            } 
+            }
         } else {
             if (nodesData.length === 1) {
                 orgs = "All orgs";

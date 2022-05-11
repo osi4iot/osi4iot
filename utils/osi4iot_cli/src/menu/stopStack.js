@@ -1,7 +1,8 @@
 import fs from 'fs';
 import clc from 'cli-color';
 import execShellCommand from '../generic_tools/execShellCommand.js';
-import findManagerDockerHost from './findManagerDockerHost.js';
+import findManagerDockerHost from './findManagerDockerHost.js';;
+import clearScreen from './clearScreen.js';
 
 export default async function () {
 	if (!fs.existsSync('./osi4iot_state.json')) {
@@ -10,7 +11,12 @@ export default async function () {
 	} else {
 		const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 		const osi4iotState = JSON.parse(osi4iotStateText);
-		const dockerHost = findManagerDockerHost(osi4iotState.platformInfo.NODES_DATA);
-		await execShellCommand(`docker ${dockerHost} stack rm osi4iot`);
+		const nodesData = osi4iotState.platformInfo.NODES_DATA;
+		if (nodesData && nodesData.length !== 0) {
+			const dockerHost = findManagerDockerHost(osi4iotState.platformInfo.NODES_DATA);
+			await execShellCommand(`docker ${dockerHost} stack rm osi4iot`);
+		} else {
+			clearScreen();
+		}
 	}
 }

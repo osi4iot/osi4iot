@@ -1,5 +1,5 @@
 import needle from 'needle';
-
+import clc from 'cli-color';
 
 export default async function (osi4iotState) {
 	const loginOptions = {
@@ -15,15 +15,13 @@ export default async function (osi4iotState) {
 
 	const response = await needle('post', urlLogin, loginData, loginOptions)
 		.then(res => res.body)
-		.catch(err => console.log("Login error: %s", err.message));
+		.catch(err => console.log(clc.redBright("Login error")));
 
 	if (response) {
 		if (response.accessToken) {
 			return response.accessToken;
 		} else {
-			console.log("Login error: ", response.message)
+			console.log(clc.redBright("Login error\n"));
 		}
-	} else {
-		return "Login error"
 	}
 }

@@ -110,7 +110,7 @@ export default async function () {
 
 const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevicesInOrg) => {
 	const orgAcronym = orgToUpdate.acronym;
-	const nodesData = osi4iotState.platformInfo.NODES_DATA.filter(node => node.nodeRole !== "NFS Server");
+	const nodesData = osi4iotState.platformInfo.NODES_DATA.filter(node => node.nodeRole !== "NFS server");
 	const currentOrgs = osi4iotState.certs.mqtt_certs.organizations;
 	const currentOrgServicesDeploymentPlace = "Generic org worker";
 	let workerNodesRows = [];
@@ -127,7 +127,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 		if (exclusiveOrgWorkerNodes.length !== 0) {
 			const alreadyUsedNodes = [];
 			const freeNodes = [];
-			for (org of currentOrgs) {
+			for (const org of currentOrgs) {
 				if (org.exclusiveWorkerNodes.length !== 0) {
 					if (org.org_acronym === orgAcronym) {
 						freeNodes.push(...org.exclusiveWorkerNodes);
@@ -478,7 +478,6 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 					removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
 				}
 			}
-
 			await runStack(osi4iotState, dockerHost);
 		} else {
 			console.log(clc.redBright(`\nError: ${response.message}\n`));

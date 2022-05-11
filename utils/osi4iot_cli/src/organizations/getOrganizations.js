@@ -69,8 +69,6 @@ export default async function () {
 
 			console.log(table.toString());
 
-		} else {
-			console.log(clc.redBright("Login error"));
 		}
 		console.log("\n");
 		chooseOption();

@@ -29,7 +29,7 @@ export default function (nodesData, organizations = null) {
         }
 
         if (organizations) {
-            const exclusiveOrgWorkerNodesAvailability = true;
+            let exclusiveOrgWorkerNodesAvailability = true;
             for (const org of organizations) {
                 if (org.exclusiveWorkerNodes.length !== 0) {
                     for (const workerNodeName of org.exclusiveWorkerNodes) {

@@ -1,6 +1,7 @@
 import fs from 'fs';
 import getNodes from './getNodes.js';
 import { chooseOption } from '../menu/chooseOption.js';
+import clearScreen from '../menu/clearScreen.js';
 
 export default async function () {
     if (!fs.existsSync('./osi4iot_state.json')) {
@@ -9,7 +10,12 @@ export default async function () {
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
-        getNodes(osi4iotState);
-        chooseOption();
+        const nodesData = osi4iotState.platformInfo.NODES_DATA;
+        if (nodesData && nodesData.length !== 0) {
+            getNodes(osi4iotState);
+            chooseOption();
+        } else {
+            clearScreen();
+        }
     }
 }
