@@ -449,7 +449,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 		if (response.message === "Organization updated successfully") {
 			console.log(clc.greenBright("\nOrganization updated successfully\n"));
 
-			osi4iotState.certs.mqtt_certs.organizations[orgIndex].acronym = orgData.ORGANIZATION_ACRONYM;
+			osi4iotState.certs.mqtt_certs.organizations[orgIndex].acronym = orgData.ORGANIZATION_ACRONYM.toLowerCase();
 			osi4iotState.certs.mqtt_certs.organizations[orgIndex].org_hash = org_hash;
 			osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices = new_master_devices;
 

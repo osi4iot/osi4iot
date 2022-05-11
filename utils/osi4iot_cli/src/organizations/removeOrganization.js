@@ -140,7 +140,7 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 			
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
 			if (nfsNode !== undefined) {
-				const org_acronym = orgToRemove.org_acronym;
+				const org_acronym = orgToRemove.org_acronym.toLowerCase();
 				const md_hashes_array = orgToRemove.master_devices.map(md => md.md_hash).join(",");
 				removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
 			}

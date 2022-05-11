@@ -61,6 +61,11 @@ export default function () {
 
                         console.log(clc.green('\nRemoving previous docker images and volumes...'));
                         cleanSystemAndVolumes(newNodes);
+
+                        const nfsServerNode = [...currentNodesData, ...newNodes].filter(node => node.nodeRole === "NFS Server")[0];
+                        if (nfsServerNode !== undefined) {
+                            addNodesToNfsServer(newNodes, nfsServerNode);
+                        }
                     } catch (err) {
                         console.log(clc.redBright("Error: ", err));
                         status = "Failed";
@@ -84,5 +89,22 @@ export default function () {
                 console.log("");
                 chooseOption();
             });
+    }
+}
+
+const addNodesToNfsServer = (newNodes, nfsServerNode) => {
+    const nfsUserName = nfsServerNode.nodeUserName;
+    const nodesData = newNodes.filter(node => node.nodeRole !== "NFS Server")
+    const nfsNodeIP = nfsServerNode.nodeIP;
+    for (const nodeData of nodesData) {
+        const newline = `/var/nfs_osi4iot ${nodeData.nodeIP}(rw,sync,no_root_squash,no_subtree_check)`;
+        try {
+            const etcExportFileLines = execSync(`ssh ${nfsUserName}@${nfsNodeIP} "cat /etc/exports"`).toString();
+            if (!etcExportFileLines.includes(newline)) {
+                execSync(`ssh ${nfsUserName}@${nfsNodeIP} "echo ${newline} | sudo tee -a /etc/exports"`);
+            }
+        } catch (err) {
+            console.log(clc.redBright("Error adding node to nfs server: ", err));
+        }
     }
 }
