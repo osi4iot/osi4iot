@@ -1,3 +1,5 @@
+#!/bin/sh
+
 org_acronym=$1
 md_hashes_array=($(echo "$2" | tr ',' '\n'))
 
