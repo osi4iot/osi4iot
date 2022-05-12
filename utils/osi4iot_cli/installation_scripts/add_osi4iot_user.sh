@@ -1,10 +1,12 @@
 #!/bin/sh
 
-if ! id -u "osi4iot" >/dev/null 2>&1; then
-    sudo useradd -m -s /bin/bash osi4iot
-    sudo passwd osi4iot
-    sudo usermod -aG sudo osi4iot
-    sudo usermod -aG docker osi4iot
-    echo "osi4iot ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee /etc/sudoers.d/osi4iot
-    sudo chmod 0440 /etc/sudoers.d/osi4iot
+user="${1:-osi4iot}"
+
+if ! id -u $user >/dev/null 2>&1; then
+    sudo useradd -m -s /bin/bash $user
+    sudo passwd $user
+    sudo usermod -aG sudo $user
+    sudo usermod -aG docker $user
+    echo "$user ALL=(ALL:ALL) NOPASSWD: ALL" | sudo tee "/etc/sudoers.d/$user"
+    sudo chmod 0440 "/etc/sudoers.d/$user"
 fi
