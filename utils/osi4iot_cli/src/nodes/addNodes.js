@@ -22,7 +22,7 @@ export default function () {
         const osi4iotState = JSON.parse(osi4iotStateText);
         const currentNodesData = osi4iotState.platformInfo.NODES_DATA;
         if (currentNodesData && currentNodesData.length !== 0) {
-            const defaultUserName = currentNodesData[currentNodesData.length -1].nodeHostName;
+            const defaultUserName = currentNodesData[currentNodesData.length -1].nodeUserName;
             inquirer
                 .prompt([
                     {
