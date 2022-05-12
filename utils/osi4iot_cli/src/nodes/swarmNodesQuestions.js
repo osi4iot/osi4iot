@@ -12,6 +12,7 @@ export default async function (numberOfNodesToAdd, prevNodesData, defaultUserNam
 		await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, inode).then(answers => {
 			newNodesData.push(answers);
 			nodesData.push(answers);
+			if (answers.nodeHostName !== defaultUserName) defaultUserName = answers.nodeHostName;
 		});
 	}
 	return newNodesData;

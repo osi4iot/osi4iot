@@ -20,9 +20,9 @@ export default function () {
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
-        const defaultUserName = osi4iotState.platformInfo.PLATFORM_ADMIN_USER_NAME;
         const currentNodesData = osi4iotState.platformInfo.NODES_DATA;
         if (currentNodesData && currentNodesData.length !== 0) {
+            const defaultUserName = currentNodesData[currentNodesData.length -1].nodeHostName;
             inquirer
                 .prompt([
                     {
