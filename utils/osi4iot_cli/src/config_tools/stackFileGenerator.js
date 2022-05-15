@@ -83,7 +83,7 @@ export default function (osi4iotState) {
 			traefik: {
 				image: `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`,
 				command: [
-					'--api.insecure=true',
+					'--api.insecure=false',
 					'--entrypoints.web.address=:80',
 					'--entrypoints.web.http.redirections.entrypoint.to=websecure',
 					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
@@ -101,6 +101,15 @@ export default function (osi4iotState) {
 				deploy: {
 					mode: 'replicated',
 					replicas: 3,
+					update_config: {
+						parallelism: 1,
+						order: "start-first",
+						failure_action: "rollback",
+					},
+					rollback_config: {
+						parallelism: 0,
+						order: "stop-first"
+					},
 					placement: {
 						constraints: ["node.role==manager"]
 					}
@@ -405,6 +414,15 @@ export default function (osi4iotState) {
 				deploy: {
 					mode: 'replicated',
 					replicas: 3,
+					update_config: {
+						parallelism: 1,
+						order: "start-first",
+						failure_action: "rollback",
+					},
+					rollback_config: {
+						parallelism: 0,
+						order: "stop-first"
+					},
 					placement: {
 						constraints: ["node.role==manager"]
 					},
@@ -471,6 +489,15 @@ export default function (osi4iotState) {
 				deploy: {
 					mode: 'replicated',
 					replicas: 3,
+					update_config: {
+						parallelism: 1,
+						order: "start-first",
+						failure_action: "rollback",
+					},
+					rollback_config: {
+						parallelism: 0,
+						order: "stop-first"
+					},
 					placement: {
 						constraints: workerConstraintsArray
 					},
@@ -512,6 +539,15 @@ export default function (osi4iotState) {
 				deploy: {
 					mode: 'replicated',
 					replicas: 3,
+					update_config: {
+						parallelism: 1,
+						order: "start-first",
+						failure_action: "rollback",
+					},
+					rollback_config: {
+						parallelism: 0,
+						order: "stop-first"
+					},
 					placement: {
 						constraints: workerConstraintsArray
 					},

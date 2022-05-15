@@ -288,6 +288,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			}
 		])
 		.then(async (answers) => {
+			answers.NUMBER_OF_MASTER_DEVICES_IN_ORG = parseInt(answers.NUMBER_OF_MASTER_DEVICES_IN_ORG, 10);
 			const orgExclusiveWorkerNodes = [];
 			if (workerNodesRows.length !== 0) {
 				for (let inode = 0; inode < workerNodesRows.length; inode++) {
@@ -344,7 +345,7 @@ const removeMasterDevicesQuestions = (accessToken, osi4iotState, orgToUpdate, ma
 	console.log(table.toString());
 
 
-	let masterDeviceRows = 	masterDevicesInOrg.map((masterDevice, index) => {
+	let masterDeviceRows = masterDevicesInOrg.map((masterDevice, index) => {
 		const row = { name: masterDevice.id, value: index + 1 }
 		return row;
 	});
@@ -424,7 +425,11 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 				new_master_devices.push(old_master_devices[idev]);
 			}
 		}
-	}	
+	}
+
+	if (currentNumMasterDevicesInOrg === orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
+		new_master_devices.push(...osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices)
+	}
 
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
 	const url = `https://${domainName}/admin_api/organization/id/${orgToUpdate.id}`;
@@ -451,8 +456,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 
 			osi4iotState.certs.mqtt_certs.organizations[orgIndex].acronym = orgData.ORGANIZATION_ACRONYM.toLowerCase();
 			osi4iotState.certs.mqtt_certs.organizations[orgIndex].org_hash = org_hash;
-			osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices = new_master_devices;
-
+			osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices = [...new_master_devices];
 			console.log(clc.green('\nCreating certificates...'));
 			await certsGenerator(osi4iotState);
 			const osi4iotStateFile = JSON.stringify(osi4iotState);
