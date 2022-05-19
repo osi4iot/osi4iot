@@ -34,12 +34,12 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
-        if (obj.animations.length && meshRef.current) {
+        if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
             if (obj.userData.clipNames) {
                 const mixer = new THREE.AnimationMixer(meshRef.current as any);
                 obj.animations.forEach(clip => {
-                    const action = mixer.clipAction(clip);
-                    action.play();
+                        const action = mixer.clipAction(clip);
+                        action.play();
                 });
                 const clipsDuration = obj.animations[0].duration - 0.00001; //All clips must have the same duration
                 setClipsDuration(clipsDuration);
@@ -102,7 +102,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 
     return (
         <mesh
-            ref={meshRef}
+            ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
             castShadow
             receiveShadow
             geometry={obj.geometry}
@@ -141,6 +141,8 @@ const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjectsState,
     genericObjectsVisibilityState,
 }) => {
+
+    console.log("genericObjects=", genericObjects)
 
     return (
         <>

@@ -136,7 +136,8 @@ export default function (osi4iotState) {
 		"use_identity_as_username true\n",
 	]
 
-	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Self-signed certs" ) {
+	// if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Self-signed certs" ) {
+	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Certs provided by an CA" ) {
 		mosquittoConfig.push(
 			"\n",
 			"\n",
@@ -148,6 +149,14 @@ export default function (osi4iotState) {
 			"keyfile /mosquitto/wss_certs/iot_platform.key\n",
 			"allow_anonymous true"
 		)
+	} else if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs") {
+		mosquittoConfig.push(
+			"\n",
+			"\n",
+			"# MQTT over WSS\n",
+			"listener 9001\n",
+			"protocol websockets\n",
+		);
 	}
 
 	if (fs.existsSync('./config/mosquitto/mosquitto.conf')) {

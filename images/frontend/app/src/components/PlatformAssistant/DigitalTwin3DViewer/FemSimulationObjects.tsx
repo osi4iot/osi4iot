@@ -61,7 +61,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
-        if (femSimulationObject.node.animations.length && objectRef.current) {
+        if (femSimulationObject.node.animations.length !== 0 && !(femSimulationObject.node.animations as any).includes(undefined) && objectRef.current) {
             if (femSimulationObject.node.userData.clipNames) {
                 const mixer = new THREE.AnimationMixer(objectRef.current as any);
                 femSimulationObject.node.animations.forEach(clip => {

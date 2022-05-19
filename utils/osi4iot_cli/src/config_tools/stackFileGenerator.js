@@ -28,6 +28,7 @@ export default function (osi4iotState) {
 	const numSwarmNodes = nodesData.filter(node => node.nodeRole !== "NFS server").length;
 	const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
 	const existNFSServer = nodesData.filter(node => node.nodeRole === "NFS server").length !== 0;
+	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
 	if (numSwarmNodes === 1) {
 		const nodeArch = nodesData[0].nodeArch;
 		if (nodeArch === "aarch64") platformArch = 'aarch64';
@@ -48,8 +49,11 @@ export default function (osi4iotState) {
 		}
 	}
 
+	let nfsServerIP = null;
+	if (existNFSServer) {
+		nfsServerIP = osi4iotState.platformInfo.NODES_DATA.filter(node => node.nodeRole === "NFS server")[0].nodeIP || "127.0.0.1";
+	}
 
-	const nfsServerIP = osi4iotState.platformInfo.NODES_DATA.filter(node => node.nodeRole === "NFS server")[0].nodeIP || "127.0.0.1";
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
 	const serviceImageVersion = defaultServiceImageVersion;
 
@@ -96,7 +100,7 @@ export default function (osi4iotState) {
 					'--providers.docker.network=traefik_public',
 					'--api',
 					'--accesslog',
-					'--log'
+					'--log',
 				],
 				deploy: {
 					mode: 'replicated',
@@ -114,19 +118,6 @@ export default function (osi4iotState) {
 						constraints: ["node.role==manager"]
 					}
 				},
-				secrets: [
-					{
-						source: 'iot_platform_cert',
-						target: 'iot_platform_cert.cer',
-						mode: 0o400
-					},
-					{
-						source: 'iot_platform_key',
-						target: 'iot_platform.key',
-						mode: 0o400
-					}
-
-				],
 				ports: [
 					"80:80",
 					"443:443",
@@ -681,6 +672,53 @@ export default function (osi4iotState) {
 		}
 	}
 
+	if (domainCertsType === "Let's encrypt certs") {
+		osi4iotStackObj.services['traefik'].image = `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`;
+		const platformAdminEmail = osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL;
+		osi4iotStackObj.services['traefik'].command.push(
+			'--certificatesresolvers.osi4iot_tlschallenge.acme.httpChallenge.entrypoint=web',
+			`--certificatesresolvers.osi4iot_tlschallenge.acme.email=${platformAdminEmail}`,
+			'--certificatesresolvers.osi4iot_tlschallenge.acme.storage=/letsencrypt/acme.json'
+		);
+		osi4iotStackObj.services['traefik'].volumes.push('letsencrypt:/letsencrypt');
+		osi4iotStackObj.services['portainer'].deploy.labels.push("traefik.http.routers.portainer.tls.certresolver=osi4iot_tlschallenge");
+		osi4iotStackObj.services['pgadmin4'].deploy.labels.push("traefik.http.routers.pgadmin4.tls.certresolver=osi4iot_tlschallenge");
+		osi4iotStackObj.services['nodered'].deploy.labels.push("traefik.http.routers.nodered.tls.certresolver=osi4iot_tlschallenge");
+		osi4iotStackObj.services['grafana'].deploy.labels.push("traefik.http.routers.grafana.tls.certresolver=osi4iot_tlschallenge");
+		osi4iotStackObj.services['admin_api'].deploy.labels.push("traefik.http.routers.admin_api.tls.certresolver=osi4iot_tlschallenge");
+		osi4iotStackObj.services['frontend'].deploy.labels.push("traefik.http.routers.frontend.tls.certresolver=osi4iot_tlschallenge");
+
+		osi4iotStackObj.services['mosquitto'].deploy.labels = [
+			"traefik.enable=true",
+			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`)`,
+			"traefik.http.routers.mqtt_websocket.entrypoints=websocket",
+			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_tlschallenge",
+			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
+			"traefik.tcp.services.mqtt.loadbalancer.server.port=1883",
+			"traefik.tcp.routers.mqtt.entrypoints=mqtt",
+			"traefik.tcp.routers.mqtt.rule=HostSNI(`*`)",
+			"traefik.tcp.routers.mqtt.service=mqtt"
+		];
+
+		osi4iotStackObj.volumes.letsencrypt = {
+			driver: 'local'
+		};
+	} else {
+		osi4iotStackObj.services['traefik'].secrets = [
+			{
+				source: 'iot_platform_cert',
+				target: 'iot_platform_cert.cer',
+				mode: 0o400
+			},
+			{
+				source: 'iot_platform_key',
+				target: 'iot_platform.key',
+				mode: 0o400
+			}
+
+		];
+	}
+
 	if (platformArch === 'x86_64') {
 		osi4iotStackObj.services["grafana_renderer"] = {
 			image: `ghcr.io/osi4iot/grafana_renderer:${serviceImageVersion['grafana_renderer']}`,
@@ -797,6 +835,17 @@ export default function (osi4iotState) {
 					device: ':/var/nfs_osi4iot/admin_api_log'
 				}
 			}
+
+			if (domainCertsType === "Let's encrypt certs") {
+				osi4iotStackObj.volumes['letsencrypt'] = {
+					driver: 'local',
+					driver_opts: {
+						type: 'nfs',
+						o: `nfsvers=4,addr=${nfsServerIP},rw`,
+						device: ':/var/nfs_osi4iot/letsencrypt'
+					}
+				}
+			}
 		}
 	}
 
@@ -863,6 +912,10 @@ export default function (osi4iotState) {
 						`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
 					]
 				}
+			}
+
+			if (domainCertsType === "Let's encrypt certs") {
+				osi4iotStackObj.services[serviceName].deploy.labels.push(`traefik.http.routers.${serviceName}.tls.certresolver=osi4iot_tlschallenge`);
 			}
 
 			const masterDeviceVolume = `${serviceName}_data`;

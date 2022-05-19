@@ -2,8 +2,9 @@ import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce,
 import { FC, useMemo, useState } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
-import { matchSorter } from 'match-sorter';
 import { FaSearch, FaRedo } from "react-icons/fa";
+import { numericTextFilter } from "./NumericFilter";
+import { fuzzyTextFilterFn } from "./FuzzyTextFilter";
 
 
 interface TableStylesProps {
@@ -376,13 +377,6 @@ const hiddenColumnCondition = (col: any) => {
     return condition;
 }
 
-type row = {
-    values: string[];
-}
-
-function fuzzyTextFilterFn(rows: row[], id: number, filterValue: string) {
-    return matchSorter(rows, filterValue, { keys: [row => row.values[id]] })
-}
 
 type TableProps<T extends object> = {
     dataTable: T[];
@@ -413,22 +407,12 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
         } else return "auto";
     });
 
+
     const filterTypes = useMemo(
         () => ({
             // Add a new fuzzyTextFilterFn filter type.
             fuzzyText: fuzzyTextFilterFn,
-            // Or, override the default text filter to use
-            // "startWith"
-            text: (rows: row[], id: number, filterValue: string) => {
-                return rows.filter(row => {
-                    const rowValue = row.values[id]
-                    return rowValue !== undefined
-                        ? String(rowValue)
-                            .toLowerCase()
-                            .startsWith(String(filterValue).toLowerCase())
-                        : true
-                })
-            },
+            numeric: numericTextFilter
         }),
         []
     )

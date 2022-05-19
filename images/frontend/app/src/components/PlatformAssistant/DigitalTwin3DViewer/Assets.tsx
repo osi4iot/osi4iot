@@ -35,7 +35,7 @@ const AssetBase: FC<AssetProps> = ({
     const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
-        if (obj.animations.length && meshRef.current) {
+        if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
             if (obj.userData.clipNames) {
                 const mixer = new THREE.AnimationMixer(meshRef.current as any);
                 obj.animations.forEach(clip => {

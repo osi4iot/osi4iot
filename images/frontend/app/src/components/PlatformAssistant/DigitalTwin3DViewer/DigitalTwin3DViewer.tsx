@@ -99,6 +99,7 @@ export interface SelectedObjectInfo {
 	topicId: string;
 }
 
+
 const StyledDataGui = styled(DatGui)`
   &.react-dat-gui li.folder.closed .title {
     background-color: #141619;

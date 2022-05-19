@@ -1,10 +1,10 @@
-import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy, useRowSelect } from 'react-table';
+import { useTable, usePagination, useFilters, useGlobalFilter, useAsyncDebounce, useSortBy, useRowSelect, CellProps } from 'react-table';
 import { FC, useMemo, useState, forwardRef, useRef, useEffect, Ref, MutableRefObject, ChangeEvent } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
-import { matchSorter } from 'match-sorter';
 import { FaSearch } from "react-icons/fa";
-
+import { numericTextFilter } from "./NumericFilter";
+import { fuzzyTextFilterFn } from "./FuzzyTextFilter";
 
 
 const TableStyles = styled.div`
@@ -270,15 +270,6 @@ const DefaultColumnFilter = ({
     )
 }
 
-type row = {
-    values: string[];
-}
-
-function fuzzyTextFilterFn(rows: row[], id: number, filterValue: string) {
-    return matchSorter(rows, filterValue, { keys: [row => row.values[id]] })
-}
-
-
 interface Props {
     indeterminate?: boolean;
 }
@@ -393,18 +384,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
         () => ({
             // Add a new fuzzyTextFilterFn filter type.
             fuzzyText: fuzzyTextFilterFn,
-            // Or, override the default text filter to use
-            // "startWith"
-            text: (rows: row[], id: number, filterValue: string) => {
-                return rows.filter(row => {
-                    const rowValue = row.values[id]
-                    return rowValue !== undefined
-                        ? String(rowValue)
-                            .toLowerCase()
-                            .startsWith(String(filterValue).toLowerCase())
-                        : true
-                })
-            },
+            numeric: numericTextFilter
         }),
         []
     )
@@ -473,7 +453,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
                             return <div></div>
                         }
                     },
-                    Cell: ({ row }) => {
+                    Cell: ({ row }: CellProps<any>) => {
                         const numRowsSelected = page.filter((row) => row.isSelected).length;
                         if (multipleSelection) {
                             return (
