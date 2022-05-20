@@ -649,6 +649,7 @@ export default function (osi4iotState) {
 		osi4iotStackObj.services['traefik'].image = `ghcr.io/osi4iot/traefik_le:${serviceImageVersion['traefik']}`;
 		const platformAdminEmail = osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL;
 		osi4iotStackObj.services['traefik'].command.push(
+			'--certificatesresolvers.osi4iot_tlschallenge.acme.httpChallenge=true',
 			'--certificatesresolvers.osi4iot_tlschallenge.acme.httpChallenge.entrypoint=web',
 			`--certificatesresolvers.osi4iot_tlschallenge.acme.email=${platformAdminEmail}`,
 			'--certificatesresolvers.osi4iot_tlschallenge.acme.storage=/letsencrypt/acme.json'
