@@ -89,8 +89,8 @@ export default function (osi4iotState) {
 				command: [
 					'--api.insecure=false',
 					'--entrypoints.web.address=:80',
-					'--entrypoints.web.http.redirections.entrypoint.to=websecure',
-					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
+					// '--entrypoints.web.http.redirections.entrypoint.to=websecure',
+					// '--entrypoints.web.http.redirections.entrypoint.scheme=https',
 					'--entrypoints.websecure.address=:443',
 					'--ping',
 					'--providers.file.directory=/etc/traefik/dynamic',
