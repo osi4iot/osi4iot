@@ -13,7 +13,7 @@ const defaultServiceImageVersion = {
 	postgres: defaultVersion || 'latest',
 	nodered: defaultVersion || 'latest',
 	grafana: defaultVersion || 'latest',
-	grafana_renderer: 'latest',
+	grafana_renderer: defaultVersion ||'latest',
 	admin_api: defaultVersion || 'latest',
 	frontend: defaultVersion || 'latest',
 	frontend_arm64: defaultVersion || 'latest',
@@ -72,7 +72,7 @@ export default function (osi4iotState) {
 		version: "3.8",
 		services: {
 			system_prune: {
-				image: `ghcr.io/osi4iot/system_prune:${serviceImageVersion['traefik']}`,
+				image: `ghcr.io/osi4iot/system_prune:${serviceImageVersion['system_prune']}`,
 				volumes: [
 					'/var/run/docker.sock:/var/run/docker.sock'
 				],
@@ -646,7 +646,7 @@ export default function (osi4iotState) {
 	}
 
 	if (domainCertsType === "Let's encrypt certs") {
-		osi4iotStackObj.services['traefik'].image = `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`;
+		osi4iotStackObj.services['traefik'].image = `ghcr.io/osi4iot/traefik_le:${serviceImageVersion['traefik']}`;
 		const platformAdminEmail = osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL;
 		osi4iotStackObj.services['traefik'].command.push(
 			'--certificatesresolvers.osi4iot_tlschallenge.acme.httpChallenge.entrypoint=web',
