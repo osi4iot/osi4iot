@@ -146,21 +146,6 @@ export default function (osi4iotState) {
 				],
 				secrets: [
 					{
-						source: 'iot_platform_ca',
-						target: '/mosquitto/wss_certs/iot_platform_ca.pem',
-						mode: 0o444
-					},
-					{
-						source: 'iot_platform_cert',
-						target: '/mosquitto/wss_certs/iot_platform_cert.cer',
-						mode: 0o444
-					},
-					{
-						source: 'iot_platform_key',
-						target: '/mosquitto/wss_certs/iot_platform.key',
-						mode: 0o444
-					},
-					{
 						source: 'mqtt_certs_ca_cert',
 						target: '/mosquitto/mqtt_certs/ca.crt',
 						mode: 0o444
@@ -594,18 +579,6 @@ export default function (osi4iotState) {
 			}
 		},
 		secrets: {
-			iot_platform_ca: {
-				file: './certs/domain_certs/iot_platform_ca.pem',
-				name: osi4iotState.certs.domain_certs.iot_platform_ca_name
-			},
-			iot_platform_cert: {
-				file: './certs/domain_certs/iot_platform_cert.cer',
-				name: osi4iotState.certs.domain_certs.iot_platform_cert_name
-			},
-			iot_platform_key: {
-				file: './certs/domain_certs/iot_platform.key',
-				name: osi4iotState.certs.domain_certs.iot_platform_key_name
-			},
 			mqtt_certs_ca_cert: {
 				file: './certs/mqtt_certs/ca_certs/ca.crt',
 				name: osi4iotState.certs.mqtt_certs.ca_certs.mqtt_certs_ca_cert_name
@@ -704,6 +677,19 @@ export default function (osi4iotState) {
 			driver: 'local'
 		};
 	} else {
+		osi4iotStackObj.secrets.iot_platform_ca = {
+			file: './certs/domain_certs/iot_platform_ca.pem',
+			name: osi4iotState.certs.domain_certs.iot_platform_ca_name
+		};
+		osi4iotStackObj.secrets.iot_platform_cert = {
+			file: './certs/domain_certs/iot_platform_cert.cer',
+			name: osi4iotState.certs.domain_certs.iot_platform_cert_name
+		};
+		osi4iotStackObj.secrets.iot_platform_key = {
+			file: './certs/domain_certs/iot_platform.key',
+			name: osi4iotState.certs.domain_certs.iot_platform_key_name
+		};
+
 		osi4iotStackObj.services['traefik'].secrets = [
 			{
 				source: 'iot_platform_cert',
@@ -715,8 +701,27 @@ export default function (osi4iotState) {
 				target: 'iot_platform.key',
 				mode: 0o400
 			}
-
 		];
+
+		if (domainCertsType === "Certs provided by an CA") {
+			osi4iotStackObj.services['mosquitto'].secrets.push(
+				{
+					source: 'iot_platform_ca',
+					target: '/mosquitto/wss_certs/iot_platform_ca.pem',
+					mode: 0o444
+				},
+				{
+					source: 'iot_platform_cert',
+					target: '/mosquitto/wss_certs/iot_platform_cert.cer',
+					mode: 0o444
+				},
+				{
+					source: 'iot_platform_key',
+					target: '/mosquitto/wss_certs/iot_platform.key',
+					mode: 0o444
+				}
+			)
+		}
 	}
 
 	if (platformArch === 'x86_64') {

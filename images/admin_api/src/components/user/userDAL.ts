@@ -215,8 +215,8 @@ export const updateOrganizationUser = async (userData: IUserInOrg | UserRegister
 export const updateGlobalUser = async (userData: IUser) => {
 	const name = `${userData.firstName} ${userData.surname}`
 	const query = `UPDATE grafanadb.user
-                	SET  name = $1, first_name = $2, surname = $3, login = $4, email = $5, is_admin = $7
-		       		WHERE id = $8`;
+                	SET  name = $1, first_name = $2, surname = $3, login = $4, email = $5, is_admin = $6
+		       		WHERE id = $7`;
 	await pool.query(query,
 		[
 			name,
