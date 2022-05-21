@@ -8,7 +8,5 @@ then
     export $(cat /run/secrets/traefik_aws.txt | grep AWS_SECRET_ACCESS_KEY) 
 fi
 
-bash /entrypoint.sh
-
-traefik
+bash /entrypoint.sh && /traefik
 

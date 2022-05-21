@@ -662,8 +662,8 @@ export default function (osi4iotState) {
 	
 			osi4iotStackObj.services['traefik'].secrets = [
 				{
-					source: 'traefik_awk',
-					target: 'traefik_awk.txt',
+					source: 'traefik_aws',
+					target: 'traefik_aws.txt',
 					mode: 0o400
 				}
 			];
