@@ -93,15 +93,15 @@ export default function (osi4iotState) {
 	fs.appendFileSync('./secrets/postgres_user.txt', `${osi4iotState.platformInfo.POSTGRES_USER}`);
 
 	if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
-		if (fs.existsSync('./secrets/traefic_aws.txt')) {
-			fs.rmSync('./secrets/traefic_aws.txt');
+		if (fs.existsSync('./secrets/traefik_aws.txt')) {
+			fs.rmSync('./secrets/traefik_aws.txt');
 		}
 		const traefikAWSSecrets = [
 			`AWS_ACCESS_KEY_ID=${osi4iotState.platformInfo.AWS_ACCESS_KEY_ID}\n`,
 			`AWS_SECRET_ACCESS_KEY=${osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY}`,
 		];
 		for (let iline = 0; iline < traefikAWSSecrets.length; iline++) {
-			fs.appendFileSync('./secrets/traefic_aws.txt', traefikAWSSecrets[iline]);
+			fs.appendFileSync('./secrets/traefik_aws.txt', traefikAWSSecrets[iline]);
 		}
 	}
 

@@ -2,11 +2,13 @@
 
 echo "################################## Run template_script"
 
-if [ -f "/run/secrets/traefic_aws.txt" ]
+if [ -f "/run/secrets/traefik_aws.txt" ]
 then
-    export $(cat /run/secrets/traefic_aws.txt | grep AWS_ACCESS_KEY_ID)
-    export $(cat /run/secrets/traefic_aws.txt | grep AWS_SECRET_ACCESS_KEY) 
+    export $(cat /run/secrets/traefik_aws.txt | grep AWS_ACCESS_KEY_ID)
+    export $(cat /run/secrets/traefik_aws.txt | grep AWS_SECRET_ACCESS_KEY) 
 fi
+
+bash /entrypoint.sh
 
 traefik
 
