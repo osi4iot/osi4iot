@@ -659,17 +659,10 @@ export default function (osi4iotState) {
 				`--certificatesresolvers.osi4iot_resolver.acme.email=${platformAdminEmail}`,
 				'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json'
 			);
-	
-			osi4iotStackObj.services['traefik'].secrets = [
-				{
-					source: 'traefik_aws',
-					target: 'traefik_aws.txt',
-					mode: 0o400
-				}
-			];
-			osi4iotStackObj.secrets.traefik_aws = {
-				file: './secrets/traefik_aws.txt'
-			}
+			osi4iotStackObj.services['traefik'].environment = [
+				"AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}",
+				"AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+			]
 		}
 
 		osi4iotStackObj.services['traefik'].volumes.push('letsencrypt:/letsencrypt');
