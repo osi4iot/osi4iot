@@ -149,7 +149,7 @@ export default function (osi4iotState) {
 			"keyfile /mosquitto/wss_certs/iot_platform.key\n",
 			"allow_anonymous true"
 		)
-	} else if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs with AWS Route53 provider") {
+	} else if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs") {
 		mosquittoConfig.push(
 			"\n",
 			"\n",

@@ -645,22 +645,32 @@ export default function (osi4iotState) {
 		}
 	}
 
-	if (domainCertsType === "Let's encrypt certs with AWS Route53 provider") {
+	if (domainCertsType === "Let's encrypt certs") {
 		osi4iotStackObj.services['traefik'].image = `ghcr.io/osi4iot/traefik_le:${serviceImageVersion['traefik']}`;
 		const platformAdminEmail = osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL;
-		osi4iotStackObj.services['traefik'].command.push(
-			'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge=true',
-			'--certificatesresolvers.osi4iot_resolver.acme.httpchallenge=false',
-			'--certificatesresolvers.osi4iot_resolver.acme.tlschallenge=false',
-			'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge.provider=route53',
-			'--certificatesresolvers.osi4iot_resolver.acme.httpChallenge.entrypoint=web',
-			`--certificatesresolvers.osi4iot_resolver.acme.email=${platformAdminEmail}`,
-			'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json'
-		);
-		osi4iotStackObj.services['traefik'].environment = [
-			`AWS_ACCESS_KEY_ID=${osi4iotState.platformInfo.AWS_ACCESS_KEY_ID}`,
-			`AWS_SECRET_ACCESS_KEY=${osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY}`,
-		]
+	
+		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
+			osi4iotStackObj.services['traefik'].command.push(
+				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge=true',
+				'--certificatesresolvers.osi4iot_resolver.acme.httpchallenge=false',
+				'--certificatesresolvers.osi4iot_resolver.acme.tlschallenge=false',
+				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge.provider=route53',
+				'--certificatesresolvers.osi4iot_resolver.acme.httpChallenge.entrypoint=web',
+				`--certificatesresolvers.osi4iot_resolver.acme.email=${platformAdminEmail}`,
+				'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json'
+			);
+	
+			osi4iotStackObj.services['traefik'].secrets = [
+				{
+					source: 'traefic_aws',
+					target: 'traefic_aws.txt',
+					mode: 0o400
+				}
+			];
+			osi4iotStackObj.secrets.traefic_aws = {
+				file: './secrets/traefic_aws.txt'
+			}
+		}
 
 		osi4iotStackObj.services['traefik'].volumes.push('letsencrypt:/letsencrypt');
 		osi4iotStackObj.services['portainer'].deploy.labels.push("traefik.http.routers.portainer.tls.certresolver=osi4iot_resolver");
@@ -850,7 +860,7 @@ export default function (osi4iotState) {
 				}
 			}
 
-			if (domainCertsType === "Let's encrypt certs with AWS Route53 provider") {
+			if (domainCertsType === "Let's encrypt certs") {
 				osi4iotStackObj.volumes['letsencrypt'] = {
 					driver: 'local',
 					driver_opts: {
@@ -928,7 +938,7 @@ export default function (osi4iotState) {
 				}
 			}
 
-			if (domainCertsType === "Let's encrypt certs with AWS Route53 provider") {
+			if (domainCertsType === "Let's encrypt certs") {
 				osi4iotStackObj.services[serviceName].deploy.labels.push(`traefik.http.routers.${serviceName}.tls.certresolver=osi4iot_resolver`);
 			}
 

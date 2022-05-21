@@ -1,5 +1,6 @@
 import { execSync } from 'child_process';
 import clc from 'cli-color';
+import isLocahostNode from "./isLocalhostNode.js";
 
 function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
@@ -32,7 +33,7 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 				const nodeHostName = nodesData[inode - 1].nodeHostName;
 
 				try {
-					if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
+					if (isLocahostNode(nodeIP)) {
 						execSync(`docker swarm leave --force`, { stdio: 'ignore' });
 					} else {
 						execSync(`ssh ${userName}@${nodeIP} 'docker swarm leave --force'`, { stdio: 'ignore' });
@@ -44,7 +45,7 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 					if (nodeRole === "Manager") {
 						if (!isMainManagerJoined) {
 							console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
-							if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
+							if (isLocahostNode(nodeIP)) {
 								joinWorkerCommand = execSync(`docker swarm init`)
 									.toString()
 									.split("\n")[4]

@@ -7,6 +7,7 @@ import cleanSystemAndVolumes from './cleanSystemAndVolumes.js'
 import inquirer from '../generic_tools/inquirer.js';
 import { chooseOption } from './chooseOption.js';
 import clearScreen from "./clearScreen.js";
+import isLocahostNode from "../nodes/isLocalhostNode.js";
 
 // function sleep(ms) {
 // 	return new Promise(resolve => setTimeout(resolve, ms));
@@ -171,7 +172,7 @@ const removeNodesOfSwarmCluster = (nodesData) => {
 	for (const nodeData of nodesInSwarm) {
 		const userName = nodeData.nodeUserName;
 		const nodeIP = nodeData.nodeIP;
-		if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
+		if (isLocahostNode(nodeIP)) {
 			try {
 				execSync("docker swarm leave --force", { stdio: 'ignore' });
 			} catch (err) {

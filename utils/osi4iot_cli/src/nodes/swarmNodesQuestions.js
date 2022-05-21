@@ -3,6 +3,7 @@ import clc from "cli-color";
 import inquirer from 'inquirer';
 import { execSync } from 'child_process';
 import sshCopyId from '../generic_tools/sshCopyId.js';
+import isLocahostNode from "./isLocalhostNode.js";
 
 export default async function (numberOfNodesToAdd, prevNodesData, defaultUserName) {
 	const numSwarmNodes = prevNodesData.length + numberOfNodesToAdd;
@@ -46,7 +47,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 				validate: function (nodeIP) {
 					if (!nodeIPs.includes(nodeIP)) {
 						const validIP = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(nodeIP)
-						if (validIP || (nodeIP === "localhost" || nodeIP === "127.0.0.1")) {
+						if (validIP || isLocahostNode(nodeIP)) {
 							choosenNodeIP = nodeIP;
 							return true;
 						} else {
@@ -77,7 +78,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 				choices: ["Manager", "Platform worker", "Generic org worker", "Exclusive org worker", "NFS server"],
 				when: () => numSwarmNodes > 1,
 				validate: function (nodeRole) {
-					if ((choosenNodeIP === "localhost" || choosenNodeIP === "127.0.0.1") && nodeRole !== "Manager") {
+					if (isLocahostNode(choosenNodeIP) && nodeRole !== "Manager") {
 						return "A localhost node must have manager role";
 					} else {
 						return true;
@@ -93,7 +94,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 			}
 
 			let status = "OK";
-			if (!(nodeIP === "localhost" || nodeIP === "127.0.0.1")) {
+			if (!isLocahostNode(nodeIP)) {
 				status = await sshCopyId(userName, nodeIP);
 				if (status === "Failed") {
 					console.log(clc.redBright("Error: Connection with the indicated node cannot be established"));

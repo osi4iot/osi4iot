@@ -26,10 +26,10 @@ const osi4iotCli = async () => {
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
-        if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "Remote deployment") {
+        if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
             try {
                 const sshKeysOutput = execSync("ssh-add -l").toString();
-                if (sshKeysOutput.search("ED25519") === -1) {
+                if (sshKeysOutput.search("./.osi4iot_keys/osi4iot_key (RSA)") === -1) {
                     loadSSHAgentWarnning();
                 } else {
                     if (myArgs[0]) await argsOptions(myArgs[0]);
@@ -85,7 +85,7 @@ const loadSSHAgentWarnning = () => {
     const platform = os.platform();
     if (platform === "linux") {
         console.log(clc.yellowBright("Type the following commands in the shell to get it:"));
-        console.log(clc.whiteBright("\neval `ssh-agent -s` && ssh-add ./.osi4iot_keys/osi4iot_ed25519\n"));
+        console.log(clc.whiteBright("\neval `ssh-agent -s` && ssh-add ./.osi4iot_keys/osi4iot_key\n"));
         console.log(clc.yellowBright("To remove the previous loaded keys type the following command:"));
         console.log(clc.whiteBright("\nssh-add -D\n"));
     } else if (platform === "win32") {
@@ -93,7 +93,7 @@ const loadSSHAgentWarnning = () => {
         console.log(clc.yellowBright("Type the following command but make sure you're running as an Administrator:"));
         console.log(clc.whiteBright("\nGet-Service ssh-agent | Set-Service -StartupType Manual\n"));
         console.log(clc.yellowBright("To start the ssh-agent service and load the key files in it type the following command:"));
-        console.log(clc.whiteBright("\nStart-Service sshd; ssh-add ./.osi4iot_keys/osi4iot_ed25519\n"));
+        console.log(clc.whiteBright("\nStart-Service sshd; ssh-add ./.osi4iot_keys/osi4iot_key\n"));
         console.log(clc.yellowBright("To remove the previous loaded keys type the following command:"));
         console.log(clc.whiteBright("\nssh-add -D\n"));
     } else {
@@ -113,9 +113,9 @@ const osi4iotWelcome = () => {
                 message: "Select the place of deployment of the platform:",
                 type: 'list',
                 default: "Local deployment",
-                choices: ["Local deployment", "Remote deployment", "AWS deployment"],
+                choices: ["Local deployment", "On-premise cluster deployment", "AWS cluster deployment"],
                 validate: function (deployLocation) {
-                    if (deployLocation === "Local deployment" || deployLocation === "Remote deployment") {
+                    if (deployLocation === "Local deployment" || deployLocation === "On-premise cluster deployment") {
                         return true;
                     } else {
                         return "Deployment in AWS are not developed yet";
@@ -124,26 +124,37 @@ const osi4iotWelcome = () => {
             }
         ])
         .then(async (answers) => {
-            if (answers.DEPLOYMENT_LOCATION === "AWS deployment") {
-                console.log(clc.redBright("\nSorry, deployment in AWS are not developed yet\n"));
+            if (answers.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
+                awsAccessKeys(answers);
             } else {
+                answers.AWS_ACCESS_KEY_ID = "";
+                answers.AWS_SECRET_ACCESS_KEY = "";
                 createOsi4iotStateFile(answers.DEPLOYMENT_LOCATION);
-                if (answers.DEPLOYMENT_LOCATION === "Remote deployment") {
+                if (answers.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
                     console.log(clc.whiteBright("\nGenerating ssh keys:"));
                     const keys_dir = "./.osi4iot_keys";
                     if (!fs.existsSync(keys_dir)) {
                         fs.mkdirSync(keys_dir);
-                        execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_ed25519 -t ed25519", { stdio: 'ignore' });
                     }
+                    let isKeysCreationOK = true; 
+                    //execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_key -t ed25519", { stdio: 'ignore' });
                     try {
-                        const sshKeysOutput = execSync("ssh-add -l", { stdio: 'ignore' }).toString();
-                        if (sshKeysOutput.search("ED25519") === -1) {
-                            loadSSHAgentWarnning();
-                        } else {
-                            chooseOption();
-                        }
+                        execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_key -t rsa -b 4096", { stdio: 'inherit' });
                     } catch (err) {
-                        loadSSHAgentWarnning();
+                        isKeysCreationOK = false;
+                    }
+
+                    if (isKeysCreationOK) {
+                        try {
+                            const sshKeysOutput = execSync("ssh-add -l", { stdio: 'ignore' }).toString();
+                            if (sshKeysOutput.search("./.osi4iot_keys/osi4iot_key (RSA)") === -1) {
+                                loadSSHAgentWarnning();
+                            } else {
+                                chooseOption();
+                            }
+                        } catch (err) {
+                            loadSSHAgentWarnning();
+                        }
                     }
 
                 } else {
@@ -154,14 +165,50 @@ const osi4iotWelcome = () => {
         });
 };
 
-const createOsi4iotStateFile = (deployLocation) => {
+const createOsi4iotStateFile = (answers) => {
     const osi4iotState = {
         platformInfo: {
-            DEPLOYMENT_LOCATION: deployLocation
+            DEPLOYMENT_LOCATION: answers.DEPLOYMENT_LOCATION,
+            AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID,
+            AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY,
         }
     }
     const osi4iotStateFile = JSON.stringify(osi4iotState);
     fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+}
+
+const awsAccessKeys = (oldAnswers) => {
+    inquirer
+        .prompt([
+            {
+                name: 'AWS_ACCESS_KEY_ID',
+                message: 'AWS acces key id:',
+                type: 'password',
+                mask: "*",
+            },
+            {
+                name: 'AWS_SECRET_ACCESS_KEY',
+                message: 'AWS secret acces key:',
+                type: 'password',
+                mask: "*"
+            },
+            {
+                name: 'AWS_SSH_KEY',
+                message: 'AWS ssh key:',
+                type: 'editor',
+            }
+        ])
+        .then(async (newAnswers) => {
+            const answers = { ...oldAnswers, ...newAnswers };
+            createOsi4iotStateFile(answers);
+            const keys_dir = "./.osi4iot_keys";
+            if (!fs.existsSync(keys_dir)) {
+                fs.mkdirSync(keys_dir);
+            }
+            const osi4iot_aws_key = "./.osi4iot_keys/osi4iot_key"
+            fs.writeFileSync(osi4iot_aws_key, answers.AWS_SSH_KEY, { mode: 0o400 });
+            loadSSHAgentWarnning();
+        });
 }
 
 osi4iotCli();

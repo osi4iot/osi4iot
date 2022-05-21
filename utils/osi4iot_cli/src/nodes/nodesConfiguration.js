@@ -2,6 +2,7 @@ import { execSync } from 'child_process';
 import clc from "cli-color";
 import fs from 'fs';
 import addNFSFolders from '../generic_tools/addNFSFolders.js';
+import isLocahostNode from "./isLocalhostNode.js";
 
 const installUFW = (nodeData) => {
 	const nodeHostName = nodeData.nodeHostName;
@@ -17,7 +18,7 @@ const installUFW = (nodeData) => {
 	}
 
 	try {
-		if (nodeIP === "localhost" || nodeIP === "127.0.0.1") {
+		if (isLocahostNode(nodeIP)) {
 			execSync(`sudo bash ./installation_scripts/ufw_install.sh "${nodeRole}"`, { stdio: 'inherit' })
 		} else {
 			execSync(`scp ./installation_scripts/ufw_install.sh ${userName}@${nodeIP}:/home/${userName}`);
@@ -55,7 +56,7 @@ const installNFS = (nodeData, ips_array) => {
 export default async function (nodesData, organizations) {
 	const numNodes = nodesData.length;
 	let isLocalDeploy = false;
-	if (numNodes === 1 && (nodesData[0].nodeIP === "localhost" || nodesData[0].nodeIP === "127.0.0.1")) {
+	if (numNodes === 1 && isLocahostNode(nodesData[0].nodeIP)) {
 		isLocalDeploy = true;
 	}
 	const ips_array = nodesData.filter(node => node.nodeRole !== "NFS server").map(node => node.nodeIP).join(",");

@@ -26,6 +26,8 @@ const platformInitiation = () => {
 	const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 	const osi4iotStateInitial = JSON.parse(osi4iotStateText);
 	const deploymentLocation = osi4iotStateInitial.platformInfo.DEPLOYMENT_LOCATION;
+	const awsAccessKeyId = osi4iotStateInitial.platformInfo.AWS_ACCESS_KEY_ID;
+	const awsSecretAccessKey = osi4iotStateInitial.platformInfo.AWS_SECRET_ACCESS_KEY;
 	let mainOrgAdminPassword;
 
 	inquirer
@@ -167,12 +169,12 @@ const platformInitiation = () => {
 
 			}
 			const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
-			finalQuestions(newAnswers, deploymentLocation);
+			finalQuestions(newAnswers, deploymentLocation, awsAccessKeyId, awsSecretAccessKey);
 		});
 
 }
 
-const finalQuestions = (oldAnswers, deploymentLocation) => {
+const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecretAccessKey) => {
 	const nodesData = oldAnswers.NODES_DATA;
 	let managerNodes = nodesData.filter(node => node.nodeRole === "Manager");
 
@@ -414,7 +416,7 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 				choices: [
 					"Self-signed certs",
 					"Certs provided by an CA",
-					"Let's encrypt certs with AWS Route53 provider",
+					"Let's encrypt certs",
 				]
 			},
 			{
@@ -434,17 +436,7 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 				message: 'Domain SSL certificate only, PEM encoded:',
 				type: 'editor',
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
-			},
-			{
-				name: 'AWS_ACCESS_KEY_ID',
-				message: 'AWS acces key id:',
-				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs with AWS Route53 provider"
-			},
-			{
-				name: 'AWS_SECRET_ACCESS_KEY',
-				message: 'AWS secret acces key:',
-				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs with AWS Route53 provider"
-			},			
+			},		
 			{
 				name: 'REGISTRATION_TOKEN_LIFETIME',
 				message: 'Registration token lifetime in seconds:',
@@ -558,11 +550,11 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 						const osi4iotState = {
 							platformInfo: {
 								DEPLOYMENT_LOCATION: deploymentLocation,
+								AWS_ACCESS_KEY_ID: awsAccessKeyId,
+								AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
 								PLATFORM_NAME: answers.PLATFORM_NAME,
 								DOMAIN_NAME: answers.DOMAIN_NAME,
 								DOMAIN_CERTS_TYPE: answers.DOMAIN_CERTS_TYPE,
-								AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID,
-								AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY,
 								PLATFORM_PHRASE: answers.PLATFORM_PHRASE,
 								PLATFORM_ADMIN_FIRST_NAME: answers.PLATFORM_ADMIN_FIRST_NAME,
 								PLATFORM_ADMIN_SURNAME: answers.PLATFORM_ADMIN_SURNAME,

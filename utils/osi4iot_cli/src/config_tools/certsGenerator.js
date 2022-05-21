@@ -14,7 +14,7 @@ export default async function (osi4iotState) {
 	if (!fs.existsSync(certs_dir)) {
 		fs.mkdirSync(certs_dir);
 
-		if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Let's encrypt certs with AWS Route53 provider") {
+		if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Let's encrypt certs") {
 			const domain_certs_dir = "./certs/domain_certs"
 			if (!fs.existsSync(domain_certs_dir)) {
 				fs.mkdirSync(domain_certs_dir);
@@ -68,7 +68,7 @@ export default async function (osi4iotState) {
 		}
 	}
 
-	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Let's encrypt certs with AWS Route53 provider") {
+	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Let's encrypt certs") {
 		const iot_platform_key_name = `iot_platform_key_${md5(osi4iotState.certs.domain_certs.private_key)}`;
 		const current_iot_platform_key_name = osi4iotState.certs.domain_certs.iot_platform_key_name;
 		if (!fs.existsSync('./certs/domain_certs/iot_platform.key') || current_iot_platform_key_name !== iot_platform_key_name) {
