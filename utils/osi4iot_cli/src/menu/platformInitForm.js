@@ -414,7 +414,7 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 				choices: [
 					"Self-signed certs",
 					"Certs provided by an CA",
-					"Let's encrypt certs",
+					"Let's encrypt certs with AWS Route53 provider",
 				]
 			},
 			{
@@ -435,6 +435,16 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 				type: 'editor',
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
+			{
+				name: 'AWS_ACCESS_KEY_ID',
+				message: 'AWS acces key id:',
+				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs with AWS Route53 provider"
+			},
+			{
+				name: 'AWS_SECRET_ACCESS_KEY',
+				message: 'AWS secret acces key:',
+				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs with AWS Route53 provider"
+			},			
 			{
 				name: 'REGISTRATION_TOKEN_LIFETIME',
 				message: 'Registration token lifetime in seconds:',
@@ -538,6 +548,11 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 							answers.DOMAIN_SSL_PRIVATE_KEY = "";
 							answers.DOMAIN_SSL_CA_CERT = "";
 							answers.DOMAIN_SSL_CERTICATE = "";
+							answers.AWS_ACCESS_KEY_ID = "";
+							answers.AWS_SECRET_ACCESS_KEY = "";
+						} else if (answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA") {
+							answers.AWS_ACCESS_KEY_ID = "";
+							answers.AWS_SECRET_ACCESS_KEY = "";
 						}
 
 						const osi4iotState = {
@@ -546,6 +561,8 @@ const finalQuestions = (oldAnswers, deploymentLocation) => {
 								PLATFORM_NAME: answers.PLATFORM_NAME,
 								DOMAIN_NAME: answers.DOMAIN_NAME,
 								DOMAIN_CERTS_TYPE: answers.DOMAIN_CERTS_TYPE,
+								AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID,
+								AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY,
 								PLATFORM_PHRASE: answers.PLATFORM_PHRASE,
 								PLATFORM_ADMIN_FIRST_NAME: answers.PLATFORM_ADMIN_FIRST_NAME,
 								PLATFORM_ADMIN_SURNAME: answers.PLATFORM_ADMIN_SURNAME,

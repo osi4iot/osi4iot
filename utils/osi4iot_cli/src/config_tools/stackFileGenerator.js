@@ -89,8 +89,8 @@ export default function (osi4iotState) {
 				command: [
 					'--api.insecure=false',
 					'--entrypoints.web.address=:80',
-					// '--entrypoints.web.http.redirections.entrypoint.to=websecure',
-					// '--entrypoints.web.http.redirections.entrypoint.scheme=https',
+					'--entrypoints.web.http.redirections.entrypoint.to=websecure',
+					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
 					'--entrypoints.websecure.address=:443',
 					'--ping',
 					'--providers.file.directory=/etc/traefik/dynamic',
@@ -645,28 +645,36 @@ export default function (osi4iotState) {
 		}
 	}
 
-	if (domainCertsType === "Let's encrypt certs") {
+	if (domainCertsType === "Let's encrypt certs with AWS Route53 provider") {
 		osi4iotStackObj.services['traefik'].image = `ghcr.io/osi4iot/traefik_le:${serviceImageVersion['traefik']}`;
 		const platformAdminEmail = osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL;
 		osi4iotStackObj.services['traefik'].command.push(
-			'--certificatesresolvers.osi4iot_tlschallenge.acme.tlschallenge=true',
-			// '--certificatesresolvers.osi4iot_tlschallenge.acme.httpChallenge.entrypoint=web',
-			`--certificatesresolvers.osi4iot_tlschallenge.acme.email=${platformAdminEmail}`,
-			'--certificatesresolvers.osi4iot_tlschallenge.acme.storage=/letsencrypt/acme.json'
+			'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge=true',
+			'--certificatesresolvers.osi4iot_resolver.acme.httpchallenge=false',
+			'--certificatesresolvers.osi4iot_resolver.acme.tlschallenge=false',
+			'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge.provider=route53',
+			'--certificatesresolvers.osi4iot_resolver.acme.httpChallenge.entrypoint=web',
+			`--certificatesresolvers.osi4iot_resolver.acme.email=${platformAdminEmail}`,
+			'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json'
 		);
+		osi4iotStackObj.services['traefik'].environment = [
+			`AWS_ACCESS_KEY_ID=${osi4iotState.platformInfo.AWS_ACCESS_KEY_ID}`,
+			`AWS_SECRET_ACCESS_KEY=${osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY}`,
+		]
+
 		osi4iotStackObj.services['traefik'].volumes.push('letsencrypt:/letsencrypt');
-		osi4iotStackObj.services['portainer'].deploy.labels.push("traefik.http.routers.portainer.tls.certresolver=osi4iot_tlschallenge");
-		osi4iotStackObj.services['pgadmin4'].deploy.labels.push("traefik.http.routers.pgadmin4.tls.certresolver=osi4iot_tlschallenge");
-		osi4iotStackObj.services['nodered'].deploy.labels.push("traefik.http.routers.nodered.tls.certresolver=osi4iot_tlschallenge");
-		osi4iotStackObj.services['grafana'].deploy.labels.push("traefik.http.routers.grafana.tls.certresolver=osi4iot_tlschallenge");
-		osi4iotStackObj.services['admin_api'].deploy.labels.push("traefik.http.routers.admin_api.tls.certresolver=osi4iot_tlschallenge");
-		osi4iotStackObj.services['frontend'].deploy.labels.push("traefik.http.routers.frontend.tls.certresolver=osi4iot_tlschallenge");
+		osi4iotStackObj.services['portainer'].deploy.labels.push("traefik.http.routers.portainer.tls.certresolver=osi4iot_resolver");
+		osi4iotStackObj.services['pgadmin4'].deploy.labels.push("traefik.http.routers.pgadmin4.tls.certresolver=osi4iot_resolver");
+		osi4iotStackObj.services['nodered'].deploy.labels.push("traefik.http.routers.nodered.tls.certresolver=osi4iot_resolver");
+		osi4iotStackObj.services['grafana'].deploy.labels.push("traefik.http.routers.grafana.tls.certresolver=osi4iot_resolver");
+		osi4iotStackObj.services['admin_api'].deploy.labels.push("traefik.http.routers.admin_api.tls.certresolver=osi4iot_resolver");
+		osi4iotStackObj.services['frontend'].deploy.labels.push("traefik.http.routers.frontend.tls.certresolver=osi4iot_resolver");
 
 		osi4iotStackObj.services['mosquitto'].deploy.labels = [
 			"traefik.enable=true",
 			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`)`,
 			"traefik.http.routers.mqtt_websocket.entrypoints=websocket",
-			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_tlschallenge",
+			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
 			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
 			"traefik.tcp.services.mqtt.loadbalancer.server.port=1883",
 			"traefik.tcp.routers.mqtt.entrypoints=mqtt",
@@ -842,7 +850,7 @@ export default function (osi4iotState) {
 				}
 			}
 
-			if (domainCertsType === "Let's encrypt certs") {
+			if (domainCertsType === "Let's encrypt certs with AWS Route53 provider") {
 				osi4iotStackObj.volumes['letsencrypt'] = {
 					driver: 'local',
 					driver_opts: {
@@ -920,8 +928,8 @@ export default function (osi4iotState) {
 				}
 			}
 
-			if (domainCertsType === "Let's encrypt certs") {
-				osi4iotStackObj.services[serviceName].deploy.labels.push(`traefik.http.routers.${serviceName}.tls.certresolver=osi4iot_tlschallenge`);
+			if (domainCertsType === "Let's encrypt certs with AWS Route53 provider") {
+				osi4iotStackObj.services[serviceName].deploy.labels.push(`traefik.http.routers.${serviceName}.tls.certresolver=osi4iot_resolver`);
 			}
 
 			const masterDeviceVolume = `${serviceName}_data`;
