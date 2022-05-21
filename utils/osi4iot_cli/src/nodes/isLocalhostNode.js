@@ -9,7 +9,7 @@ export default async function (nodeIP) {
     } else {
         const platform = os.platform();
         if (platform === "linux") {
-            const ifconfig = execSync("ifconfig").toString();
+            const ifconfig = execSync("ip addr").toString();
             if (ifconfig.includes(`inet ${nodeIP}`)) isLocahostNode = true;
         } else if (platform === "win32") {
             const ipconfig = execSync("ipconfig").toString();
