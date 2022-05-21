@@ -100,7 +100,7 @@ export default function (osi4iotState) {
 			`AWS_ACCESS_KEY_ID=${osi4iotState.platformInfo.AWS_ACCESS_KEY_ID}\n`,
 			`AWS_SECRET_ACCESS_KEY=${osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY}`,
 		];
-		for (let iline = 0; iline < traefikAWSSecret.length; iline++) {
+		for (let iline = 0; iline < traefikAWSSecrets.length; iline++) {
 			fs.appendFileSync('./secrets/traefic_aws.txt', traefikAWSSecrets[iline]);
 		}
 	}
