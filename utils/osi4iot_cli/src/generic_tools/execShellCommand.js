@@ -1,9 +1,9 @@
 import { spawn } from 'child_process';
 
-export default function (cmd) {
+export default function (cmd, options = {}) {
 	const commandParameters = cmd.split(" ").filter(param => param !== "");
 	return new Promise(function (resolve, reject) {
-		const child = spawn(commandParameters[0], [...commandParameters.slice(1)]);
+		const child = spawn(commandParameters[0], [...commandParameters.slice(1)], options);
 		child.stdout.on('data', (chunk) => {
 			process.stdout.write(chunk.toString())
 		});
