@@ -121,7 +121,8 @@ export default function (osi4iotState) {
 				ports: [
 					"80:80",
 					"443:443",
-					"8080:8080"
+					"8080:8080",
+					"9001:9001" //luego borrar
 				],
 				networks: [
 					'traefik_public'
@@ -138,7 +139,7 @@ export default function (osi4iotState) {
 				ports: [
 					"1883:1883",
 					"8883:8883",
-					"9001:9001"
+					// "9001:9001"
 				],
 				volumes: [
 					'mosquitto_data:/mosquitto/data/',
@@ -651,6 +652,7 @@ export default function (osi4iotState) {
 
 		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
 			osi4iotStackObj.services['traefik'].command.push(
+				'--entrypoints.websocket.address=:9001',
 				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge=true',
 				'--certificatesresolvers.osi4iot_resolver.acme.httpchallenge=false',
 				'--certificatesresolvers.osi4iot_resolver.acme.tlschallenge=false',
@@ -677,7 +679,7 @@ export default function (osi4iotState) {
 		osi4iotStackObj.services['mosquitto'].deploy.labels = [
 			"traefik.enable=true",
 			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`)`,
-			"traefik.http.routers.mqtt_websocket.entrypoints=websecure",
+			"traefik.http.routers.mqtt_websocket.entrypoints=websocket",
 			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
 			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
 		];
