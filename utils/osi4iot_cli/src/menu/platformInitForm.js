@@ -399,6 +399,8 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 			{
 				name: 'NOTIFICATIONS_EMAIL_PASSWORD',
 				message: 'Email account password:',
+				type: 'password',
+				mask: "*",
 				validate: function (password) {
 					let valid = /^[A-Za-z]\w{7,30}$/.test(password);
 					if (valid) {
@@ -454,7 +456,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 			{
 				name: 'ACCESS_TOKEN_LIFETIME',
 				message: 'Access token lifetime in seconds:',
-				default: 86400,
+				default: 604800,
 				validate: function (tokenLifeTime) {
 					let valid = false;
 					if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 3600) valid = true;

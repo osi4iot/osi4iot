@@ -182,13 +182,13 @@ const awsAccessKeys = (oldAnswers) => {
         .prompt([
             {
                 name: 'AWS_ACCESS_KEY_ID',
-                message: 'AWS acces key id:',
+                message: 'AWS access key id:',
                 type: 'password',
                 mask: "*",
             },
             {
                 name: 'AWS_SECRET_ACCESS_KEY',
-                message: 'AWS secret acces key:',
+                message: 'AWS secret access key:',
                 type: 'password',
                 mask: "*"
             },
