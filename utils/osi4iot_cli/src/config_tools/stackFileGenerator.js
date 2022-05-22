@@ -658,7 +658,13 @@ export default function (osi4iotState) {
 		const platformAdminEmail = osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL;
 
 		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
+			osi4iotStackObj.services['traefik'].ports.push(
+				"1883:1883",
+				"9001:9001"
+			);
 			osi4iotStackObj.services['traefik'].command.push(
+				'--entrypoints.mqtt.address=:1883',
+				'--entrypoints.websocket.address=:9001',
 				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge=true',
 				'--certificatesresolvers.osi4iot_resolver.acme.httpchallenge=false',
 				'--certificatesresolvers.osi4iot_resolver.acme.tlschallenge=false',
