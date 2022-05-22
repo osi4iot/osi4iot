@@ -105,7 +105,6 @@ export default async function (osi4iotState = null, dockerHost = null) {
 				AWS_SECRET_ACCESS_KEY: osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY,
 			}
 		}
-		console.log("options=", options);
 		execShellCommand(`docker ${dockerHost} stack deploy --resolve-image changed --prune -c osi4iot_stack.yml osi4iot`, options)
 			.then(() => {
 				return new Promise(function (resolve, reject) {
