@@ -656,7 +656,6 @@ export default function (osi4iotState) {
 			);
 			osi4iotStackObj.services['traefik'].command.push(
 				'--entrypoints.mqtt.address=:1883',
-				'--entrypoints.websocket.address=:9001',
 				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge=true',
 				'--certificatesresolvers.osi4iot_resolver.acme.httpchallenge=false',
 				'--certificatesresolvers.osi4iot_resolver.acme.tlschallenge=false',
@@ -683,7 +682,7 @@ export default function (osi4iotState) {
 		osi4iotStackObj.services['mosquitto'].deploy.labels = [
 			"traefik.enable=true",
 			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`)`,
-			"traefik.http.routers.mqtt_websocket.entrypoints=websocket",
+			"traefik.http.routers.mqtt_websocket.entrypoints=websecure",
 			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
 			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
 			"traefik.tcp.services.mqtt.loadbalancer.server.port=1883",
