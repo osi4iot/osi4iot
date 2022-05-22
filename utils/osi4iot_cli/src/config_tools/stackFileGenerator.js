@@ -680,9 +680,9 @@ export default function (osi4iotState) {
 			"traefik.enable=true",
 			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`)`,
 			"traefik.http.routers.mqtt_websocket.entrypoints=websocket",
-			"traefik.http.routers.mqtt-websockets.tls=true",
+			"traefik.http.routers.mqtt_websockets.tls=true",
 			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
-			"traefik.http.routers.mqtt-websockets.service=mqtt-websockets",
+			"traefik.http.routers.mqtt_websockets.service=mqtt_websockets",
 			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
 		];
 
