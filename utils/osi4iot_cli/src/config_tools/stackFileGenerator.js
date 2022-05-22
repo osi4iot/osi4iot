@@ -142,9 +142,6 @@ export default function (osi4iotState) {
 					"8883:8883",
 					// "9001:9001"  //luego agregar
 				],
-				expose: [
-					"9001"
-				],
 				volumes: [
 					'mosquitto_data:/mosquitto/data/',
 					'mosquitto_log:/mosquitto/log/'
