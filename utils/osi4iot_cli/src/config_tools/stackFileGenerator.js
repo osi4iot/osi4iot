@@ -13,7 +13,7 @@ const defaultServiceImageVersion = {
 	postgres: defaultVersion || 'latest',
 	nodered: defaultVersion || 'latest',
 	grafana: defaultVersion || 'latest',
-	grafana_renderer: defaultVersion ||'latest',
+	grafana_renderer: defaultVersion || 'latest',
 	admin_api: defaultVersion || 'latest',
 	frontend: defaultVersion || 'latest',
 	frontend_arm64: defaultVersion || 'latest',
@@ -87,7 +87,8 @@ export default function (osi4iotState) {
 			traefik: {
 				image: `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`,
 				command: [
-					'--api.insecure=false',
+					// '--api.insecure=false',
+					'--api.insecure=true', //luego borrar
 					'--entrypoints.web.address=:80',
 					'--entrypoints.web.http.redirections.entrypoint.to=websecure',
 					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
@@ -116,7 +117,15 @@ export default function (osi4iotState) {
 					},
 					placement: {
 						constraints: ["node.role==manager"]
-					}
+					},
+					labels: [ //luego borrar
+						'traefik.enable=true',
+						`traefik.http.routers.traefik.rule=Host(\`${domainName}\`)`,
+						'traefik.http.routers.traefik.entrypoints=websecure',
+						'traefik.http.routers.traefik.tls=true',
+						'traefik.http.routers.traefik.service=api@internal',
+						'traefik.http.services.traefik.loadbalancer.server.port=8080',
+					]
 				},
 				ports: [
 					"80:80",
@@ -648,7 +657,7 @@ export default function (osi4iotState) {
 	if (domainCertsType === "Let's encrypt certs") {
 		osi4iotStackObj.services['traefik'].image = `ghcr.io/osi4iot/traefik_le:${serviceImageVersion['traefik']}`;
 		const platformAdminEmail = osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL;
-	
+
 		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
 			osi4iotStackObj.services['traefik'].command.push(
 				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge=true',
