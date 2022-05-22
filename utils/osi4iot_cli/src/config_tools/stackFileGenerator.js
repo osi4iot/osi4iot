@@ -661,7 +661,7 @@ export default function (osi4iotState) {
 				'--certificatesresolvers.osi4iot_resolver.acme.httpchallenge=false',
 				'--certificatesresolvers.osi4iot_resolver.acme.tlschallenge=false',
 				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge.provider=route53',
-				'--certificatesresolvers.osi4iot_resolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory',
+				// '--certificatesresolvers.osi4iot_resolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory',
 				'--certificatesresolvers.osi4iot_resolver.acme.httpChallenge.entrypoint=web',
 				`--certificatesresolvers.osi4iot_resolver.acme.email=${platformAdminEmail}`,
 				'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json'
