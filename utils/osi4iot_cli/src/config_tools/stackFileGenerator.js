@@ -121,7 +121,7 @@ export default function (osi4iotState) {
 					labels: [ //luego borrar
 						'traefik.enable=true',
 						`traefik.http.routers.traefik.rule=Host(\`${domainName}\`)`,
-						'traefik.http.routers.traefik.entrypoints=websecure',
+						'traefik.http.routers.traefik.entrypoints=web',
 						'traefik.http.routers.traefik.tls=true',
 						'traefik.http.routers.traefik.service=api@internal',
 						'traefik.http.services.traefik.loadbalancer.server.port=8080',
