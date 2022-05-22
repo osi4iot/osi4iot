@@ -699,6 +699,7 @@ export default function (osi4iotState) {
 			"traefik.tcp.routers.mqtt.rule=HostSNI(`*`)",
 			"traefik.tcp.routers.mqtt.service=mqtt"
 		];
+		osi4iotStackObj.services['mosquitto'].ports = ["8883:8883"];
 
 		osi4iotStackObj.volumes.letsencrypt = {
 			driver: 'local'
