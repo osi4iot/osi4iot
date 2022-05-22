@@ -660,8 +660,10 @@ export default function (osi4iotState) {
 				'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json'
 			);
 			osi4iotStackObj.services['traefik'].environment = [
-				"AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}",
-				"AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
+				`AWS_ACCESS_KEY_ID=${osi4iotState.platformInfo.AWS_ACCESS_KEY_ID}`,
+				`AWS_SECRET_ACCESS_KEY=${osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY}`,
+				// "AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}",
+				// "AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
 			]
 		}
 
