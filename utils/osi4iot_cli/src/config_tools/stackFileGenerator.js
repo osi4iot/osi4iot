@@ -116,7 +116,12 @@ export default function (osi4iotState) {
 					},
 					placement: {
 						constraints: ["node.role==manager"]
-					}
+					},
+					labels: [ //luego borrar
+						"traefik.enable=true",
+						"traefik.http.routers.traefik-public-https.service=api@internal",
+						"traefik.http.services.traefik-public.loadbalancer.server.port=8080",
+					]
 				},
 				ports: [
 					"80:80",
