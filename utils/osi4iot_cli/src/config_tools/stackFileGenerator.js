@@ -680,10 +680,6 @@ export default function (osi4iotState) {
 			"traefik.http.routers.mqtt_websocket.entrypoints=websecure",
 			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
 			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
-			// "traefik.tcp.services.mqtt.loadbalancer.server.port=1883",
-			// "traefik.tcp.routers.mqtt.entrypoints=mqtt",
-			// "traefik.tcp.routers.mqtt.rule=HostSNI(`*`)",
-			// "traefik.tcp.routers.mqtt.service=mqtt"
 		];
 
 		osi4iotStackObj.volumes.letsencrypt = {

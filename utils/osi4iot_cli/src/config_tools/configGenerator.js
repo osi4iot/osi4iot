@@ -156,6 +156,7 @@ export default function (osi4iotState) {
 			"# MQTT over WSS\n",
 			"listener 9001\n",
 			"protocol websockets\n",
+			"allow_anonymous true"
 		);
 	}
 
