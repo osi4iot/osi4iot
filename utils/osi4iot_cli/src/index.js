@@ -129,7 +129,7 @@ const osi4iotWelcome = () => {
             } else {
                 answers.AWS_ACCESS_KEY_ID = "";
                 answers.AWS_SECRET_ACCESS_KEY = "";
-                createOsi4iotStateFile(answers.DEPLOYMENT_LOCATION);
+                createOsi4iotStateFile(answers);
                 if (answers.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
                     console.log(clc.whiteBright("\nGenerating ssh keys:"));
                     const keys_dir = "./.osi4iot_keys";

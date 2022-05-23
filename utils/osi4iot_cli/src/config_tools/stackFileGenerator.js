@@ -101,7 +101,6 @@ export default function (osi4iotState) {
 					'--api',
 					'--accesslog',
 					'--log',
-					"--entrypoints.websocket.address=:9001" //luego borrar
 				],
 				deploy: {
 					mode: 'replicated',
@@ -123,7 +122,6 @@ export default function (osi4iotState) {
 					"80:80",
 					"443:443",
 					"8080:8080",
-					"9001:9001"  //luego borrar
 				],
 				networks: [
 					'traefik_public'
@@ -140,7 +138,7 @@ export default function (osi4iotState) {
 				ports: [
 					"1883:1883",
 					"8883:8883",
-					// "9001:9001"  //luego agregar
+					"9001:9001"
 				],
 				volumes: [
 					'mosquitto_data:/mosquitto/data/',

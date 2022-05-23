@@ -166,7 +166,6 @@ const platformInitiation = () => {
 				const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
 				const currentNodesData = [];
 				nodesData = await swarmNodesQuestions(numSwarmNodes, currentNodesData, defaultUserName);
-
 			}
 			const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
 			finalQuestions(newAnswers, deploymentLocation, awsAccessKeyId, awsSecretAccessKey);
