@@ -142,8 +142,6 @@ const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjectsVisibilityState,
 }) => {
 
-    console.log("genericObjects=", genericObjects)
-
     return (
         <>
             {
