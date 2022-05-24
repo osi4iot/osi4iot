@@ -617,7 +617,7 @@ const updateFolderPermissionsForMemberArray = async (group: IGroup, groupMembers
 	for (let i = 0; i < groupMembersArray.length; i++) {
 		const now = new Date();
 		const permission = permissionCodes.indexOf(groupMembersArray[i].roleInGroup);
-		const query = pool.query(`UPDATE grafanadb.dashboard_acl SET permission = $1, udpated = $2 WHERE dashboard_id = $3 AND user_id = $4`,
+		const query = pool.query(`UPDATE grafanadb.dashboard_acl SET permission = $1, updated = $2 WHERE dashboard_id = $3 AND user_id = $4`,
 			[permission, now, group.folderId, groupMembersArray[i].userId]);
 		folderPermissionQueries.push(query);
 	}
