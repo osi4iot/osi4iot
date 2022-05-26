@@ -221,7 +221,7 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
 					extras: { topicType: string; topicId: number; type: string; clipTopicTypes: string[]; clipTopicIds: number[]; };
 				}
 			) => {
-				if (node.mesh && node.extras) {
+				if (node.mesh !== undefined && node.extras !== undefined) {
 					if (node.extras.type && node.extras.type === "sensor") {
 						const topicType = node.extras?.topicType;
 						if (topicType) {
