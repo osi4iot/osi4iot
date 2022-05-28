@@ -335,7 +335,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 				}
 			},
 			{
-				name: 'MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN',
+				name: 'TELEGRAM_BOTTOKEN',
 				message: 'Telegram boottoken for main organization default group:',
 				validate: function (text) {
 					if (text.length >= 20) {
@@ -575,7 +575,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 								MAIN_ORGANIZATION_ZIP_CODE: answers.MAIN_ORGANIZATION_ZIP_CODE,
 								MAIN_ORGANIZATION_STATE: answers.MAIN_ORGANIZATION_STATE,
 								MAIN_ORGANIZATION_COUNTRY: answers.MAIN_ORGANIZATION_COUNTRY,
-								MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN: answers.MAIN_ORGANIZATION_TELEGRAM_BOTTOKEN,
+								TELEGRAM_BOTTOKEN: answers.TELEGRAM_BOTTOKEN,
 								MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: answers.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 								MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: answers.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 								NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG: parseInt(answers.NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG, 10),

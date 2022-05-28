@@ -227,8 +227,11 @@ export const createDashboard = async (group: IGroup, device: IDevice, topic: ITo
 	dashboard.title = dashboardTitle;
 	const tableHash = `Table_${group.groupUid}`;
 	const deviceHash = `Device_${device.deviceUid}`;
-	const topicHash = `Topic_${topic.topicUid}`;
-	const rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'parameter' AS DOUBLE PRECISION) AS \"Parameter\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topicHash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	let rawSql = "";
+	if (topic !== undefined) {
+		const topicHash = `Topic_${topic.topicUid}`;
+		rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'parameter' AS DOUBLE PRECISION) AS \"Parameter\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topicHash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	}
 	dashboard.panels[0].targets[0].rawSql = rawSql;
 	dashboard.panels[0].targets[0].datasource.uid = dataSource.uid;
 	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboardTitle, dashboard);

@@ -164,6 +164,7 @@ export const generateInitialAssetsState = (
 		const objName = obj.node.name;
 		const assetState: AssetState = { stateString: "ok", highlight: false, clipValues: [] };
 		const lastMeasurement = findLastMeasurement(assetStateTopicId, digitalTwinGltfData);
+		console.log("lastMeasurement=", lastMeasurement)
 		if (lastMeasurement) {
 			const assetPartIndex = obj.node.userData.assetPartIndex;
 			const payloadObject = lastMeasurement.payload as any;
