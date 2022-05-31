@@ -659,7 +659,7 @@ export default function (osi4iotState) {
 				'--certificatesresolvers.osi4iot_resolver.acme.httpChallenge.entrypoint=web',
 				`--certificatesresolvers.osi4iot_resolver.acme.email=${platformAdminEmail}`,
 				'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json',
-				//'--entrypoints.websocket.address=:9001',
+				'--entrypoints.websocket.address=:9001',
 			);
 			osi4iotStackObj.services['traefik'].environment = [
 				"AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}",
@@ -667,7 +667,7 @@ export default function (osi4iotState) {
 			];
 		}
 
-		//osi4iotStackObj.services['traefik'].ports.push("9001");
+		osi4iotStackObj.services['traefik'].ports.push("9001");
 		osi4iotStackObj.services['traefik'].volumes.push('letsencrypt:/letsencrypt');
 		osi4iotStackObj.services['portainer'].deploy.labels.push("traefik.http.routers.portainer.tls.certresolver=osi4iot_resolver");
 		osi4iotStackObj.services['pgadmin4'].deploy.labels.push("traefik.http.routers.pgadmin4.tls.certresolver=osi4iot_resolver");
@@ -679,13 +679,10 @@ export default function (osi4iotState) {
 		osi4iotStackObj.services['mosquitto'].ports = ["1883", "8883"];
 		osi4iotStackObj.services['mosquitto'].deploy.labels = [
 			"traefik.enable=true",
-			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`) && PathPrefix(\`/mqtt/\`)`,
-			'traefik.http.middlewares.mqtt_websocket_pathstrip.stripprefix.prefixes=/mqtt',
-			'traefik.http.routers.mqtt_websocket.middlewares=mqtt_websocket_pathstrip@docker',
-			"traefik.http.routers.mqtt_websocket.entrypoints=websecure",
+			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`)`,
+			"traefik.http.routers.mqtt_websocket.entrypoints=websocket",
 			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
-			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
-			// "traefik.http.routers.mqtt_websocket.service=mqtt_websocket"
+			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001"
 		];
 
 		osi4iotStackObj.volumes.letsencrypt = {
