@@ -87,7 +87,8 @@ export default function (osi4iotState) {
 			traefik: {
 				image: `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`,
 				command: [
-					'--api.insecure=false',
+					// '--api.insecure=false',
+					'--api.insecure=true',
 					'--entrypoints.web.address=:80',
 					'--entrypoints.web.http.redirections.entrypoint.to=websecure',
 					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
