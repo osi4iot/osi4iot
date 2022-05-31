@@ -88,7 +88,7 @@ export default function (osi4iotState) {
 				image: `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`,
 				command: [
 					// '--api.insecure=false',
-					'--api.insecure=true',
+					'--api.insecure=true', //luego borrar
 					'--entrypoints.web.address=:80',
 					'--entrypoints.web.http.redirections.entrypoint.to=websecure',
 					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
@@ -117,7 +117,17 @@ export default function (osi4iotState) {
 					},
 					placement: {
 						constraints: ["node.role==manager"]
-					}
+					},
+					labels: [  //luego borrar
+						"traefik.enable=true",
+						`traefik.http.routers.traefik.rule=Host(\`${domainName}\`) && PathPrefix(\`/traefik/\`)`,
+						'traefik.http.middlewares.traefikpathstrip.stripprefix.prefixes=/traefik',
+						'traefik.http.routers.traefik.middlewares=traefikpathstrip@docker',
+						"traefik.http.routers.traefik.entrypoints=websecure",
+						"traefik.http.routers.traefik.tls=true",
+						"traefik.http.routers.traefik.service=api@internal",
+						"traefik.http.services.traefik.loadbalancer.server.port=8080"
+					]
 				},
 				ports: [
 					"80:80",
