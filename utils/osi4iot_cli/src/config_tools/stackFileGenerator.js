@@ -680,6 +680,8 @@ export default function (osi4iotState) {
 		osi4iotStackObj.services['mosquitto'].deploy.labels = [
 			"traefik.enable=true",
 			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`) && PathPrefix(\`/mqtt/\`)`,
+			'traefik.http.middlewares.mqtt_websocket_pathstrip.stripprefix.prefixes=/mqtt',
+			'traefik.http.routers.mqtt_websocket.middlewares=mqtt_websocket_pathstrip@docker',
 			"traefik.http.routers.mqtt_websocket.entrypoints=websecure",
 			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
 			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
