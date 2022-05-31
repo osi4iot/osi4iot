@@ -658,14 +658,16 @@ export default function (osi4iotState) {
 				// '--certificatesresolvers.osi4iot_resolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory',
 				'--certificatesresolvers.osi4iot_resolver.acme.httpChallenge.entrypoint=web',
 				`--certificatesresolvers.osi4iot_resolver.acme.email=${platformAdminEmail}`,
-				'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json'
+				'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json',
+				'--entrypoints.websocket.address=:9001',
 			);
 			osi4iotStackObj.services['traefik'].environment = [
 				"AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}",
 				"AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
-			]
+			];
 		}
 
+		osi4iotStackObj.services['traefik'].ports.push("9001");
 		osi4iotStackObj.services['traefik'].volumes.push('letsencrypt:/letsencrypt');
 		osi4iotStackObj.services['portainer'].deploy.labels.push("traefik.http.routers.portainer.tls.certresolver=osi4iot_resolver");
 		osi4iotStackObj.services['pgadmin4'].deploy.labels.push("traefik.http.routers.pgadmin4.tls.certresolver=osi4iot_resolver");
@@ -674,14 +676,13 @@ export default function (osi4iotState) {
 		osi4iotStackObj.services['admin_api'].deploy.labels.push("traefik.http.routers.admin_api.tls.certresolver=osi4iot_resolver");
 		osi4iotStackObj.services['frontend'].deploy.labels.push("traefik.http.routers.frontend.tls.certresolver=osi4iot_resolver");
 
+		osi4iotStackObj.services['mosquitto'].ports = ["1883", "8883"];
 		osi4iotStackObj.services['mosquitto'].deploy.labels = [
 			"traefik.enable=true",
-			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`)`,
-			"traefik.http.routers.mqtt_websocket.entrypoints=websocket",
-			"traefik.http.routers.mqtt_websockets.tls=true",
-			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
-			"traefik.http.routers.mqtt_websockets.service=mqtt_websockets",
-			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001",
+			"traefik.tcp.services.mqtt_websocket.loadbalancer.server.port=9001",
+			"traefik.tcp.routers.tcpr_mqtt_websocket.entrypoints=websocket",
+			"traefik.tcp.routers.tcpr_mqtt_websocket.rule=HostSNI(`*`)",
+			"traefik.tcp.routers.tcpr_mqtt_websocket.service=mqtt_websocket"
 		];
 
 		osi4iotStackObj.volumes.letsencrypt = {
