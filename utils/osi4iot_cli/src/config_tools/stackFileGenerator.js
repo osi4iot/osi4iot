@@ -94,7 +94,7 @@ export default function (osi4iotState) {
 					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
 					'--entrypoints.websecure.address=:443',
 					'--ping',
-					'--providers.file.directory=/etc/traefik/dynamic',
+					//'--providers.file.directory=/etc/traefik/dynamic', //luego agregar
 					'--providers.docker=true',
 					'--providers.docker.swarmMode=true',
 					'--providers.docker.exposedbydefault=false',
