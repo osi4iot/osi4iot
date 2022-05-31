@@ -126,6 +126,7 @@ export default function (osi4iotState) {
 						"traefik.http.routers.traefik.entrypoints=websecure",
 						"traefik.http.routers.traefik.tls=true",
 						"traefik.http.routers.traefik.service=api@internal",
+						"traefik.http.routers.traefik.tls.certresolver=osi4iot_resolver",
 						"traefik.http.services.traefik.loadbalancer.server.port=8080"
 					]
 				},
