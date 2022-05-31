@@ -87,14 +87,13 @@ export default function (osi4iotState) {
 			traefik: {
 				image: `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`,
 				command: [
-					// '--api.insecure=false',
-					'--api.insecure=true', //luego borrar
+					'--api.insecure=false',
 					'--entrypoints.web.address=:80',
 					'--entrypoints.web.http.redirections.entrypoint.to=websecure',
 					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
 					'--entrypoints.websecure.address=:443',
 					'--ping',
-					//'--providers.file.directory=/etc/traefik/dynamic', //luego agregar
+					// '--providers.file.directory=/etc/traefik/dynamic',
 					'--providers.docker=true',
 					'--providers.docker.swarmMode=true',
 					'--providers.docker.exposedbydefault=false',
@@ -117,23 +116,11 @@ export default function (osi4iotState) {
 					},
 					placement: {
 						constraints: ["node.role==manager"]
-					},
-					labels: [  //luego borrar
-						"traefik.enable=true",
-						`traefik.http.routers.traefik.rule=Host(\`${domainName}\`) && PathPrefix(\`/traefik/\`)`,
-						'traefik.http.middlewares.traefikpathstrip.stripprefix.prefixes=/traefik',
-						'traefik.http.routers.traefik.middlewares=traefikpathstrip@docker',
-						"traefik.http.routers.traefik.entrypoints=websecure",
-						"traefik.http.routers.traefik.tls=true",
-						"traefik.http.routers.traefik.service=api@internal",
-						"traefik.http.routers.traefik.tls.certresolver=osi4iot_resolver",
-						"traefik.http.services.traefik.loadbalancer.server.port=8080"
-					]
+					}
 				},
 				ports: [
 					"80:80",
-					"443:443",
-					"8080:8080",
+					"443:443"
 				],
 				networks: [
 					'traefik_public'
@@ -701,6 +688,7 @@ export default function (osi4iotState) {
 			driver: 'local'
 		};
 	} else {
+		osi4iotStackObj.services['traefik'].command.push("--providers.file.directory=/etc/traefik/dynamic");
 		osi4iotStackObj.secrets.iot_platform_ca = {
 			file: './certs/domain_certs/iot_platform_ca.pem',
 			name: osi4iotState.certs.domain_certs.iot_platform_ca_name
