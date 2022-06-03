@@ -75,7 +75,7 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
     }, [isDigitalTwinDeleted, refreshDigitalTwins]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
+        const url = `${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

@@ -179,7 +179,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
 
     const onSubmit = (values: any, actions: any) => {
         const orgId = values.orgId;
-        const url = `https://${domainName}/admin_api/group/${orgId}`;
+        const url = `${domainName}/admin_api/group/${orgId}`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).floorNumber === 'string') {

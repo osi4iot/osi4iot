@@ -7,7 +7,7 @@ import { axiosAuth, getDomainName } from "./tools";
 const domainName = getDomainName();
 
 export const getUserRoleAndRedirect = (accessToken: string, platformAssistantDispatch: PlatformAssistantDispatch, history: { push(path: string): void} ) => {
-    const url = `https://${domainName}/admin_api/auth/user_managed_components`;
+    const url = `${domainName}/admin_api/auth/user_managed_components`;
     const config = axiosAuth(accessToken);
     axios
         .get(url, config)
@@ -23,7 +23,7 @@ export const getUserRoleAndRedirect = (accessToken: string, platformAssistantDis
 }
 
 export const getUserRole = (accessToken: string, platformAssistantDispatch: PlatformAssistantDispatch ) => {
-  const url = `https://${domainName}/admin_api/auth/user_managed_components`;
+  const url = `${domainName}/admin_api/auth/user_managed_components`;
   const config = axiosAuth(accessToken);
   axios
       .get(url, config)

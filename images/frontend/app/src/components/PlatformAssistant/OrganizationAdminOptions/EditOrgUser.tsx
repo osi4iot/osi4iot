@@ -105,7 +105,7 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
     })
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `https://${domainName}/admin_api/organization/${orgId}/user/id/${userId}`;
+        const url = `${domainName}/admin_api/organization/${orgId}/user/id/${userId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

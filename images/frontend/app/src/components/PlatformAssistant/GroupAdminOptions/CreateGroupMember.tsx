@@ -145,7 +145,7 @@ const CreateGroupMember: FC<CreateGroupMemberProps> = ({ refreshGroupMembers, ba
     });
 
     const onSubmit = (values: {}, actions: any) => {
-        const url = `https://${domainName}/admin_api/group/${groupManagedId}/members`;
+        const url = `${domainName}/admin_api/group/${groupManagedId}/members`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

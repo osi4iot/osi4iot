@@ -145,7 +145,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
 
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `https://${domainName}/admin_api/building_floor/${floorId}`;
+        const url = `${domainName}/admin_api/building_floor/${floorId}`;
         const config = axiosAuth(accessToken);
 
         setIsSubmitting(true);

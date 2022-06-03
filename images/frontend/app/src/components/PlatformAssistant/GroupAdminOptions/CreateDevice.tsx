@@ -121,7 +121,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
-        const url = `https://${domainName}/admin_api/device/${groupId}`;
+        const url = `${domainName}/admin_api/device/${groupId}`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).longitude === 'string') {

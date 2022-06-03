@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ## declare env keys array variable
-declare -a env_keys_array=( "PLATFORM_NAME" "MIN_LONGITUDE" "MAX_LONGITUDE" "MIN_LATITUDE" "MAX_LATITUDE" )
+declare -a env_keys_array=( "PLATFORM_NAME" "MIN_LONGITUDE" "MAX_LONGITUDE" "MIN_LATITUDE" "MAX_LATITUDE" "PROTOCOL")
 
 # Recreate config file
 rm -rf /static/env-config.js

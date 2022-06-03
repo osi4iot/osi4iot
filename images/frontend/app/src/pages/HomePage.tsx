@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import styled from "styled-components";
 import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
-import {  getDomainName } from "../tools/tools";
+import { getDomainName } from "../tools/tools";
 
 
 const Title = styled.h2`
@@ -153,7 +153,7 @@ const domainName = getDomainName();
 const HomePage: FC<{}> = () => {
 
 	const handleLinkClick = (path: string) => {
-		const url = `https://${domainName}${path}`;
+		const url = `${domainName}${path}`;
 		window.open(url, "_blank");
 	};
 
@@ -173,13 +173,18 @@ const HomePage: FC<{}> = () => {
 							<StyledNavLink exact to="/platform_assistant" >
 								Platform assistant
 							</StyledNavLink>
-							<StyledNavLink exact to="/digital_twin_simulator_mobile">
-								Digital twin simulator
-							</StyledNavLink>
-							<StyledNavLink exact to="/mobile_sensors">
-								<p>Mobile sensors</p>
-								<p>(Only Android devices)</p>
-							</StyledNavLink>							
+							{
+								(window._env_ && window._env_.PROTOCOL === "http") &&
+								<>
+									<StyledNavLink exact to="/digital_twin_simulator_mobile">
+										Digital twin simulator
+									</StyledNavLink>
+									<StyledNavLink exact to="/mobile_sensors">
+										<p>Mobile sensors</p>
+										<p>(Only Android devices)</p>
+									</StyledNavLink>
+								</>
+							}
 							<Footer>Power by Aula CIMNE-EEBE - dicapua@cimne.upc.edu</Footer>
 						</MenuBorder>
 					</MenuContainer>

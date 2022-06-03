@@ -146,7 +146,7 @@ const EditDevice: FC<EditDeviceProps> = ({
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = devices[deviceRowIndex].groupId;
-        const url = `https://${domainName}/admin_api/device/${groupId}/id/${deviceId}`;
+        const url = `${domainName}/admin_api/device/${groupId}/id/${deviceId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 

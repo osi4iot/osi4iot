@@ -55,7 +55,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
     const fetchMeasurements = useCallback(
         (pageIndex: number, itemsPerPage: number) => {
             const config = axiosAuth(accessToken);
-            let urlMeasurements = `https://${domainName}/admin_api/measurements_pagination/${groupId}`
+            let urlMeasurements = `${domainName}/admin_api/measurements_pagination/${groupId}`
             const paginationData = {
                 topic: measurementTopic,
                 startDate,

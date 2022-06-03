@@ -134,7 +134,7 @@ const UserOptions: FC<{}> = () => {
     useEffect(() => {
         if (userProfileTable.userId === 0 || reloadUserProfile) {
             const config = axiosAuth(accessToken);
-            const urlUserProfile = `https://${domainName}/admin_api/auth/user_profile`;
+            const urlUserProfile = `${domainName}/admin_api/auth/user_profile`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlUserProfile, config)
                 .then((response) => {
@@ -155,7 +155,7 @@ const UserOptions: FC<{}> = () => {
         if (orgsMembershipTable.length === 0 || reloadOrgsMembershipTable) {
 
             const config = axiosAuth(accessToken);
-            const urlMembershipInOrgs = `https://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
+            const urlMembershipInOrgs = `${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInOrgs, config)
                 .then((response) => {
@@ -183,7 +183,7 @@ const UserOptions: FC<{}> = () => {
     useEffect(() => {
         if (groupsMembershipTable.length === 0 || reloadGroupsMembershipTable) {
             const config = axiosAuth(accessToken);
-            const urlMembershipInGroups = `https://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
+            const urlMembershipInGroups = `${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInGroups, config)
                 .then((response) => {

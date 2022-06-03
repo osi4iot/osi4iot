@@ -80,7 +80,7 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
     const onSubmit = (values: any, actions: any) => {
         const groupId = topics[topicRowIndex].groupId;
         const deviceId = topics[topicRowIndex].deviceId;
-        const url = `https://${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
+        const url = `${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 

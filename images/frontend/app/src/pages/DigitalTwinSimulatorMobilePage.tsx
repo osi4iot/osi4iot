@@ -187,7 +187,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 			if (topicsIdArray.length !== 0) {
 				setGetLastMeasurementsButtomLabel("LOADING...");
 				const groupId = digitalTwinSelected.groupId
-				const urlLastMeasurements = `https://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
+				const urlLastMeasurements = `${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
 				const config = axiosAuth(accessToken);
 				const topicsIdArrayObj = { topicsIdArray }
 				axiosInstance(refreshToken, authDispatch)
@@ -216,7 +216,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 	}
 
 	useEffect(() => {
-		const urlDigitalTwinSimulators = `https://${domainName}/admin_api/digital_twin_simulators/user_managed`;
+		const urlDigitalTwinSimulators = `${domainName}/admin_api/digital_twin_simulators/user_managed`;
 		const config = axiosAuth(accessToken);
 		axiosInstance(refreshToken, authDispatch)
 			.get(urlDigitalTwinSimulators, config)

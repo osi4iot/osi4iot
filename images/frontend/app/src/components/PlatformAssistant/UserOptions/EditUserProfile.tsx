@@ -44,7 +44,7 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
     }, [userProfileUpdated, refreshUserProfile]);
     
     const onSubmit = (values: {}, actions: any) => {
-        const url = `https://${domainName}/admin_api/auth/user_profile`;
+        const url = `${domainName}/admin_api/auth/user_profile`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

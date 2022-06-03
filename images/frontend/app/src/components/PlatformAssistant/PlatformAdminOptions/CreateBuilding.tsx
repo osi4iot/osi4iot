@@ -145,7 +145,7 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
     }
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `https://${domainName}/admin_api/building`;
+        const url = `${domainName}/admin_api/building`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).longitude === 'string') {

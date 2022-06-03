@@ -22,17 +22,6 @@ export default async function () {
             if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs") {
                 console.log(clc.green("\nLet's encrypt certs are updated automatically\n"))
                 chooseOption();
-            } else if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Self-signed certs") {
-                console.log(clc.green('\nUpdating certificates...'));
-                await certsGenerator(osi4iotState);
-                const osi4iotStateFile = JSON.stringify(osi4iotState);
-                fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
-
-                console.log(clc.green('Creating stack file...\n'))
-                stackFileGenerator(osi4iotState);
-
-                await runStack(osi4iotState, dockerHost);
-
             } else if ("Certs provided by an CA") {
                 inquirer
                     .prompt([

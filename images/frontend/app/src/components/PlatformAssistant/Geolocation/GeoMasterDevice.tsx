@@ -75,7 +75,7 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
     const clickMasterDeviceHandler = () => {
         selectMasterDevice(deviceData);
         if (deviceData.masterDeviceHash) {
-            let urlMasterDevice = `https://${domainName}/master_device_${deviceData.masterDeviceHash}/?access_token=${accessToken}`;
+            let urlMasterDevice = `${domainName}/master_device_${deviceData.masterDeviceHash}/?access_token=${accessToken}`;
             window.open(urlMasterDevice, "_blank");
         } else {
             toast.warning("Master device hash is null");

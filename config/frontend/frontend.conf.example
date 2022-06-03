@@ -4,3 +4,4 @@ MIN_LONGITUDE=<my_min_longitude>
 MAX_LONGITUDE=<my_max_longitude>
 MIN_LATITUDE=<my_min_latitude>
 MAX_LATITUDE=<my_max_latitude>
+PROTOCOL=<my_max_protocol>

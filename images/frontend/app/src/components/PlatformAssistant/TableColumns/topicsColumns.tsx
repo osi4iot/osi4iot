@@ -64,7 +64,7 @@ const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, device
     }, [isTopicDeleted, refreshTopics]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
+        const url = `${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)
@@ -145,7 +145,7 @@ const ChangeTopicHashModal: FC<ChangeTopicHashModalProps> = ({ rowIndex, groupId
     }, [isTopicHashChanged, refreshTopics]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/topic/${groupId}/changeUid/${topicId}`;
+        const url = `${domainName}/admin_api/topic/${groupId}/changeUid/${topicId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .patch(url, null, config)

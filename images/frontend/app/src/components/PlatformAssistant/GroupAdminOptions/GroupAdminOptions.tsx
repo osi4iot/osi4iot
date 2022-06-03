@@ -223,7 +223,7 @@ const GroupAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (buildingsTable.length === 0 || reloadBuildings) {
-            const urlBuildings = `https://${domainName}/admin_api/buildings/user_groups_managed/`;
+            const urlBuildings = `${domainName}/admin_api/buildings/user_groups_managed/`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlBuildings, config)
@@ -251,7 +251,7 @@ const GroupAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (floorsTable.length === 0 || reloadFloors) {
-            const urlFloors = `https://${domainName}/admin_api/building_floors/user_groups_managed/`;
+            const urlFloors = `${domainName}/admin_api/building_floors/user_groups_managed/`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlFloors, config)
@@ -295,7 +295,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (orgsOfGroupManagedTable.length === 0) {
             const config = axiosAuth(accessToken);
-            const urlOrgsOfGroupsManaged = `https://${domainName}/admin_api/organizations/user_groups_managed`;
+            const urlOrgsOfGroupsManaged = `${domainName}/admin_api/organizations/user_groups_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsOfGroupsManaged, config)
                 .then((response) => {
@@ -314,7 +314,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (groupsManagedTable.length === 0 || reloadGroupsManagedTable) {
             const config = axiosAuth(accessToken);
-            const urlGroupsManaged = `https://${domainName}/admin_api/groups/user_managed`;
+            const urlGroupsManaged = `${domainName}/admin_api/groups/user_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGroupsManaged, config)
                 .then((response) => {
@@ -346,7 +346,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (groupMembersTable.length === 0 || reloadGroupMembersTable) {
             const config = axiosAuth(accessToken);
-            const urlGroupMembers = `https://${domainName}/admin_api/group_members/user_managed`;
+            const urlGroupMembers = `${domainName}/admin_api/group_members/user_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGroupMembers, config)
                 .then((response) => {
@@ -374,7 +374,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (selectOrgUsersTable.length === 0 || reloadSelectOrgUsersTable) {
             const config = axiosAuth(accessToken);
-            const urlGroupsManaged = `https://${domainName}/admin_api/organization_users/user_groups_managed/`;
+            const urlGroupsManaged = `${domainName}/admin_api/organization_users/user_groups_managed/`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGroupsManaged, config)
                 .then((response) => {
@@ -395,7 +395,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (devicesTable.length === 0 || reloadDevicesTable) {
             const config = axiosAuth(accessToken);
-            const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
+            const urlDevices = `${domainName}/admin_api/devices/user_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlDevices, config)
                 .then((response) => {
@@ -424,7 +424,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (topicsTable.length === 0 || reloadTopicsTable) {
             const config = axiosAuth(accessToken);
-            const urlTopics = `https://${domainName}/admin_api/topics/user_managed`;
+            const urlTopics = `${domainName}/admin_api/topics/user_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlTopics, config)
                 .then((response) => {
@@ -456,7 +456,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (dashboardsTable.length === 0 || reloadDashboardsTable) {
             const config = axiosAuth(accessToken);
-            const urlDashboards = `https://${domainName}/admin_api/dashboards/user_managed/`;
+            const urlDashboards = `${domainName}/admin_api/dashboards/user_managed/`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlDashboards, config)
                 .then((response) => {
@@ -485,7 +485,7 @@ const GroupAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (digitalTwinsTable.length === 0 || reloadDigitalTwinsTable) {
             const config = axiosAuth(accessToken);
-            const urlDigitalTwins = `https://${domainName}/admin_api/digital_twins/user_managed`;
+            const urlDigitalTwins = `${domainName}/admin_api/digital_twins/user_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwins, config)
                 .then((response) => {

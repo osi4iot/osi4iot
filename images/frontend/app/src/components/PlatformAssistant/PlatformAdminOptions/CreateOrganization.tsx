@@ -150,7 +150,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
     });
 
     const onSubmit = (values: {}, actions: any) => {
-        const url = `https://${domainName}/admin_api/organization`;
+        const url = `${domainName}/admin_api/organization`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).buildingId === 'string') {

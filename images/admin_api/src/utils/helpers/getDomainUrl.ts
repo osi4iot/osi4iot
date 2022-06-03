@@ -1,7 +1,7 @@
 import process_env from "../../config/api_config";
 
 const getDomainUrl = (): string => {
-	const domainUrl = `https://${process_env.DOMAIN_NAME}`;
+	const domainUrl = `${process_env.PROTOCOL}://${process_env.DOMAIN_NAME}`;
 	return domainUrl;
 }
 

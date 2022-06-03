@@ -145,7 +145,7 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
     });
 
     const onSubmit = (values: {}, actions: any) => {
-        const url = `https://${domainName}/admin_api/organization/${orgManagedId}/users`;
+        const url = `${domainName}/admin_api/organization/${orgManagedId}/users`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

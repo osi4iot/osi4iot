@@ -46,7 +46,7 @@ const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, r
     }, [isRefreshTokenDeleted, refreshRefreshTokens]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/auth/disable_refresh_token_by_id/${refreshTokenId}`;
+        const url = `${domainName}/admin_api/auth/disable_refresh_token_by_id/${refreshTokenId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

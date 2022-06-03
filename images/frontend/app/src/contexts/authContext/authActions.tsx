@@ -9,7 +9,7 @@ export async function loginUser(authDispatch: AuthDispatch, loginPayload: LoginD
 	try {
 		authDispatch({ type: 'LOGIN_ERROR', error: null });
 		authDispatch({ type: 'REQUEST_LOGIN' });
-        const url = `https://${domainName}/admin_api/auth/login`;
+        const url = `${domainName}/admin_api/auth/login`;
         const resp = await axios.post(url, loginPayload);
 		const data = resp.data;
 

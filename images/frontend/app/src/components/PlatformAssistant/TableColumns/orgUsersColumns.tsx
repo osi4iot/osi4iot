@@ -62,7 +62,7 @@ const DeleteOrgUserModal: FC<DeleteOrgUserModalProps> = ({ rowIndex, orgId, user
     }, [isOrgUserDeleted, refreshOrgUsers]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/organization/${orgId}/user/id/${userId}`;
+        const url = `${domainName}/admin_api/organization/${orgId}/user/id/${userId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

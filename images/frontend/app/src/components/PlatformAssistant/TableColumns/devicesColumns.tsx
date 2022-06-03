@@ -65,7 +65,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
     }, [isDeviceDeleted, refreshDevices]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/device/${groupId}/id/${deviceId}`;
+        const url = `${domainName}/admin_api/device/${groupId}/id/${deviceId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)
@@ -154,7 +154,7 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
     }, [isDeviceHashChanged, refreshDevices]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/device/${groupId}/changeUid/${deviceId}`;
+        const url = `${domainName}/admin_api/device/${groupId}/changeUid/${deviceId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .patch(url, null, config)

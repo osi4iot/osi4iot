@@ -76,7 +76,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
     }, [isGroupMembersRemoved, refreshGroupMembers]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/group/${groupId}/members`;
+        const url = `${domainName}/admin_api/group/${groupId}/members`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)
@@ -113,7 +113,7 @@ const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
     const authDispatch = useAuthDispatch();
 
     const handleClick = () => {
-        const url = `https://${domainName}/admin_api/group/${groupId}/ssl_certs`;
+        const url = `${domainName}/admin_api/group/${groupId}/ssl_certs`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .get(url, config)
@@ -173,7 +173,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
     }, [isGroupHashChanged, refreshGroupsManaged]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/group/${groupId}/change_uid`;
+        const url = `${domainName}/admin_api/group/${groupId}/change_uid`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .patch(url, null, config)

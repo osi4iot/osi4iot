@@ -292,7 +292,7 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 	}
 
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
-	const url = `https://${domainName}/admin_api/organization`;
+	const url = `${domainName}/admin_api/organization`;
 	const createOrgData = {
 		name: orgData.ORGANIZATION_NAME,
 		acronym: orgData.ORGANIZATION_ACRONYM,

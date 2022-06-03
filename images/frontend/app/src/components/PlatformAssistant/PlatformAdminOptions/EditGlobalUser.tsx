@@ -64,7 +64,7 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
     const globalUserRowIndex = useGlobalUserRowIndexToEdit();
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `https://${domainName}/admin_api/application/global_user/id/${globalUserId}`;
+        const url = `${domainName}/admin_api/application/global_user/id/${globalUserId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

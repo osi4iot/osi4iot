@@ -29,12 +29,12 @@ export default async function () {
 				headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json", "Accept": "application/json" },
 				rejectUnauthorized: false
 			};
-			const urlGetOrgs = `https://${domainName}/admin_api/organizations/user_managed`;
+			const urlGetOrgs = `${domainName}/admin_api/organizations/user_managed`;
 			const orgs = await needle('get', urlGetOrgs, optionsToken)
 				.then(res => res.body)
 				.catch(err => console.log("Get org error: %s", err.message));
 
-			const urlGetMasterDevices = `https://${domainName}/admin_api/master_devices`;
+			const urlGetMasterDevices = `${domainName}/admin_api/master_devices`;
 			const masterDevices = await needle('get', urlGetMasterDevices, optionsToken)
 				.then(res => res.body)
 				.catch(err => console.log("Get master devices error: %s", err.message));
@@ -432,7 +432,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 	}
 
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
-	const url = `https://${domainName}/admin_api/organization/id/${orgToUpdate.id}`;
+	const url = `${domainName}/admin_api/organization/id/${orgToUpdate.id}`;
 	const updateOrgData = {
 		name: orgData.ORGANIZATION_NAME,
 		acronym: orgData.ORGANIZATION_ACRONYM,

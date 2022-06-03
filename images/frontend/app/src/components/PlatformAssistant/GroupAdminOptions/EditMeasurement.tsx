@@ -74,7 +74,7 @@ const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, back
 
     const onSubmit = (values: any, actions: any) => {
         const topic = measurements[measurementRowIndex].topic;
-        const url = `https://${domainName}/admin_api/measurement/${groupId}`;
+        const url = `${domainName}/admin_api/measurement/${groupId}`;
         const config = axiosAuth(accessToken);
         const updatedMesurement = {
             timestamp,

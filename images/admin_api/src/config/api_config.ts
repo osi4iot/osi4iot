@@ -4,6 +4,7 @@ import { logger } from "./winston";
 interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	PLATFORM_NAME: string;
 	DOMAIN_NAME: string;
+	PROTOCOL: string;
 	PLATFORM_PHRASE: string;
 	MAIN_ORGANIZATION_NAME: string;
 	MAIN_ORGANIZATION_ACRONYM: string;
@@ -40,6 +41,7 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 
 const process_env: IProcessEnv = {
 	PLATFORM_NAME: process.env.PLATFORM_NAME,
+	PROTOCOL: process.env.PROTOCOL,
 	DOMAIN_NAME: process.env.DOMAIN_NAME,
 	PLATFORM_PHRASE: process.env.PLATFORM_PHRASE,
 	MAIN_ORGANIZATION_NAME: process.env.MAIN_ORGANIZATION_NAME,

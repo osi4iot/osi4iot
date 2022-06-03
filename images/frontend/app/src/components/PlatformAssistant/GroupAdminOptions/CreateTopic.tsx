@@ -105,7 +105,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
         const deviceId = values.deviceId;
-        const url = `https://${domainName}/admin_api/topic/${groupId}/${deviceId}`;
+        const url = `${domainName}/admin_api/topic/${groupId}/${deviceId}`;
         const config = axiosAuth(accessToken);
 
         const topicData = {

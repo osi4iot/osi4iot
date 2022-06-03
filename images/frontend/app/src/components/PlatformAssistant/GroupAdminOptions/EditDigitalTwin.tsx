@@ -183,7 +183,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     useEffect(() => {
         if (storedDigitalTwinType === "Gltf 3D model") {
             const config = axiosAuth(accessToken);
-            let urlDigitalTwinGltfData = `https://${domainName}/admin_api/digital_twin_gltfdata`;
+            let urlDigitalTwinGltfData = `${domainName}/admin_api/digital_twin_gltfdata`;
             urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${deviceId}/${digitalTwinId}`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwinGltfData, config)
@@ -230,7 +230,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const onSubmit = (values: any, actions: any) => {
         const groupId = digitalTwins[digitalTwinRowIndex].groupId;
         const deviceId = digitalTwins[digitalTwinRowIndex].deviceId;
-        const url = `https://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
+        const url = `${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
         const config = axiosAuth(accessToken);
 
         setIsSubmitting(true);

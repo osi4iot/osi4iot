@@ -97,7 +97,7 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
     });
 
     const onSubmit = (values: {}, actions: any) => {
-        const url = `https://${domainName}/admin_api/application/global_users`;
+        const url = `${domainName}/admin_api/application/global_users`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

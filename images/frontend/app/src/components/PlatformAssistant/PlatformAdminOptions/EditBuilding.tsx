@@ -157,7 +157,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
     }
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `https://${domainName}/admin_api/building/${buildingId}`;
+        const url = `${domainName}/admin_api/building/${buildingId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 

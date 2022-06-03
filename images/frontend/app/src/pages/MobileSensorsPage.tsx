@@ -200,8 +200,8 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const { accessToken, loading, errorMessage } = useAuthState();
 
 	useEffect(() => {
-		const urlDevices = `https://${domainName}/admin_api/devices/user_managed`;
-		const urlTopics = `https://${domainName}/admin_api/topics/user_managed`;
+		const urlDevices = `${domainName}/admin_api/devices/user_managed`;
+		const urlTopics = `${domainName}/admin_api/topics/user_managed`;
 		const config = {
 			headers: { Authorization: `Bearer ${accessToken}` },
 		};

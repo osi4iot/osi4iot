@@ -59,7 +59,7 @@ const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({ groupId, topi
             timestamp,
             topic
         }
-        const url = `https://${domainName}/admin_api/measurement/${groupId}`;
+        const url = `${domainName}/admin_api/measurement/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);
         const headers = config.headers;
         axiosInstance(refreshToken, authDispatch)

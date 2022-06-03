@@ -38,10 +38,16 @@ export default function (osi4iotState) {
 
 	}
 
+	let protocol = "https";
+	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "No certs") {
+		protocol = "http";
+	}
+
 	//admin_api config
 	const adminApiConfig = [
 		`PLATFORM_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "_")}\n`,
 		`DOMAIN_NAME=${osi4iotState.platformInfo.DOMAIN_NAME}\n`,
+		`PROTOCOL=${protocol}\n`,
 		insertQuotesInText("PLATFORM_PHRASE", osi4iotState.platformInfo.PLATFORM_PHRASE, "\n"),
 		insertQuotesInText("MAIN_ORGANIZATION_NAME", osi4iotState.platformInfo.MAIN_ORGANIZATION_NAME, "\n"),
 		`MAIN_ORGANIZATION_ACRONYM=${osi4iotState.platformInfo.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")}\n`,
@@ -65,10 +71,11 @@ export default function (osi4iotState) {
 	const frontendConfig = [
 		`PLATFORM_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "_")}\n`,
 		`DOMAIN_NAME=${osi4iotState.platformInfo.DOMAIN_NAME}\n`,
+		`PROTOCOL=${protocol}\n`,
 		`MIN_LONGITUDE=${osi4iotState.platformInfo.MIN_LONGITUDE}\n`,
 		`MAX_LONGITUDE=${osi4iotState.platformInfo.MAX_LONGITUDE}\n`,
 		`MIN_LATITUDE=${osi4iotState.platformInfo.MIN_LATITUDE}\n`,
-		`MAX_LATITUDE=${osi4iotState.platformInfo.MAX_LATITUDE}`
+		`MAX_LATITUDE=${osi4iotState.platformInfo.MAX_LATITUDE}`,
 	];
 
 	if (fs.existsSync('./config/frontend/frontend.conf')) {
@@ -133,11 +140,19 @@ export default function (osi4iotState) {
 		"certfile /mosquitto/mqtt_certs/server.crt\n",
 		"keyfile /mosquitto/mqtt_certs/server.key\n",
 		"require_certificate true\n",
-		"use_identity_as_username true\n",
+		"use_identity_as_username true\n"
 	]
 
-	// if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Self-signed certs" ) {
-	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Certs provided by an CA" ) {
+	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "No certs") {
+		mosquittoConfig.push(
+			"\n",
+			"\n",
+			"# MQTT over WSS\n",
+			"listener 9001\n",
+			"protocol websockets\n",
+			"allow_anonymous true"
+		);
+	} else {
 		mosquittoConfig.push(
 			"\n",
 			"\n",
@@ -149,15 +164,6 @@ export default function (osi4iotState) {
 			"keyfile /mosquitto/wss_certs/iot_platform.key\n",
 			"allow_anonymous true"
 		)
-	} else if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs") {
-		mosquittoConfig.push(
-			"\n",
-			"\n",
-			"# MQTT over WSS\n",
-			"listener 9001\n",
-			"protocol websockets\n",
-			"allow_anonymous true"
-		);
 	}
 
 	if (fs.existsSync('./config/mosquitto/mosquitto.conf')) {

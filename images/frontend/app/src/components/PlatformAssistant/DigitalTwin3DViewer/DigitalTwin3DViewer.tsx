@@ -435,7 +435,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			if (topicsIdArray.length !== 0) {
 				setGetLastMeasurementsButtomLabel("LOADING...");
 				const groupId = digitalTwinSelected.groupId
-				const urlLastMeasurements = `https://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
+				const urlLastMeasurements = `${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
 				const config = axiosAuth(accessToken);
 				const topicsIdArrayObj = { topicsIdArray }
 				axiosInstance(refreshToken, authDispatch)

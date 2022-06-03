@@ -54,7 +54,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
     }, [isGlobalUserDeleted, refreshGlobalUsers]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/application/global_user/id/${globalUserId}`;
+        const url = `${domainName}/admin_api/application/global_user/id/${globalUserId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

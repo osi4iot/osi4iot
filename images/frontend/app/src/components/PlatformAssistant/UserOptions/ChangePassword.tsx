@@ -42,7 +42,7 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
 
     
     const onSubmit = (values: IChangePassword, actions: any) => {
-        const url = `https://${domainName}/admin_api/auth/change_password`;
+        const url = `${domainName}/admin_api/auth/change_password`;
         const config = axiosAuth(accessToken);
         const passwordData = { oldPassword: values.oldPassword, newPassword: values.newPassword }
         setIsSubmitting(true);

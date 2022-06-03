@@ -65,7 +65,7 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
             deleteDate,
             topic: measurementTopic
         }
-        const url = `https://${domainName}/admin_api/measurements_before_date/${groupId}`;
+        const url = `${domainName}/admin_api/measurements_before_date/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);
         const headers = config.headers;
         axiosInstance(refreshToken, authDispatch)

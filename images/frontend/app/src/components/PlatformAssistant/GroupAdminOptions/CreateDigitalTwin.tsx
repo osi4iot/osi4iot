@@ -205,7 +205,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
         const deviceId = values.deviceId;
-        const url = `https://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}`;
+        const url = `${domainName}/admin_api/digital_twin/${groupId}/${deviceId}`;
         const config = axiosAuth(accessToken);
 
         const gltfFileDate = values.gltfFileLastModifDateString === "-" ? "-" : new Date(values.gltfFileLastModifDateString);

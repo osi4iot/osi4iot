@@ -37,7 +37,7 @@ export const GEOLOCATION_OPTIONS = {
 }
 
 const domainName = getDomainName();
-const urlDigitalTwinsState = `https://${domainName}/admin_api/digital_twins_state/user_managed`;
+const urlDigitalTwinsState = `${domainName}/admin_api/digital_twins_state/user_managed`;
 
 export interface IDigitalTwinState {
     orgId: number;

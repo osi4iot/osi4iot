@@ -14,11 +14,9 @@ export default async function (osi4iotState) {
 	if (!fs.existsSync(certs_dir)) {
 		fs.mkdirSync(certs_dir);
 
-		if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Let's encrypt certs") {
-			const domain_certs_dir = "./certs/domain_certs"
-			if (!fs.existsSync(domain_certs_dir)) {
-				fs.mkdirSync(domain_certs_dir);
-			}
+		const domain_certs_dir = "./certs/domain_certs"
+		if (!fs.existsSync(domain_certs_dir)) {
+			fs.mkdirSync(domain_certs_dir);
 		}
 
 		const mqtt_certs_dir = "./certs/mqtt_certs"
@@ -36,46 +34,14 @@ export default async function (osi4iotState) {
 		}
 	}
 
-
-	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Self-signed certs") {
-		let domainCA = {
-			key: osi4iotState.certs.domain_certs.private_key,
-			cert: osi4iotState.certs.domain_certs.ssl_ca_pem
-		}
-
-		const iotPlatformCaExpTimestamp = osi4iotState.certs.domain_certs.ca_pem_expiration_timestamp;
-		if ((domainCA.key === "" && domainCA.cert === "") || parseInt(iotPlatformCaExpTimestamp, 10) < limitTimestamp) {
-			domainCA = await mkcert.createCA({
-				organization: osi4iotState.platformInfo.MAIN_ORGANIZATION_ACRONYM.toUpperCase(),
-				countryCode: giveCountryCode(osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY),
-				state: osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE,
-				locality: osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY,
-				validityDays: 3650
-			});
-			osi4iotState.certs.domain_certs.private_key = domainCA.key;
-			osi4iotState.certs.domain_certs.ssl_ca_pem = domainCA.cert;
-		}
-
-		const iotPlatformCertExpTimestamp = osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp;
-		if (osi4iotState.certs.domain_certs.ssl_cert_crt === "" || parseInt(iotPlatformCertExpTimestamp, 10) < limitTimestamp) {
-			const domainCert = await mkcert.createCert({
-				domains: [osi4iotState.platformInfo.DOMAIN_NAME],
-				validityDays: 3650,
-				caKey: domainCA.key,
-				caCert: domainCA.cert
-			});
-			osi4iotState.certs.domain_certs.ssl_cert_crt = domainCert.cert;
-		}
-	}
-
-	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "Let's encrypt certs") {
+	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "No certs") {
 		const iot_platform_key_name = `iot_platform_key_${md5(osi4iotState.certs.domain_certs.private_key)}`;
 		const current_iot_platform_key_name = osi4iotState.certs.domain_certs.iot_platform_key_name;
 		if (!fs.existsSync('./certs/domain_certs/iot_platform.key') || current_iot_platform_key_name !== iot_platform_key_name) {
 			fs.writeFileSync('./certs/domain_certs/iot_platform.key', osi4iotState.certs.domain_certs.private_key);
 			osi4iotState.certs.domain_certs.iot_platform_key_name = iot_platform_key_name;
 		}
-
+	
 		const iot_platform_ca_name = `iot_platform_ca_${md5(osi4iotState.certs.domain_certs.ssl_ca_pem)}`;
 		const current_iot_platform_ca_name = osi4iotState.certs.domain_certs.iot_platform_ca_name;
 		if (!fs.existsSync('./certs/domain_certs/iot_platform_ca.pem') || current_iot_platform_ca_name !== iot_platform_ca_name) {
@@ -86,7 +52,7 @@ export default async function (osi4iotState) {
 			osi4iotState.certs.domain_certs.ca_pem_expiration_timestamp = iotPlatformCaExpTimestamp;
 			osi4iotState.certs.domain_certs.iot_platform_ca_name = iot_platform_ca_name;
 		}
-
+	
 		const iot_platform_cert_name = `iot_platform_cert_${md5(osi4iotState.certs.domain_certs.ssl_cert_crt)}`;
 		const current_iot_platform_cert_name = osi4iotState.certs.domain_certs.iot_platform_cert_name;
 		if (!fs.existsSync('./certs/domain_certs/iot_platform_cert.cer') || current_iot_platform_cert_name !== iot_platform_cert_name) {

@@ -71,7 +71,7 @@ const RemoveAllOrgUsersModal: FC<RemoveAllOrgUsersModalProps> = ({ rowIndex, org
     }, [isGroupMembersRemoved, refreshOrgUsers]);
 
     const action = (hideModal: () => void, whoToRemove: string) => {
-        const url = `https://${domainName}/admin_api/organization/${orgId}/users/${whoToRemove}`;
+        const url = `${domainName}/admin_api/organization/${orgId}/users/${whoToRemove}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

@@ -117,7 +117,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             const config = axiosAuth(accessToken);
             const groupId = digitalTwinData.groupId;
             const deviceId = digitalTwinData.deviceId;
-            let urlDigitalTwinGltfData = `https://${domainName}/admin_api/digital_twin_gltfdata`;
+            let urlDigitalTwinGltfData = `${domainName}/admin_api/digital_twin_gltfdata`;
             urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${deviceId}/${digitalTwinData.id}`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwinGltfData, config)

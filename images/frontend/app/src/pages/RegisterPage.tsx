@@ -67,7 +67,7 @@ const RegisterPage: FC<{}> = () => {
 	const history = useHistory();
 
 	const onSubmit = (values: any, actions: any) => {
-		const url = `https://${domainName}/admin_api/auth/register`;
+		const url = `${domainName}/admin_api/auth/register`;
 		const token = getToken();
 		const config = axiosAuth(token as string);
 
@@ -90,7 +90,7 @@ const RegisterPage: FC<{}> = () => {
 
 
 	useEffect(() => {
-		const url = `https://${domainName}/admin_api/auth/user_data_for_register`;
+		const url = `${domainName}/admin_api/auth/user_data_for_register`;
 		const token = getToken();
 		if (token) {
 			const config = axiosAuth(token as string);

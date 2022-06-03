@@ -134,7 +134,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
     }, [loading, filesContent, plainFiles])
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `https://${domainName}/admin_api/building_floor`;
+        const url = `${domainName}/admin_api/building_floor`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).buildingId === 'string') {

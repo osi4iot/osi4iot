@@ -104,7 +104,7 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupM
     })
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `https://${domainName}/admin_api/group/${groupId}/member/id/${userId}`;
+        const url = `${domainName}/admin_api/group/${groupId}/member/id/${userId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

@@ -165,7 +165,7 @@ const PlatformAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (organizationsTable.length === 0 || reloadOrgs) {
-            const urlOrganizations = `https://${domainName}/admin_api/organizations`;
+            const urlOrganizations = `${domainName}/admin_api/organizations`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizations, config)
@@ -193,7 +193,7 @@ const PlatformAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (buildingsTable.length === 0 || reloadBuildingsTable) {
-            const urlBuildings = `https://${domainName}/admin_api/buildings`;
+            const urlBuildings = `${domainName}/admin_api/buildings`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlBuildings, config)
@@ -222,7 +222,7 @@ const PlatformAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (floorsTable.length === 0 || reloadFloorsTable) {
-            const urlFloors = `https://${domainName}/admin_api/building_floors`;
+            const urlFloors = `${domainName}/admin_api/building_floors`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlFloors, config)
@@ -252,7 +252,7 @@ const PlatformAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (globalUsersTable.length === 0 || reloadGlobalUsersTable) {
             const config = axiosAuth(accessToken);
-            const urlGlobalUsers = `https://${domainName}/admin_api/application/global_users`;
+            const urlGlobalUsers = `${domainName}/admin_api/application/global_users`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
@@ -286,7 +286,7 @@ const PlatformAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (refreshTokensTable.length === 0 || reloadRefreshTokens) {
             const config = axiosAuth(accessToken);
-            const urlRefreshTokens = `https://${domainName}/admin_api/auth/refresh_tokens`;
+            const urlRefreshTokens = `${domainName}/admin_api/auth/refresh_tokens`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlRefreshTokens, config)
                 .then((response) => {

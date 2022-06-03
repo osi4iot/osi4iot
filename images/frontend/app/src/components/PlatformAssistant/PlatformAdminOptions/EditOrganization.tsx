@@ -111,7 +111,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
     });
 
     const onSubmit = (values: {}, actions: any) => {
-        const url = `https://${domainName}/admin_api/organization/id/${orgId}`;
+        const url = `${domainName}/admin_api/organization/id/${orgId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 

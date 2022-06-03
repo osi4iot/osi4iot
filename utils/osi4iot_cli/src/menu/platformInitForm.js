@@ -415,7 +415,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 				default: 'Autosigned certs',
 				type: 'list',
 				choices: [
-					"Self-signed certs",
+					"No certs",
 					"Certs provided by an CA",
 					"Let's encrypt certs",
 				]
@@ -537,7 +537,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 						console.log("");
 						platformInitiation();
 					} else {
-						if (answers.DOMAIN_CERTS_TYPE === "Self-signed certs") {
+						if (answers.DOMAIN_CERTS_TYPE === "No certs") {
 							answers.DOMAIN_SSL_PRIVATE_KEY = "";
 							answers.DOMAIN_SSL_CA_CERT = "";
 							answers.DOMAIN_SSL_CERTICATE = "";

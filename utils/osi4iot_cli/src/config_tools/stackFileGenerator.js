@@ -28,7 +28,44 @@ export default function (osi4iotState) {
 	const numSwarmNodes = nodesData.filter(node => node.nodeRole !== "NFS server").length;
 	const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
 	const existNFSServer = nodesData.filter(node => node.nodeRole === "NFS server").length !== 0;
+
 	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
+	let entryPoint = "websecure";
+	const traefik_command = [];
+	if (domainCertsType === "No certs") {
+		entryPoint = "web";
+		traefik_command.push(
+			'--api.insecure=false',
+			'--entrypoints.web.address=:80',
+			'--ping',
+			'--providers.docker=true',
+			'--providers.docker.swarmMode=true',
+			'--providers.docker.exposedbydefault=false',
+			'--providers.docker.network=traefik_public',
+			'--api',
+			'--accesslog',
+			'--log'
+		)
+	} else {
+		entryPoint = "websecure";
+		traefik_command.push(
+			'--api.insecure=false',
+			'--entrypoints.web.address=:80',
+			'--entrypoints.web.http.redirections.entrypoint.to=websecure',
+			'--entrypoints.web.http.redirections.entrypoint.scheme=https',
+			'--entrypoints.websecure.address=:443',
+			'--ping',
+			'--providers.file.directory=/etc/traefik/dynamic',
+			'--providers.docker=true',
+			'--providers.docker.swarmMode=true',
+			'--providers.docker.exposedbydefault=false',
+			'--providers.docker.network=traefik_public',
+			'--api',
+			'--accesslog',
+			'--log'
+		)
+	}
+
 	if (numSwarmNodes === 1) {
 		const nodeArch = nodesData[0].nodeArch;
 		if (nodeArch === "aarch64") platformArch = 'aarch64';
@@ -86,22 +123,7 @@ export default function (osi4iotState) {
 			},
 			traefik: {
 				image: `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`,
-				command: [
-					'--api.insecure=false',
-					'--entrypoints.web.address=:80',
-					'--entrypoints.web.http.redirections.entrypoint.to=websecure',
-					'--entrypoints.web.http.redirections.entrypoint.scheme=https',
-					'--entrypoints.websecure.address=:443',
-					'--ping',
-					// '--providers.file.directory=/etc/traefik/dynamic',
-					'--providers.docker=true',
-					'--providers.docker.swarmMode=true',
-					'--providers.docker.exposedbydefault=false',
-					'--providers.docker.network=traefik_public',
-					'--api',
-					'--accesslog',
-					'--log',
-				],
+				command: traefik_command,
 				deploy: {
 					mode: 'replicated',
 					replicas: 3,
@@ -217,7 +239,7 @@ export default function (osi4iotState) {
 						`traefik.http.routers.portainer.rule=Host(\`${domainName}\`) && PathPrefix(\`/portainer/\`)`,
 						'traefik.http.middlewares.portainerpathstrip.stripprefix.prefixes=/portainer',
 						'traefik.http.routers.portainer.middlewares=portainerpathstrip@docker',
-						'traefik.http.routers.portainer.entrypoints=websecure',
+						`traefik.http.routers.portainer.entrypoints=${entryPoint}`,
 						'traefik.http.routers.portainer.tls=true',
 						'traefik.http.routers.portainer.service=portainer',
 						'traefik.http.services.portainer.loadbalancer.server.port=9000'
@@ -252,9 +274,9 @@ export default function (osi4iotState) {
 						'traefik.http.routers.pgadmin4.middlewares=pgadmin4-prefix,pgadmin4-header,pgadmin4-redirectregex',
 						'traefik.http.middlewares.pgadmin4-prefix.stripprefix.forceslash=false',
 						'traefik.http.middlewares.pgadmin4-header.headers.customrequestheaders.X-Script-Name=/pgadmin4/',
-						`traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.regex=https://${domainName}/(pgadmin4*)`,
-						`traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
-						'traefik.http.routers.pgadmin4.entrypoints=websecure',
+						`traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.regex=${domainName}/(pgadmin4*)`,
+						`traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+						"traefik.http.routers.pgadmin4.entrypoints=websecure",
 						'traefik.http.routers.pgadmin4.tls=true',
 						'traefik.http.routers.pgadmin4.service=pgadmin4',
 						'traefik.http.services.pgadmin4.loadbalancer.server.port=80'
@@ -353,9 +375,9 @@ export default function (osi4iotState) {
 						'traefik.http.routers.nodered.middlewares=nodered-prefix,nodered-header,nodered-redirectregex',
 						'traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false',
 						'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/nodered/',
-						`traefik.http.middlewares.nodered-redirectregex.redirectregex.regex=https://${domainName}/(nodered*)`,
-						`traefik.http.middlewares.nodered-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
-						'traefik.http.routers.nodered.entrypoints=websecure',
+						`traefik.http.middlewares.nodered-redirectregex.redirectregex.regex=${domainName}/(nodered*)`,
+						`traefik.http.middlewares.nodered-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+						"traefik.http.routers.nodered.entrypoints=websecure",
 						'traefik.http.routers.nodered.tls=true',
 						'traefik.http.routers.nodered.service=nodered',
 						'traefik.http.services.nodered.loadbalancer.server.port=1880'
@@ -408,9 +430,9 @@ export default function (osi4iotState) {
 						'traefik.http.routers.grafana.middlewares=grafana-prefix,grafana-header,grafana-redirectregex',
 						'traefik.http.middlewares.grafana-prefix.stripprefix.forceslash=false',
 						'traefik.http.middlewares.grafana-header.headers.customrequestheaders.X-Script-Name=/grafana/',
-						`traefik.http.middlewares.grafana-redirectregex.redirectregex.regex=https://${domainName}/(grafana*)`,
-						`traefik.http.middlewares.grafana-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
-						'traefik.http.routers.grafana.entrypoints=websecure',
+						`traefik.http.middlewares.grafana-redirectregex.redirectregex.regex=${domainName}/(grafana*)`,
+						`traefik.http.middlewares.grafana-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+						"traefik.http.routers.grafana.entrypoints=websecure",
 						'traefik.http.routers.grafana.tls=true',
 						'traefik.http.routers.grafana.service=grafana',
 						'traefik.http.services.grafana.loadbalancer.server.port=5000',
@@ -484,9 +506,9 @@ export default function (osi4iotState) {
 						'traefik.http.routers.admin_api.middlewares=admin_api-prefix',
 						'traefik.http.middlewares.admin_api-prefix.stripprefix.forceslash=false',
 						'traefik.http.middlewares.admin_api-header.headers.customrequestheaders.X-Script-Name=/admin_api/',
-						`traefik.http.middlewares.admin_api-redirectregex.redirectregex.regex=https://${domainName}/(admin_api*)`,
-						`traefik.http.middlewares.admin_api-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
-						'traefik.http.routers.admin_api.entrypoints=websecure',
+						`traefik.http.middlewares.admin_api-redirectregex.redirectregex.regex=${domainName}/(admin_api*)`,
+						`traefik.http.middlewares.admin_api-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+						"traefik.http.routers.admin_api.entrypoints=websecure",
 						'traefik.http.routers.admin_api.tls=true',
 						'traefik.http.routers.admin_api.service=admin_api',
 						'traefik.http.services.admin_api.loadbalancer.server.port=3200',
@@ -529,7 +551,7 @@ export default function (osi4iotState) {
 					labels: [
 						'traefik.enable=true',
 						`traefik.http.routers.frontend.rule=Host(\`${domainName}\`)`,
-						'traefik.http.routers.frontend.entrypoints=websecure',
+						`traefik.http.routers.frontend.entrypoints=${entryPoint}`,
 						'traefik.http.routers.frontend.tls=true',
 						'traefik.http.routers.frontend.service=frontend',
 						'traefik.http.services.frontend.loadbalancer.server.port=80',
@@ -644,51 +666,67 @@ export default function (osi4iotState) {
 		}
 	}
 
-	if (domainCertsType === "Let's encrypt certs") {
-		osi4iotStackObj.services['traefik'].image = `ghcr.io/osi4iot/traefik_le:${serviceImageVersion['traefik']}`;
-		const platformAdminEmail = osi4iotState.platformInfo.PLATFORM_ADMIN_EMAIL;
+	if (domainCertsType === "No certs") {
+		osi4iotStackObj.services['portainer'].deploy.labels = osi4iotStackObj.services['portainer'].deploy.labels.filter(elm => elm !== 'traefik.http.routers.portainer.tls=true');
 
-		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
-			osi4iotStackObj.services['traefik'].command.push(
-				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge=true',
-				'--certificatesresolvers.osi4iot_resolver.acme.httpchallenge=false',
-				'--certificatesresolvers.osi4iot_resolver.acme.tlschallenge=false',
-				'--certificatesresolvers.osi4iot_resolver.acme.dnschallenge.provider=route53',
-				// '--certificatesresolvers.osi4iot_resolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory',
-				'--certificatesresolvers.osi4iot_resolver.acme.httpChallenge.entrypoint=web',
-				`--certificatesresolvers.osi4iot_resolver.acme.email=${platformAdminEmail}`,
-				'--certificatesresolvers.osi4iot_resolver.acme.storage=/letsencrypt/acme.json',
-				'--entrypoints.websocket.address=:9001',
-			);
-			osi4iotStackObj.services['traefik'].environment = [
-				"AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}",
-				"AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}"
-			];
-		}
-
-		osi4iotStackObj.services['traefik'].ports.push("9001:9001");
-		osi4iotStackObj.services['traefik'].volumes.push('letsencrypt:/letsencrypt');
-		osi4iotStackObj.services['portainer'].deploy.labels.push("traefik.http.routers.portainer.tls.certresolver=osi4iot_resolver");
-		osi4iotStackObj.services['pgadmin4'].deploy.labels.push("traefik.http.routers.pgadmin4.tls.certresolver=osi4iot_resolver");
-		osi4iotStackObj.services['nodered'].deploy.labels.push("traefik.http.routers.nodered.tls.certresolver=osi4iot_resolver");
-		osi4iotStackObj.services['grafana'].deploy.labels.push("traefik.http.routers.grafana.tls.certresolver=osi4iot_resolver");
-		osi4iotStackObj.services['admin_api'].deploy.labels.push("traefik.http.routers.admin_api.tls.certresolver=osi4iot_resolver");
-		osi4iotStackObj.services['frontend'].deploy.labels.push("traefik.http.routers.frontend.tls.certresolver=osi4iot_resolver");
-
-		osi4iotStackObj.services['mosquitto'].ports = ["1883", "8883"];
-		osi4iotStackObj.services['mosquitto'].deploy.labels = [
-			"traefik.enable=true",
-			`traefik.http.routers.mqtt_websocket.rule=Host(\`${domainName}\`)`,
-			"traefik.http.routers.mqtt_websocket.entrypoints=websocket",
-			"traefik.http.routers.mqtt_websocket.tls.certresolver=osi4iot_resolver",
-			"traefik.http.services.mqtt_websocket.loadbalancer.server.port=9001"
+		osi4iotStackObj.services['pgadmin4'].deploy.labels = [
+			'traefik.enable=true',
+			`traefik.http.routers.pgadmin4.rule=Host(\`${domainName}\`) && PathPrefix(\`/pgadmin4/\`)`,
+			'traefik.http.middlewares.pgadmin4-prefix.stripprefix.prefixes=/pgadmin4',
+			'traefik.http.routers.pgadmin4.middlewares=pgadmin4-prefix,pgadmin4-header',
+			'traefik.http.middlewares.pgadmin4-prefix.stripprefix.forceslash=false',
+			'traefik.http.middlewares.pgadmin4-header.headers.customrequestheaders.X-Script-Name=/pgadmin4/',
+			"traefik.http.routers.pgadmin4.entrypoints=web",
+			'traefik.http.routers.pgadmin4.service=pgadmin4',
+			'traefik.http.services.pgadmin4.loadbalancer.server.port=80'
 		];
 
-		osi4iotStackObj.volumes.letsencrypt = {
-			driver: 'local'
-		};
+		osi4iotStackObj.services['nodered'].deploy.labels = [
+			'traefik.enable=true',
+			`traefik.http.routers.nodered.rule=Host(\`${domainName}\`) && PathPrefix(\`/nodered/\`)`,
+			'traefik.http.middlewares.nodered-prefix.stripprefix.prefixes=/nodered',
+			'traefik.http.routers.nodered.middlewares=nodered-prefix,nodered-header',
+			'traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false',
+			'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/nodered/',
+			"traefik.http.routers.nodered.entrypoints=web",
+			'traefik.http.routers.nodered.service=nodered',
+			'traefik.http.services.nodered.loadbalancer.server.port=1880'
+		]
+
+		osi4iotStackObj.services['grafana'].deploy.labels = [
+			'traefik.enable=true',
+			`traefik.http.routers.grafana.rule=Host(\`${domainName}\`) && PathPrefix(\`/grafana/\`)`,
+			'traefik.http.middlewares.grafana-prefix.stripprefix.prefixes=/grafana',
+			'traefik.http.routers.grafana.middlewares=grafana-prefix,grafana-header',
+			'traefik.http.middlewares.grafana-prefix.stripprefix.forceslash=false',
+			'traefik.http.middlewares.grafana-header.headers.customrequestheaders.X-Script-Name=/grafana/',
+			"traefik.http.routers.grafana.entrypoints=web",
+			'traefik.http.routers.grafana.service=grafana',
+			'traefik.http.services.grafana.loadbalancer.server.port=5000',
+			'traefik.http.services.grafana.loadbalancer.healthCheck.path=/api/health',
+			'traefik.http.services.grafana.loadbalancer.healthCheck.interval=5s',
+			'traefik.http.services.grafana.loadbalancer.healthCheck.timeout=3s'
+		]
+
+		osi4iotStackObj.services['admin_api'].deploy.labels = [
+			'traefik.enable=true',
+			`traefik.http.routers.admin_api.rule=Host(\`${domainName}\`) && PathPrefix(\`/admin_api/\`)`,
+			'traefik.http.middlewares.admin_api-prefix.stripprefix.prefixes=/admin_api',
+			'traefik.http.routers.admin_api.middlewares=admin_api-prefix,admin_api-header',
+			'traefik.http.routers.admin_api.middlewares=admin_api-prefix',
+			'traefik.http.middlewares.admin_api-prefix.stripprefix.forceslash=false',
+			'traefik.http.middlewares.admin_api-header.headers.customrequestheaders.X-Script-Name=/admin_api/',
+			"traefik.http.routers.admin_api.entrypoints=web",
+			'traefik.http.routers.admin_api.service=admin_api',
+			'traefik.http.services.admin_api.loadbalancer.server.port=3200',
+			'traefik.http.services.admin_api.loadbalancer.healthCheck.path=/health',
+			'traefik.http.services.admin_api.loadbalancer.healthCheck.interval=5s',
+			'traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s'
+		];
+
+		osi4iotStackObj.services['frontend'].deploy.labels = osi4iotStackObj.services['frontend'].deploy.labels.filter(elm => elm !== 'traefik.http.routers.frontend.tls=true');
+
 	} else {
-		osi4iotStackObj.services['traefik'].command.push("--providers.file.directory=/etc/traefik/dynamic");
 		osi4iotStackObj.secrets.iot_platform_ca = {
 			file: './certs/domain_certs/iot_platform_ca.pem',
 			name: osi4iotState.certs.domain_certs.iot_platform_ca_name
@@ -715,25 +753,23 @@ export default function (osi4iotState) {
 			}
 		];
 
-		if (domainCertsType === "Certs provided by an CA") {
-			osi4iotStackObj.services['mosquitto'].secrets.push(
-				{
-					source: 'iot_platform_ca',
-					target: '/mosquitto/wss_certs/iot_platform_ca.pem',
-					mode: 0o444
-				},
-				{
-					source: 'iot_platform_cert',
-					target: '/mosquitto/wss_certs/iot_platform_cert.cer',
-					mode: 0o444
-				},
-				{
-					source: 'iot_platform_key',
-					target: '/mosquitto/wss_certs/iot_platform.key',
-					mode: 0o444
-				}
-			)
-		}
+		osi4iotStackObj.services['mosquitto'].secrets.push(
+			{
+				source: 'iot_platform_ca',
+				target: '/mosquitto/wss_certs/iot_platform_ca.pem',
+				mode: 0o444
+			},
+			{
+				source: 'iot_platform_cert',
+				target: '/mosquitto/wss_certs/iot_platform_cert.cer',
+				mode: 0o444
+			},
+			{
+				source: 'iot_platform_key',
+				target: '/mosquitto/wss_certs/iot_platform.key',
+				mode: 0o444
+			}
+		)
 	}
 
 	if (platformArch === 'x86_64') {
@@ -921,9 +957,9 @@ export default function (osi4iotState) {
 						`traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header,${serviceName}-redirectregex`,
 						`traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
 						`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
-						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.regex=https://${domainName}/(${masterDeviceHashPath}*)`,
-						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.replacement=https://${domainName}/\$\${1}"`,
-						`traefik.http.routers.${serviceName}.entrypoints=websecure`,
+						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.regex=${domainName}/(${masterDeviceHashPath}*)`,
+						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+						`traefik.http.routers.${serviceName}.entrypoints=${entryPoint}`,
 						`traefik.http.routers.${serviceName}.tls=true`,
 						`traefik.http.routers.${serviceName}.service=${serviceName}`,
 						`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
@@ -931,8 +967,18 @@ export default function (osi4iotState) {
 				}
 			}
 
-			if (domainCertsType === "Let's encrypt certs") {
-				osi4iotStackObj.services[serviceName].deploy.labels.push(`traefik.http.routers.${serviceName}.tls.certresolver=osi4iot_resolver`);
+			if (domainCertsType === "No certs") {
+				osi4iotStackObj.services[serviceName].deploy.labels = [
+					"traefik.enable=true",
+					`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
+					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${masterDeviceHashPath}`,
+					`traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header`,
+					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
+					`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
+					`traefik.http.routers.${serviceName}.entrypoints=web`,
+					`traefik.http.routers.${serviceName}.service=${serviceName}`,
+					`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
+				]
 			}
 
 			const masterDeviceVolume = `${serviceName}_data`;

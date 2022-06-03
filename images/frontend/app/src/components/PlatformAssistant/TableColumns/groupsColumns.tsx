@@ -69,7 +69,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     }, [isGroupDeleted, refreshGroups]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
+        const url = `${domainName}/admin_api/group/${orgId}/id/${groupId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

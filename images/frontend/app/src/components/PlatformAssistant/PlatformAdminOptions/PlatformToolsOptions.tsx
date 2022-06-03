@@ -44,7 +44,7 @@ const domainName = getDomainName();
 const PlatformTools: FC<{}> = () => {
 
 	const handleLinkClick = (path: string) => {
-		const url = `https://${domainName}${path}`;
+		const url = `${domainName}${path}`;
 		window.open(url, "_blank");
     };
     

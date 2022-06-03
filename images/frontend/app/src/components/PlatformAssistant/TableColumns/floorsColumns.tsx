@@ -55,7 +55,7 @@ const DeleteFloorModal: FC<DeleteFloorModalProps> = ({ rowIndex, floorId, refres
     }, [isFloorDeleted, refreshFloors]);
 
     const action = (hideModal: () => void) => {
-        const url = `https://${domainName}/admin_api/building_floor/${floorId}`;
+        const url = `${domainName}/admin_api/building_floor/${floorId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

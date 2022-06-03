@@ -39,7 +39,7 @@ const PlatformAssistantPage: FC<{}> = () => {
 	const platformAssistantDispatch = usePlatformAssitantDispatch();
 
 	useEffect(() => {
-		const url = `https://${domainName}/admin_api/auth/user_managed_components`;
+		const url = `${domainName}/admin_api/auth/user_managed_components`;
 		const config = axiosAuth(accessToken);
 		axios
 			.get(url, config)
