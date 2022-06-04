@@ -7,6 +7,7 @@ import { execSync } from 'child_process';
 import bcrypt from 'bcryptjs';
 import clc from "cli-color";
 import removeCerts from '../config_tools/removeCerts.js';
+import acmeCerts from '../config_tools/acmeCerts.js';
 import certsGenerator from '../config_tools/certsGenerator.js';
 import secretsGenerator from '../config_tools/secretsGenerator.js';
 import configGenerator from '../config_tools/configGenerator.js';
@@ -154,18 +155,23 @@ const platformInitiation = () => {
 				let nodeArch = "x86_64";
 				if (nodeArchitecture === "x64") nodeArch = "x86_64";
 				else if (nodeArchitecture === "arm64") nodeArch = "aarch64";
-				const whoami = execSync("whoami").toString().replace('\n','').replace('\r','').toLowerCase();
+				const whoami = execSync("whoami").toString().replace('\n', '').replace('\r', '').toLowerCase();
 				let nodeUserName = whoami;
 				if (whoami.includes("\\")) {
 					nodeUserName = whoami.split("\\")[1];
 				}
-				const nodeHostName = execSync("hostname").toString().replace('\n','').replace('\r','').toLowerCase();
-				nodesData.push({ nodeHostName, nodeIP: "localhost", nodeUserName, nodeRole: "Manager", nodeArch });				
+				const nodeHostName = execSync("hostname").toString().replace('\n', '').replace('\r', '').toLowerCase();
+				nodesData.push({ nodeHostName, nodeIP: "localhost", nodeUserName, nodeRole: "Manager", nodeArch });
 			} else {
 				const defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
 				const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
 				const currentNodesData = [];
-				nodesData = await swarmNodesQuestions(numSwarmNodes, currentNodesData, defaultUserName);
+				nodesData = await swarmNodesQuestions(
+					numSwarmNodes,
+					currentNodesData,
+					defaultUserName,
+					deploymentLocation
+				);
 			}
 			const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
 			finalQuestions(newAnswers, deploymentLocation, awsAccessKeyId, awsSecretAccessKey);
@@ -411,14 +417,32 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 			},
 			{
 				name: 'DOMAIN_CERTS_TYPE',
-				message: 'Choose the type of domain certs to be used:',
+				message: 'Choose the type of domain ssl certs to be used:',
 				default: 'Autosigned certs',
 				type: 'list',
 				choices: [
 					"No certs",
 					"Certs provided by an CA",
-					"Let's encrypt certs",
-				]
+					"Let's encrypt certs and AWS Route 53",
+				],
+				validate: function (selection) {
+					if (selection === "No certs") {
+						if (deploymentLocation === "Local deployment") {
+							return true;
+						} else {
+							return "No certs case is only allowed for local deployments";
+						}
+					} else if (selection === "Let's encrypt certs and AWS Route 53") {
+						if (deploymentLocation === "AWS cluster deployment") {
+							return true;
+						} else {
+							return "Let's encrypt certs option is only available for AWS cluster deployment";
+						}
+					} else if (selection === "Certs provided by an CA") {
+						return true;
+					}
+
+				}
 			},
 			{
 				name: 'DOMAIN_SSL_PRIVATE_KEY',
@@ -437,7 +461,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 				message: 'Domain SSL certificate only, PEM encoded:',
 				type: 'editor',
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
-			},		
+			},
 			{
 				name: 'REGISTRATION_TOKEN_LIFETIME',
 				message: 'Registration token lifetime in seconds:',
@@ -546,6 +570,10 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 						} else if (answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA") {
 							answers.AWS_ACCESS_KEY_ID = "";
 							answers.AWS_SECRET_ACCESS_KEY = "";
+						} else if (answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
+							answers.DOMAIN_SSL_PRIVATE_KEY = "";
+							answers.DOMAIN_SSL_CA_CERT = "";
+							answers.DOMAIN_SSL_CERTICATE = "";
 						}
 
 						const osi4iotState = {
@@ -663,7 +691,15 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 						try {
 							console.log(clc.green('\nConfigurating nodes in the cluster...'));
 							const organizations = osi4iotState.certs.mqtt_certs.organizations;
-							nodesConfiguration(answers.NODES_DATA, organizations);
+							const awsRoute53Data = {
+								email: answers.PLATFORM_ADMIN_EMAIL,
+								domainName: answers.DOMAIN_NAME,
+								domainCertsType: answers.DOMAIN_CERTS_TYPE,
+								awsAccessKeyId,
+								awsSecretAccessKey
+							}
+
+							nodesConfiguration(answers.NODES_DATA, organizations, deploymentLocation, awsRoute53Data);
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
 							await joinNodesToSwarm(answers.NODES_DATA, deploymentLocation);
@@ -709,7 +745,7 @@ export default async function () {
 	if (fs.existsSync('./osi4iot_state.json')) {
 		const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 		const osi4iotState = JSON.parse(osi4iotStateText);
-		
+
 		if (osi4iotState.platformInfo.NODES_DATA !== undefined && osi4iotState.platformInfo.NODES_DATA.length !== 0) {
 			inquirer
 				.prompt([{

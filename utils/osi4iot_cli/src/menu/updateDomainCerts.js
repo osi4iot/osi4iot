@@ -19,7 +19,7 @@ export default async function () {
         if (nodesData && nodesData.length) {
             const dockerHost = findManagerDockerHost(nodesData);
 
-            if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs") {
+            if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
                 console.log(clc.green("\nLet's encrypt certs are updated automatically\n"))
                 chooseOption();
             } else if ("Certs provided by an CA") {

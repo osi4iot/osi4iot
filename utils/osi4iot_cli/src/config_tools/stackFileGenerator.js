@@ -889,7 +889,7 @@ export default function (osi4iotState) {
 				}
 			}
 
-			if (domainCertsType === "Let's encrypt certs") {
+			if (domainCertsType === "Let's encrypt certs and AWS Route 53") {
 				osi4iotStackObj.volumes['letsencrypt'] = {
 					driver: 'local',
 					driver_opts: {

@@ -3,6 +3,7 @@ import fs from 'fs';
 import md5 from 'md5';
 import { execSync } from 'child_process';
 import { giveCountryCode } from '../generic_tools/countryCodes.js';
+import acmeCerts from './acmeCerts.js';
 
 export default async function (osi4iotState) {
 	const currentTimestamp = Math.floor(Date.now() / 1000);
@@ -32,6 +33,10 @@ export default async function (osi4iotState) {
 			const nodered_dir = "./certs/mqtt_certs/nodered";
 			fs.mkdirSync(nodered_dir);
 		}
+	}
+
+	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
+		acmeCerts(osi4iotState);
 	}
 
 	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "No certs") {

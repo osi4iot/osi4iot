@@ -43,14 +43,14 @@ const domainName = getDomainName();
 
 const PlatformTools: FC<{}> = () => {
 
-	const handleLinkClick = (path: string) => {
-		const url = `${domainName}${path}`;
-		window.open(url, "_blank");
+    const handleLinkClick = (path: string) => {
+        const url = `${domainName}${path}`;
+        window.open(url, "_blank");
     };
-    
+
     const handleExternalLinkClick = (url: string) => {
-		window.open(url, "_blank");
-	};
+        window.open(url, "_blank");
+    };
 
     return (
         <PlatformToolsContainer>
@@ -63,9 +63,12 @@ const PlatformTools: FC<{}> = () => {
             <ImageContainer onClick={() => handleLinkClick("/portainer/")} >
                 <ToolImage src="../images/platformTools/portainer.png" alt="Portainer" />
             </ImageContainer>
-            <ImageContainer onClick={() => handleLinkClick("/admin_api/swagger/")}>
-                <ToolImage src="../images/platformTools/swagger.png" alt="Swagger" />
-            </ImageContainer>
+            {
+                (window._env_ && window._env_.PROTOCOL === "https") &&
+                <ImageContainer onClick={() => handleLinkClick("/admin_api/swagger/")}>
+                    <ToolImage src="../images/platformTools/swagger.png" alt="Swagger" />
+                </ImageContainer>
+            }
             <ImageContainer onClick={() => handleExternalLinkClick("https://geojson.io/")}>
                 <ToolImage src="../images/platformTools/geojson-io.png" alt="geoson.io" />
             </ImageContainer>

@@ -53,9 +53,34 @@ const installNFS = (nodeData, ips_array) => {
 	}
 }
 
-export default async function (nodesData, organizations) {
+const installAcme_sh = (nodeData, awsRoute53Data) => {
+	const nodeHostName = nodeData.nodeHostName;
+	console.log(clc.green(`\nInstalling acme.js in node ${nodeHostName}...`));
+	if (!fs.existsSync('./installation_scripts')) {
+		fs.mkdirSync('./installation_scripts');
+	}
+	if (!fs.existsSync('./installation_scripts/acme_installation.sh')) {
+		execSync("curl -o ./installation_scripts/acme_installation.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/installation_scripts/acme_installation.sh", { stdio: 'ignore' });
+	}
+
+	const env = {
+		...process.env,
+		AWS_ACCESS_KEY_ID: awsRoute53Data.AWS_ACCESS_KEY_ID,
+		AWS_SECRET_ACCESS_KEY: awsRoute53Data.AWS_SECRET_ACCESS_KEY
+	}
+
+	try {
+		execSync(`sudo bash ./installation_scripts/acme_installation.sh "${awsRoute53Data.email}"`, { stdio: 'inherit' });
+		return "OK";
+	} catch (err) {
+		return `Error installing acme.sh in node: ${nodeHostName}\n`;
+	}
+}
+
+export default async function (nodesData, organizations, awsRoute53Data = null) {
 	const numNodes = nodesData.length;
 	let isLocalDeploy = false;
+	let isAcmeInstalled = false;
 	if (numNodes === 1 && isLocahostNode(nodesData[0].nodeIP)) {
 		isLocalDeploy = true;
 	}
@@ -63,10 +88,21 @@ export default async function (nodesData, organizations) {
 	let outputResults = "OK";
 	for (let inode = 0; inode < numNodes; inode++) {
 		const nodeRole = nodesData[inode].nodeRole;
+		const nodeIP = nodesData[inode].nodeIP;
 		if (!isLocalDeploy) {
 			const ouputUFW = installUFW(nodesData[inode]);
 			if (ouputUFW !== "OK") outputResults = "Failed";
 		}
+
+		if (!isAcmeInstalled &&
+			isLocahostNode(nodeIP) &&
+			awsRoute53Data && awsRoute53Data.domainCertsType === "Let's encrypt certs and AWS Route 53"
+		) {
+			const ouputAcme_sh = installAcme_sh(nodesData[inode], awsRoute53Data);
+			if (ouputAcme_sh !== "OK") outputResults = "Failed";
+			isAcmeInstalled = true;
+		}
+
 		if (nodeRole === "NFS server") {
 			const outputNFS = installNFS(nodesData[inode], ips_array);
 			if (outputNFS !== "OK") outputResults = "Failed";

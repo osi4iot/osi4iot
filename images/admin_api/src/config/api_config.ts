@@ -41,7 +41,7 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 
 const process_env: IProcessEnv = {
 	PLATFORM_NAME: process.env.PLATFORM_NAME,
-	PROTOCOL: process.env.PROTOCOL,
+	PROTOCOL: process.env.PROTOCOL || "https",
 	DOMAIN_NAME: process.env.DOMAIN_NAME,
 	PLATFORM_PHRASE: process.env.PLATFORM_PHRASE,
 	MAIN_ORGANIZATION_NAME: process.env.MAIN_ORGANIZATION_NAME,

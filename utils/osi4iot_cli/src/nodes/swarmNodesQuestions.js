@@ -5,12 +5,12 @@ import { execSync } from 'child_process';
 import sshCopyId from '../generic_tools/sshCopyId.js';
 import isLocahostNode from "./isLocalhostNode.js";
 
-export default async function (numberOfNodesToAdd, prevNodesData, defaultUserName) {
+export default async function (numberOfNodesToAdd, prevNodesData, defaultUserName, deploymentLocation) {
 	const numSwarmNodes = prevNodesData.length + numberOfNodesToAdd;
 	let newNodesData = [];
 	let nodesData = [...prevNodesData];
 	for (let inode = 1; inode <= numberOfNodesToAdd; inode++) {
-		await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, inode).then(answers => {
+		await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, deploymentLocation, inode).then(answers => {
 			newNodesData.push(answers);
 			nodesData.push(answers);
 			if (answers.nodeHostName !== defaultUserName) defaultUserName = answers.nodeUserName;
@@ -19,7 +19,7 @@ export default async function (numberOfNodesToAdd, prevNodesData, defaultUserNam
 	return newNodesData;
 }
 
-const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, inode) => {
+const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, deploymentLocation, inode) => {
 	const nodeHostNames = nodesData.map(node => node.nodeHostName);
 	const nodeIPs = nodesData.map(node => node.nodeIP);
 	console.log(clc.whiteBright(`\nNode ${inode} data:`));
@@ -95,19 +95,51 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 
 			let status = "OK";
 			if (!isLocahostNode(nodeIP)) {
-				status = await sshCopyId(userName, nodeIP);
-				if (status === "Failed") {
-					console.log(clc.redBright("Error: Connection with the indicated node cannot be established"));
+				if (inode === 1 && deploymentLocation === "AWS cluster deployment") {
+					console.log(clc.redBright("Error: The first node in AWS cluster deployment must be the localhost."));
+					status = "Failed"
 				} else {
-					const nodeArch = execSync(`ssh ${userName}@${nodeIP} 'uname -m'`).toString().trim();
-					if (!(nodeArch === "x86_64" || nodeArch === "aarch64")) {
-						console.log(clc.redBright("Error: Only are supported amd64 and arm64 architectures"));
+					status = await sshCopyId(userName, nodeIP);
+					if (status === "Failed") {
+						console.log(clc.redBright("Error: Connection with the indicated node cannot be established"));
+					} else {
+						const nodeArch = execSync(`ssh ${userName}@${nodeIP} 'uname -m'`).toString().trim();
+						if (!(nodeArch === "x86_64" || nodeArch === "aarch64")) {
+							console.log(clc.redBright("Error: Only are supported amd64 and arm64 architectures"));
+							status = "Failed";
+						}
+						newNode.nodeArch = nodeArch
+						if (newNode.nodeRole !== "NFS server") {
+							try {
+								const checkDockerInstallation = execSync(`ssh ${userName}@${nodeIP} 'which docker && docker --version'`).toString();
+								if (checkDockerInstallation) {
+									console.log(clc.greenBright("Docker is installed"))
+								}
+							} catch (err) {
+								console.log(clc.redBright("Error: Docker is not installed in this node"))
+								status = "Failed";
+							}
+						}
+					}
+				}
+			} else {
+				if (inode === 1 && deploymentLocation === "AWS cluster deployment" && newNode.nodeRole !== "Manager") {
+					console.log(clc.redBright("Error: The first node in AWS cluster deployment must be the localhost and must have Manager role"));
+					status = "Failed";
+				} else {
+					const localNodeArch = os.arch();
+					if (localNodeArch === "x64") {
+						newNode.nodeArch = "x86_64";
+					} else if (localNodeArch === "arm64") {
+						newNode.nodeArch = "aarch64";
+					} else {
+						console.log(clc.redBright("Error: Only amd64 and arm64 architectures are supported"));
 						status = "Failed";
 					}
-					newNode.nodeArch = nodeArch
+
 					if (newNode.nodeRole !== "NFS server") {
 						try {
-							const checkDockerInstallation = execSync(`ssh ${userName}@${nodeIP} 'which docker && docker --version'`).toString();
+							const checkDockerInstallation = execSync("which docker && docker --version").toString();
 							if (checkDockerInstallation) {
 								console.log(clc.greenBright("Docker is installed"))
 							}
@@ -117,28 +149,6 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 						}
 					}
 				}
-			} else {
-				const localNodeArch = os.arch();
-				if (localNodeArch === "x64") {
-					newNode.nodeArch = "x86_64";
-				} else if (localNodeArch === "arm64") {
-					newNode.nodeArch = "aarch64";
-				} else {
-					console.log(clc.redBright("Error: Only amd64 and arm64 architectures are supported"));
-					status = "Failed";
-				}
-
-				if (newNode.nodeRole !== "NFS server") {
-					try {
-						const checkDockerInstallation = execSync("which docker && docker --version").toString();
-						if (checkDockerInstallation) {
-							console.log(clc.greenBright("Docker is installed"))
-						}
-					} catch (err) {
-						console.log(clc.redBright("Error: Docker is not installed in this node"))
-						status = "Failed";
-					}
-				}
 			}
 
 
@@ -146,7 +156,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, ino
 			if (status === "OK") {
 				return newNode;
 			} else {
-				await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, inode);
+				await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, deploymentLocation, inode);
 			}
 
 		});
