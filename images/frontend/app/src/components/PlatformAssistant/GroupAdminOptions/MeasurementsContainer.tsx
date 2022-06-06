@@ -1,6 +1,6 @@
 import React, { FC, useCallback, useMemo, useState } from 'react'
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { MEASUREMENTS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { ITopic } from '../TableColumns/topicsColumns';
 import {
@@ -25,6 +25,7 @@ const giveMeasurementTopic = (devices: IDevice[], selectedTopic: ITopic) => {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface MeasurementsContainerProps {
     devices: IDevice[];
@@ -55,7 +56,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
     const fetchMeasurements = useCallback(
         (pageIndex: number, itemsPerPage: number) => {
             const config = axiosAuth(accessToken);
-            let urlMeasurements = `${domainName}/admin_api/measurements_pagination/${groupId}`
+            let urlMeasurements = `${protocol}://${domainName}/admin_api/measurements_pagination/${groupId}`
             const paginationData = {
                 topic: measurementTopic,
                 startDate,

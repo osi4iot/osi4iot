@@ -2,7 +2,7 @@ import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
@@ -113,6 +113,7 @@ const deviceInitInputFormData = {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface EditDeviceProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
@@ -146,7 +147,7 @@ const EditDevice: FC<EditDeviceProps> = ({
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = devices[deviceRowIndex].groupId;
-        const url = `${domainName}/admin_api/device/${groupId}/id/${deviceId}`;
+        const url = `${protocol}://${domainName}/admin_api/device/${groupId}/id/${deviceId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 

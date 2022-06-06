@@ -1,6 +1,6 @@
 import { FC, useEffect, useState, useCallback, Suspense } from 'react'
 import styled from "styled-components";
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import Loader from "../../Tools/Loader";
 import { PLATFORM_ASSISTANT_HOME_OPTIONS } from '../Utils/platformAssistantOptions';
@@ -154,7 +154,7 @@ const findBounds = (buildings: IBuilding[]) => {
 }
 
 const domainName = getDomainName();
-
+const protocol = getProtocol();
 
 const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const { accessToken, refreshToken } = useAuthState();
@@ -303,7 +303,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 	useEffect(() => {
 		if (buildingsTable.length === 0 || reloadBuildingsTable) {
-			const urlBuildings = `${domainName}/admin_api/buildings/user_groups_managed/`;
+			const urlBuildings = `${protocol}://${domainName}/admin_api/buildings/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
 			axiosInstance(refreshToken, authDispatch)
 				.get(urlBuildings, config)
@@ -336,7 +336,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 	useEffect(() => {
 		if (floorsTable.length === 0 || reloadFloorsTable) {
-			const urlFloors = `${domainName}/admin_api/building_floors/user_groups_managed/`;
+			const urlFloors = `${protocol}://${domainName}/admin_api/building_floors/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
 			axiosInstance(refreshToken, authDispatch)
 				.get(urlFloors, config)
@@ -366,7 +366,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 	useEffect(() => {
 		if (orgsOfGroupsManagedTable.length === 0 || reloadOrgsOfGroupsManagedTable) {
-			const urlOrgsManaged = `${domainName}/admin_api/organizations/user_groups_managed/`;
+			const urlOrgsManaged = `${protocol}://${domainName}/admin_api/organizations/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
 			axiosInstance(refreshToken, authDispatch)
 				.get(urlOrgsManaged, config)
@@ -395,7 +395,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	useEffect(() => {
 		if (groupsManagedTable.length === 0 || reloadGroupsManagedTable) {
 			const config = axiosAuth(accessToken);
-			const urlGroupsManaged = `${domainName}/admin_api/groups/user_managed`;
+			const urlGroupsManaged = `${protocol}://${domainName}/admin_api/groups/user_managed`;
 			axiosInstance(refreshToken, authDispatch)
 				.get(urlGroupsManaged, config)
 				.then((response) => {
@@ -428,7 +428,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	useEffect(() => {
 		if (devicesTable.length === 0 || reloadDevicesTable) {
 			const config = axiosAuth(accessToken);
-			const urlDevices = `${domainName}/admin_api/devices/user_managed`;
+			const urlDevices = `${protocol}://${domainName}/admin_api/devices/user_managed`;
 			axiosInstance(refreshToken, authDispatch)
 				.get(urlDevices, config)
 				.then((response) => {
@@ -456,7 +456,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	useEffect(() => {
 		if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
 			const config = axiosAuth(accessToken);
-			const urlDigitalTwins = `${domainName}/admin_api/digital_twins/user_managed`;
+			const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
 			axiosInstance(refreshToken, authDispatch)
 				.get(urlDigitalTwins, config)
 				.then((response) => {

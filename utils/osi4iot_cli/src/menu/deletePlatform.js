@@ -219,7 +219,8 @@ const removeAcmeSh = (osi4iotState) => {
 	}
 	try {
 		const pwd = execSync("pwd").toString().split('\n').join('');
-		execSync(`crontab -l > crontab_new && sed -i '\:0 23 \* \* \* cd ${pwd} && osi4iot run:d' crontab_new && crontab crontab_new && rm crontab_new`);
+		execSync(`crontab -l > crontab_new && sed -i '\\:0 23 \\* \\* \\* cd ${pwd} && osi4iot run:d' crontab_new`);
+		execSync("crontab crontab_new && rm crontab_new");
 	} catch (err) {
 		console.log(clc.redBright("\nError removing acme.sh"));
 	}

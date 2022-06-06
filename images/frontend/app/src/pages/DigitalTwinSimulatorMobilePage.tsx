@@ -6,7 +6,7 @@ import Main from "../components/Layout/Main";
 import ServerError from "../components/Tools/ServerError";
 import { useAuthDispatch, useAuthState } from "../contexts/authContext";
 import { ChildrenProp } from "../interfaces/interfaces";
-import { axiosAuth, axiosInstance, getDomainName } from "../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../tools/tools";
 import MqttConnection from "../tools/MqttConnection";
 import { IDigitalTwinSimulator } from "../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
 import Slider from "../components/Tools/Slider";
@@ -138,8 +138,8 @@ const GetLastMeasurementsButtom = styled.button`
 	}
 `;
 
-
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 let mqttClient: (Paho.Client | null) = null;
 
@@ -187,7 +187,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 			if (topicsIdArray.length !== 0) {
 				setGetLastMeasurementsButtomLabel("LOADING...");
 				const groupId = digitalTwinSelected.groupId
-				const urlLastMeasurements = `${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
+				const urlLastMeasurements = `${protocol}://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
 				const config = axiosAuth(accessToken);
 				const topicsIdArrayObj = { topicsIdArray }
 				axiosInstance(refreshToken, authDispatch)
@@ -216,7 +216,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 	}
 
 	useEffect(() => {
-		const urlDigitalTwinSimulators = `${domainName}/admin_api/digital_twin_simulators/user_managed`;
+		const urlDigitalTwinSimulators = `${protocol}://${domainName}/admin_api/digital_twin_simulators/user_managed`;
 		const config = axiosAuth(accessToken);
 		axiosInstance(refreshToken, authDispatch)
 			.get(urlDigitalTwinSimulators, config)

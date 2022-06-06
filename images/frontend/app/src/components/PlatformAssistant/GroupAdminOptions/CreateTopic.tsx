@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -90,6 +90,7 @@ const topicTypeOptions = [
 
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface CreateTopicProps {
     backToTable: () => void;
@@ -105,7 +106,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
         const deviceId = values.deviceId;
-        const url = `${domainName}/admin_api/topic/${groupId}/${deviceId}`;
+        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${deviceId}`;
         const config = axiosAuth(accessToken);
 
         const topicData = {

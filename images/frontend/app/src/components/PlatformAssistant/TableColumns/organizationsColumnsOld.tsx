@@ -4,7 +4,7 @@ import { toast } from 'react-toastify';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { ORGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setOrgIdToEdit, setOrgRowIndexToEdit, setOrgsOptionToShow, useOrgsDispatch } from '../../../contexts/orgsOptions';
@@ -50,6 +50,7 @@ interface DeleteOrgModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs }) => {
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
@@ -72,7 +73,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
     }, [isOrgDeleted, refreshOrgs]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/organization/id/${orgId}`;
+        const url = `${protocol}://${domainName}/admin_api/organization/id/${orgId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

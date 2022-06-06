@@ -5,7 +5,7 @@ import Header from "../components/Layout/Header";
 import PlatformAssistantMenu from "./PlatformAssistantMenu";
 import { useAuthState } from "../contexts/authContext";
 import { usePlatformAssitantDispatch } from "../contexts/platformAssistantContext";
-import { axiosAuth, getDomainName } from "../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../tools/tools";
 import axios from "axios";
 import { setUserRole } from "../contexts/platformAssistantContext";
 import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
@@ -32,14 +32,14 @@ const Title = styled.h2`
 `;
 
 const domainName = getDomainName();
-
+const protocol = getProtocol();
 
 const PlatformAssistantPage: FC<{}> = () => {
 	const { accessToken } = useAuthState();
 	const platformAssistantDispatch = usePlatformAssitantDispatch();
 
 	useEffect(() => {
-		const url = `${domainName}/admin_api/auth/user_managed_components`;
+		const url = `${protocol}://${domainName}/admin_api/auth/user_managed_components`;
 		const config = axiosAuth(accessToken);
 		axios
 			.get(url, config)

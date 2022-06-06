@@ -26,7 +26,7 @@ import {
 	FemSimObjectVisibilityState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { axiosAuth, axiosInstance, getDomainName } from '../../../tools/tools';
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from '../../../tools/tools';
 import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
@@ -345,6 +345,7 @@ const NoWifiIcon = styled(RiWifiOffLine)`
 `;
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const brokerUrl = `wss://${domainName}`;
 
@@ -435,7 +436,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			if (topicsIdArray.length !== 0) {
 				setGetLastMeasurementsButtomLabel("LOADING...");
 				const groupId = digitalTwinSelected.groupId
-				const urlLastMeasurements = `${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
+				const urlLastMeasurements = `${protocol}://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
 				const config = axiosAuth(accessToken);
 				const topicsIdArrayObj = { topicsIdArray }
 				axiosInstance(refreshToken, authDispatch)

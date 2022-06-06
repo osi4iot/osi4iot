@@ -4,7 +4,7 @@ import axios from "axios";
 import styled from "styled-components";
 import * as Yup from 'yup';
 import Header from "../components/Layout/Header";
-import { axiosAuth, getDomainName } from "../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../tools/tools";
 import ErrorPage from "./ErrorPage";
 import Main from "../components/Layout/Main";
 import { toast } from "react-toastify";
@@ -51,6 +51,7 @@ const getToken = () => {
 
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const initialFormValues = {
 	firstName: "",
@@ -67,7 +68,7 @@ const RegisterPage: FC<{}> = () => {
 	const history = useHistory();
 
 	const onSubmit = (values: any, actions: any) => {
-		const url = `${domainName}/admin_api/auth/register`;
+		const url = `${protocol}://${domainName}/admin_api/auth/register`;
 		const token = getToken();
 		const config = axiosAuth(token as string);
 
@@ -90,7 +91,7 @@ const RegisterPage: FC<{}> = () => {
 
 
 	useEffect(() => {
-		const url = `${domainName}/admin_api/auth/user_data_for_register`;
+		const url = `${protocol}://${domainName}/admin_api/auth/user_data_for_register`;
 		const token = getToken();
 		if (token) {
 			const config = axiosAuth(token as string);

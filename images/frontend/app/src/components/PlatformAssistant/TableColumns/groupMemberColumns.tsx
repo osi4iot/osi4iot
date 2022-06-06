@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
@@ -38,6 +38,7 @@ interface DeleteGroupMemberModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, groupId, userId, refreshGroupMembers }) => {
     const [isGroupMemberDeleted, setIsGroupMemberDeleted] = useState(false);
@@ -59,7 +60,7 @@ const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, gro
     }, [isGroupMemberDeleted, refreshGroupMembers])
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/group/${groupId}/member/id/${userId}`;
+        const url = `${protocol}://${domainName}/admin_api/group/${groupId}/member/id/${userId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

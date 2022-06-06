@@ -3,11 +3,12 @@ import { toast } from 'react-toastify';
 import { FaTrash } from "react-icons/fa";
 import styled from "styled-components";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { ITopic } from "../TableColumns/topicsColumns";
 import DeleteModalWithDatePicker from "../../Tools/DeleteModalWithDatePicker";
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const FaTrashStyled = styled(FaTrash)`
     font-size: 20px;
@@ -65,7 +66,7 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
             deleteDate,
             topic: measurementTopic
         }
-        const url = `${domainName}/admin_api/measurements_before_date/${groupId}`;
+        const url = `${protocol}://${domainName}/admin_api/measurements_before_date/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);
         const headers = config.headers;
         axiosInstance(refreshToken, authDispatch)

@@ -1,15 +1,16 @@
 import axios from "axios";
 import { AuthDispatch,  LoginData } from "./interfaces";
-import { getDomainName } from "../../tools/tools";
+import { getDomainName, getProtocol } from "../../tools/tools";
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 export async function loginUser(authDispatch: AuthDispatch, loginPayload: LoginData) {
 
 	try {
 		authDispatch({ type: 'LOGIN_ERROR', error: null });
 		authDispatch({ type: 'REQUEST_LOGIN' });
-        const url = `${domainName}/admin_api/auth/login`;
+        const url = `${protocol}://${domainName}/admin_api/auth/login`;
         const resp = await axios.post(url, loginPayload);
 		const data = resp.data;
 

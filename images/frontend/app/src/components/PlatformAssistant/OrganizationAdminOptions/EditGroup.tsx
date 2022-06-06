@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -123,6 +123,7 @@ const folderPermissionOptions = [
 
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 const floorNumberWarning = "Floor number must an integer greater or equal to 0";
 const featureIndexWarning = "Feature index must an integer greater or equal to 0";
 
@@ -157,7 +158,7 @@ const EditGroup: FC<EditGroupProps> = ({
 
     const onSubmit = (values: any, actions: any) => {
         const orgId = groups[groupRowIndex].orgId;
-        const url = `${domainName}/admin_api/group/${orgId}/id/${groupId}`;
+        const url = `${protocol}://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).floorNumber === 'string') {

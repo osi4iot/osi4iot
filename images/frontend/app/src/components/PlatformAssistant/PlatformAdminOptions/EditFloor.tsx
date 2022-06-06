@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
@@ -111,6 +111,7 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface EditFloorProps {
     floors: IFloor[];
@@ -145,7 +146,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
 
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `${domainName}/admin_api/building_floor/${floorId}`;
+        const url = `${protocol}://${domainName}/admin_api/building_floor/${floorId}`;
         const config = axiosAuth(accessToken);
 
         setIsSubmitting(true);

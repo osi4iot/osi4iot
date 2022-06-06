@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -81,9 +81,8 @@ const ControlsContainer = styled.div`
     }
 `;
 
-
-
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface CreateOrganizationProps {
     backToTable: () => void;
@@ -150,7 +149,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
     });
 
     const onSubmit = (values: {}, actions: any) => {
-        const url = `${domainName}/admin_api/organization`;
+        const url = `${protocol}://${domainName}/admin_api/organization`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).buildingId === 'string') {

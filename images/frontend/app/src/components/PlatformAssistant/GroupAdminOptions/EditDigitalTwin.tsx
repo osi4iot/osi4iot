@@ -4,7 +4,7 @@ import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -118,7 +118,7 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
 }
 
 const domainName = getDomainName();
-
+const protocol = getProtocol();
 
 const digitalTwinTypeOptions = [
     {
@@ -183,7 +183,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     useEffect(() => {
         if (storedDigitalTwinType === "Gltf 3D model") {
             const config = axiosAuth(accessToken);
-            let urlDigitalTwinGltfData = `${domainName}/admin_api/digital_twin_gltfdata`;
+            let urlDigitalTwinGltfData = `${protocol}://${domainName}/admin_api/digital_twin_gltfdata`;
             urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${deviceId}/${digitalTwinId}`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwinGltfData, config)
@@ -230,7 +230,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const onSubmit = (values: any, actions: any) => {
         const groupId = digitalTwins[digitalTwinRowIndex].groupId;
         const deviceId = digitalTwins[digitalTwinRowIndex].deviceId;
-        const url = `${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
+        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
         const config = axiosAuth(accessToken);
 
         setIsSubmitting(true);

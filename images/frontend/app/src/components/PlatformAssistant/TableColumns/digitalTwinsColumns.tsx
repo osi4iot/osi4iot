@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
@@ -53,6 +53,7 @@ interface DeleteDigitalTwinModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, groupId, deviceId, digitalTwinId, refreshDigitalTwins }) => {
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
@@ -75,7 +76,7 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
     }, [isDigitalTwinDeleted, refreshDigitalTwins]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
+        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

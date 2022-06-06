@@ -6,7 +6,7 @@ import { IDevice } from '../TableColumns/devicesColumns';
 import { IDigitalTwinState } from "./GeolocationContainer";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
-import { getDomainName } from "../../../tools/tools";
+import { getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
 import { MaterialDeviceSvgImage } from "./MaterialDeviceSvgImage";
@@ -48,6 +48,7 @@ interface GeoMasterDeviceProps {
 const deviceRadio = 0.0006;
 const circleRadio = 0.0020;
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
     deviceData,
@@ -75,7 +76,7 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
     const clickMasterDeviceHandler = () => {
         selectMasterDevice(deviceData);
         if (deviceData.masterDeviceHash) {
-            let urlMasterDevice = `${domainName}/master_device_${deviceData.masterDeviceHash}/?access_token=${accessToken}`;
+            let urlMasterDevice = `${protocol}://${domainName}/master_device_${deviceData.masterDeviceHash}/?access_token=${accessToken}`;
             window.open(urlMasterDevice, "_blank");
         } else {
             toast.warning("Master device hash is null");

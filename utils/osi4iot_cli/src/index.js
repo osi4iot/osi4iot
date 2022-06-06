@@ -20,7 +20,7 @@ const cliOptions = [
 
 const osi4iotCli = async () => {
     const myArgs = process.argv.slice(2);
-
+    
     if (!fs.existsSync("./osi4iot_state.json")) {
         osi4iotWelcome();
     } else {

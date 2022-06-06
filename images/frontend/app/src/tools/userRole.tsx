@@ -2,12 +2,13 @@ import axios from "axios";
 import { setUserRole } from "../contexts/platformAssistantContext";
 import { PlatformAssistantDispatch } from "../contexts/platformAssistantContext/interfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
-import { axiosAuth, getDomainName } from "./tools";
+import { axiosAuth, getDomainName, getProtocol } from "./tools";
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 export const getUserRoleAndRedirect = (accessToken: string, platformAssistantDispatch: PlatformAssistantDispatch, history: { push(path: string): void} ) => {
-    const url = `${domainName}/admin_api/auth/user_managed_components`;
+    const url = `${protocol}://${domainName}/admin_api/auth/user_managed_components`;
     const config = axiosAuth(accessToken);
     axios
         .get(url, config)
@@ -23,7 +24,7 @@ export const getUserRoleAndRedirect = (accessToken: string, platformAssistantDis
 }
 
 export const getUserRole = (accessToken: string, platformAssistantDispatch: PlatformAssistantDispatch ) => {
-  const url = `${domainName}/admin_api/auth/user_managed_components`;
+  const url = `${protocol}://${domainName}/admin_api/auth/user_managed_components`;
   const config = axiosAuth(accessToken);
   axios
       .get(url, config)

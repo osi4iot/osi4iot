@@ -8,7 +8,7 @@ import Main from "../components/Layout/Main";
 import ServerError from "../components/Tools/ServerError";
 import { useAuthState } from "../contexts/authContext";
 import { ChildrenProp, IDevice } from "../interfaces/interfaces";
-import { getDomainName, isValidNumber, isValidText, toFirstLetterUpperCase } from "../tools/tools";
+import { getDomainName, getProtocol, isValidNumber, isValidText, toFirstLetterUpperCase } from "../tools/tools";
 import ReadAccelerations from "../tools/ReadingAccelerations";
 import MqttConnection from "../tools/MqttConnection";
 import ProgresBar from "../components/Tools/ProgressBar";
@@ -158,6 +158,7 @@ const Submit = styled.input<SubmitProps>`
 `;
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface ReadingParameters {
 	deviceSelectedIndex: number;
@@ -200,8 +201,8 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const { accessToken, loading, errorMessage } = useAuthState();
 
 	useEffect(() => {
-		const urlDevices = `${domainName}/admin_api/devices/user_managed`;
-		const urlTopics = `${domainName}/admin_api/topics/user_managed`;
+		const urlDevices = `${protocol}://${domainName}/admin_api/devices/user_managed`;
+		const urlTopics = `${protocol}://${domainName}/admin_api/topics/user_managed`;
 		const config = {
 			headers: { Authorization: `Bearer ${accessToken}` },
 		};

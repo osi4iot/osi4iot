@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { BUILDINGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setBuildingIdToEdit, setBuildingRowIndexToEdit, setBuildingsOptionToShow, useBuildingsDispatch } from '../../../contexts/buildingsOptions';
@@ -34,6 +34,7 @@ interface DeleteBuildingModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingId, refreshBuildings }) => {
     const [isBuildingDeleted, setIsBuildingDeleted] = useState(false);
@@ -55,7 +56,7 @@ const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingI
     }, [isBuildingDeleted, refreshBuildings]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/building/${buildingId}`;
+        const url = `${protocol}://${domainName}/admin_api/building/${buildingId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

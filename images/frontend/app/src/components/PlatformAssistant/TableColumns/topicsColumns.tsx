@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
@@ -43,6 +43,7 @@ interface DeleteTopicModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, deviceId, topicId, refreshTopics }) => {
     const [isTopicDeleted, setIsTopicDeleted] = useState(false);
@@ -64,7 +65,7 @@ const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, device
     }, [isTopicDeleted, refreshTopics]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
+        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)
@@ -145,7 +146,7 @@ const ChangeTopicHashModal: FC<ChangeTopicHashModalProps> = ({ rowIndex, groupId
     }, [isTopicHashChanged, refreshTopics]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/topic/${groupId}/changeUid/${topicId}`;
+        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/changeUid/${topicId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .patch(url, null, config)

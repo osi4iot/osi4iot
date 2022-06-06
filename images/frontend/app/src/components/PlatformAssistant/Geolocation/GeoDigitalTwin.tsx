@@ -9,7 +9,7 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import { IDigitalTwinState } from "./GeolocationContainer";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { createUrl, IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { toast } from "react-toastify";
@@ -63,6 +63,7 @@ const setDigitalTwinCircleColor = (digitalTwinId: number, digitalTwinSelected: I
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, distance: number, angle: number): number[] => {
     const pt = point([pointLongitude, pointLatitude]);
@@ -117,7 +118,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             const config = axiosAuth(accessToken);
             const groupId = digitalTwinData.groupId;
             const deviceId = digitalTwinData.deviceId;
-            let urlDigitalTwinGltfData = `${domainName}/admin_api/digital_twin_gltfdata`;
+            let urlDigitalTwinGltfData = `${protocol}://${domainName}/admin_api/digital_twin_gltfdata`;
             urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${deviceId}/${digitalTwinData.id}`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwinGltfData, config)

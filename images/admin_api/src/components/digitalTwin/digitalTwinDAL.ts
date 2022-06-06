@@ -835,12 +835,12 @@ export const generateSqlTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
 }
 
 const generateDashboardUrl = (dashboardInfo: IDashboardInfo): string => {
-	const domainName = getDomainUrl();
+	const domainNameUrl = getDomainUrl();
 	let dashboardUrl: string;
 	if (dashboardInfo.slug === "Inexistent") {
 		dashboardUrl = `Warning: Dashboard with id: ${dashboardInfo.dashboardId} not exists any more`;
 	} else {
-		dashboardUrl = `${domainName}/grafana/d/${dashboardInfo.uid}/${dashboardInfo.slug}`;
+		dashboardUrl = `${domainNameUrl}/grafana/d/${dashboardInfo.uid}/${dashboardInfo.slug}`;
 	}
 	return dashboardUrl;
 }

@@ -1,6 +1,6 @@
 import { FC } from 'react';
 import styled from "styled-components";
-import { getDomainName } from '../../../tools/tools';
+import { getDomainName, getProtocol } from '../../../tools/tools';
 
 
 const PlatformToolsContainer = styled.div`
@@ -40,11 +40,12 @@ const ToolImage = styled.img`
 `;
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const PlatformTools: FC<{}> = () => {
 
     const handleLinkClick = (path: string) => {
-        const url = `${domainName}${path}`;
+        const url = `${protocol}://${domainName}${path}`;
         window.open(url, "_blank");
     };
 

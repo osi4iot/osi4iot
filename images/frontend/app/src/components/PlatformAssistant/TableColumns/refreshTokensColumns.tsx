@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
@@ -25,6 +25,7 @@ interface DeleteRefreshTokenModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, refreshTokenId, refreshRefreshTokens }) => {
     const [isRefreshTokenDeleted, setIsRefreshTokenDeleted] = useState(false);
@@ -46,7 +47,7 @@ const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, r
     }, [isRefreshTokenDeleted, refreshRefreshTokens]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/auth/disable_refresh_token_by_id/${refreshTokenId}`;
+        const url = `${protocol}://${domainName}/admin_api/auth/disable_refresh_token_by_id/${refreshTokenId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

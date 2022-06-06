@@ -4,7 +4,7 @@ import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -104,6 +104,7 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface CreateFloorProps {
     backToTable: () => void;
@@ -134,7 +135,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
     }, [loading, filesContent, plainFiles])
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `${domainName}/admin_api/building_floor`;
+        const url = `${protocol}://${domainName}/admin_api/building_floor`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).buildingId === 'string') {

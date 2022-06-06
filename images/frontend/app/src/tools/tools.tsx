@@ -18,20 +18,17 @@ export const isRegistrationRequest = () => {
 
 export const getDomainName = () => {
     const location = window.location.href;
-    let domainName = `https://${location.split("/")[2]}`;
-    if (window._env_ && window._env_.PROTOCOL === "http") {
-        domainName = `http://${location.split("/")[2]}`;
-    }
-    if (domainName === "localhost:3000") domainName = "http://localhost";  //Development case
-
-    return domainName;
-}
-
-export const getDomainNameOnly = () => {
-    const location = window.location.href;
     let domainName = location.split("/")[2];
     if (domainName === "localhost:3000") domainName = "http://localhost";  //Development case
     return domainName;
+}
+
+export const getProtocol = () => {
+    let protocol = "https";
+    if (window._env_ && window._env_.PROTOCOL === "http") {
+        protocol = "http";
+    }
+    return protocol;
 }
 
 export const isValidText = (text: string): boolean => {
@@ -89,8 +86,9 @@ export const getPlatformAssistantPathForUserRole = (userRole: string) => {
 
 export const axiosInstance = (refreshToken: string, authDispatch: any): AxiosStatic => {
     const domainName = getDomainName();
+    const protocol = getProtocol();
 
-    const udpateTokenUrl = `${domainName}/admin_api/auth/update_token`;
+    const udpateTokenUrl = `${protocol}://${domainName}/admin_api/auth/update_token`;
     const config = axiosAuth(refreshToken);
 
     // Function that will be called to refresh authorization

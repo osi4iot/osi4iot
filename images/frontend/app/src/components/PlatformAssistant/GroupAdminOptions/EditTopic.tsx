@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -62,6 +62,7 @@ const topicTypeOptions = [
 ];
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface EdiTopicProps {
     topics: ITopic[];
@@ -80,7 +81,7 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
     const onSubmit = (values: any, actions: any) => {
         const groupId = topics[topicRowIndex].groupId;
         const deviceId = topics[topicRowIndex].deviceId;
-        const url = `${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
+        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 

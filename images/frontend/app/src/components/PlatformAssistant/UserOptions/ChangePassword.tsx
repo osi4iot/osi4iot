@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import FormikControl from "../../Tools/FormikControl";
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { toast } from "react-toastify";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -23,6 +23,7 @@ interface ChangePasswordProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface IChangePassword {
     oldPassword: string;
@@ -42,7 +43,7 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
 
     
     const onSubmit = (values: IChangePassword, actions: any) => {
-        const url = `${domainName}/admin_api/auth/change_password`;
+        const url = `${protocol}://${domainName}/admin_api/auth/change_password`;
         const config = axiosAuth(accessToken);
         const passwordData = { oldPassword: values.oldPassword, newPassword: values.newPassword }
         setIsSubmitting(true);

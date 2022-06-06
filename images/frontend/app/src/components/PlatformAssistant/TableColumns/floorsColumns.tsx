@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { FLOORS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setFloorIdToEdit, setFloorRowIndexToEdit, setFloorsOptionToShow, useFloorsDispatch } from '../../../contexts/floorsOptions';
@@ -34,6 +34,7 @@ interface DeleteFloorModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteFloorModal: FC<DeleteFloorModalProps> = ({ rowIndex, floorId, refreshFloors }) => {
     const [isFloorDeleted, setIsFloorDeleted] = useState(false);
@@ -55,7 +56,7 @@ const DeleteFloorModal: FC<DeleteFloorModalProps> = ({ rowIndex, floorId, refres
     }, [isFloorDeleted, refreshFloors]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/building_floor/${floorId}`;
+        const url = `${protocol}://${domainName}/admin_api/building_floor/${floorId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

@@ -19,6 +19,7 @@ export default async function (osi4iotState) {
         console.log(clc.green(`\nGenerating acme ssl certificates...`));
         try {
             execSync(`~/.acme.sh/acme.sh --issue --dns dns_aws -d ${domainName} --staging --server letsencrypt`, { stdio: 'inherit', env });
+            console.log("");
         } catch (err) {
             throw new Error(`Error generating acme ssl certificates`)
         }
@@ -26,8 +27,10 @@ export default async function (osi4iotState) {
         const expirationCaCert = parseInt(osi4iotState.certs.domain_certs.ca_pem_expiration_timestamp, 10);
         const expirationSslCert = parseInt(osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp, 10);
         if (expirationCaCert < limitTimestamp || expirationSslCert < limitTimestamp) {
+            console.log(clc.green(`\nUpdating acme ssl certificates...`));
             try {
                 execSync(`~/.acme.sh/acme.sh --renew -d ${domainName} --staging --force`, { stdio: 'inherit', env });
+                console.log("");
             } catch (err) {
                 throw new Error(`Error renewing ssl certificates`)
             }

@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -110,6 +110,7 @@ const SelectSpaceButton = styled.button`
 `;
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const folderPermissionOptions = [
     {
@@ -179,7 +180,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
 
     const onSubmit = (values: any, actions: any) => {
         const orgId = values.orgId;
-        const url = `${domainName}/admin_api/group/${orgId}`;
+        const url = `${protocol}://${domainName}/admin_api/group/${orgId}`;
         const config = axiosAuth(accessToken);
 
         if (typeof (values as any).floorNumber === 'string') {

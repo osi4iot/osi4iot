@@ -7,7 +7,7 @@ import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns'
 import SelectOrgOfGroupsManaged from './SelectOrgOfGroupsManaged';
 import SelectDevice from './SelectDevice';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
 import useInterval from '../../../tools/useInterval';
 import { IBuilding } from '../TableColumns/buildingsColumns';
@@ -37,7 +37,8 @@ export const GEOLOCATION_OPTIONS = {
 }
 
 const domainName = getDomainName();
-const urlDigitalTwinsState = `${domainName}/admin_api/digital_twins_state/user_managed`;
+const protocol = getProtocol();
+const urlDigitalTwinsState = `${protocol}://${domainName}/admin_api/digital_twins_state/user_managed`;
 
 export interface IDigitalTwinState {
     orgId: number;

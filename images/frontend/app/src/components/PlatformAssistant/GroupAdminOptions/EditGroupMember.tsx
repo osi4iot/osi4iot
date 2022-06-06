@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -78,6 +78,7 @@ const roleInGroupOptions = [
 ];
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface EditGroupMemberProps {
     groupMembers: IGroupMember[];
@@ -104,7 +105,7 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupM
     })
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `${domainName}/admin_api/group/${groupId}/member/id/${userId}`;
+        const url = `${protocol}://${domainName}/admin_api/group/${groupId}/member/id/${userId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

@@ -1,7 +1,7 @@
 import { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import Loader from "../../Tools/Loader";
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { ORG_ADMIN_OPTIONS } from '../Utils/platformAssistantOptions';
@@ -115,6 +115,7 @@ const ContentContainer = styled.div`
 `;
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const OrganizationAdminOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
@@ -185,7 +186,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (buildingsTable.length === 0 || reloadBuildings) {
-            const urlBuildings = `${domainName}/admin_api/buildings/user_groups_managed/`;
+            const urlBuildings = `${protocol}://${domainName}/admin_api/buildings/user_groups_managed/`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlBuildings, config)
@@ -213,7 +214,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (floorsTable.length === 0 || reloadFloors) {
-            const urlFloors = `${domainName}/admin_api/building_floors/user_groups_managed/`;
+            const urlFloors = `${protocol}://${domainName}/admin_api/building_floors/user_groups_managed/`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlFloors, config)
@@ -256,7 +257,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (orgsManagedTable.length === 0 || reloadOrgsManagedTable) {
-            const urlOrgsManaged = `${domainName}/admin_api/organizations/user_managed/`;
+            const urlOrgsManaged = `${protocol}://${domainName}/admin_api/organizations/user_managed/`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsManaged, config)
@@ -284,7 +285,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
 
     useEffect(() => {
         if (masterDevicesTable.length === 0 || reloadMasterDevices) {
-            const urlMasterDevices = `${domainName}/admin_api/master_devices/user_managed`;
+            const urlMasterDevices = `${protocol}://${domainName}/admin_api/master_devices/user_managed`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
                 .get(urlMasterDevices, config)
@@ -316,7 +317,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (orgUsersTable.length === 0 || reloadOrgUsersTable) {
             const config = axiosAuth(accessToken);
-            const urlOrganizationUsers = `${domainName}/admin_api/organization_users/user_orgs_managed/`;
+            const urlOrganizationUsers = `${protocol}://${domainName}/admin_api/organization_users/user_orgs_managed/`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizationUsers, config)
                 .then((response) => {
@@ -350,7 +351,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (groupsTable.length === 0 || reloadGroupsTable) {
             const config = axiosAuth(accessToken);
-            const urlGroups = `${domainName}/admin_api/groups/user_managed`;
+            const urlGroups = `${protocol}://${domainName}/admin_api/groups/user_managed`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGroups, config)
                 .then((response) => {
@@ -382,7 +383,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     useEffect(() => {
         if (globalUsersTable.length === 0 || reloadOrgUsersTable) {
             const config = axiosAuth(accessToken);
-            const urlGlobalUsers = `${domainName}/admin_api/application/global_users`;
+            const urlGlobalUsers = `${protocol}://${domainName}/admin_api/application/global_users`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
                 .then((response) => {

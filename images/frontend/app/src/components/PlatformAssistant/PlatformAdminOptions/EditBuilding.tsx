@@ -5,7 +5,7 @@ import { polygon } from '@turf/helpers';
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
@@ -113,9 +113,8 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
     openFileSelector();
 }
 
-
-
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 interface EditBuildingProps {
     buildings: IBuilding[];
@@ -157,7 +156,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
     }
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `${domainName}/admin_api/building/${buildingId}`;
+        const url = `${protocol}://${domainName}/admin_api/building/${buildingId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 

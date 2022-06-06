@@ -1,7 +1,7 @@
 import { FC, useEffect, useState } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
@@ -33,6 +33,7 @@ interface DeleteGlobalUserModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globalUserId, refreshGlobalUsers }) => {
     const [isGlobalUserDeleted, setIsGlobalUserDeleted] = useState(false);
@@ -54,7 +55,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
     }, [isGlobalUserDeleted, refreshGlobalUsers]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/application/global_user/id/${globalUserId}`;
+        const url = `${protocol}://${domainName}/admin_api/application/global_user/id/${globalUserId}`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)

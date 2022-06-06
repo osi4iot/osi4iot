@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -35,6 +35,7 @@ const ControlsContainer = styled.div`
 `;
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const platformAdminOptions = [
     {
@@ -64,7 +65,7 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
     const globalUserRowIndex = useGlobalUserRowIndexToEdit();
 
     const onSubmit = (values: any, actions: any) => {
-        const url = `${domainName}/admin_api/application/global_user/id/${globalUserId}`;
+        const url = `${protocol}://${domainName}/admin_api/application/global_user/id/${globalUserId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)

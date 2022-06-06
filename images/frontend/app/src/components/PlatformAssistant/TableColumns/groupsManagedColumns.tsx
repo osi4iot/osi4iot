@@ -15,7 +15,7 @@ import {
 } from '../../../contexts/groupsManagedOptions';
 import { GROUPS_MANAGED_OPTIONS } from '../Utils/platformAssistantOptions';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import DeleteModal from '../../Tools/DeleteModal';
 import ChangeModal from '../../Tools/ChangeModal';
@@ -54,6 +54,7 @@ interface RemoveAllGroupMembersModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIndex, groupId, refreshGroupMembers }) => {
     const [isGroupMembersRemoved, setIsGroupMembersRemoved] = useState(false);
@@ -76,7 +77,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
     }, [isGroupMembersRemoved, refreshGroupMembers]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/group/${groupId}/members`;
+        const url = `${protocol}://${domainName}/admin_api/group/${groupId}/members`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .delete(url, config)
@@ -113,7 +114,7 @@ const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
     const authDispatch = useAuthDispatch();
 
     const handleClick = () => {
-        const url = `${domainName}/admin_api/group/${groupId}/ssl_certs`;
+        const url = `${protocol}://${domainName}/admin_api/group/${groupId}/ssl_certs`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .get(url, config)
@@ -173,7 +174,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
     }, [isGroupHashChanged, refreshGroupsManaged]);
 
     const action = (hideModal: () => void) => {
-        const url = `${domainName}/admin_api/group/${groupId}/change_uid`;
+        const url = `${protocol}://${domainName}/admin_api/group/${groupId}/change_uid`;
         const config = axiosAuth(accessToken);
         axiosInstance(refreshToken, authDispatch)
             .patch(url, null, config)

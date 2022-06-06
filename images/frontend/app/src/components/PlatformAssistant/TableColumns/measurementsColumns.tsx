@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
@@ -34,6 +34,7 @@ interface DeleteMeasurementModalProps {
 }
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({ groupId, topic, rowIndex, timestamp, refreshMeasurements }) => {
     const [isMeasurementDeleted, setIsMeasurementDeleted] = useState(false);
@@ -59,7 +60,7 @@ const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({ groupId, topi
             timestamp,
             topic
         }
-        const url = `${domainName}/admin_api/measurement/${groupId}`;
+        const url = `${protocol}://${domainName}/admin_api/measurement/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);
         const headers = config.headers;
         axiosInstance(refreshToken, authDispatch)

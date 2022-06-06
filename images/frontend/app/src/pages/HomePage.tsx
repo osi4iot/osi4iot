@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import styled from "styled-components";
 import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
-import { getDomainName } from "../tools/tools";
+import { getDomainName, getProtocol } from "../tools/tools";
 
 
 const Title = styled.h2`
@@ -149,11 +149,12 @@ const Footer = styled.p`
 
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const HomePage: FC<{}> = () => {
 
 	const handleLinkClick = (path: string) => {
-		const url = `${domainName}${path}`;
+		const url = `${protocol}://${domainName}${path}`;
 		window.open(url, "_blank");
 	};
 

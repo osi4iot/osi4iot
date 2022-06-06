@@ -4,7 +4,7 @@ import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { nanoid } from "nanoid";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -118,6 +118,7 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
 
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const initialDigitalTwinData = {
     groupId: "",
@@ -205,7 +206,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
         const deviceId = values.deviceId;
-        const url = `${domainName}/admin_api/digital_twin/${groupId}/${deviceId}`;
+        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}`;
         const config = axiosAuth(accessToken);
 
         const gltfFileDate = values.gltfFileLastModifDateString === "-" ? "-" : new Date(values.gltfFileLastModifDateString);

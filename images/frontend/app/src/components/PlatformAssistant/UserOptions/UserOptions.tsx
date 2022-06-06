@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
-import { axiosAuth, getDomainName, axiosInstance } from '../../../tools/tools';
+import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import Loader from "../../Tools/Loader";
 import TableWithPagination from '../Utils/TableWithPagination';
@@ -93,6 +93,7 @@ const ContentContainer = styled.div`
 `;
 
 const domainName = getDomainName();
+const protocol = getProtocol();
 
 const UserOptions: FC<{}> = () => {
     const { accessToken, refreshToken } = useAuthState();
@@ -134,7 +135,7 @@ const UserOptions: FC<{}> = () => {
     useEffect(() => {
         if (userProfileTable.userId === 0 || reloadUserProfile) {
             const config = axiosAuth(accessToken);
-            const urlUserProfile = `${domainName}/admin_api/auth/user_profile`;
+            const urlUserProfile = `${protocol}://${domainName}/admin_api/auth/user_profile`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlUserProfile, config)
                 .then((response) => {
@@ -155,7 +156,7 @@ const UserOptions: FC<{}> = () => {
         if (orgsMembershipTable.length === 0 || reloadOrgsMembershipTable) {
 
             const config = axiosAuth(accessToken);
-            const urlMembershipInOrgs = `${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
+            const urlMembershipInOrgs = `${protocol}://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInOrgs, config)
                 .then((response) => {
@@ -183,7 +184,7 @@ const UserOptions: FC<{}> = () => {
     useEffect(() => {
         if (groupsMembershipTable.length === 0 || reloadGroupsMembershipTable) {
             const config = axiosAuth(accessToken);
-            const urlMembershipInGroups = `${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
+            const urlMembershipInGroups = `${protocol}://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
             axiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInGroups, config)
                 .then((response) => {
