@@ -63,15 +63,9 @@ const installAcme_sh = (nodeData, awsRoute53Data) => {
 		execSync("curl -o ./installation_scripts/acme_installation.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/installation_scripts/acme_installation.sh", { stdio: 'ignore' });
 	}
 
-	const env = {
-		...process.env,
-		AWS_ACCESS_KEY_ID: awsRoute53Data.AWS_ACCESS_KEY_ID,
-		AWS_SECRET_ACCESS_KEY: awsRoute53Data.AWS_SECRET_ACCESS_KEY
-	}
-
 	try {
-		execSync(`sudo bash ./installation_scripts/acme_installation.sh "${awsRoute53Data.email}"`, { stdio: 'inherit' });
 		const pwd = execSync("pwd").toString();
+		execSync(`sudo bash ./installation_scripts/acme_installation.sh "${pwd} ${awsRoute53Data.email}"`, { stdio: 'inherit' });
 		execSync(`crontab -l > crontab_new && echo "0 23 * * * cd ${pwd} && osi4iot run" >> crontab_new && crontab crontab_new && rm crontab_new`);
 		return "OK";
 	} catch (err) {

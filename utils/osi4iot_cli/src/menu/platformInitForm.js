@@ -715,7 +715,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 								awsSecretAccessKey
 							}
 
-							nodesConfiguration(answers.NODES_DATA, organizations, deploymentLocation, awsRoute53Data);
+							nodesConfiguration(answers.NODES_DATA, organizations, awsRoute53Data);
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
 							await joinNodesToSwarm(answers.NODES_DATA, deploymentLocation);
