@@ -1,5 +1,6 @@
 import clc from "cli-color";
 import fs from 'fs';
+import os from 'os';
 import { execSync } from 'child_process';
 import execShellCommand from '../generic_tools/execShellCommand.js';
 import findManagerDockerHost from './findManagerDockerHost.js';
@@ -83,6 +84,10 @@ export default function () {
 
 									console.log(clc.green("\nRemoving platform directories and files..."));
 									removeDirectories();
+
+									if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
+										removeAcmeSh(osi4iotState);
+									}
 								})
 								.catch((error) => {
 									const errorMessage = `Error removing docker stack. Error: ${error}`;
@@ -103,6 +108,11 @@ export default function () {
 
 							console.log(clc.green("\nRemoving platform directories and files..."));
 							removeDirectories();
+
+							if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
+								console.log(clc.green("Removing acme.sh..."));
+								removeAcmeSh(osi4iotState);
+							}
 						}
 					} else {
 						chooseOption();
@@ -197,5 +207,20 @@ const removeNFS_Server = (nodeData) => {
 		execSync(`ssh ${userName}@${nodeIP} "sudo sed -i '/nfs_osi4iot/d' /etc/exports"`, { stdio: 'ignore' });
 	} catch (err) {
 		console.log(clc.redBright("\nError removing NFS server."));
+	}
+}
+
+const removeAcmeSh = (osi4iotState) => {
+	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
+	const homedir = os.homedir();
+	const acmeDomainDir = `${homedir}/.acme.sh/${domainName}`;
+	if (fs.existsSync(acmeDomainDir)) {
+		fs.rmSync(acmeDomainDir, { recursive: true, force: true });
+	}
+	try {
+		const pwd = execSync("pwd");
+		execSync(`crontab -l > crontab_new && sed -i '\:0 23 \* \* \* cd ${pwd} && osi4iot run:d' crontab_new && crontab crontab_new && rm crontab_new`);
+	} catch (err) {
+		console.log(clc.redBright("\nError removing acme.sh"));
 	}
 }

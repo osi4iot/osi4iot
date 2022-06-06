@@ -27,7 +27,7 @@ const dots = [
 	".......",
 ];
 
-export default async function (osi4iotState = null, dockerHost = null) {
+export default async function (osi4iotState = null, dockerHost = null, runInBackground = false) {
 	if (!osi4iotState) {
 		if (!fs.existsSync('./osi4iot_state.json')) {
 			console.log(clc.redBright("The file osi4iot_state.json not exist. \nUse the command 'osi4iot init' to create it."));
@@ -166,14 +166,14 @@ export default async function (osi4iotState = null, dockerHost = null) {
 											console.log(clc.greenBright("\nOSI4IOT platform is ready to be used !!!\n"))
 											process.stdout.write('\u001B[?25h');
 											clearInterval(this);
-											chooseOption();
+											if(!runInBackground) chooseOption();
 										}
 									} else timeCounter++;
 								}, 1000);
 							}
 						})
 				} else {
-					chooseOption();
+					if(!runInBackground) chooseOption();
 				}
 			})
 			.catch((error) => {
@@ -181,6 +181,6 @@ export default async function (osi4iotState = null, dockerHost = null) {
 				throw new Error(errorMessage);
 			})
 	} else {
-		clearScreen();
+		if(!runInBackground) clearScreen();
 	}
 }

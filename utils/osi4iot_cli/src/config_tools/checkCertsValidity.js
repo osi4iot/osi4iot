@@ -19,13 +19,11 @@ export default function (osi4iotState) {
 		certsUpdateIsNeedeed = true;
 	} else {
 		if (osi4iotState.certs.domain_certs.ca_pem_expiration_timestamp < limitTimestamp) {
-			throw new Error("The iot_platform_ca.pem certificate is expired");
-		}
-		const caPemCert = fs.readFileSync('./certs/domain_certs/iot_platform_ca.pem');
-		const currentMd5Value = md5(caPemCert);
-		const caNameMd5Value = osi4iotState.certs.domain_certs.iot_platform_ca_name.split("_")[3];
-		if (currentMd5Value !== caNameMd5Value) {
-			certsUpdateIsNeedeed = true;
+			if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
+				certsUpdateIsNeedeed = true;
+			} else if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Certs provided by an CA") {
+				throw new Error("The iot_platform_ca.pem certificate is expired");
+			}
 		}
 	}
 
@@ -33,13 +31,11 @@ export default function (osi4iotState) {
 		certsUpdateIsNeedeed = true;
 	} else {
 		if (osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp < limitTimestamp) {
-			throw new Error("The iot_platform_cert.cer certificate is expired");
-		}
-		const certCrt = fs.readFileSync('./certs/domain_certs/iot_platform_cert.cer');
-		const currentMd5Value = md5(certCrt);
-		const certNameMd5Value = osi4iotState.certs.domain_certs.iot_platform_cert_name.split("_")[3];
-		if (currentMd5Value !== certNameMd5Value) {
-			certsUpdateIsNeedeed = true;
+			if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
+				certsUpdateIsNeedeed = true;
+			} else if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Certs provided by an CA") {
+				throw new Error("The iot_platform_cert.cer certificate is expired");
+			}
 		}
 	}
 

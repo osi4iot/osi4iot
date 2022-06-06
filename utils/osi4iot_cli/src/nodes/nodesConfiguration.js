@@ -71,6 +71,8 @@ const installAcme_sh = (nodeData, awsRoute53Data) => {
 
 	try {
 		execSync(`sudo bash ./installation_scripts/acme_installation.sh "${awsRoute53Data.email}"`, { stdio: 'inherit' });
+		const pwd = execSync("pwd").toString();
+		execSync(`crontab -l > crontab_new && echo "0 23 * * * cd ${pwd} && osi4iot run" >> crontab_new && crontab crontab_new && rm crontab_new`);
 		return "OK";
 	} catch (err) {
 		return `Error installing acme.sh in node: ${nodeHostName}\n`;

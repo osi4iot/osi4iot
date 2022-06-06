@@ -1,8 +1,8 @@
 import Paho, { MQTTError } from "paho-mqtt";
-import { getDomainName } from "./tools";
+import { getDomainNameOnly } from "./tools";
 
 const MqttConnection = (setIsMqttConnected: React.Dispatch<React.SetStateAction<boolean>>): Paho.Client => {
-	const domainName = getDomainName();
+	const domainName = getDomainNameOnly();
 
 	function onConnect() {
 		setIsMqttConnected(true);

@@ -292,7 +292,11 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 	}
 
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
-	const url = `${domainName}/admin_api/organization`;
+	let protocol = "https";
+	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "No certs") {
+		protocol = "http";
+	}
+	const url = `${protocol}://${domainName}/admin_api/organization`;
 	const createOrgData = {
 		name: orgData.ORGANIZATION_NAME,
 		acronym: orgData.ORGANIZATION_ACRONYM,

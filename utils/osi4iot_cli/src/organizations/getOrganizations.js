@@ -15,16 +15,20 @@ export default async function () {
 		const accessToken = await login(osi4iotState);
 		if (accessToken && accessToken !== "Login error") {
 			const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
+			let protocol = "https";
+			if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "No certs") {
+				protocol = "http";
+			}
 			const optionsToken = {
 				headers: { "Authorization": `Bearer ${accessToken}`, "Content-Type": "application/json", "Accept": "application/json" },
 				rejectUnauthorized: false
 			};
-			const urlGetOrgs = `${domainName}/admin_api/organizations/user_managed`;
+			const urlGetOrgs = `${protocol}://${domainName}/admin_api/organizations/user_managed`;
 			const orgs = await needle('get', urlGetOrgs, optionsToken)
 				.then(res => res.body)
 				.catch(err => console.log("Get org error: %s", err.message));
 
-			const urlGetMasterDevices = `${domainName}/admin_api/master_devices`;
+			const urlGetMasterDevices = `${protocol}://${domainName}/admin_api/master_devices`;
 			const masterDevices = await needle('get', urlGetMasterDevices, optionsToken)
 				.then(res => res.body)
 				.catch(err => console.log("Get master devices error: %s", err.message));

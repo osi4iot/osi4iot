@@ -463,6 +463,20 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
 			{
+                name: 'AWS_ACCESS_KEY_ID',
+                message: 'AWS access key id:',
+                type: 'password',
+				mask: "*",
+				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53" && awsAccessKeyId === ""
+            },
+            {
+                name: 'AWS_SECRET_ACCESS_KEY',
+                message: 'AWS secret access key:',
+                type: 'password',
+				mask: "*",
+				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53" && awsSecretAccessKey === ""
+            },
+			{
 				name: 'REGISTRATION_TOKEN_LIFETIME',
 				message: 'Registration token lifetime in seconds:',
 				default: 86400,
@@ -574,6 +588,8 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 							answers.DOMAIN_SSL_PRIVATE_KEY = "";
 							answers.DOMAIN_SSL_CA_CERT = "";
 							answers.DOMAIN_SSL_CERTICATE = "";
+							if (awsAccessKeyId === "") awsAccessKeyId = answers.AWS_ACCESS_KEY_ID;
+							if (awsSecretAccessKey === "") awsSecretAccessKey = answers.AWS_SECRET_ACCESS_KEY;
 						}
 
 						const osi4iotState = {

@@ -51,7 +51,7 @@ const argsOptions = async (myArg) => {
             platformInitForm();
             break;
         case 'run':
-            await runStack();
+            await runStack(null, null, true);
             break;
         case 'stop':
             await stopStack();
@@ -169,8 +169,8 @@ const createOsi4iotStateFile = (answers) => {
     const osi4iotState = {
         platformInfo: {
             DEPLOYMENT_LOCATION: answers.DEPLOYMENT_LOCATION,
-            AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID,
-            AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY,
+            AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID || "",
+            AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY || "",
         }
     }
     const osi4iotStateFile = JSON.stringify(osi4iotState);

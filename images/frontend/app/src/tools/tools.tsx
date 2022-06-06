@@ -27,6 +27,13 @@ export const getDomainName = () => {
     return domainName;
 }
 
+export const getDomainNameOnly = () => {
+    const location = window.location.href;
+    let domainName = location.split("/")[2];
+    if (domainName === "localhost:3000") domainName = "http://localhost";  //Development case
+    return domainName;
+}
+
 export const isValidText = (text: string): boolean => {
 	let isValid = true;
 	if (text.trim() === "") isValid = false;
