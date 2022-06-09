@@ -927,7 +927,7 @@ export default function (osi4iotState) {
 			osi4iotStackObj.volumes['pgdata'] = {
 				driver: 'local',
 				driver_opts: {
-					type: 'nfs4',
+					type: 'nfs',
 					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					// device: `${efs_dns}:/pgdata`
 					device: `:/pgdata`
