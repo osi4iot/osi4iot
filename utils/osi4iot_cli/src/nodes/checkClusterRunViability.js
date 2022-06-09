@@ -1,4 +1,4 @@
-export default function (nodesData, organizations = null) {
+export default function (nodesData, deploymentLocation, organizations = null) {
     const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
     const numPlatformWorkerNodes = nodesData.filter(node => node.nodeRole === "Platform worker").length;
     const numGenericOrgWorkerNodes = nodesData.filter(node => node.nodeRole === "Generic org worker").length;
@@ -20,7 +20,10 @@ export default function (nodesData, organizations = null) {
             warnings.push("- The minimum requirements for a multinode cluster are at least one manager node, one platform worker node and one generic org worker node.\n  But in order to get HA the recommended setting are three mananger nodes, three platform worker nodes and two generic org worker nodes");
         }
 
-        if ((numManagerNodes > 1 || numPlatformWorkerNodes > 1 || numGenericOrgWorkerNodes > 1) && numNFSNodes === 0) {
+        if (deploymentLocation === "On-premise cluster deployment" &&
+            (numManagerNodes > 1 || numPlatformWorkerNodes > 1 || numGenericOrgWorkerNodes > 1) &&
+            numNFSNodes === 0
+        ) {
             warnings.push("- For a multinode cluster an NFS node server is required.");
         }
 

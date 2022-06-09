@@ -21,6 +21,7 @@ export default function () {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
         const currentNodesData = osi4iotState.platformInfo.NODES_DATA;
+        const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
         if (currentNodesData && currentNodesData.length !== 0) {
             const defaultUserName = currentNodesData[currentNodesData.length -1].nodeUserName;
             inquirer
@@ -44,7 +45,7 @@ export default function () {
                     let newNodes = [];
                     do {
                         newNodes = await swarmNodesQuestions(numNodesToAdd, currentNodesData, defaultUserName);
-                        warnings = checkClusterRunViability([...currentNodesData, ...newNodes], osi4iotState.certs.mqtt_certs.organizations);
+                        warnings = checkClusterRunViability([...currentNodesData, ...newNodes], deploymentLocation, osi4iotState.certs.mqtt_certs.organizations);
                         if (warnings.length !== 0) {
                             const warningsText = warnings.join("\n");
                             console.log(clc.yellowBright(`The indicated nodes configuration is not correct:\n${warningsText}`));

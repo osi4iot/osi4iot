@@ -17,6 +17,7 @@ export default function () {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
         const nodesData = osi4iotState.platformInfo.NODES_DATA;
+        const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
         if (nodesData && nodesData.length !== 0) {
             getNodes(osi4iotState);
             inquirer
@@ -36,7 +37,7 @@ export default function () {
                 .then(async (answers) => {
                     const index = answers.index - 1;
                     const newNodesData = nodesData.filter((node, idx) => idx !== index);
-                    const warnings = checkClusterRunViability(newNodesData, osi4iotState.certs.mqtt_certs.organizations);
+                    const warnings = checkClusterRunViability(newNodesData, deploymentLocation, osi4iotState.certs.mqtt_certs.organizations);
                     if (warnings.length === 0) {
                         const dockerHost = findManagerDockerHost(newNodesData);
                         const nodeToRemove = nodesData[index];
