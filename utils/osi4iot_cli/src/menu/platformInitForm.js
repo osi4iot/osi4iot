@@ -149,7 +149,7 @@ const platformInitiation = () => {
 			{
 				name: 'AWS_EFS_DNS',
 				message: 'AWS Elastic File System DNS:',
-				when: () => NUMBER_OF_SWARM_NODES > 1 && deploymentLocation === "AWS cluster deployment",
+				when: (answers) => answers.NUMBER_OF_SWARM_NODES > 1 && deploymentLocation === "AWS cluster deployment",
 			},
 		])
 		.then(async (prevAnswers) => {
