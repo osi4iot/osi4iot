@@ -99,7 +99,9 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, dep
 					console.log(clc.redBright("Error: The first node in AWS cluster deployment must be the localhost."));
 					status = "Failed"
 				} else {
-					status = await sshCopyId(userName, nodeIP);
+					if (deploymentLocation !== "AWS cluster deployment") {
+						status = await sshCopyId(userName, nodeIP);
+					}
 					if (status === "Failed") {
 						console.log(clc.redBright("Error: Connection with the indicated node cannot be established"));
 					} else {
