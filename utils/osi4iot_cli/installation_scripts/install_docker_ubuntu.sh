@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 if [[ $(which docker) && $(docker --version) ]]; then
     echo "Docker is already installed."
@@ -22,5 +22,6 @@ if [[ $(which docker) && $(docker --version) ]]; then
 
   # Run Docker command without sudo
   sudo groupadd docker
-  sudo usermod -aG docker $USER
+  sudo usermod -a -G docker $USER
 fi
+

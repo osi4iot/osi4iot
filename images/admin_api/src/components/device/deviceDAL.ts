@@ -18,7 +18,6 @@ export const defaultGroupDeviceName = (group: IGroup, type: string): string => {
 	return deviceName;
 }
 
-
 export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 	const result = await pool.query(`INSERT INTO grafanadb.device (org_id, group_id, name, description,
 					device_uid, geolocation, type, created, updated)

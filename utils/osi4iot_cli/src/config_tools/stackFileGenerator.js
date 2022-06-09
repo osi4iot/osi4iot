@@ -28,6 +28,13 @@ export default function (osi4iotState) {
 	const numSwarmNodes = nodesData.filter(node => node.nodeRole !== "NFS server").length;
 	const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
 	const existNFSServer = nodesData.filter(node => node.nodeRole === "NFS server").length !== 0;
+	let storageSystem = "Local storage";
+	if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment" && existNFSServer) {
+		storageSystem = "NFS server";
+	}
+	if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
+		storageSystem = "AWS EFS";
+	}
 
 	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
 	let entryPoint = "websecure";
@@ -816,7 +823,7 @@ export default function (osi4iotState) {
 			}
 		}
 
-		if (existNFSServer) {
+		if (storageSystem === "NFS Server") {
 			osi4iotStackObj.volumes['mosquitto_data'] = {
 				driver: 'local',
 				driver_opts: {
@@ -888,15 +895,77 @@ export default function (osi4iotState) {
 					device: ':/var/nfs_osi4iot/admin_api_log'
 				}
 			}
+		} else if (storageSystem === "AWS EFS") {
+			const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
+			osi4iotStackObj.volumes['mosquitto_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					device: `${efs_dns}:/mosquitto_data`
+				}
+			}
 
-			if (domainCertsType === "Let's encrypt certs and AWS Route 53") {
-				osi4iotStackObj.volumes['letsencrypt'] = {
-					driver: 'local',
-					driver_opts: {
-						type: 'nfs',
-						o: `nfsvers=4,addr=${nfsServerIP},rw`,
-						device: ':/var/nfs_osi4iot/letsencrypt'
-					}
+			osi4iotStackObj.volumes['mosquitto_log'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					device: `${efs_dns}:/mosquitto_log`
+				}
+			}
+
+			osi4iotStackObj.volumes['nodered_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					device: `${efs_dns}:/nodered_data`
+				}
+			}
+
+			osi4iotStackObj.volumes['pgdata'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					device: `${efs_dns}:/pgdata`
+				}
+			}
+
+			osi4iotStackObj.volumes['pgadmin4_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					device: `${efs_dns}:/pgadmin4_data`
+				}
+			}
+
+			osi4iotStackObj.volumes['portainer_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					device: `${efs_dns}:/portainer_data`
+				}
+			}
+
+			osi4iotStackObj.volumes['grafana_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					device: `${efs_dns}:/grafana_data`
+				}
+			}
+
+			osi4iotStackObj.volumes['admin_api_log'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					device: `${efs_dns}:/admin_api_log`
 				}
 			}
 		}
@@ -982,7 +1051,7 @@ export default function (osi4iotState) {
 			}
 
 			const masterDeviceVolume = `${serviceName}_data`;
-			if (existNFSServer) {
+			if (storageSystem === "NFS Server") {
 				osi4iotStackObj.volumes[masterDeviceVolume] = {
 					driver: 'local',
 					driver_opts: {
@@ -991,7 +1060,17 @@ export default function (osi4iotState) {
 						device: `:/var/nfs_osi4iot/${masterDeviceVolume}`
 					}
 				}
-			} else {
+			} else if (storageSystem === "AWS EFS") {
+				const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
+				osi4iotStackObj.volumes[masterDeviceVolume] = {
+					driver: 'local',
+					driver_opts: {
+						type: 'nfs',
+						o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+						device: `${efs_dns}:/${masterDeviceVolume}`
+					}
+				}
+			} else if (storageSystem === "Local storage") {
 				osi4iotStackObj.volumes[masterDeviceVolume] = {
 					driver: "local"
 				};

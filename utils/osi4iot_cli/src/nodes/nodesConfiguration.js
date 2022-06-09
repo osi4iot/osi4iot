@@ -73,19 +73,19 @@ const installAcme_sh = (nodeData, awsRoute53Data) => {
 	}
 }
 
-export default async function (nodesData, organizations, awsRoute53Data = null) {
+export default async function (nodesData, organizations, deploymentLocation = null, awsRoute53Data = null) {
 	const numNodes = nodesData.length;
-	let isLocalDeploy = false;
+	let isUFWInstalationNeeded = false;
 	let isAcmeInstalled = false;
-	if (numNodes === 1 && isLocahostNode(nodesData[0].nodeIP)) {
-		isLocalDeploy = true;
+	if (deploymentLocation === "AWS cluster deployment" || (deploymentLocation === "On-premise cluster deployment" && numNodes > 1)) {
+		isUFWInstalationNeeded = true;
 	}
 	const ips_array = nodesData.filter(node => node.nodeRole !== "NFS server").map(node => node.nodeIP).join(",");
 	let outputResults = "OK";
 	for (let inode = 0; inode < numNodes; inode++) {
 		const nodeRole = nodesData[inode].nodeRole;
 		const nodeIP = nodesData[inode].nodeIP;
-		if (!isLocalDeploy) {
+		if (isUFWInstalationNeeded) {
 			const ouputUFW = installUFW(nodesData[inode]);
 			if (ouputUFW !== "OK") outputResults = "Failed";
 		}

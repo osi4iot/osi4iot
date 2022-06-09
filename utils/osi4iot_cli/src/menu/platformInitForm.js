@@ -7,7 +7,6 @@ import { execSync } from 'child_process';
 import bcrypt from 'bcryptjs';
 import clc from "cli-color";
 import removeCerts from '../config_tools/removeCerts.js';
-import acmeCerts from '../config_tools/acmeCerts.js';
 import certsGenerator from '../config_tools/certsGenerator.js';
 import secretsGenerator from '../config_tools/secretsGenerator.js';
 import configGenerator from '../config_tools/configGenerator.js';
@@ -146,7 +145,12 @@ const platformInitiation = () => {
 						return "Please type an integer number greater or equal to one";
 					}
 				}
-			}
+			},
+			{
+				name: 'AWS_EFS_DNS',
+				message: 'AWS Elastic File System DNS:',
+				when: () => NUMBER_OF_SWARM_NODES > 1 && deploymentLocation === "AWS cluster deployment",
+			},
 		])
 		.then(async (prevAnswers) => {
 			let nodesData = [];
@@ -165,6 +169,9 @@ const platformInitiation = () => {
 			} else {
 				const defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
 				const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
+				if (!(numSwarmNodes > 1 && deploymentLocation === "AWS cluster deployment")) {
+					prevAnswers.AWS_EFS_DNS = "";
+				}
 				const currentNodesData = [];
 				nodesData = await swarmNodesQuestions(
 					numSwarmNodes,
@@ -597,6 +604,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 								DEPLOYMENT_LOCATION: deploymentLocation,
 								AWS_ACCESS_KEY_ID: awsAccessKeyId,
 								AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
+								AWS_EFS_DNS: answers.AWS_EFS_DNS,
 								PLATFORM_NAME: answers.PLATFORM_NAME,
 								DOMAIN_NAME: answers.DOMAIN_NAME,
 								DOMAIN_CERTS_TYPE: answers.DOMAIN_CERTS_TYPE,
@@ -715,7 +723,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 								awsSecretAccessKey
 							}
 
-							nodesConfiguration(answers.NODES_DATA, organizations, awsRoute53Data);
+							nodesConfiguration(answers.NODES_DATA, organizations, deploymentLocation, awsRoute53Data);
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
 							await joinNodesToSwarm(answers.NODES_DATA, deploymentLocation);
