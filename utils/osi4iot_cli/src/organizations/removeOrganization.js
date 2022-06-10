@@ -10,6 +10,7 @@ import runStack from '../menu/runStack.js';
 import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 import stackFileGenerator from '../config_tools/stackFileGenerator.js';
 import removeNFSFolders from '../generic_tools/removeNFSFolders.js';
+import removeEFSFolders from '../generic_tools/removeEFSFolders.js';
 
 export default async function () {
 	if (!fs.existsSync('./osi4iot_state.json')) {
@@ -152,6 +153,12 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 				const org_acronym = orgToRemove.org_acronym.toLowerCase();
 				const md_hashes_array = orgToRemove.master_devices.map(md => md.md_hash).join(",");
 				removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
+			}
+
+			if (deploymentLocation === "AWS cluster deployment") {
+				const org_acronym = newOrg.org_acronym;
+				const md_hashes_array = newOrg.master_devices.map(md => md.md_hash).join(",");
+				removeEFSFolders(nodesData[0], org_acronym, md_hashes_array);
 			}
 
 			await runStack(osi4iotState, dockerHost);

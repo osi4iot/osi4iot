@@ -715,15 +715,16 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 						try {
 							console.log(clc.green('\nConfigurating nodes in the cluster...'));
 							const organizations = osi4iotState.certs.mqtt_certs.organizations;
-							const awsRoute53Data = {
+							const awsData = {
 								email: answers.PLATFORM_ADMIN_EMAIL,
 								domainName: answers.DOMAIN_NAME,
 								domainCertsType: answers.DOMAIN_CERTS_TYPE,
 								awsAccessKeyId,
-								awsSecretAccessKey
+								awsSecretAccessKey,
+								efsDNS: answers.AWS_EFS_DNS
 							}
 
-							nodesConfiguration(answers.NODES_DATA, organizations, deploymentLocation, awsRoute53Data);
+							nodesConfiguration(answers.NODES_DATA, organizations, deploymentLocation, awsData);
 
 							console.log(clc.green('\nJoining nodes to swarm:'));
 							await joinNodesToSwarm(answers.NODES_DATA, deploymentLocation);

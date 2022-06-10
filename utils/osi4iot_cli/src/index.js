@@ -26,7 +26,7 @@ const osi4iotCli = async () => {
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
-        if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
+        if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION !== "Local deployment") {
             try {
                 const sshKeysOutput = execSync("ssh-add -l").toString();
                 if (sshKeysOutput.search("./.osi4iot_keys/osi4iot_key (RSA)") === -1) {

@@ -12,6 +12,7 @@ import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 import generateNodeLabels from '../nodes/generateNodeLabels.js';
 import stackFileGenerator from '../config_tools/stackFileGenerator.js';
 import addNFSFolders from '../generic_tools/addNFSFolders.js';
+import addEFSFolders from '../generic_tools/addEFSFolders.js';
 
 
 export default async function () {
@@ -343,7 +344,13 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 			if (nfsNode !== undefined) {
 				const org_acronym = newOrg.org_acronym;
 				const md_hashes_array = newOrg.master_devices.map(md => md.md_hash).join(",");
-				await addNFSFolders(nfsNode, org_acronym, md_hashes_array);
+				addNFSFolders(nfsNode, org_acronym, md_hashes_array);
+			}
+
+			if (deploymentLocation === "AWS cluster deployment") {
+				const org_acronym = newOrg.org_acronym;
+				const md_hashes_array = newOrg.master_devices.map(md => md.md_hash).join(",");
+				addEFSFolders(nodesData[0], org_acronym, md_hashes_array);
 			}
 
 			await runStack(osi4iotState, dockerHost);
