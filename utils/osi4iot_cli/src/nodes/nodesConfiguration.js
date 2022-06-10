@@ -84,7 +84,7 @@ const installEFS = (nodeData, efsDNS) => {
 		execSync("curl -o ./installation_scripts/efs_client_install.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/installation_scripts/efs_client_install.sh", { stdio: 'ignore' });
 	}
 	try {
-		execSync(`sudo bash ./installation_scripts/efs_client_install.sh "${efsDNS}"`, { stdio: 'inherit' })
+		execSync(`sudo bash ./installation_scripts/efs_client_install.sh ${efsDNS}`, { stdio: 'inherit' })
 		return "OK";
 	} catch (err) {
 		console.log(clc.redBright(`Error installing efs client in node: ${nodeHostName}\n`))
