@@ -19,3 +19,6 @@ sudo apt-get install docker-ce docker-ce-cli containerd.io docker-compose-plugin
 # Run Docker command without sudo
 sudo groupadd docker
 sudo usermod -a -G docker ubuntu
+
+# Install nfs-common
+ sudo apt-get install nfs-common -y

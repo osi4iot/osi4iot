@@ -971,130 +971,130 @@ export default function (osi4iotState) {
 		}
 	}
 
-	// for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
-	// 	const orgMasterDeviceHashes = [];
-	// 	const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
-	// 	const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
-	// 	const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
-	// 	const hasExclusiveOrgWorkerNodes = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].exclusiveWorkerNodes.length !== 0;
-	// 	for (let idev = 1; idev <= num_master_devices; idev++) {
-	// 		const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
-	// 		const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].is_volume_created;
-	// 		orgMasterDeviceHashes.push(masterDeviceHash);
+	for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
+		const orgMasterDeviceHashes = [];
+		const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
+		const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
+		const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
+		const hasExclusiveOrgWorkerNodes = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].exclusiveWorkerNodes.length !== 0;
+		for (let idev = 1; idev <= num_master_devices; idev++) {
+			const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
+			const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].is_volume_created;
+			orgMasterDeviceHashes.push(masterDeviceHash);
 
-	// 		const serviceName = `org_${org_acronym}_md_${masterDeviceHash}`;
-	// 		const masterDeviceHashPath = `master_device_${masterDeviceHash}`
-	// 		osi4iotStackObj.services[serviceName] = {
-	// 			image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
-	// 			user: "${UID}:${GID}",
-	// 			networks: [
-	// 				"internal_net",
-	// 				"traefik_public"
-	// 			],
-	// 			volumes: [
-	// 				`${serviceName}_data:/data`
-	// 			],
-	// 			environment: [
-	// 				`MASTER_DEVICE_HASH=${masterDeviceHash}`,
-	// 				`IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED=${isVolumeCreated === 'true'}`
-	// 			],
-	// 			secrets: [
-	// 				{
-	// 					source: "mqtt_certs_ca_cert",
-	// 					target: "/data/certs/ca.crt",
-	// 					mode: 0o444
-	// 				},
-	// 				{
-	// 					source: `${serviceName}_mqtt_client_cert`,
-	// 					target: "/data/certs/client.crt",
-	// 					mode: 0o444
-	// 				},
-	// 				{
-	// 					source: `${serviceName}_mqtt_client_key`,
-	// 					target: "/data/certs/client.key",
-	// 					mode: 0o444
-	// 				}
-	// 			],
-	// 			deploy: {
-	// 				placement: {
-	// 					constraints: []
-	// 				},
-	// 				labels: [
-	// 					"traefik.enable=true",
-	// 					`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
-	// 					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${masterDeviceHashPath}`,
-	// 					`traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header,${serviceName}-redirectregex`,
-	// 					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
-	// 					`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
-	// 					`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.regex=${domainName}/(${masterDeviceHashPath}*)`,
-	// 					`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
-	// 					`traefik.http.routers.${serviceName}.entrypoints=${entryPoint}`,
-	// 					`traefik.http.routers.${serviceName}.tls=true`,
-	// 					`traefik.http.routers.${serviceName}.service=${serviceName}`,
-	// 					`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
-	// 				]
-	// 			}
-	// 		}
+			const serviceName = `org_${org_acronym}_md_${masterDeviceHash}`;
+			const masterDeviceHashPath = `master_device_${masterDeviceHash}`
+			osi4iotStackObj.services[serviceName] = {
+				image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
+				user: "${UID}:${GID}",
+				networks: [
+					"internal_net",
+					"traefik_public"
+				],
+				volumes: [
+					`${serviceName}_data:/data`
+				],
+				environment: [
+					`MASTER_DEVICE_HASH=${masterDeviceHash}`,
+					`IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED=${isVolumeCreated === 'true'}`
+				],
+				secrets: [
+					{
+						source: "mqtt_certs_ca_cert",
+						target: "/data/certs/ca.crt",
+						mode: 0o444
+					},
+					{
+						source: `${serviceName}_mqtt_client_cert`,
+						target: "/data/certs/client.crt",
+						mode: 0o444
+					},
+					{
+						source: `${serviceName}_mqtt_client_key`,
+						target: "/data/certs/client.key",
+						mode: 0o444
+					}
+				],
+				deploy: {
+					placement: {
+						constraints: []
+					},
+					labels: [
+						"traefik.enable=true",
+						`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
+						`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${masterDeviceHashPath}`,
+						`traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header,${serviceName}-redirectregex`,
+						`traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
+						`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
+						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.regex=${domainName}/(${masterDeviceHashPath}*)`,
+						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+						`traefik.http.routers.${serviceName}.entrypoints=${entryPoint}`,
+						`traefik.http.routers.${serviceName}.tls=true`,
+						`traefik.http.routers.${serviceName}.service=${serviceName}`,
+						`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
+					]
+				}
+			}
 
-	// 		if (domainCertsType === "No certs") {
-	// 			osi4iotStackObj.services[serviceName].deploy.labels = [
-	// 				"traefik.enable=true",
-	// 				`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
-	// 				`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${masterDeviceHashPath}`,
-	// 				`traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header`,
-	// 				`traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
-	// 				`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
-	// 				`traefik.http.routers.${serviceName}.entrypoints=web`,
-	// 				`traefik.http.routers.${serviceName}.service=${serviceName}`,
-	// 				`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
-	// 			]
-	// 		}
+			if (domainCertsType === "No certs") {
+				osi4iotStackObj.services[serviceName].deploy.labels = [
+					"traefik.enable=true",
+					`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
+					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${masterDeviceHashPath}`,
+					`traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header`,
+					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
+					`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
+					`traefik.http.routers.${serviceName}.entrypoints=web`,
+					`traefik.http.routers.${serviceName}.service=${serviceName}`,
+					`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
+				]
+			}
 
-	// 		const masterDeviceVolume = `${serviceName}_data`;
-	// 		if (storageSystem === "NFS Server") {
-	// 			osi4iotStackObj.volumes[masterDeviceVolume] = {
-	// 				driver: 'local',
-	// 				driver_opts: {
-	// 					type: 'nfs',
-	// 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-	// 					device: `:/var/nfs_osi4iot/${masterDeviceVolume}`
-	// 				}
-	// 			}
-	// 		} else if (storageSystem === "AWS EFS") {
-	// 			const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
-	// 			osi4iotStackObj.volumes[masterDeviceVolume] = {
-	// 				driver: 'local',
-	// 				driver_opts: {
-	// 					type: 'nfs',
-	// 					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-	// 					device: `${efs_dns}:/${masterDeviceVolume}`
-	// 				}
-	// 			}
-	// 		} else if (storageSystem === "Local storage") {
-	// 			osi4iotStackObj.volumes[masterDeviceVolume] = {
-	// 				driver: "local"
-	// 			};
-	// 		}
+			const masterDeviceVolume = `${serviceName}_data`;
+			if (storageSystem === "NFS Server") {
+				osi4iotStackObj.volumes[masterDeviceVolume] = {
+					driver: 'local',
+					driver_opts: {
+						type: 'nfs',
+						o: `nfsvers=4,addr=${nfsServerIP},rw`,
+						device: `:/var/nfs_osi4iot/${masterDeviceVolume}`
+					}
+				}
+			} else if (storageSystem === "AWS EFS") {
+				const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
+				osi4iotStackObj.volumes[masterDeviceVolume] = {
+					driver: 'local',
+					driver_opts: {
+						type: 'nfs',
+						o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+						device: `${efs_dns}:/${masterDeviceVolume}`
+					}
+				}
+			} else if (storageSystem === "Local storage") {
+				osi4iotStackObj.volumes[masterDeviceVolume] = {
+					driver: "local"
+				};
+			}
 
-	// 		if (numSwarmNodes > 1) {
-	// 			if (hasExclusiveOrgWorkerNodes) {
-	// 				osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.org_hash==${orgHash}`);
-	// 			} else {
-	// 				osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.generic_org_worker==true`)
-	// 			}
-	// 		}
+			if (numSwarmNodes > 1) {
+				if (hasExclusiveOrgWorkerNodes) {
+					osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.org_hash==${orgHash}`);
+				} else {
+					osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.generic_org_worker==true`)
+				}
+			}
 
-	// 		osi4iotStackObj.secrets[`${serviceName}_mqtt_client_cert`] = {
-	// 			file: `./certs/mqtt_certs/${serviceName}/client.crt`,
-	// 			name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name
-	// 		}
+			osi4iotStackObj.secrets[`${serviceName}_mqtt_client_cert`] = {
+				file: `./certs/mqtt_certs/${serviceName}/client.crt`,
+				name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name
+			}
 
-	// 		osi4iotStackObj.secrets[`${serviceName}_mqtt_client_key`] = {
-	// 			file: `./certs/mqtt_certs/${serviceName}/client.key`,
-	// 			name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name
-	// 		}
-	// 	}
-	// }
+			osi4iotStackObj.secrets[`${serviceName}_mqtt_client_key`] = {
+				file: `./certs/mqtt_certs/${serviceName}/client.key`,
+				name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name
+			}
+		}
+	}
 
 	const osi4iotStackYML = yaml.dump(osi4iotStackObj, {
 		'styles': {
