@@ -901,7 +901,7 @@ export default function (osi4iotState) {
 				driver: 'local',
 				driver_opts: {
 					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/mosquitto_data`
 				}
 			}
@@ -910,7 +910,7 @@ export default function (osi4iotState) {
 				driver: 'local',
 				driver_opts: {
 					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/mosquitto_log`
 				}
 			}
@@ -919,7 +919,7 @@ export default function (osi4iotState) {
 				driver: 'local',
 				driver_opts: {
 					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/nodered_data`
 				}
 			}
@@ -929,8 +929,7 @@ export default function (osi4iotState) {
 				driver_opts: {
 					type: 'nfs',
 					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					// device: `${efs_dns}:/pgdata`
-					device: `${efs_dns}:/`
+					device: `${efs_dns}:/pgdata`
 				}
 			}
 
@@ -938,7 +937,7 @@ export default function (osi4iotState) {
 				driver: 'local',
 				driver_opts: {
 					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/pgadmin4_data`
 				}
 			}
@@ -947,7 +946,7 @@ export default function (osi4iotState) {
 				driver: 'local',
 				driver_opts: {
 					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/portainer_data`
 				}
 			}
@@ -956,7 +955,7 @@ export default function (osi4iotState) {
 				driver: 'local',
 				driver_opts: {
 					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/grafana_data`
 				}
 			}
@@ -965,7 +964,7 @@ export default function (osi4iotState) {
 				driver: 'local',
 				driver_opts: {
 					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/admin_api_log`
 				}
 			}
@@ -1067,7 +1066,7 @@ export default function (osi4iotState) {
 					driver: 'local',
 					driver_opts: {
 						type: 'nfs',
-						o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2`,
+						o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 						device: `${efs_dns}:/${masterDeviceVolume}`
 					}
 				}
