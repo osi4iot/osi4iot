@@ -2,17 +2,11 @@
 
 efs_dns=$1
 
-REQUIRED_PKG="nfs-common"
-if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
-then
-    sudo apt-get update -y
-    sudo apt-get install nfs-common -y
-fi
-
 if [ ! -d /home/ubuntu/efs_osi4iot ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot
-    sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport $efs_dns:/ /home/ubuntu/efs_osi4iot
+    echo "$efs_dns:/ /home/ubuntu/efs_osi4iot nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" >> /etc/fstab
+    sudo mount -a
 fi
 
 if [ ! -d /home/ubuntu/efs_osi4iot/admin_api_log ]; then

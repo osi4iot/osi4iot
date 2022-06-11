@@ -33,6 +33,7 @@ export default function () {
 		const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 		const osi4iotState = JSON.parse(osi4iotStateText);
 		const nodesData = osi4iotState.platformInfo.NODES_DATA;
+		const deploymentLocation = osi4iotStateInitial.platformInfo.DEPLOYMENT_LOCATION;
 		if (nodesData && nodesData.length) {
 			inquirer
 				.prompt([{
@@ -83,7 +84,7 @@ export default function () {
 									}
 
 									console.log(clc.green("\nRemoving platform directories and files..."));
-									removeDirectories();
+									removeDirectories(deploymentLocation);
 
 									if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
 										removeAcmeSh(osi4iotState);
@@ -107,7 +108,7 @@ export default function () {
 							}
 
 							console.log(clc.green("\nRemoving platform directories and files..."));
-							removeDirectories();
+							removeDirectories(deploymentLocation);
 
 							if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53") {
 								console.log(clc.green("Removing acme.sh..."));
@@ -132,7 +133,7 @@ export default function () {
 }
 
 
-const removeDirectories = () => {
+const removeDirectories = (deploymentLocation) => {
 	console.log(clc.green("Removing certs directory..."));
 	const certs_dir = "./certs"
 	if (fs.existsSync(certs_dir)) {
@@ -174,6 +175,15 @@ const removeDirectories = () => {
 	if (fs.existsSync(ssh_keys_dir)) {
 		execSync("ssh-add -D");
 		fs.rmSync(ssh_keys_dir, { recursive: true, force: true });
+	}
+
+	if (deploymentLocation === "AWS cluster deployment") {
+		console.log(clc.green("Removing efs folders..."));
+		const efs_dir = "/home/ubuntu/efs_osi4iot";
+		if (fs.existsSync(efs_dir)) {
+			fs.rmSync(efs_dir, { recursive: true, force: true });
+			execSync("sudo sed -i '/efs_osi4iot nfs4 nfsvers=4.1/d' /etc/fstab && sudo mount -a");
+		}
 	}
 }
 
