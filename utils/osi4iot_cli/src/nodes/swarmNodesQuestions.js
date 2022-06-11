@@ -8,7 +8,8 @@ import isLocahostNode from "./isLocalhostNode.js";
 export default async function (numberOfNodesToAdd, prevNodesData, defaultUserName, deploymentLocation) {
 	const numSwarmNodes = prevNodesData.length + numberOfNodesToAdd;
 	let newNodesData = [];
-	let nodesData = [...prevNodesData];
+	const nodesData = [...prevNodesData];
+	console.log("nodesData=", nodesData)
 	const iniIndex = nodesData.length + 1;
 	const endIndex = nodesData.length + numberOfNodesToAdd;
 	for (let inode = iniIndex; inode <= endIndex; inode++) {
