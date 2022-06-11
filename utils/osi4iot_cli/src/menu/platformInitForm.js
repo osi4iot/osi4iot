@@ -167,7 +167,7 @@ const platformInitiation = () => {
 				const nodeHostName = execSync("hostname").toString().replace('\n', '').replace('\r', '').toLowerCase();
 				nodesData.push({ nodeHostName, nodeIP: "localhost", nodeUserName, nodeRole: "Manager", nodeArch });
 			} else {
-				const defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
+				let defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
 				if (deploymentLocation === "AWS cluster deployment") {
 					defaultUserName = "ubuntu";
 				}
