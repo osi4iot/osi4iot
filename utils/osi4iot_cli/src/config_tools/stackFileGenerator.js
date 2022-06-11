@@ -973,6 +973,7 @@ export default function (osi4iotState) {
 
 	// for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
 	for (let iorg = 1; iorg <= 1; iorg++) {
+		console.log("Prueba 1");
 		const orgMasterDeviceHashes = [];
 		const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
 		const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
