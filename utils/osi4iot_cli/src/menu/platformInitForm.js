@@ -168,6 +168,9 @@ const platformInitiation = () => {
 				nodesData.push({ nodeHostName, nodeIP: "localhost", nodeUserName, nodeRole: "Manager", nodeArch });
 			} else {
 				const defaultUserName = prevAnswers.PLATFORM_ADMIN_USER_NAME;
+				if (deploymentLocation === "AWS cluster deployment") {
+					defaultUserName = "ubuntu";
+				}
 				const numSwarmNodes = prevAnswers.NUMBER_OF_SWARM_NODES;
 				if (!(numSwarmNodes > 1 && deploymentLocation === "AWS cluster deployment")) {
 					prevAnswers.AWS_EFS_DNS = "";

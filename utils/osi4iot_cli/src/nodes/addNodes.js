@@ -23,7 +23,10 @@ export default function () {
         const currentNodesData = osi4iotState.platformInfo.NODES_DATA;
         const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
         if (currentNodesData && currentNodesData.length !== 0) {
-            const defaultUserName = currentNodesData[currentNodesData.length -1].nodeUserName;
+            let defaultUserName = currentNodesData[currentNodesData.length - 1].nodeUserName;
+            if (deploymentLocation === "AWS cluster deployment") {
+                defaultUserName = "ubuntu";
+            }
             inquirer
                 .prompt([
                     {
@@ -44,9 +47,7 @@ export default function () {
                     let warnings = [];
                     let newNodes = [];
                     do {
-                        console.log("Paso por aqui 1")
-                        newNodes = await swarmNodesQuestions(numNodesToAdd, currentNodesData, defaultUserName);
-                        console.log("Paso por aqui 2")
+                        newNodes = await swarmNodesQuestions(numNodesToAdd, currentNodesData, defaultUserName, deploymentLocation);
                         warnings = checkClusterRunViability([...currentNodesData, ...newNodes], deploymentLocation, osi4iotState.certs.mqtt_certs.organizations);
                         if (warnings.length !== 0) {
                             const warningsText = warnings.join("\n");
