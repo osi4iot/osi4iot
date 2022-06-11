@@ -9,7 +9,9 @@ export default async function (numberOfNodesToAdd, prevNodesData, defaultUserNam
 	const numSwarmNodes = prevNodesData.length + numberOfNodesToAdd;
 	let newNodesData = [];
 	let nodesData = [...prevNodesData];
-	for (let inode = 1; inode <= numberOfNodesToAdd; inode++) {
+	const iniIndex = nodesData.length + 1;
+	const endIndex = nodesData.length + numberOfNodesToAdd;
+	for (let inode = iniIndex; inode <= endIndex; inode++) {
 		await swarmNodeQuestions(nodesData, defaultUserName, numSwarmNodes, deploymentLocation, inode).then(answers => {
 			newNodesData.push(answers);
 			nodesData.push(answers);
