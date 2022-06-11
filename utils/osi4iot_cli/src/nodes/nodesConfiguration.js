@@ -96,7 +96,7 @@ export default async function (nodesData, organizations, deploymentLocation = nu
 	const numNodes = nodesData.length;
 	let isUFWInstalationNeeded = false;
 	let isAcmeInstalled = false;
-	if (deploymentLocation === "On-premise cluster deployment" && numNodes > 1) {
+	if (deploymentLocation !== "Local deployment") {
 		isUFWInstalationNeeded = true;
 	}
 	const ips_array = nodesData.filter(node => node.nodeRole !== "NFS server").map(node => node.nodeIP).join(",");
