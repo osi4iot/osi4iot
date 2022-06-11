@@ -87,7 +87,6 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, dep
 			},
 		])
 		.then(async (newNode) => {
-			console.log("Paso por aqui 1.05")
 			const userName = newNode.nodeUserName;
 			const nodeIP = newNode.nodeIP;
 			if (numSwarmNodes === 1) {
@@ -96,14 +95,14 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, dep
 
 			let status = "OK";
 			if (!isLocahostNode(nodeIP)) {
-				console.log("Paso por aqui 1.1")
 				if (inode === 1 && deploymentLocation === "AWS cluster deployment") {
-					console.log("Paso por aqui 1.2")
 					console.log(clc.redBright("Error: The first node in AWS cluster deployment must be the localhost."));
 					status = "Failed"
 				} else {
 					console.log("Paso por aqui 1.3")
+					console.log("Paso por aqui deploymentLocation=". deploymentLocation)
 					if (deploymentLocation !== "AWS cluster deployment") {
+						console.log("Paso por aqui 1.35")
 						status = await sshCopyId(userName, nodeIP);
 					}
 					if (status === "Failed") {
