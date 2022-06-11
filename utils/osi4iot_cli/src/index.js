@@ -19,6 +19,7 @@ const cliOptions = [
 ];
 
 const osi4iotCli = async () => {
+    console.log("Prueba 1");
     const myArgs = process.argv.slice(2);
     
     if (!fs.existsSync("./osi4iot_state.json")) {
