@@ -22,7 +22,6 @@ const defaultServiceImageVersion = {
 }
 
 export default function (osi4iotState) {
-	console.log("Version test 1.1");
 	let existAtLeastOnex86_64ArchNode = false;
 	let platformArch = 'x86_64';
 	const nodesData = osi4iotState.platformInfo.NODES_DATA;
@@ -978,8 +977,7 @@ export default function (osi4iotState) {
 		const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
 		const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
 		const hasExclusiveOrgWorkerNodes = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].exclusiveWorkerNodes.length !== 0;
-/* 		for (let idev = 1; idev <= num_master_devices; idev++) { */
-		for (let idev = 1; idev <= 1; idev++) {
+		for (let idev = 1; idev <= num_master_devices; idev++) {
 			const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
 			const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].is_volume_created;
 			orgMasterDeviceHashes.push(masterDeviceHash);
@@ -1066,11 +1064,11 @@ export default function (osi4iotState) {
 				const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
 				osi4iotStackObj.volumes[masterDeviceVolume] = {
 					driver: 'local',
-					// driver_opts: {
-					// 	type: 'nfs',
-					// 	o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					// 	device: `${efs_dns}:/${masterDeviceVolume}`
-					// }
+					driver_opts: {
+						type: 'nfs',
+						o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+						device: `${efs_dns}:/${masterDeviceVolume}`
+					}
 				}
 			} else if (storageSystem === "Local storage") {
 				osi4iotStackObj.volumes[masterDeviceVolume] = {
