@@ -44,7 +44,9 @@ export default function () {
                     let warnings = [];
                     let newNodes = [];
                     do {
+                        console.log("Paso por aqui 1")
                         newNodes = await swarmNodesQuestions(numNodesToAdd, currentNodesData, defaultUserName);
+                        console.log("Paso por aqui 2")
                         warnings = checkClusterRunViability([...currentNodesData, ...newNodes], deploymentLocation, osi4iotState.certs.mqtt_certs.organizations);
                         if (warnings.length !== 0) {
                             const warningsText = warnings.join("\n");

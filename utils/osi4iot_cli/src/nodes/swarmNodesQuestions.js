@@ -105,7 +105,9 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, dep
 					if (status === "Failed") {
 						console.log(clc.redBright("Error: Connection with the indicated node cannot be established"));
 					} else {
+						console.log("Paso por aqui 1.1")
 						const nodeArch = execSync(`ssh ${userName}@${nodeIP} 'uname -m'`).toString().trim();
+						console.log("Paso por aqui 1.2")
 						if (!(nodeArch === "x86_64" || nodeArch === "aarch64")) {
 							console.log(clc.redBright("Error: Only are supported amd64 and arm64 architectures"));
 							status = "Failed";
