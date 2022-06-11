@@ -1080,7 +1080,8 @@ export default function (osi4iotState) {
 				if (hasExclusiveOrgWorkerNodes) {
 					osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.org_hash==${orgHash}`);
 				} else {
-					osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.generic_org_worker==true`)
+					// osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.generic_org_worker==true`)
+					osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.role==worker`)
 				}
 			}
 
