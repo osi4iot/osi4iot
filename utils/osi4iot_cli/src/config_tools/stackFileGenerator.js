@@ -22,7 +22,7 @@ const defaultServiceImageVersion = {
 }
 
 export default function (osi4iotState) {
-	console.log("Version test 1.0");
+	console.log("Version test 1.1");
 	let existAtLeastOnex86_64ArchNode = false;
 	let platformArch = 'x86_64';
 	const nodesData = osi4iotState.platformInfo.NODES_DATA;
@@ -972,14 +972,14 @@ export default function (osi4iotState) {
 		}
 	}
 
-	// for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
-	for (let iorg = 1; iorg <= 1; iorg++) {
+	for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
 		const orgMasterDeviceHashes = [];
 		const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
 		const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
 		const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
 		const hasExclusiveOrgWorkerNodes = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].exclusiveWorkerNodes.length !== 0;
-		for (let idev = 1; idev <= num_master_devices; idev++) {
+/* 		for (let idev = 1; idev <= num_master_devices; idev++) { */
+		for (let idev = 1; idev <= 1; idev++) {
 			const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
 			const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].is_volume_created;
 			orgMasterDeviceHashes.push(masterDeviceHash);
