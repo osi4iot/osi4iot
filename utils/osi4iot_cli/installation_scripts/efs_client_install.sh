@@ -41,7 +41,7 @@ fi
 
 if [ ! -d  /home/ubuntu/efs_osi4iot/pgadmin4_data ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot/pgadmin4_data
-    sudo chown ubuntu:ubuntu /var/nfs_osi4iot/pgadmin4_data
+    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/pgadmin4_data
 fi
 
 if [ ! -d  /home/ubuntu/efs_osi4iot/pgdata ]; then

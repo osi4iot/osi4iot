@@ -33,7 +33,7 @@ export default function () {
 		const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 		const osi4iotState = JSON.parse(osi4iotStateText);
 		const nodesData = osi4iotState.platformInfo.NODES_DATA;
-		const deploymentLocation = osi4iotStateInitial.platformInfo.DEPLOYMENT_LOCATION;
+		const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
 		if (nodesData && nodesData.length) {
 			inquirer
 				.prompt([{
