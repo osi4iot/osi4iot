@@ -18,7 +18,6 @@ if [[ $node_role == "Manager" ]]; then
     ufw allow 7946/tcp 
     ufw allow 7946/udp 
     ufw allow 4789/udp
-    ufw allow 4789/tcp
 elif [[ $node_role == "Platform worker" ]]; then
     ufw allow 22/tcp
     ufw allow 1883/tcp
@@ -28,14 +27,12 @@ elif [[ $node_role == "Platform worker" ]]; then
     ufw allow 7946/tcp 
     ufw allow 7946/udp 
     ufw allow 4789/udp
-    ufw allow 4789/tcp
 elif [[ $node_role == "Generic org worker" || $node_role == "Exclusive org worker" ]]; then
     ufw allow 22/tcp
     ufw allow 2377/tcp
     ufw allow 7946/tcp 
     ufw allow 7946/udp 
     ufw allow 4789/udp
-    ufw allow 4789/tcp
 elif [[ $node_role == "NFS server" ]]; then
     ufw allow 22/tcp
     ufw allow 2049/tcp
