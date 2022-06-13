@@ -897,77 +897,77 @@ export default function (osi4iotState) {
 			}
 		} else if (storageSystem === "AWS EFS") {
 			const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
-			osi4iotStackObj.volumes['mosquitto_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/mosquitto_data`
-				}
-			}
+			// osi4iotStackObj.volumes['mosquitto_data'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/mosquitto_data`
+			// 	}
+			// }
 
-			osi4iotStackObj.volumes['mosquitto_log'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/mosquitto_log`
-				}
-			}
+			// osi4iotStackObj.volumes['mosquitto_log'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/mosquitto_log`
+			// 	}
+			// }
 
-			osi4iotStackObj.volumes['nodered_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/nodered_data`
-				}
-			}
+			// osi4iotStackObj.volumes['nodered_data'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/nodered_data`
+			// 	}
+			// }
 
-			osi4iotStackObj.volumes['pgdata'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/pgdata`
-				}
-			}
+			// osi4iotStackObj.volumes['pgdata'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/pgdata`
+			// 	}
+			// }
 
-			osi4iotStackObj.volumes['pgadmin4_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/pgadmin4_data`
-				}
-			}
+			// osi4iotStackObj.volumes['pgadmin4_data'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/pgadmin4_data`
+			// 	}
+			// }
 
-			osi4iotStackObj.volumes['portainer_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/portainer_data`
-				}
-			}
+			// osi4iotStackObj.volumes['portainer_data'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/portainer_data`
+			// 	}
+			// }
 
-			osi4iotStackObj.volumes['grafana_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/grafana_data`
-				}
-			}
+			// osi4iotStackObj.volumes['grafana_data'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/grafana_data`
+			// 	}
+			// }
 
-			osi4iotStackObj.volumes['admin_api_log'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/admin_api_log`
-				}
-			}
+			// osi4iotStackObj.volumes['admin_api_log'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/admin_api_log`
+			// 	}
+			// }
 		}
 	}
 
@@ -1064,11 +1064,11 @@ export default function (osi4iotState) {
 				const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
 				osi4iotStackObj.volumes[masterDeviceVolume] = {
 					driver: 'local',
-					driver_opts: {
-						type: 'nfs',
-						o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-						device: `${efs_dns}:/${masterDeviceVolume}`
-					}
+					// driver_opts: {
+					// 	type: 'nfs',
+					// 	o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+					// 	device: `${efs_dns}:/${masterDeviceVolume}`
+					// }
 				}
 			} else if (storageSystem === "Local storage") {
 				osi4iotStackObj.volumes[masterDeviceVolume] = {
