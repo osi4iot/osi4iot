@@ -295,9 +295,6 @@ export default function (osi4iotState) {
 				networks: [
 					'internal_net'
 				],
-				ports: [
-					"5432:5432"
-				],
 				secrets: [
 					{
 						source: 'postgres_user',
