@@ -181,6 +181,7 @@ const removeDirectories = (deploymentLocation) => {
 		console.log(clc.green("Removing efs folders..."));
 		const efs_dir = "/home/ubuntu/efs_osi4iot";
 		if (fs.existsSync(efs_dir)) {
+			execSync(`sudo rm -rf ${efs_dir}/*`);
 			fs.rmSync(efs_dir, { recursive: true, force: true });
 			execSync("sudo sed -i '/efs_osi4iot nfs4 nfsvers=4.1/d' /etc/fstab && sudo mount -a");
 		}

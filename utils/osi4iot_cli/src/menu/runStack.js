@@ -83,17 +83,21 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 	}
 
 	if (osi4iotState.platformInfo.NODES_DATA && osi4iotState.platformInfo.NODES_DATA.length !== 0) {
+		let encryption = "";
+		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
+			encryption = "-opt encrypted=true";
+		}
 		const networks = execSync(`docker ${dockerHost} network ls`);
 		if (networks.indexOf("traefik_public") === -1) {
-			execSync(`docker ${dockerHost} network create -d overlay --opt encrypted=true traefik_public`);
+			execSync(`docker ${dockerHost} network create -d overlay ${encryption} traefik_public`);
 		}
 
 		if (networks.indexOf("agent_network") === -1) {
-			execSync(`docker ${dockerHost} network create -d overlay --opt encrypted=true agent_network`);
+			execSync(`docker ${dockerHost} network create -d overlay ${encryption} agent_network`);
 		}
 
 		if (networks.indexOf("internal_net") === -1) {
-			execSync(`docker ${dockerHost} network create -d overlay --opt encrypted=true internal_net`);
+			execSync(`docker ${dockerHost} network create -d overlay ${encryption} internal_net`);
 		}
 
 		process.stdout.write('\u001B[?25l');
