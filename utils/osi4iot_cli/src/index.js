@@ -20,7 +20,7 @@ const cliOptions = [
 
 const osi4iotCli = async () => {
     const myArgs = process.argv.slice(2);
-    
+
     if (!fs.existsSync("./osi4iot_state.json")) {
         osi4iotWelcome();
     } else {
@@ -102,9 +102,9 @@ const loadSSHAgentWarnning = () => {
 }
 
 const osi4iotWelcome = () => {
-    console.log(clc.whiteBright("\n****************************************"));
-    console.log(clc.whiteBright("**     WELCOME TO OSI4IOT PLATFORM v1.4    **"));
-    console.log(clc.whiteBright("****************************************\n"));
+    console.log(clc.whiteBright("\n************************************************"));
+    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.1.0   **"));
+    console.log(clc.whiteBright("************************************************\n"));
 
     inquirer
         .prompt([

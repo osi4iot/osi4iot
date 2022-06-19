@@ -67,7 +67,10 @@ const installAcme_sh = (nodeData, awsData) => {
 	try {
 		const pwd = execSync("pwd").toString().split('\n').join('');
 		execSync(`bash ./installation_scripts/acme_installation.sh "${awsData.email}"`, { stdio: 'inherit' });
-		execSync(`crontab -l > crontab_new && echo "0 23 * * * cd ${pwd} && eval \`ssh-agent -s\` && ssh-add ./.osi4iot_keys/osi4iot_key  && osi4iot run" >> crontab_new && crontab crontab_new && rm crontab_new`);
+		execSync('crontab -l > crontab_new');
+		const commandLine = `0 23 * * * cd ${pwd} && eval \`ssh-agent -s\` && ssh-add ./.osi4iot_keys/osi4iot_key  && osi4iot run`;
+		fs.appendFileSync(`${pwd}/crontab_new`, commandLine);
+		execSync('crontab crontab_new && rm crontab_new');
 		return "OK";
 	} catch (err) {
 		return `Error installing acme.sh in node: ${nodeHostName}\n`;
