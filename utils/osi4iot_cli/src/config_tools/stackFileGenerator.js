@@ -690,11 +690,11 @@ export default function (osi4iotState) {
 
 		osi4iotStackObj.services['nodered'].deploy.labels = [
 			'traefik.enable=true',
-			`traefik.http.routers.nodered.rule=Host(\`${domainName}\`) && PathPrefix(\`/nodered/\`)`,
-			'traefik.http.middlewares.nodered-prefix.stripprefix.prefixes=/nodered',
+			`traefik.http.routers.nodered.rule=Host(\`${domainName}\`) && PathPrefix(\`/main_nodered/\`)`,
+			'traefik.http.middlewares.nodered-prefix.stripprefix.prefixes=/main_nodered',
 			'traefik.http.routers.nodered.middlewares=nodered-prefix,nodered-header',
 			'traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false',
-			'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/nodered/',
+			'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/main_nodered/',
 			"traefik.http.routers.nodered.entrypoints=web",
 			'traefik.http.routers.nodered.service=nodered',
 			'traefik.http.services.nodered.loadbalancer.server.port=1880'
