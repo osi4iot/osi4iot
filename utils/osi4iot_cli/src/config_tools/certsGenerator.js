@@ -39,7 +39,8 @@ export default async function (osi4iotState) {
 		acmeCerts(osi4iotState);
 	}
 
-	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE !== "No certs") {
+	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
+	if (domainCertsType === "Certs provided by an CA" || domainCertsType === "Let's encrypt certs and AWS Route 53") {
 		const iot_platform_key_name = `iot_platform_key_${md5(osi4iotState.certs.domain_certs.private_key)}`;
 		const current_iot_platform_key_name = osi4iotState.certs.domain_certs.iot_platform_key_name;
 		if (!fs.existsSync('./certs/domain_certs/iot_platform.key') || current_iot_platform_key_name !== iot_platform_key_name) {

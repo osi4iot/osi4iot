@@ -434,6 +434,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 					"No certs",
 					"Certs provided by an CA",
 					"Let's encrypt certs and AWS Route 53",
+					"AWS Certificate Manager"
 				],
 				validate: function (selection) {
 					if (selection === "No certs") {
@@ -448,6 +449,12 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 						} else {
 							return "Let's encrypt certs option is only available for AWS cluster deployment";
 						}
+					} else if (selection === "AWS Certificate Manager") {
+						if (deploymentLocation === "AWS cluster deployment") {
+							return true;
+						} else {
+							return "AWS Certificate Manager option is only available for AWS cluster deployment";
+						}				
 					} else if (selection === "Certs provided by an CA") {
 						return true;
 					}
@@ -545,7 +552,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 			{
 				name: 'FLOATING_IP_ADDRES',
 				message: 'Floating IP address:',
-				when: () => managerNodes.length > 1,
+				when: () => managerNodes.length > 1 && deploymentLocation === "On-premise cluster deployment",
 				validate: function (ipAddress) {
 					const valid = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ipAddress)
 					if (valid) {
@@ -559,7 +566,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 				name: 'NETWORK_INTERFACE',
 				message: 'Manager nodes network interface:',
 				default: 'eth0',
-				when: () => managerNodes.length > 1,
+				when: () => managerNodes.length > 1 && deploymentLocation === "On-premise cluster deployment",
 				validate: function (networkInterface) {
 					if (networkInterface.length >= 4) {
 						return true;

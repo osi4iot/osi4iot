@@ -39,7 +39,8 @@ export default function (osi4iotState) {
 	}
 
 	let protocol = "https";
-	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "No certs") {
+	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
+	if (domainCertsType === "No certs") {
 		protocol = "http";
 	}
 
@@ -143,7 +144,7 @@ export default function (osi4iotState) {
 		"use_identity_as_username true\n"
 	]
 
-	if (osi4iotState.platformInfo.DOMAIN_CERTS_TYPE === "No certs") {
+	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
 		mosquittoConfig.push(
 			"\n",
 			"\n",
