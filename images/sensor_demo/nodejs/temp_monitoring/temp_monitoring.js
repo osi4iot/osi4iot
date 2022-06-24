@@ -18,7 +18,7 @@ ds18b20.sensors(function (err, id) {
 });
 
 const KEY = fs.readFileSync(path.join(__dirname, "/certs/tls-key.pem"));
-const CERT = fs.readFileSync(path.join(__dirname, "/certs//tls-cert.pem"));
+const CERT = fs.readFileSync(path.join(__dirname, "/certs/tls-cert.pem"));
 const TRUSTED_CA_LIST = fs.readFileSync(path.join(__dirname, "/certs/ca.pem"));
 
 const mqttOptions = {

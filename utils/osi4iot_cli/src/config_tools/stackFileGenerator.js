@@ -29,10 +29,11 @@ export default function (osi4iotState) {
 	const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
 	const existNFSServer = nodesData.filter(node => node.nodeRole === "NFS server").length !== 0;
 	let storageSystem = "Local storage";
-	if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment" && existNFSServer) {
+	const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
+	if (deploymentLocation === "On-premise cluster deployment" && existNFSServer) {
 		storageSystem = "NFS server";
 	}
-	if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
+	if (deploymentLocation === "AWS cluster deployment") {
 		storageSystem = "AWS EFS";
 	}
 
@@ -800,7 +801,7 @@ export default function (osi4iotState) {
 	}
 
 	if (numSwarmNodes > 1) {
-		if (numManagerNodes > 1 && platformArch === 'x86_64') {
+		if (numManagerNodes > 1 && platformArch === 'x86_64' && deploymentLocation === "On-premise cluster deployment") {
 			osi4iotStackObj.services["keepalived"] = {
 				image: `ghcr.io/osi4iot/keepalived:${serviceImageVersion['keepalived']}`,
 				volumes: [
