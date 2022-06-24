@@ -674,7 +674,7 @@ export default function (osi4iotState) {
 		}
 	}
 
-	if (domainCertsType === "No certs") {
+	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager" ) {
 		osi4iotStackObj.services['portainer'].deploy.labels = osi4iotStackObj.services['portainer'].deploy.labels.filter(elm => elm !== 'traefik.http.routers.portainer.tls=true');
 
 		osi4iotStackObj.services['pgadmin4'].deploy.labels = [
