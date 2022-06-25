@@ -40,7 +40,8 @@ export default function (osi4iotState) {
 	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
 	let entryPoint = "websecure";
 	const traefik_command = [];
-	if (domainCertsType === "No certs") {
+	const traefik_ports = [];
+	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
 		entryPoint = "web";
 		traefik_command.push(
 			'--api.insecure=false',
@@ -53,7 +54,8 @@ export default function (osi4iotState) {
 			'--api',
 			'--accesslog',
 			'--log'
-		)
+		);
+		traefik_ports.push('80');
 	} else {
 		entryPoint = "websecure";
 		traefik_command.push(
@@ -71,7 +73,8 @@ export default function (osi4iotState) {
 			'--api',
 			'--accesslog',
 			'--log'
-		)
+		);
+		traefik_ports.push('80','443');
 	}
 
 	if (numSwarmNodes === 1) {
@@ -148,10 +151,7 @@ export default function (osi4iotState) {
 						constraints: ["node.role==manager"]
 					}
 				},
-				ports: [
-					"80:80",
-					"443:443"
-				],
+				ports: traefik_ports,
 				networks: [
 					'traefik_public'
 				],
@@ -1037,7 +1037,7 @@ export default function (osi4iotState) {
 				}
 			}
 
-			if (domainCertsType === "No certs") {
+			if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
 				osi4iotStackObj.services[serviceName].deploy.labels = [
 					"traefik.enable=true",
 					`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
