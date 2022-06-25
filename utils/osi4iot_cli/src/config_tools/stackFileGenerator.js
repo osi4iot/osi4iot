@@ -55,7 +55,7 @@ export default function (osi4iotState) {
 			'--accesslog',
 			'--log'
 		);
-		traefik_ports.push('80');
+		traefik_ports.push('80:80');
 	} else {
 		entryPoint = "websecure";
 		traefik_command.push(
@@ -74,7 +74,7 @@ export default function (osi4iotState) {
 			'--accesslog',
 			'--log'
 		);
-		traefik_ports.push('80','443');
+		traefik_ports.push('80:80','443:443');
 	}
 
 	if (numSwarmNodes === 1) {
