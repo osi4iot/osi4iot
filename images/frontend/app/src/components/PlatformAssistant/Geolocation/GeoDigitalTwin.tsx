@@ -192,8 +192,8 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
 
             <Tooltip sticky>
                 <span style={{ fontWeight: 'bold' }}>Digital twin</span><br />
+                Description: {digitalTwinData.description}<br />
                 Ref: {digitalTwinData.digitalTwinUid}<br />
-                Type: {digitalTwinData.type}<br />
                 Status: <span style={{ fontWeight: 'bold' }}>{state.charAt(0).toUpperCase() + state.slice(1)}</span>
             </Tooltip>
         </Circle >
