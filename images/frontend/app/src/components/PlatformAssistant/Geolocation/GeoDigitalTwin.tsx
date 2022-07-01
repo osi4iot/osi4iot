@@ -145,7 +145,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                 })
                 .catch((error) => {
                     const errorMessage = error.response.data.message;
-                    toast.error(errorMessage);
+                    if(errorMessage !== "jwt expired") toast.error(errorMessage);
                 });
 
         } else if (digitalTwinData.type === "Grafana dashboard") {

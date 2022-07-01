@@ -182,7 +182,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                toast.error(errorMessage);
+                if(errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }

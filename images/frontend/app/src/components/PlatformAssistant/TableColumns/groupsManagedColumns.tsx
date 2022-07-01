@@ -90,7 +90,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                toast.error(errorMessage);
+                if(errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -136,7 +136,7 @@ const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                toast.error(errorMessage);
+                if(errorMessage !== "jwt expired") toast.error(errorMessage);
             })
     };
 
@@ -187,7 +187,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                toast.error(errorMessage);
+                if(errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })

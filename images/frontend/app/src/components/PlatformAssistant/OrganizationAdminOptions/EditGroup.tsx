@@ -191,7 +191,7 @@ const EditGroup: FC<EditGroupProps> = ({
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                toast.error(errorMessage);
+                if(errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }

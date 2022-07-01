@@ -78,7 +78,7 @@ const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, device
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                toast.error(errorMessage);
+                if(errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -162,7 +162,7 @@ const ChangeTopicHashModal: FC<ChangeTopicHashModalProps> = ({ rowIndex, groupId
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                toast.error(errorMessage);
+                if(errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })

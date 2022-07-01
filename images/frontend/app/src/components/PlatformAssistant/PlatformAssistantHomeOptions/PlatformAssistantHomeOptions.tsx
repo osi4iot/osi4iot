@@ -474,7 +474,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
 					setDigitalTwinsLoading(false);
 					const errorMessage = error.response.data.message;
-					toast.error(errorMessage);
+					if(errorMessage !== "jwt expired") toast.error(errorMessage);
 					console.log(error);
 				});
 		} else {

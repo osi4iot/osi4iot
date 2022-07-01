@@ -69,7 +69,7 @@ const DeleteFloorModal: FC<DeleteFloorModalProps> = ({ rowIndex, floorId, refres
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                toast.error(errorMessage);
+                if(errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })

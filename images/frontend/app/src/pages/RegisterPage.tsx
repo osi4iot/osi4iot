@@ -85,7 +85,7 @@ const RegisterPage: FC<{}> = () => {
 			})
 			.catch((error) => {
 				const errorMessage = error.response.data.message;
-				toast.error(errorMessage);
+				if(errorMessage !== "jwt expired") toast.error(errorMessage);
 			})
 	}
 
