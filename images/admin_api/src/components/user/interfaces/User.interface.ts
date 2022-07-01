@@ -3,8 +3,8 @@ export default interface IUser {
 	name: string;
 	firstName: string;
 	surname: string;
-	login: string;
 	email: string;
+	login: string;
 	isGrafanaAdmin: boolean;
 	isDisabled: boolean;
 	lastSeenAt: string;

@@ -14,8 +14,8 @@ import process_env from "../config/api_config";
 import IDevice from "../components/device/device.interface";
 import { createMasterDevicesInOrg } from "../components/masterDevice/masterDeviceDAL";
 import IMasterDevice from "../components/masterDevice/masterDevice.interface";
-import ITopicUpdate from "../components/topic/topicUpdate.interface";
 import needle from "needle";
+import ITopic from "../components/topic/topic.interface";
 
 
 export async function dataBaseInitialization() {
@@ -553,8 +553,8 @@ export async function dataBaseInitialization() {
 				}
 
 
-				let topic1: ITopicUpdate;
-				let topic2: ITopicUpdate;
+				let topic1: ITopic;
+				let topic2: ITopic;
 				try {
 					const defaultDeviceTopicsData = [
 						{

@@ -117,7 +117,6 @@ class DigitalTwinController implements IController {
 				validationMiddleware<CreateDigitalTwinDto>(CreateDigitalTwinDto, true),
 				this.createDigitalTwin
 			)
-
 	}
 
 	private getDigitalTwinsManagedByUser = async (
@@ -314,13 +313,12 @@ class DigitalTwinController implements IController {
 		try {
 			const digitalTwinData = req.body;
 			const device = req.device;
-			const group = req.group;
 			const { digitalTwinId } = req.params;
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!existentDigitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
 			const digitalTwinUpdate: IDigitalTwin = { ...existentDigitalTwin, ...digitalTwinData };
-			await verifyAndCorrectDigitalTwinTopics(digitalTwinUpdate);
-			await updateDigitalTwinById(parseInt(digitalTwinId, 10), digitalTwinUpdate);
+			const digitalTwinUpdated = await verifyAndCorrectDigitalTwinTopics(digitalTwinUpdate, device);
+			await updateDigitalTwinById(parseInt(digitalTwinId, 10), digitalTwinUpdated);
 			const message = { message: "Digital twin updated successfully" }
 			res.status(200).json(message);
 		} catch (error) {

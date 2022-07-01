@@ -85,7 +85,6 @@ class MeasurementController implements IController {
 				validationMiddleware<DeleteMeasurementsBeforeDateDto>(DeleteMeasurementsBeforeDateDto),
 				this.deleteMeasurementsBeforeDate
 			)
-
 	}
 
 

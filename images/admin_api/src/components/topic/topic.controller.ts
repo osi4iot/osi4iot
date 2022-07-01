@@ -88,7 +88,6 @@ class TopicController implements IController {
 				validationMiddleware<CreateTopicDto>(CreateTopicDto, true),
 				this.createTopic
 			)
-
 	}
 
 	private getTopicsManagedByUser = async (

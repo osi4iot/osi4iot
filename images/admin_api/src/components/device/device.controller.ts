@@ -8,7 +8,17 @@ import groupExists from "../../middleware/groupExists.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
 import CreateDeviceDto from "./device.dto";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
-import { changeDeviceUidByUid, createDevice, deleteDeviceByProp, getAllDevices, getDeviceByProp, getDevicesByGroupId, getDevicesByGroupsIdArray, getDevicesByOrgId, getMainMasterDeviceByGroupId, updateDeviceByProp } from "./deviceDAL";
+import {
+	changeDeviceUidByUid,
+	createDevice,
+	deleteDeviceByProp,
+	getAllDevices,
+	getDeviceByProp,
+	getDevicesByGroupId,
+	getDevicesByGroupsIdArray,
+	getDevicesByOrgId,
+	updateDeviceByProp
+} from "./deviceDAL";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfDevice } from "../group/dashboardDAL";
 import LoginDto from "../Authentication/login.dto";
@@ -88,7 +98,6 @@ class DeviceController implements IController {
 				validationMiddleware<CreateDeviceDto>(CreateDeviceDto),
 				this.createDevice
 			)
-
 	}
 
 	private getDevicesManagedByUser = async (

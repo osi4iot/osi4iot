@@ -4,7 +4,6 @@ import IGroup from "../group/interfaces/Group.interface";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
-import IDigitalTwinUpdate from "./digitalTwinUpdate.interface";
 import {
 	getDashboardsInfoFromIdArray,
 	markInexistentDashboards
@@ -13,6 +12,7 @@ import {
 	createTopic,
 	deleteTopicByIdsArray,
 	getMqttTopicsInfoFromIdArray,
+	getSensorTopicsOfDTByDigitalTwinId,
 	markInexistentTopics
 } from "../topic/topicDAL";
 import IMqttTopicInfo from "../topic/mqttTopicInfo.interface";
@@ -25,8 +25,8 @@ import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
 import IDevice from "../device/device.interface";
 import { createDashboard, deleteDashboard } from "../group/dashboardDAL";
-import ITopicUpdate from "../topic/topicUpdate.interface";
 import IMqttDigitalTwinTopicInfo from "./mqttDigitalTwinTopicInfo.interface";
+import ITopic from "../topic/topic.interface";
 
 export const getTopicSensorTypesFromDigitalTwin = (digitalTwin: Partial<IDigitalTwin>): string[] => {
 	const topicTypes: string[] = [];
@@ -76,7 +76,7 @@ const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: strin
 	return payload;
 }
 
-export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: IDigitalTwin): Promise<void> => {
+export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Partial<IDigitalTwin>, device: IDevice): Promise<Partial<IDigitalTwin>> => {
 	const topicTypes: string[] = [];
 	const topicSensorTypes = getTopicSensorTypesFromDigitalTwin(digitalTwinUpdate);
 	topicTypes.push(...topicSensorTypes);
@@ -190,11 +190,15 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: IDigi
 		}
 	}
 
-
-
+	let digitalTwinUpdated: Partial<IDigitalTwin> = { ...digitalTwinUpdate, deviceId: device.id, dashboardId: digitalTwinUpdate.dashboardId };
+	const sensorTopics = await getSensorTopicsOfDTByDigitalTwinId(digitalTwinUpdated.id);
+	if (digitalTwinUpdated.type === "Gltf 3D model") {
+		digitalTwinUpdated = updatedTopicSensorIdsFromDigitalTwinGltfData(digitalTwinUpdated, sensorTopics);
+	}
+	return digitalTwinUpdated;
 }
 
-const findTopicSensorId = (topicName: string, topicSensors: ITopicUpdate[]) => {
+const findTopicSensorId = (topicName: string, topicSensors: Partial<ITopic>[]) => {
 	let sensorTopicId = -1;
 	for (const topicSensor of topicSensors) {
 		const topicSensorIndex = parseInt(topicSensor.topicName.split("_").slice(-1)[0], 10);
@@ -207,7 +211,7 @@ const findTopicSensorId = (topicName: string, topicSensors: ITopicUpdate[]) => {
 
 export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
 	digitalTwin: Partial<IDigitalTwin>,
-	topicSensors: ITopicUpdate[]
+	topicSensors: ITopic[]
 ): Partial<IDigitalTwin> => {
 	const digitalTwinUpdated = { ...digitalTwin };
 
@@ -330,7 +334,7 @@ export const generateDigitalTwinUid = (): string => {
 	return digitalTwinUid;
 }
 
-export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwinUpdate>): Promise<IDigitalTwinUpdate> => {
+export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const result = await pool.query(`INSERT INTO grafanadb.digital_twin (device_id,
 					digital_twin_uid, description, type, dashboard_id, gltfdata, gltf_file_name, gltf_file_last_modif_date_string,
 					fem_simulation_data, femsimdata_file_name, femsimdata_file_last_modif_date_string, digital_twin_simulation_format,
@@ -426,7 +430,7 @@ export const generateDigitalTwinMqttTopics = (digitalTwinMqttTopicsInfo: IMqttDi
 }
 
 
-export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinData: IDigitalTwin): Promise<void> => {
+export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinData: Partial<IDigitalTwin>): Promise<void> => {
 	const query = `UPDATE grafanadb.digital_twin SET digital_twin_uid = $1, description = $2, type = $3,
 					gltfdata = $4, gltf_file_name = $5, gltf_file_last_modif_date_string = $6,
 					fem_simulation_data = $7, femsimdata_file_name = $8, femsimdata_file_last_modif_date_string = $9,
@@ -464,12 +468,12 @@ export const createDigitalTwin = async (
 	device: IDevice,
 	digitalTwinInput: CreateDigitalTwinDto,
 	dashboardId: number | null = null,
-	alreadyCreatedTopic: ITopicUpdate | null = null
-): Promise<IDigitalTwinUpdate | null> => {
+	alreadyCreatedTopic: ITopic | null = null
+): Promise<Partial<IDigitalTwin> | null> => {
 	const deviceId = device.id;
 	const digitalTwinUid = digitalTwinInput.digitalTwinUid;
 
-	let topicSensors: ITopicUpdate[] = [];
+	let topicSensors: ITopic[] = [];
 	if (!alreadyCreatedTopic) {
 		const topicSensorTypes = getTopicSensorTypesFromDigitalTwin(digitalTwinInput);
 		const topicSensorQueries: any[] = [];
@@ -477,7 +481,7 @@ export const createDigitalTwin = async (
 			const sensorTopicData =
 			{
 				topicType: "dev2pdb",
-				topicName: `${digitalTwinUid}_dev2pdb_${i}`,
+				topicName: `${digitalTwinUid}_${topicSensorTypes[i]}`,
 				description: `Device to platform db for ${digitalTwinUid}`,
 				payloadFormat: '{"parameter": "number"}'
 			};
@@ -494,7 +498,7 @@ export const createDigitalTwin = async (
 		digitalTwinDashboardId = await createDashboard(group, device, topicSensors[0], digitalTwinUid);
 	}
 
-	let digitalTwinUpdated: Partial<IDigitalTwinUpdate> = { ...digitalTwinInput, deviceId, dashboardId: digitalTwinDashboardId };
+	let digitalTwinUpdated: Partial<IDigitalTwin> = { ...digitalTwinInput, deviceId, dashboardId: digitalTwinDashboardId };
 	if (digitalTwinInput.type === "Gltf 3D model") {
 		digitalTwinUpdated = updatedTopicSensorIdsFromDigitalTwinGltfData(digitalTwinUpdated, topicSensors);
 	}
@@ -555,7 +559,7 @@ export const createDigitalTwin = async (
 			topicType: "dtm_sim_fmv2dts",
 			topicName: `${digitalTwinUid}_dtm_sim_fmv2dts`,
 			description: `DTM sim fem modal value to DTS for ${digitalTwinUid}`,
-			payloadFormat: '{"femResultsModalValues": "number[][]"}'
+			payloadFormat: '{"femResultsModalValues": "number[][][]"}'
 		};
 		const femResultModalValuesSimulationTopic = await createTopic(deviceId, femResultModalValuesSimulationTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, femResultModalValuesSimulationTopic.id, "dtm_sim_fmv2dts");

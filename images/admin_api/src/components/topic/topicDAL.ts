@@ -5,7 +5,6 @@ import IGroup from "../group/interfaces/Group.interface";
 import IMqttTopicInfo from "./mqttTopicInfo.interface";
 import CreateTopicDto from './topic.dto';
 import ITopic from "./topic.interface";
-import ITopicUpdate from "./topicUpdate.interface";
 
 export const demoTopicName = (group: IGroup, device: IDevice, sensorType: string): string => {
 	let topicName: string;
@@ -18,7 +17,7 @@ export const demoTopicName = (group: IGroup, device: IDevice, sensorType: string
 }
 
 
-export const insertTopic = async (topicData: ITopicUpdate): Promise<ITopicUpdate> => {
+export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> => {
 	const result = await pool.query(`INSERT INTO grafanadb.topic (device_id, topic_type,
 					topic_name, description, payload_format, topic_uid,
 					created, updated)
@@ -67,9 +66,9 @@ export const deleteTopicByIdsArray = async (topicIdsArray: number[]): Promise<vo
 	await pool.query(`DELETE FROM grafanadb.topic WHERE grafanadb.topic.id = ANY($1::bigint[]);`, [topicIdsArray]);
 };
 
-export const createTopic = async (deviceId: number, topicInput: CreateTopicDto): Promise<ITopicUpdate> => {
+export const createTopic = async (deviceId: number, topicInput: CreateTopicDto): Promise<ITopic> => {
 	const topicUid = nanoid().replace(/-/g, "x");
-	const topicUpdated: ITopicUpdate = { ...topicInput, topicUid, deviceId };
+	const topicUpdated: Partial<ITopic> = { ...topicInput, topicUid, deviceId };
 	const topic = await insertTopic(topicUpdated);
 	return topic;
 };

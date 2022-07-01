@@ -192,7 +192,6 @@ class GroupController implements IController {
 				organizationExists,
 				this.deleteGroupByProp
 			);
-
 	}
 
 	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> => {

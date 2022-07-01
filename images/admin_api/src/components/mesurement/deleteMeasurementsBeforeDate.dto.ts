@@ -2,10 +2,11 @@ import { IsString } from "class-validator";
 
 class DeleteMeasurementsBeforeDateDto {
 	@IsString()
-	public deleteDate: string;
+	public topic: string;
 
 	@IsString()
-	public topic: string;
+	public deleteDate: string;
+
 }
 
 export default DeleteMeasurementsBeforeDateDto;

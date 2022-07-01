@@ -45,7 +45,7 @@
 		{
 			"name": "Building",
 			"description": "Management of buildings in the IOT Platform - Role required: Platform_Admin"
-		},		
+		},
 		{
 			"name": "Group",
 			"description": "Management of groups in organizations of the IOT Platform - Default role required: Group_Admin"
@@ -69,14 +69,20 @@
 		{
 			"name": "Dashboard",
 			"description": "List of dashboards of the IOT Platform - Default role required: Group_Admin"
-		}				
+		}
 	],
-	"consumes": ["application/json"],
-	"produces": ["application/json"],
+	"consumes": [
+		"application/json"
+	],
+	"produces": [
+		"application/json"
+	],
 	"paths": {
 		"/auth/register": {
 			"patch": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "User registration in the platform",
 				"requestBody": {
 					"description": "User registration data",
@@ -89,7 +95,9 @@
 						}
 					}
 				},
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "User password modified correctly",
@@ -116,9 +124,13 @@
 		},
 		"/auth/user_data_for_register": {
 			"get": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "User firstName, surname and email to complete registration form - Register token required",
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "User firstName, surname and email",
@@ -145,9 +157,13 @@
 		},
 		"/auth/user_profile": {
 			"get": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "User profile",
-				"produces": ["application/json"],				
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "User profile",
@@ -172,7 +188,9 @@
 				}
 			},
 			"patch": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "Update profile",
 				"requestBody": {
 					"description": "User registration data",
@@ -184,8 +202,10 @@
 							}
 						}
 					}
-				},				
-				"produces": ["application/json"],
+				},
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "User profile",
@@ -209,10 +229,12 @@
 					}
 				}
 			}
-		},				
+		},
 		"/auth/login": {
 			"post": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "Login in the platform administration",
 				"security": [],
 				"requestBody": {
@@ -226,7 +248,9 @@
 						}
 					}
 				},
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "User validated. Access and refresh token delivered",
@@ -253,9 +277,13 @@
 		},
 		"/auth/update_token": {
 			"patch": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "Update refresh token",
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "Token updated. Access and refresh token delivered",
@@ -282,16 +310,20 @@
 		},
 		"/auth/refresh_tokens": {
 			"get": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "All refresh tokens - Role required: PlaformAdmin",
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "All refresh tokens",
 						"content": {
 							"application/json": {
 								"schema": {
-									"$ref": "#/definitions/UserManagedComponents"
+									"$ref": "#/definitions/RefreshToken"
 								}
 							}
 						}
@@ -308,10 +340,12 @@
 					}
 				}
 			}
-		},	
+		},
 		"/auth/disable_refresh_token": {
 			"delete": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "Disable refresh token - Role required: Platform_Admin",
 				"requestBody": {
 					"description": "User credentials",
@@ -324,7 +358,9 @@
 						}
 					}
 				},
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "Token disabled successfully",
@@ -348,7 +384,49 @@
 					}
 				}
 			}
-		},	
+		},
+		"/auth/disable_refresh_token_by_id/{refreshTokenId}": {
+			"parameters": [
+				{
+					"name": "refreshTokenId",
+					"in": "path",
+					"required": true,
+					"description": "refresh token id",
+					"type": "string"
+				}
+			],
+			"delete": {
+				"tags": [
+					"Authentication"
+				],
+				"summary": "Disable refresh token by id - Role required: Platform_Admin",
+				"produces": [
+					"application/json"
+				],
+				"responses": {
+					"200": {
+						"description": "Token disabled successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "User credentials not correct.",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/auth/disable_user_refresh_tokens/{userId}": {
 			"parameters": [
 				{
@@ -358,11 +436,15 @@
 					"description": "id of the user",
 					"type": "string"
 				}
-			],			
+			],
 			"delete": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "Disable all refresh tokens of a user - Role required: Platform_Admin",
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "Token disabled successfully",
@@ -386,10 +468,12 @@
 					}
 				}
 			}
-		},			
+		},
 		"/auth/change_password": {
 			"patch": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "Change user password",
 				"requestBody": {
 					"description": "New password",
@@ -402,7 +486,9 @@
 						}
 					}
 				},
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "User password modified correctly",
@@ -429,9 +515,13 @@
 		},
 		"/auth/user_managed_components": {
 			"get": {
-				"tags": ["Authentication"],
+				"tags": [
+					"Authentication"
+				],
 				"summary": "Components (orgs, groups and devices) managed by logged user",
-				"produces": ["application/json"],
+				"produces": [
+					"application/json"
+				],
 				"responses": {
 					"200": {
 						"description": "Components (orgs, groups and devices) managed by logged user",
@@ -455,10 +545,12 @@
 					}
 				}
 			}
-		},			
+		},
 		"/application/global_users": {
 			"get": {
-				"tags": ["Application"],
+				"tags": [
+					"Application"
+				],
 				"summary": "Get all global users",
 				"responses": {
 					"200": {
@@ -484,7 +576,9 @@
 				}
 			},
 			"post": {
-				"tags": ["Application"],
+				"tags": [
+					"Application"
+				],
 				"summary": "Create global users",
 				"requestBody": {
 					"description": "Global user data",
@@ -526,13 +620,15 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			}
 		},
 		"/application/global_user": {
 			"post": {
-				"tags": ["Application"],
+				"tags": [
+					"Application"
+				],
 				"summary": "Create a global user",
 				"requestBody": {
 					"description": "Global user data",
@@ -574,7 +670,7 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			}
 		},
@@ -596,7 +692,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Application"],
+				"tags": [
+					"Application"
+				],
 				"summary": "Get an specific user data of the platform",
 				"responses": {
 					"200": {
@@ -638,11 +736,13 @@
 								}
 							}
 						}
-					}                
+					}
 				}
 			},
 			"patch": {
-				"tags": ["Application"],
+				"tags": [
+					"Application"
+				],
 				"summary": "Update an specific user of the platform.",
 				"requestBody": {
 					"description": "Global user data",
@@ -684,11 +784,13 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			},
 			"delete": {
-				"tags": ["Application"],
+				"tags": [
+					"Application"
+				],
 				"summary": "Delete an specific user of the platform.",
 				"responses": {
 					"200": {
@@ -720,13 +822,15 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			}
 		},
 		"/application/statistics": {
 			"get": {
-				"tags": ["Application"],
+				"tags": [
+					"Application"
+				],
 				"summary": "Get statistics of the platform",
 				"responses": {
 					"200": {
@@ -754,7 +858,9 @@
 		},
 		"/organizations": {
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get all organizations in the platform - Role required: Platform_Admin",
 				"responses": {
 					"200": {
@@ -780,9 +886,11 @@
 				}
 			}
 		},
-		"/organizations/user_managed": {		
+		"/organizations/user_managed": {
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get all organizations managed by the logged user",
 				"responses": {
 					"200": {
@@ -808,9 +916,11 @@
 				}
 			}
 		},
-		"/organizations/user_groups_managed": {		
+		"/organizations/user_groups_managed": {
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get organizations of groups managed by the logged user",
 				"responses": {
 					"200": {
@@ -836,9 +946,11 @@
 				}
 			}
 		},
-		"/organization_users/user_orgs_managed/": {		
+		"/organization_users/user_orgs_managed/": {
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get all organizations users for orgs managed by the logged user",
 				"responses": {
 					"200": {
@@ -864,9 +976,11 @@
 				}
 			}
 		},
-		"/organization_users/user_groups_managed/": {		
+		"/organization_users/user_groups_managed/": {
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get all organizations users for orgs with groups managed by the logged user",
 				"responses": {
 					"200": {
@@ -891,10 +1005,12 @@
 					}
 				}
 			}
-		},		
-		"/organizations/which_the_logged_user_is_user/": {		
+		},
+		"/organizations/which_the_logged_user_is_user/": {
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get all organizations which the logged user is user",
 				"responses": {
 					"200": {
@@ -919,10 +1035,12 @@
 					}
 				}
 			}
-		},				
+		},
 		"/organization": {
 			"post": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Create a new organization - Role required: Platform_Admin",
 				"requestBody": {
 					"description": "Organization parameters",
@@ -965,7 +1083,7 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			}
 		},
@@ -987,7 +1105,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get the organization where the property: propName (id, name, acronym) matches the value: propValue",
 				"responses": {
 					"200": {
@@ -1029,11 +1149,13 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			},
 			"patch": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Update the organization where the property: propName (id, name, acronym) matches the value: propValue - Role required: Platform_Admin",
 				"requestBody": {
 					"description": "Organization parameters",
@@ -1076,11 +1198,13 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			},
 			"delete": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Delete the organization where the property: propName (id, name, acronym) matches the value: propValue - Role required: Platform_Admin",
 				"responses": {
 					"200": {
@@ -1112,7 +1236,7 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			}
 		},
@@ -1127,7 +1251,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get the users of the organization",
 				"responses": {
 					"200": {
@@ -1150,7 +1276,7 @@
 							}
 						}
 					},
-                    "404": {
+					"404": {
 						"description": "Organization not found",
 						"content": {
 							"application/json": {
@@ -1159,11 +1285,13 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			},
 			"post": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Add users to the organization. If a user is not existent it is created. To assign roleInOrg = 'Admin' Platform_Admin role is required.",
 				"requestBody": {
 					"description": "Users data",
@@ -1206,7 +1334,7 @@
 								}
 							}
 						}
-					}                        
+					}
 				}
 			}
 		},
@@ -1221,7 +1349,9 @@
 				}
 			],
 			"post": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Add a user to the organization. If the user is not existent it is created. To assign roleInOrg = 'Admin' Platform_Admin role is required.",
 				"requestBody": {
 					"description": "User data",
@@ -1264,7 +1394,7 @@
 								}
 							}
 						}
-					}                        
+					}
 				}
 			}
 		},
@@ -1293,7 +1423,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Get an specific user data of the organization",
 				"responses": {
 					"200": {
@@ -1335,11 +1467,13 @@
 								}
 							}
 						}
-					}                     
+					}
 				}
 			},
 			"patch": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Update an specific user of the organization. To assign roleInOrg = 'Admin' Platform_Admin role is required.",
 				"requestBody": {
 					"description": "User data",
@@ -1381,11 +1515,13 @@
 								}
 							}
 						}
-					}                     
+					}
 				}
 			},
 			"delete": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Remove an specific user of the organization.",
 				"responses": {
 					"200": {
@@ -1417,7 +1553,7 @@
 								}
 							}
 						}
-					}                     
+					}
 				}
 			}
 		},
@@ -1439,7 +1575,9 @@
 				}
 			],
 			"delete": {
-				"tags": ["Organization"],
+				"tags": [
+					"Organization"
+				],
 				"summary": "Remove all users of the organization.",
 				"responses": {
 					"200": {
@@ -1471,13 +1609,15 @@
 								}
 							}
 						}
-					}                     
+					}
 				}
 			}
 		},
 		"/buildings/user_groups_managed": {
 			"get": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Get all buildings for orgs with groups managed by user",
 				"responses": {
 					"200": {
@@ -1489,13 +1629,15 @@
 								}
 							}
 						}
-					}          
+					}
 				}
 			}
 		},
 		"/building_floors/user_groups_managed": {
 			"get": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Get all buildings floor for orgs with groups managed by user",
 				"responses": {
 					"200": {
@@ -1507,13 +1649,15 @@
 								}
 							}
 						}
-					}          
+					}
 				}
 			}
 		},
 		"/buildings": {
 			"get": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Get all buildings in the platform - Role required: Platform_Admin",
 				"responses": {
 					"200": {
@@ -1538,7 +1682,7 @@
 					}
 				}
 			}
-		},		
+		},
 		"/building/{buildingId}": {
 			"parameters": [
 				{
@@ -1547,10 +1691,12 @@
 					"required": true,
 					"description": "Building id",
 					"type": "number"
-				}				
+				}
 			],
 			"get": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Get building by id",
 				"responses": {
 					"200": {
@@ -1576,7 +1722,9 @@
 				}
 			},
 			"patch": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Update building by id",
 				"requestBody": {
 					"description": "Member data",
@@ -1588,7 +1736,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -1611,9 +1759,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"delete": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Delete building by id",
 				"responses": {
 					"200": {
@@ -1641,7 +1791,9 @@
 		},
 		"/building": {
 			"post": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Create building",
 				"requestBody": {
 					"description": "Building data",
@@ -1653,7 +1805,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -1680,7 +1832,9 @@
 		},
 		"/building_floors": {
 			"get": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Get all building floors in the platform - Role required: Platform_Admin",
 				"responses": {
 					"200": {
@@ -1714,10 +1868,12 @@
 					"required": true,
 					"description": "Building floor id",
 					"type": "number"
-				}				
+				}
 			],
 			"get": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Get building floor by id",
 				"responses": {
 					"200": {
@@ -1743,7 +1899,9 @@
 				}
 			},
 			"patch": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Update building floor by id",
 				"requestBody": {
 					"description": "Member data",
@@ -1755,7 +1913,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -1778,9 +1936,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"delete": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Delete building floor by id",
 				"responses": {
 					"200": {
@@ -1808,7 +1968,9 @@
 		},
 		"/building_floor": {
 			"post": {
-				"tags": ["Building"],
+				"tags": [
+					"Building"
+				],
 				"summary": "Create building floor",
 				"requestBody": {
 					"description": "Building floor data",
@@ -1820,7 +1982,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -1844,7 +2006,7 @@
 					}
 				}
 			}
-		},		
+		},
 		"/groups/{orgId}": {
 			"parameters": [
 				{
@@ -1856,7 +2018,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get all groups in the organization - Role required: Organization_Admin",
 				"responses": {
 					"200": {
@@ -1888,13 +2052,15 @@
 								}
 							}
 						}
-					}              
+					}
 				}
 			}
 		},
-		"/groups/user_managed": {		
+		"/groups/user_managed": {
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get all groups managed by the logged user",
 				"responses": {
 					"200": {
@@ -1920,9 +2086,11 @@
 				}
 			}
 		},
-		"/groups/which_the_logged_user_is_member": {		
+		"/groups/which_the_logged_user_is_member": {
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get all groups which the logged user is member",
 				"responses": {
 					"200": {
@@ -1947,10 +2115,12 @@
 					}
 				}
 			}
-		},		
-		"/group_members/user_managed": {		
+		},
+		"/group_members/user_managed": {
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get all groups members for groups managed by the logged user",
 				"responses": {
 					"200": {
@@ -1975,7 +2145,7 @@
 					}
 				}
 			}
-		},				
+		},
 		"/group/{orgId}": {
 			"parameters": [
 				{
@@ -1987,7 +2157,9 @@
 				}
 			],
 			"post": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Create a new group for the organization - Role required: Organization_Admin",
 				"requestBody": {
 					"description": "Group data",
@@ -2030,7 +2202,7 @@
 								}
 							}
 						}
-					},                    
+					},
 					"409": {
 						"description": "Already exists a group with the same data",
 						"content": {
@@ -2066,10 +2238,12 @@
 					"required": true,
 					"description": "Group property value",
 					"type": "string"
-				}				
+				}
 			],
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get a group of the organization - Role required: Organization_Admin",
 				"responses": {
 					"200": {
@@ -2111,11 +2285,13 @@
 								}
 							}
 						}
-					}                     
+					}
 				}
 			},
 			"patch": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Update a group of the organization - Role required: Organization_Admin",
 				"requestBody": {
 					"description": "Group data",
@@ -2127,7 +2303,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -2170,9 +2346,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"delete": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Delete a group of the organization - Role required: Organization_Admin",
 				"responses": {
 					"200": {
@@ -2214,7 +2392,7 @@
 								}
 							}
 						}
-					}                    
+					}
 				}
 			}
 		},
@@ -2229,7 +2407,9 @@
 				}
 			],
 			"post": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Add member to the group - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -2274,8 +2454,8 @@
 						}
 					}
 				}
-			}			
-		},		
+			}
+		},
 		"/group/{groupId}/members": {
 			"parameters": [
 				{
@@ -2287,7 +2467,9 @@
 				}
 			],
 			"post": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Add members for the group - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -2334,7 +2516,9 @@
 				}
 			},
 			"patch": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Update members roles in the group - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -2379,9 +2563,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get group members  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2417,7 +2603,9 @@
 				}
 			},
 			"delete": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Remove all group members with 'Viewer' or 'Editor' - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2451,7 +2639,7 @@
 						}
 					}
 				}
-			}					
+			}
 		},
 		"/group/{groupId}/members_editor_or_admin": {
 			"parameters": [
@@ -2462,9 +2650,11 @@
 					"description": "Group id",
 					"type": "number"
 				}
-			],		
+			],
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get group members with 'Editor' or 'Admin' role  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2498,8 +2688,8 @@
 						}
 					}
 				}
-			}					
-		},		
+			}
+		},
 		"/group/{groupId}/member/{propName}/{propValue}": {
 			"parameters": [
 				{
@@ -2522,10 +2712,12 @@
 					"required": true,
 					"description": "Group member property value",
 					"type": "string"
-				}				
+				}
 			],
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get group member by propName: id, login or email  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2561,7 +2753,9 @@
 				}
 			},
 			"patch": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Update group member role by propName: id, login or email  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -2573,7 +2767,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -2606,9 +2800,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"delete": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Remove group member by propName: id, login or email  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2652,10 +2848,12 @@
 					"required": true,
 					"description": "Group id",
 					"type": "number"
-				}				
+				}
 			],
 			"get": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Get ssl certificates for the group  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2690,7 +2888,6 @@
 					}
 				}
 			}
-								
 		},
 		"/group/{groupId}/change_uid": {
 			"parameters": [
@@ -2700,10 +2897,12 @@
 					"required": true,
 					"description": "Group id",
 					"type": "number"
-				}				
+				}
 			],
 			"patch": {
-				"tags": ["Group"],
+				"tags": [
+					"Group"
+				],
 				"summary": "Generate a new uid for the group  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2741,7 +2940,9 @@
 		},
 		"/devices/user_managed": {
 			"get": {
-				"tags": ["Device"],
+				"tags": [
+					"Device"
+				],
 				"summary": "Get all devices managed by the logged user",
 				"responses": {
 					"200": {
@@ -2763,10 +2964,10 @@
 								}
 							}
 						}
-					}          
+					}
 				}
 			}
-		},		
+		},
 		"/devices_in_org/{orgId}": {
 			"parameters": [
 				{
@@ -2778,7 +2979,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Device"],
+				"tags": [
+					"Device"
+				],
 				"summary": "Get all devices in the organization - Role required: Organization_Admin",
 				"responses": {
 					"200": {
@@ -2810,7 +3013,7 @@
 								}
 							}
 						}
-					}              
+					}
 				}
 			}
 		},
@@ -2825,7 +3028,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Device"],
+				"tags": [
+					"Device"
+				],
 				"summary": "Get all devices in a group of the platform - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2857,7 +3062,7 @@
 								}
 							}
 						}
-					}              
+					}
 				}
 			}
 		},
@@ -2883,10 +3088,12 @@
 					"required": true,
 					"description": "Device property value",
 					"type": "string"
-				}				
+				}
 			],
 			"get": {
-				"tags": ["Device"],
+				"tags": [
+					"Device"
+				],
 				"summary": "Get device by propName: id, name or deviceUid  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -2922,7 +3129,9 @@
 				}
 			},
 			"patch": {
-				"tags": ["Device"],
+				"tags": [
+					"Device"
+				],
 				"summary": "Update device by propName: id, name or deviceUid  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -2934,7 +3143,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -2967,9 +3176,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"delete": {
-				"tags": ["Device"],
+				"tags": [
+					"Device"
+				],
 				"summary": "Delete device by propName: id, name or deviceUid  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -3020,11 +3231,13 @@
 					"required": true,
 					"description": "id of the device",
 					"type": "string"
-				}				
+				}
 			],
 			"post": {
-				"tags": ["Device"],
-				"summary": "Get device by id - Role required: Group_Admin with basic auth", 
+				"tags": [
+					"Device"
+				],
+				"summary": "Get device by id - Role required: Group_Admin with basic auth",
 				"security": [],
 				"requestBody": {
 					"description": "User credentials",
@@ -3036,7 +3249,7 @@
 							}
 						}
 					}
-				},					
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3070,7 +3283,7 @@
 					}
 				}
 			}
-		},		
+		},
 		"/device/{groupId}/changeUid/{deviceId}": {
 			"parameters": [
 				{
@@ -3086,11 +3299,13 @@
 					"required": true,
 					"description": "Device id",
 					"type": "number"
-				}			
+				}
 			],
 			"patch": {
-				"tags": ["Device"],
-				"summary": "Change deviceUid by deviceId  - Role required: Group_Admin",			
+				"tags": [
+					"Device"
+				],
+				"summary": "Change deviceUid by deviceId  - Role required: Group_Admin",
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3133,10 +3348,12 @@
 					"required": true,
 					"description": "Group id",
 					"type": "number"
-				}		
+				}
 			],
 			"post": {
-				"tags": ["Device"],
+				"tags": [
+					"Device"
+				],
 				"summary": "Create device in a group  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -3148,7 +3365,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3185,7 +3402,9 @@
 		},
 		"/topics/user_managed": {
 			"get": {
-				"tags": ["Topic"],
+				"tags": [
+					"Topic"
+				],
 				"summary": "Get all Topics managed by the logged user",
 				"responses": {
 					"200": {
@@ -3207,10 +3426,10 @@
 								}
 							}
 						}
-					}          
+					}
 				}
 			}
-		},		
+		},
 		"/topics_in_org/{orgId}": {
 			"parameters": [
 				{
@@ -3222,7 +3441,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Topic"],
+				"tags": [
+					"Topic"
+				],
 				"summary": "Get all Topics in the organization - Role required: Organization_Admin",
 				"responses": {
 					"200": {
@@ -3254,7 +3475,7 @@
 								}
 							}
 						}
-					}              
+					}
 				}
 			}
 		},
@@ -3269,7 +3490,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Topic"],
+				"tags": [
+					"Topic"
+				],
 				"summary": "Get all Topics in a group of the platform - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -3301,7 +3524,7 @@
 								}
 							}
 						}
-					}              
+					}
 				}
 			}
 		},
@@ -3327,10 +3550,12 @@
 					"required": true,
 					"description": "Topic property value",
 					"type": "string"
-				}				
+				}
 			],
 			"get": {
-				"tags": ["Topic"],
+				"tags": [
+					"Topic"
+				],
 				"summary": "Get Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -3388,10 +3613,12 @@
 					"required": true,
 					"description": "Topic id",
 					"type": "number"
-				}				
+				}
 			],
 			"patch": {
-				"tags": ["Topic"],
+				"tags": [
+					"Topic"
+				],
 				"summary": "Update Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -3403,7 +3630,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3436,9 +3663,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"delete": {
-				"tags": ["Topic"],
+				"tags": [
+					"Topic"
+				],
 				"summary": "Delete Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -3473,7 +3702,7 @@
 					}
 				}
 			}
-		},		
+		},
 		"/topic_information/{groupId}/{topicId}": {
 			"parameters": [
 				{
@@ -3489,11 +3718,13 @@
 					"required": true,
 					"description": "Topic Id",
 					"type": "string"
-				}				
+				}
 			],
 			"post": {
-				"tags": ["Topic"],
-				"summary": "Get Topic by id - Role required: Group_Admin with basic auth", 
+				"tags": [
+					"Topic"
+				],
+				"summary": "Get Topic by id - Role required: Group_Admin with basic auth",
 				"security": [],
 				"requestBody": {
 					"description": "User credentials",
@@ -3505,7 +3736,7 @@
 							}
 						}
 					}
-				},					
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3539,7 +3770,7 @@
 					}
 				}
 			}
-		},		
+		},
 		"/topic/{groupId}/changeUid/{topicId}": {
 			"parameters": [
 				{
@@ -3555,11 +3786,13 @@
 					"required": true,
 					"description": "Topic id",
 					"type": "number"
-				}			
+				}
 			],
 			"patch": {
-				"tags": ["Topic"],
-				"summary": "Change TopicUid by topicId  - Role required: Group_Admin",			
+				"tags": [
+					"Topic"
+				],
+				"summary": "Change TopicUid by topicId  - Role required: Group_Admin",
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3609,10 +3842,12 @@
 					"required": true,
 					"description": "Device id",
 					"type": "number"
-				}		
+				}
 			],
 			"post": {
-				"tags": ["Topic"],
+				"tags": [
+					"Topic"
+				],
 				"summary": "Create Topic in a group  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -3624,7 +3859,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3670,7 +3905,9 @@
 				}
 			],
 			"post": {
-				"tags": ["Measurement"],
+				"tags": [
+					"Measurement"
+				],
 				"summary": "Get measurement by groupId, topic and timestamp - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Measurement request body",
@@ -3682,7 +3919,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3713,11 +3950,13 @@
 								}
 							}
 						}
-					}              
+					}
 				}
 			},
 			"patch": {
-				"tags": ["Measurement"],
+				"tags": [
+					"Measurement"
+				],
 				"summary": "Update measurement by groupId, topic and timestamp  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "New payload",
@@ -3729,7 +3968,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3762,9 +4001,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"delete": {
-				"tags":["Measurement"],
+				"tags": [
+					"Measurement"
+				],
 				"summary": "Delete measurement by groupId, topic and timestamp - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Measurement request body",
@@ -3822,7 +4063,9 @@
 				}
 			],
 			"post": {
-				"tags": ["Measurement"],
+				"tags": [
+					"Measurement"
+				],
 				"summary": "Get last count measurements by groupId and timestamp  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Last measurements request body",
@@ -3868,7 +4111,67 @@
 					}
 				}
 			}
-		},		
+		},
+		"/measurements_last_from_topicsid_array/{groupId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],
+			"post": {
+				"tags": [
+					"Measurement"
+				],
+				"summary": "Get last count measurements by groupId and timestamp  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Last measurements request body",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/LastMeasurementsFromTopicsIdArrayBody"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Measurements"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/measurements_pagination/{groupId}": {
 			"parameters": [
 				{
@@ -3880,7 +4183,9 @@
 				}
 			],
 			"post": {
-				"tags": ["Measurement"],
+				"tags": [
+					"Measurement"
+				],
 				"summary": "Get measurements with pagination by groupId and topic  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Measurements with pagination request body",
@@ -3938,7 +4243,9 @@
 				}
 			],
 			"delete": {
-				"tags":["Measurement"],
+				"tags": [
+					"Measurement"
+				],
 				"summary": "Delete measurements before the indicated timestamp by groupId and topic - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Delete measurements before date request body",
@@ -3950,7 +4257,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3987,7 +4294,9 @@
 		},
 		"/digital_twins/user_managed": {
 			"get": {
-				"tags": ["Digital twin"],
+				"tags": [
+					"Digital twin"
+				],
 				"summary": "Get all digital twins managed by the logged user",
 				"responses": {
 					"200": {
@@ -4009,10 +4318,119 @@
 								}
 							}
 						}
-					}          
+					}
 				}
 			}
-		},		
+		},
+		"/digital_twins_state/user_managed": {
+			"get": {
+				"tags": [
+					"Digital twin"
+				],
+				"summary": "Get all digital twins state managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwinsState"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/digital_twins_simulators/user_managed": {
+			"get": {
+				"tags": [
+					"Digital twin"
+				],
+				"summary": "Get all digital twin simulators managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwinSimulators"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/digital_twins_mqtt_topics_in_group/{groupId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": [
+					"Digital twin"
+				],
+				"summary": "Get all digital twin mqtt topic in the group - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwinMqttTopicOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/digital_twins_in_org/{orgId}": {
 			"parameters": [
 				{
@@ -4024,7 +4442,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Digital twin"],
+				"tags": [
+					"Digital twin"
+				],
 				"summary": "Get all digital twins in the organization - Role required: Organization_Admin",
 				"responses": {
 					"200": {
@@ -4056,7 +4476,7 @@
 								}
 							}
 						}
-					}              
+					}
 				}
 			}
 		},
@@ -4071,7 +4491,9 @@
 				}
 			],
 			"get": {
-				"tags": ["Digital twin"],
+				"tags": [
+					"Digital twin"
+				],
 				"summary": "Get all digital twins in a group of the platform - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -4103,7 +4525,7 @@
 								}
 							}
 						}
-					}              
+					}
 				}
 			}
 		},
@@ -4129,10 +4551,12 @@
 					"required": true,
 					"description": "Digital twin property value",
 					"type": "string"
-				}				
+				}
 			],
 			"get": {
-				"tags": ["Digital twin"],
+				"tags": [
+					"Digital twin"
+				],
 				"summary": "Get digital twin by propName: id or name  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -4190,10 +4614,12 @@
 					"required": true,
 					"description": "Digital twin id",
 					"type": "number"
-				}				
+				}
 			],
 			"patch": {
-				"tags": ["Digital twin"],
+				"tags": [
+					"Digital twin"
+				],
 				"summary": "Update digital twin by id  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -4205,7 +4631,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -4238,9 +4664,11 @@
 						}
 					}
 				}
-			},			
+			},
 			"delete": {
-				"tags": ["Digital twin"],
+				"tags": [
+					"Digital twin"
+				],
 				"summary": "Delete digital twin by id - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -4275,7 +4703,7 @@
 					}
 				}
 			}
-		},		
+		},
 		"/digital_twin/{groupId}/{deviceId}": {
 			"parameters": [
 				{
@@ -4291,10 +4719,12 @@
 					"required": true,
 					"description": "Device id",
 					"type": "number"
-				}		
+				}
 			],
 			"post": {
-				"tags": ["Digital twin"],
+				"tags": [
+					"Digital twin"
+				],
 				"summary": "Create digital twin for a device in a group  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
@@ -4306,7 +4736,7 @@
 							}
 						}
 					}
-				},				
+				},
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -4363,10 +4793,12 @@
 					"required": true,
 					"description": "Digital twin id",
 					"type": "number"
-				}		
+				}
 			],
 			"get": {
-				"tags": ["Digital twin"],
+				"tags": [
+					"Digital twin"
+				],
 				"summary": "Get digital twin gltf data  by digitalTwinId  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -4401,10 +4833,12 @@
 					}
 				}
 			}
-		},		
+		},
 		"/dashboards/user_managed": {
 			"get": {
-				"tags": ["Dashboard"],
+				"tags": [
+					"Dashboard"
+				],
 				"summary": "Get all dashboards managed by the logged user",
 				"responses": {
 					"200": {
@@ -4426,7 +4860,7 @@
 								}
 							}
 						}
-					}          
+					}
 				}
 			}
 		},
@@ -4445,10 +4879,12 @@
 					"required": true,
 					"description": "id the dashboard",
 					"type": "string"
-				}			
+				}
 			],
 			"get": {
-				"tags": ["Dashboard"],
+				"tags": [
+					"Dashboard"
+				],
 				"summary": "Get dashboard by id  - Role required: Group_Admin",
 				"responses": {
 					"200": {
@@ -4483,7 +4919,7 @@
 					}
 				}
 			}
-		}										
+		}
 	},
 	"definitions": {
 		"UserRegister": {
@@ -4518,14 +4954,14 @@
 				"surname": {
 					"type": "string"
 				},
-				"login": {
+				"email": {
 					"type": "string"
 				},
-				"email": {
+				"login": {
 					"type": "string"
 				}
 			}
-		},		
+		},
 		"UserRegisterData": {
 			"type": "object",
 			"properties": {
@@ -4539,7 +4975,7 @@
 					"type": "string"
 				}
 			}
-		},			
+		},
 		"Login": {
 			"type": "object",
 			"properties": {
@@ -4550,7 +4986,7 @@
 					"type": "string"
 				}
 			}
-		},	
+		},
 		"LoginOutput": {
 			"type": "object",
 			"properties": {
@@ -4565,7 +5001,7 @@
 				},
 				"expirationDate": {
 					"type": "string"
-				}					
+				}
 			}
 		},
 		"RefreshToken": {
@@ -4577,22 +5013,31 @@
 				"userId": {
 					"type": "number"
 				},
-				"refreshToken": {
+				"token": {
 					"type": "string"
 				},
-				"expirationDate": {
+				"created": {
 					"type": "string"
-				}					
+				},
+				"createdAtAge": {
+					"type": "string"
+				},
+				"updated": {
+					"type": "string"
+				},
+				"updatedAtAge": {
+					"type": "string"
+				}
 			}
-		},		
+		},
 		"DisableRefreshToken": {
 			"type": "object",
 			"properties": {
 				"refreshTokenToDisable": {
 					"type": "string"
-				}				
+				}
 			}
-		},		
+		},
 		"Credentials_rejected": {
 			"type": "object",
 			"properties": {
@@ -4613,7 +5058,7 @@
 					"type": "string"
 				}
 			}
-		},		
+		},
 		"UserManagedComponents": {
 			"type": "object",
 			"properties": {
@@ -4688,7 +5133,7 @@
 					"default": 404
 				}
 			}
-		},		
+		},
 		"GroupNotFoundMessage": {
 			"type": "object",
 			"properties": {
@@ -4701,7 +5146,7 @@
 					"default": 404
 				}
 			}
-		},		
+		},
 		"AlreadyExistsMessage": {
 			"type": "object",
 			"properties": {
@@ -4714,7 +5159,7 @@
 					"default": 409
 				}
 			}
-		},           
+		},
 		"OrganizationInput": {
 			"type": "object",
 			"properties": {
@@ -4739,12 +5184,24 @@
 				"country": {
 					"type": "string"
 				},
+				"buildingId": {
+					"type": "number"
+				},
+				"orgHash": {
+					"type": "string"
+				},
+				"masterDeviceHashes": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				},
 				"telegramInvitationLink": {
 					"type": "string"
 				},
 				"telegramChatId": {
 					"type": "string"
-				},													
+				},
 				"orgAdminArray": {
 					"type": "array",
 					"items": {
@@ -4776,9 +5233,21 @@
 				},
 				"country": {
 					"type": "string"
-				}				
+				},
+				"buildingId": {
+					"type": "number"
+				},
+				"orgHash": {
+					"type": "string"
+				},
+				"masterDeviceHashes": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					}
+				}
 			}
-		},		
+		},
 		"OrgAdminInput": {
 			"properties": {
 				"firstName": {
@@ -4786,7 +5255,7 @@
 				},
 				"surname": {
 					"type": "string"
-				},				
+				},
 				"email": {
 					"type": "string"
 				},
@@ -4797,7 +5266,7 @@
 					"type": "string"
 				}
 			}
-		},		
+		},
 		"OrganizationOutput": {
 			"type": "object",
 			"properties": {
@@ -4828,6 +5297,9 @@
 				},
 				"buildingId": {
 					"type": "number"
+				},
+				"orgHash": {
+					"type": "string"
 				}
 			}
 		},
@@ -4867,10 +5339,10 @@
 				},
 				"buildingId": {
 					"type": "number"
-				},				
+				},
 				"roleInOrg": {
 					"type": "string"
-				}	
+				}
 			}
 		},
 		"OrganizationsWhichTheLoggedUserIsUser": {
@@ -4878,7 +5350,7 @@
 			"items": {
 				"$ref": "#/definitions/OrganizationWhichTheLoggedUserIsUser"
 			}
-		},			
+		},
 		"propName": {
 			"properties": {
 				"propName": {
@@ -4924,13 +5396,16 @@
 				"latitude": {
 					"type": "number"
 				},
+				"outerBounds": {
+					"type": "array"
+				},
 				"geoJsonData": {
 					"type": "string"
 				},
-				"created": {
+				"timeFromCreation": {
 					"type": "string"
-				},										
-				"updated": {
+				},
+				"timeFromLastUpdate": {
 					"type": "string"
 				}
 			}
@@ -4960,11 +5435,11 @@
 					"type": "number",
 					"default": 1
 				},
-				"name": {
-					"type": "string"
-				},
 				"buildingId": {
 					"type": "number"
+				},
+				"buildingName": {
+					"type": "string"
 				},
 				"floorNumber": {
 					"type": "number"
@@ -4972,10 +5447,10 @@
 				"geoJsonData": {
 					"type": "string"
 				},
-				"created": {
+				"timeFromCreation": {
 					"type": "string"
-				},										
-				"updated": {
+				},
+				"timeFromLastUpdate": {
 					"type": "string"
 				}
 			}
@@ -4985,7 +5460,7 @@
 			"items": {
 				"$ref": "#/definitions/FloorOutput"
 			}
-		},		
+		},
 		"UserInput": {
 			"properties": {
 				"firstName": {
@@ -5016,6 +5491,10 @@
 		},
 		"UserOutput": {
 			"properties": {
+				"orgId": {
+					"type": "number",
+					"default": 1
+				},
 				"userId": {
 					"type": "number",
 					"default": 1
@@ -5033,6 +5512,9 @@
 					"type": "string"
 				},
 				"roleInOrg": {
+					"type": "string"
+				},
+				"isDisabled": {
 					"type": "string"
 				},
 				"lastSeenAt": {
@@ -5105,7 +5587,7 @@
 					"type": "string"
 				}
 			}
-		},		
+		},
 		"GlobalUsersInput": {
 			"type": "object",
 			"properties": {
@@ -5128,7 +5610,7 @@
 				},
 				"surname": {
 					"type": "string"
-				},				
+				},
 				"email": {
 					"type": "string"
 				},
@@ -5162,7 +5644,7 @@
 					"default": "Viewer"
 				}
 			}
-		},		
+		},
 		"PlatformStatistics": {
 			"properties": {
 				"orgs": {
@@ -5231,19 +5713,22 @@
 				},
 				"telegramChatId": {
 					"type": "string"
-				},				
+				},
 				"folderPermission": {
 					"type": "string"
 				},
-				"geoJsonData": {
-					"type": "string"
-				},							
+				"floorNumber": {
+					"type": "number"
+				},
+				"featureIndex": {
+					"type": "number"
+				},
 				"groupAdminDataArray": {
 					"type": "array",
 					"items": {
 						"$ref": "#/definitions/GroupAdminInput"
 					}
-				}				
+				}
 			}
 		},
 		"GroupUpdateInput": {
@@ -5259,13 +5744,16 @@
 				},
 				"telegramChatId": {
 					"type": "string"
-				},				
+				},
 				"folderPermission": {
 					"type": "string"
 				},
-				"geoJsonData": {
-					"type": "string"
-				}				
+				"floorNumber": {
+					"type": "number"
+				},
+				"featureIndex": {
+					"type": "number"
+				}
 			}
 		},
 		"GroupAdminInput": {
@@ -5275,12 +5763,12 @@
 				},
 				"surname": {
 					"type": "string"
-				},				
+				},
 				"email": {
 					"type": "string"
-				}				
+				}
 			}
-		},		
+		},
 		"GroupMemberInput": {
 			"properties": {
 				"firstName": {
@@ -5288,14 +5776,14 @@
 				},
 				"surname": {
 					"type": "string"
-				},				
+				},
 				"email": {
 					"type": "string"
 				},
 				"roleInGroup": {
 					"type": "string",
 					"default": "Viewer"
-				}				
+				}
 			}
 		},
 		"GroupMemberRoleUpdate": {
@@ -5303,9 +5791,9 @@
 				"roleInGroup": {
 					"type": "string",
 					"default": "Viewer"
-				}				
+				}
 			}
-		},		
+		},
 		"GroupMemberOutput": {
 			"properties": {
 				"groupId": {
@@ -5313,25 +5801,22 @@
 				},
 				"userId": {
 					"type": "string"
-				},				
+				},
 				"firstName": {
 					"type": "string"
 				},
 				"surname": {
 					"type": "string"
 				},
-				"login": {
-					"type": "string"
-				},							
 				"email": {
 					"type": "string"
-				},			
+				},
 				"roleInGroup": {
 					"type": "string",
 					"default": "Viewer"
-				}				
+				}
 			}
-		},			    
+		},
 		"GroupOutput": {
 			"type": "object",
 			"properties": {
@@ -5350,9 +5835,9 @@
 				"folderUid": {
 					"type": "string"
 				},
-				"folderPermission":{
+				"folderPermission": {
 					"type": "string"
-				},																				
+				},
 				"name": {
 					"type": "string"
 				},
@@ -5377,9 +5862,15 @@
 				"isOrgDefaultGroup": {
 					"type": "boolean"
 				},
-				"geoJsonData": {
-					"type": "string"
-				}									
+				"outerBounds": {
+					"type": "array"
+				},
+				"floorNumber": {
+					"type": "number"
+				},
+				"featureIndex": {
+					"type": "number"
+				}
 			}
 		},
 		"GroupCreationOutput": {
@@ -5389,7 +5880,7 @@
 					"type": "string"
 				},
 				"group": {
-				    "$ref": "#/definitions/GroupOutput"
+					"$ref": "#/definitions/GroupOutput"
 				}
 			}
 		},
@@ -5407,7 +5898,7 @@
 				},
 				"orgId": {
 					"type": "number"
-				},								
+				},
 				"name": {
 					"type": "string"
 				},
@@ -5430,7 +5921,7 @@
 			"items": {
 				"$ref": "#/definitions/GroupWhichTheLoggedUserIsMember"
 			}
-		},		
+		},
 		"AddMembersToGroupInput": {
 			"properties": {
 				"members": {
@@ -5438,7 +5929,7 @@
 					"items": {
 						"$ref": "#/definitions/GroupMemberInput"
 					}
-				}				
+				}
 			}
 		},
 		"GroupMembers": {
@@ -5472,12 +5963,15 @@
 				"description": {
 					"type": "string"
 				},
+				"type": {
+					"type": "string"
+				},
 				"longitude": {
 					"type": "number"
 				},
 				"latitude": {
 					"type": "number"
-				}			
+				}
 			}
 		},
 		"DeviceOutput": {
@@ -5490,7 +5984,7 @@
 				},
 				"groupId": {
 					"type": "number"
-				},										
+				},
 				"name": {
 					"type": "string"
 				},
@@ -5499,7 +5993,16 @@
 				},
 				"type": {
 					"type": "string"
-				},				
+				},
+				"groupUid": {
+					"type": "string"
+				},
+				"deviceUid": {
+					"type": "string"
+				},
+				"masterDeviceHash": {
+					"type": "string"
+				},
 				"longitude": {
 					"type": "number"
 				},
@@ -5508,10 +6011,10 @@
 				},
 				"created": {
 					"type": "string"
-				},										
+				},
 				"updated": {
 					"type": "string"
-				}	
+				}
 			}
 		},
 		"Devices": {
@@ -5522,20 +6025,20 @@
 		},
 		"TopicInput": {
 			"properties": {
+				"topicType": {
+					"type": "string"
+				},
 				"topicName": {
 					"type": "string"
 				},
 				"description": {
 					"type": "string"
 				},
-				"topicType": {
-					"type": "string"
-				},				
 				"payloadFormat": {
 					"type": "string"
-				}	
+				}
 			}
-		},		
+		},
 		"TopicOutput": {
 			"properties": {
 				"id": {
@@ -5549,25 +6052,28 @@
 				},
 				"deviceId": {
 					"type": "number"
-				},														
+				},
+				"topicType": {
+					"type": "string"
+				},
 				"topicName": {
 					"type": "string"
 				},
 				"description": {
 					"type": "string"
 				},
-				"topicType": {
+				"topicUid": {
 					"type": "string"
-				},				
+				},
 				"payloadFormat": {
 					"type": "string"
 				},
 				"created": {
 					"type": "string"
-				},										
+				},
 				"updated": {
 					"type": "string"
-				}	
+				}
 			}
 		},
 		"Topics": {
@@ -5577,10 +6083,10 @@
 			}
 		},
 		"MeasurementInput": {
-			"properties": {			
+			"properties": {
 				"payload": {
 					"type": "string"
-				}	
+				}
 			}
 		},
 		"MeasurementOutput": {
@@ -5590,7 +6096,7 @@
 				},
 				"topic": {
 					"type": "string"
-				},				
+				},
 				"payload": {
 					"type": "string"
 				}
@@ -5606,13 +6112,13 @@
 				},
 				"endDate": {
 					"type": "string"
-				},						
+				},
 				"pageIndex": {
 					"type": "number"
 				},
 				"itemsPerPage": {
 					"type": "number"
-				}				
+				}
 			}
 		},
 		"MeasurementRequestBody": {
@@ -5634,7 +6140,17 @@
 					"type": "number"
 				}
 			}
-		},		
+		},
+		"LastMeasurementsFromTopicsIdArrayBody": {
+			"properties": {
+				"topicsIdArray": {
+					"type": "array",
+					"items": {
+						"type": "number"
+					}
+				}
+			}
+		},
 		"MeasurementUpdateBody": {
 			"properties": {
 				"timestamp": {
@@ -5642,7 +6158,7 @@
 				},
 				"topic": {
 					"type": "string"
-				},				
+				},
 				"updatedPayload": {
 					"type": "string"
 				}
@@ -5657,7 +6173,7 @@
 					"type": "string"
 				}
 			}
-		},				
+		},
 		"Measurements": {
 			"type": "array",
 			"items": {
@@ -5666,7 +6182,7 @@
 		},
 		"DigitalTwinInput": {
 			"properties": {
-				"name": {
+				"digitalTwinUid": {
 					"type": "string"
 				},
 				"description": {
@@ -5675,14 +6191,29 @@
 				"type": {
 					"type": "string"
 				},
-				"dashboardId": {
-					"type": "number"
-				},
 				"gltfData": {
-					"type": "number"
+					"type": "string"
+				},
+				"gltfFileName": {
+					"type": "string"
+				},
+				"gltfFileLastModifDateString": {
+					"type": "string"
+				},
+				"femSimulationData": {
+					"type": "string"
+				},
+				"femSimDataFileName": {
+					"type": "string"
+				},
+				"femSimDataFileLastModifDateString": {
+					"type": "string"
+				},
+				"digitalTwinSimulationFormat": {
+					"type": "string"
 				}
 			}
-		},		
+		},
 		"DigitalTwinOutput": {
 			"properties": {
 				"id": {
@@ -5696,9 +6227,9 @@
 				},
 				"deviceId": {
 					"type": "number"
-				},														
-				"name": {
-					"type": "string"
+				},
+				"digitalTwinUid": {
+					"type": "number"
 				},
 				"description": {
 					"type": "string"
@@ -5709,12 +6240,24 @@
 				"dashboardId": {
 					"type": "number"
 				},
+				"gltfFileName": {
+					"type": "string"
+				},
+				"gltfFileLastModifDateString": {
+					"type": "string"
+				},
+				"femSimDataFileName": {
+					"type": "string"
+				},
+				"digitalTwinSimulationFormat": {
+					"type": "string"
+				},
 				"created": {
 					"type": "string"
-				},										
+				},
 				"updated": {
 					"type": "string"
-				}	
+				}
 			}
 		},
 		"DigitalTwinGltfDataOutput": {
@@ -5723,14 +6266,121 @@
 					"type": "number"
 				},
 				"gltfData": {
-					"type": "number"
+					"type": "string"
+				},
+				"femSimulationData": {
+					"type": "string"
+				},
+				"digitalTwinSimulationFormat": {
+					"type": "string"
 				}
 			}
-		},		
+		},
 		"DigitalTwins": {
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/DigitalTwinOutput"
+			}
+		},
+		"DigitalTwinStateOutput": {
+			"properties": {
+				"digitalTwinId": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"groupId": {
+					"type": "number"
+				},
+				"deviceId": {
+					"type": "number"
+				},
+				"state": {
+					"type": "string"
+				}
+			}
+		},
+		"DigitalTwinsState": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/DigitalTwinStateOutput"
+			}
+		},
+		"DigitalTwinSimulatorOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"groupId": {
+					"type": "number"
+				},
+				"deviceId": {
+					"type": "number"
+				},
+				"digitalTwinUid": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"digitalTwinSimulationFormat": {
+					"type": "string"
+				},
+				"sensorSimulationTopicId": {
+					"type": "number"
+				}
+			}
+		},
+		"DigitalTwinSimulators": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/DigitalTwinSimulatorOutput"
+			}
+		},
+		"DigitalTwinMqttTopicOutput": {
+			"type": "object",
+			"properties": {
+				"DT_Ref_1": {
+					"type": "object",
+					"properties": {
+						"dev2pdb_1": {
+							"type": "string"
+						}
+					}
+				},
+				"DT_Ref_2": {
+					"type": "object",
+					"properties": {
+						"dev2pdb_1": {
+							"type": "string"
+						},
+						"dev2pdb_2": {
+							"type": "string"
+						},
+						"dev2pdb_n": {
+							"type": "string"
+						},
+						"dev_sim_2dtm": {
+							"type": "string"
+						},
+						"dtm_as2pdb": {
+							"type": "string"
+						},
+						"dtm_sim_as2dts": {
+							"type": "string"
+						},
+						"dtm_fmv2pdb": {
+							"type": "string"
+						},
+						"dtm_sim_fmv2dts": {
+							"type": "string"
+						}
+					}
+				}
 			}
 		},
 		"DashboardOutput": {
@@ -5743,7 +6393,7 @@
 				},
 				"groupId": {
 					"type": "number"
-				},																	
+				},
 				"slug": {
 					"type": "string"
 				},
@@ -5755,10 +6405,10 @@
 				},
 				"created": {
 					"type": "string"
-				},										
+				},
 				"updated": {
 					"type": "string"
-				}	
+				}
 			}
 		},
 		"Dashboards": {
@@ -5766,8 +6416,6 @@
 			"items": {
 				"$ref": "#/definitions/DashboardOutput"
 			}
-		}					
+		}
 	}
 }
-  
-
