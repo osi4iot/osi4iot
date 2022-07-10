@@ -49,7 +49,7 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, dep
 				validate: function (nodeIP) {
 					if (!nodeIPs.includes(nodeIP)) {
 						const validIP = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(nodeIP)
-						if (validIP || isLocahostNode(nodeIP)) {
+						if (validIP || nodeIP === "localhost") {
 							choosenNodeIP = nodeIP;
 							return true;
 						} else {
