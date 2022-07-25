@@ -49,8 +49,3 @@ if [ ! -d  /home/ubuntu/efs_osi4iot/pgdata ]; then
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/pgdata
 fi
 
-if [ ! -d  /home/ubuntu/efs_osi4iot/pgdata ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/portainer_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/portainer_data
-fi
-
