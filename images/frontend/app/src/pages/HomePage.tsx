@@ -175,7 +175,10 @@ const HomePage: FC<{}> = () => {
 								Platform assistant
 							</StyledNavLink>
 							{
-								(window._env_ && window._env_.PROTOCOL === "https") &&
+								(
+									(window._env_ && window._env_.PROTOCOL === "https") ||
+									window.location.href.split("/")[2] === "localhost:3000"
+								) &&
 								<>
 									<StyledNavLink exact to="/digital_twin_simulator_mobile">
 										Digital twin simulator

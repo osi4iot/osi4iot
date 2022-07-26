@@ -138,28 +138,12 @@ func main() {
 	<-keepAlive
 }
 
-func readParameterFromFile(filePath string) string {
-	file, err := os.Open(filePath)
-	if err != nil {
-		fmt.Printf("error opening file: %v\n", err)
-		os.Exit(1)
-	}
-
-	r := bufio.NewReader(file)
-	line, _, err := r.ReadLine()
-	if err != nil {
-		fmt.Printf("error reading line in file: %v\n", err)
-		os.Exit(1)
-	}
-	return string(line)
-}
-
 func getConfigData() config {
 	mqttClientId:= "dev2pdb"
 	mqttPort:= 1883
 	mqttBrokerServiceUrl:= getEnv("MQTT_BROKER_SERVICE_URL", "mosquitto")
-	postgresPassword:= readParameterFromFile("/run/secrets/postgres_password.txt")
-	postgresUser:= readParameterFromFile("/run/secrets/postgres_user.txt")
+	postgresPassword:= getParameterFromFileOrEnvVar("POSTGRES_PASSWORD","/run/secrets/postgres_password.txt")
+	postgresUser:= getParameterFromFileOrEnvVar("POSTGRES_USER", "/run/secrets/postgres_user.txt")
 	postgresServiceUrl:= getEnv("POSTGRES_SERVICE_URL", "postgres")
 	databaseName:= getEnv("DATABASE_NAME", "iot_platform_db")
 	return config{mqttClientId, mqttPort, mqttBrokerServiceUrl, postgresPassword, postgresUser, postgresServiceUrl, databaseName}
@@ -182,4 +166,23 @@ func getEnv(key, fallback string) string {
         return value
     }
     return fallback
+}
+
+func getParameterFromFileOrEnvVar(envVarName string, filePath string) string {
+    if value, ok := os.LookupEnv(envVarName); ok {
+        return value
+    }
+
+	file, err := os.Open(filePath)
+	if err != nil {
+		fmt.Printf("Error opening file: %v\n", err)
+		os.Exit(1)
+	}
+	r := bufio.NewReader(file)
+	line, _, err := r.ReadLine()
+	if err != nil {
+		fmt.Printf("Error reading line in file: %v\n", err)
+		os.Exit(1)
+	}
+	return string(line)
 }

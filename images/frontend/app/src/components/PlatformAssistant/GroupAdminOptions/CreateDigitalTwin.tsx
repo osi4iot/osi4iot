@@ -4,7 +4,7 @@ import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { nanoid } from "nanoid";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -272,7 +272,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         }),
         digitalTwinSimulationFormat: Yup.string().when("type", {
             is: "Gltf 3D model",
-            then: Yup.string().required("Must enter Digital twin simulation format")
+            then: Yup.string()
+                .test("test-name", "Wrong format for the json object", (value: any) =>  digitalTwinFormatValidation(value))
+                .required("Must enter Digital twin simulation format")
         }),
     });
 

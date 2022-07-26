@@ -66,7 +66,7 @@ export const getTopicSensorTypesFromDigitalTwin = (digitalTwin: Partial<IDigital
 const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: string): string => {
 	const digitalTwinSimulationFormatObj = JSON.parse(digitalTwinSimulationFormat);
 	const keys = Object.keys(digitalTwinSimulationFormatObj);
-	const payloadObj: Record<string, {type: string, units: string}> = {};
+	const payloadObj: Record<string, { type: string, units: string }> = {};
 	keys.forEach(key => {
 		payloadObj[key] = {} as any;
 		payloadObj[key].type = "number";
@@ -426,7 +426,18 @@ export const generateDigitalTwinMqttTopics = (digitalTwinMqttTopicsInfo: IMqttDi
 		const topicType = topicInfo.topicType;
 		digitalTwinMqttTopics[digitalTwinUid][topicType] = generateMqttTopic(topicInfo);
 	}
-	return digitalTwinMqttTopics;
+
+	const digitalTwinMqttTopicsSorted: Record<string, Record<string, string>> = {};
+	for (const digitalTwinUid of Object.keys(digitalTwinMqttTopics)) {
+		const sorted = Object.keys(digitalTwinMqttTopics[digitalTwinUid])
+			.sort()
+			.reduce((accumulator: Record<string, string>, key: string) => {
+				accumulator[key] = digitalTwinMqttTopics[digitalTwinUid][key];
+				return accumulator;
+			}, {});
+		digitalTwinMqttTopicsSorted[digitalTwinUid] = sorted;
+	}
+	return digitalTwinMqttTopicsSorted;
 }
 
 
@@ -477,11 +488,11 @@ export const createDigitalTwin = async (
 	if (!alreadyCreatedTopic) {
 		const topicSensorTypes = getTopicSensorTypesFromDigitalTwin(digitalTwinInput);
 		const topicSensorQueries: any[] = [];
-		for (let i = 1; i <= topicSensorTypes.length; i++) {
+		for (const topicSensorType of topicSensorTypes) {
 			const sensorTopicData =
 			{
 				topicType: "dev2pdb",
-				topicName: `${digitalTwinUid}_${topicSensorTypes[i]}`,
+				topicName: `${digitalTwinUid}_${topicSensorType}`,
 				description: `Device to platform db for ${digitalTwinUid}`,
 				payloadFormat: '{"parameter": "number"}'
 			};
@@ -505,9 +516,10 @@ export const createDigitalTwin = async (
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 
 	const digitalTwinTopicSensorQueries: any[] = [];
-	for (let i = 0; i < topicSensors.length; i++) {
-		const topicType = `dev2pdb_${i + 1}`;
-		const digitalTwinTopicSensorQuery = createDigitalTwinTopic(digitalTwin.id, topicSensors[i].id, topicType)
+	for (const topicSensor of topicSensors) {
+		const index = topicSensor.topicName.split("_")[3];
+		const topicType = `dev2pdb_${index}`;
+		const digitalTwinTopicSensorQuery = createDigitalTwinTopic(digitalTwin.id, topicSensor.id, topicType)
 		digitalTwinTopicSensorQueries.push(digitalTwinTopicSensorQuery);
 	}
 	await Promise.all(digitalTwinTopicSensorQueries);

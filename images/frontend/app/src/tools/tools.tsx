@@ -104,3 +104,46 @@ export const axiosInstance = (refreshToken: string, authDispatch: any): AxiosSta
     createAuthRefreshInterceptor(axios, refreshAuthLogic);
     return axios;
 }
+
+export const digitalTwinFormatValidation = (value: any) => {
+    let output = false;
+    try {
+        const obj = JSON.parse(value);
+        const keys = Object.keys(obj);
+        if (keys.length === 0) {
+            output = true;
+        } else {
+            let isAnyFieldWrong = false;
+            for (const key of keys) {
+                if (obj[key].label === undefined || typeof obj[key].label !== "string") {
+                    isAnyFieldWrong = true;
+                    break;
+                }
+                if (obj[key].units === undefined || typeof obj[key].units !== "string") {
+                    isAnyFieldWrong = true;
+                    break;
+                }
+                if (obj[key].minValue === undefined || typeof obj[key].minValue !== "number") {
+                    isAnyFieldWrong = true;
+                    break;
+                }
+                if (obj[key].maxValue === undefined || typeof obj[key].maxValue !== "number") {
+                    isAnyFieldWrong = true;
+                    break;
+                }
+                if (obj[key].defaultValue === undefined || typeof obj[key].defaultValue !== "number") {
+                    isAnyFieldWrong = true;
+                    break;
+                }
+                if (obj[key].step === undefined || typeof obj[key].step !== "number") {
+                    isAnyFieldWrong = true;
+                    break;
+                }
+            }
+            if (!isAnyFieldWrong) output = true;
+        }
+    } catch (err) {
+        return false;
+    }
+    return output;
+}

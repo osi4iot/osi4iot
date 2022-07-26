@@ -4,7 +4,7 @@ import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -196,7 +196,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 })
                 .catch((error) => {
                     const errorMessage = error.response.data.message;
-                    if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                    if (errorMessage !== "jwt expired") toast.error(errorMessage);
                     setDigitalTwinGltfDataLoading(false);
                     backToTable();
                 })
@@ -268,7 +268,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -303,10 +303,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         femSimDataFileLastModifDateString: Yup.string().when("type", {
             is: "Gltf 3D model",
             then: Yup.string().max(190, "The maximum number of characters allowed is 190").required("Must enter femSimDataFileLastModifDateString")
-        }),       
+        }),
         digitalTwinSimulationFormat: Yup.string().when("type", {
             is: "Gltf 3D model",
-            then: Yup.string().required("Must enter Digital twin simulation format")
+            then: Yup.string()
+                .test("test-name", "Wrong format for the json object", (value: any) => digitalTwinFormatValidation(value))
+                .required("Must enter Digital twin simulation format")
         }),
     });
 
@@ -487,7 +489,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                                         {localFemSimFileLabel}
                                                                     </FileButton>
                                                                 </SelectDataFilenButtonContainer>
-                                                            </DataFileContainer>                                                           
+                                                            </DataFileContainer>
                                                             <FormikControl
                                                                 control='textarea'
                                                                 label='Digital twin simulation format'
