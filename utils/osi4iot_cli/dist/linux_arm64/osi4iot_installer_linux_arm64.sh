@@ -1,7 +1,7 @@
 #!/bin/bash
 
 branch=$1
-if [ -z "$var" ]
+if [ -z "$branch" ]
 then
     branch=master
 fi
