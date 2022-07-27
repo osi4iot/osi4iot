@@ -1,10 +1,15 @@
-FROM golang:1.18
+FROM --platform=$BUILDPLATFORM golang:1.18 as builder
 
-WORKDIR /usr/src/app
+ARG TARGETARCH
+
+WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 COPY . .
-RUN go build -v -o /usr/local/bin/dev2pdb ./...
+RUN GOOS=linux GOARCH=$TARGETARCH go build -a -o /app/output/dev2pdb ./...
 
-CMD ["dev2pdb"]
+FROM gcr.io/distroless/base-debian10
+WORKDIR /
+COPY --from=builder /app/output/dev2pdb /dev2pdb
+ENTRYPOINT ["/dev2pdb"]

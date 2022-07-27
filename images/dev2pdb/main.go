@@ -94,7 +94,7 @@ func saveToDatabaseHandler(dbPool *pgxpool.Pool, msg mqtt.Message) {
 
 	if _, err := dbPool.Exec(context.Background(), sqlQuery, group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted); err != nil {
 		// Handling error, if occur
-		fmt.Println("Unable to insert due to: ", err)
+		fmt.Println("Unable to insert register in database due to: ", err)
 		return
 	}
 
@@ -134,6 +134,8 @@ func main() {
 
 	go listen("dev2pdb/#", client, dbPool)
 	go listenWithTimestamp("dev2pdb_with_timestamp/#", client, dbPool)
+	go listen("dtm_as2pdb/#", client, dbPool)
+	go listen("dtm_fmv2pdb/#", client, dbPool)
 
 	<-keepAlive
 }

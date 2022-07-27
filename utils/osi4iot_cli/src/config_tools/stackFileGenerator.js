@@ -18,7 +18,8 @@ const defaultServiceImageVersion = {
 	frontend: defaultVersion || 'latest',
 	frontend_arm64: defaultVersion || 'latest',
 	master_device: defaultVersion || 'latest',
-	keepalived: defaultVersion || 'latest'
+	keepalived: defaultVersion || 'latest',
+	dev2pdb: defaultVersion || 'latest'
 }
 
 export default function (osi4iotState) {
@@ -330,66 +331,95 @@ export default function (osi4iotState) {
 					}
 				}
 			},
-			nodered: {
-				image: `ghcr.io/osi4iot/nodered:${serviceImageVersion['nodered']}`,
-				user: '${UID}:${GID}',
+			// nodered: {
+			// 	image: `ghcr.io/osi4iot/nodered:${serviceImageVersion['nodered']}`,
+			// 	user: '${UID}:${GID}',
+			// 	networks: [
+			// 		'internal_net',
+			// 		'traefik_public'
+			// 	],
+			// 	volumes: [
+			// 		'nodered_data:/data'
+			// 	],
+			// 	environment: [
+			// 		`IS_NODERED_VOLUME_ALREADY_CREATED=${osi4iotState.platformInfo.IS_NODERED_VOLUME_ALREADY_CREATED === 'true'}`
+			// 	],
+			// 	secrets: [
+			// 		{
+			// 			source: 'mqtt_certs_ca_cert',
+			// 			target: '/data/certs/ca.crt',
+			// 			mode: 0o444
+			// 		},
+			// 		{
+			// 			source: 'mqtt_nodered_client_cert',
+			// 			target: '/data/certs/client.crt',
+			// 			mode: 0o444
+			// 		},
+			// 		{
+			// 			source: 'mqtt_nodered_client_key',
+			// 			target: '/data/certs/client.key',
+			// 			mode: 0o444
+			// 		},
+			// 		{
+			// 			source: 'nodered',
+			// 			target: 'nodered.txt',
+			// 			mode: 0o400
+			// 		}
+			// 	],
+			// 	configs: [
+			// 		{
+			// 			source: 'nodered_conf',
+			// 			target: '/run/configs/nodered.conf',
+			// 			mode: 0o440
+			// 		}
+			// 	],
+			// 	deploy: {
+			// 		placement: {
+			// 			constraints: workerConstraintsArray
+			// 		},
+			// 		labels: [
+			// 			'traefik.enable=true',
+			// 			`traefik.http.routers.nodered.rule=Host(\`${domainName}\`) && PathPrefix(\`/main_nodered/\`)`,
+			// 			'traefik.http.middlewares.nodered-prefix.stripprefix.prefixes=/main_nodered',
+			// 			'traefik.http.routers.nodered.middlewares=nodered-prefix,nodered-header,nodered-redirectregex',
+			// 			'traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false',
+			// 			'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/main_nodered/',
+			// 			`traefik.http.middlewares.nodered-redirectregex.redirectregex.regex=${domainName}/(main_noderedx*)`,
+			// 			`traefik.http.middlewares.nodered-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+			// 			"traefik.http.routers.nodered.entrypoints=websecure",
+			// 			'traefik.http.routers.nodered.tls=true',
+			// 			'traefik.http.routers.nodered.service=nodered',
+			// 			'traefik.http.services.nodered.loadbalancer.server.port=1880'
+			// 		]
+			// 	}
+			// },
+			dev2pdb: {
+				image: `ghcr.io/osi4iot/dev2pdb:${serviceImageVersion['dev2pdb']}`,
 				networks: [
 					'internal_net',
-					'traefik_public'
 				],
 				volumes: [
 					'nodered_data:/data'
 				],
 				environment: [
-					`IS_NODERED_VOLUME_ALREADY_CREATED=${osi4iotState.platformInfo.IS_NODERED_VOLUME_ALREADY_CREATED === 'true'}`
+					'DATABASE_NAME=iot_platform_db',
 				],
 				secrets: [
 					{
-						source: 'mqtt_certs_ca_cert',
-						target: '/data/certs/ca.crt',
-						mode: 0o444
-					},
-					{
-						source: 'mqtt_nodered_client_cert',
-						target: '/data/certs/client.crt',
-						mode: 0o444
-					},
-					{
-						source: 'mqtt_nodered_client_key',
-						target: '/data/certs/client.key',
-						mode: 0o444
-					},
-					{
-						source: 'nodered',
-						target: 'nodered.txt',
+						source: 'postgres_user',
+						target: 'postgres_user.txt',
 						mode: 0o400
-					}
-				],
-				configs: [
+					},
 					{
-						source: 'nodered_conf',
-						target: '/run/configs/nodered.conf',
-						mode: 0o440
+						source: 'postgres_password',
+						target: 'postgres_password.txt',
+						mode: 0o400
 					}
 				],
 				deploy: {
 					placement: {
 						constraints: workerConstraintsArray
-					},
-					labels: [
-						'traefik.enable=true',
-						`traefik.http.routers.nodered.rule=Host(\`${domainName}\`) && PathPrefix(\`/main_nodered/\`)`,
-						'traefik.http.middlewares.nodered-prefix.stripprefix.prefixes=/main_nodered',
-						'traefik.http.routers.nodered.middlewares=nodered-prefix,nodered-header,nodered-redirectregex',
-						'traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false',
-						'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/main_nodered/',
-						`traefik.http.middlewares.nodered-redirectregex.redirectregex.regex=${domainName}/(main_noderedx*)`,
-						`traefik.http.middlewares.nodered-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
-						"traefik.http.routers.nodered.entrypoints=websecure",
-						'traefik.http.routers.nodered.tls=true',
-						'traefik.http.routers.nodered.service=nodered',
-						'traefik.http.services.nodered.loadbalancer.server.port=1880'
-					]
+					}
 				}
 			},
 			grafana: {
