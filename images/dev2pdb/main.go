@@ -49,7 +49,6 @@ func createClientOptions(configData config) *mqtt.ClientOptions {
 }
 
 func saveToDatabaseWithTimestampHandler(dbPool *pgxpool.Pool, msg mqtt.Message) {
-	fmt.Printf("Topic: [%s] Message: %s\n", msg.Topic(), string(msg.Payload()))
 	sqlQuery := "INSERT INTO iot_data.thingData (group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted) VALUES ($1, $2, $3, $4, $5, $6, $7);"
 
 	topicsSlice := strings.Split(msg.Topic(), "/")
@@ -80,7 +79,6 @@ func saveToDatabaseWithTimestampHandler(dbPool *pgxpool.Pool, msg mqtt.Message) 
 }
 
 func saveToDatabaseHandler(dbPool *pgxpool.Pool, msg mqtt.Message) {
-	fmt.Printf("Topic: [%s] Message: %s\n", msg.Topic(), string(msg.Payload()))
 	sqlQuery := "INSERT INTO iot_data.thingData (group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted) VALUES ($1, $2, $3, $4, $5, $6, $7);"
 	timestamp := time.Now()
 	payload := msg.Payload()
@@ -102,7 +100,7 @@ func saveToDatabaseHandler(dbPool *pgxpool.Pool, msg mqtt.Message) {
 
 func listen(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool) {
 	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		saveToDatabaseHandler(dbPool, msg)
+		go saveToDatabaseHandler(dbPool, msg)
 	})
 }
 
