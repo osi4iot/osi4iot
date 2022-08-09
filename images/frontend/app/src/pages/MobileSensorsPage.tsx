@@ -308,7 +308,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 					const groupHash = (devicesManaged[deviceSelectedIndex] as IDevice).groupUid;
 					const deviceHash = (devicesManaged[deviceSelectedIndex] as IDevice).deviceUid;
 					const topicHash = (topicsManaged[topicSelectedIndex] as ITopic).topicUid;
-					const mqttTopic = `dev2pdb/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
+					const mqttTopic = `dev2pdb_wt/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
 					ReadAccelerations(mqttClient as Paho.Client, mqttTopic, readingParameter, setIsSensorReadings, setReadingProgress);
 				}
 			}

@@ -16,7 +16,7 @@ const ReadAccelerations = (
 	sensor.onreading = function () {
 		setIsSensorReadings(true);
 		if (readingsCont <= totalReadings) {
-			const timestamp = new Date();
+			const timestamp = (new Date()).toJSON();
 			let az = sensor.z - 9.80665;
 			const payload = { timestamp, accelerations: [sensor.x, sensor.y, az] };
 			const message = new Paho.Message(JSON.stringify(payload));
