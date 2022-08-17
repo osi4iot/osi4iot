@@ -160,7 +160,7 @@ export default function (osi4iotState) {
 					'/var/run/docker.sock:/var/run/docker.sock:ro'
 				]
 			},
-			mosquitto: {
+			mqtt_broker: {
 				image: `ghcr.io/osi4iot/mosquitto:${serviceImageVersion['mosquitto']}`,
 				networks: [
 					'internal_net'
@@ -791,7 +791,7 @@ export default function (osi4iotState) {
 			}
 		];
 
-		osi4iotStackObj.services['mosquitto'].secrets.push(
+		osi4iotStackObj.services['mqtt_broker'].secrets.push(
 			{
 				source: 'iot_platform_ca',
 				target: '/mosquitto/wss_certs/iot_platform_ca.pem',
