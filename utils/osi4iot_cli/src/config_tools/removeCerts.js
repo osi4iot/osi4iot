@@ -45,17 +45,6 @@ export default function (osi4iotState) {
 					}
 				}
 
-				const nodered_dir = "./certs/mqtt_certs/nodered";
-				if (fs.existsSync(nodered_dir)) {
-					if (fs.existsSync('./certs/mqtt_certs/nodered/client.key')) {
-						fs.rmSync('./certs/mqtt_certs/nodered/client.key');
-					}
-
-					if (fs.existsSync('./certs/mqtt_certs/nodered/client.crt')) {
-						fs.rmSync('./certs/mqtt_certs/nodered/client.crt');
-					}
-				}
-
 				for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
 					const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
 					const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;

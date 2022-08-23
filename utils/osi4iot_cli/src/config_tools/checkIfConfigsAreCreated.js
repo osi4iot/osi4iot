@@ -23,10 +23,5 @@ export default function () {
 		areConfigsCreated = false;
 	}
 
-	const nodered_conf_dir = "./config/nodered";
-	if (!fs.existsSync(nodered_conf_dir)) {
-		areConfigsCreated = false;
-	}
-
 	return areConfigsCreated;
 }

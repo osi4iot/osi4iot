@@ -663,7 +663,6 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 								NODE_RED_ADMIN_HASH: bcrypt.hashSync(answers.PLATFORM_ADMIN_PASSWORD, 8),
 								PGADMIN_DEFAULT_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
 								PGADMIN_DEFAULT_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
-								IS_NODERED_VOLUME_ALREADY_CREATED: 'false',
 								NODES_DATA: answers.NODES_DATA
 							},
 							certs: {
@@ -690,13 +689,6 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 										mqtt_broker_cert_name: "",
 										server_key: "",
 										mqtt_broker_key_name: "",
-										expiration_timestamp: 0
-									},
-									nodered: {
-										client_crt: "",
-										mqtt_nodered_client_cert_name: "",
-										client_key: "",
-										mqtt_nodered_client_key_name: "",
 										expiration_timestamp: 0
 									},
 									organizations: []

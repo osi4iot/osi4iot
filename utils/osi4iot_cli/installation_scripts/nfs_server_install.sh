@@ -34,10 +34,6 @@ if [ ! -d /var/nfs_osi4iot/mosquitto_log ]; then
     sudo chown nobody:nogroup /var/nfs_osi4iot/mosquitto_log
 fi
 
-if [ ! -d  /var/nfs_osi4iot/nodered_data ]; then
-    sudo mkdir /var/nfs_osi4iot/nodered_data
-    sudo chown nobody:nogroup /var/nfs_osi4iot/nodered_data
-fi
 
 if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
     sudo mkdir /var/nfs_osi4iot/portainer_data

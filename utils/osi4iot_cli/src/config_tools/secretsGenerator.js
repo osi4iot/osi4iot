@@ -28,23 +28,6 @@ export default function (osi4iotState) {
 		fs.appendFileSync('./secrets/grafana.txt', grafanaSecrets[iline]);
 	}
 
-	//nodered secrets
-	const noderedSecrets = [
-		`POSTGRES_USER=${osi4iotState.platformInfo.POSTGRES_USER}\n`,
-		`POSTGRES_PASSWORD=${osi4iotState.platformInfo.POSTGRES_PASSWORD}\n`,
-		`POSTGRES_DB=${osi4iotState.platformInfo.POSTGRES_DB}\n`,
-		`NODE_RED_ADMIN=${osi4iotState.platformInfo.NODE_RED_ADMIN}\n`,
-		`NODE_RED_ADMIN_HASH=${osi4iotState.platformInfo.NODE_RED_ADMIN_HASH}`
-	];
-
-	if (fs.existsSync('./secrets/nodered.txt')) {
-		fs.rmSync('./secrets/nodered.txt');
-	}
-
-	for (let iline = 0; iline < noderedSecrets.length; iline++) {
-		fs.appendFileSync('./secrets/nodered.txt', noderedSecrets[iline]);
-	}
-
 	//pgadmin4 secrets
 	const pgadmin4Secrets = [
 		`PGADMIN_DEFAULT_EMAIL=${osi4iotState.platformInfo.PGADMIN_DEFAULT_EMAIL}\n`,

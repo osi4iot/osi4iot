@@ -11,7 +11,6 @@ const defaultServiceImageVersion = {
 	portainer: defaultVersion || 'latest',
 	pgadmin4: defaultVersion || 'latest',
 	postgres: defaultVersion || 'latest',
-	nodered: defaultVersion || 'latest',
 	grafana: defaultVersion || 'latest',
 	grafana_renderer: defaultVersion || 'latest',
 	admin_api: defaultVersion || 'latest',
@@ -78,8 +77,10 @@ export default function (osi4iotState) {
 		traefik_ports.push('80:80','443:443');
 	}
 
+	let numReplicas = 3;
 	if (numSwarmNodes === 1) {
 		const nodeArch = nodesData[0].nodeArch;
+		numReplicas = 1;
 		if (nodeArch === "aarch64") platformArch = 'aarch64';
 		else if (nodeArch === "x86_64") platformArch = 'x86_64';
 		else {
@@ -138,7 +139,7 @@ export default function (osi4iotState) {
 				command: traefik_command,
 				deploy: {
 					mode: 'replicated',
-					replicas: 3,
+					replicas: numReplicas,
 					update_config: {
 						parallelism: 1,
 						order: "start-first",
@@ -149,6 +150,7 @@ export default function (osi4iotState) {
 						order: "stop-first"
 					},
 					placement: {
+						max_replicas_per_node: 1,
 						constraints: ["node.role==manager"]
 					}
 				},
@@ -331,75 +333,10 @@ export default function (osi4iotState) {
 					}
 				}
 			},
-			// nodered: {
-			// 	image: `ghcr.io/osi4iot/nodered:${serviceImageVersion['nodered']}`,
-			// 	user: '${UID}:${GID}',
-			// 	networks: [
-			// 		'internal_net',
-			// 		'traefik_public'
-			// 	],
-			// 	volumes: [
-			// 		'nodered_data:/data'
-			// 	],
-			// 	environment: [
-			// 		`IS_NODERED_VOLUME_ALREADY_CREATED=${osi4iotState.platformInfo.IS_NODERED_VOLUME_ALREADY_CREATED === 'true'}`
-			// 	],
-			// 	secrets: [
-			// 		{
-			// 			source: 'mqtt_certs_ca_cert',
-			// 			target: '/data/certs/ca.crt',
-			// 			mode: 0o444
-			// 		},
-			// 		{
-			// 			source: 'mqtt_nodered_client_cert',
-			// 			target: '/data/certs/client.crt',
-			// 			mode: 0o444
-			// 		},
-			// 		{
-			// 			source: 'mqtt_nodered_client_key',
-			// 			target: '/data/certs/client.key',
-			// 			mode: 0o444
-			// 		},
-			// 		{
-			// 			source: 'nodered',
-			// 			target: 'nodered.txt',
-			// 			mode: 0o400
-			// 		}
-			// 	],
-			// 	configs: [
-			// 		{
-			// 			source: 'nodered_conf',
-			// 			target: '/run/configs/nodered.conf',
-			// 			mode: 0o440
-			// 		}
-			// 	],
-			// 	deploy: {
-			// 		placement: {
-			// 			constraints: workerConstraintsArray
-			// 		},
-			// 		labels: [
-			// 			'traefik.enable=true',
-			// 			`traefik.http.routers.nodered.rule=Host(\`${domainName}\`) && PathPrefix(\`/main_nodered/\`)`,
-			// 			'traefik.http.middlewares.nodered-prefix.stripprefix.prefixes=/main_nodered',
-			// 			'traefik.http.routers.nodered.middlewares=nodered-prefix,nodered-header,nodered-redirectregex',
-			// 			'traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false',
-			// 			'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/main_nodered/',
-			// 			`traefik.http.middlewares.nodered-redirectregex.redirectregex.regex=${domainName}/(main_noderedx*)`,
-			// 			`traefik.http.middlewares.nodered-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
-			// 			"traefik.http.routers.nodered.entrypoints=websecure",
-			// 			'traefik.http.routers.nodered.tls=true',
-			// 			'traefik.http.routers.nodered.service=nodered',
-			// 			'traefik.http.services.nodered.loadbalancer.server.port=1880'
-			// 		]
-			// 	}
-			// },
 			dev2pdb: {
 				image: `ghcr.io/osi4iot/dev2pdb:${serviceImageVersion['dev2pdb']}`,
 				networks: [
 					'internal_net',
-				],
-				volumes: [
-					'nodered_data:/data'
 				],
 				environment: [
 					'DATABASE_NAME=iot_platform_db',
@@ -448,7 +385,7 @@ export default function (osi4iotState) {
 				],
 				deploy: {
 					mode: 'replicated',
-					replicas: 3,
+					replicas: numReplicas,
 					update_config: {
 						parallelism: 1,
 						order: "start-first",
@@ -459,6 +396,7 @@ export default function (osi4iotState) {
 						order: "stop-first"
 					},
 					placement: {
+						max_replicas_per_node: 1,
 						constraints: ["node.role==manager"]
 					},
 					labels: [
@@ -523,7 +461,7 @@ export default function (osi4iotState) {
 				],
 				deploy: {
 					mode: 'replicated',
-					replicas: 3,
+					replicas: numReplicas,
 					update_config: {
 						parallelism: 1,
 						order: "start-first",
@@ -534,6 +472,7 @@ export default function (osi4iotState) {
 						order: "stop-first"
 					},
 					placement: {
+						max_replicas_per_node: 1,
 						constraints: workerConstraintsArray
 					},
 					labels: [
@@ -573,7 +512,7 @@ export default function (osi4iotState) {
 				command: 'nginx -g "daemon off";',
 				deploy: {
 					mode: 'replicated',
-					replicas: 3,
+					replicas: numReplicas,
 					update_config: {
 						parallelism: 1,
 						order: "start-first",
@@ -584,6 +523,7 @@ export default function (osi4iotState) {
 						order: "stop-first"
 					},
 					placement: {
+						max_replicas_per_node: 1,
 						constraints: workerConstraintsArray
 					},
 					labels: [
@@ -616,9 +556,6 @@ export default function (osi4iotState) {
 				driver: 'local'
 			},
 			mosquitto_log: {
-				driver: 'local'
-			},
-			nodered_data: {
 				driver: 'local'
 			},
 			pgdata: {
@@ -654,14 +591,6 @@ export default function (osi4iotState) {
 				file: './certs/mqtt_certs/broker/server.key',
 				name: osi4iotState.certs.mqtt_certs.broker.mqtt_broker_key_name
 			},
-			mqtt_nodered_client_cert: {
-				file: './certs/mqtt_certs/nodered/client.crt',
-				name: osi4iotState.certs.mqtt_certs.nodered.mqtt_nodered_client_cert_name
-			},
-			mqtt_nodered_client_key: {
-				file: './certs/mqtt_certs/nodered/client.key',
-				name: osi4iotState.certs.mqtt_certs.nodered.mqtt_nodered_client_key_name
-			},
 			pgadmin4: {
 				file: './secrets/pgadmin4.txt'
 			},
@@ -680,17 +609,11 @@ export default function (osi4iotState) {
 			admin_api: {
 				file: './secrets/admin_api.txt',
 				name: osi4iotState.admin_api_secret_name
-			},
-			nodered: {
-				file: './secrets/nodered.txt'
 			}
 		},
 		configs: {
 			mosquitto_conf: {
 				file: './config/mosquitto/mosquitto.conf'
-			},
-			nodered_conf: {
-				file: './config/nodered/nodered.conf'
 			},
 			grafana_conf: {
 				file: './config/grafana/grafana.conf'
@@ -718,18 +641,6 @@ export default function (osi4iotState) {
 			'traefik.http.routers.pgadmin4.service=pgadmin4',
 			'traefik.http.services.pgadmin4.loadbalancer.server.port=80'
 		];
-
-		osi4iotStackObj.services['nodered'].deploy.labels = [
-			'traefik.enable=true',
-			`traefik.http.routers.nodered.rule=Host(\`${domainName}\`) && PathPrefix(\`/main_nodered/\`)`,
-			'traefik.http.middlewares.nodered-prefix.stripprefix.prefixes=/main_nodered',
-			'traefik.http.routers.nodered.middlewares=nodered-prefix,nodered-header',
-			'traefik.http.middlewares.nodered-prefix.stripprefix.forceslash=false',
-			'traefik.http.middlewares.nodered-header.headers.customrequestheaders.X-Script-Name=/main_nodered/',
-			"traefik.http.routers.nodered.entrypoints=web",
-			'traefik.http.routers.nodered.service=nodered',
-			'traefik.http.services.nodered.loadbalancer.server.port=1880'
-		]
 
 		osi4iotStackObj.services['grafana'].deploy.labels = [
 			'traefik.enable=true',
@@ -873,15 +784,6 @@ export default function (osi4iotState) {
 				}
 			}
 
-			osi4iotStackObj.volumes['nodered_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs_osi4iot/nodered_data'
-				}
-			}
-
 			osi4iotStackObj.volumes['pgdata'] = {
 				driver: 'local',
 				driver_opts: {
@@ -943,15 +845,6 @@ export default function (osi4iotState) {
 					type: 'nfs',
 					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/mosquitto_log`
-				}
-			}
-
-			osi4iotStackObj.volumes['nodered_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/nodered_data`
 				}
 			}
 

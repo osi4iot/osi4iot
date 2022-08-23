@@ -29,9 +29,6 @@ export default async function (osi4iotState) {
 
 			const broker_dir = "./certs/mqtt_certs/broker";
 			fs.mkdirSync(broker_dir);
-
-			const nodered_dir = "./certs/mqtt_certs/nodered";
-			fs.mkdirSync(nodered_dir);
 		}
 	}
 
@@ -116,28 +113,6 @@ export default async function (osi4iotState) {
 		fs.writeFileSync('./certs/mqtt_certs/broker/server.key', broker.key);
 
 		fs.writeFileSync('./certs/mqtt_certs/broker/server.crt', broker.cert);
-	}
-
-	const nodered_client_crt = osi4iotState.certs.mqtt_certs.nodered.client_crt;
-	const nodered_client_key = osi4iotState.certs.mqtt_certs.nodered.client_key;
-	const nodered_expiration_timestamp = osi4iotState.certs.mqtt_certs.nodered.expiration_timestamp;
-	if ((nodered_client_crt === "" && nodered_client_key === "") || nodered_expiration_timestamp < limitTimestamp) {
-		const nodered = await mkcert.createCert({
-			domains: ['mqtt_nodered'],
-			validityDays: defaultValidityDays,
-			caKey: mqttCa.key,
-			caCert: mqttCa.cert
-		});
-
-		osi4iotState.certs.mqtt_certs.nodered.client_crt = nodered.cert;
-		osi4iotState.certs.mqtt_certs.nodered.mqtt_nodered_client_cert_name = `mqtt_nodered_client_cert_${md5(nodered.cert)}`
-		osi4iotState.certs.mqtt_certs.nodered.client_key = nodered.key;
-		osi4iotState.certs.mqtt_certs.nodered.mqtt_nodered_client_key_name = `mqtt_nodered_client_key_${md5(nodered.key)}`;
-		osi4iotState.certs.mqtt_certs.nodered.expiration_timestamp = defaultExpirationTimestamp;
-
-		fs.writeFileSync('./certs/mqtt_certs/nodered/client.key', nodered.key);
-
-		fs.writeFileSync('./certs/mqtt_certs/nodered/client.crt', nodered.cert);
 	}
 
 	const masterDeviceCertsPromises = []

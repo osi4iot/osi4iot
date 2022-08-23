@@ -29,11 +29,6 @@ if [ ! -d /home/ubuntu/efs_osi4iot/mosquitto_log ]; then
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/mosquitto_log
 fi
 
-if [ ! -d  /home/ubuntu/efs_osi4iot/nodered_data ]; then
-    sudo mkdir /home/ubuntu/efs_osi4iot/nodered_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/nodered_data
-fi
-
 if [ ! -d  /home/ubuntu/efs_osi4iot/portainer_data ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot/portainer_data
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/portainer_data

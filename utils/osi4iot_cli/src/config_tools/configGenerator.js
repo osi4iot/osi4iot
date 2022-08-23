@@ -30,12 +30,6 @@ export default function (osi4iotState) {
 		if (!fs.existsSync(mosquitto_conf_dir)) {
 			fs.mkdirSync(mosquitto_conf_dir);
 		}
-
-		const nodered_conf_dir = "./config/nodered";
-		if (!fs.existsSync(nodered_conf_dir)) {
-			fs.mkdirSync(nodered_conf_dir);
-		}
-
 	}
 
 	let protocol = "https";
@@ -102,20 +96,6 @@ export default function (osi4iotState) {
 
 	for (let iline = 0; iline < grafanaConfig.length; iline++) {
 		fs.appendFileSync('./config/grafana/grafana.conf', grafanaConfig[iline]);
-	}
-
-	//nodered config
-	const noderedConfig = [
-		`PORT=1880\n`,
-		`DOMAIN_NAME=${osi4iotState.platformInfo.DOMAIN_NAME}`
-	];
-
-	if (fs.existsSync('./config/nodered/nodered.conf')) {
-		fs.rmSync('./config/nodered/nodered.conf');
-	}
-
-	for (let iline = 0; iline < noderedConfig.length; iline++) {
-		fs.appendFileSync('./config/nodered/nodered.conf', noderedConfig[iline]);
 	}
 
 	//mosquitto config

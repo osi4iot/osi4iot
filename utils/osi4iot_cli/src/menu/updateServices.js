@@ -26,7 +26,6 @@ export default function (dockerHost, nodesData, organizations, updateAllServices
                     "osi4iot_frontend",
                     "osi4iot_grafana_renderer",
                     "osi4iot_mosquitto",
-                    "osi4iot_nodered"
                 ];
                 serviceNames.push(...managerServices);
             } else if (nodeRole === "Generic org worker") {

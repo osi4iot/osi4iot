@@ -10,10 +10,6 @@ export default function (osi4iotState) {
 		areSecretsCreated = false;
 	}
 
-	if (!fs.existsSync('./secrets/nodered.txt')) {
-		areSecretsCreated = false;
-	}
-
 	if (!fs.existsSync('./secrets/pgadmin4.txt')) {
 		areSecretsCreated = false;
 	}

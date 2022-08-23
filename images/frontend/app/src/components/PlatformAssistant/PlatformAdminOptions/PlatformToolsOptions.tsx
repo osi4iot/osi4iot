@@ -55,9 +55,6 @@ const PlatformTools: FC<{}> = () => {
 
     return (
         <PlatformToolsContainer>
-            <ImageContainer onClick={() => handleLinkClick("/main_nodered/")} >
-                <ToolImage src="../images/platformTools/node-red.png" alt="Node-Red" />
-            </ImageContainer>
             <ImageContainer onClick={() => handleLinkClick("/pgadmin4/")} >
                 <ToolImage src="../images/platformTools/pgadmin4.png" alt="Pgadmin4" />
             </ImageContainer>
