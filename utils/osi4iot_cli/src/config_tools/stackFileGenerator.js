@@ -496,9 +496,10 @@ export default function (osi4iotState) {
 				}
 			},
 			frontend: {
-				image: platformArch === 'x86_64' ?
-					`ghcr.io/osi4iot/frontend:${serviceImageVersion['frontend']}` :
-					`ghcr.io/osi4iot/frontend_arm64:${serviceImageVersion['frontend_arm64']}`,
+				// image: platformArch === 'x86_64' ?
+				// 	`ghcr.io/osi4iot/frontend:${serviceImageVersion['frontend']}` :
+				// 	`ghcr.io/osi4iot/frontend_arm64:${serviceImageVersion['frontend_arm64']}`,
+				image: `ghcr.io/osi4iot/frontend:${serviceImageVersion['frontend']}`,
 				configs: [
 					{
 						source: 'frontend_conf',

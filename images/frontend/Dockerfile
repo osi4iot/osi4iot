@@ -3,12 +3,12 @@ FROM node:lts-alpine as builder
 WORKDIR /app
 COPY ./app/package.json .
 COPY ./app/yarn.lock .
-RUN yarn
+RUN yarn --network-timeout 600000
 COPY ./app/. .
 RUN yarn build
 
 # => Run container
-FROM nginx:1.21.1
+FROM nginx:1.23.1
 
 # Nginx config
 COPY ./nginx.conf /etc/nginx/nginx.conf
