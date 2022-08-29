@@ -15,7 +15,6 @@ const defaultServiceImageVersion = {
 	grafana_renderer: defaultVersion || 'latest',
 	admin_api: defaultVersion || 'latest',
 	frontend: defaultVersion || 'latest',
-	frontend_arm64: defaultVersion || 'latest',
 	master_device: defaultVersion || 'latest',
 	keepalived: defaultVersion || 'latest',
 	dev2pdb: defaultVersion || 'latest'
@@ -162,7 +161,7 @@ export default function (osi4iotState) {
 					'/var/run/docker.sock:/var/run/docker.sock:ro'
 				]
 			},
-			mqtt_broker: {
+			mosquitto: {
 				image: `ghcr.io/osi4iot/mosquitto:${serviceImageVersion['mosquitto']}`,
 				networks: [
 					'internal_net'
@@ -496,9 +495,6 @@ export default function (osi4iotState) {
 				}
 			},
 			frontend: {
-				// image: platformArch === 'x86_64' ?
-				// 	`ghcr.io/osi4iot/frontend:${serviceImageVersion['frontend']}` :
-				// 	`ghcr.io/osi4iot/frontend_arm64:${serviceImageVersion['frontend_arm64']}`,
 				image: `ghcr.io/osi4iot/frontend:${serviceImageVersion['frontend']}`,
 				configs: [
 					{
@@ -703,7 +699,7 @@ export default function (osi4iotState) {
 			}
 		];
 
-		osi4iotStackObj.services['mqtt_broker'].secrets.push(
+		osi4iotStackObj.services['mosquitto'].secrets.push(
 			{
 				source: 'iot_platform_ca',
 				target: '/mosquitto/wss_certs/iot_platform_ca.pem',

@@ -10,10 +10,10 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"log"
 	"os"
-	"os/signal"
 	"strings"
-	"syscall"
 	"time"
+	"net/http"
+	"io"
 )
 
 type config struct {
@@ -37,7 +37,7 @@ func connectToMqttBroker(configData config) mqtt.Client {
 	if err := token.Error(); err != nil {
 		log.Fatal(err)
 	} else {
-		fmt.Printf("Client connected\n")
+		fmt.Printf("Dev2pdb service connected to mqtt broker.\n")
 	}
 	return client
 }
@@ -229,8 +229,6 @@ func getParameterFromFileOrEnvVar(envVarName string, filePath string) string {
 }
 
 func main() {
-	keepAlive := make(chan os.Signal)
-	signal.Notify(keepAlive, os.Interrupt, syscall.SIGTERM)
 	configData := getConfigData()
 
 	databaseUrl := getDatabaseUrl(configData)
@@ -260,5 +258,11 @@ func main() {
 	go listenWithTimestamp("dtm_as2pdb_wt/#", client, dbPool, rowChannel200ms)
 	go listenWithTimestamp("dtm_fmv2pdb_wt/#", client, dbPool, rowChannel200ms)
 
-	<-keepAlive
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", func(rw http.ResponseWriter, r *http.Request) { io.WriteString(rw, "Healthy") })
+	err = http.ListenAndServe(fmt.Sprintf(":%s", "3300"), mux)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error listenging on port 3300: %v", err)
+		os.Exit(1)
+	}
 }
