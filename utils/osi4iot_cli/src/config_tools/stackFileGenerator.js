@@ -906,18 +906,19 @@ export default function (osi4iotState) {
 			const serviceName = `org_${org_acronym}_md_${masterDeviceHash}`;
 			const masterDeviceHashPath = `master_device_${masterDeviceHash}`
 			osi4iotStackObj.services[serviceName] = {
-				image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
+				// image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
+				image: "ghcr.io/osi4iot/master_device:aux",
 				user: "${UID}:${GID}",
 				networks: [
 					"internal_net",
 					"traefik_public"
 				],
 				volumes: [
-					`${serviceName}_data:/data`
+					`${serviceName}_data:/data`,
 				],
 				environment: [
 					`MASTER_DEVICE_HASH=${masterDeviceHash}`,
-					`IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED=${isVolumeCreated === 'true'}`
+					`IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED=${isVolumeCreated === 'true'}`,
 				],
 				secrets: [
 					{
