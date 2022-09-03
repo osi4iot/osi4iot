@@ -907,7 +907,8 @@ export default function (osi4iotState) {
 			const masterDeviceHashPath = `master_device_${masterDeviceHash}`
 			osi4iotStackObj.services[serviceName] = {
 				// image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
-				image: "ghcr.io/osi4iot/master_device:aux",
+				// image: "ghcr.io/osi4iot/master_device:aux",
+				image: "master_device_aux",
 				user: "${UID}:${GID}",
 				networks: [
 					"internal_net",

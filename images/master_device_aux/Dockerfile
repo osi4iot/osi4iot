@@ -7,7 +7,6 @@ COPY --chown=node-red:node-red settings.js /tmp
 COPY entry_script.sh /src/scripts/entry_script.sh
 USER root
 RUN chmod +x /src/scripts/entry_script.sh
-RUN apt-get install build-essential libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev -y
 USER node-red
 
 RUN npm install needle
@@ -20,9 +19,7 @@ RUN npm install node-red-contrib-tfjs-coco-ssd
 RUN if [ "$TARGETARCH" = "arm64" ] ; then cd /usr/src/node-red && npm rebuild @tensorflow/tfjs-node --build-from-source; fi
 RUN npm install node-red-dashboard
 RUN npm install node-red-contrib-image-output
-
-# RUN npm install node-red-contrib-tensorflow
-# RUN npm install node-red-contrib-browser-utils
-# RUN npm install node-red-contrib-image-output
+RUN npm install node-red-contrib-image-tools
+RUN npm install node-red-contrib-browser-utils
 
 ENTRYPOINT ["/src/scripts/entry_script.sh"]
