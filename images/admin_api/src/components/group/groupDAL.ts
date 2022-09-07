@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
+import { logger } from "../../config/winston";
 import pool from "../../config/dbconfig";
 import grafanaApi from "../../GrafanaApi";
 import IEmailNotificationChannelSettings from "../../GrafanaApi/interfaces/EmailNotificationChannelSettings";;
@@ -143,8 +144,12 @@ export const createGroup = async (
 	await createView(groupUid);
 	const groupResponse = await insertGroup(group);
 	group.id = groupResponse.id;
-	group.folderPermission = folderPermission;;
-	await sendGroupAdminInvitationEmail(orgName, group, groupInput.groupAdminDataArray);
+	group.folderPermission = folderPermission;
+	try {
+		await sendGroupAdminInvitationEmail(orgName, group, groupInput.groupAdminDataArray);
+	} catch (err) {
+		logger.log("error", `Email for group admin can not be sended: %s`, err.message);
+	}
 	return group;
 }
 

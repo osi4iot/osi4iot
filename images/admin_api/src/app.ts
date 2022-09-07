@@ -1,7 +1,5 @@
 import bodyParser from "body-parser";
-import express, { Request, Response, NextFunction } from "express";
-import https from "https";
-import fs from "fs";
+import express, { Response, NextFunction } from "express";
 import helmet from "helmet";
 import cors from "cors";
 import morgan from "morgan";
@@ -86,6 +84,8 @@ class App {
 	private mailerReady() {
 		transporter.verify().then(() => {
 			logger.log("info", "Ready for send emails");
+		}).catch((err) => {
+			logger.log("error", "Mailer connection has been failed:", err.message);
 		});
 	}
 
