@@ -42,10 +42,16 @@ func connectToMqttBroker(configData config) mqtt.Client {
 	return client
 }
 
+var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
+    fmt.Printf("Connection lost: %v", err)
+	os.Exit(1)
+}
+
 func createClientOptions(configData config) *mqtt.ClientOptions {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(getMqttBrokerUrl(configData))
 	opts.SetClientID(configData.mqttClientId)
+	opts.OnConnectionLost = connectLostHandler
 	return opts
 }
 

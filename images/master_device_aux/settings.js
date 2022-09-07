@@ -18,7 +18,6 @@
 // to make it available:
 // var fs = require("fs");
 const needle = require("needle");
-const fs = require("fs");
 process.env.TOKEN = "";
 process.env.TOKEN_EXPIRATION_DATE = "";
 process.env.USER_NAME = "";
@@ -296,7 +295,7 @@ module.exports = {
     // can be accessed in a function block as:
     //    global.get("os")
     functionGlobalContext: {
-        getDTMqttTopics,
+        getDTMqttTopics
         // os:require('os'),
         // jfive:require("johnny-five"),
         // j5board:require("johnny-five").Board({repl:false}
