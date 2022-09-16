@@ -28,6 +28,20 @@ export interface ITopic {
     topicUid: string;
 }
 
+export interface IMobileTopic {
+	id: number;
+	orgAcronym: string;
+	groupAcronym: string;
+	deviceName: string;
+	topicName: string;
+	description: string;
+	groupUid: string;
+	deviceUid: string;
+	topicUid: string;
+	payloadFormat:  Record<string, any>;
+}
+
+
 interface ITopicColumn extends ITopic {
     changeTopicHash: string;
     edit: string;

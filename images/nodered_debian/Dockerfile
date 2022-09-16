@@ -90,6 +90,10 @@ ENV NODE_RED_VERSION=$NODE_RED_VERSION \
 # ENV NODE_RED_ENABLE_SAFE_MODE=true    # Uncomment to enable safe start mode (flows not running)
 # ENV NODE_RED_ENABLE_PROJECTS=true     # Uncomment to enable projects option
 
+RUN npm install @tensorflow/tfjs-node
+RUN if [ "$TARGETARCH" = "arm64" ] ; then cd /usr/src/node-red && npm rebuild @tensorflow/tfjs-node --build-from-source; fi
+RUN npm install jimp
+
 # Expose the listening port of node-red
 EXPOSE 1880
 

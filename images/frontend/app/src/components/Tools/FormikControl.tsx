@@ -24,7 +24,7 @@ interface FormikControlProps {
     goToSelect?: () => void;
     options?: OptionsType<IOption>;
     autoFocus?: boolean;
-    onChange?: (e: any) => void;
+    onChange?: (option: any) => void;
     textAreaSize?: string;
     readOnly?: boolean
 }

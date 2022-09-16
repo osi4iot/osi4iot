@@ -1,4 +1,5 @@
 FROM ghcr.io/osi4iot/nodered_debian:latest
+#FROM nodered/node-red:2.2.2-16
 
 ARG TARGETARCH
 
@@ -11,13 +12,13 @@ RUN chmod +x /src/scripts/entry_script.sh
 USER node-red
 
 RUN npm install needle
-RUN npm install node-red-contrib-modbus
-RUN npm install node-red-contrib-opcua
-RUN npm install node-red-contrib-bacnet
+# RUN npm install node-red-contrib-modbus
+# RUN npm install node-red-contrib-opcua
+# RUN npm install node-red-contrib-bacnet
 
 RUN npm install node-red-contrib-tfjs-coco-ssd
+# RUN if [ "$TARGETARCH" = "arm64" ] ; then cd /usr/src/node-red && npm rebuild @tensorflow/tfjs-node --build-from-source; fi
 RUN npm install node-red-node-base64
-RUN if [ "$TARGETARCH" = "arm64" ] ; then cd /usr/src/node-red && npm rebuild @tensorflow/tfjs-node --build-from-source; fi
 RUN npm install node-red-dashboard
 RUN npm install node-red-contrib-image-output
 RUN npm install node-red-contrib-image-tools

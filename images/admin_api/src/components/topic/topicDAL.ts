@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import pool from "../../config/dbconfig";
 import IDevice from "../device/device.interface";
 import IGroup from "../group/interfaces/Group.interface";
+import IMobileTopic from "./mobileTopic.interface";
 import IMqttTopicInfo from "./mqttTopicInfo.interface";
 import CreateTopicDto from './topic.dto';
 import ITopic from "./topic.interface";
@@ -121,6 +122,30 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 	return response.rows;
 }
 
+export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.org.acronym AS "orgAcronym",
+									grafanadb.group.acronym AS "groupAcronym", grafanadb.device.name AS "deviceName",
+									grafanadb.topic.topic_name AS "topicName",
+									grafanadb.topic.topic_type AS "topicType",
+									grafanadb.topic.description,
+									grafanadb.group.group_uid AS "groupUid",
+									grafanadb.device.device_uid AS "deviceUid",
+									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.payload_format AS "payloadFormat"
+									FROM grafanadb.topic
+									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
+									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
+									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
+									WHERE grafanadb.topic.payload_format::jsonb ? 'mobile_accelerations'
+									OR grafanadb.topic.payload_format::jsonb ? 'mobile_photo'
+									ORDER BY grafanadb.org.acronym ASC,
+									        grafanadb.group.acronym ASC,
+											grafanadb.device.name ASC,
+											grafanadb.topic.topic_name ASC;`);
+	return response.rows;
+}
+
+
 export const getNumTopics = async (): Promise<number> => {
 	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.topic;`);
 	return parseInt(result.rows[0].count, 10);
@@ -157,6 +182,28 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									WHERE grafanadb.device.group_id = ANY($1::bigint[])
+									ORDER BY grafanadb.device.org_id ASC,
+											grafanadb.device.group_id ASC,
+											grafanadb.topic.id  ASC`, [groupsIdArray]);
+	return response.rows;
+};
+
+export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IMobileTopic[]> => {
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.org.acronym AS "orgAcronym",
+									grafanadb.group.acronym AS "groupAcronym", grafanadb.device.name AS "deviceName",
+									grafanadb.topic.topic_name AS "topicName",
+									grafanadb.topic.topic_type AS "topicType",
+									grafanadb.topic.description,
+									grafanadb.group.group_uid AS "groupUid",
+									grafanadb.device.device_uid AS "deviceUid",
+									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.topic.payload_format AS "payloadFormat"
+									FROM grafanadb.topic
+									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
+									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
+									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
+									WHERE (grafanadb.device.group_id = ANY($1::bigint[])) AND
+									(grafanadb.topic.payload_format::jsonb ? 'mobile_accelerations' OR grafanadb.topic.payload_format::jsonb ? 'mobile_photo')
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC`, [groupsIdArray]);

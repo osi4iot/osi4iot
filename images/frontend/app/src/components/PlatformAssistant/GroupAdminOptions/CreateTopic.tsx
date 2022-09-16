@@ -67,6 +67,10 @@ const topicTypeOptions = [
         value: "dev2pdb"
     },
     {
+        label: "Device to DT",
+        value: "dev2dtm"
+    },    
+    {
         label: "Simulated device to DT",
         value: "dev_sim_2dtm"
     },

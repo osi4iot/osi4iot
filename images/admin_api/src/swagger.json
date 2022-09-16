@@ -3430,6 +3430,36 @@
 				}
 			}
 		},
+		"/topics_in_mobile/user_managed": {
+			"get": {
+				"tags": [
+					"Topic"
+				],
+				"summary": "Get all Topics for mobile phone managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Topics"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
 		"/topics_in_org/{orgId}": {
 			"parameters": [
 				{
@@ -4382,7 +4412,7 @@
 				}
 			}
 		},
-		"/digital_twins_mqtt_topics_in_group/{groupId}": {
+		"/digital_twin_mqtt_topics_in_group/{groupId}": {
 			"parameters": [
 				{
 					"name": "groupId",
@@ -6080,6 +6110,46 @@
 			"type": "array",
 			"items": {
 				"$ref": "#/definitions/TopicOutput"
+			}
+		},
+		"TopicInMobileOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgAcronym": {
+					"type": "string"
+				},
+				"groupAcronym": {
+					"type": "string"
+				},
+				"deviceName": {
+					"type": "string"
+				},
+				"topicName": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},
+				"groupUid": {
+					"type": "string"
+				},
+				"deviceUid": {
+					"type": "string"
+				},								
+				"topicUid": {
+					"type": "string"
+				},
+				"payloadFormat": {
+					"type": "string"
+				}
+			}
+		},
+		"TopicsInMobile": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/TopicInMobileOutput"
 			}
 		},
 		"MeasurementInput": {

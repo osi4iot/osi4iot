@@ -361,7 +361,7 @@ export async function dataBaseInitialization() {
 					topic_type VARCHAR(40),
 					topic_name VARCHAR(190) UNIQUE,
 					description VARCHAR(190),
-					payload_format json,
+					payload_format jsonb,
 					topic_uid VARCHAR(40) UNIQUE,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
@@ -566,12 +566,19 @@ export async function dataBaseInitialization() {
 						{
 							topicType: "dev2pdb",
 							topicName: demoTopicName(group, device2, "Accelerometer"),
-							description: `Accelerometer for ${defaultGroupDeviceName(group, "Generic")} device`,
-							payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+							description: `Mobile accelerations for ${defaultGroupDeviceName(group, "Generic")} device`,
+							payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+						},
+						{
+							topicType: "dev2dtm",
+							topicName: demoTopicName(group, device2, "Photo"),
+							description: `Mobile photo for default for ${defaultGroupDeviceName(group, "Generic")} device`,
+							payloadFormat: '{"mobile_photo": {"type": "string"}}'
 						},
 					];
 					topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
 					topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
+					await createTopic(device2.id, defaultDeviceTopicsData[2]);
 
 					logger.log("info", `Default device topics has been created sucessfully`);
 				} catch (err) {

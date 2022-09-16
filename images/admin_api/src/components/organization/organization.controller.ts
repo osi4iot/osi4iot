@@ -373,12 +373,19 @@ class OrganizationController implements IController {
 					{
 						topicType: "dev2pdb",
 						topicName: demoTopicName(group, device2, "Accelerometer"),
-						description: `Accelerometer for default mobile device of the group ${group.acronym}`,
-						payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+						description: `Mobile accelerations for default generic device of the group ${group.acronym}`,
+						payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+					},
+					{
+						topicType: "dev2dtm",
+						topicName: demoTopicName(group, device2, "Photo"),
+						description: `Mobile photo for default generic device of the group ${group.acronym}`,
+						payloadFormat: '{"mobile_photo": {"type": "string"}}'
 					},
 				];
 				const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
 				const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
+				await createTopic(device2.id, defaultDeviceTopicsData[2]);
 
 				const dashboardsId: number[] = [];
 

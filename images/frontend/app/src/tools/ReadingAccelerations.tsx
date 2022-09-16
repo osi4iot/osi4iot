@@ -3,15 +3,16 @@ import Paho from "paho-mqtt";
 const ReadAccelerations = (
 	mqttClient: Paho.Client,
 	mqttTopic: string,
-	readingParameter: any,
+	totalReadingTime: number,
+	samplingFrequency: number,
 	setIsSensorReadings: React.Dispatch<React.SetStateAction<boolean>>,
 	setReadingProgress: React.Dispatch<React.SetStateAction<number>>
 ) => {
 	let readingsCont = 0;
-	const deltaT = 1.0 / readingParameter.samplingFrequency;
-	const totalReadings = readingParameter.totalReadingTime / deltaT;
+	const deltaT = 1.0 / samplingFrequency;
+	const totalReadings = totalReadingTime / deltaT;
 
-	const sensor = new Accelerometer({ frequency: readingParameter.samplingFrequency, referenceFrame: "device" });
+	const sensor = new Accelerometer({ frequency: samplingFrequency, referenceFrame: "device" });
 	sensor.start();
 	sensor.onreading = function () {
 		setIsSensorReadings(true);

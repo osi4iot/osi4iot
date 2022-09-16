@@ -306,12 +306,19 @@ class GroupController implements IController {
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(groupCreated, device2, "Accelerometer"),
-					description: `Accelerometer for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
-					payloadFormat: '{"accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+					description: `Mobile accelerations for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
+					payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+				},
+				{
+					topicType: "dev2dtm",
+					topicName: demoTopicName(groupCreated, device2, "Photo"),
+					description: `Mobile photo for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
+					payloadFormat: '{"mobile_photo": {"type": "string"}}'
 				},
 			];
 			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
 			const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
+			await createTopic(device2.id, defaultDeviceTopicsData[2]);
 
 			const dashboardsId: number[] = [];
 

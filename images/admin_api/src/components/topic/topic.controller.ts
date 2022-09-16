@@ -11,15 +11,16 @@ import IRequestWithOrganization from "../organization/interfaces/requestWithOrga
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfTopic } from "../group/dashboardDAL";
 import LoginDto from "../Authentication/login.dto";
-import {  updateTopicUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
+import { updateTopicUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import ITopic from "./topic.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
-import { changeTopicUidByUid, createTopic, deleteTopicById, getAllTopics, getTopicByProp, getTopicsByGroupId, getTopicsByGroupsIdArray, getTopicsByOrgId, updateTopicById } from "./topicDAL";
+import { changeTopicUidByUid, createTopic, deleteTopicById, getAllMobileTopics, getAllTopics, getMobileTopicsByGroupsIdArray, getTopicByProp, getTopicsByGroupId, getTopicsByGroupsIdArray, getTopicsByOrgId, updateTopicById } from "./topicDAL";
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByTopic } from "../mesurement/measurementDAL";
 import { getDeviceByProp } from "../device/deviceDAL";
+import IMobileTopic from "./mobileTopic.interface";
 
 class TopicController implements IController {
 	public path = "/topic";
@@ -36,6 +37,11 @@ class TopicController implements IController {
 				`${this.path}s/user_managed/`,
 				userAuth,
 				this.getTopicsManagedByUser
+			)
+			.get(
+				`${this.path}s_in_mobile/user_managed`,
+				userAuth,
+				this.getMobileTopicsManagedByUser
 			)
 			.get(
 				`${this.path}s_in_org/:orgId/`,
@@ -113,6 +119,37 @@ class TopicController implements IController {
 				if (groups.length !== 0) {
 					const groupsIdArray = groups.map(group => group.id);
 					topics = await getTopicsByGroupsIdArray(groupsIdArray);
+				}
+			}
+			res.status(200).send(topics);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getMobileTopicsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let topics: IMobileTopic[] = [];
+			if (req.user.isGrafanaAdmin) {
+				topics = await getAllMobileTopics();
+			} else {
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					topics = await getMobileTopicsByGroupsIdArray(groupsIdArray);
 				}
 			}
 			res.status(200).send(topics);
