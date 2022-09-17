@@ -13,10 +13,8 @@ const defaultServiceImageVersion = {
 	postgres: defaultVersion || 'latest',
 	grafana: defaultVersion || 'latest',
 	grafana_renderer: defaultVersion || 'latest',
-	// admin_api: defaultVersion || 'latest',
-	admin_api: 'dev',
-	// frontend: defaultVersion || 'latest',
-	frontend: 'dev',
+	admin_api: defaultVersion || 'latest',
+	frontend: defaultVersion || 'latest',
 	master_device: defaultVersion || 'latest',
 	keepalived: defaultVersion || 'latest',
 	dev2pdb: defaultVersion || 'latest'
