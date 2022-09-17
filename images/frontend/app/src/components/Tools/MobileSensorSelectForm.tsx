@@ -38,7 +38,7 @@ const FormContainer = styled.div`
 	margin: 0 5px;
 	color: white;
 	margin: 10px 0;
-	padding: 10px 12px 90px 12px;
+	padding: 10px;
 	width: calc(100vw - 40px);
 	max-width: 400px;
 	border: 2px solid #3274d9;
@@ -50,9 +50,10 @@ const FormContainer = styled.div`
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 230px);
+    height: calc(100vh - 245px);
     width: 100%;
     padding: 10px 5px;
+    margin-bottom: 15px;
     overflow-y: auto;
     /* width */
     ::-webkit-scrollbar {
