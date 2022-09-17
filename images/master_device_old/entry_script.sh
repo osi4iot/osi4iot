@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 
 echo "################################## Run template_script"
 
 mv /tmp/settings.js /data
-if [ $IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED == "false" ]
+if [[ "$IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED" == false ]]
 then
     mv /tmp/flows.json /data
 

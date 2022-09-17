@@ -83,6 +83,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 							handleMobileSensorSelection={handleMobileSensorSelection}
 							mobileTopicsManaged={mobileTopicsManaged}
 							initialMobileSensorData={initialMobileSensorData as InitialMobileSensorData}
+							setInitialMobileSensorData={setInitialMobileSensorData}
 							setMobileTopicSelected={setMobileTopicSelected}
 						/>
 					}

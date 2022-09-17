@@ -98,6 +98,7 @@ interface MobileSensorSelectFormProps {
     handleMobileSensorSelection: (values: any, actions: any) => void
     mobileTopicsManaged: IMobileTopic[];
     initialMobileSensorData: InitialMobileSensorData;
+    setInitialMobileSensorData: React.Dispatch<React.SetStateAction<InitialMobileSensorData | null>>;
     setMobileTopicSelected: React.Dispatch<React.SetStateAction<IMobileTopic | null>>;
 }
 
@@ -178,7 +179,7 @@ const findTopicArray = (mobileSensor: string, mobileTopicsManaged: IMobileTopic[
 
 const findMobileTopicSelected = (
     mobileTopicsManaged: IMobileTopic[],
-    orgAcronym: string, 
+    orgAcronym: string,
     groupAcronym: string,
     deviceName: string,
     mobileSensor: string,
@@ -209,6 +210,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         handleMobileSensorSelection,
         mobileTopicsManaged,
         initialMobileSensorData,
+        setInitialMobileSensorData,
         setMobileTopicSelected
     }) => {
     const history = useHistory();
@@ -227,28 +229,31 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             setOrgOptions(convertArrayToOptions(orgArray));
             const groupArray = findGroupArray(mobileTopicsManaged);
             setGroupArray(groupArray);
-            const groupsForOrgSelected = groupArray[orgArray[0]];
+            const orgAcronym = initialMobileSensorData.orgAcronym;
+            const groupsForOrgSelected = groupArray[orgAcronym];
             setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
             const deviceArray = findDeviceArray(mobileTopicsManaged);
             setDeviceArray(deviceArray);
-            const devicesForGroupSelected = deviceArray[groupsForOrgSelected[0]];
+            const groupAcronym = initialMobileSensorData.groupAcronym
+            const devicesForGroupSelected = deviceArray[groupAcronym];
             setDeviceOptions(convertArrayToOptions(devicesForGroupSelected));
+            const deviceName = initialMobileSensorData.deviceName;
             const topicAccelerationArray = findTopicArray("mobile_accelerations", mobileTopicsManaged);
             setTopicAccelerationArray(topicAccelerationArray);
             const topicPhotoArray = findTopicArray("mobile_photo", mobileTopicsManaged);
             setTopicPhotoArray(topicPhotoArray);
             if (initialMobileSensorData.mobileSensor === "accelerations") {
-                const topicsAccelerationForDeviceSelected = topicAccelerationArray[devicesForGroupSelected[0]];
+                const topicsAccelerationForDeviceSelected = topicAccelerationArray[deviceName];
                 const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
                 seTopicOptions(topicAccelerationOptions);
             } else if (initialMobileSensorData.mobileSensor === "photo") {
-                const topicsPhotoForDeviceSelected = topicPhotoArray[devicesForGroupSelected[0]];
+                const topicsPhotoForDeviceSelected = topicPhotoArray[deviceName];
                 const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
                 seTopicOptions(topicPhotoOptions);
             }
 
         }
-	}, [mobileTopicsManaged, initialMobileSensorData]);
+    }, [mobileTopicsManaged, initialMobileSensorData]);
 
 
     const onCancel = (e: SyntheticEvent) => {
@@ -387,6 +392,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             topicName
         );
         setMobileTopicSelected(mobileTopicSelected);
+        setInitialMobileSensorData({ orgAcronym, groupAcronym, deviceName, mobileSensor, topicName });
     }
 
     const handleChangeTopic = (e: { value: string }, formik: FormikType) => {

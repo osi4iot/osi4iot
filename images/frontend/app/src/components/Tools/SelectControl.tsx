@@ -127,6 +127,8 @@ export const DropDown: FC<DropDownProps> = ({ options, form, field, placeholder,
                 placeholder={placeholder}
                 options={options}
                 isMulti={false}
+                isSearchable={false}
+                blurInputOnSelect={true}
                 {...rest}
             />
         </SelectContainer>
