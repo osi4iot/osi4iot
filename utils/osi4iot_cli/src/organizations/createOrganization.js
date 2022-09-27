@@ -347,6 +347,7 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 				addNFSFolders(nfsNode, org_acronym, nri_hashes_array);
 			}
 
+			const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
 			if (deploymentLocation === "AWS cluster deployment") {
 				const org_acronym = newOrg.org_acronym;
 				const nri_hashes_array = newOrg.nodered_instances.map(nri => nri.nri_hash).join(",");

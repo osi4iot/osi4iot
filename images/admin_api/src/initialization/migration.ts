@@ -553,6 +553,7 @@ export async function dataBaseInitialization() {
 							latitude: 0,
 							longitude: 0,
 							type: "Main master",
+							mqttPassword: "pepe123",
 							mqttActionAllowed: "Pub & Sub"
 						},
 						{
@@ -561,6 +562,7 @@ export async function dataBaseInitialization() {
 							latitude: 0,
 							longitude: 0,
 							type: "Generic",
+							mqttPassword: "pepe123",
 							mqttActionAllowed: "Pub & Sub"
 						},
 					];
