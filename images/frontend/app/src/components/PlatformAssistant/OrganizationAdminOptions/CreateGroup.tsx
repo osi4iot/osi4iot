@@ -15,7 +15,7 @@ import SelectOrgUsersOfOrgManaged from './SelectOrgUsersOfOrgManaged';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
-import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadMasterDevicesTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadNodeRedInstancesTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -123,6 +123,26 @@ const folderPermissionOptions = [
     }
 ];
 
+const mqttActionAllowedOptions = [
+    {
+        label: "Subscribe",
+        value: "Sub"
+    },
+    {
+        label: "Publish",
+        value: "Pub"
+    },
+    {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
+        label: "None",
+        value: "None"
+    }
+];
+
+
 interface CreateGroupProps {
     orgsManagedTable: IOrgManaged[];
     backToTable: () => void;
@@ -214,8 +234,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-                const reloadMasterDevicesTable = true;
-                setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
+                const reloadNodeRedInstancesTable = true;
+                setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
 
                 const reloadOrgsOfGroupsManagedTable = true;
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
@@ -233,7 +253,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -317,6 +337,13 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                                     label='Folder permission'
                                                     name="folderPermission"
                                                     options={folderPermissionOptions}
+                                                    type='text'
+                                                />
+                                                <FormikControl
+                                                    control='select'
+                                                    label='Mqtt action allowed'
+                                                    name="mqttActionAllowed"
+                                                    options={mqttActionAllowedOptions}
                                                     type='text'
                                                 />
                                                 <FormikControl

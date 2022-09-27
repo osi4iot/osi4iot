@@ -47,7 +47,7 @@ export const FLOORS_OPTIONS = {
     EDIT_FLOOR: "Edit floor",
 }
 
-export const MASTER_DEVICES_OPTIONS = {
+export const NODERED_INSTANCES_OPTIONS = {
     TABLE: "Table"
 }
 
@@ -68,7 +68,7 @@ export const ORG_ADMIN_OPTIONS = {
     ORGS_MANAGED: "Orgs Managed",
     ORG_USERS: "Orgs users",
     GROUPS: "Groups",
-    MASTER_DEVICES_IN_ORGS: "Master devices in orgs"
+    NODERED_INSTANCES_IN_ORGS: "Nodered instances in orgs"
 }
 
 export const ORGS_MANAGED_OPTIONS = {

@@ -27,7 +27,7 @@ import {
     setReloadOrgsOfGroupsManagedTable,
     setReloadOrgUsersTable,
     setReloadTopicsTable,
-    setReloadMasterDevicesTable
+    setReloadNodeRedInstancesTable
 } from '../../../contexts/platformAssistantContext';
 
 
@@ -80,6 +80,25 @@ const ControlsContainer = styled.div`
         margin-bottom: 3px;
     }
 `;
+
+const  mqttActionAllowedOptions = [
+    {
+        label: "Subscribe",
+        value: "Sub"
+    },
+    {
+        label: "Publish",
+        value: "Pub"
+    },
+    {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
+        label: "None",
+        value: "None"
+    }
+];
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -178,9 +197,9 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-                const reloadMasterDevicesTable = true;
-                setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
-                
+                const reloadNodeRedInstancesTable = true;
+                setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
+
                 const reloadOrgsOfGroupsManagedTable = true;
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
                 const reloadGroupMembersTable = true;
@@ -196,7 +215,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -264,12 +283,19 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                                                 name='country'
                                                 type='text'
                                             />
-                                             <FormikControl
+                                            <FormikControl
                                                 control='input'
                                                 label='Building Id'
                                                 name='buildingId'
                                                 type='text'
-                                            />                                              
+                                            />
+                                            <FormikControl
+                                                control='select'
+                                                label='Mqtt action allowed'
+                                                name="mqttActionAllowed"
+                                                options={mqttActionAllowedOptions}
+                                                type='text'
+                                            />
                                             <FormikControl
                                                 control='input'
                                                 label='Telegram invitation link'
@@ -292,7 +318,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                                                 addLabel="org admim"
                                                 selectLabel="user"
                                                 goToSelect={() => goToSelect(formik.values)}
-                                            />                                            
+                                            />
                                         </ControlsContainer>
                                         <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                                     </Form>

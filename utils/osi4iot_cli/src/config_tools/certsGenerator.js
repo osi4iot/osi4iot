@@ -115,59 +115,59 @@ export default async function (osi4iotState) {
 		fs.writeFileSync('./certs/mqtt_certs/broker/server.crt', broker.cert);
 	}
 
-	const masterDeviceCertsPromises = []
+	const nodeRedInstanceCertsPromises = []
 	for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
 		const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
-		const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
-		for (let idev = 1; idev <= num_master_devices; idev++) {
-			const mdevices_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt;
-			const mdevices_client_key = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key;
-			const mdevices_exp_timestamp = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp;
-			const md_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
+		const num_nodeRedInstances = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances.length;
+		for (let idev = 1; idev <= num_nodeRedInstances; idev++) {
+			const nri_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_crt;
+			const nri_client_key = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_key;
+			const nri_exp_timestamp = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].expiration_timestamp;
+			const nri_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].nri_hash;
 
-			if ((mdevices_client_crt === "" && mdevices_client_key === "") || mdevices_exp_timestamp < limitTimestamp) {
+			if ((nri_client_crt === "" && nri_client_key === "") || nri_exp_timestamp < limitTimestamp) {
 				const promise = mkcert.createCert({
-					domains: [`org_${org_acronym}_md_${md_hash}`],
+					domains: [`org_${org_acronym}_nri_${nri_hash}`],
 					validityDays: defaultValidityDays,
 					caKey: mqttCa.key,
 					caCert: mqttCa.cert
 				});
 
-				masterDeviceCertsPromises.push(promise);
+				nodeRedInstanceCertsPromises.push(promise);
 			}
 
 		}
 	}
 
-	const masterDeviceCerts = await Promise.all(masterDeviceCertsPromises).catch(err => console.log("Error in master device certs ", err));
+	const nodeRedInstanceCerts = await Promise.all(nodeRedInstanceCertsPromises).catch(err => console.log("Error in node-red instance certs ", err));
 
 	let counter = 0;
 	for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
-		const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
+		const num_nodeRedInstances = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances.length;
 		const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
-		for (let idev = 1; idev <= num_master_devices; idev++) {
-			const mdevices_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt;
-			const mdevices_client_key = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key;
-			const mdevices_exp_timestamp = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp;
-			const md_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
+		for (let idev = 1; idev <= num_nodeRedInstances; idev++) {
+			const nri_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_crt;
+			const nri_client_key = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_key;
+			const nri_exp_timestamp = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].expiration_timestamp;
+			const nri_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].nri_hash;
 
-			if ((mdevices_client_crt === "" && mdevices_client_key === "") || mdevices_exp_timestamp < limitTimestamp) {
-				const masterDeviceCertsDir = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}`;
-				if (!fs.existsSync(masterDeviceCertsDir)) {
-					fs.mkdirSync(masterDeviceCertsDir);
+			if ((nri_client_crt === "" && nri_client_key === "") || nri_exp_timestamp < limitTimestamp) {
+				const nodeRedInstanceCertsDir = `./certs/mqtt_certs/org_${org_acronym}_nri_${nri_hash}`;
+				if (!fs.existsSync(nodeRedInstanceCertsDir)) {
+					fs.mkdirSync(nodeRedInstanceCertsDir);
 				}
 
-				const masterDeviceClientKey = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}/client.key`;
-				fs.writeFileSync(masterDeviceClientKey, masterDeviceCerts[counter].key);
-				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key = masterDeviceCerts[counter].key;
-				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name = `${org_acronym}_${md_hash}_key_${md5(masterDeviceCerts[counter].key)}`
+				const nodeRedInstanceClientKey = `./certs/mqtt_certs/org_${org_acronym}_nri_${nri_hash}/client.key`;
+				fs.writeFileSync(nodeRedInstanceClientKey, nodeRedInstanceCerts[counter].key);
+				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_key = nodeRedInstanceCerts[counter].key;
+				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_key_name = `${org_acronym}_${nri_hash}_key_${md5(nodeRedInstanceCerts[counter].key)}`
 
-				const masterDeviceClientCert = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}/client.crt`;
-				fs.writeFileSync(masterDeviceClientCert, masterDeviceCerts[counter].cert);
-				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt = masterDeviceCerts[counter].cert;
-				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name = `${org_acronym}_${md_hash}_cert_${md5(masterDeviceCerts[counter].cert)}`
+				const nodeRedInstanceClientCert = `./certs/mqtt_certs/org_${org_acronym}_nri_${nri_hash}/client.crt`;
+				fs.writeFileSync(nodeRedInstanceClientCert, nodeRedInstanceCerts[counter].cert);
+				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_crt = nodeRedInstanceCerts[counter].cert;
+				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_crt_name = `${org_acronym}_${nri_hash}_cert_${md5(nodeRedInstanceCerts[counter].cert)}`
 
-				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp = defaultExpirationTimestamp;
+				osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].expiration_timestamp = defaultExpirationTimestamp;
 				counter++;
 			}
 		}

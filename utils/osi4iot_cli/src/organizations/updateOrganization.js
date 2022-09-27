@@ -38,10 +38,10 @@ export default async function () {
 				.then(res => res.body)
 				.catch(err => console.log("Get org error: %s", err.message));
 
-			const urlGetMasterDevices = `${protocol}://${domainName}/admin_api/master_devices`;
-			const masterDevices = await needle('get', urlGetMasterDevices, optionsToken)
+			const urlGetNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances`;
+			const nodeRedInstances = await needle('get', urlGetNodeRedInstances, optionsToken)
 				.then(res => res.body)
-				.catch(err => console.log("Get master devices error: %s", err.message));
+				.catch(err => console.log("Get node-red instances error: %s", err.message));
 
 			const table = new Table({
 				head: [
@@ -65,7 +65,7 @@ export default async function () {
 			const orgIdArray = [];
 			for (let iorg = 0; iorg < orgs.length; iorg++) {
 				orgIdArray.push(orgs[iorg].id);
-				const numMasterDevicesInOrg = masterDevices.filter(md => md.orgId === orgs[iorg].id).length;
+				const numNodeRedInstancesInOrg = nodeRedInstances.filter(nri => nri.orgId === orgs[iorg].id).length;
 				const row = [
 					orgs[iorg].id,
 					orgs[iorg].name,
@@ -77,7 +77,7 @@ export default async function () {
 					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
-					numMasterDevicesInOrg
+					numNodeRedInstancesInOrg
 				];
 				table.push(row);
 			}
@@ -102,8 +102,8 @@ export default async function () {
 				.then(async (answers) => {
 					const orgId = parseInt(answers.orgId);
 					const orgToUpdate = orgs.filter(org => org.id === orgId)[0];
-					const masterDevicesInOrg = masterDevices.filter(md => md.orgId === orgId);
-					updateOrgQuestions(accessToken, osi4iotState, orgToUpdate, masterDevicesInOrg);
+					const nodeRedInstancesInOrg = nodeRedInstances.filter(md => md.orgId === orgId);
+					updateOrgQuestions(accessToken, osi4iotState, orgToUpdate, nodeRedInstancesInOrg);
 				});
 		} else {
 			console.log("\n");
@@ -112,7 +112,7 @@ export default async function () {
 	}
 }
 
-const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevicesInOrg) => {
+const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInstancesInOrg) => {
 	const orgAcronym = orgToUpdate.acronym;
 	const nodesData = osi4iotState.platformInfo.NODES_DATA.filter(node => node.nodeRole !== "NFS server");
 	const currentOrgs = osi4iotState.certs.mqtt_certs.organizations;
@@ -277,12 +277,12 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 				when: (answers) => workerNodesRows.length !== 0 && answers.ORG_SERVICES_DEPLOYMENT_PLACE === "Exclusive org worker"
 			},
 			{
-				name: 'NUMBER_OF_MASTER_DEVICES_IN_ORG',
-				message: 'Number of master devices in org:',
-				default: masterDevicesInOrg.length,
-				validate: function (numOfMD) {
+				name: 'NUMBER_OF_NODERED_INSTANCES_IN_ORG',
+				message: 'Number of node-red instances in org:',
+				default: nodeRedInstancesInOrg.length,
+				validate: function (numOfNRI) {
 					let valid = false;
-					if (numOfMD !== "" && Number.isInteger(Number(numOfMD)) && Number(numOfMD) >= 1) valid = true;
+					if (numOfNRI !== "" && Number.isInteger(Number(numOfNRI)) && Number(numOfNRI) >= 1) valid = true;
 					if (valid) {
 						return true;
 					} else {
@@ -292,7 +292,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 			}
 		])
 		.then(async (answers) => {
-			answers.NUMBER_OF_MASTER_DEVICES_IN_ORG = parseInt(answers.NUMBER_OF_MASTER_DEVICES_IN_ORG, 10);
+			answers.NUMBER_OF_NODERED_INSTANCES_IN_ORG = parseInt(answers.NUMBER_OF_NODERED_INSTANCES_IN_ORG, 10);
 			const orgExclusiveWorkerNodes = [];
 			if (workerNodesRows.length !== 0) {
 				for (let inode = 0; inode < workerNodesRows.length; inode++) {
@@ -302,8 +302,8 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 				}
 			}
 			answers.orgExclusiveWorkerNodes = orgExclusiveWorkerNodes;
-			if (answers.NUMBER_OF_MASTER_DEVICES_IN_ORG < masterDevicesInOrg.length) {
-				removeMasterDevicesQuestions(accessToken, osi4iotState, orgToUpdate, masterDevicesInOrg, answers);
+			if (answers.NUMBER_OF_NODERED_INSTANCES_IN_ORG < nodeRedInstancesInOrg.length) {
+				removeNodeRedInstanceQuestions(accessToken, osi4iotState, orgToUpdate, nodeRedInstancesInOrg, answers);
 			} else {
 				await requestUpdateOrg(accessToken, osi4iotState, orgToUpdate, answers);
 			}
@@ -317,8 +317,8 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevice
 		})
 }
 
-const removeMasterDevicesQuestions = (accessToken, osi4iotState, orgToUpdate, masterDevicesInOrg, orgData) => {
-	const numMasterDevicesToRemove = masterDevicesInOrg.length - orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG;
+const removeNodeRedInstanceQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInstancesInOrg, orgData) => {
+	const numNodeRedInstancesToRemove = nodeRedInstancesInOrg.length - orgData.NUMBER_OF_NODERED_INSTANCES_IN_ORG;
 	const table = new Table({
 		head: [
 			clc.cyanBright('Id'),
@@ -332,15 +332,15 @@ const removeMasterDevicesQuestions = (accessToken, osi4iotState, orgToUpdate, ma
 		style: { 'padding-left': 1, 'padding-right': 1 }
 	});
 
-	const masterDevicesIdArray = [];
-	for (const masterDevice of masterDevicesInOrg) {
-		masterDevicesIdArray.push(masterDevice.id);
+	const nodeRedInstancesIdArray = [];
+	for (const nodeRedInstance of nodeRedInstancesInOrg) {
+		nodeRedInstancesIdArray.push(nodeRedInstance.id);
 		const row = [
-			masterDevice.id,
-			masterDevice.masterDeviceHash,
-			masterDevice.orgId,
-			masterDevice.groupId === null ? "-" : masterDevice.groupId,
-			masterDevice.deviceId === null ? "-" : masterDevice.deviceId
+			nodeRedInstance.id,
+			nodeRedInstance.nodeRedInstanceHash,
+			nodeRedInstance.orgId,
+			nodeRedInstance.groupId === null ? "-" : nodeRedInstance.groupId,
+			nodeRedInstancedeviceId === null ? "-" : nodeRedInstance.deviceId
 		];
 		table.push(row);
 	}
@@ -349,12 +349,12 @@ const removeMasterDevicesQuestions = (accessToken, osi4iotState, orgToUpdate, ma
 	console.log(table.toString());
 
 
-	let masterDeviceRows = masterDevicesInOrg.map((masterDevice, index) => {
-		const row = { name: masterDevice.id, value: index + 1 }
+	let nodeRedInstanceRows = nodeRedInstancesInOrg.map((nodeRedInstance, index) => {
+		const row = { name: nodeRedInstance.id, value: index + 1 }
 		return row;
 	});
 
-	const masterDeviceSelection = [
+	const nodeRedInstanceSelection = [
 		{
 			name: "Select",
 			value: "selected"
@@ -365,30 +365,30 @@ const removeMasterDevicesQuestions = (accessToken, osi4iotState, orgToUpdate, ma
 	inquirer
 		.prompt([
 			{
-				name: 'MASTER_DEVICES_TO_REMOVE',
+				name: 'NODERED_INSTANCES_TO_REMOVE',
 				type: "table",
-				message: `Choose exactly ${numMasterDevicesToRemove} master device id you want to remove from the above table`,
-				pageSize: masterDeviceRows.length,
-				columns: masterDeviceSelection,
-				rows: masterDeviceRows,
+				message: `Choose exactly ${numNodeRedInstancesToRemove} nodered instances id you want to remove from the above table`,
+				pageSize: nodeRedInstanceRows.length,
+				columns: nodeRedInstanceSelection,
+				rows: nodeRedInstanceRows,
 				validate: (selectedArray) => {
-					const numSelectedMasterDevices = selectedArray.filter(selection => selection === "selected").length;
-					if (numSelectedMasterDevices === numMasterDevicesToRemove) {
+					const numSelectedNodeRedInstances = selectedArray.filter(selection => selection === "selected").length;
+					if (numSelectedNodeRedInstances === numNodeRedInstancesToRemove) {
 						return true;
 					} else {
-						return `Please select exactly ${numMasterDevicesToRemove} master device id from the above table`;
+						return `Please select exactly ${numNodeRedInstancesToRemove} nodered instances id from the above table`;
 					}
 				}
 			}
 		])
 		.then(async (answers) => {
-			const masterDeviceHashesToRemove = [];
-			for (let irow = 0; irow < answers.MASTER_DEVICES_TO_REMOVE.length; irow++) {
-				if (answers.MASTER_DEVICES_TO_REMOVE[irow] === "selected") {
-					masterDeviceHashesToRemove.push(masterDevicesInOrg[irow].masterDeviceHash);
+			const nodeRedInstanceHashesToRemove = [];
+			for (let irow = 0; irow < answers.NODERED_INSTANCES_TO_REMOVE.length; irow++) {
+				if (answers.NODERED_INSTANCES_TO_REMOVE[irow] === "selected") {
+					nodeRedInstanceHashesToRemove.push(nodeRedInstancesInOrg[irow].nodeRedInstanceHash);
 				}
 			}
-			orgData.masterDeviceHashesToRemove = masterDeviceHashesToRemove;
+			orgData.nodeRedInstanceHashesToRemove = nodeRedInstanceHashesToRemove;
 			await requestUpdateOrg(accessToken, osi4iotState, orgToUpdate, orgData);
 		});
 }
@@ -401,38 +401,38 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 
 	const org_hash = orgData.KEEP_ORG_HASH ? orgToUpdate.orgHash : nanoid(16).replace(/-/g, "x").replace(/_/g, "X");
 	const orgIndex = osi4iotState.certs.mqtt_certs.organizations.map(org => org.org_acronym).indexOf(orgToUpdate.acronym.toLowerCase());
-	const currentNumMasterDevicesInOrg = osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices.length;
-	const masterDevicesHashesToAdd = [];
-	const new_master_devices = [];
-	if (currentNumMasterDevicesInOrg < orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
-		new_master_devices.push(...osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices);
-		for (let idev = currentNumMasterDevicesInOrg; idev < orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG; idev++) {
-			const md_hash = nanoid(10).replace(/-/g, "x").replace(/_/g, "X");
-			masterDevicesHashesToAdd.push(md_hash);
-			const master_device = {
+	const currentNumNodeRedInstanceInOrg = osi4iotState.certs.mqtt_certs.organizations[orgIndex].nodered_instances.length;
+	const nodeRedInstancesHashesToAdd = [];
+	const new_nodered_instances = [];
+	if (currentNumNodeRedInstanceInOrg < orgData.NUMBER_OF_NODERED_INSTANCES_IN_ORG) {
+		new_nodered_instances.push(...osi4iotState.certs.mqtt_certs.organizations[orgIndex].nodered_instances);
+		for (let inri = currentNumNodeRedInstanceInOrg; inri < orgData.NUMBER_OF_NODERED_INSTANCES_IN_ORG; inri++) {
+			const nri_hash = nanoid(10).replace(/-/g, "x").replace(/_/g, "X");
+			nodeRedInstancesHashesToAdd.push(nri_hash);
+			const nodered_instance = {
 				client_crt: "",
 				client_key: "",
 				expiration_timestamp: 0,
-				md_hash,
+				nri_hash,
 				is_volume_created: 'false',
 				client_crt_name: "",
 				client_key_name: ""
 			}
-			new_master_devices.push(master_device);
+			new_nodered_instances.push(nodered_instance);
 		}
 	}
 
-	if (currentNumMasterDevicesInOrg > orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
-		const old_master_devices = osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices;
-		for (let idev = 0; idev < currentNumMasterDevicesInOrg; idev++) {
-			if (!orgData.masterDeviceHashesToRemove.includes(old_master_devices[idev].md_hash)) {
-				new_master_devices.push(old_master_devices[idev]);
+	if (currentNumNodeRedInstanceInOrg > orgData.NUMBER_OF_NODERED_INSTANCES_IN_ORG) {
+		const old_nodered_instances = osi4iotState.certs.mqtt_certs.organizations[orgIndex].nodered_instances;
+		for (let inri = 0; inri < currentNumNodeRedInstanceInOrg; inri++) {
+			if (!orgData.nodeRedInstanceHashesToRemove.includes(old_nodered_instances[inri].nri_hash)) {
+				new_nodered_instances.push(old_nodered_instances[idev]);
 			}
 		}
 	}
 
-	if (currentNumMasterDevicesInOrg === orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
-		new_master_devices.push(...osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices)
+	if (currentNumNodeRedInstanceInOrg === orgData.NUMBER_OF_NODERED_INSTANCES_IN_ORG) {
+		new_nodered_instances.push(...osi4iotState.certs.mqtt_certs.organizations[orgIndex].nodered_instances)
 	}
 
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
@@ -451,7 +451,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 		country: orgData.ORGANIZATION_COUNTRY,
 		buildingId: parseInt(orgData.BUILDING_ID, 10),
 		orgHash: org_hash,
-		masterDeviceHashes: new_master_devices.map(md => md.md_hash),
+		nodeRedInstanceHashes: new_nodered_instances.map(nri => nri.nri_hash),
 	};
 
 	const response = await needle('patch', url, updateOrgData, optionsToken)
@@ -464,7 +464,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 
 			osi4iotState.certs.mqtt_certs.organizations[orgIndex].acronym = orgData.ORGANIZATION_ACRONYM.toLowerCase();
 			osi4iotState.certs.mqtt_certs.organizations[orgIndex].org_hash = org_hash;
-			osi4iotState.certs.mqtt_certs.organizations[orgIndex].master_devices = [...new_master_devices];
+			osi4iotState.certs.mqtt_certs.organizations[orgIndex].nodered_instances = [...new_nodered_instances];
 			console.log(clc.green('\nCreating certificates...'));
 			await certsGenerator(osi4iotState);
 			const osi4iotStateFile = JSON.stringify(osi4iotState);
@@ -481,13 +481,13 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
 			if (nfsNode !== undefined) {
 				const org_acronym = orgData.ORGANIZATION_ACRONYM.toLowerCase();
-				if (currentNumMasterDevicesInOrg < orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
-					const md_hashes_array = masterDevicesHashesToAdd.join(",");
-					addNFSFolders(nfsNode, org_acronym, md_hashes_array);
+				if (currentNumNodeRedInstanceInOrg < orgData.NUMBER_OF_NODERED_INSTANCES_IN_ORG) {
+					const nri_hashes_array = nodeRedInstancesHashesToAdd.join(",");
+					addNFSFolders(nfsNode, org_acronym, nri_hashes_array);
 				}
-				if (currentNumMasterDevicesInOrg > orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG) {
-					const md_hashes_array = orgData.masterDeviceHashesToRemove.join(",");
-					removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
+				if (currentNumNodeRedInstanceInOrg > orgData.NUMBER_OF_NODERED_INSTANCES_IN_ORG) {
+					const nri_hashes_array = orgData.nodeRedInstanceHashesToRemove.join(",");
+					removeNFSFolders(nfsNode, org_acronym, nri_hashes_array);
 				}
 			}
 			await runStack(osi4iotState, dockerHost);

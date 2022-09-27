@@ -75,4 +75,10 @@ export default function (osi4iotState) {
 	}
 	fs.appendFileSync('./secrets/postgres_user.txt', `${osi4iotState.platformInfo.POSTGRES_USER}`);
 
+	//dev2pdb_password secret
+	if (fs.existsSync('./secrets/dev2pdb_password.txt')) {
+		fs.rmSync('./secrets/dev2pdb_password.txt');
+	}
+	fs.appendFileSync('./secrets/dev2pdb_password.txt', `${osi4iotState.platformInfo.DEV2PDB_PASSWORD}`);
+
 };

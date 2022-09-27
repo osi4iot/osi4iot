@@ -21,8 +21,8 @@ export const initialState = {
     selectOrgUsers: [],
     reloadSelectOrgUsersTable: true,
     organizations: [],
-    masterDevices: [],
-    reloadMasterDevicesTable: true,
+    nodeRedInstances: [],
+    reloadNodeRedInstancesTable: true,
     buildings: [],
     reloadBuildingsTable: true,
     floors: [],
@@ -92,16 +92,16 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 organizations: action.payload.organizations
             };
 
-        case "MASTER_DEVICES_TABLE":
+        case "NODERED_INSTANCES_TABLE":
             return {
                 ...initialState,
-                masterDevices: action.payload.masterDevices
+                nodeRedInstances: action.payload.nodeRedInstances
             };
 
-        case "RELOAD_MASTER_DEVICES_TABLE":
+        case "RELOAD_NODERED_INSTANCES_TABLE":
             return {
                 ...initialState,
-                reloadMasterDevicesTable: action.payload.reloadMasterDevicesTable
+                reloadNodeRedInstancesTable: action.payload.reloadNodeRedInstancesTable
             };
 
         case "BUILDINGS_TABLE":
@@ -306,8 +306,8 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 selectOrgUsers: [],
                 reloadSelectOrgUsersTable: true,
                 organizations: [],
-                masterDevices: [],
-                reloadMasterDevicesTable: true,
+                nodeRedInstances: [],
+                reloadNodeRedInstancesTable: true,
                 buildings: [],
                 reloadBuildingsTable: true,
                 floors: [],

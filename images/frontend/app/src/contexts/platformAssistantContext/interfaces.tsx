@@ -8,7 +8,7 @@ import { IGlobalUser } from "../../components/PlatformAssistant/TableColumns/glo
 import { IGroupMember } from "../../components/PlatformAssistant/TableColumns/groupMemberColumns";
 import { IGroup } from "../../components/PlatformAssistant/TableColumns/groupsColumns";
 import { IGroupManaged } from "../../components/PlatformAssistant/TableColumns/groupsManagedColumns";
-import { IMasterDeviceInOrgsColumns } from "../../components/PlatformAssistant/TableColumns/masterDevicesInOrgsColumns";
+import { INodeRedInstance } from "../../components/PlatformAssistant/TableColumns/nodeRedInstancesInOrgsColumns";
 import { IMembershipInGroups } from "../../components/PlatformAssistant/TableColumns/membershipInGroups";
 import { IMembershipInOrgs } from "../../components/PlatformAssistant/TableColumns/membershipInOrgs";
 import { IOrganization } from "../../components/PlatformAssistant/TableColumns/organizationsColumns";
@@ -33,8 +33,8 @@ export interface PlatformAssistantContextProps {
 	selectOrgUsers: ISelectOrgUser[];
 	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
-	masterDevices: IMasterDeviceInOrgsColumns[];
-	reloadMasterDevicesTable: boolean;
+	nodeRedInstances: INodeRedInstance[];
+	reloadNodeRedInstancesTable: boolean;
 	buildings: IBuilding[];
 	reloadBuildingsTable: boolean;
 	floors: IFloor[];
@@ -78,8 +78,8 @@ export interface PlatformAssistantActionPayload {
 	selectOrgUsers: ISelectOrgUser[];
 	reloadSelectOrgUsersTable: boolean;
 	organizations: IOrganization[];
-	masterDevices: IMasterDeviceInOrgsColumns[];
-	reloadMasterDevicesTable: boolean;
+	nodeRedInstances: INodeRedInstance[];
+	reloadNodeRedInstancesTable: boolean;
 	buildings: IBuilding[];
 	reloadBuildingsTable: boolean;
 	floors: IFloor[];
@@ -143,12 +143,12 @@ export interface IOrganizationsTable {
 	organizations: IOrganization[];
 }
 
-export interface IMasterDevicesTable {
-	masterDevices: IMasterDeviceInOrgsColumns[];
+export interface INodeRedInstancesTable {
+	nodeRedInstances: INodeRedInstance[];
 }
 
-export interface IReloadMasterDevicesTable {
-	reloadMasterDevicesTable: boolean;
+export interface IReloadNodeRedInstancesTable {
+	reloadNodeRedInstancesTable: boolean;
 }
 
 export interface IGlobalUsersTable {

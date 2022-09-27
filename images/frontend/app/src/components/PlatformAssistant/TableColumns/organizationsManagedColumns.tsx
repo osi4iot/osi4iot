@@ -176,7 +176,7 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             Header: "Org hash",
             accessor: "orgHash",
             disableFilters: true
-        },        
+        },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />users</div>,
             accessor: "addOrgUsers",

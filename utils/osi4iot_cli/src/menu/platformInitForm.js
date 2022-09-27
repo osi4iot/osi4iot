@@ -386,12 +386,12 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 				}
 			},
 			{
-				name: 'NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG',
-				message: 'Number of master devices in main org:',
+				name: 'NUMBER_OF_NODERED_INSTANCES_IN_MAIN_ORG',
+				message: 'Number of node-red instances in main org:',
 				default: 3,
-				validate: function (numOfMD) {
+				validate: function (numOfNRI) {
 					let valid = false;
-					if (numOfMD !== "" && Number.isInteger(Number(numOfMD)) && Number(numOfMD) >= 1) valid = true;
+					if (numOfNRI !== "" && Number.isInteger(Number(numOfNRI)) && Number(numOfNRI) >= 1) valid = true;
 					if (valid) {
 						return true;
 					} else {
@@ -640,7 +640,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 								TELEGRAM_BOTTOKEN: answers.TELEGRAM_BOTTOKEN,
 								MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: answers.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 								MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: answers.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
-								NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG: parseInt(answers.NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG, 10),
+								NUMBER_OF_NODERED_INSTANCES_IN_MAIN_ORG: parseInt(answers.NUMBER_OF_NODERED_INSTANCES_IN_MAIN_ORG, 10),
 								NOTIFICATIONS_EMAIL_USER: answers.NOTIFICATIONS_EMAIL_ADDRESS,
 								NOTIFICATIONS_EMAIL_ADDRESS: answers.NOTIFICATIONS_EMAIL_ADDRESS,
 								NOTIFICATIONS_EMAIL_PASSWORD: answers.NOTIFICATIONS_EMAIL_PASSWORD,
@@ -659,6 +659,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 								POSTGRES_DB: "iot_platform_db",
 								GRAFANA_DB_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 								GRAFANA_DATASOURCE_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+								DEV2PDB_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
 								NODE_RED_ADMIN: answers.PLATFORM_ADMIN_USER_NAME,
 								NODE_RED_ADMIN_HASH: bcrypt.hashSync(answers.PLATFORM_ADMIN_PASSWORD, 8),
 								PGADMIN_DEFAULT_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
@@ -700,18 +701,18 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 							org_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
 							org_acronym: answers.MAIN_ORGANIZATION_ACRONYM.toLowerCase(),
 							exclusiveWorkerNodes: [],
-							master_devices: []
+							nodered_instances: []
 						}
-						for (let idev = 1; idev <= answers.NUMBER_OF_MASTER_DEVICES_IN_MAIN_ORG; idev++) {
-							osi4iotState.certs.mqtt_certs.organizations[0].master_devices[idev - 1] = {
+						for (let inri = 1; inri <= answers.NUMBER_OF_NODERED_INSTANCES_IN_MAIN_ORG; inri++) {
+							osi4iotState.certs.mqtt_certs.organizations[0].nodered_instances[inri - 1] = {
 								client_crt: "",
 								client_key: "",
 								expiration_timestamp: 0,
-								md_hash: nanoid(10).replace(/-/g, "x").replace(/_/g, "X"),
+								nri_hash: nanoid(10).replace(/-/g, "x").replace(/_/g, "X"),
 								is_volume_created: 'false'
 							}
-							osi4iotState.certs.mqtt_certs.organizations[0].master_devices[idev - 1].client_crt_name = "";
-							osi4iotState.certs.mqtt_certs.organizations[0].master_devices[idev - 1].client_key_name = "";
+							osi4iotState.certs.mqtt_certs.organizations[0].nodered_instances[inri - 1].client_crt_name = "";
+							osi4iotState.certs.mqtt_certs.organizations[0].nodered_instances[inri - 1].client_key_name = "";
 						}
 
 						try {

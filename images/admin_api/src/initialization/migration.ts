@@ -12,10 +12,11 @@ import { createTopic, demoTopicName } from "../components/topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../components/digitalTwin/digitalTwinDAL";
 import process_env from "../config/api_config";
 import IDevice from "../components/device/device.interface";
-import { createMasterDevicesInOrg } from "../components/masterDevice/masterDeviceDAL";
-import IMasterDevice from "../components/masterDevice/masterDevice.interface";
 import needle from "needle";
 import ITopic from "../components/topic/topic.interface";
+import { createFictitiousUserForService } from "../components/user/userDAL";
+import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
+import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 
 
 export async function dataBaseInitialization() {
@@ -54,7 +55,8 @@ export async function dataBaseInitialization() {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
 											ADD COLUMN building_id bigint,
-											ADD COLUMN org_hash varchar(20) UNIQUE`;
+											ADD COLUMN org_hash varchar(20) UNIQUE,
+											ADD COLUMN mqtt_action_allowed VARCHAR(10)`;
 				try {
 					await client.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
@@ -63,7 +65,8 @@ export async function dataBaseInitialization() {
 				}
 
 				const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5,
-											state = $6, country = $7, building_id = $8, org_hash = $9 WHERE name = $10`;
+											state = $6, country = $7, building_id = $8, org_hash = $9,
+											mqtt_action_allowed = $10 WHERE name = $11`;
 				const parameterArrayUpdateOrg = [
 					process_env.MAIN_ORGANIZATION_NAME,
 					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
@@ -74,6 +77,7 @@ export async function dataBaseInitialization() {
 					process_env.MAIN_ORGANIZATION_COUNTRY,
 					1,
 					process_env.MAIN_ORG_HASH,
+					"Pub & Sub",
 					"Main Org."
 				];
 
@@ -175,6 +179,22 @@ export async function dataBaseInitialization() {
 				await grafanaApi.createUser(plaformAdminUser);
 				await grafanaApi.createOrgApiAdminUser(1);
 
+				const dev2pdbUser = {
+					id: 3,
+					name: "dev2pdb",
+					firstName: "",
+					surname: "",
+					email: "",
+					login: "dev2pdb",
+					password: process_env.DEV2PDB_PASSWORD,
+					OrgId: 1
+				}
+				try {
+					await createFictitiousUserForService(dev2pdbUser);
+				} catch (err) {
+					logger.log("error", `Fictitiou user for service dev2pdb could not be created: %s`, err.message);
+				}
+
 				const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, name = $3 WHERE id = $4';
 				try {
 					await client.query(queryStringUpdateUser,
@@ -263,6 +283,9 @@ export async function dataBaseInitialization() {
 					floor_number integer NOT NULL DEFAULT 0,
 					feature_index integer NOT NULL DEFAULT 0,
 					outer_bounds float8[2][2],
+					mqtt_action_allowed VARCHAR(10),
+					created TIMESTAMPTZ,
+					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
 						FOREIGN KEY(org_id)
 							REFERENCES grafanadb.org(id)
@@ -304,6 +327,7 @@ export async function dataBaseInitialization() {
 						groupAdminDataArray: [mainOrgGroupAdmin],
 						floorNumber: 0,
 						featureIndex: 0,
+						mqttActionAllowed: "Pub & Sub"
 					}
 					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
 					await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
@@ -331,6 +355,10 @@ export async function dataBaseInitialization() {
 					device_uid VARCHAR(40) UNIQUE,
 					geolocation POINT,
 					type VARCHAR(40),
+					mqtt_password VARCHAR(255),
+					mqtt_salt VARCHAR(40),
+					mqtt_action_allowed VARCHAR(10),
+					master_device_url VARCHAR(255),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
@@ -363,6 +391,7 @@ export async function dataBaseInitialization() {
 					description VARCHAR(190),
 					payload_format jsonb,
 					topic_uid VARCHAR(40) UNIQUE,
+					mqtt_action_allowed VARCHAR(10),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_device_id
@@ -372,7 +401,10 @@ export async function dataBaseInitialization() {
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_topic_name
-				ON grafanadb.topic(topic_name);`;
+				ON grafanadb.topic(topic_name);
+
+				CREATE INDEX IF NOT EXISTS idx_topic_uid
+				ON grafanadb.topic(topic_uid);`;
 
 				try {
 					await client.query(queryStringTopic);
@@ -449,12 +481,14 @@ export async function dataBaseInitialization() {
 					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
 				}
 
-				const tableMasterDevice = "grafanadb.master_device";
-				const queryStringMasterDevice = `
-				CREATE TABLE IF NOT EXISTS ${tableMasterDevice}(
+				const tableNodeRedInstance = "grafanadb.nodered_instance";
+				const queryStringodeRedInstance = `
+				CREATE TABLE IF NOT EXISTS ${tableNodeRedInstance}(
 					id serial PRIMARY KEY,
-					md_hash VARCHAR(40) UNIQUE,
+					nri_hash VARCHAR(40) UNIQUE,
 					org_id bigint,
+					group_id bigint,
+					geolocation POINT,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
@@ -463,41 +497,24 @@ export async function dataBaseInitialization() {
 						ON DELETE CASCADE
 				);
 
-				CREATE INDEX IF NOT EXISTS idx_md_hash
-				ON grafanadb.master_device(md_hash);`;
+				CREATE INDEX IF NOT EXISTS idx_nri_hash
+				ON grafanadb.nodered_instance(nri_hash);`;
 
-				let mainMasterDevice: IMasterDevice;
+				let mainNodeRedInstance: INodeRedInstance;
 				try {
-					await client.query(queryStringMasterDevice);
-					const masterDevices = await createMasterDevicesInOrg(process_env.MAIN_ORG_MASTER_DEVICE_HASHES, 1);
-					mainMasterDevice = masterDevices[0];
-					logger.log("info", `Table ${tableMasterDevice} has been created sucessfully`);
+					await client.query(queryStringodeRedInstance);
+					const nodeRedInstances = await createNodeRedInstancesInOrg(process_env.MAIN_ORG_NODERED_INSTANCE_HASHES, 1);
+					mainNodeRedInstance = nodeRedInstances[0];
+					logger.log("info", `Table ${tableNodeRedInstance} has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableMasterDevice} can not be created: %s`, err.message);
+					logger.log("error", `Table ${tableNodeRedInstance} can not be created: %s`, err.message);
 				}
 
-				const tableDeviceMasterDevice = "grafanadb.device_mdevice";
-				const queryStringDeviceMasterDevice = `
-				CREATE TABLE IF NOT EXISTS ${tableDeviceMasterDevice}(
-					device_id bigint,
-					master_device_id bigint,
-					created TIMESTAMPTZ,
-					updated TIMESTAMPTZ,
-					CONSTRAINT fk_device_id
-						FOREIGN KEY(device_id)
-						REFERENCES grafanadb.device(id)
-						ON DELETE CASCADE,
-					CONSTRAINT fk_master_device_id
-						FOREIGN KEY(master_device_id)
-						REFERENCES grafanadb.master_device(id)
-						ON DELETE CASCADE
-				);`;
-
 				try {
-					await client.query(queryStringDeviceMasterDevice);
-					logger.log("info", `Table ${tableDeviceMasterDevice} has been created sucessfully`);
+					await assignNodeRedInstanceToGroup(mainNodeRedInstance, group.id);
+					logger.log("info", `NodeRed instance assigned to group with id: ${group.id}`);
 				} catch (err) {
-					logger.log("error", `Table ${tableDeviceMasterDevice} can not be created: %s`, err.message);
+					logger.log("error", `NodeRed instance can not be assigned to group with id: ${group.id}: %s`, err.message);
 				}
 
 				const tableThingData = "iot_data.thingData";
@@ -535,14 +552,16 @@ export async function dataBaseInitialization() {
 							description: `Main master device of the group ${mainOrgGroupAcronym}`,
 							latitude: 0,
 							longitude: 0,
-							type: "Main master"
+							type: "Main master",
+							mqttActionAllowed: "Pub & Sub"
 						},
 						{
 							name: defaultGroupDeviceName(group, "Generic"),
 							description: `Default generic device of the group ${mainOrgGroupAcronym}`,
 							latitude: 0,
 							longitude: 0,
-							type: "Generic"
+							type: "Generic",
+							mqttActionAllowed: "Pub & Sub"
 						},
 					];
 					device1 = await createDevice(group, defaultGroupDevicesData[0]);
@@ -561,19 +580,22 @@ export async function dataBaseInitialization() {
 							topicType: "dev2pdb",
 							topicName: demoTopicName(group, device1, "Temperature"),
 							description: `Temperature sensor for ${defaultGroupDeviceName(group, "Main master")} device`,
-							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
+							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
+							mqttActionAllowed: "Pub & Sub"
 						},
 						{
 							topicType: "dev2pdb",
 							topicName: demoTopicName(group, device2, "Accelerometer"),
 							description: `Mobile accelerations for ${defaultGroupDeviceName(group, "Generic")} device`,
-							payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+							payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
+							mqttActionAllowed: "Pub & Sub"
 						},
 						{
 							topicType: "dev2dtm",
 							topicName: demoTopicName(group, device2, "Photo"),
 							description: `Mobile photo for default for ${defaultGroupDeviceName(group, "Generic")} device`,
-							payloadFormat: '{"mobile_photo": {"type": "string"}}'
+							payloadFormat: '{"mobile_photo": {"type": "string"}}',
+							mqttActionAllowed: "Pub & Sub"
 						},
 					];
 					topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);

@@ -44,9 +44,9 @@ export default function (osi4iotState) {
 	}
 
 	for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
-		const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
-		for (let idev = 1; idev <= num_master_devices; idev++) {
-			if (osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].expiration_timestamp < limitTimestamp) {
+		const num_nodeRedInstances = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances.length;
+		for (let idev = 1; idev <= num_nodeRedInstances; idev++) {
+			if (osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].expiration_timestamp < limitTimestamp) {
 				certsUpdateIsNeedeed = true;
 			}
 		}

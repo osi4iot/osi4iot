@@ -10,26 +10,26 @@ export default function (osi4iotState) {
 	const config_dir = "./config"
 	if (!fs.existsSync(config_dir)) {
 		fs.mkdirSync(config_dir);
+	}
 
-		const admin_api_conf_dir = "./config/admin_api";
-		if (!fs.existsSync(admin_api_conf_dir)) {
-			fs.mkdirSync(admin_api_conf_dir);
-		}
+	const admin_api_conf_dir = "./config/admin_api";
+	if (!fs.existsSync(admin_api_conf_dir)) {
+		fs.mkdirSync(admin_api_conf_dir);
+	}
 
-		const frontend_conf_dir = "./config/frontend";
-		if (!fs.existsSync(frontend_conf_dir)) {
-			fs.mkdirSync(frontend_conf_dir);
-		}
+	const frontend_conf_dir = "./config/frontend";
+	if (!fs.existsSync(frontend_conf_dir)) {
+		fs.mkdirSync(frontend_conf_dir);
+	}
 
-		const grafana_conf_dir = "./config/grafana";
-		if (!fs.existsSync(grafana_conf_dir)) {
-			fs.mkdirSync(grafana_conf_dir);
-		}
+	const grafana_conf_dir = "./config/grafana";
+	if (!fs.existsSync(grafana_conf_dir)) {
+		fs.mkdirSync(grafana_conf_dir);
+	}
 
-		const mosquitto_conf_dir = "./config/mosquitto";
-		if (!fs.existsSync(mosquitto_conf_dir)) {
-			fs.mkdirSync(mosquitto_conf_dir);
-		}
+	const mosquitto_conf_dir = "./config/mosquitto";
+	if (!fs.existsSync(mosquitto_conf_dir)) {
+		fs.mkdirSync(mosquitto_conf_dir);
 	}
 
 	let protocol = "https";
@@ -100,7 +100,7 @@ export default function (osi4iotState) {
 
 	//mosquitto config
 	const mosquittoConfig = [
-		"per_listener_settings true\n",
+		// "per_listener_settings true\n",
 		"persistence true\n",
 		"persistence_location /mosquitto/data/\n",
 		"log_type error\n",
@@ -112,7 +112,7 @@ export default function (osi4iotState) {
 		"# MQTT plain\n",
 		"listener 1883\n",
 		"protocol mqtt\n",
-		"allow_anonymous true\n",
+		"allow_anonymous false\n",
 		"\n",
 		"# MQTT over TLS/SSL\n",
 		"listener 8883\n",
@@ -143,9 +143,13 @@ export default function (osi4iotState) {
 			"cafile /mosquitto/wss_certs/iot_platform_ca.pem\n",
 			"certfile /mosquitto/wss_certs/iot_platform_cert.cer\n",
 			"keyfile /mosquitto/wss_certs/iot_platform.key\n",
-			"allow_anonymous true"
+			"allow_anonymous false\n",
+			"\n",
+			"\n",
+			"include_dir /etc/mosquitto/conf.d"
 		)
 	}
+
 
 	if (fs.existsSync('./config/mosquitto/mosquitto.conf')) {
 		fs.rmSync('./config/mosquitto/mosquitto.conf');
@@ -153,6 +157,33 @@ export default function (osi4iotState) {
 
 	for (let iline = 0; iline < mosquittoConfig.length; iline++) {
 		fs.appendFileSync('./config/mosquitto/mosquitto.conf', mosquittoConfig[iline]);
+	}
+
+	const mosquittoGoAuthConf = [
+		"auth_plugin /mosquitto/go-auth.so\n",
+		"auth_opt_backends http\n",
+		"auth_opt_http_host admin_api\n",
+		"auth_opt_http_port 3200\n",
+		"auth_opt_http_getuser_uri /auth/mosquitto_user\n",
+		"auth_opt_http_aclcheck_uri /auth/mosquitto_aclcheck\n",
+		"auth_opt_http_method POST\n",
+		//
+		// "auth_plugin /mosquitto/go-auth.so\n",
+		// "auth_opt_backends jwt\n",
+		// "auth_opt_jwt_mode remote\n",
+		// "auth_opt_jwt_host admin_api\n",
+		// "auth_opt_jwt_port 3200\n",
+		// "auth_opt_jwt_getuser_uri /auth/mosquitto_auth\n",
+		// "auth_opt_jwt_aclcheck_uri /auth/mosquitto_aclcheck\n",
+		// "auth_opt_jwt_http_method POST\n",
+	]
+
+	if (fs.existsSync('./config/mosquitto/go-auth.conf')) {
+		fs.rmSync('./config/mosquitto/go-auth.conf');
+	}
+
+	for (let iline = 0; iline < mosquittoGoAuthConf.length; iline++) {
+		fs.appendFileSync('./config/mosquitto/go-auth.conf', mosquittoGoAuthConf[iline]);
 	}
 
 };

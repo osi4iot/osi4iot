@@ -1,6 +1,5 @@
 .env
 osi4iot_stack.yml
-master_devices_stack.yml
 secrets/*
 !secrets/*.example
 config/admin_api/*
@@ -22,8 +21,6 @@ certs/mqtt_certs/nodered/*
 !certs/mqtt_certs/nodered/.gitkeep
 certs/mqtt_certs/broker/*
 !certs/mqtt_certs/broker/.gitkeep
-certs/mqtt_certs/master_device_1/*
-!certs/mqtt_certs/master_device_1/.gitkeep
 volumes/elasticsearch/*
 !volumes/elasticsearch/.gitkeep
 volumes/alertmanager/*

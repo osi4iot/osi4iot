@@ -35,10 +35,10 @@ export default async function () {
 				.then(res => res.body)
 				.catch(err => console.log("Get org error: %s", err.message));
 
-			const urlGetMasterDevices = `${protocol}://${domainName}/admin_api/master_devices`;
-			const masterDevices = await needle('get', urlGetMasterDevices, optionsToken)
+			const urlGetNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances`;
+			const nodeRedInstances = await needle('get', urlGetNodeRedInstance, optionsToken)
 				.then(res => res.body)
-				.catch(err => console.log("Get master devices error: %s", err.message));
+				.catch(err => console.log("Get node-red instances error: %s", err.message));
 
 			const table = new Table({
 				head: [
@@ -63,7 +63,7 @@ export default async function () {
 			const orgIdArray = [];
 			for (let iorg = 0; iorg < orgs.length; iorg++) {
 				orgIdArray.push(orgs[iorg].id);
-				const numMasterDevicesInOrg = masterDevices.filter(md => md.orgId === orgs[iorg].id).length;
+				const numNodeRedInstancesInOrg = nodeRedInstances.filter(nri => nri.orgId === orgs[iorg].id).length;
 				const row = [
 					orgs[iorg].id,
 					orgs[iorg].name,
@@ -75,7 +75,7 @@ export default async function () {
 					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
-					numMasterDevicesInOrg
+					numNodeRedInstancesInOrg
 				];
 				table.push(row);
 			}
@@ -151,14 +151,14 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
 			if (nfsNode !== undefined) {
 				const org_acronym = orgToRemove.org_acronym.toLowerCase();
-				const md_hashes_array = orgToRemove.master_devices.map(md => md.md_hash).join(",");
-				removeNFSFolders(nfsNode, org_acronym, md_hashes_array);
+				const nri_hashes_array = orgToRemove.nodered_instances.map(nri => nri.nri_hash).join(",");
+				removeNFSFolders(nfsNode, org_acronym, nri_hashes_array);
 			}
 
 			if (deploymentLocation === "AWS cluster deployment") {
 				const org_acronym = newOrg.org_acronym;
-				const md_hashes_array = newOrg.master_devices.map(md => md.md_hash).join(",");
-				removeEFSFolders(nodesData[0], org_acronym, md_hashes_array);
+				const nri_hashes_array = newOrg.nodered_instances.map(nri => nri.nri_hash).join(",");
+				removeEFSFolders(nodesData[0], org_acronym, nri_hashes_array);
 			}
 
 			await runStack(osi4iotState, dockerHost);
@@ -178,13 +178,13 @@ const removeOrgWorkerNodeLabels = (dockerHost, orgToRemove) => {
 }
 
 const removeMqttCertsFiles = (orgToRemove) => {
-	const num_master_devices = orgToRemove.master_devices.length;
+	const num_nodeRedInstances = orgToRemove.nodered_instances.length;
 	const org_acronym = orgToRemove.org_acronym;
-	for (let idev = 1; idev <= num_master_devices; idev++) {
-		const md_hash = orgToRemove.master_devices[idev - 1].md_hash;
-		const masterDeviceCertsDir = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}`;
-		if (fs.existsSync(masterDeviceCertsDir)) {
-			fs.rmSync(masterDeviceCertsDir, { recursive: true, force: true });
+	for (let inri = 1; inri <= num_nodeRedInstances; inri++) {
+		const nri_hash = orgToRemove.nodered_instances[inri - 1].nri_hash;
+		const nodeRedInstanceCertsDir = `./certs/mqtt_certs/org_${org_acronym}_nri_${nri_hash}`;
+		if (fs.existsSync(nodeRedInstanceCertsDir)) {
+			fs.rmSync(nodeRedInstanceCertsDir, { recursive: true, force: true });
 		}
 	}
 }

@@ -24,7 +24,6 @@ import {
     setReloadGroupsTable
 } from '../../../contexts/platformAssistantContext';
 
-
 const FormContainer = styled.div`
 	font-size: 12px;
     padding: 30px 10px 30px 20px;
@@ -69,6 +68,25 @@ const ControlsContainer = styled.div`
         margin-bottom: 3px;
     }
 `;
+
+const mqttActionAllowedOptions = [
+    {
+        label: "Subscribe",
+        value: "Sub"
+    },
+    {
+        label: "Publish",
+        value: "Pub"
+    },
+    {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
+        label: "None",
+        value: "None"
+    }
+];
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -135,7 +153,7 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -200,6 +218,13 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                         control='input'
                                         label='Building Id'
                                         name='buildingId'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Mqtt action allowed'
+                                        name="mqttActionAllowed"
+                                        options={mqttActionAllowedOptions}
                                         type='text'
                                     />
                                 </ControlsContainer>

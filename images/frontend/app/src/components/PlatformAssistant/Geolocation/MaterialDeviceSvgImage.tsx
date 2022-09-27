@@ -27,7 +27,6 @@ export const MaterialDeviceSvgImage: FC<MaterialDeviceSvgImageProps> = ({ fillCo
                         cy="184.23729"
                         r="45.013271"
                     />
-                    <text x="108.80213" y="203.5387" id="text5684" font-size="50px">M</text>
                 </SVGOverlay >
                 :
                 <SVGOverlay attributes={{ viewBox: "0 0 512 512", fill: fillColor }} bounds={bounds as LatLngTuple[]}>

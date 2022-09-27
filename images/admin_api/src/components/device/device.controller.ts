@@ -28,7 +28,6 @@ import IDevice from "./device.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByDevice } from "../mesurement/measurementDAL";
-import { createDeviceMasterDevice, getMasterDevicesUnlinked } from "../masterDevice/masterDeviceDAL";
 import HttpException from "../../exceptions/HttpException";
 
 class DeviceController implements IController {
@@ -220,16 +219,6 @@ class DeviceController implements IController {
 			if (!this.isValidDevicePropName(propName)) throw new InvalidPropNameExeception(propName);
 			let device = await getDeviceByProp(propName, propValue);
 			if (!device) throw new ItemNotFoundException("The device", propName, propValue);
-			if (device.type === "Generic" && deviceData.type === "Master") {
-				const group = req.group;
-				const orgId = group.orgId;
-				const masterDevicesUnlinked = await getMasterDevicesUnlinked(group.orgId);
-				if (masterDevicesUnlinked.length === 0) {
-					throw new HttpException(400, `The org with id: ${orgId} not have any master device available`)
-				} else {
-					await createDeviceMasterDevice(device.id, masterDevicesUnlinked[0].id);
-				}
-			}
 			device = { ...device, ...deviceData };
 			await updateDeviceByProp(propName, propValue, device);
 			const message = { message: "Device updated successfully" }

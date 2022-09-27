@@ -5,7 +5,7 @@ import HttpException from "../exceptions/HttpException";
 import { isThisUserAdminOfSomeOrg, isThisUserOrgAdmin } from "../components/user/userDAL";
 import { getGroupByProp, haveThisUserGroupAdminPermissions } from "../components/group/groupDAL";
 import IRequestWithUserAndGroup from "../components/group/interfaces/requestWithUserAndGroup.interface";
-import { getMasterDeviceByProp } from "../components/masterDevice/masterDeviceDAL";
+import { getNodeRedInstanceByProp } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 
 export const registerAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
 	passport.authenticate("register_jwt", { session: false }, (err, user, info) => {
@@ -137,8 +137,8 @@ export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Respons
 	})(req, res, next);
 };
 
-export const groupAdminMasterDeviceAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
-	passport.authenticate("master_device_access_jwt", { session: false }, async (err, user, info) => {
+export const groupAdminNodeRedInstanceAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+	passport.authenticate("nodered_instance_access_jwt", { session: false }, async (err, user, info) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}
@@ -148,10 +148,10 @@ export const groupAdminMasterDeviceAuth = async (req: IRequestWithUserAndGroup, 
 		if (!user) {
 			return next(new HttpException(401, "You are not allowed to access."));
 		}
-		const { masterDeviceHash } = req.params;
-		const masterDevice = await getMasterDeviceByProp("md_hash", masterDeviceHash);
-		if (masterDevice) {
-			const group = await getGroupByProp("id", masterDevice.groupId);
+		const { nriHash } = req.params;
+		const nodeRedInstance = await getNodeRedInstanceByProp("nri_hash", nriHash);
+		if (nodeRedInstance) {
+			const group = await getGroupByProp("id", nodeRedInstance.groupId);
 			req.group = group;
 			let isGroupAdmin = await haveThisUserGroupAdminPermissions(user.id, group.teamId, group.orgId);
 			if (user.isGrafanaAdmin) isGroupAdmin = true;
@@ -160,7 +160,7 @@ export const groupAdminMasterDeviceAuth = async (req: IRequestWithUserAndGroup, 
 				return next(new HttpException(401, "You don't have group administrator privileges."));
 			}
 		} else {
-			return next(new HttpException(404, `Not exits any master device with hash= ${masterDeviceHash}`));
+			return next(new HttpException(404, `Not exits any nodered instance with hash= ${nriHash}`));
 		}
 		req.user = user;
 		return next();

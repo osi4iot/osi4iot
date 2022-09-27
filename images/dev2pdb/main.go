@@ -20,8 +20,10 @@ type config struct {
 	mqttClientId       string
 	mqttPort           int
 	mqttBrokerUrl      string
-	postgresPassword   string
+	dev2pdbUsername    string
+	dev2pdbPassword    string
 	postgresUser       string
+	postgresPassword   string
 	postgresServiceUrl string
 	databaseName       string
 }
@@ -51,6 +53,8 @@ func createClientOptions(configData config) *mqtt.ClientOptions {
 	opts := mqtt.NewClientOptions()
 	opts.AddBroker(getMqttBrokerUrl(configData))
 	opts.SetClientID(configData.mqttClientId)
+	opts.SetUsername(configData.dev2pdbUsername)
+	opts.SetPassword(configData.dev2pdbPassword)
 	opts.OnConnectionLost = connectLostHandler
 	return opts
 }
@@ -189,12 +193,24 @@ func getConfigData() config {
 	mqttClientId := "dev2pdb"
 	mqttPort := 1883
 	mqttBrokerServiceUrl := getEnv("MQTT_BROKER_SERVICE_URL", "mosquitto")
+	dev2pdbUsername := getEnv("DEV2PDB_USERNAME", "dev2pdb")
+	dev2pdbPassword := getParameterFromFileOrEnvVar("DEV2PDB_PASSWORD", "/run/secrets/dev2pdb_password.txt")
 	postgresPassword := getParameterFromFileOrEnvVar("POSTGRES_PASSWORD", "/run/secrets/postgres_password.txt")
 	postgresUser := getParameterFromFileOrEnvVar("POSTGRES_USER", "/run/secrets/postgres_user.txt")
 	postgresServiceUrl := getEnv("POSTGRES_SERVICE_URL", "postgres")
 	databaseName := getEnv("DATABASE_NAME", "iot_platform_db")
-	return config{mqttClientId, mqttPort, mqttBrokerServiceUrl, postgresPassword, postgresUser, postgresServiceUrl, databaseName}
+	return config{
+		mqttClientId, 
+		mqttPort, 
+		mqttBrokerServiceUrl,
+		dev2pdbUsername,
+		dev2pdbPassword,
+		postgresUser,
+		postgresPassword, 
+		postgresServiceUrl, 
+		databaseName }
 }
+
 
 func getDatabaseUrl(configData config) string {
 	user := configData.postgresUser

@@ -14,7 +14,6 @@ interface GeoDeviceProps {
     deviceData: IDevice;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
-    selectMasterDevice: (masterDeviceSelected: IDevice | null) => void;
     digitalTwinsState: IDigitalTwinState[];
 }
 
@@ -37,7 +36,6 @@ const GeoDevice: FC<GeoDeviceProps> = ({
     deviceData,
     deviceSelected,
     selectDevice,
-    selectMasterDevice,
     digitalTwinsState
 }) => {
     const devicesStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.deviceId === deviceData.id);
@@ -51,7 +49,6 @@ const GeoDevice: FC<GeoDeviceProps> = ({
     const clickHandler = () => {
         map.fitBounds(outerBounds as LatLngTuple[]);
         selectDevice(deviceData);
-        selectMasterDevice(null);
     }
 
 

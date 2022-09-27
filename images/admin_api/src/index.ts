@@ -16,7 +16,7 @@ import DigitalTwinController from "./components/digitalTwin/digitalTwinControlle
 import BuildingController from "./components/building/building.controller";
 import MeasurementController from "./components/mesurement/measurement.controller";
 import DashboardController from "./components/dashboard/dashboardController";
-import MasterDeviceController from "./components/masterDevice/masterDevice.controller";
+import NodeRedInstanceController from "./components/nodeRedInstance/nodeRedInstance.controller";
 
 
 async function main(): Promise<void> {
@@ -32,7 +32,7 @@ async function main(): Promise<void> {
 			new BuildingController(),
 			new GroupController(),
 			new DeviceController(),
-			new MasterDeviceController(),
+			new NodeRedInstanceController(),
 			new TopicController(),
 			new MeasurementController(),
 			new DigitalTwinController(),

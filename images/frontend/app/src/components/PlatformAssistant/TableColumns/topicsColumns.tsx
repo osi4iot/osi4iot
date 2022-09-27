@@ -26,6 +26,7 @@ export interface ITopic {
     description: string;
     payloadFormat: string;
     topicUid: string;
+    mqttActionAllowed: string;
 }
 
 export interface IMobileTopic {
@@ -225,6 +226,11 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             accessor: "description"
         },
         {
+            Header: "Mqtt acc",
+            accessor: "mqttActionAllowed",
+            disableFilters: true
+        },        
+        {
             Header: "Payload format",
             accessor: "payloadFormat",
             disableFilters: true,
@@ -235,7 +241,7 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             accessor: "topicUid",
             disableFilters: true,
             disableSortBy: true
-        },       
+        },    
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Change<br />hash</div>,
             accessor: "changeTopicHash",

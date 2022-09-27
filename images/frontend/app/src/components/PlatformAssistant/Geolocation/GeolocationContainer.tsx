@@ -14,6 +14,7 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import SelectFloorWithState from './SelectFloorWithState';
 import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
+import { INodeRedInstance } from '../TableColumns/nodeRedInstancesInOrgsColumns';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -54,6 +55,7 @@ interface GeolocationContainerProps {
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
+    nodeRedInstances: INodeRedInstance[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
     selectBuilding: (buildingSelected: IBuilding) => void;
@@ -65,8 +67,6 @@ interface GeolocationContainerProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
-    masterDeviceSelected: IDevice | null;
-    selectMasterDevice: (masterDeviceSelected: IDevice | null) => void;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     refreshBuildings: () => void;
@@ -74,6 +74,7 @@ interface GeolocationContainerProps {
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
+    refreshNodeRedInstances: () => void;
     refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
     outerBounds: number[][];
@@ -90,6 +91,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         orgsOfGroupsManaged,
         groupsManaged,
         devices,
+        nodeRedInstances,
         digitalTwins,
         buildingSelected,
         selectBuilding,
@@ -101,8 +103,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         selectGroup,
         deviceSelected,
         selectDevice,
-        masterDeviceSelected,
-        selectMasterDevice,
         selectDigitalTwin,
         digitalTwinSelected,
         refreshBuildings,
@@ -110,6 +110,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
+        refreshNodeRedInstances,
         refreshDigitalTwins,
         initialOuterBounds,
         outerBounds,
@@ -209,6 +210,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     orgsOfGroupsManaged={orgsOfGroupsManaged}
                     groupsManaged={groupsManaged}
                     devices={devices}
+                    nodeRedInstances={nodeRedInstances}
                     digitalTwins={digitalTwins}
                     buildingSelected={buildingSelected}
                     selectBuilding={selectBuilding}
@@ -220,8 +222,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectGroup={selectGroup}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}
-                    masterDeviceSelected={masterDeviceSelected}
-                    selectMasterDevice={selectMasterDevice}
                     selectDigitalTwin={selectDigitalTwin}
                     digitalTwinSelected={digitalTwinSelected}
                     refreshBuildings={refreshBuildings}
@@ -229,6 +229,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
                     refreshGroupsManaged={refreshGroupsManaged}
                     refreshDevices={refreshDevices}
+                    refreshNodeRedInstances={refreshNodeRedInstances}
                     refreshDigitalTwins={refreshDigitalTwins}
                     initialOuterBounds={initialOuterBounds}
                     outerBounds={outerBounds}

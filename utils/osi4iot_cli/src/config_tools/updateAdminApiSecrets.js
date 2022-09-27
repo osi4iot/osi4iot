@@ -12,8 +12,8 @@ export default function (osi4iotState) {
 	const secrets_dir = "./secrets"
 	if (!fs.existsSync(secrets_dir)) fs.mkdirSync(secrets_dir);
 
-	const mainOrgMasterDevices = osi4iotState.certs.mqtt_certs.organizations[0].master_devices;
-	const mainOrgMasterDevHashes = mainOrgMasterDevices.map(md => md.md_hash).join(",");
+	const mainOrgNodeRedInstances = osi4iotState.certs.mqtt_certs.organizations[0].nodered_instances;
+	const mainOrgNodeRedInstanceHashes = mainOrgNodeRedInstances.map(nri => nri.nri_hash).join(",");
 
 	//admin_api secrets
 	const adminApiSecrets = [
@@ -33,13 +33,14 @@ export default function (osi4iotState) {
 		`POSTGRES_USER=${osi4iotState.platformInfo.POSTGRES_USER}\n`,
 		`POSTGRES_PASSWORD=${osi4iotState.platformInfo.POSTGRES_PASSWORD}\n`,
 		`POSTGRES_DB=${osi4iotState.platformInfo.POSTGRES_DB}\n`,
+		`DEV2PDB_PASSWORD=${osi4iotState.platformInfo.POSTGRES_PASSWORD}\n`,
 		`NOTIFICATIONS_EMAIL_USER=${osi4iotState.platformInfo.NOTIFICATIONS_EMAIL_USER}\n`,
 		`NOTIFICATIONS_EMAIL_PASSWORD=${osi4iotState.platformInfo.NOTIFICATIONS_EMAIL_PASSWORD}\n`,
 		`MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=${osi4iotState.platformInfo.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID}\n`,
 		`MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=${osi4iotState.platformInfo.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK}\n`,
 		`TELEGRAM_BOTTOKEN=${osi4iotState.platformInfo.TELEGRAM_BOTTOKEN}\n`,
 		`MAIN_ORG_HASH=${osi4iotState.certs.mqtt_certs.organizations[0].org_hash}\n`,
-		`MAIN_ORG_MASTER_DEVICE_HASHES=${mainOrgMasterDevHashes}`
+		`MAIN_ORG_NODERED_INSTANCE_HASHES=${mainOrgNodeRedInstanceHashes}`
 	];
 
 	if (fs.existsSync('./secrets/admin_api.txt')) {

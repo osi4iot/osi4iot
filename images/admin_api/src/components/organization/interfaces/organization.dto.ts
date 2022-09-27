@@ -31,7 +31,7 @@ class CreateOrganizationDto {
 	public orgHash: string;
 
 	@IsString({each: true})
-	public masterDeviceHashes: string[];
+	public nriHashes: string[];
 
 	@ValidateIf((obj) => obj.telegramInvitationLink !== undefined)
 	@IsString()
@@ -40,6 +40,9 @@ class CreateOrganizationDto {
 	@ValidateIf((obj) => obj.telegramChatId !== undefined)
 	@IsString()
 	public telegramChatId?: string;
+
+	@IsString()
+	public mqttActionAllowed: string;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateUserDto)

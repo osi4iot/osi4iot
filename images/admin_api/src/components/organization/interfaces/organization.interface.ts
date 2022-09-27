@@ -9,6 +9,7 @@ export default interface IOrganization {
 	country: string;
 	buildingId: number;
 	orgHash: string;
+	mqttActionAllowed: string;
 }
 
 export interface IOrganizationWichTheLoggedUserIsUser {

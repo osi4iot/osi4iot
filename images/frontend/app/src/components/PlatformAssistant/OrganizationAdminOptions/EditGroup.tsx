@@ -121,6 +121,24 @@ const folderPermissionOptions = [
     }
 ];
 
+const mqttActionAllowedOptions = [
+    {
+        label: "Subscribe",
+        value: "Sub"
+    },
+    {
+        label: "Publish",
+        value: "Pub"
+    },
+    {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
+        label: "None",
+        value: "None"
+    }
+];
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -191,7 +209,7 @@ const EditGroup: FC<EditGroupProps> = ({
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -220,7 +238,7 @@ const EditGroup: FC<EditGroupProps> = ({
             const warningMessage = "To select a location for the group orgs managed must been updated"
             toast.warning(warningMessage);
         } else {
-            const buildingId =  orgsManagedTableFiltered[0].buildingId;
+            const buildingId = orgsManagedTableFiltered[0].buildingId;
             const groupBuildingId = { groupBuildingId: buildingId };
             setGroupBuildingId(groupsDispatch, groupBuildingId);
             selectSpaceOption();
@@ -253,6 +271,13 @@ const EditGroup: FC<EditGroupProps> = ({
                                         label='Folder permission'
                                         name="folderPermission"
                                         options={folderPermissionOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Mqtt action allowed'
+                                        name="mqttActionAllowed"
+                                        options={mqttActionAllowedOptions}
                                         type='text'
                                     />
                                     <FormikControl

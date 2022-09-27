@@ -1,4 +1,4 @@
-import { IsNumber, IsString } from "class-validator";
+import { IsNumber, IsString, ValidateIf } from "class-validator";
 
 class CreateDeviceDto {
 	@IsString()
@@ -9,6 +9,20 @@ class CreateDeviceDto {
 
 	@IsString()
 	public type: string;
+
+	@ValidateIf((obj) => obj.mqttPassword !== undefined)
+	@IsString()
+	public mqttPassword?: string;
+
+	public mqttSalt?: string;
+
+	@ValidateIf((obj) => obj.mqttActionAllowed !== undefined)
+	@IsString()
+	public mqttActionAllowed?: string;
+
+	@ValidateIf((obj) => obj.masterDeviceUrl !== undefined)
+	@IsString()
+	public masterDeviceUrl?: string;
 
 	@IsNumber()
 	public longitude: number;

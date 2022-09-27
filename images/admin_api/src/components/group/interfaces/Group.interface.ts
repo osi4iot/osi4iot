@@ -16,4 +16,5 @@ export default interface IGroup {
 	outerBounds: number[][];
 	floorNumber: number;
 	featureIndex: number;
+	mqttActionAllowed: string;
 }

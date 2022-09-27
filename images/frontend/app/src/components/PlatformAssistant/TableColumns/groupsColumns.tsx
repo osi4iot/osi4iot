@@ -32,6 +32,7 @@ export interface IGroup {
     featureIndex: number;
     geoJsonData: FeatureCollection;
     outerBounds: number[][];
+    mqttActionAllowed: string;
 }
 
 interface IGroupColumn extends IGroup {
@@ -204,6 +205,11 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             accessor: "outerBounds",
             disableFilters: true
         },
+        {
+            Header: "Mqtt acc",
+            accessor: "mqttActionAllowed",
+            disableFilters: true
+        },        
         {
             Header: "",
             accessor: "edit",

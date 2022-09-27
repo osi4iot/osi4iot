@@ -14,7 +14,7 @@ import { IDeviceInputData } from '../../../contexts/devicesOptions/interfaces';
 import { setDeviceBuildingId, setDeviceGroupId, setDeviceInputData } from '../../../contexts/devicesOptions/devicesAction';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { setReloadMasterDevicesTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -90,6 +90,25 @@ const deviceTypeOptions = [
     }
 ];
 
+const mqttActionAllowedOptions = [
+    {
+        label: "Subscribe",
+        value: "Sub"
+    },
+    {
+        label: "Publish",
+        value: "Pub"
+    },
+    {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
+        label: "None",
+        value: "None"
+    }
+];
+
 const domainName = getDomainName();
 const protocol = getProtocol();
 
@@ -150,15 +169,10 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                 setIsSubmitting(false);
                 setDevicesOptionToShow(devicesDispatch, devicesOptionToShow);
                 refreshDevices();
-
-                if (values.type === "Master") {
-                    const reloadMasterDevicesTable = true;
-                    setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
-                }
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -184,11 +198,11 @@ const CreateDevice: FC<CreateDeviceProps> = ({
             const warningMessage = "The groupId indicated not exists or not corresponds to a group managed by the user."
             toast.warning(warningMessage);
         } else {
-            const deviceInputFormData = {  deviceInputFormData: deviceInputData };
+            const deviceInputFormData = { deviceInputFormData: deviceInputData };
             setDeviceInputData(devicesDispatch, deviceInputFormData);
             const deviceGroupId = { deviceGroupId: groupId };
             setDeviceGroupId(devicesDispatch, deviceGroupId);
-            const buildingId =  orgsOfGroupManaged.filter(org => org.id === group.orgId)[0].buildingId;
+            const buildingId = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0].buildingId;
             const deviceBuildingId = { deviceBuildingId: buildingId };
             setDeviceBuildingId(devicesDispatch, deviceBuildingId);
             selectLocationOption();
@@ -227,6 +241,13 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                                         label='Type'
                                         name="type"
                                         options={deviceTypeOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Mqtt action allowed'
+                                        name="mqttActionAllowed"
+                                        options={mqttActionAllowedOptions}
                                         type='text'
                                     />
                                     <DeviceLocationTitle>Device location</DeviceLocationTitle>

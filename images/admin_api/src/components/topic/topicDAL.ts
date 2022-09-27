@@ -6,6 +6,7 @@ import IMobileTopic from "./mobileTopic.interface";
 import IMqttTopicInfo from "./mqttTopicInfo.interface";
 import CreateTopicDto from './topic.dto';
 import ITopic from "./topic.interface";
+import ITopicInfoForMqttAcl from "./topicInfoForMqttAcl.interface";
 
 export const demoTopicName = (group: IGroup, device: IDevice, sensorType: string): string => {
 	let topicName: string;
@@ -20,12 +21,13 @@ export const demoTopicName = (group: IGroup, device: IDevice, sensorType: string
 
 export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> => {
 	const result = await pool.query(`INSERT INTO grafanadb.topic (device_id, topic_type,
-					topic_name, description, payload_format, topic_uid,
+					topic_name, description, payload_format, topic_uid, mqtt_action_allowed,
 					created, updated)
-					VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+					VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 					RETURNING  id, device_id AS "deviceId", topic_type AS "topicType",
 					topic_name AS "topicName", description,
 					payload_format AS "payloadFormat", topic_uid AS "topicUid",
+					mqtt_action_allowed AS "mqttActionAllowed",
 					created, updated`,
 		[
 			topicData.deviceId,
@@ -33,27 +35,29 @@ export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> =
 			topicData.topicName,
 			topicData.description,
 			topicData.payloadFormat,
-			topicData.topicUid
+			topicData.topicUid,
+			topicData.mqttActionAllowed
 		]);
 	return result.rows[0];
 };
 
 export const updateTopicById = async (topicId: number, topic: ITopic): Promise<void> => {
 	const query = `UPDATE grafanadb.topic SET topic_type = $1, topic_name = $2, description = $3,
-					payload_format = $4, updated = NOW()
-					WHERE grafanadb.topic.id = $5;`;
+					payload_format = $4, mqtt_action_allowed = $5, updated = NOW()
+					WHERE grafanadb.topic.id = $6;`;
 	const result = await pool.query(query, [
 		topic.topicType,
 		topic.topicName,
 		topic.description,
 		topic.payloadFormat,
+		topic.mqttActionAllowed,
 		topicId
 	]);
 };
 
 export const changeTopicUidByUid = async (topic: ITopic): Promise<string> => {
 	const oldTopicUid = topic.topicUid;
-	const newTopicUid = nanoid().replace(/-/g, "x");
+	const newTopicUid = nanoid(20).replace(/-/g, "x");
 	await pool.query('UPDATE grafanadb.topic SET topic_uid = $1 WHERE topic_uid = $2',
 		[newTopicUid, oldTopicUid]);
 	return newTopicUid;
@@ -68,7 +72,7 @@ export const deleteTopicByIdsArray = async (topicIdsArray: number[]): Promise<vo
 };
 
 export const createTopic = async (deviceId: number, topicInput: CreateTopicDto): Promise<ITopic> => {
-	const topicUid = nanoid().replace(/-/g, "x");
+	const topicUid = nanoid(20).replace(/-/g, "x");
 	const topicUpdated: Partial<ITopic> = { ...topicInput, topicUid, deviceId };
 	const topic = await insertTopic(topicUpdated);
 	return topic;
@@ -82,6 +86,7 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -97,6 +102,7 @@ export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number):
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -113,6 +119,7 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -160,6 +167,7 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -178,6 +186,7 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -226,6 +235,7 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -244,6 +254,7 @@ export const getTopicsByDeviceId = async (deviceId: number): Promise<ITopic[]> =
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
+									grafanadb.topic.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -293,4 +304,17 @@ export const getMqttTopicsInfoFromIdArray = async (topicsIdArray: number[]): Pro
 
 	return response.rows;
 }
+
+export const getTopicInfoForMqttAclByTopicUid = async (topicUid: string): Promise<ITopicInfoForMqttAcl> => {
+	const response = await pool.query(`SELECT grafanadb.topic.id AS "topicId", grafanadb.device.org_id AS "orgId",
+									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
+									grafanadb.topic.topic_type AS "topicType", grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
+									grafanadb.group.group_uid AS "groupHash", grafanadb.device.device_uid AS "deviceHash",
+									grafanadb.topic.topic_uid AS "topicHash", grafanadb.group.team_id AS "teamId"
+									FROM grafanadb.topic
+									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
+									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
+									WHERE grafanadb.topic.device_id = $1`, [topicUid]);
+	return response.rows[0];
+};
 

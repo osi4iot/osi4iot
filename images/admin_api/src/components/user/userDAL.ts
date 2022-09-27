@@ -102,6 +102,16 @@ export const createGlobalUser = async (userData: CreateUserDto) => {
 	return user_msg[0];
 }
 
+export const createFictitiousUserForService = async (serviceUserData: CreateUserDto) => {
+	if (!(serviceUserData.password || serviceUserData.password === "")) {
+		const password = passwordGenerator(10);
+		serviceUserData.password = normalizeString(password);
+	}
+	const user_msg =  await grafanaApi.createUsers([serviceUserData]);
+	await grafanaApi.removeUserFromOrganization(1, user_msg[0].id);
+	return user_msg[0];
+}
+
 export const createGlobalUsers = async (usersData: CreateUserDto[]) => {
 	const users_msg = await createOrganizationUsers(1, usersData);
 	const userIdArray = users_msg.map(msg => msg.id);

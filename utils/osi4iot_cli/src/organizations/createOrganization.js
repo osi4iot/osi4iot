@@ -193,12 +193,12 @@ export default async function () {
 						when: (answers) => workerNodesRows.length !== 0 && answers.ARE_ORG_SERVICES_DEPLOYED_IN_EXCLUSIVE_NODES
 					},
 					{
-						name: 'NUMBER_OF_MASTER_DEVICES_IN_ORG',
-						message: 'Number of master devices in org:',
+						name: 'NUMBER_OF_NODERED_INSTANCES_IN_ORG',
+						message: 'Number of node-red intances in org:',
 						default: 3,
-						validate: function (numOfMD) {
+						validate: function (numOfNRI) {
 							let valid = false;
-							if (numOfMD !== "" && Number.isInteger(Number(numOfMD)) && Number(numOfMD) >= 1) valid = true;
+							if (numOfNRI !== "" && Number.isInteger(Number(numOfNRI)) && Number(numOfNRI) >= 1) valid = true;
 							if (valid) {
 								return true;
 							} else {
@@ -277,19 +277,19 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 		org_hash: nanoid(16).replace(/-/g, "x").replace(/_/g, "X"),
 		org_acronym: orgData.ORGANIZATION_ACRONYM.toLowerCase(),
 		exclusiveWorkerNodes: orgData.orgExclusiveWorkerNodes,
-		master_devices: []
+		nodered_instances: []
 	}
 
-	for (let idev = 1; idev <= orgData.NUMBER_OF_MASTER_DEVICES_IN_ORG; idev++) {
-		newOrg.master_devices[idev - 1] = {
+	for (let idev = 1; idev <= orgData.NUMBER_OF_NODERED_INSTANCES_IN_ORG; idev++) {
+		newOrg.nodered_instances[idev - 1] = {
 			client_crt: "",
 			client_key: "",
 			expiration_timestamp: 0,
-			md_hash: nanoid(10).replace(/-/g, "x").replace(/_/g, "X"),
+			nri_hash: nanoid(10).replace(/-/g, "x").replace(/_/g, "X"),
 			is_volume_created: 'false'
 		}
-		newOrg.master_devices[idev - 1].client_crt_name = "";
-		newOrg.master_devices[idev - 1].client_key_name = "";
+		newOrg.nodered_instances[idev - 1].client_crt_name = "";
+		newOrg.nodered_instances[idev - 1].client_key_name = "";
 	}
 
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
@@ -308,7 +308,7 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 		country: orgData.ORGANIZATION_COUNTRY,
 		buildingId: parseInt(orgData.BUILDING_ID, 10),
 		orgHash: newOrg.org_hash,
-		masterDeviceHashes: newOrg.master_devices.map(md => md.md_hash),
+		nodeRedInstanceHashes: newOrg.nodered_instances.map(nri => nri.nri_hash),
 		telegramInvitationLink: orgData.ORGANIZATION_TELEGRAM_INVITATION_LINK,
 		telegramChatId: orgData.ORGANIZATION_TELEGRAM_CHAT_ID,
 		orgAdminArray: [{
@@ -343,14 +343,14 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
 			if (nfsNode !== undefined) {
 				const org_acronym = newOrg.org_acronym;
-				const md_hashes_array = newOrg.master_devices.map(md => md.md_hash).join(",");
-				addNFSFolders(nfsNode, org_acronym, md_hashes_array);
+				const nri_hashes_array = newOrg.nodered_instances.map(nri => nri.nri_hash).join(",");
+				addNFSFolders(nfsNode, org_acronym, nri_hashes_array);
 			}
 
 			if (deploymentLocation === "AWS cluster deployment") {
 				const org_acronym = newOrg.org_acronym;
-				const md_hashes_array = newOrg.master_devices.map(md => md.md_hash).join(",");
-				addEFSFolders(nodesData[0], org_acronym, md_hashes_array);
+				const nri_hashes_array = newOrg.nodered_instances.map(nri => nri.nri_hash).join(",");
+				addEFSFolders(nodesData[0], org_acronym, nri_hashes_array);
 			}
 
 			await runStack(osi4iotState, dockerHost);

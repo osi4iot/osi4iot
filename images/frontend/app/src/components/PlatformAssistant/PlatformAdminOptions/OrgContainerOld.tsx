@@ -55,7 +55,7 @@ const initialOrgData = {
     ]
 }
 
-const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) => {
+const OrgsContainerOld: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) => {
     const orgsDispatch = useOrgsDispatch();
     const orgsOptionToShow = useOrgsOptionToShow();
     const [orgInputData, setOrgInputData] = useState<IOrgInputData>(initialOrgData)
@@ -95,4 +95,4 @@ const OrgsContainer: FC<OrgsContainerProps> = ({ organizations, refreshOrgs }) =
     )
 }
 
-export default OrgsContainer;
+export default OrgsContainerOld;

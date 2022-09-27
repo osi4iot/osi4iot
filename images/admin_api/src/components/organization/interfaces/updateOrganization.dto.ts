@@ -31,7 +31,10 @@ class UpdateOrganizationDto {
 	public orgHash: string;
 
 	@IsString({each: true})
-	public masterDeviceHashes: string[];
+	public nriHashes: string[];
+
+	@IsString()
+	public mqttActionAllowed: string;
 }
 
 export default UpdateOrganizationDto;

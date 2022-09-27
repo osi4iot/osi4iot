@@ -46,13 +46,13 @@ export default function (osi4iotState) {
 				}
 
 				for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
-					const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
+					const nodered_instances = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances.length;
 					const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
-					for (let idev = 1; idev <= num_master_devices; idev++) {
-						const md_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
-						const masterDeviceCertsDir = `./certs/mqtt_certs/org_${org_acronym}_md_${md_hash}`;
-						if (fs.existsSync(masterDeviceCertsDir)) {
-							fs.rmSync(masterDeviceCertsDir, { recursive: true, force: true });
+					for (let inri = 1; inri <= nodered_instances; inri++) {
+						const nri_hash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[inri - 1].nri_hash;
+						const nodeRedInstanceCertsDir = `./certs/mqtt_certs/org_${org_acronym}_nri_${nri_hash}`;
+						if (fs.existsSync(nodeRedInstanceCertsDir)) {
+							fs.rmSync(nodeRedInstanceCertsDir, { recursive: true, force: true });
 						}
 					}
 				}

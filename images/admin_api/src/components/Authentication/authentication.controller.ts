@@ -11,19 +11,20 @@ import passportInitialize from "../../config/passportHandler";
 import { userAuth, registerAuth, superAdminAuth } from "../../middleware/auth.middleware";
 import grafanaApi from '../../GrafanaApi';
 import UserRegisterDto from "./userRegister.dto";
-import { getUserLoginDatadByEmailOrLogin, isUserProfileDataCorrect, updateOrganizationUser, updateUserProfileById } from "../user/userDAL";
+import { getUserdByEmailOrLogin, getUserLoginDatadByEmailOrLogin, isThisUserOrgAdmin, isUserProfileDataCorrect, updateOrganizationUser, updateUserProfileById } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
 import { deleteRefreshToken, deleteRefreshTokenById, deleteUserRefreshTokens, exitsRefreshToken, getAllRefreshTokens, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
-import { getNumDevices, getNumDevicesByGroupsIdArray } from "../device/deviceDAL";
+import { getFullDeviceDataById, getNumDevices, getNumDevicesByGroupsIdArray } from "../device/deviceDAL";
 import { getNumOrganizations, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
-import { getAllGroupsInOrgArray, getGroupsManagedByUserId, getNumGroups } from "../group/groupDAL";
+import { getAllGroupsInOrgArray, getGroupsManagedByUserId, getNumGroups, isThisUserGroupAdmin } from "../group/groupDAL";
 import IComponentsManagedByUser from "./ComponentsManagedByUser.interface";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import CreateUserDto from "../user/interfaces/User.dto";
 import UserProfileDto from "../user/interfaces/UserProfile.dto";
 import verifiyPassword from "../../utils/helpers/verifiyPassword";
 import process_env from "../../config/api_config";
+import { getTopicInfoForMqttAclByTopicUid } from "../topic/topicDAL";
 
 interface IJwtPayload {
 	id: string;
@@ -54,6 +55,8 @@ class AuthenticationController implements IController {
 	private initializeRoutes(): void {
 		passportInitialize();
 		this.router.post(`${this.path}/login`, validationMiddleware<LoginDto>(LoginDto), this.userLogin);
+		this.router.post(`${this.path}/mosquitto_user`, this.userMosquittoAuth);
+		this.router.post(`${this.path}/mosquitto_aclcheck`, this.userMosquittoAclCheck);
 		this.router.patch(`${this.path}/register`, registerAuth, validationMiddleware<UserRegisterDto>(UserRegisterDto), this.userRegister);
 		this.router.get(`${this.path}/user_data_for_register`, registerAuth, this.getUserRegisterData);
 		this.router.get(`${this.path}/user_profile`, userAuth, this.getUserProfile);
@@ -154,6 +157,148 @@ class AuthenticationController implements IController {
 			}
 		)(req, res);
 	};
+
+	private userMosquittoAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const { password, username, clientid } = req.body;
+			const usernameArray = username.split("_");
+			if (usernameArray[0] === "jwt") {
+				const algorithm = "HS256" as jwt.Algorithm;
+				const verifyOptionsAccessToken = {
+					algorithms: [algorithm]
+				};
+
+				try {
+					const jwtPayload = jwt.verify(
+						password,
+						process_env.ACCESS_TOKEN_SECRET,
+						verifyOptionsAccessToken) as IJwtPayload;
+					const user = await getUserdByEmailOrLogin(jwtPayload.email);
+					if (!user || jwtPayload.action !== "access") {
+						res.status(400).json({ Ok: false, Error: "User not registered" });
+						return
+					}
+					if (user.login !== username.splice(4)) {
+						res.status(400).json({ Ok: false, Error: "Username not match with jwt payload" });
+						return
+					}
+				} catch (e) {
+					if (e instanceof jwt.JsonWebTokenError) {
+						res.status(401).json({ Ok: false, Error: "JWT provided is unauthorized" });
+						return
+					}
+					res.status(400).json({ Ok: false, Error: "Bad request" });
+					return;
+				}
+			} else if (usernameArray[0] === "device") {
+				const deviceId = usernameArray[1];
+				const device = await getFullDeviceDataById(deviceId);
+				if (!device) {
+					res.status(400).json({ Ok: false, Error: "Device not registered" });
+					return
+				}
+				const match = verifiyPassword(password, device.mqttPassword, device.mqttSalt);
+				if (!match) {
+					res.status(400).json({ Ok: false, Error: "Password not correct" });
+					return
+				}
+			} else {
+				const user = await getUserLoginDatadByEmailOrLogin(username);
+				if (!user) {
+					res.status(400).json({ Ok: false, Error: "User not registered" });
+					return
+				}
+				const match = verifiyPassword(password, user.password, user.salt);
+				if (!match) {
+					res.status(400).json({ Ok: false, Error: "Password not correct" });
+					return
+				}
+			}
+
+			res.status(200).json({ Ok: true, Error: "" });
+		} catch (error) {
+			return next(error);
+		}
+	};
+
+	private userMosquittoAclCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const { acc, clientid, username, topic } = req.body
+			console.log("Topic=", topic);
+			console.log("username=", username);
+			if (username !== "dev2pdb") {
+				const topicArray = topic.split("/");
+				const topicUid = topicArray[3].split("_")[1];
+				const topicData = await getTopicInfoForMqttAclByTopicUid(topicUid);
+				if (!topicData) {
+					res.status(400).json({ Ok: false, Error: "Incorrect topic hash" });
+					return
+				}
+				const groupHash = topicArray[1].split("_")[1];
+				if (groupHash !== topicData.groupHash) {
+					res.status(400).json({ Ok: false, Error: "Incorrect group hash" });
+					return
+				}
+
+				const deviceHash = topicArray[2].split("_")[1];
+				if (deviceHash !== topicData.deviceHash) {
+					res.status(400).json({ Ok: false, Error: "Incorrect device hash" });
+					return
+				}
+
+				const topicType = topicArray[0];
+				if (topicType !== topicData.topicType) {
+					res.status(400).json({ Ok: false, Error: "Incorrect topic type" });
+					return
+				}
+
+				if ((acc === 1 || acc === 4) && !(topicData.mqttActionAllowed === "Sub" || topicData.mqttActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: "Subcription/read action not allowed" });
+					return
+				}
+
+				if ((acc === 2 || acc === 3) && !(topicData.mqttActionAllowed === "Pub" || topicData.mqttActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: "Publication/write action not allowed" });
+					return
+				}
+
+				const usernameArray = username.split("_");
+				if (usernameArray[0] === "device") {
+					const deviceId = usernameArray[1];
+					if (deviceId !== topicData.deviceId) {
+						res.status(400).json({ Ok: false, Error: "Device not registered" });
+						return
+					}
+				} else {
+					let user: IUser;
+					if (usernameArray[0] === "jwt") {
+						const login = username.slice(4);
+						user = await getUserdByEmailOrLogin(login);
+					} else {
+						user = await getUserdByEmailOrLogin(username);
+					}
+
+					if (!user.isGrafanaAdmin) {
+						const orgId = topicData.orgId;
+						const isOrgAdminUser = await isThisUserOrgAdmin(user.id, orgId);
+						if (!isOrgAdminUser) {
+							const teamId = topicData.teamId;
+							const isGroupAdminUser = await isThisUserGroupAdmin(user.id, teamId);
+							if (!isGroupAdminUser) {
+								res.status(401).json({ Ok: false, Error: "User not allowed" })
+								return;
+							}
+						}
+					}
+				}
+			}
+
+			res.status(200).json({ Ok: true, Error: "" });
+		} catch (error) {
+			return next(error);
+		}
+	};
+
 
 	private userRegister = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {

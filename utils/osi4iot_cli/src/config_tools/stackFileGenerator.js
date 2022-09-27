@@ -13,11 +13,15 @@ const defaultServiceImageVersion = {
 	postgres: defaultVersion || 'latest',
 	grafana: defaultVersion || 'latest',
 	grafana_renderer: defaultVersion || 'latest',
-	admin_api: defaultVersion || 'latest',
-	frontend: defaultVersion || 'latest',
-	master_device: defaultVersion || 'latest',
+	// admin_api: defaultVersion || 'latest',
+	admin_api: 'dev',
+	// frontend: defaultVersion || 'latest',
+	frontend: 'dev',
+	// nodered_instance: defaultVersion || 'latest',
+	nodered_instance: 'dev',
 	keepalived: defaultVersion || 'latest',
-	dev2pdb: defaultVersion || 'latest'
+	// dev2pdb: defaultVersion || 'latest'
+	dev2pdb:  'dev',
 }
 
 export default function (osi4iotState) {
@@ -161,8 +165,53 @@ export default function (osi4iotState) {
 					'/var/run/docker.sock:/var/run/docker.sock:ro'
 				]
 			},
+			// mosquitto: {
+			// 	image: `ghcr.io/osi4iot/mosquitto:${serviceImageVersion['mosquitto']}`,
+			// 	networks: [
+			// 		'internal_net'
+			// 	],
+			// 	ports: [
+			// 		"1883:1883",
+			// 		"8883:8883",
+			// 		"9001:9001"
+			// 	],
+			// 	volumes: [
+			// 		'mosquitto_data:/mosquitto/data/',
+			// 		'mosquitto_log:/mosquitto/log/'
+			// 	],
+			// 	secrets: [
+			// 		{
+			// 			source: 'mqtt_certs_ca_cert',
+			// 			target: '/mosquitto/mqtt_certs/ca.crt',
+			// 			mode: 0o444
+			// 		},
+			// 		{
+			// 			source: 'mqtt_broker_cert',
+			// 			target: '/mosquitto/mqtt_certs/server.crt',
+			// 			mode: 0o444
+			// 		},
+			// 		{
+			// 			source: 'mqtt_broker_key',
+			// 			target: '/mosquitto/mqtt_certs/server.key',
+			// 			mode: 0o444
+			// 		}
+			// 	],
+			// 	configs: [
+			// 		{
+			// 			source: 'mosquitto_conf',
+			// 			target: '/mosquitto/config/mosquitto.conf',
+			// 			mode: 0o440
+			// 		}
+			// 	],
+			// 	deploy: {
+			// 		replicas: 1,
+			// 		placement: {
+			// 			constraints: workerConstraintsArray
+			// 		}
+			// 	}
+			// },
 			mosquitto: {
-				image: `ghcr.io/osi4iot/mosquitto:${serviceImageVersion['mosquitto']}`,
+				image: 'iegomez/mosquitto-go-auth:latest-mosquitto_2.0.14',
 				networks: [
 					'internal_net'
 				],
@@ -195,8 +244,13 @@ export default function (osi4iotState) {
 				configs: [
 					{
 						source: 'mosquitto_conf',
-						target: '/mosquitto/config/mosquitto.conf',
+						target: '/etc/mosquitto/mosquitto.conf',
 						mode: 0o440
+					},
+					{
+						source: 'mosquitto_go_auth_conf',
+						target: '/etc/mosquitto/conf.d/go-auth.conf',
+						mode: 0o777
 					}
 				],
 				deploy: {
@@ -205,7 +259,7 @@ export default function (osi4iotState) {
 						constraints: workerConstraintsArray
 					}
 				}
-			},
+			},			
 			agent: {
 				image: `ghcr.io/osi4iot/portainer_agent:${serviceImageVersion['agent']}`,
 				environment: [
@@ -332,6 +386,45 @@ export default function (osi4iotState) {
 					}
 				}
 			},
+			// timescaledb: {
+			// 	image: `ghcr.io/osi4iot/timescaledb:dev`,
+			// 	networks: [
+			// 		'internal_net'
+			// 	],
+			// 	secrets: [
+			// 		{
+			// 			source: 'postgres_user',
+			// 			target: 'postgres_user.txt',
+			// 			mode: 0o400
+			// 		},
+			// 		{
+			// 			source: 'postgres_password',
+			// 			target: 'postgres_password.txt',
+			// 			mode: 0o400
+			// 		},
+			// 		{
+			// 			source: 'postgres_grafana',
+			// 			target: 'postgres_grafana.txt',
+			// 			mode: 0o400
+			// 		}
+
+			// 	],
+			// 	volumes: [
+			// 		'pgdata2:/var/lib/postgresql/data'
+			// 	],
+			// 	environment: [
+			// 		'POSTGRES_DB=iot_platform_db',
+			// 		'POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt',
+			// 		'POSTGRES_USER_FILE=/run/secrets/postgres_user.txt'
+			// 	],
+			// 	deploy: {
+			// 		mode: 'replicated',
+			// 		replicas: 1,
+			// 		placement: {
+			// 			constraints: workerConstraintsArray
+			// 		}
+			// 	}
+			// },			
 			dev2pdb: {
 				image: `ghcr.io/osi4iot/dev2pdb:${serviceImageVersion['dev2pdb']}`,
 				networks: [
@@ -341,6 +434,11 @@ export default function (osi4iotState) {
 					'DATABASE_NAME=iot_platform_db',
 				],
 				secrets: [
+					{
+						source: 'dev2pdb_password',
+						target: 'dev2pdb_password.txt',
+						mode: 0o400
+					},
 					{
 						source: 'postgres_user',
 						target: 'postgres_user.txt',
@@ -558,6 +656,9 @@ export default function (osi4iotState) {
 			pgdata: {
 				driver: 'local'
 			},
+			// pgdata2: {
+			// 	driver: 'local'
+			// },
 			pgadmin4_data: {
 				driver: 'local'
 			},
@@ -600,6 +701,9 @@ export default function (osi4iotState) {
 			postgres_password: {
 				file: './secrets/postgres_password.txt'
 			},
+			dev2pdb_password: {
+				file: './secrets/dev2pdb_password.txt'
+			},
 			grafana: {
 				file: './secrets/grafana.txt'
 			},
@@ -611,6 +715,9 @@ export default function (osi4iotState) {
 		configs: {
 			mosquitto_conf: {
 				file: './config/mosquitto/mosquitto.conf'
+			},
+			mosquitto_go_auth_conf: {
+				file: './config/mosquitto/go-auth.conf'
 			},
 			grafana_conf: {
 				file: './config/grafana/grafana.conf'
@@ -893,20 +1000,20 @@ export default function (osi4iotState) {
 	}
 
 	for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
-		const orgMasterDeviceHashes = [];
+		const orgNodeRedInstanceHashes = [];
 		const orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
 		const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
-		const num_master_devices = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices.length;
+		const num_nodeRedInstances = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances.length;
 		const hasExclusiveOrgWorkerNodes = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].exclusiveWorkerNodes.length !== 0;
-		for (let idev = 1; idev <= num_master_devices; idev++) {
-			const masterDeviceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].md_hash;
-			const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].is_volume_created;
-			orgMasterDeviceHashes.push(masterDeviceHash);
+		for (let idev = 1; idev <= num_nodeRedInstances; idev++) {
+			const nodeRedInstanceHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].nri_hash;
+			const isVolumeCreated = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].is_volume_created;
+			orgNodeRedInstanceHashes.push(nodeRedInstanceHash);
 
-			const serviceName = `org_${org_acronym}_md_${masterDeviceHash}`;
-			const masterDeviceHashPath = `master_device_${masterDeviceHash}`
+			const serviceName = `org_${org_acronym}_nri_${nodeRedInstanceHash}`;
+			const nodeRedInstanceHashPath = `nodered_${nodeRedInstanceHash}`
 			osi4iotStackObj.services[serviceName] = {
-				image: `ghcr.io/osi4iot/master_device:${serviceImageVersion['master_device']}`,
+				image: `ghcr.io/osi4iot/nodered_instance:${serviceImageVersion['nodered_instance']}`,
 				user: "${UID}:${GID}",
 				networks: [
 					"internal_net",
@@ -916,8 +1023,8 @@ export default function (osi4iotState) {
 					`${serviceName}_data:/data`,
 				],
 				environment: [
-					`MASTER_DEVICE_HASH=${masterDeviceHash}`,
-					`IS_MASTER_DEVICE_VOLUME_ALREADY_CREATED=${isVolumeCreated === 'true'}`,
+					`NODERED_INSTANCE_HASH=${nodeRedInstanceHash}`,
+					`IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=${isVolumeCreated === 'true'}`,
 				],
 				secrets: [
 					{
@@ -942,12 +1049,12 @@ export default function (osi4iotState) {
 					},
 					labels: [
 						"traefik.enable=true",
-						`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
-						`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${masterDeviceHashPath}`,
+						`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${nodeRedInstanceHashPath}/\`)`,
+						`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${nodeRedInstanceHashPath}`,
 						`traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header,${serviceName}-redirectregex`,
 						`traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
-						`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
-						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.regex=${domainName}/(${masterDeviceHashPath}*)`,
+						`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${nodeRedInstanceHashPath}/`,
+						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.regex=${domainName}/(${nodeRedInstanceHashPath}*)`,
 						`traefik.http.middlewares.${serviceName}-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
 						`traefik.http.routers.${serviceName}.entrypoints=${entryPoint}`,
 						`traefik.http.routers.${serviceName}.tls=true`,
@@ -960,39 +1067,39 @@ export default function (osi4iotState) {
 			if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
 				osi4iotStackObj.services[serviceName].deploy.labels = [
 					"traefik.enable=true",
-					`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${masterDeviceHashPath}/\`)`,
-					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${masterDeviceHashPath}`,
+					`traefik.http.routers.${serviceName}.rule=Host(\`${domainName}\`) && PathPrefix(\`/${nodeRedInstanceHashPath}/\`)`,
+					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.prefixes=/${nodeRedInstanceHashPath}`,
 					`traefik.http.routers.${serviceName}.middlewares=${serviceName}-prefix,${serviceName}-header`,
 					`traefik.http.middlewares.${serviceName}-prefix.stripprefix.forceslash=false`,
-					`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${masterDeviceHashPath}/`,
+					`traefik.http.middlewares.${serviceName}-header.headers.customrequestheaders.X-Script-Name=/${nodeRedInstanceHashPath}/`,
 					`traefik.http.routers.${serviceName}.entrypoints=web`,
 					`traefik.http.routers.${serviceName}.service=${serviceName}`,
 					`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
 				]
 			}
 
-			const masterDeviceVolume = `${serviceName}_data`;
+			const nodeRedInstanceVolume = `${serviceName}_data`;
 			if (storageSystem === "NFS Server") {
-				osi4iotStackObj.volumes[masterDeviceVolume] = {
+				osi4iotStackObj.volumes[nodeRedInstanceVolume] = {
 					driver: 'local',
 					driver_opts: {
 						type: 'nfs',
 						o: `nfsvers=4,addr=${nfsServerIP},rw`,
-						device: `:/var/nfs_osi4iot/${masterDeviceVolume}`
+						device: `:/var/nfs_osi4iot/${nodeRedInstanceVolume}`
 					}
 				}
 			} else if (storageSystem === "AWS EFS") {
 				const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
-				osi4iotStackObj.volumes[masterDeviceVolume] = {
+				osi4iotStackObj.volumes[nodeRedInstanceVolume] = {
 					driver: 'local',
 					driver_opts: {
 						type: 'nfs',
 						o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-						device: `${efs_dns}:/${masterDeviceVolume}`
+						device: `${efs_dns}:/${nodeRedInstanceVolume}`
 					}
 				}
 			} else if (storageSystem === "Local storage") {
-				osi4iotStackObj.volumes[masterDeviceVolume] = {
+				osi4iotStackObj.volumes[nodeRedInstanceVolume] = {
 					driver: "local"
 				};
 			}
@@ -1007,12 +1114,12 @@ export default function (osi4iotState) {
 
 			osi4iotStackObj.secrets[`${serviceName}_mqtt_client_cert`] = {
 				file: `./certs/mqtt_certs/${serviceName}/client.crt`,
-				name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_crt_name
+				name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_crt_name
 			}
 
 			osi4iotStackObj.secrets[`${serviceName}_mqtt_client_key`] = {
 				file: `./certs/mqtt_certs/${serviceName}/client.key`,
-				name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].master_devices[idev - 1].client_key_name
+				name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_key_name
 			}
 		}
 	}

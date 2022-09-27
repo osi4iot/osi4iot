@@ -127,8 +127,8 @@ export default async function (nodesData, organizations, deploymentLocation = nu
 			if (outputNFS !== "OK") outputResults = "Failed";
 			for (const org of organizations) {
 				const org_acronym = org.org_acronym;
-				const md_hashes_array = org.master_devices.map(md => md.md_hash).join(",");
-				addNFSFolders(nodesData[inode], org_acronym, md_hashes_array);
+				const nri_hashes_array = org.nodered_instances.map(nri => nri.nri_hash).join(",");
+				addNFSFolders(nodesData[inode], org_acronym, nri_hashes_array);
 			}
 		}
 
@@ -137,8 +137,8 @@ export default async function (nodesData, organizations, deploymentLocation = nu
 			if (outputEFS !== "OK") outputResults = "Failed";
 			for (const org of organizations) {
 				const org_acronym = org.org_acronym;
-				const md_hashes_array = org.master_devices.map(md => md.md_hash).join(",");
-				addEFSFolders(nodesData[inode], org_acronym, md_hashes_array);
+				const nri_hashes_array = org.nodered_instances.map(nri => nri.nri_hash).join(",");
+				addEFSFolders(nodesData[inode], org_acronym, nri_hashes_array);
 			}
 		}
 	}

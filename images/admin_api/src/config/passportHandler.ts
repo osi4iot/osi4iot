@@ -73,7 +73,7 @@ export default function passportInitialize(): void {
 	);
 
 	passport.use(
-		"master_device_access_jwt",
+		"nodered_instance_access_jwt",
 		new JwtStrategy(
 			optsAccessToken,
 			// prettier-ignore

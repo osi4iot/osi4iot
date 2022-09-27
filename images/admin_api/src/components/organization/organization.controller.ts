@@ -24,7 +24,7 @@ import {
 	updateOrgUserRoleInDefaultOrgGroup,
 	organizationsWhichTheLoggedUserIsUser,
 	getOrganizationsWithIdsArray,
-	updateMasterDevicesInOrg,
+	updateNodeRedInstancesInOrg,
 } from "./organizationDAL";
 import { encrypt } from "../../utils/encryptAndDecrypt/encryptAndDecrypt";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -62,7 +62,7 @@ import { createTopic, demoTopicName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
-import { createMasterDevicesInOrg, getMasterDevicesByOrgsIdArray } from "../masterDevice/masterDeviceDAL";
+import { createNodeRedInstancesInOrg, getNodeRedInstancesByOrgsIdArray } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 
 class OrganizationController implements IController {
@@ -335,7 +335,8 @@ class OrganizationController implements IController {
 					folderPermission: ("Viewer" as FolderPermissionOption),
 					groupAdminDataArray,
 					floorNumber: 0,
-					featureIndex: 0
+					featureIndex: 0,
+					mqttActionAllowed: "Pub & Sub"
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);
@@ -343,21 +344,23 @@ class OrganizationController implements IController {
 				await addOrgUsersToDefaultOrgGroup(newOrg.orgId, organizationData.orgAdminArray);
 				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
 
-				await createMasterDevicesInOrg(organizationData.masterDeviceHashes, newOrg.orgId)
+				await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId)
 				const defaultGroupDeviceData = [
 					{
 						name: defaultGroupDeviceName(group, "Main master"),
 						description: `Main master device of the group ${defaultOrgGroupAcronym}`,
 						latitude: 0,
 						longitude: 0,
-						type: "Main master"
+						type: "Main master",
+						mqttActionAllowed: "Pub & Sub"
 					},
 					{
 						name: defaultGroupDeviceName(group, "Generic"),
 						description: `Default generic device of the group ${defaultOrgGroupAcronym}`,
 						latitude: 0,
 						longitude: 0,
-						type: "Generic"
+						type: "Generic",
+						mqttActionAllowed: "Pub & Sub"
 					}
 				];
 				const device1 = await createDevice(group, defaultGroupDeviceData[0]);
@@ -368,19 +371,22 @@ class OrganizationController implements IController {
 						topicType: "dev2pdb",
 						topicName: demoTopicName(group, device1, "Temperature"),
 						description: `Temperature sensor for default generic device of the group ${group.acronym}`,
-						payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}'
+						payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
+						mqttActionAllowed: "Pub & Sub"
 					},
 					{
 						topicType: "dev2pdb",
 						topicName: demoTopicName(group, device2, "Accelerometer"),
 						description: `Mobile accelerations for default generic device of the group ${group.acronym}`,
-						payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}'
+						payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
+						mqttActionAllowed: "Pub & Sub"
 					},
 					{
 						topicType: "dev2dtm",
 						topicName: demoTopicName(group, device2, "Photo"),
 						description: `Mobile photo for default generic device of the group ${group.acronym}`,
-						payloadFormat: '{"mobile_photo": {"type": "string"}}'
+						payloadFormat: '{"mobile_photo": {"type": "string"}}',
+						mqttActionAllowed: "Pub & Sub"
 					},
 				];
 				const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
@@ -686,8 +692,8 @@ class OrganizationController implements IController {
 			const oldOrganizationData = await getOrganizationByProp(propName, propValue);
 			if (!oldOrganizationData) throw new ItemNotFoundException("The organization", propName, propValue);
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
-			const currentMasterDevicesInOrg = await getMasterDevicesByOrgsIdArray([oldOrganizationData.id]);
-			await updateMasterDevicesInOrg(currentMasterDevicesInOrg, newOrganizationData);
+			const currentNodeRedInstanceInOrg = await getNodeRedInstancesByOrgsIdArray([oldOrganizationData.id]);
+			await updateNodeRedInstancesInOrg(currentNodeRedInstanceInOrg, newOrganizationData);
 			await updateOrganizationByProp(propName, propValue, newOrganizationData);
 			res.status(200).json({ message: `Organization updated successfully` });
 		} catch (error) {

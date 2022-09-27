@@ -13,6 +13,8 @@ import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import GeoNodeRedInstance from "./GeoNodeRedInstance";
+import { INodeRedInstance } from "../TableColumns/nodeRedInstancesInOrgsColumns";
 import GeoMasterDevice from "./GeoMasterDevice";
 
 const STATUS_OK = "#3e3f3b";
@@ -57,8 +59,7 @@ interface GeoGroupProps {
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
-    masterDeviceSelected: IDevice | null;
-    selectMasterDevice: (masterDeviceSelected: IDevice | null) => void;
+    nodeRedInstances: INodeRedInstance[];
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
@@ -76,8 +77,7 @@ const GeoGroup: FC<GeoGroupProps> = (
         deviceDataArray,
         deviceSelected,
         selectDevice,
-        masterDeviceSelected,
-        selectMasterDevice,
+        nodeRedInstances,
         digitalTwins,
         digitalTwinSelected,
         selectDigitalTwin,
@@ -89,6 +89,7 @@ const GeoGroup: FC<GeoGroupProps> = (
     const geoJsonLayerGroupRef = useRef(null);
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
     const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
+    const nodeRedInstancesFiltered = nodeRedInstances.filter(nri => nri.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
     const groupGeoJsonData = useState(findGroupGeojsonData(floorData, groupData.featureIndex))[0]
 
@@ -128,7 +129,6 @@ const GeoGroup: FC<GeoGroupProps> = (
                                         deviceData={deviceData}
                                         deviceSelected={deviceSelected}
                                         selectDevice={selectDevice}
-                                        selectMasterDevice={selectMasterDevice}
                                         digitalTwinsState={digitalTwinsState}
                                     />
                                     :
@@ -137,10 +137,16 @@ const GeoGroup: FC<GeoGroupProps> = (
                                         deviceData={deviceData}
                                         deviceSelected={deviceSelected}
                                         selectDevice={selectDevice}
-                                        masterDeviceSelected={masterDeviceSelected}
-                                        selectMasterDevice={selectMasterDevice}
                                         digitalTwinsState={digitalTwinsState}
                                     />
+                            })
+                        }
+                        {
+                            nodeRedInstancesFiltered.map(nriData => {
+                                < GeoNodeRedInstance
+                                    key={nriData.id}
+                                    nriData={nriData}
+                                />
                             })
                         }
                         {

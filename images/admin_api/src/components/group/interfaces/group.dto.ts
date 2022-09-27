@@ -31,6 +31,9 @@ class CreateGroupDto {
 	@IsNumber()
 	public featureIndex: number;
 
+	@IsString()
+	public mqttActionAllowed: string;
+
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)
 	public groupAdminDataArray: CreateGroupAdminDto[];

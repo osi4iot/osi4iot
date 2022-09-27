@@ -69,7 +69,7 @@ const topicTypeOptions = [
     {
         label: "Device to DT",
         value: "dev2dtm"
-    },    
+    },
     {
         label: "Simulated device to DT",
         value: "dev_sim_2dtm"
@@ -89,7 +89,30 @@ const topicTypeOptions = [
     {
         label: "DTM simulated fem modal value to DTS",
         value: "dtm_sim_fmv2dts"
-    }   
+    },
+    {
+        label: "Test topic",
+        value: "test"
+    }
+];
+
+const mqttActionAllowedOptions = [
+    {
+        label: "Subscribe",
+        value: "Sub"
+    },
+    {
+        label: "Publish",
+        value: "Pub"
+    },
+    {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
+        label: "None",
+        value: "None"
+    }
 ];
 
 
@@ -133,7 +156,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -200,6 +223,13 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                         control='input'
                                         label='Description'
                                         name='description'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Mqtt action allowed'
+                                        name="mqttActionAllowed"
+                                        options={mqttActionAllowedOptions}
                                         type='text'
                                     />
                                     <FormikControl

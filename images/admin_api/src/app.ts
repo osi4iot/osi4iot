@@ -49,7 +49,12 @@ class App {
 		this.app.use(helmet());
 		this.app.use(compression());
 		this.app.use(cors());
-		this.app.use(morgan(morganOption, { stream }));
+		this.app.use(morgan(morganOption,
+			{
+				stream,
+				skip:  (req: any, res) => { return req.url === "/health" }
+			}
+		));
 	}
 
 	private initializeErrorHandling(): void {

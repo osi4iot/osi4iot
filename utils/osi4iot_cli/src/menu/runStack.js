@@ -8,8 +8,8 @@ import checkIfConfigsAreCreated from '../config_tools/checkIfConfigsAreCreated.j
 import secretsGenerator from '../config_tools/secretsGenerator.js';
 import configGenerator from '../config_tools/configGenerator.js';
 import stackFileGenerator from '../config_tools/stackFileGenerator.js';
-import checkIfAllMasterDeviceVolumesAreCreated from '../config_tools/checkIfAllMasterDeviceVolumesAreCreated.js';
-import markAsCreatedAllMasterDeviceVolumes from '../config_tools/markAsCreatedAllMasterDeviceVolumes.js';
+import checkIfAllNodeRedInstanceVolumesAreCreated from '../config_tools/checkIfAllNodeRedInstanceVolumesAreCreated.js';
+import markAsCreatedAllNodeRedInstanceVolumes from '../config_tools/markAsCreatedAllNodeRedInstanceVolumes.js';
 import certsGenerator from '../config_tools/certsGenerator.js';
 import findManagerDockerHost from './findManagerDockerHost.js';
 import { chooseOption } from './chooseOption.js';
@@ -129,8 +129,8 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 							services.includes(" 2/3 ");
 						if (!continuar) {
 							clearInterval(this);
-							if (!checkIfAllMasterDeviceVolumesAreCreated(osi4iotState)) {
-								markAsCreatedAllMasterDeviceVolumes(osi4iotState);
+							if (!checkIfAllNodeRedInstanceVolumesAreCreated(osi4iotState)) {
+								markAsCreatedAllNodeRedInstanceVolumes(osi4iotState);
 								const osi4iotStateFile = JSON.stringify(osi4iotState);
 								fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 								stackFileGenerator(osi4iotState);
@@ -155,7 +155,7 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 								let index = 0;
 								let timeCounter = 0;
 								setInterval(function () {
-									process.stdout.write(`\rWaiting until master_devices services be ready ${dots[index]}`);
+									process.stdout.write(`\rWaiting until node-red instances services be ready ${dots[index]}`);
 									index = index < (dots.length - 1) ? index + 1 : 0;
 									if (timeCounter >= 30) {
 										let text = execSync(`docker ${dockerHost} service ls`).toString();

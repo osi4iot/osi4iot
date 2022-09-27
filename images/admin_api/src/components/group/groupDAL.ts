@@ -32,7 +32,7 @@ import process_env from "../../config/api_config";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
-	if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").replace(/"/g,"").toUpperCase()}_general`;
+	if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_general`;
 	return groupName;
 };
 
@@ -122,6 +122,7 @@ export const createGroup = async (
 	}
 	const telegramNotificationChannel = await grafanaApi.createNotificationChannel(orgKey, telegramNotificationChannelData);
 	const telegramNotificationChannelId = telegramNotificationChannel.id;
+	const mqttActionAllowed = "Pub & Sub";
 
 	group = {
 		orgId,
@@ -138,7 +139,8 @@ export const createGroup = async (
 		isOrgDefaultGroup,
 		floorNumber,
 		featureIndex,
-		outerBounds
+		outerBounds,
+		mqttActionAllowed
 	}
 
 	await createView(groupUid);
@@ -217,7 +219,8 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
-				outer_bounds AS "outerBounds"
+				outer_bounds AS "outerBounds",
+				mqtt_action_allowed AS "mqttActionAllowed"
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				ORDER BY id ASC;`;
@@ -246,7 +249,9 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
-				outer_bounds AS "outerBounds"
+				outer_bounds AS "outerBounds",
+				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
@@ -272,7 +277,9 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
-				outer_bounds AS "outerBounds"
+				outer_bounds AS "outerBounds",
+				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
@@ -379,6 +386,8 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
+				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = $1
@@ -402,7 +411,9 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
-				outer_bounds AS "outerBounds"
+				outer_bounds AS "outerBounds",
+				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = ANY($1::bigint[])
@@ -425,7 +436,9 @@ export const getGroupByWithFolderPermissionProp = async (propName: string, propV
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
-				outer_bounds AS "outerBounds"
+				outer_bounds AS "outerBounds",
+				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.${propName} = $1;`;
@@ -446,7 +459,9 @@ export const getGroupByProp = async (propName: string, propValue: (string | numb
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
-				outer_bounds AS "outerBounds"
+				outer_bounds AS "outerBounds",
+				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				WHERE grafanadb.group.${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
@@ -464,7 +479,9 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				is_org_default_group AS "isOrgDefaultGroup",
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
-				outer_bounds AS "outerBounds"
+				outer_bounds AS "outerBounds",
+				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
 	const result = await pool.query(query, [orgId, true]);
@@ -478,8 +495,9 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					telegram_invitation_link, telegram_chatid,
 					email_notification_channel_id,
 					telegram_notification_channel_id, is_org_default_group,
-					floor_number, feature_index, outer_bounds)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+					floor_number, feature_index, outer_bounds, mqtt_action_allowed,
+					created, updated)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
 					RETURNING *`,
 		[
 			group.orgId,
@@ -496,7 +514,8 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 			group.isOrgDefaultGroup,
 			group.floorNumber,
 			group.featureIndex,
-			group.outerBounds
+			group.outerBounds,
+			group.mqttActionAllowed
 		])
 	return response.rows[0];
 };
@@ -507,8 +526,10 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 				telegram_chatid = $4,
 				floor_number = $5,
 				feature_index = $6,
-				outer_bounds = $7
-				WHERE grafanadb.group.id = $8;`;
+				outer_bounds = $7,
+				mqtt_action_allowed = $8,
+				updated = NOW()
+				WHERE grafanadb.group.id = $9;`;
 	const result = await pool.query(query, [
 		group.name,
 		group.acronym,
@@ -517,6 +538,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 		group.floorNumber,
 		group.featureIndex,
 		group.outerBounds,
+		group.mqttActionAllowed,
 		group.id
 	]);
 }
@@ -714,6 +736,13 @@ export const haveThisUserGroupAdminPermissions = async (userId: number, teamId: 
 	return havePermissions;
 }
 
+export const isThisUserGroupAdmin = async (userId: number, teamId: number): Promise<boolean> => {
+	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND user_id = $2 AND permission = $3',
+		[teamId, userId, 4]);
+
+	return result.rows[0].count !== 0;
+}
+
 export const getNumberOfGroupMemberWithAdminRole = async (teamId: number): Promise<number> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.team_member WHERE team_id = $1 AND permission = $2',
 		[teamId, 4]);
@@ -801,7 +830,7 @@ export const addMembersToGroup = async (group: IGroup, groupMembersArray: Create
 		if (newAddressArray.includes(member.email) === false) newAddressArray.push(member.email);
 	});
 	const newAddressString = newAddressArray.join(";");
-	const newSettings = { ...oldNotificationEmailSettings, addresses: newAddressString};
+	const newSettings = { ...oldNotificationEmailSettings, addresses: newAddressString };
 	await updateNotificationChannelSettings(group.emailNotificationChannelId, newSettings);
 
 	await sendGroupMemberInvitationEmail(group, groupMembersAddedArray);

@@ -32,8 +32,8 @@ import {
     useReloadOrgUsersTable,
     setReloadOrgUsersTable,
     setReloadGlobalUsersTable,
-    useMasterDevicesTable,
-    setMasterDevicesTable,
+    useNodeRedInstancesTable,
+    setNodeRedInstancesTable,
 } from '../../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
 import { filterBuildings } from '../../../tools/filterBuildings';
@@ -41,8 +41,8 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { filterFloors } from '../../../tools/filterFloors';
 import { IGlobalUser } from '../TableColumns/globalUsersColumns';
-import { MasterDevicesProvider } from '../../../contexts/masterDevicesOptions';
-import MasterDevicesInOrgsContainer from './MasterDevicesInOrgsContainer';
+import { NodeRedInstancesProvider } from '../../../contexts/nodeRedInstancesOptions';
+import NodeRedInstancesInOrgsContainer from './NodeRedInstancesInOrgsContainer';
 
 
 const OrganizationAdminOptionsContainer = styled.div`
@@ -124,14 +124,14 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const buildingsTable = useBuildingsTable();
     const floorsTable = useFloorsTable();
     const orgsManagedTable = useOrgsManagedTable();
-    const masterDevicesTable = useMasterDevicesTable();
+    const nodeRedInstancesTable = useNodeRedInstancesTable();
     const orgUsersTable = useOrgUsersTable();
     const groupsTable = useGroupsTable();
     const globalUsersTable = useGlobalUsersTable();
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
-    const [masterDevicesLoading, setMasterDevicesLoading] = useState(true);
+    const [nodeRedInstancesLoading, setNodeRedInstancesLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
     const [orgUsersLoading, setOrgUsersLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
@@ -142,7 +142,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadloors] = useState(false);
     const reloadOrgsManagedTable = useReloadOrgsManagedTable();
-    const [reloadMasterDevices, setReloadMasterDevices] = useState(false);
+    const [reloadNodeRedInstances, setReloadNodeRedInstances] = useState(false);
     const reloadOrgUsersTable = useReloadOrgUsersTable();
     const reloadGroupsTable = useReloadGroupsTable();
 
@@ -152,10 +152,10 @@ const OrganizationAdminOptions: FC<{}> = () => {
         setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
     }, [plaformAssistantDispatch]);
 
-    const refreshMasterDevices = useCallback(() => {
-        setReloadMasterDevices(true);
-        setMasterDevicesLoading(true);
-        setTimeout(() => setReloadMasterDevices(false), 500);
+    const refreshNodeRedInstances = useCallback(() => {
+        setReloadNodeRedInstances(true);
+        setNodeRedInstancesLoading(true);
+        setTimeout(() => setReloadNodeRedInstances(false), 500);
     }, []);
 
 
@@ -284,34 +284,34 @@ const OrganizationAdminOptions: FC<{}> = () => {
     ]);
 
     useEffect(() => {
-        if (masterDevicesTable.length === 0 || reloadMasterDevices) {
-            const urlMasterDevices = `${protocol}://${domainName}/admin_api/master_devices/user_managed`;
+        if (nodeRedInstancesTable.length === 0 || reloadNodeRedInstances) {
+            const urlNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances/user_managed`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
-                .get(urlMasterDevices, config)
+                .get(urlNodeRedInstances, config)
                 .then((response) => {
-                    const masterDevices = response.data;
-                    masterDevices.forEach((masterDevice: { groupId: string | null; deviceId: string | null; }) => {
-                        if (masterDevice.groupId === null) masterDevice.groupId = "-";
-                        if (masterDevice.deviceId === null) masterDevice.deviceId = "-";
+                    const nodeRedInstances = response.data;
+                    nodeRedInstances.forEach((nodeRedInstance: { groupId: string | null; deviceId: string | null; }) => {
+                        if (nodeRedInstance.groupId === null) nodeRedInstance.groupId = "-";
+                        if (nodeRedInstance.deviceId === null) nodeRedInstance.deviceId = "-";
                     });
-                    setMasterDevicesTable(plaformAssistantDispatch, { masterDevices });
-                    setMasterDevicesLoading(false);
+                    setNodeRedInstancesTable(plaformAssistantDispatch, { nodeRedInstances });
+                    setNodeRedInstancesLoading(false);
                 })
                 .catch((error) => {
                     console.log(error);
                 });
 
         } else {
-            setMasterDevicesLoading(false);
+            setNodeRedInstancesLoading(false);
         }
     }, [
         accessToken,
         refreshToken,
         authDispatch,
-        reloadMasterDevices,
+        reloadNodeRedInstances,
         plaformAssistantDispatch,
-        masterDevicesTable.length
+        nodeRedInstancesTable.length
     ]);
 
     useEffect(() => {
@@ -430,8 +430,8 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.GROUPS} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.GROUPS)}>
                     Groups
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.MASTER_DEVICES_IN_ORGS} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.MASTER_DEVICES_IN_ORGS)}>
-                    Master devices in orgs
+                <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS)}>
+                    Nodered instances in orgs
                 </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
@@ -443,7 +443,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                         groupsLoading ||
                         orgUsersLoading ||
                         globalUsersLoading ||
-                        masterDevicesLoading
+                        nodeRedInstancesLoading
                     ) ?
                         <Loader />
                         :
@@ -470,10 +470,13 @@ const OrganizationAdminOptions: FC<{}> = () => {
                                     />
                                 </GroupsProvider>
                             }
-                            {optionToShow === ORG_ADMIN_OPTIONS.MASTER_DEVICES_IN_ORGS &&
-                                <MasterDevicesProvider>
-                                    <MasterDevicesInOrgsContainer masterDevices={masterDevicesTable} refreshMasterDevices={refreshMasterDevices}/>
-                                </MasterDevicesProvider>
+                            {optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS &&
+                                <NodeRedInstancesProvider>
+                                    <NodeRedInstancesInOrgsContainer
+                                        nodeRedInstances={nodeRedInstancesTable}
+                                        refreshNodeRedInstances={refreshNodeRedInstances}
+                                    />
+                                </NodeRedInstancesProvider>
                             }
                         </>
                 }

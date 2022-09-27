@@ -19,7 +19,7 @@ import {
     setDevicesPreviousOption
 } from '../../../contexts/devicesOptions/devicesAction';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
-import { setReloadMasterDevicesTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -112,6 +112,25 @@ const deviceInitInputFormData = {
     latitude: 0,
 }
 
+const mqttActionAllowedOptions = [
+    {
+        label: "Subscribe",
+        value: "Sub"
+    },
+    {
+        label: "Publish",
+        value: "Pub"
+    },
+    {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
+        label: "None",
+        value: "None"
+    }
+];
+
 const domainName = getDomainName();
 const protocol = getProtocol();
 
@@ -141,7 +160,7 @@ const EditDevice: FC<EditDeviceProps> = ({
     const deviceTypeOptions = initialDeviceData.type === "Main master" ? deviceTypeOptions1 : deviceTypeOptions2;
 
     useEffect(() => {
-        const devicesPreviousOption = { devicesPreviousOption:  DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE };
+        const devicesPreviousOption = { devicesPreviousOption: DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE };
         setDevicesPreviousOption(devicesDispatch, devicesPreviousOption)
     }, [devicesDispatch])
 
@@ -165,7 +184,7 @@ const EditDevice: FC<EditDeviceProps> = ({
             latitude: values.latitude
         }
 
-        const deviceInputFormData = {  deviceInputFormData: deviceInitInputFormData };
+        const deviceInputFormData = { deviceInputFormData: deviceInitInputFormData };
         setDeviceInputData(devicesDispatch, deviceInputFormData);
 
         axiosInstance(refreshToken, authDispatch)
@@ -177,15 +196,10 @@ const EditDevice: FC<EditDeviceProps> = ({
                 setIsSubmitting(false);
                 setDevicesOptionToShow(devicesDispatch, devicesOptionToShow);
                 refreshDevices();
-                if (initialDeviceData.type === "Generic" && values.type === "Master") {
-                    const reloadMasterDevicesTable = true;
-                    setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
-                }
-
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -200,16 +214,16 @@ const EditDevice: FC<EditDeviceProps> = ({
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        const deviceInputFormData = {  deviceInputFormData: deviceInitInputFormData };
+        const deviceInputFormData = { deviceInputFormData: deviceInitInputFormData };
         setDeviceInputData(devicesDispatch, deviceInputFormData);
         backToTable();
     };
 
     const selectLocation = (deviceInputData: IDeviceInputData) => {
         const orgId = devices[deviceRowIndex].orgId;
-        const deviceInputFormData = {  deviceInputFormData: deviceInputData };
+        const deviceInputFormData = { deviceInputFormData: deviceInputData };
         setDeviceInputData(devicesDispatch, deviceInputFormData);
-        const buildingId =  orgsOfGroupManaged.filter(org => org.id === orgId)[0].buildingId;
+        const buildingId = orgsOfGroupManaged.filter(org => org.id === orgId)[0].buildingId;
         const deviceBuildingId = { deviceBuildingId: buildingId };
         setDeviceBuildingId(devicesDispatch, deviceBuildingId);
         const groupId = devices[deviceRowIndex].groupId;
@@ -244,6 +258,13 @@ const EditDevice: FC<EditDeviceProps> = ({
                                         label='Type'
                                         name="type"
                                         options={deviceTypeOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Mqtt action allowed'
+                                        name="mqttActionAllowed"
+                                        options={mqttActionAllowedOptions}
                                         type='text'
                                     />
                                     <DeviceLocationTitle>Device location</DeviceLocationTitle>

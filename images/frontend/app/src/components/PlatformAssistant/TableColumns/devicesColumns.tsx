@@ -12,7 +12,7 @@ import { DEVICES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devicesOptions';
 import { IDeviceInputData } from '../../../contexts/devicesOptions/interfaces';
 import { setDeviceInputData } from '../../../contexts/devicesOptions/devicesAction';
-import { setReloadMasterDevicesTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 export interface IDevice {
     id: number;
@@ -24,7 +24,8 @@ export interface IDevice {
     latitude: number;
     longitude: number;
     deviceUid: string;
-    masterDeviceHash: string;
+    masterDeviceUrl: string;
+    mqttActionAllowed: string;
 }
 
 
@@ -75,10 +76,6 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
-                if (deviceType === "Master") {
-                    const reloadMasterDevicesTable = true;
-                    setReloadMasterDevicesTable(plaformAssistantDispatch, { reloadMasterDevicesTable });
-                }
                 hideModal();
             })
             .catch((error) => {
@@ -227,11 +224,22 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableSortBy: true
         },
         {
+            Header: "Mqtt acc",
+            accessor: "mqttActionAllowed",
+            disableFilters: true
+        },        
+        {
+            Header: "MasterDev Url",
+            accessor: "masterDeviceUrl",
+            disableFilters: true,
+            disableSortBy: true
+        },
+        {
             Header: "Device hash",
             accessor: "deviceUid",
             disableFilters: true,
             disableSortBy: true
-        },
+        },       
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Change<br />hash</div>,
             accessor: "changeDeviceHash",

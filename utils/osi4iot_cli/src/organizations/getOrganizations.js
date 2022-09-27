@@ -28,10 +28,10 @@ export default async function () {
 				.then(res => res.body)
 				.catch(err => console.log("Get org error: %s", err.message));
 
-			const urlGetMasterDevices = `${protocol}://${domainName}/admin_api/master_devices`;
-			const masterDevices = await needle('get', urlGetMasterDevices, optionsToken)
+			const urlGetNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances`;
+			const nodeRedInstances = await needle('get', urlGetNodeRedInstances, optionsToken)
 				.then(res => res.body)
-				.catch(err => console.log("Get master devices error: %s", err.message));
+				.catch(err => console.log("Get nodered instance error: %s", err.message));
 
 			const table = new Table({
 				head: [
@@ -54,7 +54,7 @@ export default async function () {
 
 
 			for (let iorg = 0; iorg < orgs.length; iorg++) {
-				const numMasterDevicesInOrg = masterDevices.filter(md => md.orgId === orgs[iorg].id).length;
+				const numNodeRedInstancesInOrg = nodeRedInstances.filter(nri => nri.orgId === orgs[iorg].id).length;
 				const row = [
 					orgs[iorg].id,
 					orgs[iorg].name,
@@ -66,7 +66,7 @@ export default async function () {
 					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
-					numMasterDevicesInOrg
+					numNodeRedInstancesInOrg
 				];
 				table.push(row);
 			}

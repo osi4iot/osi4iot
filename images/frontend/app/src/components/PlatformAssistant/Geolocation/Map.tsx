@@ -20,6 +20,7 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoGroups from './GeoGroups';
 import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
+import { INodeRedInstance } from '../TableColumns/nodeRedInstancesInOrgsColumns';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -364,6 +365,7 @@ interface MapProps {
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
     devices: IDevice[];
+    nodeRedInstances: INodeRedInstance[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
     selectBuilding: (buildingSelected: IBuilding) => void;
@@ -375,8 +377,6 @@ interface MapProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
-    masterDeviceSelected: IDevice | null;
-    selectMasterDevice: (masterDeviceSelected: IDevice | null) => void;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinsSelected: IDigitalTwin) => void;
     refreshBuildings: () => void;
@@ -384,6 +384,7 @@ interface MapProps {
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
     refreshDevices: () => void;
+    refreshNodeRedInstances: () => void;
     refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
     outerBounds: number[][];
@@ -407,6 +408,7 @@ const Map: FC<MapProps> = (
         orgsOfGroupsManaged,
         groupsManaged,
         devices,
+        nodeRedInstances,
         digitalTwins,
         buildingSelected,
         selectBuilding,
@@ -418,8 +420,6 @@ const Map: FC<MapProps> = (
         selectGroup,
         deviceSelected,
         selectDevice,
-        masterDeviceSelected,
-        selectMasterDevice,
         digitalTwinSelected,
         selectDigitalTwin,
         refreshBuildings,
@@ -427,6 +427,7 @@ const Map: FC<MapProps> = (
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
+        refreshNodeRedInstances,
         refreshDigitalTwins,
         initialOuterBounds,
         outerBounds,
@@ -448,6 +449,7 @@ const Map: FC<MapProps> = (
         refreshOrgsOfGroupsManaged();
         refreshGroupsManaged();
         refreshDevices();
+        refreshNodeRedInstances();
         refreshDigitalTwins();
     }, [
         refreshBuildings,
@@ -455,6 +457,7 @@ const Map: FC<MapProps> = (
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
         refreshDevices,
+        refreshNodeRedInstances,
         refreshDigitalTwins
     ])
 
@@ -493,8 +496,7 @@ const Map: FC<MapProps> = (
                     deviceDataArray={devices}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}
-                    masterDeviceSelected={masterDeviceSelected}
-                    selectMasterDevice={selectMasterDevice}
+                    nodeRedInstances={nodeRedInstances}
                     digitalTwins={digitalTwins}
                     digitalTwinSelected={digitalTwinSelected}
                     selectDigitalTwin={selectDigitalTwin}

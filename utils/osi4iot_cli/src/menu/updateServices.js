@@ -31,16 +31,16 @@ export default function (dockerHost, nodesData, organizations, updateAllServices
             } else if (nodeRole === "Generic org worker") {
                 const orgWithGenericWorkers = organizations.filter(org => org.exclusiveWorkerNodes.length === 0);
                 for (const org of orgWithGenericWorkers) {
-                    for (const md of org.master_devices) {
-                        const serviceName = `osi4iot_org_${org.org_acronym}_md_${md.md_hash}`;
+                    for (const nri of org.nodered_instances) {
+                        const serviceName = `osi4iot_org_${org.org_acronym}_nri_${nri.nri_hash}`;
                         serviceNames.push(serviceName);
                     }
                 }
             } else if (nodeRole === "Exclusive org worker") {
                 const orgWithExcluisveWorkers = organizations.filter(org => org.exclusiveWorkerNodes.includes(nodeHostName));
                 for (const org of orgWithExcluisveWorkers) {
-                    for (const md of org.master_devices) {
-                        const serviceName = `osi4iot_org_${org.org_acronym}_md_${md.md_hash}`;
+                    for (const nri of org.nodered_instances) {
+                        const serviceName = `osi4iot_org_${org.org_acronym}_nri_${nri.nri_hash}`;
                         serviceNames.push(serviceName);
                     }
                 }

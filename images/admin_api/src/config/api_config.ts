@@ -29,13 +29,14 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	POSTGRES_USER: string;
 	POSTGRES_PASSWORD: string;
 	POSTGRES_DB: string;
+	DEV2PDB_PASSWORD: string;
 	NOTIFICATIONS_EMAIL_USER: string;
 	NOTIFICATIONS_EMAIL_PASSWORD: string;
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: string;
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: string;
 	TELEGRAM_BOTTOKEN: string;
 	MAIN_ORG_HASH: string;
-	MAIN_ORG_MASTER_DEVICE_HASHES: string[];
+	MAIN_ORG_NODERED_INSTANCE_HASHES: string[];
 	REPLICA: string;
 }
 
@@ -67,13 +68,14 @@ const process_env: IProcessEnv = {
 	POSTGRES_USER: process.env.POSTGRES_USER,
 	POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
 	POSTGRES_DB: process.env.POSTGRES_DB,
+	DEV2PDB_PASSWORD: process.env.DEV2PDB_PASSWORD,
 	NOTIFICATIONS_EMAIL_USER: process.env.NOTIFICATIONS_EMAIL_USER,
 	NOTIFICATIONS_EMAIL_PASSWORD: process.env.NOTIFICATIONS_EMAIL_PASSWORD,
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 	TELEGRAM_BOTTOKEN: process.env.TELEGRAM_BOTTOKEN,
 	MAIN_ORG_HASH: process.env.MAIN_ORG_HASH,
-	MAIN_ORG_MASTER_DEVICE_HASHES: [],
+	MAIN_ORG_NODERED_INSTANCE_HASHES: [],
 	REPLICA: process.env.REPLICA,
 };
 
@@ -86,9 +88,9 @@ const readDockerFiles = (dockerFileName: string) => {
 				const splittedLine = line.split("=");
 				if (splittedLine.length === 2) {
 					const envName = splittedLine[0];
-					if (envName === "MAIN_ORG_MASTER_DEVICE_HASHES") {
+					if (envName === "MAIN_ORG_NODERED_INSTANCE_HASHES") {
 						const envValues = splittedLine[1].replace(/"/g, "").split(",");
-						process_env.MAIN_ORG_MASTER_DEVICE_HASHES.push(...envValues);
+						process_env.MAIN_ORG_NODERED_INSTANCE_HASHES.push(...envValues);
 					} else {
 						const envValue = splittedLine[1].replace(/"/g, "");
 						process_env[envName] = envValue;

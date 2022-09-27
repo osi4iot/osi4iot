@@ -8,7 +8,7 @@ import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/glo
 import { IGroupMember } from '../../components/PlatformAssistant/TableColumns/groupMemberColumns';
 import { IGroup } from '../../components/PlatformAssistant/TableColumns/groupsColumns';
 import { IGroupManaged } from '../../components/PlatformAssistant/TableColumns/groupsManagedColumns';
-import { IMasterDeviceInOrgsColumns } from '../../components/PlatformAssistant/TableColumns/masterDevicesInOrgsColumns';
+import { INodeRedInstance } from '../../components/PlatformAssistant/TableColumns/nodeRedInstancesInOrgsColumns';
 import { IMembershipInGroups } from '../../components/PlatformAssistant/TableColumns/membershipInGroups';
 import { IMembershipInOrgs } from '../../components/PlatformAssistant/TableColumns/membershipInOrgs';
 import { IOrganization } from '../../components/PlatformAssistant/TableColumns/organizationsColumns';
@@ -92,20 +92,20 @@ export const useOrganizationsTable = (): IOrganization[] => {
 	return context.organizations;
 }
 
-export const useMasterDevicesTable = (): IMasterDeviceInOrgsColumns[] => {
+export const useNodeRedInstancesTable = (): INodeRedInstance[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
-		throw new Error('useMasterDevicesTable must be used within a PlatformAssitantProvider');
+		throw new Error('useNodeRedInstancesTable must be used within a PlatformAssitantProvider');
 	}
-	return context.masterDevices;
+	return context.nodeRedInstances;
 }
 
-export const useReloadMasterDevicesTable = (): boolean => {
+export const useReloadNodeRedInstancesTable = (): boolean => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
-		throw new Error('useReloadMasterDevicesTable must be used within a PlatformAssitantProvider');
+		throw new Error('useReloadNodeRedInstancesTable must be used within a PlatformAssitantProvider');
 	}
-	return context.reloadMasterDevicesTable;
+	return context.reloadNodeRedInstancesTable;
 }
 
 export const useBuildingsTable = (): IBuilding[] => {

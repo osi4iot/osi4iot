@@ -5220,7 +5220,7 @@
 				"orgHash": {
 					"type": "string"
 				},
-				"masterDeviceHashes": {
+				"nriHashes": {
 					"type": "array",
 					"items": {
 						"type": "string"
@@ -5270,7 +5270,7 @@
 				"orgHash": {
 					"type": "string"
 				},
-				"masterDeviceHashes": {
+				"nriHashes": {
 					"type": "array",
 					"items": {
 						"type": "string"
@@ -6028,9 +6028,6 @@
 					"type": "string"
 				},
 				"deviceUid": {
-					"type": "string"
-				},
-				"masterDeviceHash": {
 					"type": "string"
 				},
 				"longitude": {
