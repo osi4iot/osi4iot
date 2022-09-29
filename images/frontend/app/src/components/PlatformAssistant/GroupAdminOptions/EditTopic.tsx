@@ -133,6 +133,7 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
         topicType: topics[topicRowIndex].topicType,
         topicName: topics[topicRowIndex].topicName,
         description: topics[topicRowIndex].description,
+        mqttActionAllowed: topics[topicRowIndex].mqttActionAllowed,
         payloadFormat: JSON.stringify(JSON.parse(topics[topicRowIndex].payloadFormat), null, 4)
     }
 

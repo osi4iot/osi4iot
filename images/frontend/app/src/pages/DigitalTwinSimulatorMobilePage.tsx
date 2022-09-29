@@ -10,6 +10,7 @@ import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../tools/t
 import MqttConnection from "../tools/MqttConnection";
 import { IDigitalTwinSimulator } from "../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
 import Slider from "../components/Tools/Slider";
+import { useLoggedUserLogin } from "../contexts/authContext/authContext";
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -160,6 +161,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 	const [isMqttConnected, setIsMqttConnected] = useState(false);
 	const [paramValues, setParamValues] = useState<Record<string, number>>({});
 	const { accessToken, refreshToken, loading, errorMessage } = useAuthState();
+	const userName = useLoggedUserLogin();
 	const authDispatch = useAuthDispatch();
 	const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
 	const [getLastMeasurementsButtomLabel, setGetLastMeasurementsButtomLabel] = useState("GET LAST MEASUREMENTS");
@@ -232,8 +234,8 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 
 
 	useEffect(() => {
-		mqttClient = MqttConnection(setIsMqttConnected);
-	}, []);
+		mqttClient = MqttConnection(setIsMqttConnected, userName, accessToken);
+	}, [userName, accessToken]);
 
 	useEffect(() => {
 		if (

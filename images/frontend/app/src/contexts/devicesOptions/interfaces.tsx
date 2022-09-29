@@ -10,6 +10,7 @@ export interface IDeviceInputData {
 	type: string;
 	longitude: number;
 	latitude: number;
+	mqttActionAllowed: string;
 }
 
 export interface DevicesContextProps {

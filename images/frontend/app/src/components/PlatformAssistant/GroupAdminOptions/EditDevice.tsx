@@ -19,7 +19,6 @@ import {
     setDevicesPreviousOption
 } from '../../../contexts/devicesOptions/devicesAction';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
-import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -110,6 +109,7 @@ const deviceInitInputFormData = {
     type: "Generic",
     longitude: 0,
     latitude: 0,
+    mqttActionAllowed: "Pub & Sub"
 }
 
 const mqttActionAllowedOptions = [
@@ -149,7 +149,6 @@ const EditDevice: FC<EditDeviceProps> = ({
     selectLocationOption,
     refreshDevices
 }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();

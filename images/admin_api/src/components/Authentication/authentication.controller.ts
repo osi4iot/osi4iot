@@ -161,6 +161,7 @@ class AuthenticationController implements IController {
 	private userMosquittoAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { password, username, clientid } = req.body;
+			console.log("username=", username)
 			const usernameArray = username.split("_");
 			if (usernameArray[0] === "jwt") {
 				const algorithm = "HS256" as jwt.Algorithm;
@@ -173,12 +174,14 @@ class AuthenticationController implements IController {
 						password,
 						process_env.ACCESS_TOKEN_SECRET,
 						verifyOptionsAccessToken) as IJwtPayload;
+					console.log("jwtPayload=", jwtPayload)
 					const user = await getUserdByEmailOrLogin(jwtPayload.email);
+					console.log("user=", user)
 					if (!user || jwtPayload.action !== "access") {
 						res.status(400).json({ Ok: false, Error: "User not registered" });
 						return
 					}
-					if (user.login !== username.splice(4)) {
+					if (user.login !== username.slice(4)) {
 						res.status(400).json({ Ok: false, Error: "Username not match with jwt payload" });
 						return
 					}
@@ -223,11 +226,31 @@ class AuthenticationController implements IController {
 
 	private userMosquittoAclCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const { acc, clientid, username, topic } = req.body
-			console.log("Topic=", topic);
-			console.log("username=", username);
-			if (username !== "dev2pdb") {
-				const topicArray = topic.split("/");
+			const { acc, clientid, username, topic } = req.body;
+			const topicArray = topic.split("/");
+			if (username === "dev2pdb") {
+				const topicType = topicArray[0];
+				if (
+					!(
+						topicType === "dev2pdb" ||
+						topicType === "dtm_as2pdb" ||
+						topicType === "dtm_fmv2pdb" ||
+						topicType === "dev2pdb_wt" ||
+						topicType === "dtm_as2pdb_wt" ||
+						topicType === "dtm_fmv2pdb_wt"
+					)) {
+					res.status(400).json({ Ok: false, Error: "Topic type not allowed for dev2pdb" });
+					return;
+				}
+			} else if (username.split("_")[0] === "nri") {
+				const topicType = topicArray[0];
+				const nriHashInTopic = topicArray[1].slice(4);
+				const nriHashInUserName = username.split("_")[1];
+				if (topicType !== "test" || nriHashInTopic !== nriHashInUserName) {
+					res.status(400).json({ Ok: false, Error: "Incorrect group hash" });
+					return
+				}
+			} else {
 				const topicUid = topicArray[3].split("_")[1];
 				const topicData = await getTopicInfoForMqttAclByTopicUid(topicUid);
 				if (!topicData) {
@@ -252,13 +275,63 @@ class AuthenticationController implements IController {
 					return
 				}
 
-				if ((acc === 1 || acc === 4) && !(topicData.mqttActionAllowed === "Sub" || topicData.mqttActionAllowed === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: "Subcription/read action not allowed" });
+				if (topicData.topicActionAllowed === "None") {
+					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the topic with id: ${topicData.topicId}` });
 					return
 				}
 
-				if ((acc === 2 || acc === 3) && !(topicData.mqttActionAllowed === "Pub" || topicData.mqttActionAllowed === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: "Publication/write action not allowed" });
+				if (topicData.deviceActionAllowed === "None") {
+					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the device with id: ${topicData.deviceId}` });
+					return
+				}
+
+				if (topicData.groupActionAllowed === "None") {
+					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the group with id: ${topicData.groupId}` });
+					return
+				}
+
+				if (topicData.orgActionAllowed === "None") {
+					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the group with id: ${topicData.orgId}` });
+					return
+				}
+
+				if ((acc === 1 || acc === 4) && !(topicData.topicActionAllowed === "Sub" || topicData.topicActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the topic with id: ${topicData.topicId}` });
+					return
+				}
+
+				if ((acc === 2 || acc === 3) && !(topicData.topicActionAllowed === "Pub" || topicData.topicActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the topic with id: ${topicData.topicId}` });
+					return
+				}
+
+				if ((acc === 1 || acc === 4) && !(topicData.deviceActionAllowed === "Sub" || topicData.deviceActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the device with id: ${topicData.deviceId}` });
+					return
+				}
+
+				if ((acc === 2 || acc === 3) && !(topicData.deviceActionAllowed === "Pub" || topicData.deviceActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the device with id: ${topicData.deviceId}` });
+					return
+				}
+
+				if ((acc === 1 || acc === 4) && !(topicData.groupActionAllowed === "Sub" || topicData.groupActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the group with id: ${topicData.groupId}` });
+					return
+				}
+
+				if ((acc === 2 || acc === 3) && !(topicData.groupActionAllowed === "Pub" || topicData.groupActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the group with id: ${topicData.groupId}` });
+					return
+				}
+
+				if ((acc === 1 || acc === 4) && !(topicData.orgActionAllowed === "Sub" || topicData.orgActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the org with id: ${topicData.orgId}` });
+					return
+				}
+
+				if ((acc === 2 || acc === 3) && !(topicData.orgActionAllowed === "Pub" || topicData.orgActionAllowed === "Pub & Sub")) {
+					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the org with id: ${topicData.orgId}` });
 					return
 				}
 

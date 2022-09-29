@@ -10,6 +10,7 @@ import MobileAccelerationForm from '../components/Tools/MobileAccelerationForm';
 import MobilePhotoForm from '../components/Tools/MobilePhotoForm';
 import { useAuthDispatch, useAuthState } from '../contexts/authContext';
 import { IMobileTopic } from '../components/PlatformAssistant/TableColumns/topicsColumns';
+import { useLoggedUserLogin } from '../contexts/authContext/authContext';
 
 export interface InitialMobileSensorData {
     orgAcronym: string;
@@ -32,6 +33,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	const [mobileTopicSelected, setMobileTopicSelected] = useState<IMobileTopic | null>(null);
 	const { accessToken, refreshToken } = useAuthState();
 	const authDispatch = useAuthDispatch();
+	const userName = useLoggedUserLogin();
 
 	useEffect(() => {
 		const urlTopics = `${protocol}://${domainName}/admin_api/topics_in_mobile/user_managed`;
@@ -63,8 +65,8 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	}, [accessToken, refreshToken, authDispatch]);
 
 	useEffect(() => {
-		mqttClient = MqttConnection(setIsMqttConnected);
-	}, []);
+		mqttClient = MqttConnection(setIsMqttConnected, userName, accessToken);
+	}, [userName, accessToken]);
 
 	const handleMobileSensorSelection = (values: any, actions: any) => {
 		const mobileSensorSelected = values.mobileSensor;

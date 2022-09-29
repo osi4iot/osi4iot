@@ -127,7 +127,8 @@ export default async function (osi4iotState) {
 
 			if ((nri_client_crt === "" && nri_client_key === "") || nri_exp_timestamp < limitTimestamp) {
 				const promise = mkcert.createCert({
-					domains: [`org_${org_acronym}_nri_${nri_hash}`],
+					// domains: [`org_${org_acronym}_nri_${nri_hash}`],
+					domains: [`nri_${nri_hash}`],
 					validityDays: defaultValidityDays,
 					caKey: mqttCa.key,
 					caCert: mqttCa.cert

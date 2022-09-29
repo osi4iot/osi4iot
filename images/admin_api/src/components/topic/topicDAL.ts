@@ -308,13 +308,17 @@ export const getMqttTopicsInfoFromIdArray = async (topicsIdArray: number[]): Pro
 export const getTopicInfoForMqttAclByTopicUid = async (topicUid: string): Promise<ITopicInfoForMqttAcl> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id AS "topicId", grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
-									grafanadb.topic.topic_type AS "topicType", grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
+									grafanadb.topic.topic_type AS "topicType", grafanadb.topic.mqtt_action_allowed AS "topicActionAllowed",
+									grafanadb.device.mqtt_action_allowed AS "deviceActionAllowed",
+									grafanadb.group.mqtt_action_allowed AS "groupActionAllowed",
+									grafanadb.org.mqtt_action_allowed AS "orgActionAllowed",
 									grafanadb.group.group_uid AS "groupHash", grafanadb.device.device_uid AS "deviceHash",
 									grafanadb.topic.topic_uid AS "topicHash", grafanadb.group.team_id AS "teamId"
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									WHERE grafanadb.topic.device_id = $1`, [topicUid]);
+									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
+									WHERE grafanadb.topic.topic_uid = $1`, [topicUid]);
 	return response.rows[0];
 };
 

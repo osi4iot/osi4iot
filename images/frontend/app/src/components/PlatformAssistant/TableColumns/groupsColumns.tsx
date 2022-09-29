@@ -201,15 +201,15 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             disableFilters: true
         },
         {
-            Header: "outerBounds",
-            accessor: "outerBounds",
-            disableFilters: true
-        },
-        {
             Header: "Mqtt acc",
             accessor: "mqttActionAllowed",
             disableFilters: true
         },        
+        {
+            Header: "outerBounds",
+            accessor: "outerBounds",
+            disableFilters: true
+        },
         {
             Header: "",
             accessor: "edit",
@@ -226,7 +226,17 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const telegramChatId = row?.cells[7]?.value;
                 const floorNumber = row?.cells[9]?.value;
                 const featureIndex = row?.cells[10]?.value;
-                const groupInputData = { name, acronym, folderPermission, telegramInvitationLink, telegramChatId, floorNumber, featureIndex }
+                const mqttActionAllowed= row?.cells[11]?.value;
+                const groupInputData = {
+                    name,
+                    acronym,
+                    folderPermission,
+                    telegramInvitationLink,
+                    telegramChatId,
+                    floorNumber,
+                    featureIndex,
+                    mqttActionAllowed
+                }
                 return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />
             }
         },

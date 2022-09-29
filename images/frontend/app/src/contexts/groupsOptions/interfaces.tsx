@@ -16,7 +16,8 @@ export interface IGroupInputData {
     telegramInvitationLink: string;
     telegramChatId: string;
     floorNumber: number;
-    featureIndex: number;
+	featureIndex: number;
+	mqttActionAllowed: string;
     groupAdminDataArray?: IGroupAdminData[];
 }
 

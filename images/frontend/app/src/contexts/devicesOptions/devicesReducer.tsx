@@ -18,6 +18,7 @@ export const initialState = {
         type: "Generic",
         longitude: 0,
         latitude: 0,
+        mqttActionAllowed: "Pub & Sub"
     }
 };
 

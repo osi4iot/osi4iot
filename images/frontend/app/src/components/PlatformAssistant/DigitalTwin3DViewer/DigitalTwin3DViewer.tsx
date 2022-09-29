@@ -30,6 +30,7 @@ import { axiosAuth, axiosInstance, getDomainName, getProtocol } from '../../../t
 import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
+import { useLoggedUserLogin } from '../../../contexts/authContext/authContext';
 
 
 const CanvasContainer = styled.div`
@@ -349,13 +350,6 @@ const protocol = getProtocol();
 
 const brokerUrl = `wss://${domainName}`;
 
-const mqttOptions = {
-	port: 9001,
-	protocol: 'wss' as 'wss',
-	clientId: "clientId_" + Math.floor(Math.random() * 1000),
-	retain: false
-}
-
 const mouseButtons = {
 	LEFT: THREE.MOUSE.PAN,
 	MIDDLE: THREE.MOUSE.ROTATE,
@@ -381,6 +375,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	close3DViewer
 }) => {
 	const { accessToken, refreshToken } = useAuthState();
+	const userName = useLoggedUserLogin();
 	const authDispatch = useAuthDispatch();
 	const canvasContainerRef = useRef(null);
 	const canvasRef = useRef(null);
@@ -414,6 +409,15 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femMaxValues, setFemMaxValues] = useState<number[]>([]);
 	const [initialDigitalTwinSimulatorState, setInitialDigitalTwinSimulatorState] = useState<Record<string, number>>({});
 	const [getLastMeasurementsButtomLabel, setGetLastMeasurementsButtomLabel] = useState("GET LAST MEASUREMENTS");
+
+	const mqttOptions = {
+		username: `jwt_${userName}`,
+		passport: accessToken,
+		port: 9001,
+		protocol: 'wss' as 'wss',
+		clientId: "clientId_" + Math.floor(Math.random() * 1000),
+		retain: false
+	}
 
 	let femResultNames: string[] = [];
 	if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {

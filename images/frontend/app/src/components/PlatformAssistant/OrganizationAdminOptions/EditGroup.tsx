@@ -22,7 +22,7 @@ import { GROUPS_OPTIONS, GROUPS_PREVIOUS_OPTIONS } from '../Utils/platformAssist
 import { IGroup } from '../TableColumns/groupsColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
-import { setReloadDevicesTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { setReloadDevicesTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadNodeRedInstancesTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -204,6 +204,8 @@ const EditGroup: FC<EditGroupProps> = ({
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
                 const reloadDevicesTable = true;
                 setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadNodeRedInstancesTable = true;
+                setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })

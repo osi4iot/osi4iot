@@ -142,10 +142,11 @@ const GeoGroup: FC<GeoGroupProps> = (
                             })
                         }
                         {
-                            nodeRedInstancesFiltered.map(nriData => {
-                                < GeoNodeRedInstance
+                            nodeRedInstancesFiltered.map((nriData, index) => {
+                                return < GeoNodeRedInstance
                                     key={nriData.id}
                                     nriData={nriData}
+                                    instanceNumber={index+1}
                                 />
                             })
                         }

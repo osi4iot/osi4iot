@@ -1,7 +1,11 @@
 import Paho, { MQTTError } from "paho-mqtt";
 import { getDomainName } from "./tools";
 
-const MqttConnection = (setIsMqttConnected: React.Dispatch<React.SetStateAction<boolean>>): Paho.Client => {
+const MqttConnection = (
+	setIsMqttConnected: React.Dispatch<React.SetStateAction<boolean>>,
+	userName: string,
+	accessToken: string
+): Paho.Client => {
 	const domainName = getDomainName();
 
 	function onConnect() {
@@ -38,6 +42,8 @@ const MqttConnection = (setIsMqttConnected: React.Dispatch<React.SetStateAction<
 		timeout: 3,
 		onSuccess: onConnect,
 		onFailure: onFailure,
+		userName: `jwt_${userName}`,
+		password: accessToken
     });
     
     return client;

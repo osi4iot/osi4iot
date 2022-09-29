@@ -20,6 +20,7 @@ export const initialState = {
         telegramChatId: "",
         floorNumber: 0,
         featureIndex: 0,
+        mqttActionAllowed: "Pub & Sub",
         groupAdminDataArray: [
             {
                 firstName: "",

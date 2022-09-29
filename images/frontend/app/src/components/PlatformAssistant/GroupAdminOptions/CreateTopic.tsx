@@ -168,6 +168,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         topicType: "dev2pdb",
         topicName: "",
         description: "",
+        mqttActionAllowed: "Pub & Sub",
         payloadFormat: "{}"
     }
 

@@ -12,7 +12,6 @@ import { DEVICES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devicesOptions';
 import { IDeviceInputData } from '../../../contexts/devicesOptions/interfaces';
 import { setDeviceInputData } from '../../../contexts/devicesOptions/devicesAction';
-import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 export interface IDevice {
     id: number;
@@ -47,7 +46,6 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, deviceId, deviceType, refreshDevices }) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isDeviceDeleted, setIsDeviceDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE DEVICE";
@@ -268,7 +266,8 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const type = row?.cells[5]?.value;
                 const longitude = row?.cells[6]?.value;
                 const latitude = row?.cells[7]?.value;
-                const deviceInputData = { groupId, name, description, type, longitude, latitude }
+                const mqttActionAllowed= row?.cells[8]?.value;
+                const deviceInputData = { groupId, name, description, type, longitude, latitude, mqttActionAllowed }
                 return <EditDevice deviceId={deviceId} rowIndex={rowIndex} deviceInputData={deviceInputData} />
             }
         },

@@ -29,6 +29,7 @@ import { getBuildingByOrgId, getFloorByOrgIdAndFloorNumber } from "../building/b
 import arrayCompare from "../../utils/helpers/arrayCompare";
 import { updateGroupDevicesLocation } from "../device/deviceDAL";
 import process_env from "../../config/api_config";
+import { updateGroupNodeRedInstancesLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
@@ -165,6 +166,7 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 	await updateGroupById(groupData);
 	if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
 		await updateGroupDevicesLocation(geoJsonDataString, groupData);
+		await updateGroupNodeRedInstancesLocation(geoJsonDataString, groupData)
 	}
 	let hasGroupChange = false;
 	if (groupData.folderPermission && (groupData.folderPermission !== existentGroup.folderPermission)) {

@@ -2,8 +2,7 @@ import { nanoid } from "nanoid";
 import crypto from 'crypto';
 import pointOnFeature from '@turf/point-on-feature';
 import rhumbDestination from '@turf/rhumb-destination';
-import { point } from '@turf/helpers';
-import { polygon } from '@turf/helpers';
+import { point, polygon } from '@turf/helpers';
 import pool from "../../config/dbconfig";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateDeviceDto from "./device.dto";
@@ -206,12 +205,14 @@ export const updateGroupDevicesLocation = async (geoJsonDataString: string, grou
 		const geojsonObj = JSON.parse(geoJsonDataString);
 		const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
 		const center = pointOnFeature(geoPolygon);
-		const centerLongitude = center.geometry.coordinates[0];
-		const centerLatitude = center.geometry.coordinates[1];
+		const centerGroupAreaLongitude = center.geometry.coordinates[0];
+		const centerGroupAreaLatitude = center.geometry.coordinates[1];
+		const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
+		const separation = 0.002;
+		const pt = rhumbDestination(ptCenterGroupArea, separation, 180);
 		const interDeviceDistance = 0.005;
 		const totalLongitude = (groupDevices.length - 1) * interDeviceDistance;
 		const devicesLocationQueries = []
-		const pt = point([centerLongitude, centerLatitude]);
 
 		for (let i = 0; i < groupDevices.length; i++) {
 			let bearing: number;

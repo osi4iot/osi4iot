@@ -1,8 +1,7 @@
-import { FC, useEffect, useMemo } from "react";
+import { FC, useMemo } from "react";
 import { Circle, useMap } from 'react-leaflet';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { LatLngTuple } from 'leaflet';
-import { IDevice } from '../TableColumns/devicesColumns';
 import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthState } from "../../../contexts/authContext";
@@ -14,6 +13,7 @@ import { INodeRedInstance } from "../TableColumns/nodeRedInstancesInOrgsColumns"
 
 interface GeoNodeRedInstanceProps {
     nriData: INodeRedInstance;
+    instanceNumber: number;
 }
 
 const deviceRadio = 0.0006;
@@ -23,6 +23,7 @@ const protocol = getProtocol();
 
 const GeoNodeRedInstance: FC<GeoNodeRedInstanceProps> = ({
     nriData,
+    instanceNumber
 }) => {
     const { accessToken } = useAuthState();
     const map = useMap();
@@ -34,8 +35,8 @@ const GeoNodeRedInstance: FC<GeoNodeRedInstanceProps> = ({
     const clickNodeRedInstanceHandler = () => {
         if (nriData.nriHash) {
             map.fitBounds(outerBounds as LatLngTuple[]);
-            let urlMasterDevice = `${protocol}://${domainName}/nodered_${nriData.nriHash}/?access_token=${accessToken}`;
-            setTimeout(() => window.open(urlMasterDevice, "_blank"), 250);
+            let urlNodeRedInstance = `${protocol}://${domainName}/nodered_${nriData.nriHash}/?access_token=${accessToken}`;
+            setTimeout(() => window.open(urlNodeRedInstance, "_blank"), 250);
         } else {
             toast.warning("Master device hash is null");
         }
@@ -52,11 +53,11 @@ const GeoNodeRedInstance: FC<GeoNodeRedInstanceProps> = ({
             >
                 <NodeRedInstanceSvgImage
                     bounds={bounds as LatLngTuple[]}
-                    instanceNumber={nriData.instanceNumber}
+                    instanceNumber={instanceNumber}
                     clickNodeRedInstanceHandler={clickNodeRedInstanceHandler}
                 />
                 <Tooltip sticky>
-                    <span style={{ fontWeight: 'bold' }}>Node-RED instance {nriData.instanceNumber}</span><br />
+                    <span style={{ fontWeight: 'bold' }}>Node-RED instance {instanceNumber}</span><br />
                 </Tooltip>
             </Circle >
         </>
