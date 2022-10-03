@@ -25,6 +25,8 @@ import UserProfileDto from "../user/interfaces/UserProfile.dto";
 import verifiyPassword from "../../utils/helpers/verifiyPassword";
 import process_env from "../../config/api_config";
 import { getTopicInfoForMqttAclByTopicUid } from "../topic/topicDAL";
+import ITopicInfoForMqttAcl from "../topic/topicInfoForMqttAcl.interface";
+import { getNodeRedInstanceByProp } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 interface IJwtPayload {
 	id: string;
@@ -161,7 +163,8 @@ class AuthenticationController implements IController {
 	private userMosquittoAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { password, username, clientid } = req.body;
-			console.log("username=", username)
+			console.log("Paso por userMosquittoAuth");
+			console.log("username=", username);
 			const usernameArray = username.split("_");
 			if (usernameArray[0] === "jwt") {
 				const algorithm = "HS256" as jwt.Algorithm;
@@ -174,9 +177,7 @@ class AuthenticationController implements IController {
 						password,
 						process_env.ACCESS_TOKEN_SECRET,
 						verifyOptionsAccessToken) as IJwtPayload;
-					console.log("jwtPayload=", jwtPayload)
 					const user = await getUserdByEmailOrLogin(jwtPayload.email);
-					console.log("user=", user)
 					if (!user || jwtPayload.action !== "access") {
 						res.status(400).json({ Ok: false, Error: "User not registered" });
 						return
@@ -227,6 +228,9 @@ class AuthenticationController implements IController {
 	private userMosquittoAclCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { acc, clientid, username, topic } = req.body;
+			console.log("Paso por userMosquittoAclCheck");
+			console.log(`username=${username} topic=${topic}`);
+
 			const topicArray = topic.split("/");
 			if (username === "dev2pdb") {
 				const topicType = topicArray[0];
@@ -241,33 +245,47 @@ class AuthenticationController implements IController {
 					)) {
 					res.status(400).json({ Ok: false, Error: "Topic type not allowed for dev2pdb" });
 					return;
+				} else {
+					res.status(200).json({ Ok: true, Error: "" });
+					return;
 				}
-			} else if (username.split("_")[0] === "nri") {
-				const topicType = topicArray[0];
+			}
+
+			if (username.split("_")[0] === "nri" && topicArray[0] === "test") {
 				const nriHashInTopic = topicArray[1].slice(4);
 				const nriHashInUserName = username.split("_")[1];
-				if (topicType !== "test" || nriHashInTopic !== nriHashInUserName) {
-					res.status(400).json({ Ok: false, Error: "Incorrect group hash" });
+				if (nriHashInTopic !== nriHashInUserName) {
+					res.status(400).json({ Ok: false, Error: "Incorrect nri_hash" });
 					return
 				}
-			} else {
+			}
+
+
+			let isMosquittoSysTopic = false;
+			if (topicArray[0] === "$SYS" && topicArray[1] === "broker") {
+				isMosquittoSysTopic = true;
+			}
+
+			let topicData: ITopicInfoForMqttAcl;
+			if (!isMosquittoSysTopic && topicArray.length === 4) {
 				const topicUid = topicArray[3].split("_")[1];
-				const topicData = await getTopicInfoForMqttAclByTopicUid(topicUid);
+				topicData = await getTopicInfoForMqttAclByTopicUid(topicUid);
 				if (!topicData) {
 					res.status(400).json({ Ok: false, Error: "Incorrect topic hash" });
 					return
 				}
-				const groupHash = topicArray[1].split("_")[1];
+
+				const groupHash = topicArray[1].slice(6);
 				if (groupHash !== topicData.groupHash) {
 					res.status(400).json({ Ok: false, Error: "Incorrect group hash" });
 					return
 				}
 
-				const deviceHash = topicArray[2].split("_")[1];
+				const deviceHash = topicArray[2].slice(7);
 				if (deviceHash !== topicData.deviceHash) {
 					res.status(400).json({ Ok: false, Error: "Incorrect device hash" });
 					return
-				}
+				};
 
 				const topicType = topicArray[0];
 				if (topicType !== topicData.topicType) {
@@ -320,6 +338,7 @@ class AuthenticationController implements IController {
 					return
 				}
 
+
 				if ((acc === 2 || acc === 3) && !(topicData.groupActionAllowed === "Pub" || topicData.groupActionAllowed === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the group with id: ${topicData.groupId}` });
 					return
@@ -330,37 +349,48 @@ class AuthenticationController implements IController {
 					return
 				}
 
+
 				if ((acc === 2 || acc === 3) && !(topicData.orgActionAllowed === "Pub" || topicData.orgActionAllowed === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the org with id: ${topicData.orgId}` });
 					return
 				}
+			}
 
-				const usernameArray = username.split("_");
-				if (usernameArray[0] === "device") {
-					const deviceId = usernameArray[1];
-					if (deviceId !== topicData.deviceId) {
-						res.status(400).json({ Ok: false, Error: "Device not registered" });
+
+			const usernameArray = username.split("_");
+			if (usernameArray[0] === "device") {
+				const deviceId = usernameArray[1];
+				if (deviceId !== topicData.deviceId) {
+					res.status(400).json({ Ok: false, Error: "Device not registered" });
+					return
+				}
+			} else if (username.split("_")[0] === "nri") {
+				if (topicArray[0] !== "test") {
+					const nriHashInUserName = username.split("_")[1];
+					const nodeRedInstance = await getNodeRedInstanceByProp("nri_hash", nriHashInUserName);
+					if (nodeRedInstance.groupId !== topicData.groupId) {
+						res.status(400).json({ Ok: false, Error: "Incorrect group for provided nri_hash" });
 						return
 					}
+				}
+			} else {
+				let user: IUser;
+				if (usernameArray[0] === "jwt") {
+					const login = username.slice(4);
+					user = await getUserdByEmailOrLogin(login);
 				} else {
-					let user: IUser;
-					if (usernameArray[0] === "jwt") {
-						const login = username.slice(4);
-						user = await getUserdByEmailOrLogin(login);
-					} else {
-						user = await getUserdByEmailOrLogin(username);
-					}
+					user = await getUserdByEmailOrLogin(username);
+				}
 
-					if (!user.isGrafanaAdmin) {
-						const orgId = topicData.orgId;
-						const isOrgAdminUser = await isThisUserOrgAdmin(user.id, orgId);
-						if (!isOrgAdminUser) {
-							const teamId = topicData.teamId;
-							const isGroupAdminUser = await isThisUserGroupAdmin(user.id, teamId);
-							if (!isGroupAdminUser) {
-								res.status(401).json({ Ok: false, Error: "User not allowed" })
-								return;
-							}
+				if (!user.isGrafanaAdmin && !isMosquittoSysTopic) {
+					const orgId = topicData.orgId;
+					const isOrgAdminUser = await isThisUserOrgAdmin(user.id, orgId);
+					if (!isOrgAdminUser) {
+						const teamId = topicData.teamId;
+						const isGroupAdminUser = await isThisUserGroupAdmin(user.id, teamId);
+						if (!isGroupAdminUser) {
+							res.status(401).json({ Ok: false, Error: "User not allowed" })
+							return;
 						}
 					}
 				}

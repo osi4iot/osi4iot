@@ -52,7 +52,7 @@ import { createTopic, demoTopicName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
-import { assignNodeRedInstanceToGroup, getNodeRedInstancesUnassignedInOrg } from "../nodeRedInstance/nodeRedInstanceDAL";
+import { assignNodeRedInstanceToGroup, deleteNodeRedInstancesInGroup, getNodeRedInstancesInGroup, getNodeRedInstancesUnassignedInOrg } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -420,6 +420,10 @@ class GroupController implements IController {
 			if (!this.isValidGroupPropName(propName)) throw new InvalidPropNameExeception(propName);
 			const group = await getGroupByProp(propName, propValue);
 			if (!group) throw new ItemNotFoundException("The group", propName, propValue);
+			const nriInGroup = await getNodeRedInstancesInGroup(group.id);
+			if (nriInGroup) {
+				await deleteNodeRedInstancesInGroup(group.id);
+			}
 			const orgKey = await getOrganizationKey(orgId);
 			const message = await deleteGroup(group, orgKey);
 			res.status(200).send({ message });

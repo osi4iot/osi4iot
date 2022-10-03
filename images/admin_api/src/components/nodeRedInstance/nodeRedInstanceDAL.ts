@@ -28,7 +28,7 @@ export const getNodeRedInstancesByOrgsIdArray = async (orgsIdArray: number[]): P
 									grafanadb.nodered_instance.geolocation[0] AS longitude,
 									grafanadb.nodered_instance.geolocation[1] AS latitude
 									FROM grafanadb.nodered_instance
-									WHERE grafanadb.odered_instance.org_id = ANY($1::bigint[])
+									WHERE grafanadb.nodered_instance.org_id = ANY($1::bigint[])
 									ORDER BY grafanadb.nodered_instance.id ASC,
 											grafanadb.nodered_instance.org_id ASC,
 											grafanadb.nodered_instance.group_id ASC;`, [orgsIdArray]);
@@ -57,6 +57,11 @@ export const getNodeRedInstancesInGroup = async (groupId: number): Promise<INode
 									FROM grafanadb.nodered_instance
 									WHERE grafanadb.nodered_instance.group_id = $1`, [groupId]);
 	return response.rows;
+}
+
+export const deleteNodeRedInstancesInGroup = async (groupId: number): Promise<void> => {
+	await pool.query(`DELETE FROM grafanadb.nodered_instance WHERE grafanadb.nodered_instance.group_id =  $1`,
+		[groupId]);
 }
 
 export const deleteNodeRedInstanceById = async (nodeRedInstanceId: number): Promise<void> => {
@@ -105,10 +110,11 @@ export const createNodeRedInstance = async (nriInput: CreateNodeRedInstanceDto):
 };
 
 export const assignNodeRedInstanceToGroup = async (nriInput: INodeRedInstance, groupId: number): Promise<void> => {
-	const query = `UPDATE grafanadb.nodered_instance SET group_id = $1, updated = NOW()
-	WHERE grafanadb.nodered_instance.id = $2;`;
+	const query = `UPDATE grafanadb.nodered_instance SET group_id = $1, geolocation = $2, updated = NOW()
+	WHERE grafanadb.nodered_instance.id = $3;`;
 	await pool.query(query, [
 		groupId,
+		`(${nriInput.longitude},${nriInput.latitude})`,
 		nriInput.id
 	]);
 };
@@ -121,7 +127,7 @@ export const getNodeRedInstancesUnassignedInOrg = async (orgId: number): Promise
 									grafanadb.nodered_instance.geolocation[0] AS longitude,
 									grafanadb.nodered_instance.geolocation[1] AS latitude
 									FROM grafanadb.nodered_instance
-									WHERE grafanadb.nodered_instance.orgId = $1 AND grafanadb.nodered_instance.groupId = $2`,[orgId, 0]);
+									WHERE grafanadb.nodered_instance.org_Id = $1 AND grafanadb.nodered_instance.group_id = $2`,[orgId, 0]);
 	return response.rows;
 }
 

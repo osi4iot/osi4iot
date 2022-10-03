@@ -83,7 +83,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
                 const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });                
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
 
                 const reloadOrgsOfGroupsManagedTable = true;
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
@@ -96,12 +96,12 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
                 const reloadDigitalTwinsTable = true;
                 setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
                 const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });                
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
                 hideModal();
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -132,7 +132,7 @@ const EditGroup: FC<EditGroupProps> = ({ rowIndex, groupId, groupInputData }) =>
         setGroupRowIndexToEdit(groupsDispatch, groupRowIndexToEdit);
 
         const groupInputFormData = { groupInputFormData: groupInputData }
-        setGroupInputData(groupsDispatch, groupInputFormData );
+        setGroupInputData(groupsDispatch, groupInputFormData);
 
         const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.EDIT_GROUP };
         setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
@@ -203,8 +203,18 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
         {
             Header: "Mqtt acc",
             accessor: "mqttActionAllowed",
-            disableFilters: true
-        },        
+            disableFilters: true,
+            Cell: props => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const mqttActionAllowed = row?.cells[11]?.value;
+                const style: React.CSSProperties = {
+                    color: mqttActionAllowed === "None" ? 'red' : 'white',
+                    fontWeight: mqttActionAllowed === "None" ? 'bold' : 'normal'
+                };
+                return <span style={style}>{mqttActionAllowed}</span>;
+            }
+        },
         {
             Header: "outerBounds",
             accessor: "outerBounds",
@@ -226,7 +236,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const telegramChatId = row?.cells[7]?.value;
                 const floorNumber = row?.cells[9]?.value;
                 const featureIndex = row?.cells[10]?.value;
-                const mqttActionAllowed= row?.cells[11]?.value;
+                const mqttActionAllowed = row?.cells[11]?.value;
                 const groupInputData = {
                     name,
                     acronym,

@@ -6,7 +6,7 @@ import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
-import { NodeRedInstanceSvgImage } from "./NodeRedInstanceSvgImaga";
+import { NodeRedInstanceSvgImage } from "./NodeRedInstanceSvgImage";
 import { INodeRedInstance } from "../TableColumns/nodeRedInstancesInOrgsColumns";
 
 

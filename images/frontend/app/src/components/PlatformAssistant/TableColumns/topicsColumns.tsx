@@ -228,7 +228,17 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
         {
             Header: "Mqtt acc",
             accessor: "mqttActionAllowed",
-            disableFilters: true
+            disableFilters: true,
+            Cell: props => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const mqttActionAllowed = row?.cells[7]?.value;
+                const style: React.CSSProperties = {
+                    color: mqttActionAllowed === "None" ? 'red' : 'white',
+                    fontWeight: mqttActionAllowed === "None" ? 'bold' : 'normal'
+                };
+                return <span style={style}>{mqttActionAllowed}</span>;
+            }             
         },        
         {
             Header: "Payload format",

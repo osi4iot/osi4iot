@@ -224,13 +224,23 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
         {
             Header: "Mqtt acc",
             accessor: "mqttActionAllowed",
-            disableFilters: true
+            disableFilters: true,
+            Cell: props => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const mqttActionAllowed = row?.cells[8]?.value;
+                const style: React.CSSProperties = {
+                    color: mqttActionAllowed === "None" ? 'red' : 'white',
+                    fontWeight: mqttActionAllowed === "None" ? 'bold' : 'normal'
+                };
+                return <span style={style}>{mqttActionAllowed}</span>;
+            }              
         },        
         {
             Header: "MasterDev Url",
             accessor: "masterDeviceUrl",
             disableFilters: true,
-            disableSortBy: true
+            disableSortBy: true,          
         },
         {
             Header: "Device hash",

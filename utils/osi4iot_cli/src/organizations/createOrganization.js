@@ -308,7 +308,7 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 		country: orgData.ORGANIZATION_COUNTRY,
 		buildingId: parseInt(orgData.BUILDING_ID, 10),
 		orgHash: newOrg.org_hash,
-		nodeRedInstanceHashes: newOrg.nodered_instances.map(nri => nri.nri_hash),
+		nriHashes: newOrg.nodered_instances.map(nri => nri.nri_hash),
 		telegramInvitationLink: orgData.ORGANIZATION_TELEGRAM_INVITATION_LINK,
 		telegramChatId: orgData.ORGANIZATION_TELEGRAM_CHAT_ID,
 		orgAdminArray: [{

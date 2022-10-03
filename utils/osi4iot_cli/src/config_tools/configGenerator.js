@@ -121,7 +121,12 @@ export default function (osi4iotState) {
 		"certfile /mosquitto/mqtt_certs/server.crt\n",
 		"keyfile /mosquitto/mqtt_certs/server.key\n",
 		"require_certificate true\n",
-		"use_identity_as_username true\n"
+		"use_identity_as_username true\n",
+		"\n",
+		"# WS for health check\n",
+		"listener 8080 127.0.0.1\n",
+		"protocol websockets\n"
+
 	]
 
 	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
@@ -161,21 +166,25 @@ export default function (osi4iotState) {
 
 	const mosquittoGoAuthConf = [
 		"auth_plugin /mosquitto/go-auth.so\n",
+		"auth_opt_log_level info\n",
+		"auth_opt_log_dest stdout\n",
 		"auth_opt_backends http\n",
+		"auth_opt_disable_superuser true\n",
 		"auth_opt_http_host admin_api\n",
 		"auth_opt_http_port 3200\n",
 		"auth_opt_http_getuser_uri /auth/mosquitto_user\n",
 		"auth_opt_http_aclcheck_uri /auth/mosquitto_aclcheck\n",
 		"auth_opt_http_method POST\n",
-		//
-		// "auth_plugin /mosquitto/go-auth.so\n",
-		// "auth_opt_backends jwt\n",
-		// "auth_opt_jwt_mode remote\n",
-		// "auth_opt_jwt_host admin_api\n",
-		// "auth_opt_jwt_port 3200\n",
-		// "auth_opt_jwt_getuser_uri /auth/mosquitto_auth\n",
-		// "auth_opt_jwt_aclcheck_uri /auth/mosquitto_aclcheck\n",
-		// "auth_opt_jwt_http_method POST\n",
+		"\n",
+		"auth_opt_cache true\n",
+		"auth_opt_cache_type go-cache\n",
+		"auth_opt_cache_reset true\n",
+		"auth_opt_cache_refresh true\n",
+		"\n",
+		"auth_opt_auth_cache_seconds 60\n",
+		"auth_opt_acl_cache_seconds 60\n",
+		"auth_opt_auth_jitter_seconds 5\n",
+		"auth_opt_acl_jitter_seconds 5"
 	]
 
 	if (fs.existsSync('./config/mosquitto/go-auth.conf')) {

@@ -13,9 +13,9 @@ import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
-import GeoNodeRedInstance from "./GeoNodeRedInstance";
 import { INodeRedInstance } from "../TableColumns/nodeRedInstancesInOrgsColumns";
 import GeoMasterDevice from "./GeoMasterDevice";
+import GeoNodeRedInstance from "./GeoNodeRedInstance";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";

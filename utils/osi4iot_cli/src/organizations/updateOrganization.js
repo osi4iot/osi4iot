@@ -55,7 +55,7 @@ export default async function () {
 					clc.cyanBright('Country'),
 					clc.cyanBright('Building Id'),
 					clc.cyanBright('Org hash'),
-					clc.cyanBright('Num master devices')
+					clc.cyanBright('Num nodered instances')
 				],
 				colWidths: [5, 30, 15, 30, 19, 8, 19, 19, 10, 18, 12],
 				wordWrap: true,
@@ -103,6 +103,7 @@ export default async function () {
 					const orgId = parseInt(answers.orgId);
 					const orgToUpdate = orgs.filter(org => org.id === orgId)[0];
 					const nodeRedInstancesInOrg = nodeRedInstances.filter(md => md.orgId === orgId);
+					updateStateForNodeRedInstancesInOrg(osi4iotState, orgToUpdate, nodeRedInstancesInOrg);
 					updateOrgQuestions(accessToken, osi4iotState, orgToUpdate, nodeRedInstancesInOrg);
 				});
 		} else {
@@ -110,6 +111,22 @@ export default async function () {
 			chooseOption();
 		}
 	}
+}
+
+const updateStateForNodeRedInstancesInOrg = (osi4iotState, orgToUpdate, nodeRedInstancesInOrg) => {
+	const orgAcronym = orgToUpdate.acronym;
+	const currentOrgs = osi4iotState.certs.mqtt_certs.organizations;
+	const nodeRedInstancesInOrgHashes = nodeRedInstancesInOrg.map(nri => nri.nriHash);
+	for (let iOrg = 0; iOrg < currentOrgs.length; iOrg++) {
+		if (currentOrgs[iOrg].org_acronym.toUpperCase() === orgAcronym.toUpperCase()) {
+			const nriArrayFiltered = currentOrgs[iOrg].nodered_instances.filter(nri => nodeRedInstancesInOrgHashes.includes(nri.nriHash));
+			currentOrgs[iOrg].nodered_instances = nriArrayFiltered;
+			break;
+		}
+	}
+	osi4iotState.certs.mqtt_certs.organizations = currentOrgs;
+	const osi4iotStateFile = JSON.stringify(osi4iotState);
+	fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 }
 
 const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInstancesInOrg) => {
@@ -340,7 +357,7 @@ const removeNodeRedInstanceQuestions = (accessToken, osi4iotState, orgToUpdate, 
 			nodeRedInstance.nodeRedInstanceHash,
 			nodeRedInstance.orgId,
 			nodeRedInstance.groupId === null ? "-" : nodeRedInstance.groupId,
-			nodeRedInstancedeviceId === null ? "-" : nodeRedInstance.deviceId
+			nodeRedInstance.deviceId === null ? "-" : nodeRedInstance.deviceId
 		];
 		table.push(row);
 	}
@@ -451,7 +468,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 		country: orgData.ORGANIZATION_COUNTRY,
 		buildingId: parseInt(orgData.BUILDING_ID, 10),
 		orgHash: org_hash,
-		nodeRedInstanceHashes: new_nodered_instances.map(nri => nri.nri_hash),
+		nriHashes: new_nodered_instances.map(nri => nri.nri_hash),
 	};
 
 	const response = await needle('patch', url, updateOrgData, optionsToken)

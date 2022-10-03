@@ -403,6 +403,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             const headerName = (column.Header as string);
             if (headerName === "Payload format") return "450px";
             else if (headerName === "Refresh tokens") return "1200px";
+            else if (headerName === "Timestamp") return "400px";
             else return "auto"
         } else return "auto";
     });

@@ -9,6 +9,7 @@
     "@testing-library/react": "^11.1.0",
     "@testing-library/user-event": "^12.1.10",
     "@turf/center-of-mass": "^6.5.0",
+    "@turf/point-on-feature": "^6.5.0",
     "@turf/rhumb-destination": "^6.5.0",
     "@types/jest": "^26.0.15",
     "@types/match-sorter": "^6.0.0",

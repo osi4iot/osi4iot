@@ -219,6 +219,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
             folderPermission: values.folderPermission,
             groupAdminDataArray: [...values.groupAdminDataArray],
             floorNumber: values.floorNumber,
+            mqttActionAllowed: values.mqttActionAllowed,
             featureIndex: values.featureIndex,
         }
         setIsSubmitting(true);

@@ -78,8 +78,8 @@ services:
       - "8883:8883"
       - "9001:9001"
     volumes:
-      - mosquitto_data:/mosquitto/data/
-      - mosquitto_log:/mosquitto/log/
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
       # - /etc/timezone:/etc/timezone:ro
       # - /etc/localtime:/etc/localtime:ro
     secrets:

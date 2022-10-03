@@ -180,7 +180,8 @@ const EditDevice: FC<EditDeviceProps> = ({
             name: values.name,
             description: values.description,
             longitude: values.longitude,
-            latitude: values.latitude
+            latitude: values.latitude,
+            mqttActionAllowed: values.mqttActionAllowed
         }
 
         const deviceInputFormData = { deviceInputFormData: deviceInitInputFormData };

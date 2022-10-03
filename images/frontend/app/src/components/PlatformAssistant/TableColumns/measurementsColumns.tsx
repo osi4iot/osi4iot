@@ -29,7 +29,7 @@ interface DeleteMeasurementModalProps {
     groupId: number;
     topic: string;
     rowIndex: number;
-    timestamp: number;
+    timestamp: string;
     refreshMeasurements: () => void;
 }
 

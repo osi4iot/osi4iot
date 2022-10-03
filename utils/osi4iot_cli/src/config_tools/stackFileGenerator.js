@@ -7,6 +7,7 @@ const defaultServiceImageVersion = {
 	system_prune: defaultVersion || 'latest',
 	traefik: defaultVersion || 'latest',
 	mosquitto: defaultVersion || 'latest',
+	mosquitto_go_auth: "dev",
 	agent: defaultVersion || 'latest',
 	portainer: defaultVersion || 'latest',
 	pgadmin4: defaultVersion || 'latest',
@@ -176,8 +177,8 @@ export default function (osi4iotState) {
 			// 		"9001:9001"
 			// 	],
 			// 	volumes: [
-			// 		'mosquitto_data:/mosquitto/data/',
-			// 		'mosquitto_log:/mosquitto/log/'
+			// 		'mosquitto_data:/mosquitto/data',
+			// 		'mosquitto_log:/mosquitto/log'
 			// 	],
 			// 	secrets: [
 			// 		{
@@ -211,7 +212,7 @@ export default function (osi4iotState) {
 			// 	}
 			// },
 			mosquitto: {
-				image: 'iegomez/mosquitto-go-auth:latest-mosquitto_2.0.14',
+				image: `ghcr.io/osi4iot/mosquitto_go_auth:${serviceImageVersion['mosquitto_go_auth']}`,
 				networks: [
 					'internal_net'
 				],

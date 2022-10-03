@@ -4,6 +4,8 @@ import ITopic from "../topic/topic.interface";
 import { getTopicsByDeviceId } from "../topic/topicDAL";
 import IMeasurement from "./measurement.interface";
 
+const timestampAsString = 'to_char(timestamp, \'YYYY-MM-DD HH24:MI:SS.USOF\') AS "timestamp"';
+
 export const updateMeasurement = async (groupUid: string, topic: string, timestamp: string, newPayload: string): Promise<IMeasurement> => {
 	const query = `UPDATE iot_data.thingData SET payload = $1
 				    WHERE timestamp = $2 AND
@@ -19,9 +21,9 @@ export const updateMeasurement = async (groupUid: string, topic: string, timesta
 	return result.rows[0];
 };
 
-export const deleteMeasurement = async (groupUid: string, topic: string, timestamp: string, ): Promise<IMeasurement> => {
+export const deleteMeasurement = async (groupUid: string, topic: string, timestamp: string,): Promise<IMeasurement> => {
 	const result = await pool.query(`DELETE FROM iot_data.thingData
-                    WHERE timestamp = $1 AND
+                    WHERE timestamp = $1::TIMESTAMPTZ AND
                     group_uid = $2 AND
                     topic = $3
 					RETURNING *;`, [timestamp, groupUid, topic]);
@@ -42,7 +44,7 @@ export const deleteMeasurementsBeforeDate = async (
 };
 
 export const getMeasurement = async (groupUid: string, topic: string, timestamp: string): Promise<IMeasurement> => {
-	const response = await pool.query(`SELECT timestamp, topic, payload
+	const response = await pool.query(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE timestamp = $1 AND
 									group_uid = $2 AND
@@ -51,7 +53,7 @@ export const getMeasurement = async (groupUid: string, topic: string, timestamp:
 }
 
 export const getLastMeasurements = async (groupUid: string, topic: string, count: number): Promise<IMeasurement[]> => {
-	const response = await pool.query(`SELECT timestamp, topic, payload
+	const response = await pool.query(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = $2
@@ -61,7 +63,7 @@ export const getLastMeasurements = async (groupUid: string, topic: string, count
 };
 
 export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topicsArray: string[]): Promise<IMeasurement[]> => {
-	const response = await pool.query(`SELECT DISTINCT ON (topic) timestamp, topic, payload
+	const response = await pool.query(`SELECT DISTINCT ON (topic) ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = ANY($2::text[])
@@ -72,7 +74,7 @@ export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topic
 };
 
 export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
-	const response = await pool.query(`SELECT timestamp, topic, payload
+	const response = await pool.query(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = $2
@@ -90,15 +92,16 @@ export const getDuringMeasurementsWithPagination = async (
 	itemsPerPage: number
 ): Promise<IMeasurement[]> => {
 	const offset = pageIndex * itemsPerPage;
-	const response = await pool.query(`SELECT timestamp, topic, payload
-									FROM iot_data.thingData
-									WHERE group_uid = $1 AND
-									topic = $2 AND
-									timestamp >= $3 AND
-									timestamp <= $4
-									ORDER BY timestamp DESC
-									LIMIT $5
-									OFFSET  $6;`, [groupUid, topic, start, end, itemsPerPage, offset]);
+	const response = await pool.query(`SELECT ${timestampAsString},
+	topic, payload FROM iot_data.thingData
+	WHERE group_uid = $1 AND
+	topic = $2 AND
+	timestamp >= $3 AND
+	timestamp <= $4
+	ORDER BY timestamp DESC
+	LIMIT $5
+	OFFSET  $6;`, [groupUid, topic, start, end, itemsPerPage, offset]);
+
 	return response.rows;
 };
 
@@ -113,7 +116,7 @@ export const getTotalRowsDuringMeasurements = async (
 									topic = $2 AND
 									timestamp >= $3 AND
 									timestamp <= $4`,
-									[groupUid, topic, start, end]);
+		[groupUid, topic, start, end]);
 	return response.rows[0].count;
 };
 

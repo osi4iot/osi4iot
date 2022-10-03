@@ -69,7 +69,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
                 .post(urlMeasurements, paginationData, config)
                 .then((response) => {
                     const measurements = response.data;
-                    measurements.map((measurement: { payload: Object; }) => {
+                    measurements.map((measurement: { payload: Object }) => {
                         measurement.payload = JSON.stringify(measurement.payload);
                         return measurement;
                     })

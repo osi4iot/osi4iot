@@ -42,9 +42,9 @@ const TableStyles = styled.div`
 
         tr td:nth-child(1),
         th td:nth-child(1) {
-            width: 200px;
-            min-width: 200px;
-            max-width: 200px;
+            width: 240px;
+            min-width: 240px;
+            max-width: 240px;
         }
 
         tr td:nth-child(2),
