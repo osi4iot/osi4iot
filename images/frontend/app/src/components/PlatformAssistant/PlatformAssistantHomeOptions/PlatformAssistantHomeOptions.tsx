@@ -469,10 +469,15 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 				.get(urlNodeRedInstances, config)
 				.then((response) => {
 					const nodeRedInstances = response.data;
-					setNodeRedInstancesTable(plaformAssistantDispatch, { nodeRedInstances });
-					setNodeRedInstancesLoading(false);
-					const reloadNodeRedInstancesTable = false;
-					setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
+                    nodeRedInstances.forEach((nodeRedInstance: { groupId: number | string; deleted: boolean | string }) => {
+                        if (nodeRedInstance.groupId === 0) nodeRedInstance.groupId = "-";
+                        if (nodeRedInstance.deleted === true) nodeRedInstance.deleted = "Yes";
+                        if (nodeRedInstance.deleted === false) nodeRedInstance.deleted = "No";
+                    });
+                    setNodeRedInstancesTable(plaformAssistantDispatch, { nodeRedInstances });
+                    setNodeRedInstancesLoading(false);
+                    const reloadNodeRedInstancesTable = false;
+                    setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
 				})
 				.catch((error) => {
 					console.log(error);

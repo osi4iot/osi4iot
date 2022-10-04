@@ -267,7 +267,9 @@ export const updateNodeRedInstancesInOrg = async (currentNodeRedInstancesInOrg: 
 			const orgId = newOrganizationData.id;
 			const nodeRedInstancInput: CreateNodeRedInstanceDto = {
 				nriHash,
-				orgId
+				orgId,
+				longitude: 0,
+				latitude: 0
 			}
 			nriToCreateQuerries.push(createNodeRedInstance(nodeRedInstancInput));
 		}

@@ -5,6 +5,7 @@ import { chooseOption } from '../menu/chooseOption.js';
 import login from '../menu/login.js';
 import certsGenerator from '../config_tools/certsGenerator.js';
 import findManagerDockerHost from '../menu/findManagerDockerHost.js';
+import stackFileGenerator from '../config_tools/stackFileGenerator.js';
 import runStack from '../menu/runStack.js';
 
 export default async function () {
@@ -36,12 +37,15 @@ export default async function () {
                 const response = await recoverNriMarkedAsDeleted(osi4iotState, nriMarkedAsDeleted, protocol, domainName, optionsToken);
                 if (response) {
                     if (response.message === "NodeRed instance updated successfully") {
-                        console.log(clc.greenBright("\nNodeRed instances recovered successfully\n"));
+                        console.log(clc.greenBright("\nNodeRed instances recovered successfully"));
             
                         console.log(clc.green('\nCreating certificates...'));
                         await certsGenerator(osi4iotState);
                         const osi4iotStateFile = JSON.stringify(osi4iotState);
                         fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+
+                        console.log(clc.green('Creating stack file...\n'))
+                        stackFileGenerator(osi4iotState);
             
                         const nodesData = osi4iotState.platformInfo.NODES_DATA;
                         const dockerHost = findManagerDockerHost(nodesData);

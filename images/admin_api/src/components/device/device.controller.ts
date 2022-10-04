@@ -29,6 +29,7 @@ import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUse
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByDevice } from "../mesurement/measurementDAL";
 import HttpException from "../../exceptions/HttpException";
+import sslDeviceCerticatesGenerator from "./sslDeviceCerticatesGenerator";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -96,6 +97,12 @@ class DeviceController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreateDeviceDto>(CreateDeviceDto),
 				this.createDevice
+			)
+			.get(
+				`${this.path}_ssl_certs/:groupId/:deviceId`,
+				groupExists,
+				groupAdminAuth,
+				this.getSslCertsByDeviceId
 			)
 	}
 
@@ -266,6 +273,18 @@ class DeviceController implements IController {
 				message = { message: `The device with name: ${deviceData.name} already exist` };
 			}
 			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getSslCertsByDeviceId = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const { deviceId } = req.params;
+			const device = await getDeviceByProp("id", deviceId);
+			if (!device) throw new ItemNotFoundException("The device", "id", deviceId);
+			const certs = await sslDeviceCerticatesGenerator(device);
+			res.status(200).send(certs);
 		} catch (error) {
 			next(error);
 		}

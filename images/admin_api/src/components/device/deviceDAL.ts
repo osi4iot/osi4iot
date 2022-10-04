@@ -58,12 +58,16 @@ export const updateDeviceByProp = async (propName: string, propValue: (string | 
 	]);
 };
 
-export const updateMqttPasswordOfDeviceById = async (id: number, newMqttPassword: string, device: IDevice): Promise<void> => {
+export const updateMqttPasswordOfDeviceById = async (device: IDevice, newMqttPassword: string): Promise<void> => {
 	const iterations = 10000;
-	const mqttPasswordHashed = crypto.pbkdf2Sync(newMqttPassword, device.mqttSalt, iterations, 50, 'sha256').toString('hex');
+
+	const response = await pool.query(`SELECT grafanadb.device.mqtt_salt AS "mqttSalt"
+	                                FROM grafanadb.device WHERE grafanadb.device.id = $1`, [device.id]);
+	const mqttSalt = response.rows[0].mqttSalt;
+	const mqttPasswordHashed = crypto.pbkdf2Sync(newMqttPassword, mqttSalt, iterations, 50, 'sha256').toString('hex');
 	const query = `UPDATE grafanadb.device SET mqtt_password = $1, updated = NOW()
 				WHERE grafanadb.device.id = $2;`;
-	await pool.query(query, [mqttPasswordHashed, id]);
+	await pool.query(query, [mqttPasswordHashed, device.id]);
 };
 
 

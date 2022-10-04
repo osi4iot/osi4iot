@@ -44,7 +44,7 @@ import UpdateGroupMemberDto from "./interfaces/groupMemberUpdate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IGroup from "./interfaces/Group.interface";
 import { createDemoDashboards, getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfGroup } from "./dashboardDAL";
-import sslCerticatesGenerator from "./sslCerticatesGenerator";
+import sslCerticatesGenerator from "../device/sslDeviceCerticatesGenerator";
 import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
@@ -102,12 +102,6 @@ class GroupController implements IController {
 			);
 
 		this.router
-			.get(
-				`${this.path}/:groupId/ssl_certs/`,
-				groupExists,
-				groupAdminAuth,
-				this.getSslCerts
-			)
 			.patch(
 				`${this.path}/:groupId/change_uid/`,
 				groupExists,
@@ -635,15 +629,6 @@ class GroupController implements IController {
 			const groupMembersToRemove = groupMembers.filter(member => member.roleInGroup !== "Admin");
 			const message = await removeMembersInGroup(req.group, groupMembersToRemove);
 			res.status(200).send(message);
-		} catch (error) {
-			next(error);
-		}
-	};
-
-	private getSslCerts = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
-		try {
-			const certs = await sslCerticatesGenerator(req.group);
-			res.status(200).send(certs);
 		} catch (error) {
 			next(error);
 		}

@@ -334,7 +334,7 @@ const removeNodeRedInstanceQuestions = (accessToken, osi4iotState, orgToUpdate, 
 			clc.cyanBright('Org Id'),
 			clc.cyanBright('Group Id'),
 		],
-		colWidths: [8, 15, 8, 8],
+		colWidths: [8, 24, 8, 11],
 		wordWrap: true,
 		style: { 'padding-left': 1, 'padding-right': 1 }
 	});
@@ -391,7 +391,7 @@ const removeNodeRedInstanceQuestions = (accessToken, osi4iotState, orgToUpdate, 
 			const nodeRedInstanceHashesToRemove = [];
 			for (let irow = 0; irow < answers.NODERED_INSTANCES_TO_REMOVE.length; irow++) {
 				if (answers.NODERED_INSTANCES_TO_REMOVE[irow] === "selected") {
-					nodeRedInstanceHashesToRemove.push(nodeRedInstancesInOrg[irow].nodeRedInstanceHash);
+					nodeRedInstanceHashesToRemove.push(nodeRedInstancesInOrg[irow].nriHash);
 				}
 			}
 			orgData.nodeRedInstanceHashesToRemove = nodeRedInstanceHashesToRemove;
@@ -432,7 +432,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 		const old_nodered_instances = osi4iotState.certs.mqtt_certs.organizations[orgIndex].nodered_instances;
 		for (let inri = 0; inri < currentNumNodeRedInstanceInOrg; inri++) {
 			if (!orgData.nodeRedInstanceHashesToRemove.includes(old_nodered_instances[inri].nri_hash)) {
-				new_nodered_instances.push(old_nodered_instances[idev]);
+				new_nodered_instances.push(old_nodered_instances[inri]);
 			}
 		}
 	}

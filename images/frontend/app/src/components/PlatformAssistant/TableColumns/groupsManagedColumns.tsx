@@ -1,9 +1,6 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
-import { saveAs } from 'file-saver';
-import JSZip from 'jszip';
-import DownloadFileIcon from '../Utils/DownloadFileIcon';
 import ExChangeIcon from '../Utils/ExchangeIcon';
 import AddUsersIcon from '../Utils/AddUsersIcon';
 import RemoveUsersIcon from '../Utils/RemoveUsersIcon';
@@ -104,49 +101,6 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
 }
 
 
-interface DownLoadSslCertsProps {
-    rowIndex: number;
-    groupId: number;
-}
-
-const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
-    const { accessToken, refreshToken } = useAuthState();
-    const authDispatch = useAuthDispatch();
-
-    const handleClick = () => {
-        const url = `${protocol}://${domainName}/admin_api/group/${groupId}/ssl_certs`;
-        const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
-            .get(url, config)
-            .then((response) => {
-                const data = response.data;
-                const validityDays = data.validityDays;
-                const message = `Ssl certs created successfully. These are valid for ${validityDays} days`;
-                var zip = new JSZip();
-                const fileName = `group_${groupId}_certs`;
-                var group_certs = zip.folder(`${fileName}`);
-                group_certs?.file("ca.crt", data.caCert);
-                group_certs?.file(`group_${groupId}.crt`, data.clientCert);
-                group_certs?.file(`group_${groupId}.key`, data.clientKey);
-                zip.generateAsync({ type: "blob" })
-                    .then(function (content) {
-                        saveAs(content, `${fileName}.zip`);
-                    });
-                toast.success(message);
-            })
-            .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
-            })
-    };
-
-    return (
-        <span onClick={handleClick}>
-            <DownloadFileIcon rowIndex={rowIndex} />
-        </span>
-    )
-}
-
 interface ChangeGroupHashModalProps {
     rowIndex: number;
     groupId: number;
@@ -227,7 +181,6 @@ export interface IGroupManaged {
 interface IGroupManagedColumn extends IGroupManaged {
     addGroupMembers: string;
     removeAllGroupMembers: string;
-    sslCerts: string;
     changeGroupHash: string;
 }
 
@@ -274,7 +227,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableFilters: true
         },
         {
-            Header: "Floor Number",
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Floor<br />number</div>,
             accessor: "floorNumber",
             disableFilters: true
         },
@@ -310,18 +263,6 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const groupId = row?.cells[0]?.value;
                 return <RemoveAllGroupMembersModal groupId={groupId} rowIndex={rowIndex} refreshGroupMembers={refreshGroupMembers} />
-            }
-        },
-        {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>SSL<br />certs</div>,
-            accessor: "sslCerts",
-            disableFilters: true,
-            disableSortBy: true,
-            Cell: props => {
-                const rowIndex = parseInt(props.row.id, 10);
-                const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const groupId = row?.cells[0]?.value;
-                return <DownLoadSslCerts groupId={groupId} rowIndex={rowIndex} />
             }
         },
         {

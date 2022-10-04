@@ -293,12 +293,15 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 .get(urlNodeRedInstances, config)
                 .then((response) => {
                     const nodeRedInstances = response.data;
-                    nodeRedInstances.forEach((nodeRedInstance: { groupId: string | null; deviceId: string | null; }) => {
-                        if (nodeRedInstance.groupId === null) nodeRedInstance.groupId = "-";
-                        if (nodeRedInstance.deviceId === null) nodeRedInstance.deviceId = "-";
+                    nodeRedInstances.forEach((nodeRedInstance: { groupId: number | string; deleted: boolean | string }) => {
+                        if (nodeRedInstance.groupId === 0) nodeRedInstance.groupId = "-";
+                        if (nodeRedInstance.deleted === true) nodeRedInstance.deleted = "Yes";
+                        if (nodeRedInstance.deleted === false) nodeRedInstance.deleted = "No";
                     });
                     setNodeRedInstancesTable(plaformAssistantDispatch, { nodeRedInstances });
                     setNodeRedInstancesLoading(false);
+                    const reloadNodeRedInstancesTable = false;
+                    setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
                 })
                 .catch((error) => {
                     console.log(error);

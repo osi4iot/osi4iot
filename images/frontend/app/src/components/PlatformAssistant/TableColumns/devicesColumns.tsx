@@ -12,6 +12,9 @@ import { DEVICES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDeviceIdToEdit, setDevicesOptionToShow, setDeviceRowIndexToEdit, useDevicesDispatch } from '../../../contexts/devicesOptions';
 import { IDeviceInputData } from '../../../contexts/devicesOptions/interfaces';
 import { setDeviceInputData } from '../../../contexts/devicesOptions/devicesAction';
+import { saveAs } from 'file-saver';
+import JSZip from 'jszip';
+import DownloadFileIcon from '../Utils/DownloadFileIcon';
 
 export interface IDevice {
     id: number;
@@ -24,6 +27,7 @@ export interface IDevice {
     longitude: number;
     deviceUid: string;
     masterDeviceUrl: string;
+    sslCerts: string;
     mqttActionAllowed: string;
 }
 
@@ -78,7 +82,7 @@ const DeleteDeviceModal: FC<DeleteDeviceModalProps> = ({ rowIndex, groupId, devi
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -166,7 +170,7 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -176,6 +180,52 @@ const ChangeDeviceHashModal: FC<ChangeDeviceHashModalProps> = ({ rowIndex, group
 
     return (
         <ExChangeIcon action={showModal} rowIndex={rowIndex} />
+    )
+}
+
+interface DownLoadSslCertsProps {
+    rowIndex: number;
+    groupId: number;
+    deviceId: number;
+}
+
+const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId, deviceId }) => {
+    const { accessToken, refreshToken } = useAuthState();
+    const authDispatch = useAuthDispatch();
+
+    const handleClick = () => {
+        const url = `${protocol}://${domainName}/admin_api/device_ssl_certs/${groupId}/${deviceId}`;
+        const config = axiosAuth(accessToken);
+        axiosInstance(refreshToken, authDispatch)
+            .get(url, config)
+            .then((response) => {
+                const data = response.data;
+                const validityDays = data.validityDays;
+                const message = `Ssl certs created successfully. These are valid for ${validityDays} days`;
+                var zip = new JSZip();
+                const fileName = `device_${deviceId}_certs`;
+                const secrets = `username=${data.username}\npassword=${data.password}\n`
+                var device_certs = zip.folder(`${fileName}`);
+                device_certs?.file("ca.crt", data.caCert);
+                device_certs?.file(`device_${deviceId}.crt`, data.clientCert);
+                device_certs?.file(`device_${deviceId}.key`, data.clientKey);
+                device_certs?.file(`device_${deviceId}.secrets`, secrets);
+                zip.generateAsync({ type: "blob" })
+                    .then(function (content) {
+                        saveAs(content, `${fileName}.zip`);
+                    });
+                toast.success(message);
+            })
+            .catch((error) => {
+                const errorMessage = error.response.data.message;
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+            })
+    };
+
+    return (
+        <span onClick={handleClick}>
+            <DownloadFileIcon rowIndex={rowIndex} />
+        </span>
     )
 }
 
@@ -234,20 +284,14 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                     fontWeight: mqttActionAllowed === "None" ? 'bold' : 'normal'
                 };
                 return <span style={style}>{mqttActionAllowed}</span>;
-            }              
-        },        
-        {
-            Header: "MasterDev Url",
-            accessor: "masterDeviceUrl",
-            disableFilters: true,
-            disableSortBy: true,          
+            }
         },
         {
             Header: "Device hash",
             accessor: "deviceUid",
             disableFilters: true,
             disableSortBy: true
-        },       
+        },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Change<br />hash</div>,
             accessor: "changeDeviceHash",
@@ -259,6 +303,19 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const deviceId = row?.cells[0]?.value;
                 const groupId = row?.cells[2]?.value;
                 return <ChangeDeviceHashModal groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} refreshDevices={refreshDevices} />
+            }
+        },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>SSL<br />certs</div>,
+            accessor: "sslCerts",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: props => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const groupId = row?.cells[0]?.value;
+                const deviceId = row?.cells[0]?.value;
+                return <DownLoadSslCerts groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} />
             }
         },
         {
@@ -276,7 +333,7 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const type = row?.cells[5]?.value;
                 const longitude = row?.cells[6]?.value;
                 const latitude = row?.cells[7]?.value;
-                const mqttActionAllowed= row?.cells[8]?.value;
+                const mqttActionAllowed = row?.cells[8]?.value;
                 const deviceInputData = { groupId, name, description, type, longitude, latitude, mqttActionAllowed }
                 return <EditDevice deviceId={deviceId} rowIndex={rowIndex} deviceInputData={deviceInputData} />
             }

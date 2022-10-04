@@ -7,7 +7,8 @@ export interface INodeRedInstance {
 	nriHash: string;
 	instanceNumber: number;
 	longitude: number;
-	latitude: number;
+    latitude: number;
+    deleted: string;
 }
 
 
@@ -18,6 +19,7 @@ export interface INodeRedInstanceInOrgsColumns {
     groupId: number;
     longitude: number;
     latitude: number;
+    deleted: string;
 }
 
 
@@ -50,5 +52,9 @@ export const NODERED_INSTANCE_IN_ORGS_COLUMNS: Column<INodeRedInstanceInOrgsColu
         accessor: "latitude",
         disableFilters: true,
         disableSortBy: true
+    },
+    {
+        Header: "Deleted",
+        accessor: "deleted",
     },
 ];
