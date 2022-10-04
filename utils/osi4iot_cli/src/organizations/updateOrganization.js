@@ -13,6 +13,7 @@ import stackFileGenerator from '../config_tools/stackFileGenerator.js';
 import addNFSFolders from '../generic_tools/addNFSFolders.js';
 import removeNFSFolders from '../generic_tools/removeNFSFolders.js';
 import runStack from '../menu/runStack.js';
+import recoverNriMarkedAsDeleted from './recoverNodeRedInstancesDeleted.js';
 
 
 export default async function () {
@@ -41,7 +42,12 @@ export default async function () {
 			const urlGetNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances`;
 			const nodeRedInstances = await needle('get', urlGetNodeRedInstances, optionsToken)
 				.then(res => res.body)
-				.catch(err => console.log("Get node-red instances error: %s", err.message));
+				.catch(err => console.log("Error getting node-red instances: %s", err.message));
+
+			const nriMarkedAsDeleted = nodeRedInstances.filter(nri => nri.deleted === true);
+			if (nriMarkedAsDeleted.length !== 0) {
+				await recoverNriMarkedAsDeleted(osi4iotState, nriMarkedAsDeleted, protocol, domainName, optionsToken);
+			}
 
 			const table = new Table({
 				head: [
@@ -55,9 +61,10 @@ export default async function () {
 					clc.cyanBright('Country'),
 					clc.cyanBright('Building Id'),
 					clc.cyanBright('Org hash'),
-					clc.cyanBright('Num nodered instances')
+					clc.cyanBright('Mqtt acc'),
+					clc.cyanBright('Num nodered instances'),
 				],
-				colWidths: [5, 30, 15, 30, 19, 8, 19, 19, 10, 18, 12],
+				colWidths: [5, 30, 15, 30, 19, 8, 19, 19, 12, 18, 12, 13],
 				wordWrap: true,
 				style: { 'padding-left': 1, 'padding-right': 1 }
 			});
@@ -77,6 +84,7 @@ export default async function () {
 					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
+					orgs[iorg].mqttActionAllowed,
 					numNodeRedInstancesInOrg
 				];
 				table.push(row);
@@ -103,7 +111,6 @@ export default async function () {
 					const orgId = parseInt(answers.orgId);
 					const orgToUpdate = orgs.filter(org => org.id === orgId)[0];
 					const nodeRedInstancesInOrg = nodeRedInstances.filter(md => md.orgId === orgId);
-					updateStateForNodeRedInstancesInOrg(osi4iotState, orgToUpdate, nodeRedInstancesInOrg);
 					updateOrgQuestions(accessToken, osi4iotState, orgToUpdate, nodeRedInstancesInOrg);
 				});
 		} else {
@@ -111,22 +118,6 @@ export default async function () {
 			chooseOption();
 		}
 	}
-}
-
-const updateStateForNodeRedInstancesInOrg = (osi4iotState, orgToUpdate, nodeRedInstancesInOrg) => {
-	const orgAcronym = orgToUpdate.acronym;
-	const currentOrgs = osi4iotState.certs.mqtt_certs.organizations;
-	const nodeRedInstancesInOrgHashes = nodeRedInstancesInOrg.map(nri => nri.nriHash);
-	for (let iOrg = 0; iOrg < currentOrgs.length; iOrg++) {
-		if (currentOrgs[iOrg].org_acronym.toUpperCase() === orgAcronym.toUpperCase()) {
-			const nriArrayFiltered = currentOrgs[iOrg].nodered_instances.filter(nri => nodeRedInstancesInOrgHashes.includes(nri.nriHash));
-			currentOrgs[iOrg].nodered_instances = nriArrayFiltered;
-			break;
-		}
-	}
-	osi4iotState.certs.mqtt_certs.organizations = currentOrgs;
-	const osi4iotStateFile = JSON.stringify(osi4iotState);
-	fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 }
 
 const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInstancesInOrg) => {
@@ -339,12 +330,11 @@ const removeNodeRedInstanceQuestions = (accessToken, osi4iotState, orgToUpdate, 
 	const table = new Table({
 		head: [
 			clc.cyanBright('Id'),
-			clc.cyanBright('Master Device Hash'),
+			clc.cyanBright('Nodered instance Hash'),
 			clc.cyanBright('Org Id'),
 			clc.cyanBright('Group Id'),
-			clc.cyanBright('Device Id'),
 		],
-		colWidths: [8, 15, 8, 8, 8],
+		colWidths: [8, 15, 8, 8],
 		wordWrap: true,
 		style: { 'padding-left': 1, 'padding-right': 1 }
 	});
@@ -354,10 +344,9 @@ const removeNodeRedInstanceQuestions = (accessToken, osi4iotState, orgToUpdate, 
 		nodeRedInstancesIdArray.push(nodeRedInstance.id);
 		const row = [
 			nodeRedInstance.id,
-			nodeRedInstance.nodeRedInstanceHash,
+			nodeRedInstance.nriHash,
 			nodeRedInstance.orgId,
-			nodeRedInstance.groupId === null ? "-" : nodeRedInstance.groupId,
-			nodeRedInstance.deviceId === null ? "-" : nodeRedInstance.deviceId
+			nodeRedInstance.groupId === 0 ? "-" : nodeRedInstance.groupId,
 		];
 		table.push(row);
 	}

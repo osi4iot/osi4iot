@@ -7,10 +7,11 @@ import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeceptio
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import CreateNodeRedInstanceDto from "./nodeRedInstance.dto";
-import { createNodeRedInstance, deleteNodeRedInstanceById, getAllNodeRedInstances, getNodeRedInstanceByProp, getNodeRedInstancesByOrgsIdArray, updateNodeRedInstanceByProp } from "./nodeRedInstanceDAL";
+import { createNodeRedInstance, deleteNodeRedInstanceById, getAllNodeRedInstances, getNodeRedInstanceByProp, getNodeRedInstancesByOrgsIdArray, recoverNodeRedInstancesMarkedAsDeleted, updateNodeRedInstanceByProp } from "./nodeRedInstanceDAL";
 import HttpException from "../../exceptions/HttpException";
 import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 import INodeRedInstance from "./nodeRedInstance.interface";
+import RecoverNodeRedInstanceDto from "./recoverNodeRedInstances.dto";
 
 class NodeRedInstanceController implements IController {
 	public path = "/nodered_instance";
@@ -42,6 +43,12 @@ class NodeRedInstanceController implements IController {
 				`${this.path}/:nriId`,
 				superAdminAuth,
 				this.deleteNodeRedInstanceById
+			)
+			.patch(
+				`${this.path}/recover_instances`,
+				superAdminAuth,
+				validationMiddleware<RecoverNodeRedInstanceDto>(RecoverNodeRedInstanceDto),
+				this.recoverNodeRedInstances
 			)
 			.patch(
 				`${this.path}/:nriId`,
@@ -151,6 +158,21 @@ class NodeRedInstanceController implements IController {
 		}
 	};
 
+
+	private recoverNodeRedInstances = async (
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { nriIdArray } = req.body;
+			await recoverNodeRedInstancesMarkedAsDeleted(nriIdArray);
+			const message = { message: "NodeRed instance updated successfully" }
+			res.status(200).json(message);
+		} catch (error) {
+			next(error);
+		}
+	};
 
 	private createNodeRedInstance = async (
 		req: Request,

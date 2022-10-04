@@ -36,7 +36,7 @@ export default async function () {
 				.catch(err => console.log("Get org error: %s", err.message));
 
 			const urlGetNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances`;
-			const nodeRedInstances = await needle('get', urlGetNodeRedInstance, optionsToken)
+			const nodeRedInstances = await needle('get', urlGetNodeRedInstances, optionsToken)
 				.then(res => res.body)
 				.catch(err => console.log("Get node-red instances error: %s", err.message));
 
@@ -52,9 +52,10 @@ export default async function () {
 					clc.cyanBright('Country'),
 					clc.cyanBright('Building Id'),
 					clc.cyanBright('Org hash'),
+					clc.cyanBright('Mqtt acc'),
 					clc.cyanBright('Num master devices')
 				],
-				colWidths: [5, 30, 15, 30, 19, 8, 19, 19, 10, 18, 12],
+				colWidths: [5, 30, 15, 30, 19, 8, 19, 19, 12, 18, 12, 13],
 				wordWrap: true,
 				style: { 'padding-left': 1, 'padding-right': 1 }
 			});
@@ -75,7 +76,8 @@ export default async function () {
 					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
-					numNodeRedInstancesInOrg
+					numNodeRedInstancesInOrg,
+					orgs[iorg].mqttActionAllowed
 				];
 				table.push(row);
 			}

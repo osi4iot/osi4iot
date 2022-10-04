@@ -6,6 +6,7 @@ export default interface INodeRedInstance {
 	intanceNumber: number;
 	longitude: number;
 	latitude: number;
+	deleted: boolean;
 	created: string;
 	updated: string;
 }

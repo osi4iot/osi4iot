@@ -489,6 +489,7 @@ export async function dataBaseInitialization() {
 					org_id bigint,
 					group_id bigint,
 					geolocation POINT,
+					deleted boolean NOT NULL DEFAULT FALSE,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id

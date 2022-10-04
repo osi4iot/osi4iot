@@ -34,6 +34,8 @@ import {
     setReloadGlobalUsersTable,
     useNodeRedInstancesTable,
     setNodeRedInstancesTable,
+    useReloadNodeRedInstancesTable,
+    setReloadNodeRedInstancesTable,
 } from '../../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
 import { filterBuildings } from '../../../tools/filterBuildings';
@@ -142,7 +144,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const [reloadBuildings, setReloadBuildings] = useState(false);
     const [reloadFloors, setReloadloors] = useState(false);
     const reloadOrgsManagedTable = useReloadOrgsManagedTable();
-    const [reloadNodeRedInstances, setReloadNodeRedInstances] = useState(false);
+    const reloadNodeRedInstancesTable = useReloadNodeRedInstancesTable();
     const reloadOrgUsersTable = useReloadOrgUsersTable();
     const reloadGroupsTable = useReloadGroupsTable();
 
@@ -153,10 +155,10 @@ const OrganizationAdminOptions: FC<{}> = () => {
     }, [plaformAssistantDispatch]);
 
     const refreshNodeRedInstances = useCallback(() => {
-        setReloadNodeRedInstances(true);
         setNodeRedInstancesLoading(true);
-        setTimeout(() => setReloadNodeRedInstances(false), 500);
-    }, []);
+        const reloadNodeRedInstancesTable = true;
+        setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
+    }, [plaformAssistantDispatch]);
 
 
     const refreshOrgUsers = useCallback(() => {
@@ -284,7 +286,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     ]);
 
     useEffect(() => {
-        if (nodeRedInstancesTable.length === 0 || reloadNodeRedInstances) {
+        if (nodeRedInstancesTable.length === 0 || reloadNodeRedInstancesTable) {
             const urlNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances/user_managed`;
             const config = axiosAuth(accessToken);
             axiosInstance(refreshToken, authDispatch)
@@ -309,7 +311,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         accessToken,
         refreshToken,
         authDispatch,
-        reloadNodeRedInstances,
+        reloadNodeRedInstancesTable,
         plaformAssistantDispatch,
         nodeRedInstancesTable.length
     ]);

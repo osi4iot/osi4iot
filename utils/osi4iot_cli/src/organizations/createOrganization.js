@@ -7,7 +7,7 @@ import needle from 'needle';
 import runStack from '../menu/runStack.js';
 import login from '../menu/login.js';
 import { chooseOption } from '../menu/chooseOption.js';
-import certsGenerator from '../config_tools/certsGenerator.js';;
+import certsGenerator from '../config_tools/certsGenerator.js';
 import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 import generateNodeLabels from '../nodes/generateNodeLabels.js';
 import stackFileGenerator from '../config_tools/stackFileGenerator.js';
@@ -193,6 +193,13 @@ export default async function () {
 						when: (answers) => workerNodesRows.length !== 0 && answers.ARE_ORG_SERVICES_DEPLOYED_IN_EXCLUSIVE_NODES
 					},
 					{
+						name: 'MQTT_ACTION_ALLOWED',
+						message: "Mqtt action allowed for the organization",
+						type: 'list',
+						default: "Pub & Sub",
+						choices: ["Pub & Sub", "Pub", "Sub", "None"],
+					},					
+					{
 						name: 'NUMBER_OF_NODERED_INSTANCES_IN_ORG',
 						message: 'Number of node-red intances in org:',
 						default: 3,
@@ -205,7 +212,7 @@ export default async function () {
 								return "Please type an integer number greater or equal to one";
 							}
 						}
-					},
+					},			
 					{
 						name: 'ORG_ADMIN_FIRST_NAME',
 						message: 'Org admin first name:',
@@ -311,6 +318,7 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 		nriHashes: newOrg.nodered_instances.map(nri => nri.nri_hash),
 		telegramInvitationLink: orgData.ORGANIZATION_TELEGRAM_INVITATION_LINK,
 		telegramChatId: orgData.ORGANIZATION_TELEGRAM_CHAT_ID,
+		mqttActionAllowed: orgData.MQTT_ACTION_ALLOWED,
 		orgAdminArray: [{
 			firstName: orgData.ORG_ADMIN_FIRST_NAME,
 			surname: orgData.ORG_ADMIN_SURNAME,

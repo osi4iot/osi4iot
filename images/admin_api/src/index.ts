@@ -1,8 +1,6 @@
 /* istanbul ignore file */
 import "reflect-metadata";
 import App from "./app";
-import fs from "fs";
-import path from "path";
 import HealthCheckController from "./utils/healthCheck/healthCheck.controller";
 import AuthenticationController from "./components/Authentication/authentication.controller";
 import { logger } from "./config/winston";

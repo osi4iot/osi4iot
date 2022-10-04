@@ -1,6 +1,4 @@
 import inquirer from '../generic_tools/inquirer.js';
-import os from 'os';
-import { execSync } from 'child_process'
 import platformInitForm from '../menu/platformInitForm.js';
 import runStack from './runStack.js';
 import stopStack from './stopStack.js';
@@ -10,6 +8,7 @@ import createOrganization from '../organizations/createOrganization.js';
 import getOrganizations from '../organizations/getOrganizations.js';
 import updateOrganization from '../organizations/updateOrganization.js';
 import removeOrganization from '../organizations/removeOrganization.js';
+import recoverNodeRedInstancesDeleted from '../organizations/recoverNodeRedInstancesDeleted.js';
 import listNodes from '../nodes/listNodes.js';
 import addNodes from '../nodes/addNodes.js';
 import updateDomainCerts from './updateDomainCerts.js';
@@ -24,7 +23,7 @@ export const chooseOption = () => {
 				message: 'Choose one of the following options: ',
 				default: 'Init platform',
 				type: 'list',
-				pageSize: 15,
+				pageSize: 16,
 				loop: false,
 				choices: [
 					'Init platform',
@@ -34,6 +33,7 @@ export const chooseOption = () => {
 					'Create organization',
 					'Update organization',
 					'Remove organization',
+					'Recover nodered instances',
 					'List nodes',
 					'Add nodes',
 					'Remove node',
@@ -68,6 +68,9 @@ export const chooseOption = () => {
 					break;
 				case 'Remove organization':
 					await removeOrganization();
+					break;
+				case 'Recover nodered instances':
+					await recoverNodeRedInstancesDeleted();
 					break;
 				case 'List nodes':
 					await listNodes();
