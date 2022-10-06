@@ -47,7 +47,7 @@ const GeoNodeRedInstance: FC<GeoNodeRedInstanceProps> = ({
         <>
             <Circle
                 center={[nriData.latitude, nriData.longitude]}
-                pathOptions={{ color: "#363632", fillColor: "#363632", fillOpacity: 1 }}
+                pathOptions={{ color: "#363632", fillColor: "#363632", fillOpacity: 0 }}
                 radius={1.5}
                 eventHandlers={{ click: clickNodeRedInstanceHandler }}
             >

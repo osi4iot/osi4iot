@@ -352,6 +352,7 @@ class OrganizationController implements IController {
 						latitude: 0,
 						longitude: 0,
 						type: "Main master",
+						iconRatio: 1.5,
 						mqttActionAllowed: "Pub & Sub"
 					},
 					{
@@ -360,6 +361,7 @@ class OrganizationController implements IController {
 						latitude: 0,
 						longitude: 0,
 						type: "Generic",
+						iconRatio: 1.5,
 						mqttActionAllowed: "Pub & Sub"
 					}
 				];

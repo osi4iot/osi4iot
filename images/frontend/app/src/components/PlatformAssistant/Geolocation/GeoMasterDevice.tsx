@@ -39,8 +39,6 @@ interface GeoMasterDeviceProps {
     digitalTwinsState: IDigitalTwinState[];
 }
 
-const deviceRadio = 0.0006;
-const circleRadio = 0.0020;
 
 const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
     deviceData,
@@ -52,8 +50,8 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
     const status = findOutStatus(devicesStateFiltered);
     const map = useMap();
 
-    const bounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceRadio), [deviceData]);
-    const outerBounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, circleRadio), [deviceData]);
+    const outerBounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceData.iconRatio * 0.001), [deviceData]);
+    const bounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceData.iconRatio * 0.0004), [deviceData]);
 
 
     const clickHandler = () => {
@@ -74,7 +72,7 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
             <Circle
                 center={[deviceData.latitude, deviceData.longitude]}
                 pathOptions={{ color: setDeviceCircleColor(deviceData.id, deviceSelected), fillColor: "#555555", fillOpacity: 1 }}
-                radius={1.5}
+                radius={deviceData.iconRatio}
                 eventHandlers={{ click: clickHandler }}
             >
                 {
@@ -113,7 +111,7 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
                 <Circle
                     center={[deviceData.latitude, deviceData.longitude]}
                     pathOptions={{ color: setMasterDeviceCircleColor(deviceData.id, deviceSelected), fillColor: "#555555", fillOpacity: 1 }}
-                    radius={0.8}
+                    radius={deviceData.iconRatio * 0.533}
                     eventHandlers={{ click: clickMasterDeviceHandler }}
                 >
                     <Tooltip sticky>

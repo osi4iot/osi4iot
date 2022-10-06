@@ -10,6 +10,7 @@ export default interface IDevice {
 	mqttActionAllowed?: string;
 	groupUid?: string;
 	deviceUid: string;
+	iconRatio: number;
 	masterDeviceUrl?: string;
 	longitude: number;
 	latitude: number;

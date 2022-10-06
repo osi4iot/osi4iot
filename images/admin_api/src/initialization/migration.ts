@@ -355,6 +355,7 @@ export async function dataBaseInitialization() {
 					device_uid VARCHAR(40) UNIQUE,
 					geolocation POINT,
 					type VARCHAR(40),
+					icon_ratio real NOT NULL DEFAULT 1.5,
 					mqtt_password VARCHAR(255),
 					mqtt_salt VARCHAR(40),
 					mqtt_action_allowed VARCHAR(10),
@@ -554,6 +555,7 @@ export async function dataBaseInitialization() {
 							latitude: 0,
 							longitude: 0,
 							type: "Main master",
+							iconRatio: 1.5,
 							mqttPassword: "pepe123",
 							mqttActionAllowed: "Pub & Sub"
 						},
@@ -563,6 +565,7 @@ export async function dataBaseInitialization() {
 							latitude: 0,
 							longitude: 0,
 							type: "Generic",
+							iconRatio: 1.5,
 							mqttPassword: "pepe123",
 							mqttActionAllowed: "Pub & Sub"
 						},

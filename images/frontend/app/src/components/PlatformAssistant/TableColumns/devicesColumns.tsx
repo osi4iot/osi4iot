@@ -26,6 +26,7 @@ export interface IDevice {
     latitude: number;
     longitude: number;
     deviceUid: string;
+    iconRatio: number;
     masterDeviceUrl: string;
     sslCerts: string;
     mqttActionAllowed: string;
@@ -260,6 +261,12 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableFilters: true
         },
         {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Icon<br />ratio</div>,
+            accessor: "iconRatio",
+            disableFilters: true,
+            disableSortBy: true
+        },         
+        {
             Header: "Longitude",
             accessor: "longitude",
             disableFilters: true,
@@ -270,15 +277,15 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             accessor: "latitude",
             disableFilters: true,
             disableSortBy: true
-        },
+        },       
         {
-            Header: "Mqtt acc",
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Mqtt<br />acc</div>,
             accessor: "mqttActionAllowed",
             disableFilters: true,
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttActionAllowed = row?.cells[8]?.value;
+                const mqttActionAllowed = row?.cells[9]?.value;
                 const style: React.CSSProperties = {
                     color: mqttActionAllowed === "None" ? 'red' : 'white',
                     fontWeight: mqttActionAllowed === "None" ? 'bold' : 'normal'
@@ -331,10 +338,11 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const name = row?.cells[3]?.value;
                 const description = row?.cells[4]?.value;
                 const type = row?.cells[5]?.value;
-                const longitude = row?.cells[6]?.value;
-                const latitude = row?.cells[7]?.value;
-                const mqttActionAllowed = row?.cells[8]?.value;
-                const deviceInputData = { groupId, name, description, type, longitude, latitude, mqttActionAllowed }
+                const iconRatio = row?.cells[6]?.value;
+                const longitude = row?.cells[7]?.value;
+                const latitude = row?.cells[8]?.value;
+                const mqttActionAllowed = row?.cells[9]?.value;
+                const deviceInputData = { groupId, name, description, type,iconRatio, longitude, latitude, mqttActionAllowed }
                 return <EditDevice deviceId={deviceId} rowIndex={rowIndex} deviceInputData={deviceInputData} />
             }
         },

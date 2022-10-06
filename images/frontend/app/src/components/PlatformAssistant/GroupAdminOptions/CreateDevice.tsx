@@ -21,14 +21,47 @@ const FormContainer = styled.div`
     padding: 30px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
-    width: 350px;
+    width: 400px;
+    height: calc(100vh - 290px);
+
+    form > div:nth-child(2) {
+        margin-right: 10px;
+    }
 `;
 
 const ControlsContainer = styled.div`
+    height: calc(100vh - 420px);
     width: 100%;
+    padding: 0px 5px;
+    overflow-y: auto;
+    /* width */
+    ::-webkit-scrollbar {
+        width: 10px;
+    }
+
+    /* Track */
+    ::-webkit-scrollbar-track {
+        background: #202226;
+        border-radius: 5px;
+    }
+
+    /* Handle */
+    ::-webkit-scrollbar-thumb {
+        background: #2c3235; 
+        border-radius: 5px;
+    }
+
+    /* Handle on hover */
+    ::-webkit-scrollbar-thumb:hover {
+        background-color: #343840;
+    }
 
     div:first-child {
         margin-top: 0;
+    }
+
+    div:last-child {
+        margin-bottom: 3px;
     }
 `;
 
@@ -150,12 +183,17 @@ const CreateDevice: FC<CreateDeviceProps> = ({
             (values as any).latitude = parseFloat((values as any).latitude);
         }
 
+        if (typeof (values as any).iconRatio === 'string') {
+            (values as any).iconRatio = parseFloat((values as any).iconRatio);
+        }
+
         const deviceData = {
             name: values.name,
             description: values.description,
             longitude: values.longitude,
             latitude: values.latitude,
-            type: values.type
+            type: values.type,
+            iconRatio: values.iconRatio
         }
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)
@@ -182,6 +220,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
         type: Yup.string().required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
+        iconRatio: Yup.number().min(0.2, "The minimum value of the icon ratio is 0.2m").max(2, "The maximum value of the icon ratio is 2m").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -239,6 +278,12 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                                         label='Type'
                                         name="type"
                                         options={deviceTypeOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Icon ratio'
+                                        name='iconRatio'
                                         type='text'
                                     />
                                     <FormikControl

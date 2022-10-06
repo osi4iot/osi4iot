@@ -8,6 +8,7 @@ export interface IDeviceInputData {
 	name: string;
 	description: string;
 	type: string;
+	iconRatio: number;
 	longitude: number;
 	latitude: number;
 	mqttActionAllowed: string;

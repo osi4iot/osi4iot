@@ -16,6 +16,7 @@ export const initialState = {
         name: "",
         description: "",
         type: "Generic",
+        iconRatio: 1.5,
         longitude: 0,
         latitude: 0,
         mqttActionAllowed: "Pub & Sub"

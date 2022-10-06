@@ -29,9 +29,6 @@ const setDeviceCircleColor = (deviceId: number, deviceSelected: IDevice | null):
 }
 
 
-const deviceRadio = 0.0006;
-const circleRadio = 0.0020;
-
 const GeoDevice: FC<GeoDeviceProps> = ({
     deviceData,
     deviceSelected,
@@ -42,8 +39,8 @@ const GeoDevice: FC<GeoDeviceProps> = ({
     const status = findOutStatus(devicesStateFiltered);
     const map = useMap();
 
-    const bounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceRadio), [deviceData]);
-    const outerBounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, circleRadio), [deviceData]);
+    const outerBounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceData.iconRatio * 0.001), [deviceData]);
+    const bounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceData.iconRatio * 0.0004), [deviceData]);
 
 
     const clickHandler = () => {
@@ -60,7 +57,7 @@ const GeoDevice: FC<GeoDeviceProps> = ({
         <Circle
             center={[deviceData.latitude, deviceData.longitude]}
             pathOptions={{ color: setDeviceCircleColor(deviceData.id, deviceSelected), fillColor: "#555555", fillOpacity: 1 }}
-            radius={1.5}
+            radius={deviceData.iconRatio}
             eventHandlers={{ click: clickHandler }}
         >
             {

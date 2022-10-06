@@ -44,7 +44,6 @@ import UpdateGroupMemberDto from "./interfaces/groupMemberUpdate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IGroup from "./interfaces/Group.interface";
 import { createDemoDashboards, getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfGroup } from "./dashboardDAL";
-import sslCerticatesGenerator from "../device/sslDeviceCerticatesGenerator";
 import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
@@ -283,6 +282,7 @@ class GroupController implements IController {
 					latitude: centerLatitude,
 					longitude: (centerLongitude - devicesDistance),
 					type: "Main master",
+					iconRatio: 1.5,
 					mqttActionAllowed: "Pub & Sub"
 				},
 				{
@@ -291,6 +291,7 @@ class GroupController implements IController {
 					latitude: centerLatitude,
 					longitude: (centerLongitude + devicesDistance),
 					type: "Generic",
+					iconRatio: 1.5,
 					mqttActionAllowed: "Pub & Sub"
 				}
 			];

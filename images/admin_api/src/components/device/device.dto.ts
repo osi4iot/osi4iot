@@ -10,6 +10,9 @@ class CreateDeviceDto {
 	@IsString()
 	public type: string;
 
+	@IsNumber()
+	public iconRatio: number;
+
 	@ValidateIf((obj) => obj.mqttPassword !== undefined)
 	@IsString()
 	public mqttPassword?: string;
