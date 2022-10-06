@@ -42,7 +42,7 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
     const groupFloor = useState(floors.filter(floor => floor.buildingId === deviceBuildingId && floor.floorNumber === group.floorNumber)[0])[0];
     const featureIndex = useState(group.featureIndex)[0];
     const [outerBounds, setOuterBounds] = useState(building.outerBounds);
-
+    
     const setNewOuterBounds = (outerBounds: number[][]) => {
         setOuterBounds(outerBounds);
     }

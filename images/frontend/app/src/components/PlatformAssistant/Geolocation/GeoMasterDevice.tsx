@@ -9,28 +9,6 @@ import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { MaterialDeviceSvgImage } from "./MaterialDeviceSvgImage";
 
 
-const SELECTED = "#3274d9";
-const NON_SELECTED = "#9c9a9a";
-
-const setDeviceCircleColor = (deviceId: number, deviceSelected: IDevice | null): string => {
-    let color = NON_SELECTED;
-    if (deviceSelected && deviceId === deviceSelected.id) {
-        return SELECTED;
-    }
-    return color;
-}
-
-const setMasterDeviceCircleColor = (
-    deviceId: number,
-    deviceSelected: IDevice | null
-): string => {
-    let color = NON_SELECTED;
-    if (deviceSelected && deviceId === deviceSelected.id) {
-        return SELECTED;
-    }
-    return color;
-}
-
 
 interface GeoMasterDeviceProps {
     deviceData: IDevice;
@@ -50,8 +28,8 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
     const status = findOutStatus(devicesStateFiltered);
     const map = useMap();
 
-    const outerBounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceData.iconRatio * 0.001), [deviceData]);
-    const bounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceData.iconRatio * 0.0004), [deviceData]);
+    const outerBounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceData.iconRadio * 0.001), [deviceData]);
+    const bounds = useMemo(() => calcGeoBounds(deviceData.longitude, deviceData.latitude, deviceData.iconRadio * 0.0004), [deviceData]);
 
 
     const clickHandler = () => {
@@ -71,32 +49,38 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
         <>
             <Circle
                 center={[deviceData.latitude, deviceData.longitude]}
-                pathOptions={{ color: setDeviceCircleColor(deviceData.id, deviceSelected), fillColor: "#555555", fillOpacity: 1 }}
-                radius={deviceData.iconRatio}
+                pathOptions={{ stroke: false, fillOpacity: 0 }}
+                radius={deviceData.iconRadio}
                 eventHandlers={{ click: clickHandler }}
             >
                 {
                     status === "ok" &&
                     <MaterialDeviceSvgImage
+                        deviceId={deviceData.id}
+                        deviceSelected={deviceSelected as IDevice}
                         fillColor={STATUS_OK}
                         bounds={bounds as LatLngTuple[]}
-                        deviceType={deviceData.type}
+                        outerBounds={outerBounds as LatLngTuple[]}
                     />
                 }
                 {
                     status === "pending" &&
                     <MaterialDeviceSvgImage
+                        deviceId={deviceData.id}
+                        deviceSelected={deviceSelected as IDevice}
                         fillColor={STATUS_PENDING}
                         bounds={bounds as LatLngTuple[]}
-                        deviceType={deviceData.type}
+                        outerBounds={outerBounds as LatLngTuple[]}
                     />
                 }
                 {
                     status === "alerting" &&
                     <MaterialDeviceSvgImage
+                        deviceId={deviceData.id}
+                        deviceSelected={deviceSelected as IDevice}
                         fillColor={STATUS_ALERTING}
                         bounds={bounds as LatLngTuple[]}
-                        deviceType={deviceData.type}
+                        outerBounds={outerBounds as LatLngTuple[]}
                     />
                 }
                 <Tooltip sticky>
@@ -110,8 +94,8 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
                 (deviceSelected && deviceData.id === deviceSelected.id) &&
                 <Circle
                     center={[deviceData.latitude, deviceData.longitude]}
-                    pathOptions={{ color: setMasterDeviceCircleColor(deviceData.id, deviceSelected), fillColor: "#555555", fillOpacity: 1 }}
-                    radius={deviceData.iconRatio * 0.533}
+                    pathOptions={{ stroke: false, fillOpacity: 0 }}
+                    radius={deviceData.iconRadio * 0.533}
                     eventHandlers={{ click: clickMasterDeviceHandler }}
                 >
                     <Tooltip sticky>

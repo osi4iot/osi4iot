@@ -11,7 +11,7 @@ import { passwordGenerator } from "../../utils/passwordGenerator";
 
 export const defaultGroupDeviceName = (group: IGroup, type: string): string => {
 	let deviceName: string;
-	if (type === "Main master") deviceName = `${group.acronym.replace(/ /g, "_")}_main_master`;
+	if (type === "Master") deviceName = `${group.acronym.replace(/ /g, "_")}_main_master`;
 	else if (type === "Generic") deviceName = `${group.acronym.replace(/ /g, "_")}_generic_default`;
 	return deviceName;
 }
@@ -19,12 +19,12 @@ export const defaultGroupDeviceName = (group: IGroup, type: string): string => {
 
 export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 	const result = await pool.query(`INSERT INTO grafanadb.device (org_id, group_id, name,
-		            description, device_uid, geolocation, type, icon_ratio, mqtt_password,
+		            description, device_uid, geolocation, type, icon_radio, mqtt_password,
 					mqtt_salt, mqtt_action_allowed,	created, updated)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 					RETURNING  id, org_id AS "orgId",  group_id AS "groupId",
 					device_uid AS "deviceUid", geolocation[0] AS longitude,
-					geolocation[0] AS latitude, type, icon_ratio AS "iconRatio",
+					geolocation[0] AS latitude, type, icon_radio AS "iconRadio",
 					mqtt_password AS "mqttPassword",
 					mqtt_salt AS "mqttSalt",
 					mqtt_action_allowed AS "mqttActionAllowed",
@@ -37,7 +37,7 @@ export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 			deviceData.deviceUid,
 			`(${deviceData.longitude},${deviceData.latitude})`,
 			deviceData.type,
-			deviceData.iconRatio,
+			deviceData.iconRadio,
 			deviceData.mqttPassword,
 			deviceData.mqttSalt,
 			deviceData.mqttActionAllowed
@@ -47,7 +47,7 @@ export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 
 export const updateDeviceByProp = async (propName: string, propValue: (string | number), device: IDevice): Promise<void> => {
 	const query = `UPDATE grafanadb.device SET name = $1, description = $2,
-				geolocation = $3, type = $4, icon_ratio = $5,
+				geolocation = $3, type = $4, icon_radio = $5,
 				mqtt_action_allowed = $6, updated = NOW()
 				WHERE grafanadb.device.${propName} = $7;`;
 	await pool.query(query, [
@@ -55,7 +55,7 @@ export const updateDeviceByProp = async (propName: string, propValue: (string | 
 		device.description,
 		`(${device.longitude},${device.latitude})`,
 		device.type,
-		device.iconRatio,
+		device.iconRadio,
 		device.mqttActionAllowed,
 		propValue
 	]);
@@ -110,7 +110,7 @@ export const getDeviceByProp = async (propName: string, propValue: (string | num
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
-									grafanadb.device.icon_ratio AS "iconRatio",
+									grafanadb.device.icon_radio AS "iconRadio",
 									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -126,7 +126,7 @@ export const getFullDeviceDataById = async (id: number): Promise<IDevice> => {
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
 									grafanadb.device.mqtt_password AS "mqttPassword", grafanadb.device.mqtt_salt AS "mqttSalt",
-									grafanadb.device.icon_ratio AS "iconRatio",
+									grafanadb.device.icon_radio AS "iconRadio",
 									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -141,7 +141,7 @@ export const getAllDevices = async (): Promise<IDevice[]> => {
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
-									grafanadb.device.icon_ratio AS "iconRatio",
+									grafanadb.device.icon_radio AS "iconRadio",
 									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -163,7 +163,7 @@ export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> =
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
-									grafanadb.device.icon_ratio AS "iconRatio",
+									grafanadb.device.icon_radio AS "iconRadio",
 									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -179,7 +179,7 @@ export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promis
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
-									grafanadb.device.icon_ratio AS "iconRatio",
+									grafanadb.device.icon_radio AS "iconRadio",
 									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -202,7 +202,7 @@ export const getDevicesByOrgId = async (orgId: number): Promise<IDevice[]> => {
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
-									grafanadb.device.icon_ratio AS "iconRatio",
+									grafanadb.device.icon_radio AS "iconRadio",
 									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
@@ -221,9 +221,13 @@ export const updateGroupDevicesLocation = async (geoJsonDataString: string, grou
 		const centerGroupAreaLongitude = center.geometry.coordinates[0];
 		const centerGroupAreaLatitude = center.geometry.coordinates[1];
 		const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
-		const separation = 0.002;
-		const pt = rhumbDestination(ptCenterGroupArea, separation, 180);
-		const interDeviceDistance = 0.005;
+		let interDeviceDistance = 0.0;
+		for (const device of groupDevices) {
+			if (0.003 * device.iconRadio > interDeviceDistance) {
+				interDeviceDistance = 0.003 * device.iconRadio;
+			}
+		}
+		const pt = rhumbDestination(ptCenterGroupArea, interDeviceDistance, 180);
 		const totalLongitude = (groupDevices.length - 1) * interDeviceDistance;
 		const devicesLocationQueries = []
 

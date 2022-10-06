@@ -204,7 +204,7 @@ class DeviceController implements IController {
 			if (!this.isValidDevicePropName(propName)) throw new InvalidPropNameExeception(propName);
 			const device = await getDeviceByProp(propName, propValue);
 			if (!device) throw new ItemNotFoundException("The device", propName, propValue);
-			if (device.type === "Main master") {
+			if (device.type === "Master") {
 				throw new HttpException(400, `The main maser device can not be deleted`)
 			}
 			await deleteDeviceByProp(propName, propValue);

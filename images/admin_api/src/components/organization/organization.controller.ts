@@ -347,12 +347,12 @@ class OrganizationController implements IController {
 				await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId)
 				const defaultGroupDeviceData = [
 					{
-						name: defaultGroupDeviceName(group, "Main master"),
-						description: `Main master device of the group ${defaultOrgGroupAcronym}`,
+						name: defaultGroupDeviceName(group, "Master"),
+						description: `Master device of the group ${defaultOrgGroupAcronym}`,
 						latitude: 0,
 						longitude: 0,
-						type: "Main master",
-						iconRatio: 1.5,
+						type: "Master",
+						iconRadio: 1.0,
 						mqttActionAllowed: "Pub & Sub"
 					},
 					{
@@ -361,7 +361,7 @@ class OrganizationController implements IController {
 						latitude: 0,
 						longitude: 0,
 						type: "Generic",
-						iconRatio: 1.5,
+						iconRadio: 1.0,
 						mqttActionAllowed: "Pub & Sub"
 					}
 				];
@@ -403,7 +403,7 @@ class OrganizationController implements IController {
 				const defaultDeviceDigitalTwinsData = [
 					{
 						digitalTwinUid: generateDigitalTwinUid(),
-						description: demoDigitalTwinDescription(group, "Main master"),
+						description: demoDigitalTwinDescription(group, "Master"),
 						type: "Grafana dashboard",
 						gltfData: "{}",
 						gltfFileName: "-",

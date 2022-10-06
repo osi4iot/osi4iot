@@ -330,7 +330,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigital
 
 export const demoDigitalTwinDescription = (group: IGroup, deviceType: string): string => {
 	let digitalTwinDescription: string;
-	if (deviceType === "Main master") digitalTwinDescription = `${group.acronym.replace(/ /g, "_")} main master demo DT`;
+	if (deviceType === "Master") digitalTwinDescription = `${group.acronym.replace(/ /g, "_")} master demo DT`;
 	else digitalTwinDescription = `${group.acronym.replace(/ /g, "_")} generic default DT`;
 	return digitalTwinDescription;
 }

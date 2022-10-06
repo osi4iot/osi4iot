@@ -26,7 +26,7 @@ export interface IDevice {
     latitude: number;
     longitude: number;
     deviceUid: string;
-    iconRatio: number;
+    iconRadio: number;
     masterDeviceUrl: string;
     sslCerts: string;
     mqttActionAllowed: string;
@@ -261,8 +261,8 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             disableFilters: true
         },
         {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>Icon<br />ratio</div>,
-            accessor: "iconRatio",
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Icon<br />radio</div>,
+            accessor: "iconRadio",
             disableFilters: true,
             disableSortBy: true
         },         
@@ -338,11 +338,11 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const name = row?.cells[3]?.value;
                 const description = row?.cells[4]?.value;
                 const type = row?.cells[5]?.value;
-                const iconRatio = row?.cells[6]?.value;
+                const iconRadio = row?.cells[6]?.value;
                 const longitude = row?.cells[7]?.value;
                 const latitude = row?.cells[8]?.value;
                 const mqttActionAllowed = row?.cells[9]?.value;
-                const deviceInputData = { groupId, name, description, type,iconRatio, longitude, latitude, mqttActionAllowed }
+                const deviceInputData = { groupId, name, description, type,iconRadio, longitude, latitude, mqttActionAllowed }
                 return <EditDevice deviceId={deviceId} rowIndex={rowIndex} deviceInputData={deviceInputData} />
             }
         },

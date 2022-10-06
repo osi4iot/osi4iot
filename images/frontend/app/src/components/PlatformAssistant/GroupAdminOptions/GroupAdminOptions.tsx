@@ -401,7 +401,6 @@ const GroupAdminOptions: FC<{}> = () => {
                 .get(urlDevices, config)
                 .then((response) => {
                     const devices = response.data;
-                    console.log("devices=", devices)
                     setDevicesTable(plaformAssistantDispatch, { devices });
                     setDevicesLoading(false);
                     const reloadDevicesTable = false;

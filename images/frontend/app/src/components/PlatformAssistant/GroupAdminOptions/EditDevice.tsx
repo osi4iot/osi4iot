@@ -116,14 +116,8 @@ const SelectLocationButton = styled.button`
 	}
 `;
 
-const deviceTypeOptions1 = [
-    {
-        label: "Main master",
-        value: "Main master"
-    }
-];
 
-const deviceTypeOptions2 = [
+const deviceTypeOptions = [
     {
         label: "Generic",
         value: "Generic"
@@ -140,7 +134,7 @@ const deviceInitInputFormData = {
     name: "",
     description: "",
     type: "Generic",
-    iconRatio: 1.5,
+    iconRadio: 1.0,
     longitude: 0,
     latitude: 0,
     mqttActionAllowed: "Pub & Sub"
@@ -190,7 +184,6 @@ const EditDevice: FC<EditDeviceProps> = ({
     const deviceId = useDeviceIdToEdit();
     const deviceRowIndex = useDeviceRowIndexToEdit();
     const initialDeviceData = useDeviceInputData();
-    const deviceTypeOptions = initialDeviceData.type === "Main master" ? deviceTypeOptions1 : deviceTypeOptions2;
 
     useEffect(() => {
         const devicesPreviousOption = { devicesPreviousOption: DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE };
@@ -210,20 +203,18 @@ const EditDevice: FC<EditDeviceProps> = ({
             (values as any).latitude = parseFloat((values as any).latitude);
         }
 
-        if (typeof (values as any).iconRatio === 'string') {
-            (values as any).iconRatio = parseFloat((values as any).iconRatio);
+        if (typeof (values as any).iconRadio === 'string') {
+            (values as any).iconRadio = parseFloat((values as any).iconRadio);
         }
 
         const deviceEditData = {
             name: values.name,
             description: values.description,
-            iconRatio: values.iconRatio,
+            iconRadio: values.iconRadio,
             longitude: values.longitude,
             latitude: values.latitude,
             mqttActionAllowed: values.mqttActionAllowed
         }
-
-        console.log("deviceEditData=", deviceEditData)
 
         const deviceInputFormData = { deviceInputFormData: deviceInitInputFormData };
         setDeviceInputData(devicesDispatch, deviceInputFormData);
@@ -251,7 +242,7 @@ const EditDevice: FC<EditDeviceProps> = ({
         type: Yup.string().required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
-        iconRatio: Yup.number().min(0.2, "The minimum value of the icon ratio is 0.2m").max(2, "The maximum value of the icon ratio is 2m").required('Required'),
+        iconRadio: Yup.number().min(0.2, "The minimum value of the icon ratio is 0.2m").max(2, "The maximum value of the icon ratio is 2m").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -262,6 +253,7 @@ const EditDevice: FC<EditDeviceProps> = ({
     };
 
     const selectLocation = (deviceInputData: IDeviceInputData) => {
+        deviceInputData.iconRadio = parseFloat(deviceInputData.iconRadio as unknown as string);
         const orgId = devices[deviceRowIndex].orgId;
         const deviceInputFormData = { deviceInputFormData: deviceInputData };
         setDeviceInputData(devicesDispatch, deviceInputFormData);
@@ -303,19 +295,13 @@ const EditDevice: FC<EditDeviceProps> = ({
                                         type='text'
                                     />
                                     <FormikControl
-                                        control='input'
-                                        label='Icon ratio'
-                                        name='iconRatio'
-                                        type='text'
-                                    />
-                                    <FormikControl
                                         control='select'
                                         label='Mqtt action allowed'
                                         name="mqttActionAllowed"
                                         options={mqttActionAllowedOptions}
                                         type='text'
                                     />
-                                    <DeviceLocationTitle>Device location</DeviceLocationTitle>
+                                    <DeviceLocationTitle>Device location and icon size</DeviceLocationTitle>
                                     <DeviceLocationContainer>
                                         <FormikControl
                                             control='input'
@@ -327,6 +313,12 @@ const EditDevice: FC<EditDeviceProps> = ({
                                             control='input'
                                             label='Latitude'
                                             name='latitude'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Icon radio (m)'
+                                            name='iconRadio'
                                             type='text'
                                         />
                                         <SelectDeviceLocationButtonContainer >

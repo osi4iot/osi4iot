@@ -355,7 +355,7 @@ export async function dataBaseInitialization() {
 					device_uid VARCHAR(40) UNIQUE,
 					geolocation POINT,
 					type VARCHAR(40),
-					icon_ratio real NOT NULL DEFAULT 1.5,
+					icon_radio real NOT NULL DEFAULT 1.0,
 					mqtt_password VARCHAR(255),
 					mqtt_salt VARCHAR(40),
 					mqtt_action_allowed VARCHAR(10),
@@ -490,6 +490,7 @@ export async function dataBaseInitialization() {
 					org_id bigint,
 					group_id bigint,
 					geolocation POINT,
+					icon_radio real NOT NULL DEFAULT 1.0,
 					deleted boolean NOT NULL DEFAULT FALSE,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
@@ -550,12 +551,12 @@ export async function dataBaseInitialization() {
 				try {
 					const defaultGroupDevicesData = [
 						{
-							name: defaultGroupDeviceName(group, "Main master"),
-							description: `Main master device of the group ${mainOrgGroupAcronym}`,
+							name: defaultGroupDeviceName(group, "Master"),
+							description: `Master device of the group ${mainOrgGroupAcronym}`,
 							latitude: 0,
 							longitude: 0,
-							type: "Main master",
-							iconRatio: 1.5,
+							type: "Master",
+							iconRadio: 1.0,
 							mqttPassword: "pepe123",
 							mqttActionAllowed: "Pub & Sub"
 						},
@@ -565,7 +566,7 @@ export async function dataBaseInitialization() {
 							latitude: 0,
 							longitude: 0,
 							type: "Generic",
-							iconRatio: 1.5,
+							iconRadio: 1.0,
 							mqttPassword: "pepe123",
 							mqttActionAllowed: "Pub & Sub"
 						},
@@ -585,7 +586,7 @@ export async function dataBaseInitialization() {
 						{
 							topicType: "dev2pdb",
 							topicName: demoTopicName(group, device1, "Temperature"),
-							description: `Temperature sensor for ${defaultGroupDeviceName(group, "Main master")} device`,
+							description: `Temperature sensor for ${defaultGroupDeviceName(group, "Master")} device`,
 							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 							mqttActionAllowed: "Pub & Sub"
 						},
@@ -622,7 +623,7 @@ export async function dataBaseInitialization() {
 					const defaultDeviceDigitalTwinsData = [
 						{
 							digitalTwinUid: generateDigitalTwinUid(),
-							description: demoDigitalTwinDescription(group, "Main master"),
+							description: demoDigitalTwinDescription(group, "Master"),
 							type: "Grafana dashboard",
 							gltfData: "{}",
 							gltfFileName: "-",

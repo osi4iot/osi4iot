@@ -183,8 +183,8 @@ const CreateDevice: FC<CreateDeviceProps> = ({
             (values as any).latitude = parseFloat((values as any).latitude);
         }
 
-        if (typeof (values as any).iconRatio === 'string') {
-            (values as any).iconRatio = parseFloat((values as any).iconRatio);
+        if (typeof (values as any).iconRadio === 'string') {
+            (values as any).iconRadio = parseFloat((values as any).iconRadio);
         }
 
         const deviceData = {
@@ -193,7 +193,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
             longitude: values.longitude,
             latitude: values.latitude,
             type: values.type,
-            iconRatio: values.iconRatio
+            iconRadio: values.iconRadio
         }
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)
@@ -220,7 +220,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
         type: Yup.string().required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
-        iconRatio: Yup.number().min(0.2, "The minimum value of the icon ratio is 0.2m").max(2, "The maximum value of the icon ratio is 2m").required('Required'),
+        iconRadio: Yup.number().min(0.2, "The minimum value of the icon ratio is 0.2m").max(2, "The maximum value of the icon ratio is 2m").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -229,6 +229,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
     };
 
     const selectLocation = (deviceInputData: IDeviceInputData) => {
+        deviceInputData.iconRadio = parseFloat(deviceInputData.iconRadio as unknown as string);
         const groupId = parseInt(deviceInputData.groupId as string, 10);
         const group = groupsManaged.filter(group => group.id === groupId)[0];
         if (!group) {
@@ -281,19 +282,13 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                                         type='text'
                                     />
                                     <FormikControl
-                                        control='input'
-                                        label='Icon ratio'
-                                        name='iconRatio'
-                                        type='text'
-                                    />
-                                    <FormikControl
                                         control='select'
                                         label='Mqtt action allowed'
                                         name="mqttActionAllowed"
                                         options={mqttActionAllowedOptions}
                                         type='text'
                                     />
-                                    <DeviceLocationTitle>Device location</DeviceLocationTitle>
+                                    <DeviceLocationTitle>Device location and icon size</DeviceLocationTitle>
                                     <DeviceLocationContainer>
                                         <FormikControl
                                             control='input'
@@ -305,6 +300,12 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                                             control='input'
                                             label='Latitude'
                                             name='latitude'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Icon ratio'
+                                            name='iconRadio'
                                             type='text'
                                         />
                                         <SelectDeviceLocationButtonContainer >

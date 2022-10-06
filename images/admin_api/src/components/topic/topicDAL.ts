@@ -10,10 +10,10 @@ import ITopicInfoForMqttAcl from "./topicInfoForMqttAcl.interface";
 
 export const demoTopicName = (group: IGroup, device: IDevice, sensorType: string): string => {
 	let topicName: string;
-	if (device.type === "Main master") {
-		topicName = `${group.acronym.replace(/ /g, "_")}_main_master_${sensorType.replace(/ /g, "_")}`;
+	if (device.type === "Master") {
+		topicName = `${group.acronym.replace(/ /g, "_")}_${sensorType.replace(/ /g, "_")}`;
 	} else if (device.type === "Generic") {
-		topicName = `${group.acronym.replace(/ /g, "_")}_generic_default_${sensorType.replace(/ /g, "_")}`;
+		topicName = `${group.acronym.replace(/ /g, "_")}_${sensorType.replace(/ /g, "_")}`;
 	}
 	return topicName;
 }

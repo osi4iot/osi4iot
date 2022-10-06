@@ -277,12 +277,12 @@ class GroupController implements IController {
 			const devicesDistance = 0.00002;
 			const defaultGroupDeviceData = [
 				{
-					name: defaultGroupDeviceName(groupCreated, "Main master"),
+					name: defaultGroupDeviceName(groupCreated, "Master"),
 					description: `Main generic device of the group ${groupCreated.name}`,
 					latitude: centerLatitude,
 					longitude: (centerLongitude - devicesDistance),
-					type: "Main master",
-					iconRatio: 1.5,
+					type: "Master",
+					iconRadio: 1.0,
 					mqttActionAllowed: "Pub & Sub"
 				},
 				{
@@ -291,7 +291,7 @@ class GroupController implements IController {
 					latitude: centerLatitude,
 					longitude: (centerLongitude + devicesDistance),
 					type: "Generic",
-					iconRatio: 1.5,
+					iconRadio: 1.0,
 					mqttActionAllowed: "Pub & Sub"
 				}
 			];
@@ -306,7 +306,7 @@ class GroupController implements IController {
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(groupCreated, device1, "Temperature"),
-					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated, "Main master")} device`,
+					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated, "Master")} device`,
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 					mqttActionAllowed: "Pub & Sub"
 				},
@@ -338,7 +338,7 @@ class GroupController implements IController {
 			const defaultDeviceDigitalTwinsData = [
 				{
 					digitalTwinUid: generateDigitalTwinUid(),
-					description: demoDigitalTwinDescription(groupCreated, "Main master"),
+					description: demoDigitalTwinDescription(groupCreated, "Master"),
 					type: "Grafana dashboard",
 					gltfData: "{}",
 					gltfFileName: "-",
