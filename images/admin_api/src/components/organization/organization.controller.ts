@@ -62,7 +62,7 @@ import { createTopic, demoTopicName } from "../topic/topicDAL";
 import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
-import { createNodeRedInstancesInOrg, getNodeRedInstancesByOrgsIdArray } from "../nodeRedInstance/nodeRedInstanceDAL";
+import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg, getNodeRedInstancesByOrgsIdArray, getNodeRedInstancesUnassignedInOrg } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 
 class OrganizationController implements IController {
@@ -344,7 +344,9 @@ class OrganizationController implements IController {
 				await addOrgUsersToDefaultOrgGroup(newOrg.orgId, organizationData.orgAdminArray);
 				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
 
-				await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId)
+				const noredInstances = await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId);
+				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);
+
 				const defaultGroupDeviceData = [
 					{
 						name: defaultGroupDeviceName(group, "Master"),

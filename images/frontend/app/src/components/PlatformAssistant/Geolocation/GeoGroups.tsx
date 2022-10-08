@@ -10,7 +10,6 @@ import GeoGroup from "./GeoGroup";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { isGeoJSONObject } from "../../../tools/geojsonValidation";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
-import { INodeRedInstance } from "../TableColumns/nodeRedInstancesInOrgsColumns";
 
 
 const STATUS_OK = "#3e3f3b";
@@ -38,7 +37,6 @@ interface GeoGroupsProps {
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
-    nodeRedInstances: INodeRedInstance[];
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
@@ -59,7 +57,6 @@ const GeoGroups: FC<GeoGroupsProps> = (
         deviceDataArray,
         deviceSelected,
         selectDevice,
-        nodeRedInstances,
         digitalTwins,
         digitalTwinSelected,
         selectDigitalTwin,
@@ -97,7 +94,6 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         deviceDataArray={deviceDataArray}
                         deviceSelected={deviceSelected}
                         selectDevice={selectDevice}
-                        nodeRedInstances={nodeRedInstances}
                         digitalTwins={digitalTwins}
                         digitalTwinSelected={digitalTwinSelected}
                         selectDigitalTwin={selectDigitalTwin}

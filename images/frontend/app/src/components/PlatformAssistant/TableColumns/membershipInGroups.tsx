@@ -32,7 +32,7 @@ export const MEMBERSHIP_IN_GROUPS: Column<IMembershipInGroups>[] = [
         filter: 'equals'
     },
     {
-        Header: "Telegram Invitation Link",
+        Header: "Telegram invitation link",
         accessor: "telegramInvitationLink",
         disableFilters: true
     },

@@ -7,35 +7,37 @@ import { getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
 import { NodeRedInstanceSvgImage } from "./NodeRedInstanceSvgImage";
-import { INodeRedInstance } from "../TableColumns/nodeRedInstancesInOrgsColumns";
-
 
 
 interface GeoNodeRedInstanceProps {
-    nriData: INodeRedInstance;
-    instanceNumber: number;
+    longitude: number;
+    latitude: number;
+    iconRadio: number;
+    nriHash:string
 }
 
-const deviceRadio = 0.0006;
-const circleRadio = 0.0020;
+// const deviceRadio = 0.0006;
+// const circleRadio = 0.0020;
 const domainName = getDomainName();
 const protocol = getProtocol();
 
 const GeoNodeRedInstance: FC<GeoNodeRedInstanceProps> = ({
-    nriData,
-    instanceNumber
+    longitude,
+    latitude,
+    iconRadio,
+    nriHash
 }) => {
     const { accessToken } = useAuthState();
     const map = useMap();
 
-    const bounds = useMemo(() => calcGeoBounds(nriData.longitude, nriData.latitude, 2.5 * deviceRadio), [nriData]);
-    const outerBounds = useMemo(() => calcGeoBounds(nriData.longitude, nriData.latitude, circleRadio), [nriData]);
+    const bounds = useMemo(() => calcGeoBounds(longitude, latitude, 0.0011 * iconRadio), [longitude, latitude, iconRadio]);
+    const outerBounds = useMemo(() => calcGeoBounds(longitude, latitude, 0.002 * iconRadio), [longitude, latitude, iconRadio]);
 
 
     const clickNodeRedInstanceHandler = () => {
-        if (nriData.nriHash) {
+        if (nriHash) {
             map.fitBounds(outerBounds as LatLngTuple[]);
-            let urlNodeRedInstance = `${protocol}://${domainName}/nodered_${nriData.nriHash}/?access_token=${accessToken}`;
+            let urlNodeRedInstance = `${protocol}://${domainName}/nodered_${nriHash}/?access_token=${accessToken}`;
             setTimeout(() => window.open(urlNodeRedInstance, "_blank"), 250);
         } else {
             toast.warning("Master device hash is null");
@@ -46,18 +48,17 @@ const GeoNodeRedInstance: FC<GeoNodeRedInstanceProps> = ({
     return (
         <>
             <Circle
-                center={[nriData.latitude, nriData.longitude]}
-                pathOptions={{ color: "#363632", fillColor: "#363632", fillOpacity: 0 }}
-                radius={1.5}
+                center={[latitude, longitude]}
+                pathOptions={{ stroke: false, fillOpacity: 0 }}
+                radius={iconRadio}
                 eventHandlers={{ click: clickNodeRedInstanceHandler }}
             >
                 <NodeRedInstanceSvgImage
                     bounds={bounds as LatLngTuple[]}
-                    instanceNumber={instanceNumber}
                     clickNodeRedInstanceHandler={clickNodeRedInstanceHandler}
                 />
                 <Tooltip sticky>
-                    <span style={{ fontWeight: 'bold' }}>Node-RED instance {instanceNumber}</span><br />
+                    <span style={{ fontWeight: 'bold' }}>Node-RED instance</span><br />
                 </Tooltip>
             </Circle >
         </>

@@ -178,7 +178,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             disableFilters: true
         },
         {
-            Header: "Telegram Invitation Link",
+            Header: "Telegram invitation link",
             accessor: "telegramInvitationLink",
             disableFilters: true
         },

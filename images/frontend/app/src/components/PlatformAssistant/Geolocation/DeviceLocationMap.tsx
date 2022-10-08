@@ -23,6 +23,7 @@ import calcGeoBounds from '../../../tools/calcGeoBounds';
 import { DEVICES_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { DeviceSvgImage } from './DeviceSvgImage';
 import { MaterialDeviceSvgImage } from './MaterialDeviceSvgImage';
+import GeoNodeRedInstance from './GeoNodeRedInstance';
 
 
 const MapContainerStyled = styled(MapContainer)`
@@ -502,6 +503,12 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                 data={floorSpace}
                 style={(geoJsonFeature: any) => groupStyle()}
                 eventHandlers={evenstHandlerGeoJson}
+            />
+            <GeoNodeRedInstance
+                longitude={group.nriInGroupIconLongitude}
+                latitude={group.nriInGroupIconLatitude}
+                iconRadio={group.nriInGroupIconRadio}
+                nriHash={group.nriInGroupHash}
             />
             {
                 devicesInGroup.map(device => {

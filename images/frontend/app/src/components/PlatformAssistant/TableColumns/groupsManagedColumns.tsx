@@ -2,6 +2,7 @@ import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import styled from "styled-components";
 import ExChangeIcon from '../Utils/ExchangeIcon';
+import EditIcon from '../Utils/EditIcon';
 import AddUsersIcon from '../Utils/AddUsersIcon';
 import RemoveUsersIcon from '../Utils/RemoveUsersIcon';
 import {
@@ -16,6 +17,7 @@ import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../t
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import DeleteModal from '../../Tools/DeleteModal';
 import ChangeModal from '../../Tools/ChangeModal';
+import { IGroupManagedData } from '../../../contexts/groupsManagedOptions/interfaces';
 
 
 interface AddGroupMembersProps {
@@ -87,7 +89,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -141,7 +143,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -151,6 +153,25 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
 
     return (
         <ExChangeIcon action={showModal} rowIndex={rowIndex} />
+    )
+}
+
+interface EditNriLocationProps {
+    rowIndex: number;
+    groupId: number;
+    managedGroupData: IGroupManagedData;
+}
+
+const EditNriLocation: FC<EditNriLocationProps> = ({ rowIndex, groupId, managedGroupData }) => {
+
+    const handleClick = () => {
+        console.log("managedGroupData=", managedGroupData);
+    };
+
+    return (
+        <span onClick={handleClick}>
+            <EditIcon rowIndex={rowIndex} />
+        </span>
     )
 }
 
@@ -172,16 +193,23 @@ export interface IGroupManaged {
     folderPermission: string;
     groupUid: string;
     telegramInvitationLink: string;
+    telegramChatId: string;
     isOrgDefaultGroup: boolean;
     floorNumber: number;
     featureIndex: number;
     outerBounds: number[][];
+    nriInGroupId: number;
+    nriInGroupHash: string;
+    nriInGroupIconLongitude: number;
+    nriInGroupIconLatitude: number;
+    nriInGroupIconRadio: number;
 }
 
 interface IGroupManagedColumn extends IGroupManaged {
     addGroupMembers: string;
     removeAllGroupMembers: string;
     changeGroupHash: string;
+    edit: string;
 }
 
 export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, refreshGroupsManaged: () => void): Column<IGroupManagedColumn>[] => {
@@ -216,11 +244,16 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableSortBy: true,
         },
         {
-            Header: "Telegram Invitation Link",
+            Header: "telegramInvitationLink",
             accessor: "telegramInvitationLink",
             disableFilters: true,
             disableSortBy: true,
         },
+        {
+            Header: "telegramChatId",
+            accessor: "telegramChatId",
+            disableFilters: true
+        },        
         {
             Header: "Type",
             accessor: "isOrgDefaultGroup",
@@ -240,7 +273,32 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             Header: "outerBounds",
             accessor: "outerBounds",
             disableFilters: true
-        },        
+        },
+        {
+            Header: "nriInGroupId",
+            accessor: "nriInGroupId",
+            disableFilters: true
+        },
+        {
+            Header: "nriInGroupHash",
+            accessor: "nriInGroupHash",
+            disableFilters: true
+        },
+        {
+            Header: "nriInGroupIconLongitude",
+            accessor: "nriInGroupIconLongitude",
+            disableFilters: true
+        },
+        {
+            Header: "nriInGroupIconLatitude",
+            accessor: "nriInGroupIconLatitude",
+            disableFilters: true
+        },
+        {
+            Header: "nriInGroupIconRadio",
+            accessor: "nriInGroupIconRadio",
+            disableFilters: true
+        },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />members</div>,
             accessor: "addGroupMembers",
@@ -276,6 +334,41 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const groupId = row?.cells[0]?.value;
                 return <ChangeGroupHashModal groupId={groupId} rowIndex={rowIndex} refreshGroupsManaged={refreshGroupsManaged} />
             }
-        }
+        },
+        {
+            Header: "",
+            accessor: "edit",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: props => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const groupId = row?.original?.id;
+                const name = row?.original?.name;
+                const acronym = row?.original?.acronym;
+                const orgId =  row?.original?.orgId;
+                const telegramInvitationLink = row?.original?.telegramInvitationLink;
+                const telegramChatId = row?.original?.telegramChatId;
+                const nriInGroupId = row?.original?.nriInGroupId;
+                const nriInGroupHash = row?.original?.nriInGroupHash;
+                const nriInGroupIconLongitude = row?.original?.nriInGroupIconLongitude;
+                const nriInGroupIconLatitude = row?.original?.nriInGroupIconLatitude;
+                const nriInGroupIconRadio = row?.original?.nriInGroupIconRadio;
+                const managedGroupData = {
+                    groupId,
+                    name,
+                    acronym,
+                    orgId,
+                    telegramInvitationLink,
+                    telegramChatId,
+                    nriInGroupId,
+                    nriInGroupHash,
+                    nriInGroupIconLongitude,
+                    nriInGroupIconLatitude,
+                    nriInGroupIconRadio
+                }
+                return <EditNriLocation rowIndex={rowIndex} groupId={groupId} managedGroupData={managedGroupData} />
+            }
+        },
     ]
 }

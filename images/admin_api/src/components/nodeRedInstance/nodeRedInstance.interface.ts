@@ -3,7 +3,7 @@ export default interface INodeRedInstance {
 	orgId: number;
 	groupId: number;
 	nriHash: string;
-	intanceNumber: number;
+	iconRadio: number;
 	longitude: number;
 	latitude: number;
 	deleted: boolean;

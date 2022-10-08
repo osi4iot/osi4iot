@@ -7,11 +7,12 @@ import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeceptio
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import CreateNodeRedInstanceDto from "./nodeRedInstance.dto";
-import { createNodeRedInstance, deleteNodeRedInstanceById, getAllNodeRedInstances, getNodeRedInstanceByProp, getNodeRedInstancesByOrgsIdArray, recoverNodeRedInstancesMarkedAsDeleted, updateNodeRedInstanceByProp } from "./nodeRedInstanceDAL";
+import { createNodeRedInstance, deleteNodeRedInstanceById, getAllNodeRedInstances, getNodeRedInstanceByProp, getNodeRedInstancesByGroupsIdArray, getNodeRedInstancesByOrgsIdArray, recoverNodeRedInstancesMarkedAsDeleted, updateNodeRedInstanceByProp } from "./nodeRedInstanceDAL";
 import HttpException from "../../exceptions/HttpException";
 import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 import INodeRedInstance from "./nodeRedInstance.interface";
 import RecoverNodeRedInstanceDto from "./recoverNodeRedInstances.dto";
+import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 
 class NodeRedInstanceController implements IController {
 	public path = "/nodered_instance";
@@ -91,6 +92,37 @@ class NodeRedInstanceController implements IController {
 			next(error);
 		}
 	};
+
+	// private getNodeRedInstancesForGroupsManagedByUser = async (
+	// 	req: IRequestWithUser,
+	// 	res: Response,
+	// 	next: NextFunction
+	// ): Promise<void> => {
+	// 	try {
+	// 		let nodeRedInstances: INodeRedInstance[] = [];
+	// 		if (req.user.isGrafanaAdmin) {
+	// 			nodeRedInstances = await getAllNodeRedInstances();
+	// 		} else {
+	// 			const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+	// 			const organizations = await getOrganizationsManagedByUserId(req.user.id);
+	// 			if (organizations.length !== 0) {
+	// 				const orgIdsArray = organizations.map(org => org.id);
+	// 				const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+	// 				const groupsIdArray = groups.map(group => group.id);
+	// 				groupsInOrgs.forEach(groupInOrg => {
+	// 					if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+	// 				})
+	// 			}
+	// 			if (groups.length !== 0) {
+	// 				const groupsIdArray = groups.map(group => group.id);
+	// 				nodeRedInstances = await getNodeRedInstancesByGroupsIdArray(groupsIdArray);
+	// 			}
+	// 		}
+	// 		res.status(200).send(nodeRedInstances);
+	// 	} catch (error) {
+	// 		next(error);
+	// 	}
+	// };
 
 	private getAllNodeRedInstances = async (
 		req: Request,

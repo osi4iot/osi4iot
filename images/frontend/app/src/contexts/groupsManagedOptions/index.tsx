@@ -3,6 +3,10 @@ import {
     setGroupManagedIdToCreateGroupMembers,
     setGroupManagedIdToRemoveAllGroupMembers,
     setGroupManagedRowIndex,
+    setGroupsManagedIdToEdit,
+    setGroupsManagedBuildingId,
+    setGroupsManagedInputFormData,
+    setGroupManagedNriId
 } from './groupsManagedAction';
 import {
     GroupsManagedProvider,
@@ -10,7 +14,11 @@ import {
     useGroupsManagedOptionToShow,
     useGroupManagedIdToCreateGroupMembers,
     useGroupManagedIdToRemoveAllGroupMembers,
-    useGroupManagedRowIndex
+    useGroupManagedRowIndex,
+    useGroupManagedIdToEdit,
+    useGroupManagedInputFormData,
+    useGroupManagedBuildingId,
+    useGroupManagedNriId,
 } from './groupsManagedContext';
 
 export {
@@ -20,8 +28,16 @@ export {
     useGroupManagedIdToCreateGroupMembers,
     useGroupManagedIdToRemoveAllGroupMembers,
     useGroupManagedRowIndex,
+    useGroupManagedIdToEdit,
+    useGroupManagedInputFormData,
+    useGroupManagedBuildingId,
+    useGroupManagedNriId,
     setGroupsManagedOptionToShow,
     setGroupManagedIdToCreateGroupMembers,
     setGroupManagedIdToRemoveAllGroupMembers,
     setGroupManagedRowIndex,
+    setGroupsManagedIdToEdit,
+    setGroupsManagedBuildingId,
+    setGroupsManagedInputFormData,
+    setGroupManagedNriId,
 };

@@ -2,11 +2,28 @@ export interface GroupsManagedDispatch {
 	(arg0: { type: string; payload?: any; error?: any }): void;
 }
 
+export interface IGroupManagedData {
+    groupId: number;
+    name: string;
+    acronym: string;
+    orgId: number;
+    telegramInvitationLink: string;
+    telegramChatId: string;
+    nriInGroupId: number;
+    nriInGroupIconLongitude: number;
+    nriInGroupIconLatitude: number;
+    nriInGroupIconRadio: number;
+}
+
 export interface GroupsManagedContextProps {
 	groupsManagedOptionToShow: string;
 	groupManagedIdToCreateGroupMembers: number;
 	groupManagedIdToRemoveAllGroupMembers: number;
 	groupManagedRowIndex: number;
+	groupManagedIdToEdit: number;
+	groupManagedBuildingId: number;
+	groupManagedNriId: number;
+	groupManagedInputFormData: IGroupManagedData;
 }
 
 export interface GroupsManagedActionPayload {
@@ -14,6 +31,10 @@ export interface GroupsManagedActionPayload {
 	groupManagedIdToCreateGroupMembers: number;
 	groupManagedIdToRemoveAllGroupMembers: number;
 	groupManagedRowIndex: number;
+	groupManagedIdToEdit: number;
+	groupManagedBuildingId: number;
+	groupManagedNriId: number;
+	groupManagedInputFormData: IGroupManagedData;
 }
 
 export interface GroupsManagedAction {
@@ -38,6 +59,20 @@ export interface IGroupManagedRowIndex {
 	groupManagedRowIndex: number;
 }
 
+export interface IGroupsManagedIdToEdit {
+	groupManagedIdToEdit: number;
+}
+
+export interface IGroupsManagedBuildingId {
+	groupManagedBuildingId: number;
+}
+
+export interface IGroupManagedNriId {
+	groupManagedNriId: number;
+}
 
 
+export interface IGroupsManagedInputFormData {
+	groupManagedInputFormData: IGroupManagedData;
+}
 

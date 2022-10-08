@@ -28,10 +28,6 @@ import {
 	setReloadFloorsTable,
 	useReloadOrgsOfGroupsManagedTable,
 	setReloadOrgsOfGroupsManagedTable,
-	useNodeRedInstancesTable,
-	setReloadNodeRedInstancesTable,
-	setNodeRedInstancesTable,
-	useReloadNodeRedInstancesTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import GeolocationContainer from '../Geolocation/GeolocationContainer';
@@ -169,14 +165,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
 	const groupsManagedTable = useGroupsManagedTable();
 	const devicesTable = useDevicesTable();
-	const nodeRedInstancesTable = useNodeRedInstancesTable();
 	const digitalTwinsTable = useDigitalTwinsTable();
 	const [buildingsLoading, setBuildingsLoading] = useState(true);
 	const [floorsLoading, setFloorsLoading] = useState(true);
 	const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
 	const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
 	const [deviceLoading, setDevicesLoading] = useState(true);
-	const [nodeRedInstancesLoading, setNodeRedInstancesLoading] = useState(true);
 	const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
 	const [digitalTwinGltfData, setDigitalTwinGltfData] = useState<IDigitalTwinGltfData | null>(null);
 	const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);;
@@ -185,7 +179,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const reloadOrgsOfGroupsManagedTable = useReloadOrgsOfGroupsManagedTable();
 	const reloadGroupsManagedTable = useReloadGroupsManagedTable();
 	const reloadDevicesTable = useReloadDevicesTable();
-	const reloadNodeRedInstancesTable = useReloadNodeRedInstancesTable();
 	const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
 	const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
 	const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
@@ -231,12 +224,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
 	}, [plaformAssistantDispatch])
 
-	const refreshNodeRedInstances = useCallback(() => {
-		setNodeRedInstancesLoading(true);
-		const reloadNodeRedInstancesTable = true;
-		setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
-	}, [plaformAssistantDispatch])
-
 	const refreshDigitalTwins = useCallback(() => {
 		setReloadDigitalTwins(true);
 		setDigitalTwinsLoading(true);
@@ -248,7 +235,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)
 
 	}, [])
-
 
 	const setNewOuterBounds = (outerBounds: number[][]) => {
 		setOuterBounds(outerBounds);
@@ -462,40 +448,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	]);
 
 	useEffect(() => {
-		if (nodeRedInstancesTable.length === 0 || reloadNodeRedInstancesTable) {
-			const config = axiosAuth(accessToken);
-			const urlNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances/user_managed`;
-			axiosInstance(refreshToken, authDispatch)
-				.get(urlNodeRedInstances, config)
-				.then((response) => {
-					const nodeRedInstances = response.data;
-                    nodeRedInstances.forEach((nodeRedInstance: { groupId: number | string; deleted: boolean | string }) => {
-                        if (nodeRedInstance.groupId === 0) nodeRedInstance.groupId = "-";
-                        if (nodeRedInstance.deleted === true) nodeRedInstance.deleted = "Yes";
-                        if (nodeRedInstance.deleted === false) nodeRedInstance.deleted = "No";
-                    });
-                    setNodeRedInstancesTable(plaformAssistantDispatch, { nodeRedInstances });
-                    setNodeRedInstancesLoading(false);
-                    const reloadNodeRedInstancesTable = false;
-                    setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
-				})
-				.catch((error) => {
-					console.log(error);
-				});
-		} else {
-			setNodeRedInstancesLoading(false);
-		}
-	}, [
-		accessToken,
-		refreshToken,
-		authDispatch,
-		plaformAssistantDispatch,
-		nodeRedInstancesTable.length,
-		reloadNodeRedInstancesTable
-	]);
-
-
-	useEffect(() => {
 		if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
 			const config = axiosAuth(accessToken);
 			const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
@@ -553,7 +505,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			</PlatformAssistantHomeOptionsContainer>
 			<ContentContainer >
 				<>
-					{(buildingsLoading || floorsLoading || orgsOfGroupsManagedLoading || groupsManagedLoading || deviceLoading || digitalTwinLoading || nodeRedInstancesLoading || glftDataLoading) ?
+					{(buildingsLoading || floorsLoading || orgsOfGroupsManagedLoading || groupsManagedLoading || deviceLoading || digitalTwinLoading || glftDataLoading) ?
 						<Loader />
 						:
 						<>
@@ -564,7 +516,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									orgsOfGroupsManaged={orgsOfGroupsManagedTable}
 									groupsManaged={groupsManagedTable}
 									devices={devicesTable}
-									nodeRedInstances={nodeRedInstancesTable}
 									digitalTwins={digitalTwinsTable}
 									buildingSelected={buildingSelected}
 									selectBuilding={selectBuilding}
@@ -584,7 +535,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									refreshGroupsManaged={refreshGroupsManaged}
 									refreshDevices={refreshDevices}
 									refreshDigitalTwins={refreshDigitalTwins}
-									refreshNodeRedInstances={refreshNodeRedInstances}
 									initialOuterBounds={initialOuterBounds}
 									outerBounds={outerBounds}
 									setNewOuterBounds={setNewOuterBounds}

@@ -10,6 +10,21 @@ export const initialState = {
     groupManagedIdToCreateGroupMembers: 0,
     groupManagedIdToRemoveAllGroupMembers: 0,
     groupManagedRowIndex: 0,
+    groupManagedIdToEdit: 0,
+    groupManagedBuildingId: 0,
+    groupManagedNriId: 0,
+    groupManagedInputFormData: {
+        groupId: 0,
+        name: "",
+        acronym: "",
+        orgId: 0,
+        telegramInvitationLink: "",
+        telegramChatId: "",
+        nriInGroupId: 0,
+        nriInGroupIconLongitude: 0,
+        nriInGroupIconLatitude: 0,
+        nriInGroupIconRadio: 1.0
+    }
 };
 
 
@@ -37,6 +52,30 @@ export const GroupsManagedReducer = (initialState: GroupsManagedContextProps, ac
             return {
                 ...initialState,
                 groupManagedRowIndex: action.payload.groupManagedRowIndex
+            };
+
+        case "GROUP_MANAGED_ID_TO_EDIT":
+            return {
+                ...initialState,
+                groupManagedIdToEdit: action.payload.groupManagedIdToEdit
+            };
+
+        case "GROUP_MANAGED_BUILDING_ID":
+            return {
+                ...initialState,
+                groupManagedBuildingId: action.payload.groupManagedBuildingId
+            };
+
+        case "GROUP_MANAGED_INPUT_DATA":
+            return {
+                ...initialState,
+                groupManagedInputFormData: action.payload.groupManagedInputFormData
+            };
+
+        case "GROUP_MANAGED_NRI_ID":
+            return {
+                ...initialState,
+                groupManagedNriId: action.payload.groupManagedNriId
             };
 
         default:

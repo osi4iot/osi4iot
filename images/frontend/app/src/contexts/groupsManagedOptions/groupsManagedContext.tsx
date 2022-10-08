@@ -1,6 +1,6 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
 import { ChildrenProp } from '../../interfaces/interfaces'
-import { GroupsManagedContextProps } from './interfaces'
+import { GroupsManagedContextProps, IGroupManagedData } from './interfaces'
 import { initialState, GroupsManagedReducer } from './groupsManagedReducer';
 
 
@@ -68,3 +68,38 @@ export const useGroupManagedRowIndex = (): number => {
 	}
 	return context.groupManagedRowIndex;
 };
+
+export const useGroupManagedIdToEdit = (): number => {
+	const context = useContext(GroupsManagedStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupManagedIdToEdit must be used within a GroupsManagedProvider');
+	}
+	return context.groupManagedIdToEdit;
+};
+
+export const useGroupManagedInputFormData = (): IGroupManagedData => {
+	const context = useContext(GroupsManagedStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupManagedInputFormData must be used within a GroupsManagedProvider');
+	}
+	return context.groupManagedInputFormData;
+};
+
+export const useGroupManagedBuildingId = (): number => {
+	const context = useContext(GroupsManagedStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupManagedBuildingId must be used within a GroupsManagedProvider');
+	}
+	return context.groupManagedBuildingId;
+};
+
+export const useGroupManagedNriId = (): number => {
+	const context = useContext(GroupsManagedStateContext);
+	if (context === undefined) {
+		throw new Error('useGroupManagedNriId must be used within a GroupsManagedProvider');
+	}
+	return context.groupManagedNriId;
+};
+
+
+

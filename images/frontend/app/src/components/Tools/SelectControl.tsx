@@ -6,7 +6,6 @@ import Select, { OptionsType, ValueType } from "react-select";
 
 const DropDownContainer = styled.div`
     margin: 20px 0;
-
     display: flex;
     flex-direction: column;
     justify-content: flex-start;
@@ -29,8 +28,9 @@ const customStyles = {
         ...provided,
         borderBottom: '2px solid #2c3235',
         color: 'white',
-        padding: 15,
+        padding: 10,
         fontSize: '14px',
+        height: '40px',
         backgroundColor: '#35383d',
         "&:hover": {
             cursor: 'pointer',
@@ -83,6 +83,25 @@ const customStyles = {
         ...provided,
         backgroundColor: '#35383d',
         width: 'calc(100% + 3px)',
+    }),
+    menuList: (provided: any, state: any) => ({
+        ...provided,
+        backgroundColor: '#35383d',
+        "::-webkit-scrollbar": {
+            width: "7px",
+            height: "0px",
+        },
+        "::-webkit-scrollbar-track": {
+            background: "#202226",
+            borderRadius: "3px"
+        },
+        "::-webkit-scrollbar-thumb": {
+            background: "#2c3235",
+            borderRadius: "3px"
+        },
+        "::-webkit-scrollbar-thumb:hover": {
+            background: "#424b4f"
+        }
     }),
     singleValue: (provided: any, state: any) => {
         const color = 'white';

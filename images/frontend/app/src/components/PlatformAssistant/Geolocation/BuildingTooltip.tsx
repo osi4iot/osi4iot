@@ -39,7 +39,7 @@ const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuildin
                     <Tooltip sticky opacity={1}>
                         <div>
                             <span style={{ fontWeight: 'bold' }}>Org:</span>
-                            {" "}<StatusLed status={orgStatus} size="8px" />{` ${orgAcronym}`}
+                            {` ${orgAcronym} `}<StatusLed status={orgStatus} size="8px" />
                         </div>
                     </Tooltip>
                     :
@@ -53,7 +53,11 @@ const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuildin
                                     <span style={{ fontWeight: 600 }}>Orgs in building:</span>
                                 </div>
                                 <Ul>
-                                    {orgsInBuilding.map(org => <li key={org.id}><StatusLed status={org.state} size="8px" />{org.acronym}</li>)}
+                                    {
+                                        orgsInBuilding.map(org =>
+                                            <li key={org.id}>{` ${org.acronym} `}<StatusLed status={org.orgStatus} size="8px" /></li>
+                                        )
+                                    }
                                 </Ul>
                             </>
                             :

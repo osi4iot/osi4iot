@@ -88,15 +88,15 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 			encryption = "-opt encrypted=true";
 		}
 		const networks = execSync(`docker ${dockerHost} network ls`);
-		if (networks.indexOf("traefik_public") === -1) {
+		if (networks.toString().indexOf("traefik_public") === -1) {
 			execSync(`docker ${dockerHost} network create -d overlay ${encryption} traefik_public`);
 		}
 
-		if (networks.indexOf("agent_network") === -1) {
+		if (networks.toString().indexOf("agent_network") === -1) {
 			execSync(`docker ${dockerHost} network create -d overlay ${encryption} agent_network`);
 		}
 
-		if (networks.indexOf("internal_net") === -1) {
+		if (networks.toString().indexOf("internal_net") === -1) {
 			execSync(`docker ${dockerHost} network create -d overlay ${encryption} internal_net`);
 		}
 

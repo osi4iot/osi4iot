@@ -13,7 +13,6 @@ import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
-import { INodeRedInstance } from "../TableColumns/nodeRedInstancesInOrgsColumns";
 import GeoMasterDevice from "./GeoMasterDevice";
 import GeoNodeRedInstance from "./GeoNodeRedInstance";
 
@@ -59,7 +58,6 @@ interface GeoGroupProps {
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
-    nodeRedInstances: INodeRedInstance[];
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
@@ -77,7 +75,6 @@ const GeoGroup: FC<GeoGroupProps> = (
         deviceDataArray,
         deviceSelected,
         selectDevice,
-        nodeRedInstances,
         digitalTwins,
         digitalTwinSelected,
         selectDigitalTwin,
@@ -89,9 +86,9 @@ const GeoGroup: FC<GeoGroupProps> = (
     const geoJsonLayerGroupRef = useRef(null);
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
     const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
-    const nodeRedInstancesFiltered = nodeRedInstances.filter(nri => nri.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
-    const groupGeoJsonData = useState(findGroupGeojsonData(floorData, groupData.featureIndex))[0]
+    const groupGeoJsonData = useState(findGroupGeojsonData(floorData, groupData.featureIndex))[0];
+
 
     const styleGeoGroupJson = (geoJsonFeature: any) => {
         const groupsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.groupId === groupData.id);
@@ -121,6 +118,12 @@ const GeoGroup: FC<GeoGroupProps> = (
                         >
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
+                        <GeoNodeRedInstance
+                                longitude={groupData.nriInGroupIconLongitude}
+                                latitude={groupData.nriInGroupIconLatitude}
+                                iconRadio={groupData.nriInGroupIconRadio}
+                                nriHash={groupData.nriInGroupHash}
+                        />
                         {
                             deviceDataArrayFiltered.map(deviceData => {
                                 return deviceData.type === "Generic" ?
@@ -139,15 +142,6 @@ const GeoGroup: FC<GeoGroupProps> = (
                                         selectDevice={selectDevice}
                                         digitalTwinsState={digitalTwinsState}
                                     />
-                            })
-                        }
-                        {
-                            nodeRedInstancesFiltered.map((nriData, index) => {
-                                return < GeoNodeRedInstance
-                                    key={nriData.id}
-                                    nriData={nriData}
-                                    instanceNumber={index+1}
-                                />
                             })
                         }
                         {

@@ -29,11 +29,13 @@ import { getBuildingByOrgId, getFloorByOrgIdAndFloorNumber } from "../building/b
 import arrayCompare from "../../utils/helpers/arrayCompare";
 import { updateGroupDevicesLocation } from "../device/deviceDAL";
 import process_env from "../../config/api_config";
-import { updateGroupNodeRedInstancesLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
+import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
-	let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
-	if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_general`;
+	// let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
+	// if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_general`;
+	let groupName: string = `${orgName} general`;
+	if (groupName.length > 50) groupName = `${orgAcronym.replace(/"/g, "").toUpperCase()} general`;
 	return groupName;
 };
 
@@ -166,7 +168,7 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 	await updateGroupById(groupData);
 	if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
 		await updateGroupDevicesLocation(geoJsonDataString, groupData);
-		await updateGroupNodeRedInstancesLocation(geoJsonDataString, groupData)
+		await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData)
 	}
 	let hasGroupChange = false;
 	if (groupData.folderPermission && (groupData.folderPermission !== existentGroup.folderPermission)) {
@@ -222,8 +224,15 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed"
+				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
+				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				ORDER BY id ASC;`;
 	const result = await pool.query(query);
@@ -253,8 +262,14 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
 				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",				
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1 AND (grafanadb.team_member.permission = $2 OR grafanadb.team_member.permission = $3)
@@ -281,8 +296,14 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
 				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",				
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				INNER JOIN grafanadb.team_member ON grafanadb.team_member.team_id = grafanadb.group.team_id
 				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2
@@ -389,8 +410,14 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
 				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.org_id = $1
 				ORDER BY id ASC;`;
@@ -415,9 +442,15 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
 				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				WHERE grafanadb.group.org_id = ANY($1::bigint[])
 				ORDER BY id ASC;`;
 	const result = await pool.query(query, [orgIdsArray]);
@@ -440,8 +473,14 @@ export const getGroupByWithFolderPermissionProp = async (propName: string, propV
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
 				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",				
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				INNER JOIN grafanadb.dashboard_acl ON grafanadb.group.team_id = grafanadb.dashboard_acl.team_id
 				WHERE grafanadb.group.${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
@@ -463,8 +502,14 @@ export const getGroupByProp = async (propName: string, propValue: (string | numb
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
 				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",				
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				WHERE grafanadb.group.${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
 	return result.rows[0];
@@ -483,8 +528,14 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
 				mqtt_action_allowed AS "mqttActionAllowed",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",				
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
 	const result = await pool.query(query, [orgId, true]);
 	return result.rows[0];

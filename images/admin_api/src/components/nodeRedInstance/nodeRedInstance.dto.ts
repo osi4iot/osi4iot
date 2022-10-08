@@ -12,6 +12,8 @@ class CreateNodeRedInstanceDto {
 	longitude?: number;
 
 	latitude?: number;
+
+	iconRadio?: number;
 }
 
 export default CreateNodeRedInstanceDto;

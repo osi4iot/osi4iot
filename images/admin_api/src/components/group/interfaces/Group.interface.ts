@@ -17,4 +17,9 @@ export default interface IGroup {
 	floorNumber: number;
 	featureIndex: number;
 	mqttActionAllowed: string;
+	nriInGroupId?: number;
+	nriInGroupHash?: string;
+	nriInGroupIconLongitude?: number;
+	nriInGroupIconLatitude?: number;
+	nriInGroupIconRadio?: number;
 }

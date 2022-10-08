@@ -13,6 +13,7 @@ export const getAllNodeRedInstances = async (): Promise<INodeRedInstance[]> => {
 									grafanadb.nodered_instance.group_id AS "groupId",
 									grafanadb.nodered_instance.geolocation[0] AS longitude,
 									grafanadb.nodered_instance.geolocation[1] AS latitude,
+									grafanadb.nodered_instance.icon_radio AS "iconRadio",
 									grafanadb.nodered_instance.deleted
 									FROM grafanadb.nodered_instance
 									ORDER BY grafanadb.nodered_instance.id ASC,
@@ -28,12 +29,30 @@ export const getNodeRedInstancesByOrgsIdArray = async (orgsIdArray: number[]): P
 									grafanadb.nodered_instance.group_id AS "groupId",
 									grafanadb.nodered_instance.geolocation[0] AS longitude,
 									grafanadb.nodered_instance.geolocation[1] AS latitude,
+									grafanadb.nodered_instance.icon_radio AS "iconRadio",
 									grafanadb.nodered_instance.deleted
 									FROM grafanadb.nodered_instance
 									WHERE grafanadb.nodered_instance.org_id = ANY($1::bigint[])
 									ORDER BY grafanadb.nodered_instance.id ASC,
 											grafanadb.nodered_instance.org_id ASC,
 											grafanadb.nodered_instance.group_id ASC;`, [orgsIdArray]);
+	return response.rows;
+};
+
+export const getNodeRedInstancesByGroupsIdArray = async (groupsIdArray: number[]): Promise<INodeRedInstance[]> => {
+	const response = await pool.query(`SELECT grafanadb.nodered_instance.id,
+									grafanadb.nodered_instance.nri_hash AS "nriHash",
+									grafanadb.nodered_instance.org_id AS "orgId",
+									grafanadb.nodered_instance.group_id AS "groupId",
+									grafanadb.nodered_instance.geolocation[0] AS longitude,
+									grafanadb.nodered_instance.geolocation[1] AS latitude,
+									grafanadb.nodered_instance.icon_radio AS "iconRadio",
+									grafanadb.nodered_instance.deleted
+									FROM grafanadb.nodered_instance
+									WHERE grafanadb.nodered_instance.groupId = ANY($1::bigint[])
+									ORDER BY grafanadb.nodered_instance.id ASC,
+											grafanadb.nodered_instance.org_id ASC,
+											grafanadb.nodered_instance.group_id ASC;`, [groupsIdArray]);
 	return response.rows;
 };
 
@@ -44,23 +63,25 @@ export const getNodeRedInstanceByProp = async (propName: string, propValue: (str
 									grafanadb.nodered_instance.group_id AS "groupId",
 									grafanadb.nodered_instance.geolocation[0] AS longitude,
 									grafanadb.nodered_instance.geolocation[1] AS latitude,
+									grafanadb.nodered_instance.icon_radio AS "iconRadio",
 									grafanadb.nodered_instance.deleted
 									FROM grafanadb.nodered_instance
 									WHERE grafanadb.nodered_instance.${propName} = $1`, [propValue]);
 	return response.rows[0];
 }
 
-export const getNodeRedInstancesInGroup = async (groupId: number): Promise<INodeRedInstance[]> => {
+export const getNodeRedInstancesInGroup = async (groupId: number): Promise<INodeRedInstance> => {
 	const response = await pool.query(`SELECT grafanadb.nodered_instance.id,
 									grafanadb.nodered_instance.nri_hash AS "nriHash",
 									grafanadb.nodered_instance.org_id AS "orgId",
 									grafanadb.nodered_instance.group_id AS "groupId",
 									grafanadb.nodered_instance.geolocation[0] AS longitude,
 									grafanadb.nodered_instance.geolocation[1] AS latitude,
+									grafanadb.nodered_instance.icon_radio AS "iconRadio",
 									grafanadb.nodered_instance.deleted
 									FROM grafanadb.nodered_instance
 									WHERE grafanadb.nodered_instance.group_id = $1`, [groupId]);
-	return response.rows;
+	return response.rows[0];
 }
 
 export const markAsDeleteNodeRedInstancesInGroup = async (groupId: number): Promise<void> => {
@@ -78,10 +99,11 @@ export const deleteNodeRedInstanceById = async (nodeRedInstanceId: number): Prom
 };
 
 export const updateNodeRedInstanceByProp = async (propName: string, propValue: (string | number), nriData: CreateNodeRedInstanceDto): Promise<void> => {
-	const query = `UPDATE grafanadb.nodered_instance SET geolocation = $1, updated = NOW()
-				WHERE grafanadb.nodered_instance.${propName} = $2;`;
+	const query = `UPDATE grafanadb.nodered_instance SET geolocation = $1, icon_radio = $2, updated = NOW()
+				WHERE grafanadb.nodered_instance.${propName} = $3;`;
 	await pool.query(query, [
 		`(${nriData.longitude},${nriData.latitude})`,
+		nriData.iconRadio,
 		propValue
 	]);
 };
@@ -102,7 +124,8 @@ export const createNodeRedInstancesInOrg = async (nriHashes: string[], orgId: nu
 			nriHash,
 			orgId,
 			longitude: 0,
-			latitude: 0
+			latitude: 0,
+			iconRadio: 1
 		}
 		const nodeRedInstanceQuery = createNodeRedInstance(nriInput);
 		nodeRedInstancesQueries.push(nodeRedInstanceQuery);
@@ -114,10 +137,10 @@ export const createNodeRedInstancesInOrg = async (nriHashes: string[], orgId: nu
 
 export const createNodeRedInstance = async (nriInput: CreateNodeRedInstanceDto): Promise<INodeRedInstance> => {
 	const result = await pool.query(`INSERT INTO grafanadb.nodered_instance (nri_hash, org_id,
-		group_id, geolocation, created, updated) VALUES ($1, $2, $3, $4, NOW(), NOW())
+		group_id, geolocation, created, updated) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		RETURNING id, nri_hash AS "nriHash", org_id AS "orgId", group_id AS "groupId",geolocation[0] AS longitude,
-		geolocation[1] AS latitude, deleted`,
-		[nriInput.nriHash, nriInput.orgId, 0, `(${nriInput.longitude},${nriInput.latitude})`]);
+		geolocation[1] AS latitude, icon_radio AS "iconRadio", deleted`,
+		[nriInput.nriHash, nriInput.orgId, 0, `(${nriInput.longitude},${nriInput.latitude})`, nriInput.iconRadio]);
 	return result.rows[0];
 };
 
@@ -138,6 +161,7 @@ export const getNodeRedInstancesUnassignedInOrg = async (orgId: number): Promise
 									grafanadb.nodered_instance.group_id AS "groupId",
 									grafanadb.nodered_instance.geolocation[0] AS longitude,
 									grafanadb.nodered_instance.geolocation[1] AS latitude,
+									grafanadb.nodered_instance.icon_radio AS "iconRadio",
 									grafanadb.nodered_instance.deleted
 									FROM grafanadb.nodered_instance
 									WHERE grafanadb.nodered_instance.org_Id = $1 AND
@@ -146,35 +170,20 @@ export const getNodeRedInstancesUnassignedInOrg = async (orgId: number): Promise
 	return response.rows;
 }
 
-export const updateGroupNodeRedInstancesLocation = async (geoJsonDataString: string, group: IGroup): Promise<void> => {
-	const nodeRedInstances = await getNodeRedInstancesInGroup(group.id);
-	if (nodeRedInstances.length !== 0) {
-		const geojsonObj = JSON.parse(geoJsonDataString);
-		const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
-		const center = pointOnFeature(geoPolygon);
-		const centerGroupAreaLongitude = center.geometry.coordinates[0];
-		const centerGroupAreaLatitude = center.geometry.coordinates[1];
-		const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
-		const separation = 0.002;
-		const pt = rhumbDestination(ptCenterGroupArea, separation, 0.0001);
-		const interNodeRedInstanceDistance = 0.005;
-		const totalLongitude = (nodeRedInstances.length - 1) * interNodeRedInstanceDistance;
-		const nodeRedInstanceLocationQueries = [];
-
-		for (let i = 0; i < nodeRedInstances.length; i++) {
-			let bearing: number;
-			const distance = - totalLongitude * 0.5 + i * interNodeRedInstanceDistance;
-			if (distance > 0) bearing = -90;
-			else bearing = 90;
-			const positionCoords = rhumbDestination(pt, Math.abs(distance), bearing);
-			const longitude = positionCoords.geometry.coordinates[0];
-			const latitude = positionCoords.geometry.coordinates[1];
-			const nodeRedInstanceId = nodeRedInstances[i].id;
-			const nodeRedInstanceUpdated = { ...nodeRedInstances[i], longitude, latitude };
-			const query = updateNodeRedInstanceByProp("id", nodeRedInstanceId, nodeRedInstanceUpdated)
-			nodeRedInstanceLocationQueries.push(query);
-		}
-		await Promise.all(nodeRedInstanceLocationQueries)
-	}
+export const updateGroupNodeRedInstanceLocation = async (geoJsonDataString: string, group: IGroup): Promise<void> => {
+	const nodeRedInstance = await getNodeRedInstancesInGroup(group.id);
+	const geojsonObj = JSON.parse(geoJsonDataString);
+	const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+	const center = pointOnFeature(geoPolygon);
+	const centerGroupAreaLongitude = center.geometry.coordinates[0];
+	const centerGroupAreaLatitude = center.geometry.coordinates[1];
+	const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
+	const separation = 0.002 * nodeRedInstance.iconRadio;
+	const pt = rhumbDestination(ptCenterGroupArea, separation, 0.0);
+	const longitude = pt.geometry.coordinates[0];
+	const latitude = pt.geometry.coordinates[1];
+	const nodeRedInstanceId = nodeRedInstance.id;
+	const nodeRedInstanceUpdated = { ...nodeRedInstance, longitude, latitude };
+	await updateNodeRedInstanceByProp("id", nodeRedInstanceId, nodeRedInstanceUpdated)
 }
 
