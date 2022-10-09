@@ -546,36 +546,24 @@ export async function dataBaseInitialization() {
 					logger.log("error", `Foreing key in table ${tableThingData} could not be created: %s`, err.message);
 				}
 
-				let device1: IDevice;
-				let device2: IDevice;
+				let device: IDevice;
 				try {
-					const defaultGroupDevicesData = [
-						{
-							name: defaultGroupDeviceName(group, "Master"),
-							description: `Master device of the group ${mainOrgGroupAcronym}`,
-							latitude: 0,
-							longitude: 0,
-							type: "Master",
-							iconRadio: 1.0,
-							mqttPassword: "pepe123",
-							mqttActionAllowed: "Pub & Sub"
-						},
-						{
-							name: defaultGroupDeviceName(group, "Generic"),
-							description: `Default generic device of the group ${mainOrgGroupAcronym}`,
-							latitude: 0,
-							longitude: 0,
-							type: "Generic",
-							iconRadio: 1.0,
-							mqttPassword: "pepe123",
-							mqttActionAllowed: "Pub & Sub"
-						},
-					];
-					device1 = await createDevice(group, defaultGroupDevicesData[0]);
-					device2 = await createDevice(group, defaultGroupDevicesData[1]);
-					logger.log("info", `Default group devices has been created sucessfully`);
+					const defaultGroupDeviceData =
+					{
+						name: defaultGroupDeviceName(group, "Generic"),
+						description: `Default generic device of the group ${mainOrgGroupAcronym}`,
+						latitude: 0,
+						longitude: 0,
+						type: "Generic",
+						iconRadio: 1.0,
+						mqttPassword: "pepe123",
+						mqttActionAllowed: "Pub & Sub"
+					};
+
+					device = await createDevice(group, defaultGroupDeviceData);
+					logger.log("info", `Default group device has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Default group devices could not be created: %s`, err.message);
+					logger.log("error", `Default group device could not be created: %s`, err.message);
 				}
 
 
@@ -585,29 +573,29 @@ export async function dataBaseInitialization() {
 					const defaultDeviceTopicsData = [
 						{
 							topicType: "dev2pdb",
-							topicName: demoTopicName(group, device1, "Temperature"),
+							topicName: demoTopicName(group, device, "Temperature"),
 							description: `Temperature sensor for ${defaultGroupDeviceName(group, "Master")} device`,
 							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 							mqttActionAllowed: "Pub & Sub"
 						},
 						{
 							topicType: "dev2pdb",
-							topicName: demoTopicName(group, device2, "Accelerometer"),
+							topicName: demoTopicName(group, device, "Accelerometer"),
 							description: `Mobile accelerations for ${defaultGroupDeviceName(group, "Generic")} device`,
 							payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 							mqttActionAllowed: "Pub & Sub"
 						},
 						{
 							topicType: "dev2dtm",
-							topicName: demoTopicName(group, device2, "Photo"),
+							topicName: demoTopicName(group, device, "Photo"),
 							description: `Mobile photo for default for ${defaultGroupDeviceName(group, "Generic")} device`,
 							payloadFormat: '{"mobile_photo": {"type": "string"}}',
 							mqttActionAllowed: "Pub & Sub"
 						},
 					];
-					topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
-					topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
-					await createTopic(device2.id, defaultDeviceTopicsData[2]);
+					topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
+					topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
+					await createTopic(device.id, defaultDeviceTopicsData[2]);
 
 					logger.log("info", `Default device topics has been created sucessfully`);
 				} catch (err) {
@@ -618,7 +606,7 @@ export async function dataBaseInitialization() {
 					const dashboardsId: number[] = [];
 
 					[dashboardsId[0], dashboardsId[1]] =
-						await createDemoDashboards(orgAcronym, group, [device1, device2], [topic1, topic2]);
+						await createDemoDashboards(orgAcronym, group, device, [topic1, topic2]);
 
 					const defaultDeviceDigitalTwinsData = [
 						{
@@ -647,8 +635,8 @@ export async function dataBaseInitialization() {
 						},
 					];
 
-					await createDigitalTwin(group, device1, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
-					await createDigitalTwin(group, device2, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
+					await createDigitalTwin(group, device, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
+					await createDigitalTwin(group, device, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
 
 					logger.log("info", `Default device digital twins has been created sucessfully`);
 				} catch (err) {

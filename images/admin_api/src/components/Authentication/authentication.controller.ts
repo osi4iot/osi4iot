@@ -163,8 +163,6 @@ class AuthenticationController implements IController {
 	private userMosquittoAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { password, username, clientid } = req.body;
-			console.log("Paso por userMosquittoAuth");
-			console.log("username=", username);
 			const usernameArray = username.split("_");
 			if (usernameArray[0] === "jwt") {
 				const algorithm = "HS256" as jwt.Algorithm;
@@ -228,9 +226,6 @@ class AuthenticationController implements IController {
 	private userMosquittoAclCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { acc, clientid, username, topic } = req.body;
-			console.log("Paso por userMosquittoAclCheck");
-			console.log(`username=${username} topic=${topic}`);
-
 			const topicArray = topic.split("/");
 			if (username === "dev2pdb") {
 				const topicType = topicArray[0];

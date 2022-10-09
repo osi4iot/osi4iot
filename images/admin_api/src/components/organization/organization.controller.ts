@@ -347,60 +347,49 @@ class OrganizationController implements IController {
 				const noredInstances = await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId);
 				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);
 
-				const defaultGroupDeviceData = [
-					{
-						name: defaultGroupDeviceName(group, "Master"),
-						description: `Master device of the group ${defaultOrgGroupAcronym}`,
-						latitude: 0,
-						longitude: 0,
-						type: "Master",
-						iconRadio: 1.0,
-						mqttActionAllowed: "Pub & Sub"
-					},
-					{
-						name: defaultGroupDeviceName(group, "Generic"),
-						description: `Default generic device of the group ${defaultOrgGroupAcronym}`,
-						latitude: 0,
-						longitude: 0,
-						type: "Generic",
-						iconRadio: 1.0,
-						mqttActionAllowed: "Pub & Sub"
-					}
-				];
-				const device1 = await createDevice(group, defaultGroupDeviceData[0]);
-				const device2 = await createDevice(group, defaultGroupDeviceData[1]);
+				const defaultGroupDeviceData = {
+					name: defaultGroupDeviceName(group, "Generic"),
+					description: `Default generic device of the group ${defaultOrgGroupAcronym}`,
+					latitude: 0,
+					longitude: 0,
+					type: "Generic",
+					iconRadio: 1.0,
+					mqttActionAllowed: "Pub & Sub"
+				};
+
+				const device = await createDevice(group, defaultGroupDeviceData);
 
 				const defaultDeviceTopicsData = [
 					{
 						topicType: "dev2pdb",
-						topicName: demoTopicName(group, device1, "Temperature"),
+						topicName: demoTopicName(group, device, "Temperature"),
 						description: `Temperature sensor for default generic device of the group ${group.acronym}`,
 						payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 						mqttActionAllowed: "Pub & Sub"
 					},
 					{
 						topicType: "dev2pdb",
-						topicName: demoTopicName(group, device2, "Accelerometer"),
+						topicName: demoTopicName(group, device, "Accelerometer"),
 						description: `Mobile accelerations for default generic device of the group ${group.acronym}`,
 						payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 						mqttActionAllowed: "Pub & Sub"
 					},
 					{
 						topicType: "dev2dtm",
-						topicName: demoTopicName(group, device2, "Photo"),
+						topicName: demoTopicName(group, device, "Photo"),
 						description: `Mobile photo for default generic device of the group ${group.acronym}`,
 						payloadFormat: '{"mobile_photo": {"type": "string"}}',
 						mqttActionAllowed: "Pub & Sub"
 					},
 				];
-				const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
-				const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
-				await createTopic(device2.id, defaultDeviceTopicsData[2]);
+				const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
+				const topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
+				await createTopic(device.id, defaultDeviceTopicsData[2]);
 
 				const dashboardsId: number[] = [];
 
 				[dashboardsId[0], dashboardsId[1]] =
-					await createDemoDashboards(organizationData.acronym, group, [device1, device2], [topic1, topic2]);
+					await createDemoDashboards(organizationData.acronym, group, device, [topic1, topic2]);
 
 				const defaultDeviceDigitalTwinsData = [
 					{
@@ -429,8 +418,8 @@ class OrganizationController implements IController {
 					},
 				];
 
-				await createDigitalTwin(group, device1, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
-				await createDigitalTwin(group, device2, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
+				await createDigitalTwin(group, device, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
+				await createDigitalTwin(group, device, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
 			}
 			const message = { message: "Organization created successfully" }
 			res.status(201).send(message);

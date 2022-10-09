@@ -1,31 +1,29 @@
 import yaml from 'js-yaml';
 import fs from 'fs';
 
-const defaultVersion = '1.1.0'
-
-const defaultServiceImageVersion = {
-	system_prune: defaultVersion || 'latest',
-	traefik: defaultVersion || 'latest',
-	mosquitto: defaultVersion || 'latest',
-	mosquitto_go_auth: "dev",
-	agent: defaultVersion || 'latest',
-	portainer: defaultVersion || 'latest',
-	pgadmin4: defaultVersion || 'latest',
-	postgres: defaultVersion || 'latest',
-	grafana: defaultVersion || 'latest',
-	grafana_renderer: defaultVersion || 'latest',
-	// admin_api: defaultVersion || 'latest',
-	admin_api: 'dev',
-	// frontend: defaultVersion || 'latest',
-	frontend: 'dev',
-	// nodered_instance: defaultVersion || 'latest',
-	nodered_instance: 'dev',
-	keepalived: defaultVersion || 'latest',
-	// dev2pdb: defaultVersion || 'latest'
-	dev2pdb:  'dev',
-}
 
 export default function (osi4iotState) {
+	const defaultVersion = osi4iotState.platformInfo.DOCKER_IMAGES_VERSION;
+
+	const defaultServiceImageVersion = {
+		system_prune: defaultVersion || 'latest',
+		traefik: defaultVersion || 'latest',
+		mosquitto: defaultVersion || 'latest',
+		mosquitto_go_auth: defaultVersion || 'latest',
+		agent: defaultVersion || 'latest',
+		portainer: defaultVersion || 'latest',
+		pgadmin4: defaultVersion || 'latest',
+		postgres: defaultVersion || 'latest',
+		grafana: defaultVersion || 'latest',
+		grafana_renderer: defaultVersion || 'latest',
+		admin_api: defaultVersion || 'latest',
+		frontend: defaultVersion || 'latest',
+		nodered_instance: defaultVersion || 'latest',
+		keepalived: defaultVersion || 'latest',
+		dev2pdb: defaultVersion || 'latest'
+	}
+
+
 	let existAtLeastOnex86_64ArchNode = false;
 	let platformArch = 'x86_64';
 	const nodesData = osi4iotState.platformInfo.NODES_DATA;
@@ -78,7 +76,7 @@ export default function (osi4iotState) {
 			'--accesslog',
 			'--log'
 		);
-		traefik_ports.push('80:80','443:443');
+		traefik_ports.push('80:80', '443:443');
 	}
 
 	let numReplicas = 3;
@@ -260,7 +258,7 @@ export default function (osi4iotState) {
 						constraints: workerConstraintsArray
 					}
 				}
-			},			
+			},
 			agent: {
 				image: `ghcr.io/osi4iot/portainer_agent:${serviceImageVersion['agent']}`,
 				environment: [
@@ -732,7 +730,7 @@ export default function (osi4iotState) {
 		}
 	}
 
-	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager" ) {
+	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
 		osi4iotStackObj.services['portainer'].deploy.labels = osi4iotStackObj.services['portainer'].deploy.labels.filter(elm => elm !== 'traefik.http.routers.portainer.tls=true');
 
 		osi4iotStackObj.services['pgadmin4'].deploy.labels = [

@@ -162,7 +162,7 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 	await insertPreference(orgId, response.id);
 };
 
-export const createDemoDashboards = async (orgAcronym: string, group: IGroup, devices: IDevice[], topics: Partial<ITopic>[]): Promise<number[]> => {
+export const createDemoDashboards = async (orgAcronym: string, group: IGroup, device: IDevice, topics: Partial<ITopic>[]): Promise<number[]> => {
 	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toLowerCase()}_db`;
 	const dataSource = await getDataSourceByProp("name", dataSourceName);
 	const grouAcronym = group.acronym;
@@ -171,9 +171,9 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	tempDashboard.uid = uuidv4();
 	tempDashboard.title = titleTempDashboard;
 	const tableHash = `Table_${group.groupUid}`;
-	const device1Hash = `Device_${devices[0].deviceUid}`;
+	const deviceHash = `Device_${device.deviceUid}`;
 	const topic1Hash = `Topic_${topics[0].topicUid}`;
-	const rawSqlTemp = `SELECT timestamp AS \"time\", CAST(payload->>'temperature' AS DOUBLE PRECISION) AS \"Temperature\" FROM  iot_datasource.${tableHash} WHERE topic = '${device1Hash}/${topic1Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	const rawSqlTemp = `SELECT timestamp AS \"time\", CAST(payload->>'temperature' AS DOUBLE PRECISION) AS \"Temperature\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topic1Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	for (let i = 0; i < 3; i++) {
 		tempDashboard.panels[i].targets[0].rawSql = rawSqlTemp;
 		tempDashboard.panels[i].datasource = dataSourceName;
@@ -198,10 +198,9 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	accelDashboard.title = titleAccelDashboard;
 	accelDashboard.panels[0].datasource = dataSourceName;
 	accelDashboard.panels[0].alert.notifications[0].uid = emailNotificationChannelUid;
-	accelDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;
-	const device2Hash = `Device_${devices[1].deviceUid}`;
+	accelDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;;
 	const topic2Hash = `Topic_${topics[1].topicUid}`;
-	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->'accelerations'->>0 AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->'accelerations'->>1 AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->'accelerations'->>2 AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${device2Hash}/${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->'accelerations'->>0 AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->'accelerations'->>1 AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->'accelerations'->>2 AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
 	const accelDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleAccelDashboard, accelDashboard);
 

@@ -574,7 +574,14 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 						return "Please type at least 4 characters";
 					}
 				}
-			}
+			},
+			{
+				name: 'DOCKER_IMAGES_VERSION',
+				message: "Version for docker images",
+				type: 'list',
+				default: "1.1.0",
+				choices: ["1.1.0", "dev"],
+			},
 		])
 		.then((newAnswers) => {
 			const answers = { ...oldAnswers, ...newAnswers };
@@ -611,6 +618,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 
 						const osi4iotState = {
 							platformInfo: {
+								DOCKER_IMAGES_VERSION: answers.DOCKER_IMAGES_VERSION,
 								DEPLOYMENT_LOCATION: deploymentLocation,
 								AWS_ACCESS_KEY_ID: awsAccessKeyId,
 								AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
@@ -664,7 +672,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 								NODE_RED_ADMIN_HASH: bcrypt.hashSync(answers.PLATFORM_ADMIN_PASSWORD, 8),
 								PGADMIN_DEFAULT_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
 								PGADMIN_DEFAULT_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
-								NODES_DATA: answers.NODES_DATA
+								NODES_DATA: answers.NODES_DATA,
 							},
 							certs: {
 								domain_certs: {

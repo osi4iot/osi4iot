@@ -12,9 +12,9 @@ RUN chmod +x /src/scripts/entry_script.sh
 USER node-red
 
 RUN npm install needle
-# RUN npm install node-red-contrib-modbus
-# RUN npm install node-red-contrib-opcua
-# RUN npm install node-red-contrib-bacnet
+RUN npm install node-red-contrib-modbus
+RUN npm install node-red-contrib-opcua
+RUN npm install node-red-contrib-bacnet
 
 RUN npm install node-red-contrib-tfjs-coco-ssd
 RUN if [ "$TARGETARCH" = "arm64" ] ; then cd /usr/src/node-red && npm rebuild @tensorflow/tfjs-node --build-from-source; fi

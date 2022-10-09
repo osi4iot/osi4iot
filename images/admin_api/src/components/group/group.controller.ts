@@ -284,28 +284,17 @@ class GroupController implements IController {
 				centerLatitude = center.geometry.coordinates[1];
 			}
 			const devicesDistance = 0.00002;
-			const defaultGroupDeviceData = [
-				{
-					name: defaultGroupDeviceName(groupCreated, "Master"),
-					description: `Main generic device of the group ${groupCreated.name}`,
-					latitude: centerLatitude,
-					longitude: (centerLongitude - devicesDistance),
-					type: "Master",
-					iconRadio: 1.0,
-					mqttActionAllowed: "Pub & Sub"
-				},
-				{
-					name: defaultGroupDeviceName(groupCreated, "Generic"),
-					description: `Default generic device of the group ${groupCreated.name}`,
-					latitude: centerLatitude,
-					longitude: (centerLongitude + devicesDistance),
-					type: "Generic",
-					iconRadio: 1.0,
-					mqttActionAllowed: "Pub & Sub"
-				}
-			];
-			const device1 = await createDevice(groupCreated, defaultGroupDeviceData[0]);
-			const device2 = await createDevice(groupCreated, defaultGroupDeviceData[1]);
+			const defaultGroupDeviceData =
+			{
+				name: defaultGroupDeviceName(groupCreated, "Generic"),
+				description: `Default generic device of the group ${groupCreated.name}`,
+				latitude: centerLatitude,
+				longitude: (centerLongitude + devicesDistance),
+				type: "Generic",
+				iconRadio: 1.0,
+				mqttActionAllowed: "Pub & Sub"
+			};
+			const device = await createDevice(groupCreated, defaultGroupDeviceData);
 
 			nodeRedInstancesUnlinkedInOrg[0].longitude = centerLongitude;
 			nodeRedInstancesUnlinkedInOrg[0].latitude = centerLatitude;
@@ -314,34 +303,34 @@ class GroupController implements IController {
 			const defaultDeviceTopicsData = [
 				{
 					topicType: "dev2pdb",
-					topicName: demoTopicName(groupCreated, device1, "Temperature"),
+					topicName: demoTopicName(groupCreated, device, "Temperature"),
 					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated, "Master")} device`,
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 					mqttActionAllowed: "Pub & Sub"
 				},
 				{
 					topicType: "dev2pdb",
-					topicName: demoTopicName(groupCreated, device2, "Accelerometer"),
+					topicName: demoTopicName(groupCreated, device, "Accelerometer"),
 					description: `Mobile accelerations for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
 					payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 					mqttActionAllowed: "Pub & Sub"
 				},
 				{
 					topicType: "dev2dtm",
-					topicName: demoTopicName(groupCreated, device2, "Photo"),
+					topicName: demoTopicName(groupCreated, device, "Photo"),
 					description: `Mobile photo for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
 					payloadFormat: '{"mobile_photo": {"type": "string"}}',
 					mqttActionAllowed: "Pub & Sub"
 				},
 			];
-			const topic1 = await createTopic(device1.id, defaultDeviceTopicsData[0]);
-			const topic2 = await createTopic(device2.id, defaultDeviceTopicsData[1]);
-			await createTopic(device2.id, defaultDeviceTopicsData[2]);
+			const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
+			const topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
+			await createTopic(device.id, defaultDeviceTopicsData[2]);
 
 			const dashboardsId: number[] = [];
 
 			[dashboardsId[0], dashboardsId[1]] =
-				await createDemoDashboards(req.organization.acronym, groupCreated, [device1, device2], [topic1, topic2]);
+				await createDemoDashboards(req.organization.acronym, groupCreated, device, [topic1, topic2]);
 
 
 			const defaultDeviceDigitalTwinsData = [
@@ -371,8 +360,8 @@ class GroupController implements IController {
 				},
 			];
 
-			await createDigitalTwin(groupCreated, device1, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
-			await createDigitalTwin(groupCreated, device2, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
+			await createDigitalTwin(groupCreated, device, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
+			await createDigitalTwin(groupCreated, device, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
 
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;
