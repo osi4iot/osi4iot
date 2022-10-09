@@ -98,13 +98,13 @@ export const deleteNodeRedInstanceById = async (nodeRedInstanceId: number): Prom
 	await pool.query(`DELETE FROM grafanadb.nodered_instance WHERE id = $1`, [nodeRedInstanceId]);
 };
 
-export const updateNodeRedInstanceByProp = async (propName: string, propValue: (string | number), nriData: CreateNodeRedInstanceDto): Promise<void> => {
+export const updateNodeRedInstanceIconById = async (nriId: number, longitude: number, latitude: number, iconRadio: number): Promise<void> => {
 	const query = `UPDATE grafanadb.nodered_instance SET geolocation = $1, icon_radio = $2, updated = NOW()
-				WHERE grafanadb.nodered_instance.${propName} = $3;`;
+				WHERE grafanadb.nodered_instance.id = $3;`;
 	await pool.query(query, [
-		`(${nriData.longitude},${nriData.latitude})`,
-		nriData.iconRadio,
-		propValue
+		`(${longitude},${latitude})`,
+		iconRadio,
+		nriId
 	]);
 };
 
@@ -182,8 +182,6 @@ export const updateGroupNodeRedInstanceLocation = async (geoJsonDataString: stri
 	const pt = rhumbDestination(ptCenterGroupArea, separation, 0.0);
 	const longitude = pt.geometry.coordinates[0];
 	const latitude = pt.geometry.coordinates[1];
-	const nodeRedInstanceId = nodeRedInstance.id;
-	const nodeRedInstanceUpdated = { ...nodeRedInstance, longitude, latitude };
-	await updateNodeRedInstanceByProp("id", nodeRedInstanceId, nodeRedInstanceUpdated)
+	await updateNodeRedInstanceIconById(nodeRedInstance.id, longitude, latitude, nodeRedInstance.iconRadio)
 }
 

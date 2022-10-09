@@ -18,6 +18,8 @@ export const initialState = {
         name: "",
         acronym: "",
         orgId: 0,
+        folderPermission: "Viewer",
+        mqttActionAllowed: "Pub & Sub",
         telegramInvitationLink: "",
         telegramChatId: "",
         nriInGroupId: 0,

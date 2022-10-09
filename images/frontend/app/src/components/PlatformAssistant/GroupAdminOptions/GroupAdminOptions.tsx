@@ -566,9 +566,17 @@ const GroupAdminOptions: FC<{}> = () => {
                             {optionToShow === GROUP_ADMIN_OPTIONS.GROUPS_MANAGED &&
                                 <GroupsManagedProvider>
                                     <GroupsManagedContainer
+                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
                                         groupsManaged={groupsManagedTable}
+                                        buildingsFiltered={buildingsFiltered}
+                                        floorsFiltered={floorsFiltered}
                                         refreshGroupsManaged={refreshGroupsManaged}
                                         refreshGroupMembers={refreshGroupMembers}
+                                        devices={devicesTable}
+                                        refreshDevices={refreshDevices}
+                                        refreshGroups={refreshGroupsManaged}
+                                        refreshBuildings={refreshBuildings}
+                                        refreshFloors={refreshFloors}
                                     />
                                 </GroupsManagedProvider>
                             }

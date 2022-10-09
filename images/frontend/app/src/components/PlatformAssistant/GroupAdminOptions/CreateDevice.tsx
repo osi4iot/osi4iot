@@ -69,7 +69,7 @@ const DeviceLocationTitle = styled.div`
     margin-bottom: 5px;
 `;
 
-const DeviceLocationContainer = styled.div`
+const DeviceLocationContainerDiv = styled.div`
     border: 2px solid #2c3235;
     border-radius: 10px;
     padding: 10px;
@@ -77,7 +77,7 @@ const DeviceLocationContainer = styled.div`
     margin-bottom: 15px;
 `;
 
-const SelectDeviceLocationButtonContainer = styled.div`
+const SelectDeviceLocationDivButtonContainer = styled.div`
     display: flex;
     margin: 10px 0 10px;
     flex-direction: row;
@@ -289,7 +289,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                                         type='text'
                                     />
                                     <DeviceLocationTitle>Device location and icon size</DeviceLocationTitle>
-                                    <DeviceLocationContainer>
+                                    <DeviceLocationContainerDiv>
                                         <FormikControl
                                             control='input'
                                             label='Longitude'
@@ -308,12 +308,12 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                                             name='iconRadio'
                                             type='text'
                                         />
-                                        <SelectDeviceLocationButtonContainer >
+                                        <SelectDeviceLocationDivButtonContainer >
                                             <SelectLocationButton type='button' onClick={() => selectLocation(formik.values)}>
                                                 Select location
                                             </SelectLocationButton>
-                                        </SelectDeviceLocationButtonContainer>
-                                    </DeviceLocationContainer>
+                                        </SelectDeviceLocationDivButtonContainer>
+                                    </DeviceLocationContainerDiv>
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

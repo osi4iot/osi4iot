@@ -1,9 +1,9 @@
-import { FC, useMemo, useCallback, useState, useEffect, useRef } from 'react'
-import L, { LeafletMouseEvent, LatLngExpression } from 'leaflet';
+import { FC, useMemo, useCallback, useState, useEffect } from 'react'
+import L, { LatLngExpression } from 'leaflet';
 import centerOfMass from '@turf/center-of-mass';
 import { polygon } from '@turf/helpers';
 import 'leaflet/dist/leaflet.css';
-import { MapContainer, GeoJSON, useMap, Circle, LayerGroup, useMapEvents, SVGOverlay } from 'react-leaflet';
+import { MapContainer, GeoJSON, useMap, LayerGroup, useMapEvents } from 'react-leaflet';
 import styled from "styled-components";
 import { MdZoomOutMap } from "react-icons/md";
 import { RiZoomInLine, RiZoomOutLine } from "react-icons/ri";
@@ -11,7 +11,9 @@ import { FaRedo, FaRegTimesCircle, FaRegCheckCircle } from "react-icons/fa";
 import { LatLngTuple } from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-import { StyledTooltip as Tooltip } from './Tooltip';
+import NonDraggableDeviceCircle from './NonDraggableDeviceCircle';
+import DraggableDeviceCircle from './DraggableDeviceCircle';
+import GeoNodeRedInstance from './GeoNodeRedInstance';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoBuilding from './GeoBuilding';
@@ -19,11 +21,8 @@ import { IFeatureCollection, spacesDivider } from '../../../tools/spacesDivider'
 import { IDevice } from '../TableColumns/devicesColumns';
 import { useDeviceIdToEdit, useDeviceInputData, useDevicesPreviousOption } from '../../../contexts/devicesOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import calcGeoBounds from '../../../tools/calcGeoBounds';
-import { DEVICES_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { DeviceSvgImage } from './DeviceSvgImage';
-import { MaterialDeviceSvgImage } from './MaterialDeviceSvgImage';
-import GeoNodeRedInstance from './GeoNodeRedInstance';
+import { DEVICES_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';import DraggableNriCircle from './DraggableNriCircle';
+import { useGroupManagedInputFormData } from '../../../contexts/groupsManagedOptions';
 
 
 const MapContainerStyled = styled(MapContainer)`
@@ -34,20 +33,6 @@ const MapContainerStyled = styled(MapContainer)`
         outline: 0;
     }
 `;
-
-
-const CircleStyledDragging = styled(Circle)`
-    &:hover {
-        cursor: all-scroll;
-    }
-`;
-
-const CircleStyledNoDragging = styled(Circle)`
-    &:hover {
-        cursor: auto;
-    }
-`;
-
 
 let DefaultIcon = L.icon({
     iconUrl: icon,
@@ -163,20 +148,24 @@ const findOuterBounds = (bounds: L.LatLngBounds) => {
 }
 
 interface ControlProps {
+    elementToDrag: string;
     initialOuterBounds: number[][];
     refreshAll: () => void;
     backToOption: () => void;
     devicePosition: LatLngExpression;
-    setDeviceLocationData: (deviceLong: number, deviceLat: number) => void;
+    nriPosition: LatLngExpression;
+    setElementLocationData: (elementLong: number, elementLat: number) => void;
 }
 
 
 const Controls: FC<ControlProps> = ({
+    elementToDrag,
     initialOuterBounds,
     refreshAll,
     backToOption,
     devicePosition,
-    setDeviceLocationData
+    nriPosition,
+    setElementLocationData
 }) => {
     const map = useMap();
     const clickZoomInHandler = () => {
@@ -201,7 +190,11 @@ const Controls: FC<ControlProps> = ({
     }
 
     const clickAccepHandler = () => {
-        setDeviceLocationData((devicePosition as number[])[1], (devicePosition as number[])[0]);
+        if (elementToDrag === "device") {
+            setElementLocationData((devicePosition as number[])[1], (devicePosition as number[])[0]);
+        } else if (elementToDrag === "nri") {
+            setElementLocationData((nriPosition as number[])[1], (nriPosition as number[])[0]);
+        }
         backToOption();
     }
 
@@ -249,162 +242,8 @@ const MapEvents: FC<MapEventProps> = ({ setNewOuterBounds }) => {
     return null
 }
 
-const SELECTED = "#3274d9";
 const STATUS_OK = "#3e3f3b";
 const NORMAL = "#9c9a9a";
-const DEVICE_COLOR = "#e0e0dc";
-
-interface NonDraggableDeviceCircleProps {
-    device: IDevice;
-}
-
-
-const NonDraggableDeviceCircle: FC<NonDraggableDeviceCircleProps> = ({ device }) => {
-    const devicePosition = [device.latitude, device.longitude];
-
-    const outerBounds = useMemo(() => calcGeoBounds(device.longitude, device.latitude, device.iconRadio * 0.001), [device]);
-    const bounds = useMemo(() => calcGeoBounds(device.longitude, device.latitude, device.iconRadio * 0.0004), [device]);
-
-    return (
-        <>
-            <Circle
-                center={devicePosition as LatLngTuple}
-                pathOptions={{ color: NORMAL, fillColor: "#555555", fillOpacity: 0.5 }}
-                radius={device.iconRadio}
-            >
-                <Tooltip sticky>
-                    <span style={{ fontWeight: 'bold' }}>Device</span><br />
-                    Name: {device.name}<br />
-                </Tooltip>
-            </Circle>
-            {
-                device.type === "Master" ?
-                    <MaterialDeviceSvgImage
-                        deviceId={device.id}
-                        deviceSelected={null}
-                        fillColor={DEVICE_COLOR}
-                        bounds={bounds as LatLngTuple[]}
-                        outerBounds={outerBounds as LatLngTuple[]}
-                    />
-                    :
-                    <DeviceSvgImage
-                        deviceId={device.id}
-                        deviceSelected={null}
-                        fillColor={DEVICE_COLOR}
-                        bounds={bounds as LatLngTuple[]}
-                        outerBounds={outerBounds as LatLngTuple[]}
-                    />
-            }
-        </>
-    )
-};
-
-interface DraggableDeviceCircleProps {
-    deviceName: string;
-    deviceRadio: number;
-    deviceType: string;
-    devicePosition: LatLngExpression;
-    setDevicePosition: (devicePosition: LatLngExpression) => void;
-    deviceDragging: boolean;
-    setDeviceDragging: (deviceDragging: boolean) => void;
-}
-
-
-const DraggableDeviceCircle: FC<DraggableDeviceCircleProps> = ({
-    deviceName,
-    deviceRadio,
-    deviceType,
-    devicePosition,
-    setDevicePosition,
-    deviceDragging,
-    setDeviceDragging,
-}) => {
-    const map = useMap();
-    const imageRef = useRef();
-
-    const [bounds, setBounds] = useState(calcGeoBounds((devicePosition as number[])[1], (devicePosition as number[])[0], deviceRadio * 0.0004));
-
-
-    const evenstHandlerCircle = useMemo(
-        () => ({
-            mousedown() {
-                map.dragging.disable();
-                setDeviceDragging(true);
-            },
-            mouseup(e: LeafletMouseEvent) {
-                map.dragging.enable();
-                setDeviceDragging(false);
-                const bounds = calcGeoBounds(e.latlng.lng, e.latlng.lat, deviceRadio * 0.0004)
-
-                setBounds(bounds);
-                setDevicePosition([e.latlng.lat, e.latlng.lng])
-            },
-            mousemove(e: LeafletMouseEvent) {
-                if (deviceDragging) {
-                    if (imageRef.current) {
-                        const bounds = calcGeoBounds(e.latlng.lng, e.latlng.lat, deviceRadio * 0.0004);
-                        (imageRef.current as any).setBounds(bounds);
-                        setBounds(bounds);
-                    }
-                    setDevicePosition([e.latlng.lat, e.latlng.lng])
-                }
-            },
-        }),
-        [map, setDeviceDragging, deviceDragging, setDevicePosition, deviceRadio],
-    )
-
-
-    return (
-        <>
-            {
-                deviceDragging ?
-                    <CircleStyledDragging
-                        center={devicePosition}
-                        pathOptions={{ color: SELECTED, fillColor: "#555555", fillOpacity: 0.5 }}
-                        radius={deviceRadio}
-                        eventHandlers={evenstHandlerCircle}
-                    >
-                    </CircleStyledDragging>
-                    :
-                    <CircleStyledNoDragging
-                        center={devicePosition}
-                        pathOptions={{ color: SELECTED, fillColor: "#555555", fillOpacity: 0.5 }}
-                        radius={deviceRadio}
-                        eventHandlers={evenstHandlerCircle}
-                    >
-                        <Tooltip sticky>
-                            <span style={{ fontWeight: 'bold' }}>Device</span><br />
-                            Name: {deviceName}<br />
-                        </Tooltip>
-                    </CircleStyledNoDragging>
-            }
-            <SVGOverlay ref={imageRef as any} attributes={{ viewBox: "0 0 512 512", fill: DEVICE_COLOR }} bounds={bounds as LatLngTuple[]}>
-                {
-                    deviceType === "Master" ?
-                        <>
-                            <path
-                                d="M311.4 32.82C279.9 53.58 259 89.29 259 129.8c0 39.9 20.3 75.2 51.1 96.1l8.1-16.2c-25-17.8-41.2-46.9-41.2-79.9 0-33.59 16.8-63.17 42.5-80.82l-8.1-16.16zm127.2 0l-8.1 16.16C456.2 66.63 473 96.21 473 129.8c0 33-16.2 62.1-41.2 79.9l8.1 16.2c30.8-20.9 51.1-56.2 51.1-96.1 0-40.51-20.9-76.22-52.4-96.98zm-110 34.35C309.4 81.41 297 104.2 297 129.8c0 25 11.9 47.3 30.3 61.6l8.2-16.4c-12.6-11-20.5-27.1-20.5-45.2 0-18.7 8.5-35.3 21.8-46.29l-8.2-16.34zm92.8 0l-8.2 16.34C426.5 94.5 435 111.1 435 129.8c0 18.1-7.9 34.2-20.5 45.2l8.2 16.4c18.4-14.3 30.3-36.6 30.3-61.6 0-25.6-12.4-48.39-31.6-62.63zm-75.3 35.03c-6.9 7.2-11.2 16.9-11.2 27.6 0 10.1 3.8 19.3 10 26.4l9.4-18.7c-.9-2.4-1.4-5-1.4-7.7 0-3.5.8-6.7 2.2-9.6l-9-18zm57.8 0l-9 18c1.4 2.9 2.2 6.1 2.2 9.6 0 2.7-.5 5.3-1.4 7.7l9.4 18.7c6.2-7.1 10-16.3 10-26.4 0-10.7-4.3-20.4-11.2-27.6zM366 144v183h18V144h-18zM25 345v110h462V345H25zm55 39a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm48 0a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm48 0a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zM73 473v16h46v-16H73zm320 0v16h46v-16h-46z"
-                                id="path5117" />
-                            <path
-                                d="m 203.29399,213.21263 a 15.805932,15.805932 0 0 0 3.16119,17.43442 l 0.57476,0.57477 a 19.158706,19.158706 0 0 1 0,27.10956 19.158706,19.158706 0 0 1 -27.10957,0 l -0.57476,-0.57476 a 15.805932,15.805932 0 0 0 -17.43442,-3.16118 15.805932,15.805932 0 0 0 -9.57936,14.46482 v 1.62849 a 19.158706,19.158706 0 0 1 -19.1587,19.1587 19.158706,19.158706 0 0 1 -19.15871,-19.1587 v -0.86214 a 15.805932,15.805932 0 0 0 -10.3457,-14.46483 15.805932,15.805932 0 0 0 -17.434421,3.16119 l -0.57476,0.57476 a 19.158706,19.158706 0 0 1 -27.109569,0 19.158706,19.158706 0 0 1 0,-27.10957 l 0.574761,-0.57476 a 15.805932,15.805932 0 0 0 3.161186,-17.43442 15.805932,15.805932 0 0 0 -14.464822,-9.57936 h -1.62849 a 19.158706,19.158706 0 0 1 -19.158706,-19.1587 19.158706,19.158706 0 0 1 19.158706,-19.1587 h 0.862142 a 15.805932,15.805932 0 0 0 14.464823,-10.3457 15.805932,15.805932 0 0 0 -3.161187,-17.43443 l -0.574762,-0.57476 a 19.158706,19.158706 0 0 1 0,-27.10956 19.158706,19.158706 0 0 1 27.109569,0 l 0.574762,0.57476 a 15.805932,15.805932 0 0 0 17.434418,3.16118 h 0.76635 a 15.805932,15.805932 0 0 0 9.57936,-14.464819 v -1.62849 a 19.158706,19.158706 0 0 1 19.15871,-19.158706 19.158706,19.158706 0 0 1 19.1587,19.158706 v 0.862142 a 15.805932,15.805932 0 0 0 9.57935,14.464827 15.805932,15.805932 0 0 0 17.43442,-3.16119 l 0.57477,-0.57476 a 19.158706,19.158706 0 0 1 27.10956,0 19.158706,19.158706 0 0 1 0,27.10956 l -0.57476,0.57476 a 15.805932,15.805932 0 0 0 -3.16118,17.43443 v 0.76635 a 15.805932,15.805932 0 0 0 14.46482,9.57934 h 1.62849 a 19.158706,19.158706 0 0 1 19.1587,19.15872 19.158706,19.158706 0 0 1 -19.1587,19.1587 h -0.86214 a 15.805932,15.805932 0 0 0 -14.46483,9.57935 z"
-                                id="path5119" />
-                            <circle
-                                fill="#555555ff"
-                                id="path5678"
-                                cx="132.50845"
-                                cy="184.23729"
-                                r="45.013271"
-                            />
-                        </>
-                        :
-                        <path d="M311.4 32.82C279.9 53.58 259 89.29 259 129.8c0 39.9 20.3 75.2 51.1 96.1l8.1-16.2c-25-17.8-41.2-46.9-41.2-79.9 0-33.59 16.8-63.17 42.5-80.82l-8.1-16.16zm127.2 0l-8.1 16.16C456.2 66.63 473 96.21 473 129.8c0 33-16.2 62.1-41.2 79.9l8.1 16.2c30.8-20.9 51.1-56.2 51.1-96.1 0-40.51-20.9-76.22-52.4-96.98zm-110 34.35C309.4 81.41 297 104.2 297 129.8c0 25 11.9 47.3 30.3 61.6l8.2-16.4c-12.6-11-20.5-27.1-20.5-45.2 0-18.7 8.5-35.3 21.8-46.29l-8.2-16.34zm92.8 0l-8.2 16.34C426.5 94.5 435 111.1 435 129.8c0 18.1-7.9 34.2-20.5 45.2l8.2 16.4c18.4-14.3 30.3-36.6 30.3-61.6 0-25.6-12.4-48.39-31.6-62.63zm-75.3 35.03c-6.9 7.2-11.2 16.9-11.2 27.6 0 10.1 3.8 19.3 10 26.4l9.4-18.7c-.9-2.4-1.4-5-1.4-7.7 0-3.5.8-6.7 2.2-9.6l-9-18zm57.8 0l-9 18c1.4 2.9 2.2 6.1 2.2 9.6 0 2.7-.5 5.3-1.4 7.7l9.4 18.7c6.2-7.1 10-16.3 10-26.4 0-10.7-4.3-20.4-11.2-27.6zM366 144v183h18V144h-18zM25 345v110h462V345H25zm55 39a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm48 0a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zm48 0a16 16 0 0 1 16 16 16 16 0 0 1-16 16 16 16 0 0 1-16-16 16 16 0 0 1 16-16zM73 473v16h46v-16H73zm320 0v16h46v-16h-46z" />
-                }
-
-            </SVGOverlay >
-        </>
-    )
-};
-
 
 const floorStyle = () => {
     return {
@@ -450,50 +289,57 @@ const GeoFloorSpaceMap: FC<GeoFloorSpaceMapProps> = ({
 };
 
 interface GeoGroupSpaceMapProps {
+    elementToDrag: string;
     floorSpace: IFeatureCollection
     floorData: IFloor;
-    group: IGroupManaged;
+    groupManaged: IGroupManaged;
     devicesInGroup: IDevice[];
     devicePosition: LatLngExpression;
     setDevicePosition: (devicePosition: LatLngExpression) => void;
+    nriPosition: LatLngExpression;
+    setNriPosition: (nriPosition: LatLngExpression) => void;
 }
 
 
 const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
+    elementToDrag,
     floorSpace,
     floorData,
-    group,
+    groupManaged,
     devicesInGroup,
     devicePosition,
-    setDevicePosition
-
+    setDevicePosition,
+    nriPosition,
+    setNriPosition
 }) => {
     const map = useMap();
     const devicesPreviousOption = useDevicesPreviousOption();
     const deviceIdToEdit = useDeviceIdToEdit();
     const deviceInputData = useDeviceInputData();
+    const groupManagedData = useGroupManagedInputFormData();
     const [deviceDragging, setDeviceDragging] = useState(false);
+    const [nriDragging, setNriDragging] = useState(false);
 
     useEffect(() => {
-        let groupOuterBounds = group.outerBounds;
+        let groupOuterBounds = groupManaged.outerBounds;
         if (!groupOuterBounds) {
             groupOuterBounds = floorData.outerBounds;
         }
         map.fitBounds(groupOuterBounds as LatLngTuple[]);
-    }, [group.outerBounds, floorData.outerBounds, map])
+    }, [groupManaged.outerBounds, floorData.outerBounds, map])
 
 
     const evenstHandlerGeoJson = useMemo(
         () => ({
             click() {
-                let groupOuterBounds = group.outerBounds;
+                let groupOuterBounds = groupManaged.outerBounds;
                 if (!groupOuterBounds) {
                     groupOuterBounds = floorData.outerBounds;
                 }
                 map.fitBounds(groupOuterBounds as LatLngTuple[]);
             }
         }),
-        [map, group.outerBounds, floorData.outerBounds],
+        [map, groupManaged.outerBounds, floorData.outerBounds],
     )
 
 
@@ -504,15 +350,31 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                 style={(geoJsonFeature: any) => groupStyle()}
                 eventHandlers={evenstHandlerGeoJson}
             />
-            <GeoNodeRedInstance
-                longitude={group.nriInGroupIconLongitude}
-                latitude={group.nriInGroupIconLatitude}
-                iconRadio={group.nriInGroupIconRadio}
-                nriHash={group.nriInGroupHash}
-            />
+            {
+                elementToDrag === "nri" ?
+                    <DraggableNriCircle
+                        nriRadio={groupManagedData.nriInGroupIconRadio}
+                        nriPosition={nriPosition}
+                        setNriPosition={(nriPosition: LatLngExpression) => setNriPosition(nriPosition)}
+                        nriDragging={nriDragging}
+                        setNriDragging={(nriDragging: boolean) => setNriDragging(nriDragging)}
+                    />
+                    :
+                    <GeoNodeRedInstance
+                        longitude={groupManaged.nriInGroupIconLongitude}
+                        latitude={groupManaged.nriInGroupIconLatitude}
+                        iconRadio={groupManaged.nriInGroupIconRadio}
+                        nriHash={groupManaged.nriInGroupHash}
+                        linkAvailable={false}
+                    />
+            }
             {
                 devicesInGroup.map(device => {
-                    if (device.id === deviceIdToEdit && devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE) {
+                    if (
+                        elementToDrag === "device" &&
+                        device.id === deviceIdToEdit &&
+                        devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE
+                    ) {
                         return (
                             <DraggableDeviceCircle
                                 key={device.id}
@@ -536,9 +398,9 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                 })
             }
             {
-                (devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.CREATE_DEVICE) &&
+                (elementToDrag === "device" && devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.CREATE_DEVICE) &&
                 <DraggableDeviceCircle
-                    deviceName={deviceInputData.name === "" ? `New device for group ${group.acronym}` : deviceInputData.name}
+                    deviceName={deviceInputData.name === "" ? `New device for group ${groupManaged.acronym}` : deviceInputData.name}
                     deviceRadio={deviceInputData.iconRadio}
                     deviceType={"Generic"}
                     devicePosition={devicePosition}
@@ -574,11 +436,12 @@ const calcInitialDevicePosition = (
     return devicePosition;
 }
 
-interface DeviceLocationMapProps {
+interface ElementLocationMapProps {
+    elementToDrag: string;
     outerBounds: number[][];
     building: IBuilding;
     floorData: IFloor;
-    group: IGroupManaged;
+    groupManaged: IGroupManaged;
     devicesInGroup: IDevice[];
     featureIndex: number;
     setNewOuterBounds: (outerBounds: number[][]) => void;
@@ -587,16 +450,17 @@ interface DeviceLocationMapProps {
     refreshGroups: () => void;
     refreshDevices: () => void;
     backToOption: () => void;
-    setDeviceLocationData: (deviceLong: number, deviceLat: number) => void;
+    setElementLocationData: (deviceLong: number, deviceLat: number) => void;
 }
 
 
-const DeviceLocationMap: FC<DeviceLocationMapProps> = (
+const ElementLocationMap: FC<ElementLocationMapProps> = (
     {
+        elementToDrag,
         outerBounds,
         building,
         floorData,
-        group,
+        groupManaged,
         devicesInGroup,
         featureIndex,
         setNewOuterBounds,
@@ -605,7 +469,7 @@ const DeviceLocationMap: FC<DeviceLocationMapProps> = (
         refreshGroups,
         refreshDevices,
         backToOption,
-        setDeviceLocationData,
+        setElementLocationData,
     }) => {
     const { floorOutline, floorSpaces } = useMemo(() => spacesDivider(floorData), [floorData]);
     const floorOutlineData = useState<IFeatureCollection | null>(floorOutline)[0];
@@ -620,6 +484,13 @@ const DeviceLocationMap: FC<DeviceLocationMapProps> = (
             devicesInGroup
         ) as LatLngExpression
     );
+
+    const groupManagedData = useGroupManagedInputFormData();
+    const [nriPosition, setNriPosition] = useState<LatLngExpression>([
+        groupManagedData.nriInGroupIconLatitude,
+        groupManagedData.nriInGroupIconLongitude
+    ]);
+
 
     const styleGeoFloorJson = (geoJsonFeature: any) => {
         return floorStyle();
@@ -654,12 +525,15 @@ const DeviceLocationMap: FC<DeviceLocationMapProps> = (
                     floorSpace.features[0].properties.index === featureIndex ?
                         <GeoGroupSpaceMap
                             key={floorSpace.features[0]?.properties?.index}
+                            elementToDrag={elementToDrag}
                             floorSpace={floorSpace}
                             floorData={floorData}
-                            group={group}
+                            groupManaged={groupManaged}
                             devicesInGroup={devicesInGroup}
                             devicePosition={devicePosition}
                             setDevicePosition={(devicePosition: LatLngExpression) => setDevicePosition(devicePosition)}
+                            nriPosition={nriPosition}
+                            setNriPosition={(nriPosition: LatLngExpression) => setNriPosition(nriPosition)}
                         />
                         :
                         <GeoFloorSpaceMap
@@ -670,15 +544,17 @@ const DeviceLocationMap: FC<DeviceLocationMapProps> = (
             }
             <ControlsContainer>
                 <Controls
+                    elementToDrag={elementToDrag}
                     initialOuterBounds={building.outerBounds}
                     refreshAll={refreshAll}
                     backToOption={backToOption}
                     devicePosition={devicePosition}
-                    setDeviceLocationData={setDeviceLocationData}
+                    nriPosition={nriPosition}
+                    setElementLocationData={setElementLocationData}
                 />
             </ControlsContainer>
         </MapContainerStyled>
     )
 }
 
-export default DeviceLocationMap;
+export default ElementLocationMap;

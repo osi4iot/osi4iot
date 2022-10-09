@@ -168,6 +168,11 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             accessor: "acronym"
         },
         {
+            Header: "Type",
+            accessor: "isOrgDefaultGroup",
+            disableFilters: true
+        },        
+        {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Folder<br />permission</div>,
             accessor: "folderPermission",
             disableFilters: true
@@ -185,11 +190,6 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
         {
             Header: "ChatId",
             accessor: "telegramChatId",
-            disableFilters: true
-        },
-        {
-            Header: "Type",
-            accessor: "isOrgDefaultGroup",
             disableFilters: true
         },
         {

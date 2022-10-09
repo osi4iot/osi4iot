@@ -3,9 +3,9 @@ import {
     setGroupManagedIdToCreateGroupMembers,
     setGroupManagedIdToRemoveAllGroupMembers,
     setGroupManagedRowIndex,
-    setGroupsManagedIdToEdit,
+    setGroupManagedIdToEdit,
     setGroupsManagedBuildingId,
-    setGroupsManagedInputFormData,
+    setGroupManagedInputFormData,
     setGroupManagedNriId
 } from './groupsManagedAction';
 import {
@@ -36,8 +36,8 @@ export {
     setGroupManagedIdToCreateGroupMembers,
     setGroupManagedIdToRemoveAllGroupMembers,
     setGroupManagedRowIndex,
-    setGroupsManagedIdToEdit,
+    setGroupManagedIdToEdit,
     setGroupsManagedBuildingId,
-    setGroupsManagedInputFormData,
+    setGroupManagedInputFormData,
     setGroupManagedNriId,
 };

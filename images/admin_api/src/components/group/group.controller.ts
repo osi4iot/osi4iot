@@ -55,8 +55,10 @@ import {
 	assignNodeRedInstanceToGroup,
 	markAsDeleteNodeRedInstancesInGroup,
 	getNodeRedInstancesInGroup,
-	getNodeRedInstancesUnassignedInOrg
+	getNodeRedInstancesUnassignedInOrg,
+	updateNodeRedInstanceIconById,
 } from "../nodeRedInstance/nodeRedInstanceDAL";
+import UpdateGroupManagedDto from "./interfaces/groupManagedUpdate.dto";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -73,6 +75,13 @@ class GroupController implements IController {
 				`${this.path}s/user_managed/`,
 				userAuth,
 				this.getGroupsManagedByUser
+			)
+			.patch(
+				`${this.path}_user_managed/:groupId/`,
+				groupExists,
+				groupAdminAuth,
+				validationMiddleware<UpdateGroupManagedDto>(UpdateGroupManagedDto),
+				this.updateGroupManagedById
 			)
 			.get(
 				`/group_members/user_managed/`,
@@ -407,6 +416,30 @@ class GroupController implements IController {
 			if (!existentGroup) throw new ItemNotFoundException("The group", propName, propValue);
 			await updateGroup(groupInput, existentGroup);
 			const message = { message: "Group updated successfully" }
+			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private updateGroupManagedById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const { groupId } = req.params;
+			const groupManagedInput: UpdateGroupManagedDto = req.body;
+			const existentGroup = await getGroupByWithFolderPermissionProp("id", groupId);
+			if (!existentGroup) throw new ItemNotFoundException("The group", "id", groupId);
+			const nriId = groupManagedInput.nriInGroupId;
+			const longitude = groupManagedInput.nriInGroupIconLongitude;
+			const latitude = groupManagedInput.nriInGroupIconLatitude;
+			const iconRadio = groupManagedInput.nriInGroupIconRadio;
+			await updateNodeRedInstanceIconById(nriId, longitude, latitude, iconRadio);
+
+			const folderPermission = groupManagedInput.folderPermission;
+			const telegramInvitationLink = groupManagedInput.telegramInvitationLink;
+			const telegramChatId = groupManagedInput.telegramChatId;
+			const groupManagedUpdate = { ...existentGroup, folderPermission, telegramInvitationLink, telegramChatId };
+			await updateGroup(groupManagedUpdate, existentGroup);
+			const message = { message: "Group managed updated successfully" }
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

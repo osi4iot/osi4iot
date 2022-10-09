@@ -28,7 +28,7 @@ export function setGroupManagedRowIndex(groupsManagedDispatch: GroupsManagedDisp
 	groupsManagedDispatch({ type: "GROUP_MANAGED_ROW_INDEX", payload: data });
 }
 
-export function setGroupsManagedIdToEdit(groupsManagedDispatch: GroupsManagedDispatch, data: IGroupsManagedIdToEdit) {
+export function setGroupManagedIdToEdit(groupsManagedDispatch: GroupsManagedDispatch, data: IGroupsManagedIdToEdit) {
 	groupsManagedDispatch({ type: "GROUP_MANAGED_ID_TO_EDIT", payload: data });
 }
 
@@ -36,7 +36,7 @@ export function setGroupsManagedBuildingId(groupsManagedDispatch: GroupsManagedD
 	groupsManagedDispatch({ type: "GROUP_MANAGED_BUILDING_ID", payload: data });
 }
 
-export function setGroupsManagedInputFormData(groupsManagedDispatch: GroupsManagedDispatch, data: IGroupsManagedInputFormData) {
+export function setGroupManagedInputFormData(groupsManagedDispatch: GroupsManagedDispatch, data: IGroupsManagedInputFormData) {
 	groupsManagedDispatch({ type: "GROUP_MANAGED_INPUT_DATA", payload: data });
 }
 

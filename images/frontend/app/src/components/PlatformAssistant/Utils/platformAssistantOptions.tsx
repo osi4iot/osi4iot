@@ -107,8 +107,10 @@ export const GROUP_ADMIN_OPTIONS = {
 
 export const GROUPS_MANAGED_OPTIONS = {
     TABLE: "Table",
+    EDIT_GROUP_MANAGED: "Edit group managed",
     CREATE_GROUP_MEMBERS: "Create group members",
     REMOVE_ALL_GROUP_MEMBERS: "Remove all group members",
+    SELECT_NRI_ICON_LOCATION: "Select location"
 }
 
 export const DEVICES_OPTIONS = {

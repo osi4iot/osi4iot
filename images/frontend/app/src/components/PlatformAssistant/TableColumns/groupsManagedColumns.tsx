@@ -7,6 +7,8 @@ import AddUsersIcon from '../Utils/AddUsersIcon';
 import RemoveUsersIcon from '../Utils/RemoveUsersIcon';
 import {
     setGroupManagedIdToCreateGroupMembers,
+    setGroupManagedIdToEdit,
+    setGroupManagedInputFormData,
     setGroupManagedRowIndex,
     setGroupsManagedOptionToShow,
     useGroupsManagedDispatch
@@ -156,16 +158,27 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
     )
 }
 
-interface EditNriLocationProps {
+interface EditGroupManagedProps {
     rowIndex: number;
     groupId: number;
-    managedGroupData: IGroupManagedData;
+    groupManagedData: IGroupManagedData;
 }
 
-const EditNriLocation: FC<EditNriLocationProps> = ({ rowIndex, groupId, managedGroupData }) => {
+const EditGroupManaged: FC<EditGroupManagedProps> = ({ rowIndex, groupId, groupManagedData}) => {
+    const groupsManagedDispatch = useGroupsManagedDispatch();
 
     const handleClick = () => {
-        console.log("managedGroupData=", managedGroupData);
+        const groupManagedIdToEdit = { groupManagedIdToEdit: groupId };
+        setGroupManagedIdToEdit(groupsManagedDispatch, groupManagedIdToEdit);
+
+        const groupManagedInputFormData = { groupManagedInputFormData: groupManagedData }
+        setGroupManagedInputFormData(groupsManagedDispatch, groupManagedInputFormData);
+
+        const groupManagedRowIndex = { groupManagedRowIndex: rowIndex };
+        setGroupManagedRowIndex(groupsManagedDispatch, groupManagedRowIndex);
+
+        const groupsManagedOptionToShow = { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.EDIT_GROUP_MANAGED };
+        setGroupsManagedOptionToShow(groupsManagedDispatch, groupsManagedOptionToShow);
     };
 
     return (
@@ -192,6 +205,7 @@ export interface IGroupManaged {
     orgId: number;
     folderPermission: string;
     groupUid: string;
+    mqttActionAllowed: string;
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
@@ -233,6 +247,11 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             accessor: "acronym"
         },
         {
+            Header: "Type",
+            accessor: "isOrgDefaultGroup",
+            disableFilters: true
+        },        
+        {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Folder<br />permission</div>,
             accessor: "folderPermission",
             disableFilters: true
@@ -244,6 +263,21 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             disableSortBy: true,
         },
         {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Mqtt<br />acc</div>,
+            accessor: "mqttActionAllowed",
+            disableFilters: true,
+            Cell: props => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const mqttActionAllowed = row?.cells[7]?.value;
+                const style: React.CSSProperties = {
+                    color: mqttActionAllowed === "None" ? 'red' : 'white',
+                    fontWeight: mqttActionAllowed === "None" ? 'bold' : 'normal'
+                };
+                return <span style={style}>{mqttActionAllowed}</span>;
+            }
+        },        
+        {
             Header: "telegramInvitationLink",
             accessor: "telegramInvitationLink",
             disableFilters: true,
@@ -254,11 +288,6 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
             accessor: "telegramChatId",
             disableFilters: true
         },        
-        {
-            Header: "Type",
-            accessor: "isOrgDefaultGroup",
-            disableFilters: true
-        },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Floor<br />number</div>,
             accessor: "floorNumber",
@@ -346,7 +375,9 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const groupId = row?.original?.id;
                 const name = row?.original?.name;
                 const acronym = row?.original?.acronym;
-                const orgId =  row?.original?.orgId;
+                const orgId = row?.original?.orgId;
+                const folderPermission = row?.original?.folderPermission;
+                const mqttActionAllowed = row?.original?.mqttActionAllowed;
                 const telegramInvitationLink = row?.original?.telegramInvitationLink;
                 const telegramChatId = row?.original?.telegramChatId;
                 const nriInGroupId = row?.original?.nriInGroupId;
@@ -354,11 +385,13 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const nriInGroupIconLongitude = row?.original?.nriInGroupIconLongitude;
                 const nriInGroupIconLatitude = row?.original?.nriInGroupIconLatitude;
                 const nriInGroupIconRadio = row?.original?.nriInGroupIconRadio;
-                const managedGroupData = {
+                const groupManagedData = {
                     groupId,
                     name,
                     acronym,
                     orgId,
+                    folderPermission,
+                    mqttActionAllowed,
                     telegramInvitationLink,
                     telegramChatId,
                     nriInGroupId,
@@ -367,7 +400,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                     nriInGroupIconLatitude,
                     nriInGroupIconRadio
                 }
-                return <EditNriLocation rowIndex={rowIndex} groupId={groupId} managedGroupData={managedGroupData} />
+                return <EditGroupManaged rowIndex={rowIndex} groupId={groupId} groupManagedData={groupManagedData} />
             }
         },
     ]

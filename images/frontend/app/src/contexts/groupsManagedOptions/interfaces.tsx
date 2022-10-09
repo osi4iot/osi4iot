@@ -6,7 +6,8 @@ export interface IGroupManagedData {
     groupId: number;
     name: string;
     acronym: string;
-    orgId: number;
+	orgId: number;
+	folderPermission: string;
     telegramInvitationLink: string;
     telegramChatId: string;
     nriInGroupId: number;

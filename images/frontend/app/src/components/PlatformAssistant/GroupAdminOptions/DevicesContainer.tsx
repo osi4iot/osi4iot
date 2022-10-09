@@ -85,7 +85,6 @@ const DevicesContainer: FC<DevicesContainerProps> = ({
         setDeviceInputData(devicesDispatch, deviceInputFormData);
     }
 
-
     return (
         <>
             {devicesOptionToShow === DEVICES_OPTIONS.CREATE_DEVICE &&
@@ -120,7 +119,7 @@ const DevicesContainer: FC<DevicesContainerProps> = ({
                 <DeviceLocationContainer
                     buildings={buildingsTable}
                     floors={floorsTable}
-                    groups={groupsManagedTable}
+                    groupsManaged={groupsManagedTable}
                     devices={devices}
                     refreshBuildings={refreshBuildings}
                     refreshFloors={refreshFloors}
@@ -129,8 +128,6 @@ const DevicesContainer: FC<DevicesContainerProps> = ({
                     backToOption={backToOption}
                     setDeviceLocationData={setDeviceLocationData}
                 />
-
-
             }
         </>
     )

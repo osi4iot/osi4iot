@@ -2,13 +2,13 @@ import { FC, useState } from 'react'
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
-import { useDeviceBuildingId, useDeviceGroupId } from '../../../contexts/devicesOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { useGroupManagedBuildingId, useGroupManagedIdToEdit } from '../../../contexts/groupsManagedOptions';
 import ElementLocationMap from '../Geolocation/ElementLocationMap';
 
 
 
-interface DeviceLocationContainerProps {
+interface NriLocationContainerProps {
     buildings: IBuilding[];
     floors: IFloor[];
     groupsManaged: IGroupManaged[];
@@ -18,10 +18,10 @@ interface DeviceLocationContainerProps {
     refreshGroups: () => void;
     refreshDevices: () => void;
     backToOption: () => void;
-    setDeviceLocationData: (deviceLong: number, deviceLat: number) => void;
+    setNodeRedIconLocationData: (nriLong: number, nriLat: number) => void;
 }
 
-const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
+const NriLocationContainer: FC<NriLocationContainerProps> = (
     {
         buildings,
         floors,
@@ -32,17 +32,17 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
         refreshGroups,
         refreshDevices,
         backToOption,
-        setDeviceLocationData
+        setNodeRedIconLocationData
     }) => {
-    const deviceBuildingId = useDeviceBuildingId();
-    const building = buildings.filter(building => building.id === deviceBuildingId)[0];
-    const deviceGroupId = useDeviceGroupId();
-    const groupManaged = groupsManaged.filter(group => group.id === deviceGroupId)[0];
-    const devicesInGroup = useState(devices.filter(device => device.groupId === deviceGroupId))[0];
+    const groupManagedBuildingId = useGroupManagedBuildingId();
+    const building = buildings.filter(building => building.id === groupManagedBuildingId)[0];
+    const groupManagedId = useGroupManagedIdToEdit();
+    const groupManaged = groupsManaged.filter(group => group.id === groupManagedId)[0];
+    const devicesInGroup = useState(devices.filter(device => device.groupId === groupManagedId))[0];
     const groupFloor = useState(floors.filter(floor =>
-        floor.buildingId === deviceBuildingId &&
-        floor.floorNumber === groupManaged.floorNumber
-    )[0])[0];
+        floor.buildingId === groupManagedBuildingId &&
+        floor.floorNumber === groupManaged.floorNumber)[0]
+    )[0];
     const featureIndex = useState(groupManaged.featureIndex)[0];
     const [outerBounds, setOuterBounds] = useState(building.outerBounds);
 
@@ -52,7 +52,7 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
 
     return (
         <ElementLocationMap
-            elementToDrag={"device"}
+            elementToDrag={"nri"}
             outerBounds={outerBounds}
             building={building}
             floorData={groupFloor}
@@ -65,9 +65,9 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
             refreshDevices={refreshDevices}
             setNewOuterBounds={setNewOuterBounds}
             backToOption={backToOption}
-            setElementLocationData={setDeviceLocationData}
+            setElementLocationData={setNodeRedIconLocationData}
         />
     )
 }
 
-export default DeviceLocationContainer;
+export default NriLocationContainer;

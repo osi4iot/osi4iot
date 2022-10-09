@@ -7,12 +7,19 @@ import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeceptio
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import CreateNodeRedInstanceDto from "./nodeRedInstance.dto";
-import { createNodeRedInstance, deleteNodeRedInstanceById, getAllNodeRedInstances, getNodeRedInstanceByProp, getNodeRedInstancesByGroupsIdArray, getNodeRedInstancesByOrgsIdArray, recoverNodeRedInstancesMarkedAsDeleted, updateNodeRedInstanceByProp } from "./nodeRedInstanceDAL";
+import {
+	createNodeRedInstance,
+	deleteNodeRedInstanceById,
+	getAllNodeRedInstances,
+	getNodeRedInstanceByProp,
+	getNodeRedInstancesByOrgsIdArray,
+	recoverNodeRedInstancesMarkedAsDeleted
+} from "./nodeRedInstanceDAL";
 import HttpException from "../../exceptions/HttpException";
 import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 import INodeRedInstance from "./nodeRedInstance.interface";
 import RecoverNodeRedInstanceDto from "./recoverNodeRedInstances.dto";
-import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
+
 
 class NodeRedInstanceController implements IController {
 	public path = "/nodered_instance";
@@ -50,12 +57,6 @@ class NodeRedInstanceController implements IController {
 				superAdminAuth,
 				validationMiddleware<RecoverNodeRedInstanceDto>(RecoverNodeRedInstanceDto),
 				this.recoverNodeRedInstances
-			)
-			.patch(
-				`${this.path}/:nriId`,
-				superAdminAuth,
-				validationMiddleware<CreateNodeRedInstanceDto>(CreateNodeRedInstanceDto, true),
-				this.updateNodeRedInstanceById
 			)
 			.post(
 				`${this.path}/`,
@@ -166,24 +167,6 @@ class NodeRedInstanceController implements IController {
 			if (!nodeRedInstance) throw new ItemNotFoundException("The NodeRed instance", "id", nriId);
 			await deleteNodeRedInstanceById(parseInt(nriId, 10));
 			const message = { message: "NodeRed instance deleted successfully" }
-			res.status(200).json(message);
-		} catch (error) {
-			next(error);
-		}
-	};
-
-	private updateNodeRedInstanceById = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
-		try {
-			const { nriId } = req.params;
-			const nriData = req.body;
-			let nodeRedInstance = await getNodeRedInstanceByProp("id", parseInt(nriId, 10));
-			nodeRedInstance = { ...nodeRedInstance, ...nriData };
-			await updateNodeRedInstanceByProp("id", parseInt(nriId, 10), nodeRedInstance);
-			const message = { message: "NodeRed instance updated successfully" }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
