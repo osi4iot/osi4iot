@@ -25,8 +25,9 @@ import {
 import Lut from './Lut';
 import FemSimulationObjects from './FemSimulationObjects';
 import { toast } from 'react-toastify';
-import useMqttState from '../Utils/MqttHook/useMqttState';
-import useSubscription from '../Utils/MqttHook/useSubscription';
+import useMqttState from './MqttHook/useMqttState';
+import useSubscription from './MqttHook/useSubscription';
+
 
 
 export interface ISensorObject {
@@ -177,10 +178,8 @@ const Model: FC<ModelProps> = (
 	const [genericObjectsState, setGenericObjectsState] = useState<Record<string, GenericObjectState>>(initialGenericObjectsState);
 	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
-	const clipSimulationTopicId = mqttTopicsData.filter(topic => topic.topicType === "dev_sim_2dtm")[0].topicId;
 	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
 	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicType === "dev_sim_2dtm")[0] || null;
-	const { message } = useSubscription(mqttTopics);
 	const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
 
 	const updateSensorStateString = useCallback((objName: string, state: string) => {
@@ -191,12 +190,25 @@ const Model: FC<ModelProps> = (
 		setFemSimulationObjectsState(initialFemSimObjectsState);
 	}, [initialFemSimObjectsState, femSimulationObjects]);
 
-	let femResultNames: string[] = [];
-	if (femSimulationObjects.length && femSimulationGeneralInfo) {
-		femResultNames = digitalTwinGltfData.femSimulationData.metadata.resultFields.map(
-			(resultField: { resultName: string; }) => resultField.resultName
-		);
-	}
+	useSubscription(
+		mqttTopics,
+		mqttTopicsData,
+		sensorsState,
+		assetsState,
+		genericObjectsState,
+		femSimulationObjectsState,
+		digitalTwinSimulatorSendData,
+		sensorObjects,
+		assetObjects,
+		genericObjects,
+		femSimulationObjects,
+		setAssetsState,
+		setSensorsState,
+		setGenericObjectsState,
+		setFemSimulationObjectsState,
+		digitalTwinGltfData,
+		femSimulationGeneralInfo
+	)
 
 	useLayoutEffect(() => {
 		const changeObjectHighlight = (objType: string, objName: string, highlighted: boolean) => {
@@ -284,233 +296,6 @@ const Model: FC<ModelProps> = (
 		};
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [camera, container, setSensorsState, setAssetsState])
-
-	useLayoutEffect(() => {
-		if (message) { 
-			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
-			const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
-			const messageTopicType = mqttTopicsData[mqttTopicIndex].topicType;
-			let mqttMessage: any;
-			try {
-				mqttMessage = JSON.parse(message.message as string);
-				if (mqttMessage) {
-					const messagePayloadKeys = Object.keys(mqttMessage);
-					const sensorsNewState = { ...sensorsState };
-					let isSensorStateChanged = false;
-					const assestsNewState = { ...assetsState };
-					let isAssetStateChanged = false;
-					const genericObjectNewState = { ...genericObjectsState };
-					let isGenericObjectsStateChanged = false;
-					let isfemSimulationObjectsStateChanged = false;
-					const femSimulationObjectsNewState = [...femSimulationObjectsState];
-
-					if ((messageTopicType === "dev2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dev_sim_2dtm") {
-						sensorObjects.forEach((obj) => {
-							const objName = obj.node.name;
-							const sensorTopicId = obj.node.userData.topicId;
-							if (sensorTopicId === messageTopicId && sensorsState[objName].stateString === "off") {
-								const fieldName = obj.node.userData.fieldName;
-								if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-									const value = mqttMessage[fieldName];
-									if (typeof value === 'number' || (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)) {
-										sensorsNewState[objName] = { ...sensorsNewState[objName], stateString: "on" };
-										isSensorStateChanged = true;
-									}
-								}
-							}
-							const clipTopicIds = obj.node.userData.clipTopicIds;
-							if (clipTopicIds && clipTopicIds.length !== 0) {
-								const clipValues = [...sensorsNewState[objName].clipValues];
-								clipTopicIds.forEach((clipTopicId: number, index: number) => {
-									if (clipTopicId === messageTopicId) {
-										const fieldName = obj.node.userData.clipFieldNames[index];
-										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-											const value = mqttMessage[fieldName];
-											if (typeof value === 'number') {
-												clipValues[index] = value;
-												isSensorStateChanged = true;
-											}
-										}
-									}
-								});
-								sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
-							}
-
-							if (clipSimulationTopicId === messageTopicId) {
-								const clipValues = [...sensorsNewState[objName].clipValues];
-								const fieldNames: string[] = obj.node.userData.clipFieldNames;
-								if (fieldNames !== undefined && fieldNames.length !== 0) {
-									fieldNames.forEach((fieldName, index) => {
-										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-											const value = mqttMessage[fieldName];
-											if (typeof value === 'number') {
-												clipValues[index] = value;
-												isSensorStateChanged = true;
-											}
-										}
-									});
-									sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
-								}
-							}
-						});
-
-						assetObjects.forEach((obj) => {
-							const objName = obj.node.name;
-							const clipTopicIds = obj.node.userData.clipTopicIds;
-							if (clipTopicIds && clipTopicIds.length !== 0) {
-								const clipValues = [...assestsNewState[objName].clipValues];
-								clipTopicIds.forEach((clipTopicId: number, index: number) => {
-									if (clipTopicId === messageTopicId) {
-										const fieldName = obj.node.userData.clipFieldNames[index];
-										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-											const value = mqttMessage[fieldName];
-											if (typeof value === 'number') {
-												clipValues[index] = value;
-												isAssetStateChanged = true;
-											}
-										}
-									}
-								});
-								assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
-							}
-
-							if (clipSimulationTopicId === messageTopicId) {
-								const clipValues = [...assestsNewState[objName].clipValues];
-								const fieldNames: string[] = obj.node.userData.clipFieldNames;
-								if (fieldNames !== undefined && fieldNames.length !== 0) {
-									fieldNames.forEach((fieldName, index) => {
-										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-											const value = mqttMessage[fieldName];
-											if (typeof value === 'number') {
-												clipValues[index] = value;
-												isAssetStateChanged = true;
-											}
-										}
-									});
-									assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
-								}
-							}
-
-						});
-
-						genericObjects.forEach((obj) => {
-							const objName = obj.node.name;
-							const clipTopicIds = obj.node.userData.clipTopicIds;
-							if (clipTopicIds && clipTopicIds.length !== 0) {
-								const clipValues = [...genericObjectNewState[objName].clipValues];
-								clipTopicIds.forEach((clipTopicId: number, index: number) => {
-									if (clipTopicId === messageTopicId) {
-										const fieldName = obj.node.userData.clipFieldNames[index];
-										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-											const value = mqttMessage[fieldName];
-											if (typeof value === 'number') {
-												clipValues[index] = value;
-												isGenericObjectsStateChanged = true;
-											}
-										}
-									}
-								});
-								genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
-							}
-
-							if (clipSimulationTopicId === messageTopicId) {
-								const clipValues = [...genericObjectNewState[objName].clipValues];
-								const fieldNames: string[] = obj.node.userData.clipFieldNames;
-								if (fieldNames !== undefined && fieldNames.length !== 0) {
-									fieldNames.forEach((fieldName, index) => {
-										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-											const value = mqttMessage[fieldName];
-											if (typeof value === 'number') {
-												clipValues[index] = value;
-												isGenericObjectsStateChanged = true;
-											}
-										}
-									});
-									genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
-								}
-							}
-						});
-
-						femSimulationObjects.forEach((obj, index) => {
-							const clipTopicIds = obj.node.userData.clipTopicIds;
-							if (clipTopicIds && clipTopicIds.length !== 0) {
-								const clipValues = [...femSimulationObjectsNewState[index].clipValues];
-								clipTopicIds.forEach((clipTopicId: number, index: number) => {
-									if (clipTopicId === messageTopicId) {
-										const fieldName = obj.node.userData.clipFieldNames[index];
-										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-											const value = mqttMessage[fieldName];
-											if (typeof value === 'number') {
-												clipValues[index] = value;
-												isfemSimulationObjectsStateChanged = true;
-											}
-										}
-									}
-								});
-								femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
-							}
-
-							if (clipSimulationTopicId === messageTopicId) {
-								const clipValues = [...femSimulationObjectsNewState[index].clipValues];
-								const fieldNames: string[] = obj.node.userData.clipFieldNames;
-								if (fieldNames !== undefined && fieldNames.length !== 0) {
-									fieldNames.forEach((fieldName, index) => {
-										if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-											const value = mqttMessage[fieldName];
-											if (typeof value === 'number') {
-												clipValues[index] = value;
-												isfemSimulationObjectsStateChanged = true;
-											}
-										}
-									});
-									femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
-								}
-							}
-
-						});
-					}
-
-					if ((messageTopicType === "dtm_as2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dtm_sim_as2dts") {
-						const assestsNewState = { ...assetsState };
-						assetObjects.forEach((obj) => {
-							const objName = obj.node.name;
-							const assetPartIndex = obj.node.userData.assetPartIndex;
-							const stateNumber = parseInt(mqttMessage.assetPartsState[assetPartIndex - 1], 10);
-							if (stateNumber === 1) {
-								assestsNewState[objName] = { ...assestsNewState[objName], stateString: "alerting" };
-							} else if (stateNumber === 0) {
-								assestsNewState[objName] = { ...assestsNewState[objName], stateString: "ok" };
-							}
-						});
-						setAssetsState(assestsNewState);
-					}
-
-
-					if (femSimulationObjectsState.length) {
-						if ((messageTopicType === "dtm_fmv2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dtm_sim_fmv2dts") {
-							for (let imesh = 0; imesh < femSimulationObjectsState.length; imesh++) {
-								for (let ires = 0; ires < femResultNames.length; ires++) {
-									const resultName = femResultNames[ires];
-									const femResultsModalValue = mqttMessage.femResultsModalValues[imesh][ires];
-									femSimulationObjectsNewState[imesh].resultFieldModalValues[resultName] = femResultsModalValue
-									isfemSimulationObjectsStateChanged = true
-								}
-							}
-						}
-					}
-
-					if (isSensorStateChanged) setSensorsState(sensorsNewState);
-					if (isAssetStateChanged) setAssetsState(assestsNewState);
-					if (isGenericObjectsStateChanged) setGenericObjectsState(genericObjectNewState);
-					if (isfemSimulationObjectsStateChanged) setFemSimulationObjectsState(femSimulationObjectsNewState);
-				}
-
-			} catch (error) {
-				console.log("Error reading Mqtt message: ", error);
-			}
-		}
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [message])
 
 	useLayoutEffect(() => {
 		if (client && client.isConnected() && digitalTwinSimulatorState !== undefined) {

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import Paho, { MQTTError } from "paho-mqtt";
 import MqttContext from './MqttContext';
-import { ConnectorProps, IMqttContext } from './types';
+import { ConnectorProps, IMqttContext } from './interfaces';
 
 const MqttConnector = ({
     children,
@@ -12,8 +12,7 @@ const MqttConnector = ({
         port: 9001,
         username: '',
         accessToken: ''
-    },
-    parserMethod,
+    }
 }: ConnectorProps) => {
     // Using a ref rather than relying on state because it is synchronous
     const clientValid = useRef(false);
@@ -87,10 +86,9 @@ const MqttConnector = ({
     const value: IMqttContext = useMemo<IMqttContext>(
         () => ({
             connectionStatus,
-            client,
-            parserMethod,
+            client
         }),
-        [connectionStatus, client, parserMethod],
+        [connectionStatus, client],
     );
 
     return <MqttContext.Provider value={value}>{children}</MqttContext.Provider>;

@@ -31,7 +31,7 @@ import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
 import { useLoggedUserLogin } from '../../../contexts/authContext/authContext';
-import MqttConnector from '../Utils/MqttHook/MqttConnector';
+import MqttConnector from './MqttHook/MqttConnector';
 
 
 const CanvasContainer = styled.div`
