@@ -5,7 +5,6 @@ import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
 import { getDomainName, getProtocol } from "../tools/tools";
 
-
 const Title = styled.h2`
 	font-size: 20px;
 	margin-top: 30px;
@@ -157,7 +156,6 @@ const HomePage: FC<{}> = () => {
 		const url = `${protocol}://${domainName}${path}`;
 		window.open(url, "_blank");
 	};
-
 
 	return (
 		<>

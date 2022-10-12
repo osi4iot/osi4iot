@@ -233,9 +233,9 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const groupId = row?.cells[0]?.value;
                 const name = row?.cells[2]?.value;
                 const acronym = row?.cells[3]?.value;
-                const folderPermission = row?.cells[4]?.value;
-                const telegramInvitationLink = row?.cells[6]?.value;
-                const telegramChatId = row?.cells[7]?.value;
+                const folderPermission = row?.cells[5]?.value;
+                const telegramInvitationLink = row?.cells[7]?.value;
+                const telegramChatId = row?.cells[8]?.value;
                 const floorNumber = row?.cells[9]?.value;
                 const featureIndex = row?.cells[10]?.value;
                 const mqttActionAllowed = row?.cells[11]?.value;

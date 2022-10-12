@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import React, { FC, useRef, useState, useLayoutEffect, useCallback } from 'react';
-import { useMqttState, useSubscription } from 'mqtt-react-hooks';
+import Paho from "paho-mqtt";
 import Sensors from './Sensors';
 import GenericObjects from './GenericObjects';
 import Assets from './Assets';
@@ -25,6 +25,8 @@ import {
 import Lut from './Lut';
 import FemSimulationObjects from './FemSimulationObjects';
 import { toast } from 'react-toastify';
+import useMqttState from '../Utils/MqttHook/useMqttState';
+import useSubscription from '../Utils/MqttHook/useSubscription';
 
 
 export interface ISensorObject {
@@ -284,7 +286,7 @@ const Model: FC<ModelProps> = (
 	}, [camera, container, setSensorsState, setAssetsState])
 
 	useLayoutEffect(() => {
-		if (message) {
+		if (message) { 
 			const mqttTopicIndex = mqttTopics.findIndex(topic => topic === message.topic);
 			const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
 			const messageTopicType = mqttTopicsData[mqttTopicIndex].topicType;
@@ -511,14 +513,16 @@ const Model: FC<ModelProps> = (
 	}, [message])
 
 	useLayoutEffect(() => {
-		if (client && client.connected && digitalTwinSimulatorState !== undefined) {
+		if (client && client.isConnected() && digitalTwinSimulatorState !== undefined) {
 			if (digitalTwinModelMqttTopic && Object.keys(digitalTwinSimulatorState).length !== 0) {
 				if (digitalTwinSimulatorSendData) {
 					const mqttTopic = digitalTwinModelMqttTopic.mqttTopic;
-					const message = JSON.stringify(digitalTwinSimulatorState);
-					if (lastMqttMessageSended !== message) {
-						client.publish(mqttTopic, message)
-						setLastMqttMessageSended(message);
+					const messageToSend = JSON.stringify(digitalTwinSimulatorState);
+					if (lastMqttMessageSended !== messageToSend) {
+						const message = new Paho.Message(messageToSend);
+						message.destinationName = mqttTopic;
+						client.send(message);
+						setLastMqttMessageSended(messageToSend);
 					}
 				} else {
 					const dtSimStateString = JSON.stringify(digitalTwinSimulatorState);
@@ -536,7 +540,7 @@ const Model: FC<ModelProps> = (
 
 	useInterval(() => {
 		if (client) {
-			if (client.connected) {
+			if (client.isConnected()) {
 				setIsMqttConnected(true);
 			} else setIsMqttConnected(false);
 		}

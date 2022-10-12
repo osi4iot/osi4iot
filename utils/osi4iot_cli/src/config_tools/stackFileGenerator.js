@@ -211,6 +211,7 @@ export default function (osi4iotState) {
 			// },
 			mosquitto: {
 				image: `ghcr.io/osi4iot/mosquitto_go_auth:${serviceImageVersion['mosquitto_go_auth']}`,
+				user: '${UID}:${GID}',
 				networks: [
 					'internal_net'
 				],
@@ -220,8 +221,8 @@ export default function (osi4iotState) {
 					"9001:9001"
 				],
 				volumes: [
-					'mosquitto_data:/mosquitto/data/',
-					'mosquitto_log:/mosquitto/log/'
+					'mosquitto_data:/mosquitto/data',
+					'mosquitto_log:/mosquitto/log'
 				],
 				secrets: [
 					{

@@ -226,6 +226,7 @@ class AuthenticationController implements IController {
 	private userMosquittoAclCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { acc, clientid, username, topic } = req.body;
+			console.log(`acc=${acc}, clientid=${clientid}, username=${username}, topic=${topic}`)
 			const topicArray = topic.split("/");
 			if (username === "dev2pdb") {
 				const topicType = topicArray[0];
@@ -255,15 +256,15 @@ class AuthenticationController implements IController {
 				}
 			}
 
-
 			let isMosquittoSysTopic = false;
 			if (topicArray[0] === "$SYS" && topicArray[1] === "broker") {
 				isMosquittoSysTopic = true;
 			}
 
+
 			let topicData: ITopicInfoForMqttAcl;
 			if (!isMosquittoSysTopic && topicArray.length === 4) {
-				const topicUid = topicArray[3].split("_")[1];
+				const topicUid = topicArray[3].slice(6);
 				topicData = await getTopicInfoForMqttAclByTopicUid(topicUid);
 				if (!topicData) {
 					res.status(400).json({ Ok: false, Error: "Incorrect topic hash" });
@@ -350,7 +351,6 @@ class AuthenticationController implements IController {
 					return
 				}
 			}
-
 
 			const usernameArray = username.split("_");
 			if (usernameArray[0] === "device") {

@@ -1,8 +1,8 @@
 import { FC, useEffect, useRef, useState } from 'react'
 import styled from "styled-components";
+import { nanoid } from "nanoid";
 import { FaShareSquare, FaFolderOpen, FaFolderMinus } from "react-icons/fa";
 import { RiWifiLine, RiWifiOffLine } from "react-icons/ri";
-import { Connector } from 'mqtt-react-hooks';
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three'
 import { OrbitControls } from '@react-three/drei';
@@ -31,6 +31,7 @@ import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
 import { useLoggedUserLogin } from '../../../contexts/authContext/authContext';
+import MqttConnector from '../Utils/MqttHook/MqttConnector';
 
 
 const CanvasContainer = styled.div`
@@ -348,8 +349,6 @@ const NoWifiIcon = styled(RiWifiOffLine)`
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-const brokerUrl = `wss://${domainName}`;
-
 const mouseButtons = {
 	LEFT: THREE.MOUSE.PAN,
 	MIDDLE: THREE.MOUSE.ROTATE,
@@ -411,13 +410,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [getLastMeasurementsButtomLabel, setGetLastMeasurementsButtomLabel] = useState("GET LAST MEASUREMENTS");
 
 	const mqttOptions = {
-		username: `jwt_${userName}`,
-		passport: accessToken,
+		keepalive: 0,
+		clientId: `Client_${nanoid(16).replace(/-/g, "x").replace(/_/g, "X")}`,
 		port: 9001,
-		protocol: 'wss' as 'wss',
-		clientId: "clientId_" + Math.floor(Math.random() * 1000),
-		retain: false
-	}
+		username: `jwt_${userName}`,
+		accessToken
+	};
 
 	let femResultNames: string[] = [];
 	if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
@@ -700,7 +698,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						shadows={opts.showShadows}
 						showAxes={opts.showAxes}
 					>
-						<Connector options={mqttOptions} brokerUrl={brokerUrl}>
+						<MqttConnector hostname={domainName} options={mqttOptions} >
 							<Model
 								digitalTwinGltfData={digitalTwinGltfData}
 								sensorObjects={sensorObjects}
@@ -749,7 +747,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								setFemMaxValues={setFemMaxValues}
 								initialDigitalTwinSimulatorState={initialDigitalTwinSimulatorState}
 							/>
-						</Connector>
+						</MqttConnector>
 					</Stage>
 					<OrbitControls ref={controlsRef} mouseButtons={mouseButtons} />
 				</Canvas>
@@ -1020,3 +1018,5 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 }
 
 export default DigitalTwin3DViewer;
+
+

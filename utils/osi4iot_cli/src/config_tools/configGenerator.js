@@ -102,7 +102,7 @@ export default function (osi4iotState) {
 	const mosquittoConfig = [
 		// "per_listener_settings true\n",
 		"persistence true\n",
-		"persistence_location /mosquitto/data/\n",
+		"persistence_location /mosquitto/data\n",
 		"log_type error\n",
 		"log_type warning\n",
 		"log_type notice\n",
@@ -125,8 +125,7 @@ export default function (osi4iotState) {
 		"\n",
 		"# WS for health check\n",
 		"listener 8080 127.0.0.1\n",
-		"protocol websockets\n"
-
+		"protocol websockets\n",
 	]
 
 	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
@@ -136,7 +135,7 @@ export default function (osi4iotState) {
 			"# MQTT over WSS\n",
 			"listener 9001\n",
 			"protocol websockets\n",
-			"allow_anonymous true"
+			"allow_anonymous false"
 		);
 	} else {
 		mosquittoConfig.push(

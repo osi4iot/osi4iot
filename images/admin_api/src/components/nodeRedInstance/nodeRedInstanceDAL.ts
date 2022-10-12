@@ -137,7 +137,7 @@ export const createNodeRedInstancesInOrg = async (nriHashes: string[], orgId: nu
 
 export const createNodeRedInstance = async (nriInput: CreateNodeRedInstanceDto): Promise<INodeRedInstance> => {
 	const result = await pool.query(`INSERT INTO grafanadb.nodered_instance (nri_hash, org_id,
-		group_id, geolocation, created, updated) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		group_id, geolocation, icon_radio, created, updated) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		RETURNING id, nri_hash AS "nriHash", org_id AS "orgId", group_id AS "groupId",geolocation[0] AS longitude,
 		geolocation[1] AS latitude, icon_radio AS "iconRadio", deleted`,
 		[nriInput.nriHash, nriInput.orgId, 0, `(${nriInput.longitude},${nriInput.latitude})`, nriInput.iconRadio]);
