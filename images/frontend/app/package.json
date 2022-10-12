@@ -26,7 +26,6 @@
     "jszip": "^3.6.0",
     "leaflet": "^1.7.1",
     "match-sorter": "^6.3.0",
-    "mqtt-react-hooks": "^2.0.3",
     "paho-mqtt": "^1.1.0",
     "react": "^17.0.2",
     "react-dat-gui": "^4.1.1",
