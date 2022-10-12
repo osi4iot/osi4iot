@@ -427,13 +427,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const handleGetLastMeasurementsButton = () => {
 		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
 		if (digitalTwinSelected && Object.keys(digitalTwinSimulationFormat).length !== 0) {
-			const topicsIdArray: number[] = [];
-			Object.keys(digitalTwinSimulationFormat).forEach(field => {
-				if (digitalTwinSimulationFormat[field].topicId !== undefined) {
-					const topicId = digitalTwinSimulationFormat[field].topicId;
-					if (!topicsIdArray.includes(topicId)) topicsIdArray.push(topicId);
-				}
-			})
+			const filteredTopics = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dev2pdb");
+			const topicsIdArray = filteredTopics.map(topic => topic.topicId);
 
 			if (topicsIdArray.length !== 0) {
 				setGetLastMeasurementsButtomLabel("LOADING...");

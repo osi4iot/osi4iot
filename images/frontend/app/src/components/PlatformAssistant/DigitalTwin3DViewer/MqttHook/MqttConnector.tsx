@@ -26,8 +26,7 @@ const MqttConnector = ({
             clientValid.current = true;
 
             setStatus('Connecting');
-            console.log(`attempting to connect to ${hostname}`);
-
+            console.log(`Attempting to connect to ${hostname}`);
 
             const port = 9001;
             const clientId = "clientId_" + Math.floor(Math.random() * 1000);
@@ -59,8 +58,8 @@ const MqttConnector = ({
                 timeout: 3,
                 onSuccess: onConnect,
                 onFailure: onFailure,
-                userName: `jwt_dicapua`,
-                password: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MiwiZW1haWwiOiJkaWNhcHVhNjdAZ21haWwuY29tIiwiYWN0aW9uIjoiYWNjZXNzIiwiaWF0IjoxNjY1NTA5NDExLCJleHAiOjE2NjYxMTQyMTF9._Gj8zodgxp5FXVZCz7Y-1VWm2FB4SmUeStWXSpxQD_g",
+                userName: options.username,
+                password: options.accessToken,
             });
 
             mqttClient.onConnectionLost = onConnectionLost;
@@ -72,7 +71,7 @@ const MqttConnector = ({
     useEffect(
         () => () => {
             if (client) {
-                console.log('closing mqtt client');
+                console.log('Closing mqtt client');
                 client.disconnect();
                 setClient(null);
                 clientValid.current = false;
