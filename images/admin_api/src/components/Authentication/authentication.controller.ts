@@ -226,7 +226,6 @@ class AuthenticationController implements IController {
 	private userMosquittoAclCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { acc, clientid, username, topic } = req.body;
-			console.log(`acc=${acc}, clientid=${clientid}, username=${username}, topic=${topic}`)
 			const topicArray = topic.split("/");
 			if (username === "dev2pdb") {
 				const topicType = topicArray[0];

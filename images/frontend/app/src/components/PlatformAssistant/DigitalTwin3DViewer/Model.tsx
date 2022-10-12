@@ -221,7 +221,6 @@ const Model: FC<ModelProps> = (
 			else if (objType === "generic" && highlighted) highlightGenericObject = true;
 			else if (objType === "femObject" && highlighted) highlightFemSimulationObject = true;
 
-
 			setSensorsState((prevSensorsState) => {
 				const newSensorState = { ...prevSensorsState };
 				for (const objLabel in newSensorState) {
