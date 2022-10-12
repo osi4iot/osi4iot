@@ -26,7 +26,6 @@ const MqttConnector = ({
             clientValid.current = true;
 
             setStatus('Connecting');
-            console.log(`Attempting to connect to ${hostname}`);
 
             const port = 9001;
             const clientId = "clientId_" + Math.floor(Math.random() * 1000);
@@ -34,7 +33,6 @@ const MqttConnector = ({
 
 
             const onConnect = () => {
-                console.log("Client connected")
                 setStatus('Connected');
                 // For some reason setting the client as soon as we get it from connect breaks things
                 setClient(mqttClient);
@@ -71,7 +69,6 @@ const MqttConnector = ({
     useEffect(
         () => () => {
             if (client) {
-                console.log('Closing mqtt client');
                 client.disconnect();
                 setClient(null);
                 clientValid.current = false;
