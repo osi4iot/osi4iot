@@ -86,7 +86,7 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
-									grafanadb.topic. mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -102,7 +102,7 @@ export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number):
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
-									grafanadb.topic. mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -119,7 +119,7 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
-									grafanadb.topic. mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -167,7 +167,7 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
-									grafanadb.topic. mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -186,7 +186,7 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
-									grafanadb.topic. mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -235,7 +235,7 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
-									grafanadb.topic. mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -254,7 +254,7 @@ export const getTopicsByDeviceId = async (deviceId: number): Promise<ITopic[]> =
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.payload_format AS "payloadFormat",
-									grafanadb.topic. mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
@@ -308,10 +308,10 @@ export const getMqttTopicsInfoFromIdArray = async (topicsIdArray: number[]): Pro
 export const getTopicInfoForMqttAclByTopicUid = async (topicUid: string): Promise<ITopicInfoForMqttAcl> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id AS "topicId", grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
-									grafanadb.topic.topic_type AS "topicType", grafanadb.topic. mqtt_access_control AS "topicActionAllowed",
-									grafanadb.device. mqtt_access_control AS "deviceActionAllowed",
-									grafanadb.group. mqtt_access_control AS "groupActionAllowed",
-									grafanadb.org. mqtt_access_control AS "orgActionAllowed",
+									grafanadb.topic.topic_type AS "topicType", grafanadb.topic.mqtt_access_control AS "topicAccessControl",
+									grafanadb.device.mqtt_access_control AS "deviceAccessControl",
+									grafanadb.group.mqtt_access_control AS "groupAccessControl",
+									grafanadb.org.mqtt_access_control AS "orgAccessControl",
 									grafanadb.group.group_uid AS "groupHash", grafanadb.device.device_uid AS "deviceHash",
 									grafanadb.topic.topic_uid AS "topicHash", grafanadb.group.team_id AS "teamId"
 									FROM grafanadb.topic

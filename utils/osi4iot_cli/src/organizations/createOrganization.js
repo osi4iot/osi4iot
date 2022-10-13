@@ -193,7 +193,7 @@ export default async function () {
 						when: (answers) => workerNodesRows.length !== 0 && answers.ARE_ORG_SERVICES_DEPLOYED_IN_EXCLUSIVE_NODES
 					},
 					{
-						name: ' mqtt_access_control',
+						name: 'MQTT_ACCESS_CONTROL',
 						message: "Mqtt access control for the organization",
 						type: 'list',
 						default: "Pub & Sub",
@@ -318,7 +318,7 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 		nriHashes: newOrg.nodered_instances.map(nri => nri.nri_hash),
 		telegramInvitationLink: orgData.ORGANIZATION_TELEGRAM_INVITATION_LINK,
 		telegramChatId: orgData.ORGANIZATION_TELEGRAM_CHAT_ID,
-		mqttAccessControl: orgData. mqtt_access_control,
+		mqttAccessControl: orgData.MQTT_ACCESS_CONTROL,
 		orgAdminArray: [{
 			firstName: orgData.ORG_ADMIN_FIRST_NAME,
 			surname: orgData.ORG_ADMIN_SURNAME,

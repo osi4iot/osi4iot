@@ -30,6 +30,7 @@ import arrayCompare from "../../utils/helpers/arrayCompare";
 import { updateGroupDevicesLocation } from "../device/deviceDAL";
 import process_env from "../../config/api_config";
 import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
+import HttpException from "../../exceptions/HttpException";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	// let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
@@ -163,12 +164,14 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 	const groupData: IGroup = { ...existentGroup, ...newGroupData };
 	const featureIndex = groupData.featureIndex;
 	const floorData = await getFloorByOrgIdAndFloorNumber(groupData.orgId, groupData.floorNumber);
-	const geoJsonDataString = findGroupGeojsonData(floorData, featureIndex)
-	groupData.outerBounds = findGroupBounds(geoJsonDataString, floorData);
-	await updateGroupById(groupData);
-	if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
-		await updateGroupDevicesLocation(geoJsonDataString, groupData);
-		await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData)
+	const geoJsonDataString = findGroupGeojsonData(floorData, featureIndex);
+	if (geoJsonDataString !== "{}") {
+		groupData.outerBounds = findGroupBounds(geoJsonDataString, floorData);
+		await updateGroupById(groupData);
+		if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
+			await updateGroupDevicesLocation(geoJsonDataString, groupData);
+			await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData)
+		}
 	}
 	let hasGroupChange = false;
 	if (groupData.folderPermission && (groupData.folderPermission !== existentGroup.folderPermission)) {
@@ -580,7 +583,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 				floor_number = $5,
 				feature_index = $6,
 				outer_bounds = $7,
-				 mqtt_access_control = $8,
+				mqtt_access_control = $8,
 				updated = NOW()
 				WHERE grafanadb.group.id = $9;`;
 	const result = await pool.query(query, [

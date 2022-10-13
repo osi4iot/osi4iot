@@ -299,7 +299,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInsta
 				}
 			},
 			{
-				name: ' mqtt_access_control',
+				name: 'MQTT_ACCESS_CONTROL',
 				message: "Mqtt access control for the organization",
 				type: 'list',
 				default: "Pub & Sub",
@@ -465,7 +465,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 		buildingId: parseInt(orgData.BUILDING_ID, 10),
 		orgHash: org_hash,
 		nriHashes: new_nodered_instances.map(nri => nri.nri_hash),
-		mqttAccessControl: orgData. mqtt_access_control
+		mqttAccessControl: orgData.MQTT_ACCESS_CONTROL
 	};
 
 	const response = await needle('patch', url, updateOrgData, optionsToken)

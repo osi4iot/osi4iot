@@ -288,64 +288,64 @@ class AuthenticationController implements IController {
 					return
 				}
 
-				if (topicData.topicActionAllowed === "None") {
+				if (topicData.topicAccessControl === "None") {
 					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the topic with id: ${topicData.topicId}` });
 					return
 				}
 
-				if (topicData.deviceActionAllowed === "None") {
+				if (topicData.deviceAccessControl === "None") {
 					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the device with id: ${topicData.deviceId}` });
 					return
 				}
 
-				if (topicData.groupActionAllowed === "None") {
+				if (topicData.groupAccessControl === "None") {
 					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the group with id: ${topicData.groupId}` });
 					return
 				}
 
-				if (topicData.orgActionAllowed === "None") {
+				if (topicData.orgAccessControl === "None") {
 					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the group with id: ${topicData.orgId}` });
 					return
 				}
 
-				if ((acc === 1 || acc === 4) && !(topicData.topicActionAllowed === "Sub" || topicData.topicActionAllowed === "Pub & Sub")) {
+				if ((acc === 1 || acc === 4) && !(topicData.topicAccessControl === "Sub" || topicData.topicAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the topic with id: ${topicData.topicId}` });
 					return
 				}
 
-				if ((acc === 2 || acc === 3) && !(topicData.topicActionAllowed === "Pub" || topicData.topicActionAllowed === "Pub & Sub")) {
+				if ((acc === 2 || acc === 3) && !(topicData.topicAccessControl === "Pub" || topicData.topicAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the topic with id: ${topicData.topicId}` });
 					return
 				}
 
-				if ((acc === 1 || acc === 4) && !(topicData.deviceActionAllowed === "Sub" || topicData.deviceActionAllowed === "Pub & Sub")) {
+				if ((acc === 1 || acc === 4) && !(topicData.deviceAccessControl === "Sub" || topicData.deviceAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the device with id: ${topicData.deviceId}` });
 					return
 				}
 
-				if ((acc === 2 || acc === 3) && !(topicData.deviceActionAllowed === "Pub" || topicData.deviceActionAllowed === "Pub & Sub")) {
+				if ((acc === 2 || acc === 3) && !(topicData.deviceAccessControl === "Pub" || topicData.deviceAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the device with id: ${topicData.deviceId}` });
 					return
 				}
 
-				if ((acc === 1 || acc === 4) && !(topicData.groupActionAllowed === "Sub" || topicData.groupActionAllowed === "Pub & Sub")) {
+				if ((acc === 1 || acc === 4) && !(topicData.groupAccessControl === "Sub" || topicData.groupAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the group with id: ${topicData.groupId}` });
 					return
 				}
 
 
-				if ((acc === 2 || acc === 3) && !(topicData.groupActionAllowed === "Pub" || topicData.groupActionAllowed === "Pub & Sub")) {
+				if ((acc === 2 || acc === 3) && !(topicData.groupAccessControl === "Pub" || topicData.groupAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the group with id: ${topicData.groupId}` });
 					return
 				}
 
-				if ((acc === 1 || acc === 4) && !(topicData.orgActionAllowed === "Sub" || topicData.orgActionAllowed === "Pub & Sub")) {
+				if ((acc === 1 || acc === 4) && !(topicData.orgAccessControl === "Sub" || topicData.orgAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the org with id: ${topicData.orgId}` });
 					return
 				}
 
 
-				if ((acc === 2 || acc === 3) && !(topicData.orgActionAllowed === "Pub" || topicData.orgActionAllowed === "Pub & Sub")) {
+				if ((acc === 2 || acc === 3) && !(topicData.orgAccessControl === "Pub" || topicData.orgAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the org with id: ${topicData.orgId}` });
 					return
 				}

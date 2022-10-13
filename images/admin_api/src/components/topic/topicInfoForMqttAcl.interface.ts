@@ -4,10 +4,10 @@ export default interface ITopicInfoForMqttAcl {
 	groupId: number;
 	deviceId: number;
 	topicType: string;
-	topicActionAllowed: string;
-	deviceActionAllowed: string;
-	groupActionAllowed: string;
-	orgActionAllowed: string;
+	topicAccessControl: string;
+	deviceAccessControl: string;
+	groupAccessControl: string;
+	orgAccessControl: string;
 	groupHash: string;
 	deviceHash: string;
 	topicHash: string;
