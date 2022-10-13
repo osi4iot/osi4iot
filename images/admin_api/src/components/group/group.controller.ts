@@ -309,7 +309,7 @@ class GroupController implements IController {
 					mqttAccessControl: "Pub & Sub"
 				},
 				{
-					topicType: "dev2pdb",
+					topicType: "dev2pdb_wt",
 					topicName: demoTopicName(groupCreated, device, "Accelerometer"),
 					description: `Mobile accelerations for ${defaultGroupDeviceName(groupCreated)} device`,
 					payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',

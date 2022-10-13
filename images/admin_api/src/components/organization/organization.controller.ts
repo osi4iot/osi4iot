@@ -368,7 +368,7 @@ class OrganizationController implements IController {
 						mqttAccessControl: "Pub & Sub"
 					},
 					{
-						topicType: "dev2pdb",
+						topicType: "dev2pdb_wt",
 						topicName: demoTopicName(group, device, "Accelerometer"),
 						description: `Mobile accelerations for default device of group ${group.acronym}`,
 						payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',

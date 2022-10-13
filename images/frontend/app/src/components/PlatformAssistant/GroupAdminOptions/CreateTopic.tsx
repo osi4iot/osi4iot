@@ -67,6 +67,10 @@ const topicTypeOptions = [
         value: "dev2pdb"
     },
     {
+        label: "Device to platform DB with timestamp",
+        value: "dev2pdb_wt"
+    },
+    {
         label: "Device to DT",
         value: "dev2dtm"
     },
@@ -79,6 +83,10 @@ const topicTypeOptions = [
         value: "dtm_as2pdb"
     },
     {
+        label: "DTM assets state to plaform database with timestamp",
+        value: "dtm_as2pdb_wt"
+    },    
+    {
         label: "DTM simulated assets state to DTS",
         value: "dtm_sim_as2dts"
     },
@@ -86,6 +94,10 @@ const topicTypeOptions = [
         label: "DTM fem modal value to platform database",
         value: "dtm_fmv2pdb"
     },
+    {
+        label: "DTM fem modal value to platform database with timestamp",
+        value: "dtm_fmv2pdb_wt"
+    },    
     {
         label: "DTM simulated fem modal value to DTS",
         value: "dtm_sim_fmv2dts"
