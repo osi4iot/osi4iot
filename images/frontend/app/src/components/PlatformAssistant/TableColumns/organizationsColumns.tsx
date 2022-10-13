@@ -11,7 +11,7 @@ export interface IOrganization {
     country: string;
     buildingId: string;
     orgHash: string;
-    mqttActionAllowed: string;
+    mqttAccessControl: string;
 }
 
 interface IOrganizationColumn extends IOrganization {
@@ -72,16 +72,16 @@ export const Create_ORGANIZATIONS_COLUMNS = (): Column<IOrganizationColumn>[] =>
         },
         {
             Header: "Mqtt acc",
-            accessor: "mqttActionAllowed",
+            accessor: "mqttAccessControl",
             disableFilters: true,
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttActionAllowed = row?.cells[10]?.value;
+                const mqttAccessControl = row?.cells[10]?.value;
                 const style: React.CSSProperties = {
-                    color: mqttActionAllowed === "None" ? 'red' : 'white'
+                    color: mqttAccessControl === "None" ? 'red' : 'white'
                 };
-                return <span style={style}>{mqttActionAllowed}</span>;
+                return <span style={style}>{mqttAccessControl}</span>;
             }             
         }
     ]

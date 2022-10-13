@@ -120,6 +120,7 @@ export interface IOrgManaged {
     country: string;
     buildingId: number;
     orgHash: string;
+    mqttAccessControl: string;
 }
 
 interface IOrgManagedColumn extends IOrgManaged {
@@ -177,6 +178,20 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             accessor: "orgHash",
             disableFilters: true
         },
+        {
+            Header: "Mqtt acc",
+            accessor: "mqttAccessControl",
+            disableFilters: true,
+            Cell: props => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const mqttAccessControl = row?.cells[9]?.value;
+                const style: React.CSSProperties = {
+                    color: mqttAccessControl === "None" ? 'red' : 'white'
+                };
+                return <span style={style}>{mqttAccessControl}</span>;
+            }             
+        },        
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Add<br />users</div>,
             accessor: "addOrgUsers",

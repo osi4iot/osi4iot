@@ -125,7 +125,7 @@ export const createGroup = async (
 	}
 	const telegramNotificationChannel = await grafanaApi.createNotificationChannel(orgKey, telegramNotificationChannelData);
 	const telegramNotificationChannelId = telegramNotificationChannel.id;
-	const mqttActionAllowed = "Pub & Sub";
+	const mqttAccessControl = "Pub & Sub";
 
 	group = {
 		orgId,
@@ -143,7 +143,7 @@ export const createGroup = async (
 		floorNumber,
 		featureIndex,
 		outerBounds,
-		mqttActionAllowed
+		mqttAccessControl
 	}
 
 	await createView(groupUid);
@@ -224,7 +224,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed",
+				 mqtt_access_control AS "mqttAccessControl",
 				grafanadb.nodered_instance.id AS "nriInGroupId",
 				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
 				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
@@ -261,7 +261,7 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed",
+				 mqtt_access_control AS "mqttAccessControl",
 				grafanadb.nodered_instance.id AS "nriInGroupId",
 				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
 				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
@@ -295,7 +295,7 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed",
+				 mqtt_access_control AS "mqttAccessControl",
 				grafanadb.nodered_instance.id AS "nriInGroupId",
 				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
 				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
@@ -409,7 +409,7 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed",
+				 mqtt_access_control AS "mqttAccessControl",
 				grafanadb.nodered_instance.id AS "nriInGroupId",
 				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
 				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
@@ -441,7 +441,7 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed",
+				 mqtt_access_control AS "mqttAccessControl",
 				grafanadb.nodered_instance.id AS "nriInGroupId",
 				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
 				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
@@ -472,7 +472,7 @@ export const getGroupByWithFolderPermissionProp = async (propName: string, propV
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed",
+				 mqtt_access_control AS "mqttAccessControl",
 				grafanadb.nodered_instance.id AS "nriInGroupId",
 				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
 				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
@@ -501,7 +501,7 @@ export const getGroupByProp = async (propName: string, propValue: (string | numb
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed",
+				 mqtt_access_control AS "mqttAccessControl",
 				grafanadb.nodered_instance.id AS "nriInGroupId",
 				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
 				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
@@ -527,7 +527,7 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				mqtt_action_allowed AS "mqttActionAllowed",
+				 mqtt_access_control AS "mqttAccessControl",
 				grafanadb.nodered_instance.id AS "nriInGroupId",
 				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
 				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
@@ -548,7 +548,7 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					telegram_invitation_link, telegram_chatid,
 					email_notification_channel_id,
 					telegram_notification_channel_id, is_org_default_group,
-					floor_number, feature_index, outer_bounds, mqtt_action_allowed,
+					floor_number, feature_index, outer_bounds,  mqtt_access_control,
 					created, updated)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
 					RETURNING *`,
@@ -568,7 +568,7 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 			group.floorNumber,
 			group.featureIndex,
 			group.outerBounds,
-			group.mqttActionAllowed
+			group.mqttAccessControl
 		])
 	return response.rows[0];
 };
@@ -580,7 +580,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 				floor_number = $5,
 				feature_index = $6,
 				outer_bounds = $7,
-				mqtt_action_allowed = $8,
+				 mqtt_access_control = $8,
 				updated = NOW()
 				WHERE grafanadb.group.id = $9;`;
 	const result = await pool.query(query, [
@@ -591,7 +591,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 		group.floorNumber,
 		group.featureIndex,
 		group.outerBounds,
-		group.mqttActionAllowed,
+		group.mqttAccessControl,
 		group.id
 	]);
 }

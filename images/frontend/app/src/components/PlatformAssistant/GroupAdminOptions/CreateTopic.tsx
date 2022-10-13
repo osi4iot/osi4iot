@@ -96,7 +96,7 @@ const topicTypeOptions = [
     }
 ];
 
-const mqttActionAllowedOptions = [
+const mqttAccessControlOptions = [
     {
         label: "Subscribe",
         value: "Sub"
@@ -168,7 +168,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         topicType: "dev2pdb",
         topicName: "",
         description: "",
-        mqttActionAllowed: "Pub & Sub",
+        mqttAccessControl: "Pub & Sub",
         payloadFormat: "{}"
     }
 
@@ -228,9 +228,9 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                     />
                                     <FormikControl
                                         control='select'
-                                        label='Mqtt action allowed'
-                                        name="mqttActionAllowed"
-                                        options={mqttActionAllowedOptions}
+                                        label='Mqtt access control'
+                                        name="mqttAccessControl"
+                                        options={mqttAccessControlOptions}
                                         type='text'
                                     />
                                     <FormikControl

@@ -292,7 +292,7 @@ class GroupController implements IController {
 				longitude: (centerLongitude + devicesDistance),
 				type: "Generic",
 				iconRadio: 1.0,
-				mqttActionAllowed: "Pub & Sub"
+				mqttAccessControl: "Pub & Sub"
 			};
 			const device = await createDevice(groupCreated, defaultGroupDeviceData);
 
@@ -306,21 +306,21 @@ class GroupController implements IController {
 					topicName: demoTopicName(groupCreated, device, "Temperature"),
 					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated)} device`,
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
-					mqttActionAllowed: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub"
 				},
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(groupCreated, device, "Accelerometer"),
 					description: `Mobile accelerations for ${defaultGroupDeviceName(groupCreated)} device`,
 					payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
-					mqttActionAllowed: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub"
 				},
 				{
 					topicType: "dev2dtm",
 					topicName: demoTopicName(groupCreated, device, "Photo"),
 					description: `Mobile photo for ${defaultGroupDeviceName(groupCreated)} device`,
 					payloadFormat: '{"mobile_photo": {"type": "string"}}',
-					mqttActionAllowed: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub"
 				},
 			];
 			const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);

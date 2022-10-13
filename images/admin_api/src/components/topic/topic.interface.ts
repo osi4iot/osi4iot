@@ -8,7 +8,7 @@ export default interface ITopic {
 	description: string;
 	topicUid: string;
 	payloadFormat: string;
-	mqttActionAllowed: string;
+	mqttAccessControl: string;
 	created?: string;
 	updated?: string;
 }

@@ -18,14 +18,14 @@ export const defaultGroupDeviceName = (group: IGroup): string => {
 export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 	const result = await pool.query(`INSERT INTO grafanadb.device (org_id, group_id, name,
 		            description, device_uid, geolocation, type, icon_radio, mqtt_password,
-					mqtt_salt, mqtt_action_allowed,	created, updated)
+					mqtt_salt,  mqtt_access_control,	created, updated)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 					RETURNING  id, org_id AS "orgId",  group_id AS "groupId",
 					device_uid AS "deviceUid", geolocation[0] AS longitude,
 					geolocation[0] AS latitude, type, icon_radio AS "iconRadio",
 					mqtt_password AS "mqttPassword",
 					mqtt_salt AS "mqttSalt",
-					mqtt_action_allowed AS "mqttActionAllowed",
+					 mqtt_access_control AS "mqttAccessControl",
 					created, updated`,
 		[
 			deviceData.orgId,
@@ -38,7 +38,7 @@ export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 			deviceData.iconRadio,
 			deviceData.mqttPassword,
 			deviceData.mqttSalt,
-			deviceData.mqttActionAllowed
+			deviceData.mqttAccessControl
 		]);
 	return result.rows[0];
 };
@@ -46,7 +46,7 @@ export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 export const updateDeviceByProp = async (propName: string, propValue: (string | number), device: IDevice): Promise<void> => {
 	const query = `UPDATE grafanadb.device SET name = $1, description = $2,
 				geolocation = $3, type = $4, icon_radio = $5,
-				mqtt_action_allowed = $6, updated = NOW()
+				 mqtt_access_control = $6, updated = NOW()
 				WHERE grafanadb.device.${propName} = $7;`;
 	await pool.query(query, [
 		device.name,
@@ -54,7 +54,7 @@ export const updateDeviceByProp = async (propName: string, propValue: (string | 
 		`(${device.longitude},${device.latitude})`,
 		device.type,
 		device.iconRadio,
-		device.mqttActionAllowed,
+		device.mqttAccessControl,
 		propValue
 	]);
 };
@@ -109,7 +109,7 @@ export const getDeviceByProp = async (propName: string, propValue: (string | num
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
 									grafanadb.device.icon_radio AS "iconRadio",
-									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
+									grafanadb.device. mqtt_access_control AS "mqttAccessControl",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
@@ -125,7 +125,7 @@ export const getFullDeviceDataById = async (id: number): Promise<IDevice> => {
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
 									grafanadb.device.mqtt_password AS "mqttPassword", grafanadb.device.mqtt_salt AS "mqttSalt",
 									grafanadb.device.icon_radio AS "iconRadio",
-									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
+									grafanadb.device. mqtt_access_control AS "mqttAccessControl",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
@@ -140,7 +140,7 @@ export const getAllDevices = async (): Promise<IDevice[]> => {
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
 									grafanadb.device.icon_radio AS "iconRadio",
-									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
+									grafanadb.device. mqtt_access_control AS "mqttAccessControl",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
@@ -162,7 +162,7 @@ export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> =
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
 									grafanadb.device.icon_radio AS "iconRadio",
-									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
+									grafanadb.device. mqtt_access_control AS "mqttAccessControl",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
@@ -178,7 +178,7 @@ export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promis
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
 									grafanadb.device.icon_radio AS "iconRadio",
-									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
+									grafanadb.device. mqtt_access_control AS "mqttAccessControl",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
@@ -201,7 +201,7 @@ export const getDevicesByOrgId = async (orgId: number): Promise<IDevice[]> => {
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
 									grafanadb.device.icon_radio AS "iconRadio",
-									grafanadb.device.mqtt_action_allowed AS "mqttActionAllowed",
+									grafanadb.device. mqtt_access_control AS "mqttAccessControl",
 									grafanadb.device.created, grafanadb.device.updated
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id

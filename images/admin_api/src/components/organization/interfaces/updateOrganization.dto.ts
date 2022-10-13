@@ -34,7 +34,7 @@ class UpdateOrganizationDto {
 	public nriHashes: string[];
 
 	@IsString()
-	public mqttActionAllowed: string;
+	public mqttAccessControl: string;
 }
 
 export default UpdateOrganizationDto;

@@ -17,6 +17,7 @@ export interface IOrgOfGroupsManaged {
     geoJsonData: FeatureCollection;
     buildingId: number;
     orgHash: string;
+    mqttAccessControl: string;
 }
 
 

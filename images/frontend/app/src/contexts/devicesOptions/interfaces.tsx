@@ -11,7 +11,7 @@ export interface IDeviceInputData {
 	iconRadio: number;
 	longitude: number;
 	latitude: number;
-	mqttActionAllowed: string;
+	mqttAccessControl: string;
 }
 
 export interface DevicesContextProps {

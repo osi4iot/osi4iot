@@ -123,7 +123,7 @@ const folderPermissionOptions = [
     }
 ];
 
-const mqttActionAllowedOptions = [
+const mqttAccessControlOptions = [
     {
         label: "Subscribe",
         value: "Sub"
@@ -219,7 +219,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
             folderPermission: values.folderPermission,
             groupAdminDataArray: [...values.groupAdminDataArray],
             floorNumber: values.floorNumber,
-            mqttActionAllowed: values.mqttActionAllowed,
+            mqttAccessControl: values.mqttAccessControl,
             featureIndex: values.featureIndex,
         }
         setIsSubmitting(true);
@@ -342,9 +342,9 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                                 />
                                                 <FormikControl
                                                     control='select'
-                                                    label='Mqtt action allowed'
-                                                    name="mqttActionAllowed"
-                                                    options={mqttActionAllowedOptions}
+                                                    label='Mqtt access control'
+                                                    name="mqttAccessControl"
+                                                    options={mqttAccessControlOptions}
                                                     type='text'
                                                 />
                                                 <FormikControl

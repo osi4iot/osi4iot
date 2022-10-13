@@ -121,7 +121,7 @@ const folderPermissionOptions = [
     }
 ];
 
-const mqttActionAllowedOptions = [
+const mqttAccessControlOptions = [
     {
         label: "Subscribe",
         value: "Sub"
@@ -277,9 +277,9 @@ const EditGroup: FC<EditGroupProps> = ({
                                     />
                                     <FormikControl
                                         control='select'
-                                        label='Mqtt action allowed'
-                                        name="mqttActionAllowed"
-                                        options={mqttActionAllowedOptions}
+                                        label='Mqtt access control'
+                                        name="mqttAccessControl"
+                                        options={mqttAccessControlOptions}
                                         type='text'
                                     />
                                     <FormikControl

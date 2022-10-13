@@ -36,7 +36,7 @@ export interface IOrganization {
     country: string;
     buildingId: string;
     orgHash: string;
-    mqttActionAllowed: string;
+    mqttAccessControl: string;
 }
 
 interface IOrganizationColumn extends IOrganization {
@@ -206,7 +206,7 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
         },
         {
             Header: "Mqtt acc",
-            accessor: "mqttActionAllowed",
+            accessor: "mqttAccessControl",
             disableFilters: true
         },    
         {

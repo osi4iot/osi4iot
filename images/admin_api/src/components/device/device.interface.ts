@@ -7,7 +7,7 @@ export default interface IDevice {
 	type: string;
 	mqttPassword?: string;
 	mqttSalt?: string;
-	mqttActionAllowed?: string;
+	mqttAccessControl?: string;
 	groupUid?: string;
 	deviceUid: string;
 	iconRadio: number;

@@ -25,7 +25,7 @@ class UpdateGroupDto {
 	public featureIndex: number;
 
 	@IsString()
-	public mqttActionAllowed: string;
+	public mqttAccessControl: string;
 }
 
 export default UpdateGroupDto;

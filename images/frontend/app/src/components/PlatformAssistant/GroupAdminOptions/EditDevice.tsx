@@ -137,10 +137,10 @@ const deviceInitInputFormData = {
     iconRadio: 1.0,
     longitude: 0,
     latitude: 0,
-    mqttActionAllowed: "Pub & Sub"
+    mqttAccessControl: "Pub & Sub"
 }
 
-const mqttActionAllowedOptions = [
+const mqttAccessControlOptions = [
     {
         label: "Subscribe",
         value: "Sub"
@@ -213,7 +213,7 @@ const EditDevice: FC<EditDeviceProps> = ({
             iconRadio: values.iconRadio,
             longitude: values.longitude,
             latitude: values.latitude,
-            mqttActionAllowed: values.mqttActionAllowed
+            mqttAccessControl: values.mqttAccessControl
         }
 
         const deviceInputFormData = { deviceInputFormData: deviceInitInputFormData };
@@ -296,9 +296,9 @@ const EditDevice: FC<EditDeviceProps> = ({
                                     />
                                     <FormikControl
                                         control='select'
-                                        label='Mqtt action allowed'
-                                        name="mqttActionAllowed"
-                                        options={mqttActionAllowedOptions}
+                                        label='Mqtt access control'
+                                        name="mqttAccessControl"
+                                        options={mqttAccessControlOptions}
                                         type='text'
                                     />
                                     <DeviceLocationTitle>Device location and icon size</DeviceLocationTitle>

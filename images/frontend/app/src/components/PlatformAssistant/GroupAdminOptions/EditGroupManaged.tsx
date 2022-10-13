@@ -295,8 +295,8 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({
                                         <div>{groupsManaged[groupManagedRowIndex].acronym}</div>
                                     </FieldContainer>
                                     <FieldContainer>
-                                        <label>Mqtt action allowed</label>
-                                        <div>{groupsManaged[groupManagedRowIndex].mqttActionAllowed}</div>
+                                        <label>Mqtt access control</label>
+                                        <div>{groupsManaged[groupManagedRowIndex].mqttAccessControl}</div>
                                     </FieldContainer>
                                     <FormikControl
                                         control='select'

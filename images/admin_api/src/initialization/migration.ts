@@ -57,7 +57,7 @@ export async function dataBaseInitialization() {
 											ADD COLUMN acronym varchar(20) UNIQUE,
 											ADD COLUMN building_id bigint,
 											ADD COLUMN org_hash varchar(20) UNIQUE,
-											ADD COLUMN mqtt_action_allowed VARCHAR(10)`;
+											ADD COLUMN  mqtt_access_control VARCHAR(10)`;
 				try {
 					await client.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
@@ -67,7 +67,7 @@ export async function dataBaseInitialization() {
 
 				const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5,
 											state = $6, country = $7, building_id = $8, org_hash = $9,
-											mqtt_action_allowed = $10 WHERE name = $11`;
+											 mqtt_access_control = $10 WHERE name = $11`;
 				const parameterArrayUpdateOrg = [
 					process_env.MAIN_ORGANIZATION_NAME,
 					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
@@ -284,7 +284,7 @@ export async function dataBaseInitialization() {
 					floor_number integer NOT NULL DEFAULT 0,
 					feature_index integer NOT NULL DEFAULT 0,
 					outer_bounds float8[2][2],
-					mqtt_action_allowed VARCHAR(10),
+					 mqtt_access_control VARCHAR(10),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
@@ -328,7 +328,7 @@ export async function dataBaseInitialization() {
 						groupAdminDataArray: [mainOrgGroupAdmin],
 						floorNumber: 0,
 						featureIndex: 0,
-						mqttActionAllowed: "Pub & Sub"
+						mqttAccessControl: "Pub & Sub"
 					}
 					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
 					await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
@@ -359,7 +359,7 @@ export async function dataBaseInitialization() {
 					icon_radio real NOT NULL DEFAULT 1.0,
 					mqtt_password VARCHAR(255),
 					mqtt_salt VARCHAR(40),
-					mqtt_action_allowed VARCHAR(10),
+					 mqtt_access_control VARCHAR(10),
 					master_device_url VARCHAR(255),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
@@ -393,7 +393,7 @@ export async function dataBaseInitialization() {
 					description VARCHAR(190),
 					payload_format jsonb,
 					topic_uid VARCHAR(40) UNIQUE,
-					mqtt_action_allowed VARCHAR(10),
+					 mqtt_access_control VARCHAR(10),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_device_id
@@ -557,7 +557,7 @@ export async function dataBaseInitialization() {
 						longitude: 0,
 						type: "Generic",
 						iconRadio: 1.0,
-						mqttActionAllowed: "Pub & Sub"
+						mqttAccessControl: "Pub & Sub"
 					};
 
 					device = await createDevice(group, defaultGroupDeviceData);
@@ -576,21 +576,21 @@ export async function dataBaseInitialization() {
 							topicName: demoTopicName(group, device, "Temperature"),
 							description: `Temperature sensor for ${defaultGroupDeviceName(group)} device`,
 							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
-							mqttActionAllowed: "Pub & Sub"
+							mqttAccessControl: "Pub & Sub"
 						},
 						{
 							topicType: "dev2pdb",
 							topicName: demoTopicName(group, device, "Accelerometer"),
 							description: `Mobile accelerations for ${defaultGroupDeviceName(group)} device`,
 							payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
-							mqttActionAllowed: "Pub & Sub"
+							mqttAccessControl: "Pub & Sub"
 						},
 						{
 							topicType: "dev2dtm",
 							topicName: demoTopicName(group, device, "Photo"),
 							description: `Mobile photo for default for ${defaultGroupDeviceName(group)} device`,
 							payloadFormat: '{"mobile_photo": {"type": "string"}}',
-							mqttActionAllowed: "Pub & Sub"
+							mqttAccessControl: "Pub & Sub"
 						},
 					];
 					topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);

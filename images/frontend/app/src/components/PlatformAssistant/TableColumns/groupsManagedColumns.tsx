@@ -205,7 +205,7 @@ export interface IGroupManaged {
     orgId: number;
     folderPermission: string;
     groupUid: string;
-    mqttActionAllowed: string;
+    mqttAccessControl: string;
     telegramInvitationLink: string;
     telegramChatId: string;
     isOrgDefaultGroup: boolean;
@@ -264,16 +264,16 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
         },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Mqtt<br />acc</div>,
-            accessor: "mqttActionAllowed",
+            accessor: "mqttAccessControl",
             disableFilters: true,
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttActionAllowed = row?.cells[7]?.value;
+                const mqttAccessControl = row?.cells[7]?.value;
                 const style: React.CSSProperties = {
-                    color: mqttActionAllowed === "None" ? 'red' : 'white'
+                    color: mqttAccessControl === "None" ? 'red' : 'white'
                 };
-                return <span style={style}>{mqttActionAllowed}</span>;
+                return <span style={style}>{mqttAccessControl}</span>;
             }
         },        
         {
@@ -376,7 +376,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                 const acronym = row?.original?.acronym;
                 const orgId = row?.original?.orgId;
                 const folderPermission = row?.original?.folderPermission;
-                const mqttActionAllowed = row?.original?.mqttActionAllowed;
+                const mqttAccessControl = row?.original?.mqttAccessControl;
                 const telegramInvitationLink = row?.original?.telegramInvitationLink;
                 const telegramChatId = row?.original?.telegramChatId;
                 const nriInGroupId = row?.original?.nriInGroupId;
@@ -390,7 +390,7 @@ export const CREATE_GROUPS_MANAGED_COLUMNS = (refreshGroupMembers: () => void, r
                     acronym,
                     orgId,
                     folderPermission,
-                    mqttActionAllowed,
+                    mqttAccessControl,
                     telegramInvitationLink,
                     telegramChatId,
                     nriInGroupId,

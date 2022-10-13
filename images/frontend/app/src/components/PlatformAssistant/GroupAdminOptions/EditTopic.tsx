@@ -69,7 +69,7 @@ const topicTypeOptions = [
     }
 ];
 
-const mqttActionAllowedOptions = [
+const mqttAccessControlOptions = [
     {
         label: "Subscribe",
         value: "Sub"
@@ -133,7 +133,7 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
         topicType: topics[topicRowIndex].topicType,
         topicName: topics[topicRowIndex].topicName,
         description: topics[topicRowIndex].description,
-        mqttActionAllowed: topics[topicRowIndex].mqttActionAllowed,
+        mqttAccessControl: topics[topicRowIndex].mqttAccessControl,
         payloadFormat: JSON.stringify(JSON.parse(topics[topicRowIndex].payloadFormat), null, 4)
     }
 
@@ -179,9 +179,9 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                                     />
                                     <FormikControl
                                         control='select'
-                                        label='Mqtt action allowed'
-                                        name="mqttActionAllowed"
-                                        options={mqttActionAllowedOptions}
+                                        label='Mqtt access control'
+                                        name="mqttAccessControl"
+                                        options={mqttAccessControlOptions}
                                         type='text'
                                     />
                                     <FormikControl

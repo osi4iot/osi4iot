@@ -14,7 +14,7 @@ class CreateTopicDto {
 	public payloadFormat: string;
 
 	@IsString()
-	public mqttActionAllowed: string;
+	public mqttAccessControl: string;
 }
 
 export default CreateTopicDto;

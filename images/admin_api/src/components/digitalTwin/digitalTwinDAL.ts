@@ -113,7 +113,7 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Parti
 					topicName: `${digitalTwinUid}_${topicSensorTypesToAdd[i]}`,
 					description: `Device to platform db for ${digitalTwinUid}`,
 					payloadFormat: '{"parameter": "number", "units": "m"}',
-					mqttActionAllowed: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub"
 				};
 				const topicSensorQuery = createTopic(deviceId, sensorTopicData);
 				topicSensorQueries.push(topicSensorQuery)
@@ -137,7 +137,7 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Parti
 				topicName: `${digitalTwinUid}_dev_sim_2dtm`,
 				description: `Simulated device to DTM for ${digitalTwinUid}`,
 				payloadFormat: generateSensorSimulationTopicPayload(digitalTwinUpdate.digitalTwinSimulationFormat),
-				mqttActionAllowed: "Pub & Sub"
+				mqttAccessControl: "Pub & Sub"
 			};
 			const sensorSimulationTopic = await createTopic(deviceId, sensorSimulationTopicData);
 			await createDigitalTwinTopic(digitalTwinUpdate.id, sensorSimulationTopic.id, "dev_sim_2dtm");
@@ -150,7 +150,7 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Parti
 				topicName: `${digitalTwinUid}_dtm_as2pdb`,
 				description: `DTM assets state to pdb for ${digitalTwinUid}`,
 				payloadFormat: '{"assetPartsState": "number[]"}',
-				mqttActionAllowed: "Pub & Sub"
+				mqttAccessControl: "Pub & Sub"
 			};
 			const assetStateTopic = await createTopic(deviceId, assetStateTopicData);
 			await createDigitalTwinTopic(digitalTwinUpdate.id, assetStateTopic.id, "dtm_as2pdb");
@@ -163,7 +163,7 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Parti
 				topicName: `${digitalTwinUid}_dtm_sim_as2dts`,
 				description: `DTM sim assets state to DTS for ${digitalTwinUid}`,
 				payloadFormat: '{"assetPartsState": "number[]"}',
-				mqttActionAllowed: "Pub & Sub"
+				mqttAccessControl: "Pub & Sub"
 			};
 			const assetStateSimulationTopic = await createTopic(deviceId, assetStateSimulationTopicData);
 			await createDigitalTwinTopic(digitalTwinUpdate.id, assetStateSimulationTopic.id, "dtm_sim_as2dts");
@@ -176,7 +176,7 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Parti
 				topicName: `${digitalTwinUid}_dtm_fmv2pdb`,
 				description: `DTM fem modal value to pdb for ${digitalTwinUid}`,
 				payloadFormat: '{"femResultsModalValues": "number[][][]"}',
-				mqttActionAllowed: "Pub & Sub"
+				mqttAccessControl: "Pub & Sub"
 			};
 			const femResultModalValuesTopic = await createTopic(deviceId, femResultModalValuesTopicData);
 			await createDigitalTwinTopic(digitalTwinUpdate.id, femResultModalValuesTopic.id, "dtm_fmv2pdb");
@@ -189,7 +189,7 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Parti
 				topicName: `${digitalTwinUid}_dtm_sim_fmv2dts`,
 				description: `DTM sim fem modal value to DTS for ${digitalTwinUid}`,
 				payloadFormat: '{"femResultsModalValues": "number[][]"}',
-				mqttActionAllowed: "Pub & Sub"
+				mqttAccessControl: "Pub & Sub"
 			};
 			const femResultModalValuesSimulationTopic = await createTopic(deviceId, femResultModalValuesSimulationTopicData);
 			await createDigitalTwinTopic(digitalTwinUpdate.id, femResultModalValuesSimulationTopic.id, "dtm_sim_fmv2dts");
@@ -499,7 +499,7 @@ export const createDigitalTwin = async (
 				topicName: `${digitalTwinUid}_${topicSensorType}`,
 				description: `Device to platform db for ${digitalTwinUid}`,
 				payloadFormat: '{"parameter": "number"}',
-				mqttActionAllowed: "Pub & Sub"
+				mqttAccessControl: "Pub & Sub"
 			};
 			const topicSensorQuery = createTopic(deviceId, sensorTopicData);
 			topicSensorQueries.push(topicSensorQuery)
@@ -537,7 +537,7 @@ export const createDigitalTwin = async (
 			topicName: `${digitalTwinUid}_dev_sim_2dtm`,
 			description: `Simulated device to DTM for ${digitalTwinUid}`,
 			payloadFormat: generateSensorSimulationTopicPayload(digitalTwinInput.digitalTwinSimulationFormat),
-			mqttActionAllowed: "Pub & Sub"
+			mqttAccessControl: "Pub & Sub"
 		};
 		const sensorSimulationTopic = await createTopic(deviceId, sensorSimulationTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, sensorSimulationTopic.id, "dev_sim_2dtm");
@@ -548,7 +548,7 @@ export const createDigitalTwin = async (
 			topicName: `${digitalTwinUid}_dtm_as2pdb`,
 			description: `DTM assets state to pdb for ${digitalTwinUid}`,
 			payloadFormat: '{"assetPartsState": "number[]"}',
-			mqttActionAllowed: "Pub & Sub"
+			mqttAccessControl: "Pub & Sub"
 		};
 		const assetStateTopic = await createTopic(deviceId, assetStateTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, assetStateTopic.id, "dtm_as2pdb");
@@ -559,7 +559,7 @@ export const createDigitalTwin = async (
 			topicName: `${digitalTwinUid}_dtm_sim_as2dts`,
 			description: `DTM sim assets state to DTS for ${digitalTwinUid}`,
 			payloadFormat: '{"assetPartsState": "number[]"}',
-			mqttActionAllowed: "Pub & Sub"
+			mqttAccessControl: "Pub & Sub"
 		};
 		const assetStateSimulationTopic = await createTopic(deviceId, assetStateSimulationTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, assetStateSimulationTopic.id, "dtm_sim_as2dts");
@@ -570,7 +570,7 @@ export const createDigitalTwin = async (
 			topicName: `${digitalTwinUid}_dtm_fmv2pdb`,
 			description: `DTM fem modal value to pdb for ${digitalTwinUid}`,
 			payloadFormat: '{"femResultsModalValues": "number[][][]"}',
-			mqttActionAllowed: "Pub & Sub"
+			mqttAccessControl: "Pub & Sub"
 		};
 		const femResultModalValuesTopic = await createTopic(deviceId, femResultModalValuesTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, femResultModalValuesTopic.id, "dtm_fmv2pdb");
@@ -581,7 +581,7 @@ export const createDigitalTwin = async (
 			topicName: `${digitalTwinUid}_dtm_sim_fmv2dts`,
 			description: `DTM sim fem modal value to DTS for ${digitalTwinUid}`,
 			payloadFormat: '{"femResultsModalValues": "number[][][]"}',
-			mqttActionAllowed: "Pub & Sub"
+			mqttAccessControl: "Pub & Sub"
 		};
 		const femResultModalValuesSimulationTopic = await createTopic(deviceId, femResultModalValuesSimulationTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, femResultModalValuesSimulationTopic.id, "dtm_sim_fmv2dts");

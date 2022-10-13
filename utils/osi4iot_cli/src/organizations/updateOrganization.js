@@ -84,7 +84,7 @@ export default async function () {
 					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
-					orgs[iorg].mqttActionAllowed,
+					orgs[iorg].mqttAccessControl,
 					numNodeRedInstancesInOrg
 				];
 				table.push(row);
@@ -260,7 +260,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInsta
 						return "Please type an integer number greater or equal to one";
 					}
 				}
-			},
+			},		
 			{
 				name: 'KEEP_ORG_HASH',
 				message: `The current organization hash is org_hash='${orgToUpdate.orgHash}'. Do you want to keep it?`,
@@ -297,7 +297,14 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInsta
 						return "Please type an integer number greater or equal to one";
 					}
 				}
-			}
+			},
+			{
+				name: ' mqtt_access_control',
+				message: "Mqtt access control for the organization",
+				type: 'list',
+				default: "Pub & Sub",
+				choices: ["Pub & Sub", "Pub", "Sub", "None"],
+			},	
 		])
 		.then(async (answers) => {
 			answers.NUMBER_OF_NODERED_INSTANCES_IN_ORG = parseInt(answers.NUMBER_OF_NODERED_INSTANCES_IN_ORG, 10);
@@ -458,6 +465,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 		buildingId: parseInt(orgData.BUILDING_ID, 10),
 		orgHash: org_hash,
 		nriHashes: new_nodered_instances.map(nri => nri.nri_hash),
+		mqttAccessControl: orgData. mqtt_access_control
 	};
 
 	const response = await needle('patch', url, updateOrgData, optionsToken)

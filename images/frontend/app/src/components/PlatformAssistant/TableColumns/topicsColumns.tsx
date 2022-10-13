@@ -26,7 +26,7 @@ export interface ITopic {
     description: string;
     payloadFormat: string;
     topicUid: string;
-    mqttActionAllowed: string;
+    mqttAccessControl: string;
 }
 
 export interface IMobileTopic {
@@ -227,16 +227,16 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
         },
         {
             Header: "Mqtt acc",
-            accessor: "mqttActionAllowed",
+            accessor: "mqttAccessControl",
             disableFilters: true,
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttActionAllowed = row?.cells[7]?.value;
+                const mqttAccessControl = row?.cells[7]?.value;
                 const style: React.CSSProperties = {
-                    color: mqttActionAllowed === "None" ? 'red' : 'white'
+                    color: mqttAccessControl === "None" ? 'red' : 'white'
                 };
-                return <span style={style}>{mqttActionAllowed}</span>;
+                return <span style={style}>{mqttAccessControl}</span>;
             }             
         },        
         {

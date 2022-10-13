@@ -30,7 +30,7 @@ const initialCreateGroupInputData = {
     telegramChatId: "",
     floorNumber: 0,
     featureIndex: 0,
-    mqttActionAllowed: "Pub & Sub",
+    mqttAccessControl: "Pub & Sub",
     groupAdminDataArray: [
         {
             firstName: "",

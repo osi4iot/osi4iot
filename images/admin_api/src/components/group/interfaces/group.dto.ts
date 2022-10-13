@@ -32,7 +32,7 @@ class CreateGroupDto {
 	public featureIndex: number;
 
 	@IsString()
-	public mqttActionAllowed: string;
+	public mqttAccessControl: string;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateGroupAdminDto)

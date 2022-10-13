@@ -67,7 +67,7 @@ export default async function () {
 					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
-					orgs[iorg].mqttActionAllowed,
+					orgs[iorg].mqttAccessControl,
 					numNodeRedInstancesInOrg
 				];
 				table.push(row);

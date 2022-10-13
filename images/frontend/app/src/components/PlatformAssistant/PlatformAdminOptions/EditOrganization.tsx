@@ -69,7 +69,7 @@ const ControlsContainer = styled.div`
     }
 `;
 
-const mqttActionAllowedOptions = [
+const mqttAccessControlOptions = [
     {
         label: "Subscribe",
         value: "Sub"
@@ -222,9 +222,9 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                                     />
                                     <FormikControl
                                         control='select'
-                                        label='Mqtt action allowed'
-                                        name="mqttActionAllowed"
-                                        options={mqttActionAllowedOptions}
+                                        label='Mqtt access control'
+                                        name="mqttAccessControl"
+                                        options={mqttAccessControlOptions}
                                         type='text'
                                     />
                                 </ControlsContainer>

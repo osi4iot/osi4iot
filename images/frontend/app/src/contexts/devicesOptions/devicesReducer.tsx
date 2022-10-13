@@ -19,7 +19,7 @@ export const initialState = {
         iconRadio: 1.0,
         longitude: 0,
         latitude: 0,
-        mqttActionAllowed: "Pub & Sub"
+        mqttAccessControl: "Pub & Sub"
     }
 };
 

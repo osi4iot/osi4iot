@@ -122,7 +122,7 @@ const deviceTypeOptions = [
     }
 ];
 
-const mqttActionAllowedOptions = [
+const mqttAccessControlOptions = [
     {
         label: "Subscribe",
         value: "Sub"
@@ -283,9 +283,9 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                                     />
                                     <FormikControl
                                         control='select'
-                                        label='Mqtt action allowed'
-                                        name="mqttActionAllowed"
-                                        options={mqttActionAllowedOptions}
+                                        label='Mqtt access control'
+                                        name="mqttAccessControl"
+                                        options={mqttAccessControlOptions}
                                         type='text'
                                     />
                                     <DeviceLocationTitle>Device location and icon size</DeviceLocationTitle>

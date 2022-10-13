@@ -336,7 +336,7 @@ class OrganizationController implements IController {
 					groupAdminDataArray,
 					floorNumber: 0,
 					featureIndex: 0,
-					mqttActionAllowed: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub"
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);
@@ -354,7 +354,7 @@ class OrganizationController implements IController {
 					longitude: 0,
 					type: "Generic",
 					iconRadio: 1.0,
-					mqttActionAllowed: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub"
 				};
 
 				const device = await createDevice(group, defaultGroupDeviceData);
@@ -365,21 +365,21 @@ class OrganizationController implements IController {
 						topicName: demoTopicName(group, device, "Temperature"),
 						description: `Temperature sensor for default device of group ${group.acronym}`,
 						payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
-						mqttActionAllowed: "Pub & Sub"
+						mqttAccessControl: "Pub & Sub"
 					},
 					{
 						topicType: "dev2pdb",
 						topicName: demoTopicName(group, device, "Accelerometer"),
 						description: `Mobile accelerations for default device of group ${group.acronym}`,
 						payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
-						mqttActionAllowed: "Pub & Sub"
+						mqttAccessControl: "Pub & Sub"
 					},
 					{
 						topicType: "dev2dtm",
 						topicName: demoTopicName(group, device, "Photo"),
 						description: `Mobile photo for default device of group ${group.acronym}`,
 						payloadFormat: '{"mobile_photo": {"type": "string"}}',
-						mqttActionAllowed: "Pub & Sub"
+						mqttAccessControl: "Pub & Sub"
 					},
 				];
 				const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);

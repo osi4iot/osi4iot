@@ -19,9 +19,9 @@ class CreateDeviceDto {
 
 	public mqttSalt?: string;
 
-	@ValidateIf((obj) => obj.mqttActionAllowed !== undefined)
+	@ValidateIf((obj) => obj.mqttAccessControl !== undefined)
 	@IsString()
-	public mqttActionAllowed?: string;
+	public mqttAccessControl?: string;
 
 	@ValidateIf((obj) => obj.masterDeviceUrl !== undefined)
 	@IsString()

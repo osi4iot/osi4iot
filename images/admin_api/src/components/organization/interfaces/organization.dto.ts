@@ -42,7 +42,7 @@ class CreateOrganizationDto {
 	public telegramChatId?: string;
 
 	@IsString()
-	public mqttActionAllowed: string;
+	public mqttAccessControl: string;
 
 	@ValidateNested({ each: true })
 	@Type(() => CreateUserDto)

@@ -29,7 +29,7 @@ export interface IDevice {
     iconRadio: number;
     masterDeviceUrl: string;
     sslCerts: string;
-    mqttActionAllowed: string;
+    mqttAccessControl: string;
 }
 
 
@@ -280,16 +280,16 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
         },       
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Mqtt<br />acc</div>,
-            accessor: "mqttActionAllowed",
+            accessor: "mqttAccessControl",
             disableFilters: true,
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttActionAllowed = row?.cells[9]?.value;
+                const mqttAccessControl = row?.cells[9]?.value;
                 const style: React.CSSProperties = {
-                    color: mqttActionAllowed === "None" ? 'red' : 'white'
+                    color: mqttAccessControl === "None" ? 'red' : 'white'
                 };
-                return <span style={style}>{mqttActionAllowed}</span>;
+                return <span style={style}>{mqttAccessControl}</span>;
             }
         },
         {
@@ -340,8 +340,8 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const iconRadio = row?.cells[6]?.value;
                 const longitude = row?.cells[7]?.value;
                 const latitude = row?.cells[8]?.value;
-                const mqttActionAllowed = row?.cells[9]?.value;
-                const deviceInputData = { groupId, name, description, type,iconRadio, longitude, latitude, mqttActionAllowed }
+                const mqttAccessControl = row?.cells[9]?.value;
+                const deviceInputData = { groupId, name, description, type,iconRadio, longitude, latitude, mqttAccessControl }
                 return <EditDevice deviceId={deviceId} rowIndex={rowIndex} deviceInputData={deviceInputData} />
             }
         },

@@ -32,7 +32,7 @@ export interface IGroup {
     featureIndex: number;
     geoJsonData: FeatureCollection;
     outerBounds: number[][];
-    mqttActionAllowed: string;
+    mqttAccessControl: string;
 }
 
 interface IGroupColumn extends IGroup {
@@ -204,16 +204,16 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
         },
         {
             Header: "Mqtt acc",
-            accessor: "mqttActionAllowed",
+            accessor: "mqttAccessControl",
             disableFilters: true,
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttActionAllowed = row?.cells[11]?.value;
+                const mqttAccessControl = row?.cells[11]?.value;
                 const style: React.CSSProperties = {
-                    color: mqttActionAllowed === "None" ? 'red' : 'white'
+                    color: mqttAccessControl === "None" ? 'red' : 'white'
                 };
-                return <span style={style}>{mqttActionAllowed}</span>;
+                return <span style={style}>{mqttAccessControl}</span>;
             }
         },
         {
@@ -237,7 +237,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const telegramChatId = row?.cells[8]?.value;
                 const floorNumber = row?.cells[9]?.value;
                 const featureIndex = row?.cells[10]?.value;
-                const mqttActionAllowed = row?.cells[11]?.value;
+                const mqttAccessControl = row?.cells[11]?.value;
                 const groupInputData = {
                     name,
                     acronym,
@@ -246,7 +246,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                     telegramChatId,
                     floorNumber,
                     featureIndex,
-                    mqttActionAllowed
+                    mqttAccessControl
                 }
                 return <EditGroup groupId={groupId} rowIndex={rowIndex} groupInputData={groupInputData} />
             }
