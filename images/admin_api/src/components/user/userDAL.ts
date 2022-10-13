@@ -37,9 +37,9 @@ export const getGlobalUsers = async (): Promise<IUser[]> => {
 	const query = `SELECT id, first_name as "firstName", surname, login, email,
 					is_admin as "isGrafanaAdmin", is_disabled as "isDisabled", last_seen_at as lastSeenAt,
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
-					FROM grafanadb.user
+					FROM grafanadb.user WHERE login != $1
 					ORDER BY id ASC`
-	const result = await pool.query(query);
+	const result = await pool.query(query, ["dev2pdb"]);
 	return result.rows;
 };
 
@@ -107,7 +107,7 @@ export const createFictitiousUserForService = async (serviceUserData: CreateUser
 		const password = passwordGenerator(10);
 		serviceUserData.password = normalizeString(password);
 	}
-	const user_msg =  await grafanaApi.createUsers([serviceUserData]);
+	const user_msg = await grafanaApi.createUsers([serviceUserData]);
 	await grafanaApi.removeUserFromOrganization(1, user_msg[0].id);
 	return user_msg[0];
 }
@@ -139,9 +139,9 @@ export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]>
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
-					WHERE grafanadb.org_user.org_id = $1
+					WHERE grafanadb.org_user.org_id = $1 AND login != $2
 					ORDER BY grafanadb.user.id ASC`
-	const result = await pool.query(query, [orgId]);
+	const result = await pool.query(query, [orgId, "dev2pdb"]);
 	return result.rows;
 };
 
@@ -151,9 +151,9 @@ export const getOrganizationUsersForOrgIdsArray = async (orgIdsArray: number[]):
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
-					WHERE grafanadb.org_user.org_id = ANY($1::bigint[])
+					WHERE grafanadb.org_user.org_id = ANY($1::bigint[]) AND login != $2
 					ORDER BY grafanadb.user.id ASC, grafanadb.org_user.org_id ASC`
-	const result = await pool.query(query, [orgIdsArray]);
+	const result = await pool.query(query, [orgIdsArray, "dev2pdb"]);
 	return result.rows;
 };
 
@@ -188,8 +188,8 @@ export const getOrganizationUserByProp = async (orgId: number, propName: string,
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
-					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.${propName} = $2`
-	const result = await pool.query(query, [orgId, propValue]);
+					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.${propName} = $2  AND login != $3`
+	const result = await pool.query(query, [orgId, propValue, "dev2pdb"]);
 	return result.rows[0];
 };
 
@@ -199,8 +199,8 @@ export const getOrganizationUsersByEmailArray = async (orgId: number, emailsArra
 					last_seen_at as "lastSeenAt", AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
-					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.email =  ANY($2::varchar(190)[])`
-	const result = await pool.query(query, [orgId, emailsArray]);
+					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.email =  ANY($2::varchar(190)[]) AND login != $3`
+	const result = await pool.query(query, [orgId, emailsArray, "dev2pdb"]);
 	return result.rows;
 };
 

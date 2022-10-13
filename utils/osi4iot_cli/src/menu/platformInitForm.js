@@ -35,7 +35,7 @@ const platformInitiation = () => {
 			{
 				name: 'PLATFORM_NAME',
 				message: 'Platform name:',
-				default: 'IOT_PLATFORM',
+				default: 'IOT_DEMO',
 				validate: function (platformName) {
 					if (platformName.length >= 4) {
 						return true;
@@ -577,7 +577,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 			},
 			{
 				name: 'DOCKER_IMAGES_VERSION',
-				message: "Version for docker images",
+				message: "Version for docker images:",
 				type: 'list',
 				default: "1.1.0",
 				choices: ["1.1.0", "dev"],

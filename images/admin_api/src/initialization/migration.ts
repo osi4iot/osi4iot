@@ -17,6 +17,7 @@ import ITopic from "../components/topic/topic.interface";
 import { createFictitiousUserForService } from "../components/user/userDAL";
 import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
 import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../components/nodeRedInstance/nodeRedInstanceDAL";
+import { nanoid } from "nanoid";
 
 
 export async function dataBaseInitialization() {
@@ -550,13 +551,12 @@ export async function dataBaseInitialization() {
 				try {
 					const defaultGroupDeviceData =
 					{
-						name: defaultGroupDeviceName(group, "Generic"),
-						description: `Default generic device of the group ${mainOrgGroupAcronym}`,
+						name: defaultGroupDeviceName(group),
+						description: `Default device of group ${mainOrgGroupAcronym}`,
 						latitude: 0,
 						longitude: 0,
 						type: "Generic",
 						iconRadio: 1.0,
-						mqttPassword: "pepe123",
 						mqttActionAllowed: "Pub & Sub"
 					};
 
@@ -574,21 +574,21 @@ export async function dataBaseInitialization() {
 						{
 							topicType: "dev2pdb",
 							topicName: demoTopicName(group, device, "Temperature"),
-							description: `Temperature sensor for ${defaultGroupDeviceName(group, "Master")} device`,
+							description: `Temperature sensor for ${defaultGroupDeviceName(group)} device`,
 							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 							mqttActionAllowed: "Pub & Sub"
 						},
 						{
 							topicType: "dev2pdb",
 							topicName: demoTopicName(group, device, "Accelerometer"),
-							description: `Mobile accelerations for ${defaultGroupDeviceName(group, "Generic")} device`,
+							description: `Mobile accelerations for ${defaultGroupDeviceName(group)} device`,
 							payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 							mqttActionAllowed: "Pub & Sub"
 						},
 						{
 							topicType: "dev2dtm",
 							topicName: demoTopicName(group, device, "Photo"),
-							description: `Mobile photo for default for ${defaultGroupDeviceName(group, "Generic")} device`,
+							description: `Mobile photo for default for ${defaultGroupDeviceName(group)} device`,
 							payloadFormat: '{"mobile_photo": {"type": "string"}}',
 							mqttActionAllowed: "Pub & Sub"
 						},
@@ -611,7 +611,7 @@ export async function dataBaseInitialization() {
 					const defaultDeviceDigitalTwinsData = [
 						{
 							digitalTwinUid: generateDigitalTwinUid(),
-							description: demoDigitalTwinDescription(group, "Master"),
+							description: demoDigitalTwinDescription(group, "Temperature"),
 							type: "Grafana dashboard",
 							gltfData: "{}",
 							gltfFileName: "-",
@@ -623,7 +623,7 @@ export async function dataBaseInitialization() {
 						},
 						{
 							digitalTwinUid: generateDigitalTwinUid(),
-							description: demoDigitalTwinDescription(group, "Generic"),
+							description: demoDigitalTwinDescription(group, "Accelerations"),
 							type: "Grafana dashboard",
 							gltfData: "{}",
 							gltfFileName: "-",

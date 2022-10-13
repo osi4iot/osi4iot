@@ -9,10 +9,8 @@ import CreateDeviceDto from "./device.dto";
 import IDevice from "./device.interface";
 import { passwordGenerator } from "../../utils/passwordGenerator";
 
-export const defaultGroupDeviceName = (group: IGroup, type: string): string => {
-	let deviceName: string;
-	if (type === "Master") deviceName = `${group.acronym.replace(/ /g, "_")}_main_master`;
-	else if (type === "Generic") deviceName = `${group.acronym.replace(/ /g, "_")}_generic_default`;
+export const defaultGroupDeviceName = (group: IGroup): string => {
+	const deviceName = `${group.acronym.replace(/ /g, "_")}_default`;
 	return deviceName;
 }
 
@@ -227,7 +225,7 @@ export const updateGroupDevicesLocation = async (geoJsonDataString: string, grou
 				interDeviceDistance = 0.003 * device.iconRadio;
 			}
 		}
-		const pt = rhumbDestination(ptCenterGroupArea, interDeviceDistance, 180);
+		const pt = rhumbDestination(ptCenterGroupArea, 0.5 * interDeviceDistance, 180);
 		const totalLongitude = (groupDevices.length - 1) * interDeviceDistance;
 		const devicesLocationQueries = []
 

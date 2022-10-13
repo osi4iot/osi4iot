@@ -211,8 +211,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const mqttActionAllowed = row?.cells[11]?.value;
                 const style: React.CSSProperties = {
-                    color: mqttActionAllowed === "None" ? 'red' : 'white',
-                    fontWeight: mqttActionAllowed === "None" ? 'bold' : 'normal'
+                    color: mqttActionAllowed === "None" ? 'red' : 'white'
                 };
                 return <span style={style}>{mqttActionAllowed}</span>;
             }

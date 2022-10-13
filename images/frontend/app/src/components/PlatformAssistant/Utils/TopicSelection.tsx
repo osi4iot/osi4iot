@@ -89,7 +89,7 @@ const TopicSelection: FC<TopicSelectionProps> = ({ selectedTopic, showMeasuremen
                 <div>{selectedTopic.topicType}</div>
             </ItemContainer>            
             <ItemContainer>
-                <label>Sensor name</label>
+                <label>Topic name</label>
                 <div>{selectedTopic.topicName}</div>
             </ItemContainer>
             <SelectionButton onClick={clickHandler} >Select topic</SelectionButton>

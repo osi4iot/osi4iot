@@ -234,8 +234,7 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const mqttActionAllowed = row?.cells[7]?.value;
                 const style: React.CSSProperties = {
-                    color: mqttActionAllowed === "None" ? 'red' : 'white',
-                    fontWeight: mqttActionAllowed === "None" ? 'bold' : 'normal'
+                    color: mqttActionAllowed === "None" ? 'red' : 'white'
                 };
                 return <span style={style}>{mqttActionAllowed}</span>;
             }             

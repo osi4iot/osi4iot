@@ -286,8 +286,8 @@ class GroupController implements IController {
 			const devicesDistance = 0.00002;
 			const defaultGroupDeviceData =
 			{
-				name: defaultGroupDeviceName(groupCreated, "Generic"),
-				description: `Default generic device of the group ${groupCreated.name}`,
+				name: defaultGroupDeviceName(groupCreated),
+				description: `Default device of group ${groupCreated.name}`,
 				latitude: centerLatitude,
 				longitude: (centerLongitude + devicesDistance),
 				type: "Generic",
@@ -304,21 +304,21 @@ class GroupController implements IController {
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(groupCreated, device, "Temperature"),
-					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated, "Master")} device`,
+					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated)} device`,
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 					mqttActionAllowed: "Pub & Sub"
 				},
 				{
 					topicType: "dev2pdb",
 					topicName: demoTopicName(groupCreated, device, "Accelerometer"),
-					description: `Mobile accelerations for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
+					description: `Mobile accelerations for ${defaultGroupDeviceName(groupCreated)} device`,
 					payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 					mqttActionAllowed: "Pub & Sub"
 				},
 				{
 					topicType: "dev2dtm",
 					topicName: demoTopicName(groupCreated, device, "Photo"),
-					description: `Mobile photo for ${defaultGroupDeviceName(groupCreated, "Generic")} device`,
+					description: `Mobile photo for ${defaultGroupDeviceName(groupCreated)} device`,
 					payloadFormat: '{"mobile_photo": {"type": "string"}}',
 					mqttActionAllowed: "Pub & Sub"
 				},
@@ -336,7 +336,7 @@ class GroupController implements IController {
 			const defaultDeviceDigitalTwinsData = [
 				{
 					digitalTwinUid: generateDigitalTwinUid(),
-					description: demoDigitalTwinDescription(groupCreated, "Master"),
+					description: demoDigitalTwinDescription(groupCreated, "Temperature"),
 					type: "Grafana dashboard",
 					gltfData: "{}",
 					gltfFileName: "-",
@@ -348,7 +348,7 @@ class GroupController implements IController {
 				},
 				{
 					digitalTwinUid: generateDigitalTwinUid(),
-					description: demoDigitalTwinDescription(groupCreated, "Generic"),
+					description: demoDigitalTwinDescription(groupCreated, "Accelerations"),
 					type: "Grafana dashboard",
 					gltfData: "{}",
 					gltfFileName: "-",

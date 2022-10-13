@@ -193,7 +193,7 @@ class AuthenticationController implements IController {
 					return;
 				}
 			} else if (usernameArray[0] === "device") {
-				const deviceId = usernameArray[1];
+				const deviceId = parseInt(usernameArray[1], 10);
 				const device = await getFullDeviceDataById(deviceId);
 				if (!device) {
 					res.status(400).json({ Ok: false, Error: "Device not registered" });
@@ -353,7 +353,7 @@ class AuthenticationController implements IController {
 
 			const usernameArray = username.split("_");
 			if (usernameArray[0] === "device") {
-				const deviceId = usernameArray[1];
+				const deviceId = parseInt(usernameArray[1],10);
 				if (deviceId !== topicData.deviceId) {
 					res.status(400).json({ Ok: false, Error: "Device not registered" });
 					return
