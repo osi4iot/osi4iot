@@ -8,7 +8,6 @@ export default function (osi4iotState) {
 	const defaultServiceImageVersion = {
 		system_prune: defaultVersion || 'latest',
 		traefik: defaultVersion || 'latest',
-		mosquitto: defaultVersion || 'latest',
 		mosquitto_go_auth: defaultVersion || 'latest',
 		agent: defaultVersion || 'latest',
 		portainer: defaultVersion || 'latest',
