@@ -164,51 +164,6 @@ export default function (osi4iotState) {
 					'/var/run/docker.sock:/var/run/docker.sock:ro'
 				]
 			},
-			// mosquitto: {
-			// 	image: `ghcr.io/osi4iot/mosquitto:${serviceImageVersion['mosquitto']}`,
-			// 	networks: [
-			// 		'internal_net'
-			// 	],
-			// 	ports: [
-			// 		"1883:1883",
-			// 		"8883:8883",
-			// 		"9001:9001"
-			// 	],
-			// 	volumes: [
-			// 		'mosquitto_data:/mosquitto/data',
-			// 		'mosquitto_log:/mosquitto/log'
-			// 	],
-			// 	secrets: [
-			// 		{
-			// 			source: 'mqtt_certs_ca_cert',
-			// 			target: '/mosquitto/mqtt_certs/ca.crt',
-			// 			mode: 0o444
-			// 		},
-			// 		{
-			// 			source: 'mqtt_broker_cert',
-			// 			target: '/mosquitto/mqtt_certs/server.crt',
-			// 			mode: 0o444
-			// 		},
-			// 		{
-			// 			source: 'mqtt_broker_key',
-			// 			target: '/mosquitto/mqtt_certs/server.key',
-			// 			mode: 0o444
-			// 		}
-			// 	],
-			// 	configs: [
-			// 		{
-			// 			source: 'mosquitto_conf',
-			// 			target: '/mosquitto/config/mosquitto.conf',
-			// 			mode: 0o440
-			// 		}
-			// 	],
-			// 	deploy: {
-			// 		replicas: 1,
-			// 		placement: {
-			// 			constraints: workerConstraintsArray
-			// 		}
-			// 	}
-			// },
 			mosquitto: {
 				image: `ghcr.io/osi4iot/mosquitto_go_auth:${serviceImageVersion['mosquitto_go_auth']}`,
 				user: '${UID}:${GID}',
@@ -385,46 +340,7 @@ export default function (osi4iotState) {
 						constraints: workerConstraintsArray
 					}
 				}
-			},
-			// timescaledb: {
-			// 	image: `ghcr.io/osi4iot/timescaledb:dev`,
-			// 	networks: [
-			// 		'internal_net'
-			// 	],
-			// 	secrets: [
-			// 		{
-			// 			source: 'postgres_user',
-			// 			target: 'postgres_user.txt',
-			// 			mode: 0o400
-			// 		},
-			// 		{
-			// 			source: 'postgres_password',
-			// 			target: 'postgres_password.txt',
-			// 			mode: 0o400
-			// 		},
-			// 		{
-			// 			source: 'postgres_grafana',
-			// 			target: 'postgres_grafana.txt',
-			// 			mode: 0o400
-			// 		}
-
-			// 	],
-			// 	volumes: [
-			// 		'pgdata2:/var/lib/postgresql/data'
-			// 	],
-			// 	environment: [
-			// 		'POSTGRES_DB=iot_platform_db',
-			// 		'POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt',
-			// 		'POSTGRES_USER_FILE=/run/secrets/postgres_user.txt'
-			// 	],
-			// 	deploy: {
-			// 		mode: 'replicated',
-			// 		replicas: 1,
-			// 		placement: {
-			// 			constraints: workerConstraintsArray
-			// 		}
-			// 	}
-			// },			
+			},		
 			dev2pdb: {
 				image: `ghcr.io/osi4iot/dev2pdb:${serviceImageVersion['dev2pdb']}`,
 				networks: [
