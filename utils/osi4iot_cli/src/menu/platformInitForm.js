@@ -575,13 +575,6 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 					}
 				}
 			},
-			{
-				name: 'DOCKER_IMAGES_VERSION',
-				message: "Version for docker images:",
-				type: 'list',
-				default: "1.1.0",
-				choices: ["1.1.0", "dev"],
-			},
 		])
 		.then((newAnswers) => {
 			const answers = { ...oldAnswers, ...newAnswers };
@@ -618,7 +611,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 
 						const osi4iotState = {
 							platformInfo: {
-								DOCKER_IMAGES_VERSION: answers.DOCKER_IMAGES_VERSION,
+								DOCKER_IMAGES_VERSION: "1.1.0",
 								DEPLOYMENT_LOCATION: deploymentLocation,
 								AWS_ACCESS_KEY_ID: awsAccessKeyId,
 								AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
