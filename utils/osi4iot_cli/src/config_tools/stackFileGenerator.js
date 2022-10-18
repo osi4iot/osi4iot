@@ -15,7 +15,7 @@ export default function (osi4iotState) {
 		postgres: defaultVersion || 'latest',
 		grafana: defaultVersion || 'latest',
 		grafana_renderer: defaultVersion || 'latest',
-		admin_api: defaultVersion || 'latest',
+		admin_api: 'dev', //defaultVersion || 'latest',
 		frontend: defaultVersion || 'latest',
 		nodered_instance: defaultVersion || 'latest',
 		keepalived: defaultVersion || 'latest',

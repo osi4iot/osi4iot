@@ -36,17 +36,17 @@ export const getTopicSensorTypesFromDigitalTwin = (digitalTwin: Partial<IDigital
 		if (Object.keys(gltfData).length && gltfData.nodes?.length !== 0) {
 			const meshNodes: { name?: string; mesh?: number; extras: { topicType: string; }; }[] = [];
 			gltfData.nodes.forEach((node: { name?: string; mesh?: number; extras: { topicType: string; }; }) => {
-				if (node.mesh && node.extras) meshNodes.push(node);
+				if (node.mesh !== undefined && node.extras !== undefined) meshNodes.push(node);
 			})
 
 			meshNodes.forEach((node: { extras: { topicType: string; type: string; clipTopicTypes: string[] }; }) => {
-				if (node.extras?.type && node.extras?.type === "sensor") {
+				if (node.extras?.type !== undefined && node.extras?.type === "sensor") {
 					const topicType = node.extras?.topicType;
 					if (topicType && topicTypes.findIndex(type => type === topicType) === -1) {
 						topicTypes.push(topicType)
 					}
 				}
-				if (node.extras?.clipTopicTypes && node.extras?.clipTopicTypes.length !== 0) {
+				if (node.extras?.clipTopicTypes !== undefined && node.extras?.clipTopicTypes.length !== 0) {
 					node.extras?.clipTopicTypes.forEach(topicType => {
 						if (topicType && topicTypes.findIndex(type => type === topicType) === -1) {
 							topicTypes.push(topicType);
