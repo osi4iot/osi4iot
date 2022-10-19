@@ -40,7 +40,6 @@ import HttpException from "../../exceptions/HttpException";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IRequestWithUserAndDeviceAndGroup from "../group/interfaces/requestWithUserAndDeviceAndGroup.interface";
-import { getDeviceByProp } from "../device/deviceDAL";
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
