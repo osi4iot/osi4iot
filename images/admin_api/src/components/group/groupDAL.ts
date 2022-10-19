@@ -30,7 +30,6 @@ import arrayCompare from "../../utils/helpers/arrayCompare";
 import { updateGroupDevicesLocation } from "../device/deviceDAL";
 import process_env from "../../config/api_config";
 import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
-import HttpException from "../../exceptions/HttpException";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	// let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
