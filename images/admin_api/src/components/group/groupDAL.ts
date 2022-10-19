@@ -32,8 +32,6 @@ import process_env from "../../config/api_config";
 import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
-	// let groupName: string = `${orgName.replace(/ /g, "_")}_general`;
-	// if (groupName.length > 50) groupName = `${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}_general`;
 	let groupName: string = `${orgName} general`;
 	if (groupName.length > 50) groupName = `${orgAcronym.replace(/"/g, "").toUpperCase()} general`;
 	return groupName;
