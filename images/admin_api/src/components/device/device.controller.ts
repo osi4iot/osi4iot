@@ -270,7 +270,7 @@ class DeviceController implements IController {
 				await createDevice(req.group, deviceData);
 				message = { message: `A new device has been created` };
 			} else {
-				message = { message: `The device with name: ${deviceData.name} already exist` };
+				throw new HttpException(400, `The device with name: ${deviceData.name} already exist`);
 			}
 			res.status(200).send(message);
 		} catch (error) {

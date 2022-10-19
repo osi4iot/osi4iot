@@ -14,10 +14,9 @@ async function deviceAndGroupExist(
 	const { groupId, deviceId } = request.params;
 	const existingGroup = await getGroupByProp("id", groupId);
 	const existingDevice = await getDeviceByProp("id", deviceId);
-	if (!existingGroup && !existingDevice) {
-		if (!existingGroup) next(new GroupNotFoundException("id", groupId));
-		if(existingDevice) next(new DeviceNotFoundException("id", deviceId));
-	} else {
+	if (!existingGroup) next(new GroupNotFoundException("id", groupId));
+	if (!existingDevice) next(new DeviceNotFoundException("id", deviceId));
+	if (existingGroup && existingDevice) {
 		request.group = { ...existingGroup };
 		request.device = { ...existingDevice };
 		next();
