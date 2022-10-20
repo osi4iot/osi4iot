@@ -19,7 +19,8 @@ export default function (osi4iotState) {
 		frontend: defaultVersion || 'latest',
 		nodered_instance: defaultVersion || 'latest',
 		keepalived: defaultVersion || 'latest',
-		dev2pdb: defaultVersion || 'latest'
+		dev2pdb: defaultVersion || 'latest',
+		minio: defaultVersion || 'latest'
 	}
 
 
@@ -239,9 +240,9 @@ export default function (osi4iotState) {
 				volumes: [
 					'portainer_data:/data'
 				],
-				ports: [
-					"9000:9000"
-				],
+				// ports: [
+				// 	"9000:9000"
+				// ],
 				networks: [
 					'traefik_public',
 					'agent_network'
@@ -548,6 +549,69 @@ export default function (osi4iotState) {
 						'traefik.http.services.frontend.loadbalancer.healthCheck.timeout=3s'
 					]
 				}
+			},
+			minio: {
+				// image: `ghcr.io/osi4iot/minio:${serviceImageVersion['minio']}`,
+				image: `ghcr.io/osi4iot/minio:dev`,
+				// user: "${UID}:${GID}",
+				secrets: [
+					{
+						source: 'minio',
+						target: '/run/secrets/minio.txt',
+						mode: 0o444
+					}
+				],
+				networks: [
+					'internal_net',
+					'traefik_public'
+				],
+				environment: [
+					"MINIO_VOLUMES=/mnt/data",
+					`MINIO_BROWSER_REDIRECT_URL=https://${domainName}/minio`
+				],
+				command: 'server --console-address ":9090"',
+				volumes: [
+					'minio_storage:/mnt/data'
+				],
+				deploy: {
+					mode: 'replicated',
+					replicas: 1,
+					placement: {
+						constraints: workerConstraintsArray
+					},
+					labels: [
+						//MINIO API
+						'traefik.enable=true',
+						`traefik.http.routers.minio_api.rule=Host(\`${domainName}\`) && PathPrefix(\`/minio_api\`)`,
+						'traefik.http.middlewares.minio_api-prefix.stripprefix.prefixes=/minio_api',
+						'traefik.http.routers.minio_api.middlewares=minio_api-prefix,minio_api-header,minio_api-redirectregex',
+						'traefik.http.routers.minio_api.middlewares=minio_api-prefix',
+						'traefik.http.middlewares.minio_api-prefix.stripprefix.forceslash=false',
+						'traefik.http.middlewares.minio_api-header.headers.customrequestheaders.X-Script-Name=/minio_api/',
+						`traefik.http.middlewares.minio_api-redirectregex.redirectregex.regex=${domainName}/(minio_api*)`,
+						`traefik.http.middlewares.minio_api-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+						"traefik.http.routers.minio_api.entrypoints=websecure",
+						'traefik.http.routers.minio_api.tls=true',
+						'traefik.http.routers.minio_api.service=minio_api',
+						'traefik.http.services.minio_api.loadbalancer.server.port=9000',
+						'traefik.http.services.minio_api.loadbalancer.healthCheck.path=/minio/health/live',
+						'traefik.http.services.minio_api.loadbalancer.healthCheck.interval=5s',
+						'traefik.http.services.minio_api.loadbalancer.healthCheck.timeout=3s',
+						///MINIO API
+						`traefik.http.routers.minio_console.rule=Host(\`${domainName}\`) && PathPrefix(\`/minio\`)`,
+						'traefik.http.middlewares.minio_console-prefix.stripprefix.prefixes=/minio',
+						'traefik.http.routers.minio_console.middlewares=minio_console-prefix,minio_console-header,minio_console-redirectregex',
+						'traefik.http.routers.minio_console.middlewares=minio_console-prefix',
+						'traefik.http.middlewares.minio_console-prefix.stripprefix.forceslash=false',
+						'traefik.http.middlewares.minio_console-header.headers.customrequestheaders.X-Script-Name=/minio/',
+						`traefik.http.middlewares.minio_console-redirectregex.redirectregex.regex=${domainName}/(minio*)`,
+						`traefik.http.middlewares.minio_console-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+						"traefik.http.routers.minio_console.entrypoints=websecure",
+						'traefik.http.routers.minio_console.tls=true',
+						'traefik.http.routers.minio_console.service=minio_console',
+						'traefik.http.services.minio_console.loadbalancer.server.port=9090',
+					]
+				}
 			}
 		},
 		networks: {
@@ -571,9 +635,6 @@ export default function (osi4iotState) {
 			pgdata: {
 				driver: 'local'
 			},
-			// pgdata2: {
-			// 	driver: 'local'
-			// },
 			pgadmin4_data: {
 				driver: 'local'
 			},
@@ -584,6 +645,9 @@ export default function (osi4iotState) {
 				driver: 'local'
 			},
 			admin_api_log: {
+				driver: 'local'
+			},
+			minio_storage: {
 				driver: 'local'
 			}
 		},
@@ -625,6 +689,9 @@ export default function (osi4iotState) {
 			admin_api: {
 				file: './secrets/admin_api.txt',
 				name: osi4iotState.admin_api_secret_name
+			},
+			minio: {
+				file: './secrets/minio.txt',
 			}
 		},
 		configs: {

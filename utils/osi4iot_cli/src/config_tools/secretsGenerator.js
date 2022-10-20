@@ -81,4 +81,18 @@ export default function (osi4iotState) {
 	}
 	fs.appendFileSync('./secrets/dev2pdb_password.txt', `${osi4iotState.platformInfo.DEV2PDB_PASSWORD}`);
 
+	//minio secrets
+	const minioSecrets = [
+		`MINIO_ROOT_USER=$${osi4iotState.platformInfo.PLATFORM_ADMIN_USER_NAME}\n`,
+		`MINIO_ROOT_PASSWORD=${osi4iotState.platformInfo.PLATFORM_ADMIN_PASSWORD}`
+	];
+
+	if (fs.existsSync('./secrets/minio.txt')) {
+		fs.rmSync('./secrets/minio.txt');
+	}
+
+	for (let iline = 0; iline < minioSecrets.length; iline++) {
+		fs.appendFileSync('./secrets/minio.txt', minioSecrets[iline]);
+	}
+
 };

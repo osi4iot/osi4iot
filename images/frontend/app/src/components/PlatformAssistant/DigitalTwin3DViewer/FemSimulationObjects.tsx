@@ -52,9 +52,13 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
 
     material.transparent = (defOpacity * opacity) === 1 ? false : true;
     let lastIntervalTime = 0;
-    const meshResult = digitalTwinGltfData.femSimulationData.meshResults[meshIndex];
+    let meshResult: any = null;
+    const isThereFemSimulationData = Object.keys(digitalTwinGltfData.femSimulationData).length !== 0;
+    if (isThereFemSimulationData) {
+        meshResult = digitalTwinGltfData.femSimulationData.meshResults[meshIndex];
+    }
     let deformationFields: string[] = [];
-    if (digitalTwinGltfData.femSimulationData.metadata.deformationFields) {
+    if (isThereFemSimulationData && digitalTwinGltfData.femSimulationData.metadata.deformationFields) {
         deformationFields = digitalTwinGltfData.femSimulationData.metadata.deformationFields;
     }
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
@@ -77,7 +81,12 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     }, [femSimulationObject.node.animations, objectRef]);
 
     useEffect(() => {
-        if (mixer && clipsDuration && femSimulationObjectState.clipValues && femSimulationObjectState.clipValues.length !== 0) {
+        if (mixer &&
+            clipsDuration &&
+            femSimulationObjectState !== undefined &&
+            femSimulationObjectState.clipValues &&
+            femSimulationObjectState.clipValues.length !== 0
+        ) {
             femSimulationObjectState.clipValues.forEach((clipValue, index) => {
                 if (clipValue !== null) {
                     const maxValue = femSimulationObject.node.userData.clipMaxValues[index];
@@ -93,7 +102,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             mixer.setTime(clipsDuration);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mixer, femSimulationObjectState.clipValues]);
+    }, [mixer, femSimulationObjectState]);
 
 
     useFrame(({ clock }) => {
@@ -116,7 +125,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     lastIntervalTime = clock.elapsedTime;
                 }
             } else {
-                if (femSimulationObjectState.highlight) {
+                if (femSimulationObjectState !== undefined && femSimulationObjectState.highlight) {
                     if (objectRef.current) objectRef.current.visible = true;
                     material.opacity = 1;
                     material.emissive = highlightColor;
@@ -133,7 +142,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         let color: THREE.Color;
         let resultColors: Float32Array;
         let currentPositions: Float32Array;
-        if (femSimulationResult === "None result") {
+        if (femSimulationResult === "None result" || meshResult === null) {
             currentPositions = femSimulationObject.originalGeometry;
         } else {
             const numberOfModes = meshResult.resultFields[femSimulationResult].numberOfModes;
@@ -155,10 +164,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     }
                 }
 
-                if (femMinValue  === undefined) femMinValue = totalcolorValue;
-                if(totalcolorValue < femMinValue) femMinValue = totalcolorValue;
+                if (femMinValue === undefined) femMinValue = totalcolorValue;
+                if (totalcolorValue < femMinValue) femMinValue = totalcolorValue;
                 if (femMaxValue === undefined) femMaxValue = totalcolorValue;
-                if(totalcolorValue > femMaxValue) femMaxValue = totalcolorValue;
+                if (totalcolorValue > femMaxValue) femMaxValue = totalcolorValue;
 
                 color = femSimulationGeneralInfo[femSimulationResult].resultLut.getColor(totalcolorValue);
                 if (color === undefined) {
@@ -290,7 +299,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
 }
 
 const areEqual = (prevProps: FemSimulationObjectProps, nextProps: FemSimulationObjectProps) => {
-    return (prevProps.femSimulationObjectState.highlight === nextProps.femSimulationObjectState.highlight || nextProps.blinking) &&
+    return (prevProps.femSimulationObjectState !== undefined &&
+        (prevProps.femSimulationObjectState.highlight === nextProps.femSimulationObjectState.highlight || nextProps.blinking)) &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.hideObject === nextProps.hideObject &&

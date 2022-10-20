@@ -91,15 +91,14 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 genericObjects,
                 digitalTwinGltfData,
             ))
-            if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
-                readFemSimulationInfo(
-                    digitalTwinSelected,
-                    digitalTwinGltfData,
-                    femSimulationObjects,
-                    setInitialFemSimObjectsState,
-                    setFemSimulationGeneralInfo
-                )
-            }
+            
+            readFemSimulationInfo(
+                digitalTwinSelected,
+                digitalTwinGltfData,
+                femSimulationObjects,
+                setInitialFemSimObjectsState,
+                setFemSimulationGeneralInfo
+            )
 
             const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
             if (Object.keys(digitalTwinSimulationFormat).length !== 0) {

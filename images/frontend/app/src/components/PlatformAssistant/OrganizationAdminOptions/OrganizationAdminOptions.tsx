@@ -265,7 +265,6 @@ const OrganizationAdminOptions: FC<{}> = () => {
                 .get(urlOrgsManaged, config)
                 .then((response) => {
                     const orgsManaged = response.data;
-                    console.log("orgsManaged=", orgsManaged)
                     setOrgsManagedTable(plaformAssistantDispatch, { orgsManaged });
                     setOrgsManagedLoading(false);
                     const reloadOrgsManagedTable = false;

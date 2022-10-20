@@ -29,7 +29,7 @@ const useSubscription = (
     const { client } = useContext<Context>(MqttContext);
 
     let femResultNames: string[] = [];
-	if (femSimulationObjects.length && femSimulationGeneralInfo) {
+	if (femSimulationObjects.length && Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
 		femResultNames = digitalTwinGltfData.femSimulationData.metadata.resultFields.map(
 			(resultField: { resultName: string; }) => resultField.resultName
 		);

@@ -367,7 +367,7 @@ const Model: FC<ModelProps> = (
 				/>
 			}
 			{
-				(femSimulationObjects.length && femSimulationObjectsState.length) &&
+				femSimulationObjects.length !== 0 &&
 				<FemSimulationObjects
 					femSimulationGeneralInfo={femSimulationGeneralInfo}
 					digitalTwinGltfData={digitalTwinGltfData}

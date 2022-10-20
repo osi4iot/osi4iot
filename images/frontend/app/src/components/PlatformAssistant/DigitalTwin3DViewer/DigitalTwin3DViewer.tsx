@@ -418,7 +418,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	};
 
 	let femResultNames: string[] = [];
-	if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
+	if (femSimulationObjects.length !== 0 && Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
 		femResultNames = digitalTwinGltfData.femSimulationData.metadata.resultFields.map(
 			(resultField: { resultName: string; }) => resultField.resultName
 		);
@@ -769,9 +769,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				<HeaderContainer>
 					<HeaderOptionsContainer >
 						{isControlPanelOpen ?
-							// <CloseFolderIcon onClick={(e) => setIsControlPanelOpen(false)} />
-							// :
-							// <OpenFolderIcon onClick={(e) => setIsControlPanelOpen(true)} />
 							<CloseFolderIcon onClick={(e) => handleControlPanelOpenAndClose()} />
 							:
 							<OpenFolderIcon onClick={(e) => handleControlPanelOpenAndClose()} />
@@ -910,7 +907,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							</DatFolder>
 						}
 						{
-							(femSimulationObjects.length !== 0 && femSimulationGeneralInfo) &&
+							femSimulationObjects.length !== 0 &&
 							<DatFolder title='Fem objects' closed={true}>
 								<DatFolder title='All meshes' closed={true}>
 									<StyledDatSelect

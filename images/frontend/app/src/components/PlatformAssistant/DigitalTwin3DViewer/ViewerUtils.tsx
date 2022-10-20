@@ -268,7 +268,10 @@ export const generateInitialFemSimObjectsState = (
 	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm_fmv2pdb")[0].topicId;
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const payloadObject = lastMeasurement?.payload as any;
-	const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+	let resultFields = [];
+	if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
+		resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+	}
 	for (let imesh = 0; imesh < femSimulationObjects.length; imesh++) {
 		const obj = femSimulationObjects[imesh];
 		const resultFieldModalValues: Record<string, number[]> = {};
@@ -671,6 +674,7 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 	let objName = "";
 	let type = "";
 	let collectionName = "";
+	let selectable = true;
 
 	if (container && meshList && meshList.length) {
 		const rect = container.getBoundingClientRect();
@@ -689,9 +693,14 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 					collectionName = intersects[0].object.userData.collectionName;
 				} else collectionName = "General";
 			}
+
+			const isSelectable = intersects[0].object.userData.selectable;
+			if (isSelectable !== undefined && isSelectable === "false") {
+				selectable = false;
+			}
 		}
 	}
-	return [objName, type, collectionName];
+	return [objName, type, collectionName, selectable];
 }
 
 const processMouseEvent = (
@@ -700,30 +709,32 @@ const processMouseEvent = (
 ) => {
 	event.preventDefault();
 
-	const [objName, type, collectionName] = get_mesh_intersect(event.clientX, event.clientY);
+	const [objName, type, collectionName, selectable] = get_mesh_intersect(event.clientX, event.clientY);
 
-	if (objName !== "" && type) {
-		if ((mouse.objName !== "") && (mouse.objName !== objName)) {
-			//jump from object to object, exist last one
-			mouse.isInsideObject = false;
-			mouse.type = "";
-			mouse.collectionName = "";
+	if (selectable) {
+		if (objName !== "" && type) {
+			if ((mouse.objName !== "") && (mouse.objName !== objName)) {
+				//jump from object to object, exist last one
+				mouse.isInsideObject = false;
+				mouse.type = "";
+				mouse.collectionName = "";
+			}
+			mouse.objName = objName as string;
+			mouse.collectionName = collectionName as string;
+			if (!mouse.isInsideObject) {
+				sendCustomEvent("mesh_mouse_enter", { type, name: mouse.objName, collectionName: mouse.collectionName });
+			}
+			mouse.isInsideObject = true;
+			mouse.type = type as string;
+	
+			sendCustomEvent(event_name, { type, name: mouse.objName, collectionName: mouse.collectionName });
 		}
-		mouse.objName = objName;
-		mouse.collectionName = collectionName;
-		if (!mouse.isInsideObject) {
-			sendCustomEvent("mesh_mouse_enter", { type, name: mouse.objName, collectionName: mouse.collectionName });
-		}
-		mouse.isInsideObject = true;
-		mouse.type = type;
-
-		sendCustomEvent(event_name, { type, name: mouse.objName, collectionName: mouse.collectionName });
-	}
-	else {
-		if (mouse.isInsideObject) {
-			sendCustomEvent("mesh_mouse_exit", { type: mouse.type, name: mouse.objName });
-			mouse.isInsideObject = false;
-			mouse.type = "";
+		else {
+			if (mouse.isInsideObject) {
+				sendCustomEvent("mesh_mouse_exit", { type: mouse.type, name: mouse.objName });
+				mouse.isInsideObject = false;
+				mouse.type = "";
+			}
 		}
 	}
 }
@@ -814,7 +825,10 @@ export const readFemSimulationInfo = (
 	let legendLayout = 'vertical';
 
 	const femSimulationGeneralInfo: Record<string, IResultRenderInfo> = {};
-	const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+	let resultFields = [];
+	if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
+		resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+	}
 
 	for (let ires = 0; ires < resultFields.length; ires++) {
 		const legendCamera = new THREE.PerspectiveCamera(20, 0.5, 1, 10000);

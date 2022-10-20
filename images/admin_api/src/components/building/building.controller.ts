@@ -231,6 +231,9 @@ class BuildingController implements IController {
 			if (!existFloor) {
 				throw new ItemNotFoundException("The building floor", "id", floorId);
 			}
+			if (existFloor.id === 1) {
+				throw new HttpException(500, "The platform default floor can not be deleted.");
+			}
 			const response = await deleteFloorById(parseInt(floorId, 10));
 			if (!response) throw new HttpException(500, "The building floor could not be deleted");
 			const message = { message: `Building floor deleted succesfully` }
@@ -361,6 +364,9 @@ class BuildingController implements IController {
 			const existBuilding = await getBuildingByProp("id", buildingId);
 			if (!existBuilding) {
 				throw new ItemNotFoundException("The building", "id", buildingId);
+			}
+			if (existBuilding.id === 1) {
+				throw new HttpException(500, "The plattorm default building can not be deleted");
 			}
 			const response = await deleteBuildingById(parseInt(buildingId, 10));
 			if (!response) throw new HttpException(500, "The building could not be deleted");
