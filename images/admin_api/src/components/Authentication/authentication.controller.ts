@@ -163,6 +163,7 @@ class AuthenticationController implements IController {
 	private userMosquittoAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { password, username, clientid } = req.body;
+			console.log("Paso por username=", username);
 			const usernameArray = username.split("_");
 			if (usernameArray[0] === "jwt") {
 				const algorithm = "HS256" as jwt.Algorithm;
@@ -206,6 +207,8 @@ class AuthenticationController implements IController {
 				}
 			} else {
 				const user = await getUserLoginDatadByEmailOrLogin(username);
+				console.log("username=", username);
+				console.log("user=", user);
 				if (!user) {
 					res.status(400).json({ Ok: false, Error: "User not registered" });
 					return
