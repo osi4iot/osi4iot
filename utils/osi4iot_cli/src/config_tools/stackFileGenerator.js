@@ -489,7 +489,6 @@ export default function (osi4iotState) {
 					},
 					labels: [
 						'traefik.enable=true',
-						'traefik.docker.lbswarm=true',
 						`traefik.http.routers.admin_api.rule=Host(\`${domainName}\`) && PathPrefix(\`/admin_api/\`)`,
 						'traefik.http.middlewares.admin_api-prefix.stripprefix.prefixes=/admin_api',
 						'traefik.http.routers.admin_api.middlewares=admin_api-prefix,admin_api-header,admin_api-redirectregex',
