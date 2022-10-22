@@ -553,7 +553,7 @@ export default function (osi4iotState) {
 			minio: {
 				// image: `ghcr.io/osi4iot/minio:${serviceImageVersion['minio']}`,
 				image: `ghcr.io/osi4iot/minio:dev`,
-				// user: "${UID}:${GID}",
+				user: "${UID}:${GID}",
 				secrets: [
 					{
 						source: 'minio',
