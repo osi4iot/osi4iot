@@ -20,7 +20,7 @@ export const chooseOption = () => {
 		.prompt([
 			{
 				name: 'option',
-				message: 'Choose one of the following options xxxx: ',
+				message: 'Choose one of the following options: ',
 				default: 'Init platform',
 				type: 'list',
 				pageSize: 16,
