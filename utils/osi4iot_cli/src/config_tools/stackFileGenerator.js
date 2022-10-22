@@ -489,6 +489,7 @@ export default function (osi4iotState) {
 					},
 					labels: [
 						'traefik.enable=true',
+						'traefik.docker.lbswarm=true',
 						`traefik.http.routers.admin_api.rule=Host(\`${domainName}\`) && PathPrefix(\`/admin_api/\`)`,
 						'traefik.http.middlewares.admin_api-prefix.stripprefix.prefixes=/admin_api',
 						'traefik.http.routers.admin_api.middlewares=admin_api-prefix,admin_api-header,admin_api-redirectregex',
@@ -500,10 +501,10 @@ export default function (osi4iotState) {
 						"traefik.http.routers.admin_api.entrypoints=websecure",
 						'traefik.http.routers.admin_api.tls=true',
 						'traefik.http.routers.admin_api.service=admin_api',
-						'traefik.http.services.admin_api.loadbalancer.server.port=3200',
-						'traefik.http.services.admin_api.loadbalancer.healthCheck.path=/health',
-						'traefik.http.services.admin_api.loadbalancer.healthCheck.interval=5s',
-						'traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s'
+						// 'traefik.http.services.admin_api.loadbalancer.server.port=3200',
+						// 'traefik.http.services.admin_api.loadbalancer.healthCheck.path=/health',
+						// 'traefik.http.services.admin_api.loadbalancer.healthCheck.interval=5s',
+						// 'traefik.http.services.admin_api.loadbalancer.healthCheck.timeout=3s'
 					]
 				}
 			},
