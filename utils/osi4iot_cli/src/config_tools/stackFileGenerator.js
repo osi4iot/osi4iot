@@ -571,9 +571,6 @@ export default function (osi4iotState) {
 			pgdata: {
 				driver: 'local'
 			},
-			// pgdata2: {
-			// 	driver: 'local'
-			// },
 			pgadmin4_data: {
 				driver: 'local'
 			},

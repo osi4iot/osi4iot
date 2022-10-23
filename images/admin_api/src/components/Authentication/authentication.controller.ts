@@ -358,7 +358,7 @@ class AuthenticationController implements IController {
 					res.status(400).json({ Ok: false, Error: "Device not registered" });
 					return
 				}
-			} else if (username.split("_")[0] === "nri") {
+			} else if (usernameArray[0] === "nri") {
 				if (topicArray[0] !== "test") {
 					const nriHashInUserName = username.split("_")[1];
 					const nodeRedInstance = await getNodeRedInstanceByProp("nri_hash", nriHashInUserName);

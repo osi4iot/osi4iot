@@ -319,8 +319,8 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const groupId = row?.cells[0]?.value;
                 const deviceId = row?.cells[0]?.value;
+                const groupId = row?.cells[2]?.value;
                 return <DownLoadSslCerts groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} />
             }
         },
