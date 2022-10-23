@@ -131,7 +131,6 @@ export default function (osi4iotState) {
 	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
 		mosquittoConfig.push(
 			"\n",
-			"\n",
 			"# MQTT over WSS\n",
 			"listener 9001\n",
 			"protocol websockets\n",
@@ -140,7 +139,6 @@ export default function (osi4iotState) {
 	} else {
 		mosquittoConfig.push(
 			"\n",
-			"\n",
 			"# MQTT over WSS\n",
 			"listener 9001\n",
 			"protocol websockets\n",
@@ -148,11 +146,13 @@ export default function (osi4iotState) {
 			"certfile /mosquitto/wss_certs/iot_platform_cert.cer\n",
 			"keyfile /mosquitto/wss_certs/iot_platform.key\n",
 			"allow_anonymous false\n",
-			"\n",
-			"\n",
-			"include_dir /etc/mosquitto/conf.d"
 		)
 	}
+
+	mosquittoConfig.push(
+		"\n",
+		"include_dir /etc/mosquitto/conf.d"
+	);
 
 
 	if (fs.existsSync('./config/mosquitto/mosquitto.conf')) {
