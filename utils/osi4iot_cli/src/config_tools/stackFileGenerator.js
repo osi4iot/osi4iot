@@ -1,7 +1,6 @@
 import yaml from 'js-yaml';
 import fs from 'fs';
 
-
 export default function (osi4iotState) {
 	const defaultVersion = osi4iotState.platformInfo.DOCKER_IMAGES_VERSION;
 
