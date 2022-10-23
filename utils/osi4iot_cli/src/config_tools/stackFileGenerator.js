@@ -239,9 +239,6 @@ export default function (osi4iotState) {
 				volumes: [
 					'portainer_data:/data'
 				],
-				// ports: [
-				// 	"9000:9000"
-				// ],
 				networks: [
 					'traefik_public',
 					'agent_network'
