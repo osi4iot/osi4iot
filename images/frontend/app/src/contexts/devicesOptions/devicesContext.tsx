@@ -3,10 +3,8 @@ import { ChildrenProp } from '../../interfaces/interfaces'
 import { DevicesContextProps, IDeviceInputData } from './interfaces'
 import { initialState, DevicesReducer } from './devicesReducer';
 
-
 const DevicesStateContext = createContext<DevicesContextProps>(initialState);
 const DevicesDispatchContext = createContext<any>({});
-
 
 export function useDevicesDispatch() {
 	const context = React.useContext(DevicesDispatchContext);

@@ -67,6 +67,12 @@ const PlatformTools: FC<{}> = () => {
                     <ToolImage src="../images/platformTools/swagger.png" alt="Swagger" />
                 </ImageContainer>
             }
+            {
+                (window._env_ && window._env_.DEPLOYMENT_LOCATION !== "AWS_cluster_deployment") &&
+                <ImageContainer onClick={() => handleLinkClick("/minio/")}>
+                    <ToolImage src="../images/platformTools/minio.png" alt="Swagger" />
+                </ImageContainer>
+            }
             <ImageContainer onClick={() => handleExternalLinkClick("https://geojson.io/")}>
                 <ToolImage src="../images/platformTools/geojson-io.png" alt="geoson.io" />
             </ImageContainer>

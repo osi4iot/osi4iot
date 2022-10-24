@@ -1,6 +1,6 @@
 import { Router, NextFunction, Request, Response } from "express";
 import pointOnFeature from '@turf/point-on-feature';
-import { polygon } from '@turf/helpers';
+import { point, polygon } from '@turf/helpers';
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
@@ -59,6 +59,7 @@ import {
 	updateNodeRedInstanceIconById,
 } from "../nodeRedInstance/nodeRedInstanceDAL";
 import UpdateGroupManagedDto from "./interfaces/groupManagedUpdate.dto";
+import rhumbDestination from "@turf/rhumb-destination";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -275,29 +276,40 @@ class GroupController implements IController {
 			const floorData = await getFloorByOrgIdAndFloorNumber(groupCreated.orgId, groupCreated.floorNumber);
 			const geoJsonDataString = findGroupGeojsonData(floorData, groupCreated.featureIndex);
 			const geojsonObj = JSON.parse(geoJsonDataString);
-			let centerLongitude = 0.0;
-			let centerLatitude = 0.0;
+			let centerGroupAreaLongitude = 0.0;
+			let centerGroupAreaLatitude = 0.0;
+			let deviceLongitude = 0.0;
+			let deviceLatitude = 0.0;
+			let nriLongitude = 0.0;
+			let nriLatitude = 0.0;
 			if (geojsonObj.features) {
 				const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
 				const center = pointOnFeature(geoPolygon);
-				centerLongitude = center.geometry.coordinates[0];
-				centerLatitude = center.geometry.coordinates[1];
+				centerGroupAreaLongitude = center.geometry.coordinates[0];
+				centerGroupAreaLatitude = center.geometry.coordinates[1];
+				const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
+				const ptDevice = rhumbDestination(ptCenterGroupArea, 0.001, 180);
+				deviceLongitude = ptDevice.geometry.coordinates[0];
+				deviceLatitude = ptDevice.geometry.coordinates[1];
+				const ptNri = rhumbDestination(ptCenterGroupArea, 0.002, 0.0);
+				nriLongitude = ptNri.geometry.coordinates[0];
+				nriLatitude = ptNri.geometry.coordinates[1];
 			}
-			const devicesDistance = 0.00002;
+
 			const defaultGroupDeviceData =
 			{
 				name: defaultGroupDeviceName(groupCreated),
 				description: `Default device of group ${groupCreated.name}`,
-				latitude: centerLatitude,
-				longitude: (centerLongitude + devicesDistance),
+				latitude: deviceLatitude,
+				longitude: deviceLongitude,
 				type: "Generic",
 				iconRadio: 1.0,
 				mqttAccessControl: "Pub & Sub"
 			};
 			const device = await createDevice(groupCreated, defaultGroupDeviceData);
 
-			nodeRedInstancesUnlinkedInOrg[0].longitude = centerLongitude;
-			nodeRedInstancesUnlinkedInOrg[0].latitude = centerLatitude;
+			nodeRedInstancesUnlinkedInOrg[0].longitude = nriLongitude;
+			nodeRedInstancesUnlinkedInOrg[0].latitude = nriLatitude;
 			await assignNodeRedInstanceToGroup(nodeRedInstancesUnlinkedInOrg[0], groupCreated.id);
 
 			const defaultDeviceTopicsData = [

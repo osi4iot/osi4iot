@@ -70,7 +70,7 @@ export default async function (nodesData, deployLocation, dockerHost = null) {
 							console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
 							execSync(`ssh ${userName}@${nodeIP} '${joinManagerCommand}'`)
 						}
-					} else if (nodeRole === "Platform worker" || nodeRole === "Generic org worker" || nodeRole === "Exclusive org worker") {
+					} else {
 						console.log(clc.green(`Joining node ${nodeHostName} to swarm ...`));
 						execSync(`ssh ${userName}@${nodeIP} '${joinWorkerCommand}'`);
 					}

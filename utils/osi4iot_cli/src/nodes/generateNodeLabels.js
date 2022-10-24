@@ -31,6 +31,8 @@ export default async function (osi4iotState, dockerHost) {
 					execSync(`docker ${dockerHost} node update --label-add org_hash=${orgHash} ${nodeName}`);
 					removeNodeLabels(dockerHost, nodeName, ["platform_worker", "generic_org_worker", "KEEPALIVED_PRIORITY"]);
 				}
+			} else if (nodeRole === "NFS server") {
+				execSync(`docker ${dockerHost} node update --label-add  nfs_server=true ${nodeName}`);
 			}
 		}
 	}

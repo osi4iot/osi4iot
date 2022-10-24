@@ -124,16 +124,16 @@ const deviceTypeOptions = [
 
 const mqttAccessControlOptions = [
     {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
         label: "Subscribe",
         value: "Sub"
     },
     {
         label: "Publish",
         value: "Pub"
-    },
-    {
-        label: "Subscribe & Publish",
-        value: "Pub & Sub"
     },
     {
         label: "None",
@@ -193,8 +193,10 @@ const CreateDevice: FC<CreateDeviceProps> = ({
             longitude: values.longitude,
             latitude: values.latitude,
             type: values.type,
-            iconRadio: values.iconRadio
+            iconRadio: values.iconRadio,
+            mqttAccessControl: values.mqttAccessControl
         }
+
         setIsSubmitting(true);
         axiosInstance(refreshToken, authDispatch)
             .post(url, deviceData, config)

@@ -113,16 +113,14 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, dep
 							status = "Failed";
 						}
 						newNode.nodeArch = nodeArch
-						if (newNode.nodeRole !== "NFS server") {
-							try {
-								const checkDockerInstallation = execSync(`ssh ${userName}@${nodeIP} 'which docker && docker --version'`).toString();
-								if (checkDockerInstallation) {
-									console.log(clc.greenBright("Docker is installed"))
-								}
-							} catch (err) {
-								console.log(clc.redBright("Error: Docker is not installed in this node"))
-								status = "Failed";
+						try {
+							const checkDockerInstallation = execSync(`ssh ${userName}@${nodeIP} 'which docker && docker --version'`).toString();
+							if (checkDockerInstallation) {
+								console.log(clc.greenBright("Docker is installed"))
 							}
+						} catch (err) {
+							console.log(clc.redBright("Error: Docker is not installed in this node"))
+							status = "Failed";
 						}
 					}
 				}
@@ -141,16 +139,14 @@ const swarmNodeQuestions = async (nodesData, defaultUserName, numSwarmNodes, dep
 						status = "Failed";
 					}
 
-					if (newNode.nodeRole !== "NFS server") {
-						try {
-							const checkDockerInstallation = execSync("which docker && docker --version").toString();
-							if (checkDockerInstallation) {
-								console.log(clc.greenBright("Docker is installed"))
-							}
-						} catch (err) {
-							console.log(clc.redBright("Error: Docker is not installed in this node"))
-							status = "Failed";
+					try {
+						const checkDockerInstallation = execSync("which docker && docker --version").toString();
+						if (checkDockerInstallation) {
+							console.log(clc.greenBright("Docker is installed"))
 						}
+					} catch (err) {
+						console.log(clc.redBright("Error: Docker is not installed in this node"))
+						status = "Failed";
 					}
 				}
 			}

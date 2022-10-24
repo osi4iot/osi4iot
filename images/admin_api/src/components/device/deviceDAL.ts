@@ -221,8 +221,8 @@ export const updateGroupDevicesLocation = async (geoJsonDataString: string, grou
 		const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
 		let interDeviceDistance = 0.0;
 		for (const device of groupDevices) {
-			if (0.003 * device.iconRadio > interDeviceDistance) {
-				interDeviceDistance = 0.003 * device.iconRadio;
+			if (0.002 * device.iconRadio > interDeviceDistance) {
+				interDeviceDistance = 0.002 * device.iconRadio;
 			}
 		}
 		const pt = rhumbDestination(ptCenterGroupArea, 0.5 * interDeviceDistance, 180);

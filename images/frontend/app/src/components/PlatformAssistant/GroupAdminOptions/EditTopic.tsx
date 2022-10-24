@@ -83,16 +83,16 @@ const topicTypeOptions = [
 
 const mqttAccessControlOptions = [
     {
+        label: "Subscribe & Publish",
+        value: "Pub & Sub"
+    },
+    {
         label: "Subscribe",
         value: "Sub"
     },
     {
         label: "Publish",
         value: "Pub"
-    },
-    {
-        label: "Subscribe & Publish",
-        value: "Pub & Sub"
     },
     {
         label: "None",
