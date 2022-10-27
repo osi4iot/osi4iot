@@ -40,7 +40,9 @@ export default function (osi4iotState) {
 		`MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=${osi4iotState.platformInfo.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK}\n`,
 		`TELEGRAM_BOTTOKEN=${osi4iotState.platformInfo.TELEGRAM_BOTTOKEN}\n`,
 		`MAIN_ORG_HASH=${osi4iotState.certs.mqtt_certs.organizations[0].org_hash}\n`,
-		`MAIN_ORG_NODERED_INSTANCE_HASHES=${mainOrgNodeRedInstanceHashes}`
+		`AWS_ACCESS_KEY_ID=${osi4iotState.platformInfo.AWS_ACCESS_KEY_ID}\n`,
+		`AWS_SECRET_ACCESS_KEY=${osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY}\n`,
+		`MAIN_ORG_NODERED_INSTANCE_HASHES=${mainOrgNodeRedInstanceHashes}`,
 	];
 
 	if (fs.existsSync('./secrets/admin_api.txt')) {

@@ -41,7 +41,6 @@ export async function dataBaseInitialization() {
 		});
 
 	let existPlatformS3Bucket = false;
-	const bucketName = process_env.S3_BUCKET_NAME;
 	if (process_env.DEPLOYMENT_LOCATION !== "AWS cluster deployment") {
 		const minioUrl = `minio:9000/minio/health/live`;
 		await needle('get', minioUrl)
@@ -55,6 +54,7 @@ export async function dataBaseInitialization() {
 
 	try {
 		const listBucketsResult = await s3.send(new ListBucketsCommand({}));
+		const bucketName = process_env.S3_BUCKET_NAME;
 		existPlatformS3Bucket = listBucketsResult.Buckets.filter(bucket => bucket.Name === bucketName).length !== 0;
 		if (!existPlatformS3Bucket) {
 			await s3.send(new CreateBucketCommand({ Bucket: bucketName }));

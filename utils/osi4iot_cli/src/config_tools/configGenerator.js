@@ -43,7 +43,7 @@ export default function (osi4iotState) {
 		`PLATFORM_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "_")}\n`,
 		`DOMAIN_NAME=${osi4iotState.platformInfo.DOMAIN_NAME}\n`,
 		`PROTOCOL=${protocol}\n`,
-		`DEPLOYMENT_LOCATION=${osi4iotState.platformInfo.DEPLOYMENT_LOCATION.replace(/ /g, "_")}\n`,
+		insertQuotesInText("DEPLOYMENT_LOCATION", osi4iotState.platformInfo.DEPLOYMENT_LOCATION, "\n"),
 		insertQuotesInText("PLATFORM_PHRASE", osi4iotState.platformInfo.PLATFORM_PHRASE, "\n"),
 		insertQuotesInText("MAIN_ORGANIZATION_NAME", osi4iotState.platformInfo.MAIN_ORGANIZATION_NAME, "\n"),
 		`MAIN_ORGANIZATION_ACRONYM=${osi4iotState.platformInfo.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")}\n`,
@@ -52,7 +52,8 @@ export default function (osi4iotState) {
 		`MAIN_ORGANIZATION_ZIP_CODE=${osi4iotState.platformInfo.MAIN_ORGANIZATION_ZIP_CODE}\n`,
 		insertQuotesInText("MAIN_ORGANIZATION_STATE", osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE, "\n"),
 		insertQuotesInText("MAIN_ORGANIZATION_COUNTRY", osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY, "\n"),
-		`S3_BUCKET_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "-").replace(/_/g, "-").toLowerCase()}`
+		`S3_BUCKET_NAME=${osi4iotState.platformInfo.S3_BUCKET_NAME}\n`,
+		`AWS_REGION=${osi4iotState.platformInfo.AWS_REGION}`
 	];
 
 	if (fs.existsSync('./config/admin_api/admin_api.conf')) {
@@ -62,7 +63,6 @@ export default function (osi4iotState) {
 	for (let iline = 0; iline < adminApiConfig.length; iline++) {
 		fs.appendFileSync('./config/admin_api/admin_api.conf', adminApiConfig[iline]);
 	}
-
 
 	//frontend config
 	const frontendConfig = [

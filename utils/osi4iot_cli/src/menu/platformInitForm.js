@@ -1,6 +1,7 @@
 import fs from 'fs';
 import os from 'os';
 import validUrl from 'valid-url';
+import needle from 'needle';
 import timezoneValidator from 'timezone-validator';
 import { nanoid } from 'nanoid';
 import { execSync } from 'child_process';
@@ -28,19 +29,22 @@ const platformInitiation = () => {
 	const deploymentLocation = osi4iotStateInitial.platformInfo.DEPLOYMENT_LOCATION;
 	const awsAccessKeyId = osi4iotStateInitial.platformInfo.AWS_ACCESS_KEY_ID;
 	const awsSecretAccessKey = osi4iotStateInitial.platformInfo.AWS_SECRET_ACCESS_KEY;
+	const awsRegion = osi4iotStateInitial.platformInfo.AWS_REGION;
+	const dockerImagesVersion = osi4iotStateInitial.platformInfo.DOCKER_IMAGES_VERSION;
 	let mainOrgAdminPassword;
 
 	inquirer
-		.prompt([
+		.prompt([	
 			{
 				name: 'PLATFORM_NAME',
 				message: 'Platform name:',
-				default: 'IOT_DEMO',
+				default: 'OSI-DEMO',
 				validate: function (platformName) {
-					if (platformName.length >= 4) {
+					let valid = /(?!(^xn--|.+-s3alias$))^[a-zA-Z0-9][a-zA-Z0-9-]{2,13}[a-zA-Z0-9]$/.test(platformName);
+					if (valid) {
 						return true;
 					} else {
-						return "Please type at least 4 characters";
+						return "Invalid platform name:\n    1-) Platform names must be between 4 (min) and 15 (max) characters long.\n    2-) Platform names can consist only of letters, numbers, and hyphens (-).\n    3-) Platform names must not be formatted as an IP address\n    4-) Platform names must not start with the prefix 'xn--'.\n    5-) Platform names must not end with the suffix '-s3alias'.";
 					}
 				}
 			},
@@ -184,14 +188,23 @@ const platformInitiation = () => {
 				);
 			}
 			const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
-			finalQuestions(newAnswers, deploymentLocation, awsAccessKeyId, awsSecretAccessKey);
+			finalQuestions(newAnswers, deploymentLocation, awsAccessKeyId, awsSecretAccessKey, awsRegion, dockerImagesVersion);
 		});
 
 }
 
-const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecretAccessKey) => {
+const finalQuestions = (
+	oldAnswers,
+	deploymentLocation,
+	awsAccessKeyId,
+	awsSecretAccessKey,
+	awsRegion,
+	dockerImagesVersion
+) => {
 	const nodesData = oldAnswers.NODES_DATA;
 	let managerNodes = nodesData.filter(node => node.nodeRole === "Manager");
+	const platformName = oldAnswers.PLATFORM_NAME;
+	const defaultS3BucketName = platformName.replace(/ /g, "-").replace(/_/g, "-").toLowerCase();
 
 	inquirer
 		.prompt([
@@ -426,6 +439,12 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 				}
 			},
 			{
+				name: 'S3_BUCKET_NAME',
+				message: 'S3 storage platform bucket name:',
+				default: defaultS3BucketName,
+				validate: (s3BucketName) => checkIfBucketNameIsValid(s3BucketName, deploymentLocation)
+			},	
+			{
 				name: 'DOMAIN_CERTS_TYPE',
 				message: 'Choose the type of domain ssl certs to be used:',
 				default: 'Autosigned certs',
@@ -454,7 +473,7 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 							return true;
 						} else {
 							return "AWS Certificate Manager option is only available for AWS cluster deployment";
-						}				
+						}
 					} else if (selection === "Certs provided by an CA") {
 						return true;
 					}
@@ -480,19 +499,19 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Certs provided by an CA"
 			},
 			{
-                name: 'AWS_ACCESS_KEY_ID',
-                message: 'AWS access key id:',
-                type: 'password',
+				name: 'AWS_ACCESS_KEY_ID',
+				message: 'AWS access key id:',
+				type: 'password',
 				mask: "*",
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53" && awsAccessKeyId === ""
-            },
-            {
-                name: 'AWS_SECRET_ACCESS_KEY',
-                message: 'AWS secret access key:',
-                type: 'password',
+			},
+			{
+				name: 'AWS_SECRET_ACCESS_KEY',
+				message: 'AWS secret access key:',
+				type: 'password',
 				mask: "*",
 				when: (answers) => answers.DOMAIN_CERTS_TYPE === "Let's encrypt certs and AWS Route 53" && awsSecretAccessKey === ""
-            },
+			},
 			{
 				name: 'REGISTRATION_TOKEN_LIFETIME',
 				message: 'Registration token lifetime in seconds:',
@@ -611,11 +630,13 @@ const finalQuestions = (oldAnswers, deploymentLocation, awsAccessKeyId, awsSecre
 
 						const osi4iotState = {
 							platformInfo: {
-								DOCKER_IMAGES_VERSION: "1.1.0",
+								DOCKER_IMAGES_VERSION: dockerImagesVersion,
 								DEPLOYMENT_LOCATION: deploymentLocation,
 								AWS_ACCESS_KEY_ID: awsAccessKeyId,
 								AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
 								AWS_EFS_DNS: answers.AWS_EFS_DNS,
+								AWS_REGION: awsRegion,
+								S3_BUCKET_NAME: answers.S3_BUCKET_NAME,
 								PLATFORM_NAME: answers.PLATFORM_NAME,
 								DOMAIN_NAME: answers.DOMAIN_NAME,
 								DOMAIN_CERTS_TYPE: answers.DOMAIN_CERTS_TYPE,
@@ -801,4 +822,26 @@ export default async function () {
 		platformInitiation();
 	}
 }
+
+const checkIfBucketNameIsValid = async (s3BucketName, deploymentLocation) => {
+	let valid = /(?!(^xn--|.+-s3alias$))^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/.test(s3BucketName);
+	if (valid) {
+		if (deploymentLocation === "AWS cluster deployment" || true) {
+			const urlAwsS3Bucket = `http://${s3BucketName}.s3.amazonaws.com`;
+			const existBucket = await needle('get', urlAwsS3Bucket)
+				.then((res) => {
+					if (res.statusCode === 404) return false;
+					else if (res.statusCode === 403) return true;
+					else throw error;
+				})
+				.catch(err => console.log("Can not find out if bucket exists: %s", err.message));
+			if (existBucket) {
+				return `A bucket with the name: ${s3BucketName} already exist in AWS.`
+			} else return true;
+		} else return true;
+	} else {
+		return "Invalid bucket name:\n    1-) Bucket names must be between 3 (min) and 63 (max) characters long.\n    2-) Bucket names can consist only of lowercase letters, numbers, and hyphens (-).\n    3-) Bucket names must not be formatted as an IP address\n    4-) Bucket names must not start with the prefix 'xn--'.\n    5-) Bucket names must not end with the suffix '-s3alias'.";
+	}
+}
+
 

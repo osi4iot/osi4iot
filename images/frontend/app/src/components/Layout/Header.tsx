@@ -1,3 +1,4 @@
+import { useWindowWidth } from "@react-hook/window-size";
 import React, { FC } from "react";
 import styled from "styled-components";
 import Logo from "./Logo";
@@ -18,16 +19,17 @@ const HeaderLogo = styled.div`
 	width: 33%;
 `;
 
-const HeaderTitle = styled.h1`
-	font-size: 22px;
+interface HeaderTitleProps {
+	isMobile: boolean;
+	nameLength: number;
+}
+
+const HeaderTitle = styled.h1<HeaderTitleProps>`
+	font-size: ${(props) => props.isMobile ? (props.nameLength >= 12 ? "16px" : "18px") : "30px"};
 	background-color: inherit;
 	text-align: center;
 	font-weight: 400;
 	width: 33%;
-
-	@media screen and (min-width: 768px) {
-		font-size: 30px;
-	}
 `;
 
 const HeaderSignInSignOut = styled.div`
@@ -40,16 +42,20 @@ const HeaderSignInSignOut = styled.div`
 
 let platformName = "IOT PLATFORM";
 if (window._env_ && window._env_.PLATFORM_NAME) {
-	platformName = `${window._env_.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;
+	platformName = `${window._env_.PLATFORM_NAME.replace('-', '\u2011').toUpperCase()}`;
 }
 
 const Header: FC<{}> = () => {
+	const windowWidth = useWindowWidth();
+	const isMobile = windowWidth < 768;
+	const nameLength = platformName.length;
+	const headerTitle = `IOT ${platformName} PLATFORM`;
 	return (
 		<StyledHeader>
 			<HeaderLogo>
 				<Logo />
 			</HeaderLogo>
-			<HeaderTitle>{platformName} </HeaderTitle>
+			<HeaderTitle isMobile={isMobile} nameLength={nameLength}>{headerTitle}</HeaderTitle>
 			<HeaderSignInSignOut>
 				<SingInSignOut />
 			</HeaderSignInSignOut>

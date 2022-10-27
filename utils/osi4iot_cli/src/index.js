@@ -1,6 +1,8 @@
 import fs from 'fs';
 import os from 'os';
 import clc from 'cli-color';
+import yargs from 'yargs'
+import { hideBin } from 'yargs/helpers'
 import { execSync } from 'child_process';
 import inquirer from './generic_tools/inquirer.js';
 import platformInitForm from './menu/platformInitForm.js';
@@ -19,7 +21,7 @@ const cliOptions = [
 ];
 
 const osi4iotCli = async () => {
-    const myArgs = process.argv.slice(2);
+    const argv = yargs(hideBin(process.argv)).argv;
 
     if (!fs.existsSync("./osi4iot_state.json")) {
         osi4iotWelcome();
@@ -30,7 +32,7 @@ const osi4iotCli = async () => {
             try {
                 const sshKeysOutput = execSync("ssh-add -l").toString();
                 if (sshKeysOutput.includes("./.osi4iot_keys/osi4iot_key (RSA)")) {
-                    if (myArgs[0]) await argsOptions(myArgs[0]);
+                    if (argv._ !== undefined && argv._.length !== 0) await argsOptions(argv._[0]);
                     else chooseOption();
                 } else {
                     loadSSHAgentWarnning();
@@ -39,7 +41,7 @@ const osi4iotCli = async () => {
                 loadSSHAgentWarnning();
             }
         } else {
-            if (myArgs[0]) await argsOptions(myArgs[0]);
+            if (argv._ !== undefined && argv._.length !== 0) await argsOptions(argv._[0]);
             else chooseOption();
         }
     }
@@ -103,7 +105,7 @@ const loadSSHAgentWarnning = () => {
 
 const osi4iotWelcome = () => {
     console.log(clc.whiteBright("\n************************************************"));
-    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.1.2   **"));
+    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.1.0  **"));
     console.log(clc.whiteBright("************************************************\n"));
 
     inquirer
@@ -124,11 +126,18 @@ const osi4iotWelcome = () => {
             }
         ])
         .then(async (answers) => {
+            const argv = yargs(hideBin(process.argv)).argv;
+            if (argv.v !== undefined) {
+                answers.DOCKER_IMAGES_VERSION = argv.v;
+            } else {
+                answers.DOCKER_IMAGES_VERSION = "1.1.0";
+            }
             if (answers.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
-                awsAccessKeys(answers);
+                awsQuestions(answers);
             } else {
                 answers.AWS_ACCESS_KEY_ID = "";
                 answers.AWS_SECRET_ACCESS_KEY = "";
+                answers.AWS_REGION = "eu-west-3";
                 createOsi4iotStateFile(answers);
                 if (answers.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
                     console.log(clc.whiteBright("\nGenerating ssh keys:"));
@@ -136,7 +145,7 @@ const osi4iotWelcome = () => {
                     if (!fs.existsSync(keys_dir)) {
                         fs.mkdirSync(keys_dir);
                     }
-                    let isKeysCreationOK = true; 
+                    let isKeysCreationOK = true;
                     //execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_key -t ed25519", { stdio: 'ignore' });
                     try {
                         execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_key -t rsa -b 4096", { stdio: 'inherit' });
@@ -171,13 +180,42 @@ const createOsi4iotStateFile = (answers) => {
             DEPLOYMENT_LOCATION: answers.DEPLOYMENT_LOCATION,
             AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID || "",
             AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY || "",
+            AWS_REGION: answers.AWS_REGION || "eu-west-3",
+            DOCKER_IMAGES_VERSION: answers.DOCKER_IMAGES_VERSION || "1.1.0"
         }
     }
     const osi4iotStateFile = JSON.stringify(osi4iotState);
     fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 }
 
-const awsAccessKeys = (oldAnswers) => {
+const awsQuestions = (oldAnswers) => {
+    const awsRegions = {
+        "US East (Ohio)": "us-east-2",
+        "US East (N. Virginia)": "us-east-1",
+        "US West (N. California)": "us-west-1",
+        "US West (Oregon)": "us-west-2",
+        "Africa (Cape Town)": "af-south-1",
+        "Asia Pacific (Hong Kong)": "ap-east-1",
+        "Asia Pacific (Jakarta)": "ap-southeast-3",
+        "Asia Pacific (Mumbai)": "ap-south-1",
+        "Asia Pacific (Osaka)": "ap-northeast-3",
+        "Asia Pacific (Seoul)": "ap-northeast-2	",
+        "Asia Pacific (Singapore)": "ap-southeast-1",
+        "Asia Pacific (Sydney)": "ap-southeast-2",
+        "Asia Pacific (Tokyo)": "ap-northeast-1",
+        "Canada (Central)": "ca-central-1",
+        "Europe (Frankfurt)": "eu-central-1",
+        "Europe (Ireland)": "eu-west-1",
+        "Europe (London)": "eu-west-2",
+        "Europe (Milan)": "eu-south-1",
+        "Europe (Paris)": "eu-west-3",
+        "Europe (Stockholm)": "eu-north-1",
+        "Middle East (Bahrain)": "me-south-1",
+        "Middle East (UAE)": "me-central-1",
+        "South America (São Paulo)": "sa-east-1"
+    }
+    const awsKeys = Object.keys(awsRegions);
+
     inquirer
         .prompt([
             {
@@ -193,12 +231,23 @@ const awsAccessKeys = (oldAnswers) => {
                 mask: "*"
             },
             {
+                name: 'AWS_REGION',
+                message: 'AWS region:',
+                type: 'list',
+                default: "Europe (Paris)",
+                choices: awsKeys,
+                validate: function (awsRegion) {
+                    awsRegionSelected = awsRegions[awsRegion];
+                }
+            },
+            {
                 name: 'AWS_SSH_KEY',
                 message: 'AWS ssh key:',
                 type: 'editor',
             }
         ])
         .then(async (newAnswers) => {
+            newAnswers.AWS_REGION = awsRegions[newAnswers.AWS_REGION];
             const answers = { ...oldAnswers, ...newAnswers };
             createOsi4iotStateFile(answers);
             const keys_dir = "./.osi4iot_keys";

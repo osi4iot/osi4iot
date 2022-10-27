@@ -30,7 +30,10 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	POSTGRES_USER: string;
 	POSTGRES_PASSWORD: string;
 	POSTGRES_DB: string;
-	S3_BUCKET_NAME: string,
+	S3_BUCKET_NAME: string;
+	AWS_ACCESS_KEY_ID: string;
+	AWS_SECRET_ACCESS_KEY: string;
+	AWS_REGION: string;
 	DEV2PDB_PASSWORD: string;
 	NOTIFICATIONS_EMAIL_USER: string;
 	NOTIFICATIONS_EMAIL_PASSWORD: string;
@@ -72,6 +75,9 @@ const process_env: IProcessEnv = {
 	POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
 	POSTGRES_DB: process.env.POSTGRES_DB,
 	S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
+	AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+	AWS_REGION: process.env.AWS_REGION,
 	DEV2PDB_PASSWORD: process.env.DEV2PDB_PASSWORD,
 	NOTIFICATIONS_EMAIL_USER: process.env.NOTIFICATIONS_EMAIL_USER,
 	NOTIFICATIONS_EMAIL_PASSWORD: process.env.NOTIFICATIONS_EMAIL_PASSWORD,
