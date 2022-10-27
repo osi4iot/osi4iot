@@ -653,6 +653,7 @@ export default function (osi4iotState) {
 		}
 		osi4iotStackObj.services['minio'] = {
 			image: `ghcr.io/osi4iot/minio:${serviceImageVersion['minio']}`,
+			hostname: 'minio',
 			user: "${UID}:${GID}",
 			secrets: [
 				{
@@ -669,7 +670,7 @@ export default function (osi4iotState) {
 				"MINIO_VOLUMES=/mnt/data",
 				`MINIO_BROWSER_REDIRECT_URL=https://${domainName}/minio`
 			],
-			command: 'server --console-address ":9090"',
+			command: 'server --console-address ":9090" /mnt/data',
 			volumes: [
 				'minio_storage:/mnt/data'
 			],
@@ -697,7 +698,7 @@ export default function (osi4iotState) {
 					'traefik.http.services.minio_api.loadbalancer.healthCheck.path=/minio/health/live',
 					'traefik.http.services.minio_api.loadbalancer.healthCheck.interval=5s',
 					'traefik.http.services.minio_api.loadbalancer.healthCheck.timeout=3s',
-					///MINIO API
+					///MINIO CONSOLE
 					`traefik.http.routers.minio_console.rule=Host(\`${domainName}\`) && PathPrefix(\`/minio\`)`,
 					'traefik.http.middlewares.minio_console-prefix.stripprefix.prefixes=/minio',
 					'traefik.http.routers.minio_console.middlewares=minio_console-prefix,minio_console-header,minio_console-redirectregex',

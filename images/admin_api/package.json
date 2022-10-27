@@ -13,6 +13,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.194.0",
     "@turf/point-on-feature": "^6.5.0",
     "@turf/rhumb-destination": "^6.5.0",
     "body-parser": "^1.20.0",

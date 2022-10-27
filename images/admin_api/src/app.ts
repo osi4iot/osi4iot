@@ -52,7 +52,7 @@ class App {
 		this.app.use(morgan(morganOption,
 			{
 				stream,
-				skip:  (req: any, res) => { return req.url === "/health" }
+				skip: (req: any, res) => { return req.url === "/health" }
 			}
 		));
 	}

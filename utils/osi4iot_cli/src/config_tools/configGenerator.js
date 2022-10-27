@@ -51,7 +51,8 @@ export default function (osi4iotState) {
 		insertQuotesInText("MAIN_ORGANIZATION_CITY", osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY, "\n"),
 		`MAIN_ORGANIZATION_ZIP_CODE=${osi4iotState.platformInfo.MAIN_ORGANIZATION_ZIP_CODE}\n`,
 		insertQuotesInText("MAIN_ORGANIZATION_STATE", osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE, "\n"),
-		insertQuotesInText("MAIN_ORGANIZATION_COUNTRY", osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY, ""),
+		insertQuotesInText("MAIN_ORGANIZATION_COUNTRY", osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY, "\n"),
+		`S3_BUCKET_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "-").replace(/_/g, "-").toLowerCase()}`
 	];
 
 	if (fs.existsSync('./config/admin_api/admin_api.conf')) {

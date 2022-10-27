@@ -18,6 +18,8 @@ import { createFictitiousUserForService } from "../components/user/userDAL";
 import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
 import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 import { nanoid } from "nanoid";
+import s3 from "../config/s3Config";
+import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 
 
 export async function dataBaseInitialization() {
@@ -38,7 +40,35 @@ export async function dataBaseInitialization() {
 			process.exit(1);
 		});
 
-	if (client && grafanaState === "ok") {
+	let existPlatformS3Bucket = false;
+	const bucketName = process_env.S3_BUCKET_NAME;
+	if (process_env.DEPLOYMENT_LOCATION !== "AWS cluster deployment") {
+		const minioUrl = `minio:9000/minio/health/live`;
+		await needle('get', minioUrl)
+			.then(res => "ok")
+			.catch(err => {
+				logger.log("error", "Minio service is not healthy: %s", err.message)
+				process.exit(1);
+			});
+	}
+
+
+	try {
+		const listBucketsResult = await s3.send(new ListBucketsCommand({}));
+		existPlatformS3Bucket = listBucketsResult.Buckets.filter(bucket => bucket.Name === bucketName).length !== 0;
+		if (!existPlatformS3Bucket) {
+			await s3.send(new CreateBucketCommand({ Bucket: bucketName }));
+			logger.log("info", `The S3 bucket for the platform has been created succefully`)
+		} else {
+			logger.log("info", `An S3 bucket with the name ${bucketName} already has been created`)
+		}
+	} catch (err) {
+		logger.log("error", "The S3 bucket for the platform can not be created: %s", err)
+		process.exit(1);
+	}
+
+
+	if (client && grafanaState === "ok" && existPlatformS3Bucket) {
 		const tableOrg = "grafanadb.org";
 		const queryString1a = 'SELECT COUNT(*) FROM grafanadb.org WHERE name = $1';
 		const parameterArray1a = ["Main Org."];
