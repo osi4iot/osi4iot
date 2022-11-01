@@ -396,10 +396,8 @@ class OrganizationController implements IController {
 						digitalTwinUid: generateDigitalTwinUid(),
 						description: demoDigitalTwinDescription(group, "Temperature"),
 						type: "Grafana dashboard",
-						gltfData: "{}",
 						gltfFileName: "-",
 						gltfFileLastModifDateString: "-",
-						femSimulationData: "{}",
 						femSimDataFileName: "-",
 						femSimDataFileLastModifDateString: "-",
 						digitalTwinSimulationFormat: "{}"
@@ -408,10 +406,8 @@ class OrganizationController implements IController {
 						digitalTwinUid: generateDigitalTwinUid(),
 						description: demoDigitalTwinDescription(group, "Accelerations"),
 						type: "Grafana dashboard",
-						gltfData: "{}",
 						gltfFileName: "-",
 						gltfFileLastModifDateString: "-",
-						femSimulationData: "{}",
 						femSimDataFileName: "-",
 						femSimDataFileLastModifDateString: "-",
 						digitalTwinSimulationFormat: "{}"

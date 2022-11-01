@@ -6314,16 +6314,10 @@
 				"type": {
 					"type": "string"
 				},
-				"gltfData": {
-					"type": "string"
-				},
 				"gltfFileName": {
 					"type": "string"
 				},
 				"gltfFileLastModifDateString": {
-					"type": "string"
-				},
-				"femSimulationData": {
 					"type": "string"
 				},
 				"femSimDataFileName": {

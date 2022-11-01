@@ -69,7 +69,7 @@ export default function (osi4iotState) {
 		`PLATFORM_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "_")}\n`,
 		`DOMAIN_NAME=${osi4iotState.platformInfo.DOMAIN_NAME}\n`,
 		`PROTOCOL=${protocol}\n`,
-		`DEPLOYMENT_LOCATION=${osi4iotState.platformInfo.DEPLOYMENT_LOCATION.replace(/ /g, "_")}\n`,
+		insertQuotesInText("DEPLOYMENT_LOCATION", osi4iotState.platformInfo.DEPLOYMENT_LOCATION, "\n"),
 		`MIN_LONGITUDE=${osi4iotState.platformInfo.MIN_LONGITUDE}\n`,
 		`MAX_LONGITUDE=${osi4iotState.platformInfo.MAX_LONGITUDE}\n`,
 		`MIN_LATITUDE=${osi4iotState.platformInfo.MIN_LATITUDE}\n`,

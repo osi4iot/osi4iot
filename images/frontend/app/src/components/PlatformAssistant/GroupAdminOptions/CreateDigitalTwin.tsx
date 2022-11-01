@@ -171,11 +171,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const authDispatch = useAuthDispatch();
     const digitalTwinsDispatch = useDigitalTwinsDispatch();
     const [localGltfFileLoaded, setLocalGltfFileLoaded] = useState(false);
+    const [gltfFile, setGltfFile] = useState<File>();
     const [localGltfFileLabel, setLocalGltfFileLabel] = useState("Select local file");
     const [digitalTwinGltfData, setDigitalTwinGltfData] = useState({});
     const [localFemSimFileLoaded, setLocalFemSimFileLoaded] = useState(false);
     const [localFemSimFileLabel, setLocalFemSimFileLabel] = useState("Select local file");
     const [digitalTwinFemSimData, setDigitalTwiFemSimData] = useState({});
+    const [femSimulationFile, setFemSimulationFile] = useState<File>();
     const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
     const [openGlftFileSelector, gltfFileParams] = useFilePicker({
         readAs: 'Text',
@@ -216,10 +218,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             description: values.description,
             type: values.type,
             digitalTwinUid: values.digitalTwinUid,
-            gltfData: JSON.stringify(digitalTwinGltfData),
             gltfFileName: values.gltfFileName,
             gltfFileLastModifDateString: gltfFileDate.toString(),
-            femSimulationData: JSON.stringify(digitalTwinFemSimData),
             femSimDataFileName: values.femSimDataFileName,
             femSimDataFileLastModifDateString: femSimFileDate.toString(),
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat))
@@ -240,10 +240,46 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+
+                const configMultipart = axiosAuth(accessToken, "multipart/form-data")
+                const urlUploadGltfBase = `${protocol}://${domainName}/admin_api/digital_twin_upload_file`;
+                const urlUploadDigitalTwinFile = `${urlUploadGltfBase}/${groupId}/${deviceId}/${data.digitalTwinId}`;
+
+                if (Object.keys(digitalTwinGltfData).length !== 0) {
+                    const gltfData = new FormData();
+                    gltfData.append("file", gltfFile as File, "gltfFile");
+                    axiosInstance(refreshToken, authDispatch)
+                        .post(urlUploadDigitalTwinFile, gltfData, configMultipart )
+                        .then((response) => {
+                            toast.success(response.data.message);
+                        })
+                        .catch((error) => {
+                            const errorMessage = error.response.data?.message;
+                            if (errorMessage !== undefined && errorMessage !== "jwt expired") toast.error(errorMessage);
+                            backToTable();
+                        })
+                }
+
+                if (Object.keys(digitalTwinFemSimData).length !== 0) {
+                    const femResData = new FormData();
+                    femResData.append("file", femSimulationFile as File, "femResFile");
+                    axiosInstance(refreshToken, authDispatch)
+                        .post(urlUploadDigitalTwinFile, femResData, configMultipart )
+                        .then((response) => {
+                            toast.success(response.data.message);
+                        })
+                        .catch((error) => {
+                            const errorMessage = error.response.data?.message;
+                            if (errorMessage !== undefined && errorMessage !== "jwt expired") toast.error(errorMessage);
+                            backToTable();
+                        })
+                }
+
+
             })
             .catch((error) => {
                 const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
             })
     }
@@ -273,7 +309,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         digitalTwinSimulationFormat: Yup.string().when("type", {
             is: "Gltf 3D model",
             then: Yup.string()
-                .test("test-name", "Wrong format for the json object", (value: any) =>  digitalTwinFormatValidation(value))
+                .test("test-name", "Wrong format for the json object", (value: any) => digitalTwinFormatValidation(value))
                 .required("Must enter Digital twin simulation format")
         }),
     });
@@ -315,6 +351,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         const fileContent = gltfFileParams.filesContent[0].content
                                         const gltfData = JSON.parse(fileContent);
                                         setDigitalTwinGltfData(gltfData);
+                                        setGltfFile(gltfFileParams.plainFiles[0])
                                         values.gltfFileName = gltfFileParams.plainFiles[0].name;
                                         const dateString = (gltfFileParams.plainFiles[0] as any).lastModifiedDate.toString();
                                         values.gltfFileLastModifDateString = formatDateString(dateString);
@@ -351,6 +388,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         const fileContent = femSimFileParms.filesContent[0].content
                                         const femSimData = JSON.parse(fileContent);
                                         setDigitalTwiFemSimData(femSimData);
+                                        setFemSimulationFile(femSimFileParms.plainFiles[0]);
                                         values.femSimDataFileName = femSimFileParms.plainFiles[0].name;
                                         const dateString = (femSimFileParms.plainFiles[0] as any).lastModifiedDate.toString();
                                         values.femSimDataFileLastModifDateString = formatDateString(dateString);

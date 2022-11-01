@@ -17,8 +17,7 @@ import ITopic from "../components/topic/topic.interface";
 import { createFictitiousUserForService } from "../components/user/userDAL";
 import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
 import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../components/nodeRedInstance/nodeRedInstanceDAL";
-import { nanoid } from "nanoid";
-import s3 from "../config/s3Config";
+import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 
 
@@ -53,11 +52,11 @@ export async function dataBaseInitialization() {
 
 
 	try {
-		const listBucketsResult = await s3.send(new ListBucketsCommand({}));
+		const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
 		const bucketName = process_env.S3_BUCKET_NAME;
 		existPlatformS3Bucket = listBucketsResult.Buckets.filter(bucket => bucket.Name === bucketName).length !== 0;
 		if (!existPlatformS3Bucket) {
-			await s3.send(new CreateBucketCommand({ Bucket: bucketName }));
+			await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
 			logger.log("info", `The S3 bucket for the platform has been created succefully`)
 		} else {
 			logger.log("info", `An S3 bucket with the name ${bucketName} already has been created`)
@@ -454,10 +453,8 @@ export async function dataBaseInitialization() {
 					description VARCHAR(190),
 					type VARCHAR(40),
 					dashboard_id bigint,
-					gltfdata jsonb NOT NULL DEFAULT '{}'::jsonb,
 					gltf_file_name VARCHAR(50) DEFAULT '-',
 					gltf_file_last_modif_date_string VARCHAR(190),
-					fem_simulation_data jsonb NOT NULL DEFAULT '{}'::jsonb,
 					femsimdata_file_name VARCHAR(50) DEFAULT '-',
 					femsimdata_file_last_modif_date_string VARCHAR(190),
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -643,10 +640,8 @@ export async function dataBaseInitialization() {
 							digitalTwinUid: generateDigitalTwinUid(),
 							description: demoDigitalTwinDescription(group, "Temperature"),
 							type: "Grafana dashboard",
-							gltfData: "{}",
 							gltfFileName: "-",
 							gltfFileLastModifDateString: "-",
-							femSimulationData: "{}",
 							femSimDataFileName: "-",
 							femSimDataFileLastModifDateString: "-",
 							digitalTwinSimulationFormat: "{}"
@@ -655,10 +650,8 @@ export async function dataBaseInitialization() {
 							digitalTwinUid: generateDigitalTwinUid(),
 							description: demoDigitalTwinDescription(group, "Accelerations"),
 							type: "Grafana dashboard",
-							gltfData: "{}",
 							gltfFileName: "-",
 							gltfFileLastModifDateString: "-",
-							femSimulationData: "{}",
 							femSimDataFileName: "-",
 							femSimDataFileLastModifDateString: "-",
 							digitalTwinSimulationFormat: "{}"

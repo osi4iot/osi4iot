@@ -11,16 +11,10 @@ class CreateDigitalTwinDto {
 	public type: string;
 
 	@IsString()
-	public gltfData: string;
-
-	@IsString()
 	public gltfFileName: string;
 
 	@IsString()
 	public gltfFileLastModifDateString: string;
-
-	@IsString()
-	public femSimulationData: string;
 
 	@IsString()
 	public femSimDataFileName: string;

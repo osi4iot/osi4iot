@@ -350,10 +350,8 @@ class GroupController implements IController {
 					digitalTwinUid: generateDigitalTwinUid(),
 					description: demoDigitalTwinDescription(groupCreated, "Temperature"),
 					type: "Grafana dashboard",
-					gltfData: "{}",
 					gltfFileName: "-",
 					gltfFileLastModifDateString: "-",
-					femSimulationData: "{}",
 					femSimDataFileName: "-",
 					femSimDataFileLastModifDateString: "-",
 					digitalTwinSimulationFormat: "{}"
@@ -362,10 +360,8 @@ class GroupController implements IController {
 					digitalTwinUid: generateDigitalTwinUid(),
 					description: demoDigitalTwinDescription(groupCreated, "Accelerations"),
 					type: "Grafana dashboard",
-					gltfData: "{}",
 					gltfFileName: "-",
 					gltfFileLastModifDateString: "-",
-					femSimulationData: "{}",
 					femSimDataFileName: "-",
 					femSimDataFileLastModifDateString: "-",
 					digitalTwinSimulationFormat: "{}"
@@ -681,6 +677,7 @@ class GroupController implements IController {
 			next(error);
 		}
 	};
+
 }
 
 export default GroupController;

@@ -20,7 +20,7 @@ export const getDomainName = () => {
     const location = window.location.href;
     let domainName = location.split("/")[2];
     // if (domainName === "localhost:3000") domainName = "localhost";  //Development case
-    if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
+    if (domainName === "localhost:3000") domainName = "iot-dicapua.com";
     return domainName;
 }
 
@@ -62,14 +62,16 @@ export const isValidPassword = (password: string): boolean => {
     return isValid;
 };
 
-export const axiosAuth = (token: string) => {
+export const axiosAuth = (token: string, contentType: string = 'application/json') => {
     const config = {
         headers: {
             Authorization: "Bearer " + token,
+            "Content-Type": contentType
         },
     };
     return config;
 };
+
 
 export const toFirstLetterUpperCase = (text: string) => {
     const textModified = text.charAt(0).toLocaleUpperCase() + text.slice(1);

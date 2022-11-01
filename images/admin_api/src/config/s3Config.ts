@@ -1,10 +1,10 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import process_env from './api_config';
 
-let s3: S3Client;
+let s3Client: S3Client;
 
 if (process_env.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
-	s3 = new S3Client({
+	s3Client = new S3Client({
 		credentials: {
 			accessKeyId: process_env.AWS_ACCESS_KEY_ID,
 			secretAccessKey: process_env.AWS_SECRET_ACCESS_KEY,
@@ -13,7 +13,7 @@ if (process_env.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
 		region: process_env.AWS_REGION,
 	});
 } else {
-	s3 = new S3Client({
+	s3Client = new S3Client({
 		credentials: {
 			accessKeyId: process_env.PLATFORM_ADMIN_USER_NAME,
 			secretAccessKey: process_env.PLATFORM_ADMIN_PASSWORD,
@@ -25,4 +25,4 @@ if (process_env.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
 }
 
 
-export default s3;
+export default s3Client;

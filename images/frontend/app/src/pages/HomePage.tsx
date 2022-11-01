@@ -168,10 +168,10 @@ const HomePage: FC<{}> = () => {
 					<MenuContainer>
 						<Title>Platform options</Title>
 						<MenuBorder>
-							<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
 							<StyledNavLink exact to="/platform_assistant" >
 								Platform assistant
 							</StyledNavLink>
+							<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
 							{
 								(
 									(window._env_ && window._env_.PROTOCOL === "https") ||

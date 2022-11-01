@@ -18,7 +18,7 @@ import {
 import IMqttTopicInfo from "../topic/mqttTopicInfo.interface";
 import getDomainUrl from "../../utils/helpers/getDomainUrl";
 import IDashboardInfo from "../dashboard/dashboardInfo.interfase";
-import IDigitalTwinGltfData, { IMqttTopicData } from "./digitalTwinGltfData.interface";
+import IDigitalTwinGltfData, { IMqttTopicData, IMqttTopicDataShort } from "./digitalTwinGltfData.interface";
 import { getLastMeasurement } from "../mesurement/measurementDAL";
 import IMeasurement from "../mesurement/measurement.interface";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
@@ -27,6 +27,10 @@ import IDevice from "../device/device.interface";
 import { createDashboard, deleteDashboard } from "../group/dashboardDAL";
 import IMqttDigitalTwinTopicInfo from "./mqttDigitalTwinTopicInfo.interface";
 import ITopic from "../topic/topic.interface";
+import process_env from "../../config/api_config";
+import s3Client from "../../config/s3Config";
+import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
+
 
 export const getTopicSensorTypesFromDigitalTwin = (digitalTwin: Partial<IDigitalTwin>): string[] => {
 	const topicTypes: string[] = [];
@@ -257,9 +261,9 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
 	return digitalTwinUpdated;
 }
 
-export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwin: IDigitalTwinGltfData): Promise<IMqttTopicData[]> => {
+export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwinId: number): Promise<IMqttTopicData[]> => {
 	const mqttTopicsData: IMqttTopicData[] = [];
-	const digitalTwinTopicsList = await getDTTopicsByDigitalTwinId(digitalTwin.id);
+	const digitalTwinTopicsList = await getDTTopicsByDigitalTwinId(digitalTwinId);
 	if (digitalTwinTopicsList.length !== 0) {
 		for (const digitalTwinTopic of digitalTwinTopicsList) {
 			const mqttTopicData: IMqttTopicData = {
@@ -340,10 +344,11 @@ export const generateDigitalTwinUid = (): string => {
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const result = await pool.query(`INSERT INTO grafanadb.digital_twin (device_id,
-					digital_twin_uid, description, type, dashboard_id, gltfdata, gltf_file_name, gltf_file_last_modif_date_string,
-					fem_simulation_data, femsimdata_file_name, femsimdata_file_last_modif_date_string, digital_twin_simulation_format,
-					created, updated)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+					digital_twin_uid, description, type, dashboard_id, gltf_file_name,
+					gltf_file_last_modif_date_string,
+					femsimdata_file_name, femsimdata_file_last_modif_date_string,
+					digital_twin_simulation_format, created, updated)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 					RETURNING  id, device_id AS "deviceId", digital_twin_uid AS "digitalTwinUid", description,
 					type, dashboard_id AS "dashboardId", gltf_file_name AS "gltfFileName",
 					gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
@@ -357,10 +362,8 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 			digitalTwinData.description,
 			digitalTwinData.type,
 			digitalTwinData.dashboardId,
-			digitalTwinData.gltfData,
 			digitalTwinData.gltfFileName,
 			digitalTwinData.gltfFileLastModifDateString,
-			digitalTwinData.femSimulationData,
 			digitalTwinData.femSimDataFileName,
 			digitalTwinData.femSimDataFileLastModifDateString,
 			digitalTwinData.digitalTwinSimulationFormat
@@ -447,18 +450,16 @@ export const generateDigitalTwinMqttTopics = (digitalTwinMqttTopicsInfo: IMqttDi
 
 export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinData: Partial<IDigitalTwin>): Promise<void> => {
 	const query = `UPDATE grafanadb.digital_twin SET digital_twin_uid = $1, description = $2, type = $3,
-					gltfdata = $4, gltf_file_name = $5, gltf_file_last_modif_date_string = $6,
-					fem_simulation_data = $7, femsimdata_file_name = $8, femsimdata_file_last_modif_date_string = $9,
-					digital_twin_simulation_format = $10,
-					updated = NOW() WHERE grafanadb.digital_twin.id = $11;`;
+					gltf_file_name = $4, gltf_file_last_modif_date_string = $5,
+					femsimdata_file_name = $6, femsimdata_file_last_modif_date_string = $7,
+					digital_twin_simulation_format = $8,
+					updated = NOW() WHERE grafanadb.digital_twin.id = $9;`;
 	const result = await pool.query(query, [
 		digitalTwinData.digitalTwinUid,
 		digitalTwinData.description,
 		digitalTwinData.type,
-		digitalTwinData.gltfData,
 		digitalTwinData.gltfFileName,
 		digitalTwinData.gltfFileLastModifDateString,
-		digitalTwinData.femSimulationData,
 		digitalTwinData.femSimDataFileName,
 		digitalTwinData.femSimDataFileLastModifDateString,
 		digitalTwinData.digitalTwinSimulationFormat,
@@ -608,7 +609,7 @@ export const getDigitalTwinByProp = async (propName: string, propValue: (string 
 	return response.rows[0];
 }
 
-export const getDigitalTwinGltfDataById = async (digitalTwinId: number): Promise<IDigitalTwinGltfData> => {
+export const getDigitalTwinGltfDataByIdOld = async (digitalTwinId: number): Promise<IDigitalTwinGltfData> => {
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id,
 									grafanadb.digital_twin.gltfdata AS "gltfData",
 									grafanadb.digital_twin.fem_simulation_data AS "femSimulationData",
@@ -616,6 +617,34 @@ export const getDigitalTwinGltfDataById = async (digitalTwinId: number): Promise
 									FROM grafanadb.digital_twin
 									WHERE grafanadb.digital_twin.id = $1`, [digitalTwinId]);
 	return response.rows[0];
+}
+
+export const getDigitalTwinGltfData = async (digitalTwin: IDigitalTwin): Promise<IDigitalTwinGltfData> => {
+	const orgId = digitalTwin.orgId;
+	const groupId = digitalTwin.groupId;
+	const deviceId = digitalTwin.deviceId;
+	const digitalTwinId  = digitalTwin.deviceId;
+	const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+	const fileName = digitalTwin.gltfFileName;
+	const gltfFileKey = `${keyBase}/gltfFile/${fileName}`;
+
+	const bucketParamsGltfFile = {
+		Bucket: process_env.S3_BUCKET_NAME,
+		Key: gltfFileKey
+	};
+	const data = await s3Client.send(new GetObjectCommand(bucketParamsGltfFile));
+	const gltfFileData = await data.Body.transformToString();
+	const mqttTopicsData = await getMqttTopicsData(digitalTwinId);
+
+	const gltfData = {
+		id: digitalTwinId,
+		gltfData: gltfFileData,
+		femSimulationData: '{}',
+		digitalTwinSimulationFormat: digitalTwin.digitalTwinSimulationFormat,
+		mqttTopicsData
+	}
+
+	return gltfData;
 }
 
 export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
@@ -790,8 +819,8 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 	return response.rows;
 };
 
-export const addMqttTopicsData = async (digitalTwin: IDigitalTwinGltfData): Promise<IDigitalTwinGltfData> => {
-	const topicsData = await getMqttTopicsDataFromDigitalTwinData(digitalTwin);
+export const getMqttTopicsData = async (digitalTwinId: number): Promise<IMqttTopicDataShort[]> => {
+	const topicsData = await getMqttTopicsDataFromDigitalTwinData(digitalTwinId);
 	const mqttTopicsData = topicsData.map(topicData => {
 		let topicType = topicData.topicType;
 		if (topicData.topicType.slice(0, 7) === "dev2pdb") {
@@ -804,11 +833,7 @@ export const addMqttTopicsData = async (digitalTwin: IDigitalTwinGltfData): Prom
 			lastMeasurement: topicData.lastMeasurement
 		}
 	});
-	const digitalTwinExtended = {
-		...digitalTwin,
-		mqttTopicsData
-	};
-	return digitalTwinExtended;
+	return mqttTopicsData;
 }
 
 export const addMqttTopicsToDigitalTwinSimulators = async (digitalTwinSimulators: IDigitalTwinSimulator[]): Promise<IDigitalTwinSimulator[]> => {
@@ -870,5 +895,6 @@ const generateDashboardUrl = (dashboardInfo: IDashboardInfo): string => {
 	}
 	return dashboardUrl;
 }
+
 
 

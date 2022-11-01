@@ -42,6 +42,7 @@ export default function (osi4iotState) {
 	let entryPoint = "websecure";
 	const traefik_command = [];
 	const traefik_ports = [];
+	let protocol = "https";
 	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
 		entryPoint = "web";
 		traefik_command.push(
@@ -57,6 +58,7 @@ export default function (osi4iotState) {
 			'--log'
 		);
 		traefik_ports.push('80:80');
+		protocol = "http";
 	} else {
 		entryPoint = "websecure";
 		traefik_command.push(
@@ -76,6 +78,7 @@ export default function (osi4iotState) {
 			'--log'
 		);
 		traefik_ports.push('80:80', '443:443');
+		protocol = "https";
 	}
 
 	let numReplicas = 3;
@@ -668,7 +671,7 @@ export default function (osi4iotState) {
 			],
 			environment: [
 				"MINIO_VOLUMES=/mnt/data",
-				`MINIO_BROWSER_REDIRECT_URL=https://${domainName}/minio`
+				`MINIO_BROWSER_REDIRECT_URL=${protocol}://${domainName}/minio`,
 			],
 			command: 'server --console-address ":9090" /mnt/data',
 			volumes: [
@@ -681,24 +684,18 @@ export default function (osi4iotState) {
 					constraints: minioConstraintsArray
 				},
 				labels: [
-					//MINIO API
+					// MINIO API
 					'traefik.enable=true',
-					`traefik.http.routers.minio_api.rule=Host(\`${domainName}\`) && PathPrefix(\`/minio_api\`)`,
-					'traefik.http.middlewares.minio_api-prefix.stripprefix.prefixes=/minio_api',
-					'traefik.http.routers.minio_api.middlewares=minio_api-prefix,minio_api-header,minio_api-redirectregex',
-					'traefik.http.routers.minio_api.middlewares=minio_api-prefix',
-					'traefik.http.middlewares.minio_api-prefix.stripprefix.forceslash=false',
-					'traefik.http.middlewares.minio_api-header.headers.customrequestheaders.X-Script-Name=/minio_api/',
-					`traefik.http.middlewares.minio_api-redirectregex.redirectregex.regex=${domainName}/(minio_api*)`,
-					`traefik.http.middlewares.minio_api-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+					`traefik.http.routers.minio_api.rule=Host(\`minio.${domainName}\`)`,
 					"traefik.http.routers.minio_api.entrypoints=websecure",
 					'traefik.http.routers.minio_api.tls=true',
-					'traefik.http.routers.minio_api.service=minio_api',
-					'traefik.http.services.minio_api.loadbalancer.server.port=9000',
+					"traefik.http.routers.minio_api.service=minio",
+					"traefik.http.services.minio_api.loadbalancer.server.port=9000",
 					'traefik.http.services.minio_api.loadbalancer.healthCheck.path=/minio/health/live',
 					'traefik.http.services.minio_api.loadbalancer.healthCheck.interval=5s',
 					'traefik.http.services.minio_api.loadbalancer.healthCheck.timeout=3s',
-					///MINIO CONSOLE
+
+					// MINIO CONSOLE
 					`traefik.http.routers.minio_console.rule=Host(\`${domainName}\`) && PathPrefix(\`/minio\`)`,
 					'traefik.http.middlewares.minio_console-prefix.stripprefix.prefixes=/minio',
 					'traefik.http.routers.minio_console.middlewares=minio_console-prefix,minio_console-header,minio_console-redirectregex',
@@ -771,6 +768,39 @@ export default function (osi4iotState) {
 		];
 
 		osi4iotStackObj.services['frontend'].deploy.labels = osi4iotStackObj.services['frontend'].deploy.labels.filter(elm => elm !== 'traefik.http.routers.frontend.tls=true');
+
+		if (deploymentLocation !== "AWS cluster deployment") {
+			osi4iotStackObj.services['minio'].deploy.labels = [
+				// MINIO API
+				'traefik.enable=true',
+				`traefik.http.routers.minio_api.rule=Host(\`${domainName}\`) && PathPrefix(\`/minio_api\`)`,
+				'traefik.http.middlewares.minio_api-prefix.stripprefix.prefixes=/minio_api',
+				'traefik.http.routers.minio_api.middlewares=minio_api-prefix,minio_api-header,minio_api-redirectregex',
+				'traefik.http.middlewares.minio_api-prefix.stripprefix.forceslash=false',
+				'traefik.http.middlewares.minio_api-header.headers.customrequestheaders.X-Script-Name=/minio_api/',
+				"traefik.http.middlewares.minio_api-header.headers.customrequestheaders.Host=minio:9000",
+				`traefik.http.middlewares.minio_api-redirectregex.redirectregex.regex=${domainName}/(minio_api*)`,
+				`traefik.http.middlewares.minio_api-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+				"traefik.http.routers.minio_api.entrypoints=web",
+				'traefik.http.routers.minio_api.service=minio_api',
+				'traefik.http.services.minio_api.loadbalancer.server.port=9000',
+				'traefik.http.services.minio_api.loadbalancer.healthCheck.path=/minio/health/live',
+				'traefik.http.services.minio_api.loadbalancer.healthCheck.interval=5s',
+				'traefik.http.services.minio_api.loadbalancer.healthCheck.timeout=3s',
+				'traefik.http.services.minio_api.loadbalancer.passhostheader=false',
+				// MINIO CONSOLE
+				`traefik.http.routers.minio_console.rule=Host(\`${domainName}\`) && PathPrefix(\`/minio\`)`,
+				'traefik.http.middlewares.minio_console-prefix.stripprefix.prefixes=/minio',
+				'traefik.http.routers.minio_console.middlewares=minio_console-prefix,minio_console-header,minio_console-redirectregex',
+				'traefik.http.middlewares.minio_console-prefix.stripprefix.forceslash=false',
+				'traefik.http.middlewares.minio_console-header.headers.customrequestheaders.X-Script-Name=/minio/',
+				`traefik.http.middlewares.minio_console-redirectregex.redirectregex.regex=${domainName}/(minio*)`,
+				`traefik.http.middlewares.minio_console-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+				"traefik.http.routers.minio_console.entrypoints=web",
+				'traefik.http.routers.minio_console.service=minio_console',
+				'traefik.http.services.minio_console.loadbalancer.server.port=9090'
+			];
+		}
 
 	} else {
 		osi4iotStackObj.secrets.iot_platform_ca = {

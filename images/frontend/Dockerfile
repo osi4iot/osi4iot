@@ -1,11 +1,12 @@
 # => Build container
 FROM node:lts-alpine as builder
+# FROM node:16-alpine3.16 as builder
 WORKDIR /app
 COPY ./app/package.json .
 COPY ./app/yarn.lock .
 RUN yarn --network-timeout 600000
 COPY ./app/. .
-RUN yarn build
+RUN export NODE_OPTIONS=--openssl-legacy-provider && yarn build
 
 # => Run container
 FROM nginx:1.23.1

@@ -1,4 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
+import multer from 'multer';
+import multerS3 from 'multer-s3';
+import { ReadStream } from 'fs';
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
@@ -13,13 +16,11 @@ import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUse
 import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import {
-	addMqttTopicsData,
 	addDashboardUrls,
 	createDigitalTwin,
 	deleteDigitalTwinById,
 	getAllDigitalTwins,
 	getDigitalTwinByProp,
-	getDigitalTwinGltfDataById,
 	getDigitalTwinsByGroupId,
 	getDigitalTwinsByGroupsIdArray,
 	getDigitalTwinsByOrgId,
@@ -33,6 +34,7 @@ import {
 	getDigitalTwinMqttTopicsInfoFromByDTIdsArray,
 	generateDigitalTwinMqttTopics,
 	verifyAndCorrectDigitalTwinTopics,
+	getDigitalTwinGltfData,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -40,6 +42,28 @@ import HttpException from "../../exceptions/HttpException";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IRequestWithUserAndDeviceAndGroup from "../group/interfaces/requestWithUserAndDeviceAndGroup.interface";
+import s3Client from "../../config/s3Config";
+import process_env from "../../config/api_config";
+import { GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import digitalTwinDeviceGroupAndExist from "../../middleware/digitalTwinDeviceGroupAndExist.middleware";
+import IRequestWithDigitalTwinDeviceAndGroup from "../group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
+
+const uploadDigitalTwinFile = multer({
+	storage: multerS3({
+		s3: s3Client,
+		bucket: process_env.S3_BUCKET_NAME,
+		metadata: (req, file, cb) => {
+			cb(null, { fieldName: file.fieldname });
+		},
+		key: (req: IRequestWithDigitalTwinDeviceAndGroup, file, cb) => {
+			const group = req.group;
+			const { groupId, deviceId, digitalTwinId, folder, fileName } = req.params;
+			const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+			const fileKey = `${keyBase}/${folder}/${fileName}`;
+			cb(null, fileKey)
+		}
+	})
+})
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
@@ -116,6 +140,31 @@ class DigitalTwinController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreateDigitalTwinDto>(CreateDigitalTwinDto, true),
 				this.createDigitalTwin
+			)
+			.post(
+				`${this.path}_upload_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
+				digitalTwinDeviceGroupAndExist,
+				groupAdminAuth,
+				uploadDigitalTwinFile.single('file'),
+				this.uploadDigitalTwinFile
+			)
+			.get(
+				`${this.path}_download_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
+				digitalTwinDeviceGroupAndExist,
+				groupAdminAuth,
+				this.downloadDigitalTwinFile
+			)
+			.get(
+				`${this.path}_file_list/:groupId/:deviceId/:digitalTwinId/:folder`,
+				digitalTwinDeviceGroupAndExist,
+				groupAdminAuth,
+				this.getDigitalTwinFileList
+			)
+			.delete(
+				`${this.path}_delete_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
+				digitalTwinDeviceGroupAndExist,
+				groupAdminAuth,
+				this.deleteDigitalTwinFile
 			)
 	}
 
@@ -279,10 +328,10 @@ class DigitalTwinController implements IController {
 	): Promise<void> => {
 		try {
 			const { digitalTwinId } = req.params;
-			const digitalTwinGltfData = await getDigitalTwinGltfDataById(parseInt(digitalTwinId, 10));
-			if (!digitalTwinGltfData) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
-			const digitalTwinsExtended = await addMqttTopicsData(digitalTwinGltfData);
-			res.status(200).send(digitalTwinsExtended);
+			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
+			if (!digitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
+			const digitalTwinGltfData = await getDigitalTwinGltfData(digitalTwin);
+			res.status(200).send(digitalTwinGltfData);
 		} catch (error) {
 			next(error);
 		}
@@ -336,7 +385,7 @@ class DigitalTwinController implements IController {
 			const device = req.device;
 			const group = req.group;
 
-			let message: { message: string };
+			let message: { message: string, digitalTwinId: number };
 			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid)
 			if (!existDigitalTwin) {
 				const numDigitalTwinsInDevice = await getNumDigitalTwinsByDeviceId(device.id);
@@ -345,15 +394,106 @@ class DigitalTwinController implements IController {
 				}
 				const digitalTwin = await createDigitalTwin(group, device, digitalTwinData);
 				if (digitalTwin) {
-					message = { message: `A new digital twin has been created` };
+					message = {
+						message: `A new digital twin has been created`,
+						digitalTwinId: digitalTwin.id
+					};
 				} else {
 					throw new HttpException(400, "The dashboardUid inputted is not correct");
 				}
 			} else {
-				message = { message: `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist` };
 				throw new HttpException(400, `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`);
-
 			}
+			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private uploadDigitalTwinFile = async (
+		req: IRequestWithDigitalTwinDeviceAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		const { fileName } = req.params;
+		try {
+			const message = {
+				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
+			};
+			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private downloadDigitalTwinFile = async (
+		req: IRequestWithDigitalTwinDeviceAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		const group = req.group;
+		const { groupId, deviceId, digitalTwinId, folder, fileName } = req.params;
+		const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+		const fileKey = `${keyBase}/${folder}/${fileName}`;
+
+		const bucketParams = {
+			Bucket: process_env.S3_BUCKET_NAME,
+			Key: fileKey,
+		};
+
+		try {
+			const data = await s3Client.send(new GetObjectCommand(bucketParams));
+			const stream = data.Body as unknown as ReadStream;
+			stream.pipe(res);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getDigitalTwinFileList = async (
+		req: IRequestWithDigitalTwinDeviceAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		const group = req.group;
+		const { groupId, deviceId, digitalTwinId, folder } = req.params;
+		const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+		const folderPath = `${keyBase}/${folder}`
+
+		const bucketParams = {
+			Bucket: process_env.S3_BUCKET_NAME,
+			Prefix: folderPath,
+		};
+
+		try {
+			const data = await s3Client.send(new ListObjectsV2Command(bucketParams));
+			const folderPathLength = folderPath.length + 1;
+			const fileList = data.Contents.map(fileData => fileData.Key.slice(folderPathLength));
+			res.status(200).send(fileList);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private deleteDigitalTwinFile = async (
+		req: IRequestWithDigitalTwinDeviceAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		const group = req.group;
+		const { groupId, deviceId, digitalTwinId, folder, fileName } = req.params;
+		const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+		const fileKey = `${keyBase}/${folder}/${fileName}`;
+		const bucketParams = {
+			Bucket: process_env.S3_BUCKET_NAME,
+			Key: fileKey,
+		};
+
+		try {
+			await s3Client.send(new DeleteObjectCommand(bucketParams));
+			const message = {
+				message: `The file ${fileName} has been successfully deleted from the S3 bucket`,
+			};
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
