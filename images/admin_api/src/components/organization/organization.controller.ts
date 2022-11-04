@@ -59,7 +59,7 @@ import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic, demoTopicName } from "../topic/topicDAL";
-import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid, removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
 import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg, getNodeRedInstancesByOrgsIdArray, getNodeRedInstancesUnassignedInOrg } from "../nodeRedInstance/nodeRedInstanceDAL";
@@ -396,20 +396,16 @@ class OrganizationController implements IController {
 						digitalTwinUid: generateDigitalTwinUid(),
 						description: demoDigitalTwinDescription(group, "Temperature"),
 						type: "Grafana dashboard",
-						gltfFileName: "-",
-						gltfFileLastModifDateString: "-",
-						femSimDataFileName: "-",
-						femSimDataFileLastModifDateString: "-",
+						topicSensorTypes: [] as string[],
+						maxNumResFemFiles: 0,
 						digitalTwinSimulationFormat: "{}"
 					},
 					{
 						digitalTwinUid: generateDigitalTwinUid(),
 						description: demoDigitalTwinDescription(group, "Accelerations"),
 						type: "Grafana dashboard",
-						gltfFileName: "-",
-						gltfFileLastModifDateString: "-",
-						femSimDataFileName: "-",
-						femSimDataFileLastModifDateString: "-",
+						topicSensorTypes: [] as string[],
+						maxNumResFemFiles: 0,
 						digitalTwinSimulationFormat: "{}"
 					},
 				];
@@ -700,6 +696,8 @@ class OrganizationController implements IController {
 			await grafanaApi.switchOrgContextForAdmin(1);
 			await grafanaApi.deleteOrgApiAdminUser(organization.id);
 			const deleteOrgMessage = await grafanaApi.deleteOrganizationById(organization.id);
+			const bucketFolder = `org_${organization.id}`;
+			await removeFilesFromBucketFolder(bucketFolder);
 			if (deleteOrgMessage.message === "Organization deleted") {
 				res.status(200).json({ message: `Organization deleted successfully` });
 			} else {

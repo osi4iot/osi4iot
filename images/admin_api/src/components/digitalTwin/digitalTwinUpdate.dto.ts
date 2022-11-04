@@ -1,6 +1,6 @@
-import { IsNumber, IsString } from "class-validator";
+import { IsBoolean, IsNumber, IsString } from "class-validator";
 
-class CreateDigitalTwinDto {
+class UpdateDigitalTwinDto {
 	@IsString()
 	public digitalTwinUid: string;
 
@@ -10,14 +10,14 @@ class CreateDigitalTwinDto {
 	@IsString()
 	public type: string;
 
-	@IsString({each: true})
-	public topicSensorTypes: string[];
-
 	@IsNumber()
 	public maxNumResFemFiles: number;
+
+	@IsBoolean()
+	public isGltfFileModified: boolean;
 
 	@IsString()
 	public digitalTwinSimulationFormat: string;
 }
 
-export default CreateDigitalTwinDto;
+export default UpdateDigitalTwinDto;

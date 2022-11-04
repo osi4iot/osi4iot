@@ -30,6 +30,7 @@ import { getOrganizationsManagedByUserId } from "../organization/organizationDAL
 import { updateMeasurementsTopicByDevice } from "../mesurement/measurementDAL";
 import HttpException from "../../exceptions/HttpException";
 import sslDeviceCerticatesGenerator from "./sslDeviceCerticatesGenerator";
+import { removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
 
 class DeviceController implements IController {
 	public path = "/device";
@@ -208,6 +209,8 @@ class DeviceController implements IController {
 				throw new HttpException(400, `The main maser device can not be deleted`)
 			}
 			await deleteDeviceByProp(propName, propValue);
+			const bucketFolder = `org_${device.orgId}/group_${device.groupId}/device_${device.id}`;
+			await removeFilesFromBucketFolder(bucketFolder);
 			const message = { message: "Device deleted successfully" }
 			res.status(200).json(message);
 		} catch (error) {

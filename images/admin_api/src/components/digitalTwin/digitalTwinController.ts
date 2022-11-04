@@ -35,6 +35,9 @@ import {
 	generateDigitalTwinMqttTopics,
 	verifyAndCorrectDigitalTwinTopics,
 	getDigitalTwinGltfData,
+	getBucketFolderInfoFileList,
+	deleteBucketFile,
+	removeFilesFromBucketFolder,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -47,6 +50,7 @@ import process_env from "../../config/api_config";
 import { GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import digitalTwinDeviceGroupAndExist from "../../middleware/digitalTwinDeviceGroupAndExist.middleware";
 import IRequestWithDigitalTwinDeviceAndGroup from "../group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
+import UpdateDigitalTwinDto from "./digitalTwinUpdate.dto";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -131,7 +135,7 @@ class DigitalTwinController implements IController {
 				`${this.path}/:groupId/:deviceId/:digitalTwinId`,
 				deviceAndGroupExist,
 				groupAdminAuth,
-				validationMiddleware<CreateDigitalTwinDto>(CreateDigitalTwinDto, true),
+				validationMiddleware<UpdateDigitalTwinDto>(UpdateDigitalTwinDto),
 				this.updateDigitalTwinById
 			)
 			.post(
@@ -158,7 +162,7 @@ class DigitalTwinController implements IController {
 				`${this.path}_file_list/:groupId/:deviceId/:digitalTwinId/:folder`,
 				digitalTwinDeviceGroupAndExist,
 				groupAdminAuth,
-				this.getDigitalTwinFileList
+				this.getDigitalTwinFileInfoList
 			)
 			.delete(
 				`${this.path}_delete_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
@@ -347,6 +351,11 @@ class DigitalTwinController implements IController {
 			const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!digitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
 			await deleteDigitalTwinById(digitalTwin);
+			const orgId = digitalTwin.orgId;
+			const groupId = digitalTwin.groupId;
+			const deviceId = digitalTwin.deviceId;
+			const bucketFolder = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+			await removeFilesFromBucketFolder(bucketFolder);
 			const message = { message: "Digital twin deleted successfully" }
 			res.status(200).json(message);
 		} catch (error) {
@@ -365,8 +374,10 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!existentDigitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
-			const digitalTwinUpdate: IDigitalTwin = { ...existentDigitalTwin, ...digitalTwinData };
-			const digitalTwinUpdated = await verifyAndCorrectDigitalTwinTopics(digitalTwinUpdate, device);
+			let digitalTwinUpdated: IDigitalTwin = { ...existentDigitalTwin, ...digitalTwinData };
+			if (digitalTwinData.isGltfFileModified) {
+				digitalTwinUpdated = await verifyAndCorrectDigitalTwinTopics(digitalTwinUpdated, device);
+			}
 			await updateDigitalTwinById(parseInt(digitalTwinId, 10), digitalTwinUpdated);
 			const message = { message: "Digital twin updated successfully" }
 			res.status(200).json(message);
@@ -385,18 +396,19 @@ class DigitalTwinController implements IController {
 			const device = req.device;
 			const group = req.group;
 
-			let message: { message: string, digitalTwinId: number };
+			let response: { message: string, digitalTwinId: number, topicSensors: { id: number; topicName: string }[] };
 			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid)
 			if (!existDigitalTwin) {
 				const numDigitalTwinsInDevice = await getNumDigitalTwinsByDeviceId(device.id);
 				if (numDigitalTwinsInDevice === 12) {
 					throw new HttpException(400, "The maximun number of digital twins by device is 12.");
 				}
-				const digitalTwin = await createDigitalTwin(group, device, digitalTwinData);
+				const { digitalTwin, topicSensors } = await createDigitalTwin(group, device, digitalTwinData);
 				if (digitalTwin) {
-					message = {
+					response = {
 						message: `A new digital twin has been created`,
-						digitalTwinId: digitalTwin.id
+						digitalTwinId: digitalTwin.id,
+						topicSensors: topicSensors.map(topicSensor => { return { id: topicSensor.id, topicName: topicSensor.topicName } })
 					};
 				} else {
 					throw new HttpException(400, "The dashboardUid inputted is not correct");
@@ -404,7 +416,7 @@ class DigitalTwinController implements IController {
 			} else {
 				throw new HttpException(400, `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`);
 			}
-			res.status(200).send(message);
+			res.status(200).send(response);
 		} catch (error) {
 			next(error);
 		}
@@ -450,7 +462,7 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private getDigitalTwinFileList = async (
+	private getDigitalTwinFileInfoList = async (
 		req: IRequestWithDigitalTwinDeviceAndGroup,
 		res: Response,
 		next: NextFunction
@@ -460,20 +472,14 @@ class DigitalTwinController implements IController {
 		const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
 		const folderPath = `${keyBase}/${folder}`
 
-		const bucketParams = {
-			Bucket: process_env.S3_BUCKET_NAME,
-			Prefix: folderPath,
-		};
-
 		try {
-			const data = await s3Client.send(new ListObjectsV2Command(bucketParams));
-			const folderPathLength = folderPath.length + 1;
-			const fileList = data.Contents.map(fileData => fileData.Key.slice(folderPathLength));
-			res.status(200).send(fileList);
+			const fileInfoList = await getBucketFolderInfoFileList(folderPath)
+			res.status(200).send(fileInfoList);
 		} catch (error) {
 			next(error);
 		}
 	};
+
 
 	private deleteDigitalTwinFile = async (
 		req: IRequestWithDigitalTwinDeviceAndGroup,
@@ -484,13 +490,8 @@ class DigitalTwinController implements IController {
 		const { groupId, deviceId, digitalTwinId, folder, fileName } = req.params;
 		const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
 		const fileKey = `${keyBase}/${folder}/${fileName}`;
-		const bucketParams = {
-			Bucket: process_env.S3_BUCKET_NAME,
-			Key: fileKey,
-		};
-
 		try {
-			await s3Client.send(new DeleteObjectCommand(bucketParams));
+			await deleteBucketFile(fileKey);
 			const message = {
 				message: `The file ${fileName} has been successfully deleted from the S3 bucket`,
 			};

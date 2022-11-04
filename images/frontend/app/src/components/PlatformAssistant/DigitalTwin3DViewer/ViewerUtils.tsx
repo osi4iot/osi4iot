@@ -62,7 +62,7 @@ export interface IDigitalTwinGltfData {
 	id: number;
 	gltfData: any;
 	digitalTwinGltfUrl: string | null;
-	femSimulationData: any;
+	femResData: any;
 	femSimulationUrl: string | null;
 	mqttTopicsData: IMqttTopicData[];
 	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
@@ -269,8 +269,8 @@ export const generateInitialFemSimObjectsState = (
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const payloadObject = lastMeasurement?.payload as any;
 	let resultFields = [];
-	if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
-		resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+	if (Object.keys(digitalTwinGltfData.femResData).length !== 0) {
+		resultFields = digitalTwinGltfData.femResData.metadata.resultFields;
 	}
 	for (let imesh = 0; imesh < femSimulationObjects.length; imesh++) {
 		const obj = femSimulationObjects[imesh];
@@ -280,7 +280,7 @@ export const generateInitialFemSimObjectsState = (
 			if (lastMeasurement) {
 				resultFieldModalValues[resultName] = payloadObject.femResultsModalValues[imesh][ires];
 			} else {
-				const meshResult = digitalTwinGltfData.femSimulationData.meshResults[imesh];
+				const meshResult = digitalTwinGltfData.femResData.meshResults[imesh];
 				const defaultValues = meshResult.resultFields[resultName].defaultModalValues;
 				resultFieldModalValues[resultName] = defaultValues;
 			}
@@ -826,8 +826,8 @@ export const readFemSimulationInfo = (
 
 	const femSimulationGeneralInfo: Record<string, IResultRenderInfo> = {};
 	let resultFields = [];
-	if (Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
-		resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+	if (Object.keys(digitalTwinGltfData.femResData).length !== 0) {
+		resultFields = digitalTwinGltfData.femResData.metadata.resultFields;
 	}
 
 	for (let ires = 0; ires < resultFields.length; ires++) {

@@ -6385,7 +6385,7 @@
 				"gltfData": {
 					"type": "string"
 				},
-				"femSimulationData": {
+				"femResData": {
 					"type": "string"
 				},
 				"digitalTwinSimulationFormat": {

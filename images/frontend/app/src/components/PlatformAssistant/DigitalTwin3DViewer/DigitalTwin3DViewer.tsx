@@ -418,8 +418,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	};
 
 	let femResultNames: string[] = [];
-	if (femSimulationObjects.length !== 0 && Object.keys(digitalTwinGltfData.femSimulationData).length !== 0) {
-		femResultNames = digitalTwinGltfData.femSimulationData.metadata.resultFields.map(
+	if (femSimulationObjects.length !== 0 && Object.keys(digitalTwinGltfData.femResData).length !== 0) {
+		femResultNames = digitalTwinGltfData.femResData.metadata.resultFields.map(
 			(resultField: { resultName: string; }) => resultField.resultName
 		);
 	}
@@ -599,7 +599,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
 			if (femMinValuesFiltered.length !== 0) {
 				const sortedFemMinValues = femMinValuesFiltered.slice().sort((a, b) => a - b);
-				const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+				const resultFields = digitalTwinGltfData.femResData.metadata.resultFields;
 				const resultFieldFiltered = resultFields.filter((result: { resultName: string; }) => result.resultName === opts.femSimulationResult)[0];
 				const units = resultFieldFiltered.units;
 				(femMinValueRef.current as any).innerHTML = `Min value: ${sortedFemMinValues[0].toExponential(4)} ${units}`;
@@ -628,7 +628,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
 			if (femMaxValuesFiltered.length !== 0) {
 				const sortedFemMaxValues = femMaxValuesFiltered.slice().sort((a, b) => b - a);
-				const resultFields = digitalTwinGltfData.femSimulationData.metadata.resultFields;
+				const resultFields = digitalTwinGltfData.femResData.metadata.resultFields;
 				const resultFieldFiltered = resultFields.filter((result: { resultName: string; }) => result.resultName === opts.femSimulationResult)[0];
 				const units = resultFieldFiltered.units;
 				(femMaxValueRef.current as any).innerHTML = `Max value: ${sortedFemMaxValues[0].toExponential(4)} ${units}`;

@@ -178,13 +178,13 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                 .then((response) => {
                     const digitalTwinGltfData = response.data;
                     const gltfData = digitalTwinGltfData.gltfData;
-                    if (Object.keys(gltfData).length) {
-                        digitalTwinGltfData.digitalTwinGltfUrl = createUrl(JSON.stringify(gltfData));
+                    if (gltfData !== '{}') {
+                        digitalTwinGltfData.digitalTwinGltfUrl = createUrl(gltfData);
                     } else digitalTwinGltfData.digitalTwinGltfUrl = null;
 
-                    const femSimulationData = digitalTwinGltfData.femSimulationData;
-                    if (Object.keys(femSimulationData).length) {
-                        digitalTwinGltfData.femSimulationUrl = createUrl(JSON.stringify(femSimulationData));
+                    const femResData = digitalTwinGltfData.femResData;
+                    if (femResData !== '{}') {
+                        digitalTwinGltfData.femSimulationUrl = createUrl(femResData);
                     } else digitalTwinGltfData.femSimulationUrl = null;
 
                     const mqttTopics = digitalTwinGltfData.mqttTopicsData.map((topicData: IMqttTopicData) => topicData.mqttTopic);

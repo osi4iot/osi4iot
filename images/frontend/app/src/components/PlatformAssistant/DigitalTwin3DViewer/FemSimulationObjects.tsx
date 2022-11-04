@@ -53,13 +53,13 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     material.transparent = (defOpacity * opacity) === 1 ? false : true;
     let lastIntervalTime = 0;
     let meshResult: any = null;
-    const isThereFemSimulationData = Object.keys(digitalTwinGltfData.femSimulationData).length !== 0;
-    if (isThereFemSimulationData) {
-        meshResult = digitalTwinGltfData.femSimulationData.meshResults[meshIndex];
+    const isThereFemResData = Object.keys(digitalTwinGltfData.femResData).length !== 0;
+    if (isThereFemResData) {
+        meshResult = digitalTwinGltfData.femResData.meshResults[meshIndex];
     }
     let deformationFields: string[] = [];
-    if (isThereFemSimulationData && digitalTwinGltfData.femSimulationData.metadata.deformationFields) {
-        deformationFields = digitalTwinGltfData.femSimulationData.metadata.deformationFields;
+    if (isThereFemResData && digitalTwinGltfData.femResData.metadata.deformationFields) {
+        deformationFields = digitalTwinGltfData.femResData.metadata.deformationFields;
     }
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);

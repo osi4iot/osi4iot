@@ -231,9 +231,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	}, [])
 
 	const openDigitalTwin3DViewer = useCallback((digitalTwinGltfData: IDigitalTwinGltfData) => {
+		digitalTwinGltfData.gltfData = JSON.parse(digitalTwinGltfData.gltfData);
+		digitalTwinGltfData.femResData = JSON.parse(digitalTwinGltfData.femResData);
 		setDigitalTwinGltfData(digitalTwinGltfData)
 		setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)
-
 	}, [])
 
 	const setNewOuterBounds = (outerBounds: number[][]) => {

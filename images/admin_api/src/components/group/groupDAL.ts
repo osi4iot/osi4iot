@@ -527,15 +527,9 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				floor_number AS "floorNumber",
 				feature_index AS "featureIndex",
 				outer_bounds AS "outerBounds",
-				 mqtt_access_control AS "mqttAccessControl",
-				grafanadb.nodered_instance.id AS "nriInGroupId",
-				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
-				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
-				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
-				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
+				mqtt_access_control AS "mqttAccessControl",
 				grafanadb.group.created, grafanadb.group.updated
 				FROM grafanadb.group
-				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
 	const result = await pool.query(query, [orgId, true]);
 	return result.rows[0];

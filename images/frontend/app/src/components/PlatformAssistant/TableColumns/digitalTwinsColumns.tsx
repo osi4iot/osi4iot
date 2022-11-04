@@ -23,6 +23,7 @@ export interface IDigitalTwin {
     gltfFileLastModifDateString: string;
     femSimDataFileName: string;
     femSimDataFileLastModifDateString: string;
+    maxNumResFemFiles: number;
     digitalTwinSimulationFormat: string;
     dashboardUrl: string;
 }
@@ -191,6 +192,11 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
         {
             Header: "femSimDataFileLastModifDateString",
             accessor: "femSimDataFileLastModifDateString",
+            disableFilters: true,
+        },
+        {
+            Header: "maxNumResFemFiles",
+            accessor: "maxNumResFemFiles",
             disableFilters: true,
         },
         {

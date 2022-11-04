@@ -372,6 +372,7 @@ const hiddenColumnCondition = (col: any) => {
         col.Header === "gltfFileLastModifDateString" ||
         col.Header === "femSimDataFileName" ||
         col.Header === "femSimDataFileLastModifDateString" ||
+        col.Header === "maxNumResFemFiles" ||
         col.Header === "digitalTwinSimulationFormat" ||
         col.Header === "telegramInvitationLink" ||
         col.Header === "telegramChatId" ||

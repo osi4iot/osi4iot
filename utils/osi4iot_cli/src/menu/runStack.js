@@ -87,6 +87,7 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
 			encryption = "-opt encrypted=true";
 		}
+
 		const networks = execSync(`docker ${dockerHost} network ls`);
 		if (networks.toString().indexOf("traefik_public") === -1) {
 			execSync(`docker ${dockerHost} network create -d overlay ${encryption} traefik_public`);

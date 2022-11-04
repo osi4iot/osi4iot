@@ -7,12 +7,7 @@ export default interface IDigitalTwin {
 	description: string;
 	type: string;
 	dashboardId: number;
-	gltfData: string;
-	gltfFileName: string;
-	gltfFileLastModifDateString: string;
-	femSimulationData: string;
-	femSimDataFileName: string;
-	femSimDataFileLastModifDateString: string;
+	maxNumResFemFiles: number;
 	digitalTwinSimulationFormat: string;
 	created?: string;
 	updated?: string;

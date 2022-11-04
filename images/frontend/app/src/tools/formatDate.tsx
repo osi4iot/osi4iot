@@ -1,3 +1,15 @@
+const getMonth = (date: Date) => {
+    let months: string | number = date.getMonth() + 1;
+    if (months < 10) months = `0${months}`;
+    return months;
+}
+
+const getDay = (date: Date) => {
+    let days: string | number = date.getDate();
+    if (days < 10) days = `0${days}`;
+    return days;
+}
+
 const getMinutes = (date: Date) => {
     let minutes: string | number = date.getMinutes();
     if (minutes < 10) minutes = `0${minutes}`;
@@ -15,7 +27,7 @@ const formatDateString = (dateString: string): string => {
     let formatedDated = dateString;
     if (dateString !== "-") {
         const date = new Date(dateString);
-        formatedDated = date.getFullYear() + "-" + (date.getMonth() + 1) + "-" + date.getDate() + " " + date.getHours() + ":" + getMinutes(date) + ":" + getSeconds(date);
+        formatedDated = date.getFullYear() + "-" + getMonth(date) + "-" + getDay(date) + " " + date.getHours() + ":" + getMinutes(date) + ":" + getSeconds(date);
     }
     return formatedDated;
 };

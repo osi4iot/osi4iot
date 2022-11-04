@@ -29,43 +29,7 @@ import IMqttDigitalTwinTopicInfo from "./mqttDigitalTwinTopicInfo.interface";
 import ITopic from "../topic/topic.interface";
 import process_env from "../../config/api_config";
 import s3Client from "../../config/s3Config";
-import { GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3";
-
-
-export const getTopicSensorTypesFromDigitalTwin = (digitalTwin: Partial<IDigitalTwin>): string[] => {
-	const topicTypes: string[] = [];
-	if (digitalTwin.type === "Gltf 3D model") {
-		let gltfData: any = digitalTwin.gltfData;
-		if (typeof gltfData === "string") gltfData = JSON.parse(gltfData);
-		if (Object.keys(gltfData).length && gltfData.nodes?.length !== 0) {
-			const meshNodes: { name?: string; mesh?: number; extras: { topicType: string; }; }[] = [];
-			gltfData.nodes.forEach((node: { name?: string; mesh?: number; extras: { topicType: string; }; }) => {
-				if (node.mesh !== undefined && node.extras !== undefined) meshNodes.push(node);
-			})
-
-			meshNodes.forEach((node: { extras: { topicType: string; type: string; clipTopicTypes: string[] }; }) => {
-				if (node.extras?.type !== undefined && node.extras?.type === "sensor") {
-					const topicType = node.extras?.topicType;
-					if (topicType && topicTypes.findIndex(type => type === topicType) === -1) {
-						topicTypes.push(topicType)
-					}
-				}
-				if (node.extras?.clipTopicTypes !== undefined && node.extras?.clipTopicTypes.length !== 0) {
-					node.extras?.clipTopicTypes.forEach(topicType => {
-						if (topicType && topicTypes.findIndex(type => type === topicType) === -1) {
-							topicTypes.push(topicType);
-						}
-					})
-				}
-			})
-		}
-
-	} else if (digitalTwin.type === "Grafana dashboard") {
-		topicTypes.push("dev2pdb_1");
-	}
-
-	return topicTypes;
-}
+import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
 
 const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: string): string => {
 	const digitalTwinSimulationFormatObj = JSON.parse(digitalTwinSimulationFormat);
@@ -80,9 +44,122 @@ const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: strin
 	return payload;
 }
 
-export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Partial<IDigitalTwin>, device: IDevice): Promise<Partial<IDigitalTwin>> => {
+interface IMeshNode {
+	name?: string;
+	mesh?: number;
+	extras: {
+		topicType: string;
+		type: string;
+		clipTopicTypes: string[];
+	};
+}
+
+
+const getTopicSensorTypesFromDigitalTwin = (type: string, gltfFileData: any): string[] => {
 	const topicTypes: string[] = [];
-	const topicSensorTypes = getTopicSensorTypesFromDigitalTwin(digitalTwinUpdate);
+	if (type === "Gltf 3D model") {
+		if (typeof gltfFileData === "string") gltfFileData = JSON.parse(gltfFileData);
+		if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
+			const meshNodes: IMeshNode[] = [];
+			gltfFileData.nodes.forEach((node: IMeshNode) => {
+				if (node.mesh !== undefined && node.extras !== undefined) meshNodes.push(node);
+			})
+
+			meshNodes.forEach((node: IMeshNode) => {
+				if (node.extras?.type !== undefined && node.extras?.type === "sensor") {
+					const topicType = node.extras?.topicType;
+					if (topicType && topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
+						topicTypes.push(topicType)
+					}
+				}
+				if (node.extras?.clipTopicTypes !== undefined && node.extras?.clipTopicTypes.length !== 0) {
+					node.extras?.clipTopicTypes.forEach(topicType => {
+						if (topicType && topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
+							topicTypes.push(topicType);
+						}
+					})
+				}
+			})
+		}
+
+	} else if (type === "Grafana dashboard") {
+		topicTypes.push("dev2pdb_1");
+	}
+
+	return topicTypes;
+}
+
+const findTopicSensorId = (topicName: string, topicSensors: ITopic[]) => {
+	let sensorTopicId = -1;
+	for (const topicSensor of topicSensors) {
+		const topicSensorIndex = parseInt(topicSensor.topicName.split("_").slice(-1)[0], 10);
+		if (topicName === `dev2pdb_${topicSensorIndex}`) {
+			sensorTopicId = topicSensor.id;
+		}
+	}
+	return sensorTopicId;
+}
+
+export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
+	gltfFileName: string,
+	gltfFileData: any,
+	topicSensors: ITopic[],
+	digitalTwinUpdated: IDigitalTwin,
+) => {
+	if (typeof gltfFileData === "string") gltfFileData = JSON.parse(gltfFileData);
+	if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
+		gltfFileData.nodes.forEach(
+			(
+				node: {
+					name?: string; mesh?: number;
+					extras: { topicType: string; topicId: number; type: string; clipTopicTypes: string[]; clipTopicIds: number[]; };
+				}
+			) => {
+				if (node.mesh !== undefined && node.extras !== undefined) {
+					if (node.extras.type !== undefined && node.extras.type === "sensor") {
+						const topicType = node.extras?.topicType;
+						if (topicType) {
+							const topicSensorId = findTopicSensorId(topicType, topicSensors);
+							node.extras.topicId = topicSensorId;
+						}
+					}
+					if (node.extras.clipTopicTypes !== undefined && node.extras.clipTopicTypes.length !== 0) {
+						node.extras.clipTopicIds = [];
+						node.extras?.clipTopicTypes.forEach(topicType => {
+							if (topicType) {
+								const topicSensorId = findTopicSensorId(topicType, topicSensors);
+								node.extras.clipTopicIds.push(topicSensorId);
+							}
+						})
+					}
+				}
+
+			})
+		const orgId = digitalTwinUpdated.orgId;
+		const groupId = digitalTwinUpdated.groupId;
+		const deviceId = digitalTwinUpdated.deviceId;
+		const digitalTwinId = digitalTwinUpdated.id;
+		const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+		const fileKey = `${keyBase}/gltfFile/${gltfFileName}`
+		const bucketParams = {
+			Bucket: process_env.S3_BUCKET_NAME,
+			Key: fileKey,
+		};
+		await s3Client.send(new PutObjectCommand(bucketParams));
+	}
+}
+
+interface IGltfFileData {
+	gltfFileName: string;
+	gltfFileData: string;
+}
+
+export const verifyAndCorrectDigitalTwinTopics = async (
+	digitalTwinUpdate: IDigitalTwin,
+	device: IDevice): Promise<IDigitalTwin> => {
+	const { gltfFileName, gltfFileData } = await getGltfFileData(digitalTwinUpdate);
+	const topicSensorTypes = getTopicSensorTypesFromDigitalTwin(digitalTwinUpdate.type, gltfFileData);
+	const topicTypes: string[] = [];
 	topicTypes.push(...topicSensorTypes);
 	if (digitalTwinUpdate.type === "Gltf 3D model") {
 		topicTypes.push("dev_sim_2dtm", "dtm_as2pdb", "dtm_sim_as2dts", "dtm_fmv2pdb", "dtm_sim_fmv2dts");
@@ -200,64 +277,12 @@ export const verifyAndCorrectDigitalTwinTopics = async (digitalTwinUpdate: Parti
 		}
 	}
 
-	let digitalTwinUpdated: Partial<IDigitalTwin> = { ...digitalTwinUpdate, deviceId: device.id, dashboardId: digitalTwinUpdate.dashboardId };
+	const digitalTwinUpdated: IDigitalTwin = { ...digitalTwinUpdate, deviceId: device.id, dashboardId: digitalTwinUpdate.dashboardId };
 	const sensorTopics = await getSensorTopicsOfDTByDigitalTwinId(digitalTwinUpdated.id);
 	if (digitalTwinUpdated.type === "Gltf 3D model") {
-		digitalTwinUpdated = updatedTopicSensorIdsFromDigitalTwinGltfData(digitalTwinUpdated, sensorTopics);
+		await updatedTopicSensorIdsFromDigitalTwinGltfData(gltfFileName, gltfFileData, sensorTopics, digitalTwinUpdated);
+		await checkMaxNumberOfFemResFiles(digitalTwinUpdate);
 	}
-	return digitalTwinUpdated;
-}
-
-const findTopicSensorId = (topicName: string, topicSensors: Partial<ITopic>[]) => {
-	let sensorTopicId = -1;
-	for (const topicSensor of topicSensors) {
-		const topicSensorIndex = parseInt(topicSensor.topicName.split("_").slice(-1)[0], 10);
-		if (topicName === `dev2pdb_${topicSensorIndex}`) {
-			sensorTopicId = topicSensor.id;
-		}
-	}
-	return sensorTopicId;
-}
-
-export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
-	digitalTwin: Partial<IDigitalTwin>,
-	topicSensors: ITopic[]
-): Partial<IDigitalTwin> => {
-	const digitalTwinUpdated = { ...digitalTwin };
-
-	let gltfData: any = digitalTwinUpdated.gltfData;
-	if (typeof gltfData === "string") gltfData = JSON.parse(gltfData);
-	if (Object.keys(gltfData).length && gltfData.nodes?.length !== 0) {
-		gltfData.nodes.forEach(
-			(
-				node: {
-					name?: string; mesh?: number;
-					extras: { topicType: string; topicId: number; type: string; clipTopicTypes: string[]; clipTopicIds: number[]; };
-				}
-			) => {
-				if (node.mesh !== undefined && node.extras !== undefined) {
-					if (node.extras.type && node.extras.type === "sensor") {
-						const topicType = node.extras?.topicType;
-						if (topicType) {
-							const topicSensorId = findTopicSensorId(topicType, topicSensors);
-							node.extras.topicId = topicSensorId;
-						}
-					}
-					if (node.extras.clipTopicTypes && node.extras.clipTopicTypes.length !== 0) {
-						node.extras.clipTopicIds = [];
-						node.extras?.clipTopicTypes.forEach(topicType => {
-							if (topicType) {
-								const topicSensorId = findTopicSensorId(topicType, topicSensors);
-								node.extras.clipTopicIds.push(topicSensorId);
-							}
-						})
-					}
-				}
-
-			})
-	}
-
-	digitalTwinUpdated.gltfData = gltfData;
 	return digitalTwinUpdated;
 }
 
@@ -344,16 +369,11 @@ export const generateDigitalTwinUid = (): string => {
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const result = await pool.query(`INSERT INTO grafanadb.digital_twin (device_id,
-					digital_twin_uid, description, type, dashboard_id, gltf_file_name,
-					gltf_file_last_modif_date_string,
-					femsimdata_file_name, femsimdata_file_last_modif_date_string,
+					digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
 					digital_twin_simulation_format, created, updated)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+					VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 					RETURNING  id, device_id AS "deviceId", digital_twin_uid AS "digitalTwinUid", description,
-					type, dashboard_id AS "dashboardId", gltf_file_name AS "gltfFileName",
-					gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
-					femsimdata_file_name AS "femSimDataFileName",
-					femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+					type, dashboard_id AS "dashboardId",
 					digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 					created, updated`,
 		[
@@ -362,10 +382,7 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 			digitalTwinData.description,
 			digitalTwinData.type,
 			digitalTwinData.dashboardId,
-			digitalTwinData.gltfFileName,
-			digitalTwinData.gltfFileLastModifDateString,
-			digitalTwinData.femSimDataFileName,
-			digitalTwinData.femSimDataFileLastModifDateString,
+			digitalTwinData.maxNumResFemFiles,
 			digitalTwinData.digitalTwinSimulationFormat
 		]);
 	return result.rows[0];
@@ -449,19 +466,13 @@ export const generateDigitalTwinMqttTopics = (digitalTwinMqttTopicsInfo: IMqttDi
 
 
 export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinData: Partial<IDigitalTwin>): Promise<void> => {
-	const query = `UPDATE grafanadb.digital_twin SET digital_twin_uid = $1, description = $2, type = $3,
-					gltf_file_name = $4, gltf_file_last_modif_date_string = $5,
-					femsimdata_file_name = $6, femsimdata_file_last_modif_date_string = $7,
-					digital_twin_simulation_format = $8,
-					updated = NOW() WHERE grafanadb.digital_twin.id = $9;`;
+	const query = `UPDATE grafanadb.digital_twin SET digital_twin_uid = $1, description = $2, type = $3, max_num_resfem_files = $4,
+					digital_twin_simulation_format = $5, updated = NOW() WHERE grafanadb.digital_twin.id = $6;`;
 	const result = await pool.query(query, [
 		digitalTwinData.digitalTwinUid,
 		digitalTwinData.description,
 		digitalTwinData.type,
-		digitalTwinData.gltfFileName,
-		digitalTwinData.gltfFileLastModifDateString,
-		digitalTwinData.femSimDataFileName,
-		digitalTwinData.femSimDataFileLastModifDateString,
+		digitalTwinData.maxNumResFemFiles,
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinId
 	]);
@@ -479,19 +490,24 @@ export const deleteDigitalTwinById = async (digitalTwin: IDigitalTwin): Promise<
 	await deleteDigitalTwin(digitalTwin.id);
 };
 
+interface ICreateDigitalTwin {
+	digitalTwin: IDigitalTwin | null;
+	topicSensors: ITopic[];
+}
+
 export const createDigitalTwin = async (
 	group: IGroup,
 	device: IDevice,
 	digitalTwinInput: CreateDigitalTwinDto,
 	dashboardId: number | null = null,
 	alreadyCreatedTopic: ITopic | null = null
-): Promise<Partial<IDigitalTwin> | null> => {
+): Promise<ICreateDigitalTwin> => {
 	const deviceId = device.id;
 	const digitalTwinUid = digitalTwinInput.digitalTwinUid;
 
 	let topicSensors: ITopic[] = [];
 	if (!alreadyCreatedTopic) {
-		const topicSensorTypes = getTopicSensorTypesFromDigitalTwin(digitalTwinInput);
+		const topicSensorTypes = digitalTwinInput.topicSensorTypes;
 		const topicSensorQueries: any[] = [];
 		for (const topicSensorType of topicSensorTypes) {
 			const sensorTopicData =
@@ -515,10 +531,7 @@ export const createDigitalTwin = async (
 		digitalTwinDashboardId = await createDashboard(group, device, topicSensors[0], digitalTwinUid);
 	}
 
-	let digitalTwinUpdated: Partial<IDigitalTwin> = { ...digitalTwinInput, deviceId, dashboardId: digitalTwinDashboardId };
-	if (digitalTwinInput.type === "Gltf 3D model") {
-		digitalTwinUpdated = updatedTopicSensorIdsFromDigitalTwinGltfData(digitalTwinUpdated, topicSensors);
-	}
+	const digitalTwinUpdated: Partial<IDigitalTwin> = { ...digitalTwinInput, deviceId, dashboardId: digitalTwinDashboardId };
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 
 	const digitalTwinTopicSensorQueries: any[] = [];
@@ -589,18 +602,15 @@ export const createDigitalTwin = async (
 
 	}
 
-	return digitalTwin;
+	return { digitalTwin, topicSensors };
 };
 
 export const getDigitalTwinByProp = async (propName: string, propValue: (string | number)): Promise<IDigitalTwin> => {
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
 									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.gltf_file_name AS "gltfFileName",
-									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
-									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
-									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+									grafanadb.digital_twin.dashboard_id AS "dashboardId",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -609,37 +619,67 @@ export const getDigitalTwinByProp = async (propName: string, propValue: (string 
 	return response.rows[0];
 }
 
-export const getDigitalTwinGltfDataByIdOld = async (digitalTwinId: number): Promise<IDigitalTwinGltfData> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id,
-									grafanadb.digital_twin.gltfdata AS "gltfData",
-									grafanadb.digital_twin.fem_simulation_data AS "femSimulationData",
-									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat"
-									FROM grafanadb.digital_twin
-									WHERE grafanadb.digital_twin.id = $1`, [digitalTwinId]);
-	return response.rows[0];
+export const getGltfFileData = async (digitalTwin: IDigitalTwin): Promise<IGltfFileData> => {
+	const orgId = digitalTwin.orgId;
+	const groupId = digitalTwin.groupId;
+	const deviceId = digitalTwin.deviceId;
+	const digitalTwinId = digitalTwin.id;
+	const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+	const gltfFileFolder = `${keyBase}/gltfFile`;
+	const gltfFileList = await getBucketFolderFileList(gltfFileFolder);
+	let gltfFileName = "";
+
+	let gltfFileData = '{}';
+	if (gltfFileList.length !== 0) {
+		gltfFileName = gltfFileList[0];
+		const bucketParamsGltfFile = {
+			Bucket: process_env.S3_BUCKET_NAME,
+			Key: gltfFileName
+		};
+		const data = await s3Client.send(new GetObjectCommand(bucketParamsGltfFile));
+		gltfFileData = await data.Body.transformToString();
+	}
+
+	return { gltfFileName, gltfFileData };
 }
 
 export const getDigitalTwinGltfData = async (digitalTwin: IDigitalTwin): Promise<IDigitalTwinGltfData> => {
 	const orgId = digitalTwin.orgId;
 	const groupId = digitalTwin.groupId;
 	const deviceId = digitalTwin.deviceId;
-	const digitalTwinId  = digitalTwin.deviceId;
+	const digitalTwinId = digitalTwin.id;
 	const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
-	const fileName = digitalTwin.gltfFileName;
-	const gltfFileKey = `${keyBase}/gltfFile/${fileName}`;
+	const gltfFileFolder = `${keyBase}/gltfFile`;
+	const gltfFileList = await getBucketFolderFileList(gltfFileFolder);
 
-	const bucketParamsGltfFile = {
-		Bucket: process_env.S3_BUCKET_NAME,
-		Key: gltfFileKey
-	};
-	const data = await s3Client.send(new GetObjectCommand(bucketParamsGltfFile));
-	const gltfFileData = await data.Body.transformToString();
+	let gltfFileData = '{}';
+	if (gltfFileList.length !== 0) {
+		const bucketParamsGltfFile = {
+			Bucket: process_env.S3_BUCKET_NAME,
+			Key: gltfFileList[0]
+		};
+		const data = await s3Client.send(new GetObjectCommand(bucketParamsGltfFile));
+		gltfFileData = await data.Body.transformToString();
+	}
+
+	const femResFilesFolder = `${keyBase}/femResFiles`;
+	const femResFileList = await getBucketFolderFileList(femResFilesFolder);
+	let femResFileData = '{}';
+	if (femResFileList.length !== 0) {
+		const bucketParamsFemResFile = {
+			Bucket: process_env.S3_BUCKET_NAME,
+			Key: femResFileList[0]
+		};
+		const data = await s3Client.send(new GetObjectCommand(bucketParamsFemResFile));
+		femResFileData = await data.Body.transformToString();
+	}
+
 	const mqttTopicsData = await getMqttTopicsData(digitalTwinId);
 
 	const gltfData = {
 		id: digitalTwinId,
 		gltfData: gltfFileData,
-		femSimulationData: '{}',
+		femResData: femResFileData,
 		digitalTwinSimulationFormat: digitalTwin.digitalTwinSimulationFormat,
 		mqttTopicsData
 	}
@@ -651,11 +691,8 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
 									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.gltf_file_name AS "gltfFileName",
-									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
-									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
-									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+									grafanadb.digital_twin.dashboard_id AS "dashboardId",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -717,11 +754,8 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
 									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.gltf_file_name AS "gltfFileName",
-									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
-									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
-									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+									grafanadb.digital_twin.dashboard_id AS "dashboardId",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -737,11 +771,8 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
 									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.gltf_file_name AS "gltfFileName",
-									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
-									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
-									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+									grafanadb.digital_twin.dashboard_id AS "dashboardId",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -803,11 +834,8 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
 									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
 									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.gltf_file_name AS "gltfFileName",
-									grafanadb.digital_twin.gltf_file_last_modif_date_string AS "gltfFileLastModifDateString",
-									grafanadb.digital_twin.femsimdata_file_name AS "femSimDataFileName",
-									grafanadb.digital_twin.femsimdata_file_last_modif_date_string AS "femSimDataFileLastModifDateString",
+									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+									grafanadb.digital_twin.dashboard_id AS "dashboardId",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -895,6 +923,97 @@ const generateDashboardUrl = (dashboardInfo: IDashboardInfo): string => {
 	}
 	return dashboardUrl;
 }
+
+const getBucketFolderFileList = async (folderPath: string): Promise<string[]> => {
+	const bucketParams = {
+		Bucket: process_env.S3_BUCKET_NAME,
+		Prefix: folderPath,
+	};
+
+	let fileList: string[] = [];
+	const data = await s3Client.send(new ListObjectsV2Command(bucketParams));
+	if (data.KeyCount !== 0) {
+		fileList = data.Contents.map(fileData => fileData.Key);
+	}
+	return fileList;
+}
+
+export interface IBucketFileInfoList {
+	fileName: string;
+	lastModified: string
+}
+
+export const getBucketFolderInfoFileList = async (folderPath: string): Promise<IBucketFileInfoList[]> => {
+	const bucketParams = {
+		Bucket: process_env.S3_BUCKET_NAME,
+		Prefix: folderPath,
+	};
+	const data = await s3Client.send(new ListObjectsV2Command(bucketParams));
+	let fileInfoList: IBucketFileInfoList[] = [];
+	if (data.Contents.length !== 0) {
+		const folderPathLength = folderPath.length + 1;
+		fileInfoList = data.Contents.map(fileinfo => {
+			const fileData = {
+				fileName: fileinfo.Key.slice(folderPathLength),
+				lastModified: fileinfo.LastModified.toString()
+			}
+			return fileData;
+		});
+
+		fileInfoList.sort((a, b) => {
+			const c = new Date(a.lastModified).getTime() as number;
+			const d = new Date(b.lastModified).getTime() as number;
+			return c - d;
+		});
+	}
+	return fileInfoList;
+}
+
+const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => {
+	const orgId = digitalTwin.orgId;
+	const groupId = digitalTwin.groupId;
+	const deviceId = digitalTwin.deviceId;
+	const digitalTwinId = digitalTwin.id;
+	const maxNumResFemFiles = digitalTwin.maxNumResFemFiles;
+	const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+	const folderPath = `${keyBase}/femResFiles`
+
+	const femResFileInfoList = await getBucketFolderInfoFileList(folderPath);
+	if (femResFileInfoList.length > maxNumResFemFiles) {
+		const femResFileInfoListFiltered = femResFileInfoList.slice(maxNumResFemFiles);
+		const femResFileKeysToRemove = femResFileInfoListFiltered.map(file => file.fileName);
+		await deleteBucketFiles(femResFileKeysToRemove);
+	}
+}
+
+
+export const deleteBucketFile = async (fileKey: string) => {
+	const bucketParams = {
+		Bucket: process_env.S3_BUCKET_NAME,
+		Key: fileKey,
+	};
+	await s3Client.send(new DeleteObjectCommand(bucketParams));
+}
+
+export const deleteBucketFiles = async (filesToRemove: string[]) => {
+	const fileKeys = filesToRemove.map(file => {
+		const key = file;
+		return { Key: key }
+	});
+	const bucketParams = {
+		Bucket: process_env.S3_BUCKET_NAME,
+		Delete: {
+			Objects: fileKeys
+		}
+	};
+	await s3Client.send(new DeleteObjectsCommand(bucketParams));
+}
+
+export const removeFilesFromBucketFolder = async (folderPath: string) => {
+	const filesToRemove = await getBucketFolderFileList(folderPath);
+	await deleteBucketFiles(filesToRemove);
+}
+
 
 
 

@@ -48,7 +48,7 @@ import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic, demoTopicName } from "../topic/topicDAL";
-import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid, removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import {
@@ -350,20 +350,16 @@ class GroupController implements IController {
 					digitalTwinUid: generateDigitalTwinUid(),
 					description: demoDigitalTwinDescription(groupCreated, "Temperature"),
 					type: "Grafana dashboard",
-					gltfFileName: "-",
-					gltfFileLastModifDateString: "-",
-					femSimDataFileName: "-",
-					femSimDataFileLastModifDateString: "-",
+					topicSensorTypes: [] as string[],
+					maxNumResFemFiles: 0,
 					digitalTwinSimulationFormat: "{}"
 				},
 				{
 					digitalTwinUid: generateDigitalTwinUid(),
 					description: demoDigitalTwinDescription(groupCreated, "Accelerations"),
 					type: "Grafana dashboard",
-					gltfFileName: "-",
-					gltfFileLastModifDateString: "-",
-					femSimDataFileName: "-",
-					femSimDataFileLastModifDateString: "-",
+					topicSensorTypes: [] as string[],
+					maxNumResFemFiles: 0,
 					digitalTwinSimulationFormat: "{}"
 				},
 			];
@@ -456,6 +452,8 @@ class GroupController implements IController {
 			}
 			const orgKey = await getOrganizationKey(orgId);
 			const message = await deleteGroup(group, orgKey);
+			const bucketFolder = `org_${orgId}/group_${group.id}`;
+			await removeFilesFromBucketFolder(bucketFolder);
 			res.status(200).send({ message });
 		} catch (error) {
 			next(error);
