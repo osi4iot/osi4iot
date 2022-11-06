@@ -25,6 +25,7 @@ import {
 	GenericObjectState,
 	FemSimObjectVisibilityState,
 	readFemSimulationInfo,
+	generateInitialFemSimObjectsState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { axiosAuth, axiosInstance, getDomainName, getProtocol } from '../../../tools/tools';
@@ -351,29 +352,6 @@ const NoWifiIcon = styled(RiWifiOffLine)`
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-// const getResFilesInfo = (digitalTwinSelected: IDigitalTwin, refreshToken, authDispatch, config) {
-// 	const groupId = digitalTwinSelected.groupId;
-// 	const deviceId = digitalTwinSelected.deviceId;
-// 	const digitalTwinId = digitalTwinSelected.id;
-// 	let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
-// 	const urlFemResFolderBase = `${urlBase}/${groupId}/${deviceId}/${digitalTwinId}`;
-// 	const urlFemResFolder = `${urlFemResFolderBase}/femResFiles`;
-// 	axiosInstance(refreshToken, authDispatch)
-// 		.get(urlFemResFolder, config)
-// 		.then((response) => {
-// 			const femResFilesInfo: { fileName: string; lastModified: string }[] = response.data;
-// 			console.log("femResFilesInfo=")
-// 			const femResultDates = femResFilesInfo.map(fileInfo => formatDateString(fileInfo.lastModified))
-// 			setFemResultDates(femResultDates)
-// 			const femResultFileNames = femResFilesInfo.map(fileInfo => fileInfo.fileName);
-// 			setFemResultFileNames(femResultFileNames)
-// 		})
-// 		.catch((error) => {
-// 			const errorMessage = "FEM result file can not be downloaded";
-// 			toast.error(errorMessage);
-// 		});
-// }
-
 const mouseButtons = {
 	LEFT: THREE.MOUSE.PAN,
 	MIDDLE: THREE.MOUSE.ROTATE,
@@ -682,6 +660,23 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		femResultFileNames,
 		opts.femResultDate
 	]);
+
+	useEffect(() => {
+		if (digitalTwinSelected && femResultData && femSimulationObjects.length !== 0) {
+			setInitialFemSimObjectsState(
+				generateInitialFemSimObjectsState(
+					femSimulationObjects,
+					digitalTwinGltfData,
+					femResultData
+				)
+			)
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		femResultData,
+		femSimulationObjects
+	]);
+
 
 	useEffect(() => {
 		if (
@@ -1018,7 +1013,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							</DatFolder>
 						}
 						{
-							femSimulationObjects.length !== 0 &&
+							femSimulationObjects.length !== 0
+							&&
 							<DatFolder title='Fem objects' closed={true}>
 								<DatFolder title='All meshes' closed={true}>
 									<StyledDatSelect

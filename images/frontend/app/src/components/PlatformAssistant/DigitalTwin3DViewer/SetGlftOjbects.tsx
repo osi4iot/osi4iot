@@ -18,7 +18,6 @@ import {
     generateInitialGenericObjectsState,
     FemSimObjectVisibilityState,
     FemSimulationObjectState,
-    generateInitialFemSimObjectsState
 } from './ViewerUtils';
 
 interface SetGltfObjectsProps {
@@ -88,14 +87,6 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 digitalTwinGltfData,
             ))
 
-            setInitialFemSimObjectsState(
-                generateInitialFemSimObjectsState(
-                    femSimulationObjects,
-                    digitalTwinGltfData,
-                    femResultData
-                )
-            )
-
             const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
             if (Object.keys(digitalTwinSimulationFormat).length !== 0) {
                 const initialDigitalTwinSimulatorState: Record<string, number> = {};
@@ -144,7 +135,6 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     }, [])
 
     return null;
-
 }
 
 export default SetGltfObjects;

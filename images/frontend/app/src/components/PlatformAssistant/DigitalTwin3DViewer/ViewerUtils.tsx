@@ -274,7 +274,7 @@ export const generateInitialFemSimObjectsState = (
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const payloadObject = lastMeasurement?.payload as any;
 	let resultFields = [];
-	if (Object.keys(femResultData).length !== 0) {
+	if (femResultData && Object.keys(femResultData).length !== 0) {
 		resultFields = femResultData.metadata.resultFields;
 	}
 	for (let imesh = 0; imesh < femSimulationObjects.length; imesh++) {

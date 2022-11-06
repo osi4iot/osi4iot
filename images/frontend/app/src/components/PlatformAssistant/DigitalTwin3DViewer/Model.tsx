@@ -29,7 +29,6 @@ import useMqttState from './MqttHook/useMqttState';
 import useSubscription from './MqttHook/useSubscription';
 
 
-
 export interface ISensorObject {
 	node: THREE.Mesh;
 	collectionName: string;
@@ -336,7 +335,7 @@ const Model: FC<ModelProps> = (
 
 	return (
 		<group ref={group} dispose={null}>
-			{(sensorObjects.length && sensorsVisibilityState) &&
+			{(sensorObjects.length !== 0 && sensorsState && sensorsVisibilityState) &&
 				<Sensors
 					sensorObjects={sensorObjects}
 					sensorsOpacity={sensorsOpacity}
@@ -349,7 +348,7 @@ const Model: FC<ModelProps> = (
 				/>
 			}
 			{
-				assetObjects.length &&
+				(assetObjects.length !== 0 && assetsState) &&
 				<Assets
 					assetObjects={assetObjects}
 					assetsOpacity={assetsOpacity}
@@ -360,7 +359,7 @@ const Model: FC<ModelProps> = (
 				/>
 			}
 			{
-				(genericObjects.length && genericObjectsVisibilityState) &&
+				(genericObjects.length !== 0 && genericObjectsState && genericObjectsVisibilityState) &&
 				<GenericObjects
 					genericObjects={genericObjects}
 					genericObjectsOpacity={genericObjectsOpacity}
@@ -371,7 +370,7 @@ const Model: FC<ModelProps> = (
 				/>
 			}
 			{
-				femSimulationObjects.length !== 0 &&
+				(femSimulationObjects.length !== 0 && femSimulationObjectsState.length !== 0 && femResultData) &&
 				<FemSimulationObjects
 					femSimulationGeneralInfo={femSimulationGeneralInfo}
 					digitalTwinGltfData={digitalTwinGltfData}
