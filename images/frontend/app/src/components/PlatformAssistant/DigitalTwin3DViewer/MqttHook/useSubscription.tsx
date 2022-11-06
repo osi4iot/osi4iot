@@ -323,7 +323,6 @@ const updateObjectsState = (
             if (isfemSimulationObjectsStateChanged) setFemSimulationObjectsState(femSimulationObjectsNewState);
 
             if (messageTopicType === "new_fem_res_file") {
-                console.log("Paso por aqui...")
                 const femResFilesLastUpdate = new Date();
                 setFemResFilesLastUpdate(femResFilesLastUpdate);
             }
