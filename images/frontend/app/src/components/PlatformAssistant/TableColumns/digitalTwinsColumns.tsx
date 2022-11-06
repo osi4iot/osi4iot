@@ -13,6 +13,7 @@ import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDisp
 
 export interface IDigitalTwin {
     id: number;
+    orgId: number;
     groupId: number;
     deviceId: number;
     digitalTwinUid: string;
@@ -143,6 +144,11 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
         {
             Header: "Id",
             accessor: "id",
+            filter: 'equals'
+        },
+        {
+            Header: "OrgId",
+            accessor: "orgId",
             filter: 'equals'
         },
         {

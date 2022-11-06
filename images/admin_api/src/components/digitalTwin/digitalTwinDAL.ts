@@ -162,7 +162,14 @@ export const verifyAndCorrectDigitalTwinTopics = async (
 	const topicTypes: string[] = [];
 	topicTypes.push(...topicSensorTypes);
 	if (digitalTwinUpdate.type === "Gltf 3D model") {
-		topicTypes.push("dev_sim_2dtm", "dtm_as2pdb", "dtm_sim_as2dts", "dtm_fmv2pdb", "dtm_sim_fmv2dts");
+		topicTypes.push(
+			"dev_sim_2dtm",
+			"dtm_as2pdb",
+			"dtm_sim_as2dts",
+			"dtm_fmv2pdb",
+			"dtm_sim_fmv2dts",
+			"new_fem_res_file"
+		);
 	}
 	const existentDigitalTwinTopicsList = await getDTTopicsByDigitalTwinId(digitalTwinUpdate.id);
 	const topicTypesToAdd: string[] = [];
@@ -274,6 +281,19 @@ export const verifyAndCorrectDigitalTwinTopics = async (
 			};
 			const femResultModalValuesSimulationTopic = await createTopic(deviceId, femResultModalValuesSimulationTopicData);
 			await createDigitalTwinTopic(digitalTwinUpdate.id, femResultModalValuesSimulationTopic.id, "dtm_sim_fmv2dts");
+		}
+
+		if (topicTypesToAdd.indexOf("new_fem_res_file") !== -1) {
+			const femResultNewFileTopicData =
+			{
+				topicType: "new_fem_res_file",
+				topicName: `${digitalTwinUid}_new_fem_res_file`,
+				description: `New FEM result file for ${digitalTwinUid}`,
+				payloadFormat: '{"messagge": "string"}',
+				mqttAccessControl: "Pub & Sub"
+			};
+			const femResultNewFileTopic = await createTopic(deviceId, femResultNewFileTopicData);
+			await createDigitalTwinTopic(digitalTwinUpdate.id, femResultNewFileTopic.id, "new_fem_res_file")
 		}
 	}
 
@@ -600,6 +620,16 @@ export const createDigitalTwin = async (
 		const femResultModalValuesSimulationTopic = await createTopic(deviceId, femResultModalValuesSimulationTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, femResultModalValuesSimulationTopic.id, "dtm_sim_fmv2dts");
 
+		const femResultNewFileTopicData =
+		{
+			topicType: "new_fem_res_file",
+			topicName: `${digitalTwinUid}_new_fem_res_file`,
+			description: `New FEM result file for ${digitalTwinUid}`,
+			payloadFormat: '{"messagge": "string"}',
+			mqttAccessControl: "Pub & Sub"
+		};
+		const femResultNewFileTopic = await createTopic(deviceId, femResultNewFileTopicData);
+		await createDigitalTwinTopic(digitalTwin.id, femResultNewFileTopic.id, "new_fem_res_file");
 	}
 
 	return { digitalTwin, topicSensors };
@@ -662,24 +692,11 @@ export const getDigitalTwinGltfData = async (digitalTwin: IDigitalTwin): Promise
 		gltfFileData = await data.Body.transformToString();
 	}
 
-	const femResFilesFolder = `${keyBase}/femResFiles`;
-	const femResFileList = await getBucketFolderFileList(femResFilesFolder);
-	let femResFileData = '{}';
-	if (femResFileList.length !== 0) {
-		const bucketParamsFemResFile = {
-			Bucket: process_env.S3_BUCKET_NAME,
-			Key: femResFileList[0]
-		};
-		const data = await s3Client.send(new GetObjectCommand(bucketParamsFemResFile));
-		femResFileData = await data.Body.transformToString();
-	}
-
 	const mqttTopicsData = await getMqttTopicsData(digitalTwinId);
 
 	const gltfData = {
 		id: digitalTwinId,
 		gltfData: gltfFileData,
-		femResData: femResFileData,
 		digitalTwinSimulationFormat: digitalTwin.digitalTwinSimulationFormat,
 		mqttTopicsData
 	}
@@ -951,10 +968,9 @@ export const getBucketFolderInfoFileList = async (folderPath: string): Promise<I
 	const data = await s3Client.send(new ListObjectsV2Command(bucketParams));
 	let fileInfoList: IBucketFileInfoList[] = [];
 	if (data.Contents.length !== 0) {
-		const folderPathLength = folderPath.length + 1;
 		fileInfoList = data.Contents.map(fileinfo => {
 			const fileData = {
-				fileName: fileinfo.Key.slice(folderPathLength),
+				fileName: fileinfo.Key,
 				lastModified: fileinfo.LastModified.toString()
 			}
 			return fileData;
@@ -963,13 +979,13 @@ export const getBucketFolderInfoFileList = async (folderPath: string): Promise<I
 		fileInfoList.sort((a, b) => {
 			const c = new Date(a.lastModified).getTime() as number;
 			const d = new Date(b.lastModified).getTime() as number;
-			return c - d;
+			return d - c;
 		});
 	}
 	return fileInfoList;
 }
 
-const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => {
+export const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => {
 	const orgId = digitalTwin.orgId;
 	const groupId = digitalTwin.groupId;
 	const deviceId = digitalTwin.deviceId;

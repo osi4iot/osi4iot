@@ -24,6 +24,7 @@ import {
 	SensorState,
 	GenericObjectState,
 	FemSimObjectVisibilityState,
+	readFemSimulationInfo,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { axiosAuth, axiosInstance, getDomainName, getProtocol } from '../../../tools/tools';
@@ -32,7 +33,8 @@ import SetGltfObjects from './SetGlftOjbects';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
 import { useLoggedUserLogin } from '../../../contexts/authContext/authContext';
 import MqttConnector from './MqttHook/MqttConnector';
-
+import formatDateString from '../../../tools/formatDate';
+import { toast } from 'react-toastify';
 
 const CanvasContainer = styled.div`
 	background-color: #212121;
@@ -349,6 +351,29 @@ const NoWifiIcon = styled(RiWifiOffLine)`
 const domainName = getDomainName();
 const protocol = getProtocol();
 
+// const getResFilesInfo = (digitalTwinSelected: IDigitalTwin, refreshToken, authDispatch, config) {
+// 	const groupId = digitalTwinSelected.groupId;
+// 	const deviceId = digitalTwinSelected.deviceId;
+// 	const digitalTwinId = digitalTwinSelected.id;
+// 	let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
+// 	const urlFemResFolderBase = `${urlBase}/${groupId}/${deviceId}/${digitalTwinId}`;
+// 	const urlFemResFolder = `${urlFemResFolderBase}/femResFiles`;
+// 	axiosInstance(refreshToken, authDispatch)
+// 		.get(urlFemResFolder, config)
+// 		.then((response) => {
+// 			const femResFilesInfo: { fileName: string; lastModified: string }[] = response.data;
+// 			console.log("femResFilesInfo=")
+// 			const femResultDates = femResFilesInfo.map(fileInfo => formatDateString(fileInfo.lastModified))
+// 			setFemResultDates(femResultDates)
+// 			const femResultFileNames = femResFilesInfo.map(fileInfo => fileInfo.fileName);
+// 			setFemResultFileNames(femResultFileNames)
+// 		})
+// 		.catch((error) => {
+// 			const errorMessage = "FEM result file can not be downloaded";
+// 			toast.error(errorMessage);
+// 		});
+// }
+
 const mouseButtons = {
 	LEFT: THREE.MOUSE.PAN,
 	MIDDLE: THREE.MOUSE.ROTATE,
@@ -408,6 +433,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femMaxValues, setFemMaxValues] = useState<number[]>([]);
 	const [initialDigitalTwinSimulatorState, setInitialDigitalTwinSimulatorState] = useState<Record<string, number>>({});
 	const [getLastMeasurementsButtomLabel, setGetLastMeasurementsButtomLabel] = useState("GET LAST MEASUREMENTS");
+	const [femResultDates, setFemResultDates] = useState<string[]>([]);
+	const [femResultFileNames, setFemResultFileNames] = useState<string[]>([]);
+	const [femResultData, setFemResultData] = useState<null | any>(null);
+	const [femResFilesLastUpdate, setFemResFilesLastUpdate] = useState<Date>(new Date());
 
 	const mqttOptions = {
 		keepalive: 0,
@@ -418,8 +447,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	};
 
 	let femResultNames: string[] = [];
-	if (femSimulationObjects.length !== 0 && Object.keys(digitalTwinGltfData.femResData).length !== 0) {
-		femResultNames = digitalTwinGltfData.femResData.metadata.resultFields.map(
+	if (femSimulationObjects.length !== 0 && femResultData && Object.keys(femResultData).length !== 0) {
+		femResultNames = femResultData.metadata.resultFields.map(
 			(resultField: { resultName: string; }) => resultField.resultName
 		);
 	}
@@ -512,6 +541,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		femSimulationObjectsVisibilityState: undefined as unknown as Record<string, FemSimObjectVisibilityState>,
 		hideFemSimulationLegend: false,
 		femSimulationResult: "None result",
+		femResultDate: femResultDates[0],
 		showFemSimulationDeformation: false,
 		femSimulationDefScale: 0,
 		showAllFemSimulationMeshes: false,
@@ -588,7 +618,79 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	}, [initialDigitalTwinSimulatorState, digitalTwinGltfData.digitalTwinSimulationFormat])
 
 	useEffect(() => {
-		if (opts.femSimulationResult !== "None result" && femMinValues.length !== 0 && femMinValueRef && femMinValueRef.current) {
+		if (digitalTwinSelected) {
+			const config = axiosAuth(accessToken);
+			const groupId = digitalTwinSelected.groupId;
+			const deviceId = digitalTwinSelected.deviceId;
+			const digitalTwinId = digitalTwinSelected.id;
+			let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
+			const urlFemResFolderBase = `${urlBase}/${groupId}/${deviceId}/${digitalTwinId}`;
+			const urlFemResFolder = `${urlFemResFolderBase}/femResFiles`;
+			axiosInstance(refreshToken, authDispatch)
+				.get(urlFemResFolder, config)
+				.then((response) => {
+					const femResFilesInfo: { fileName: string; lastModified: string }[] = response.data;
+					const femResultDates = femResFilesInfo.map(fileInfo => formatDateString(fileInfo.lastModified))
+					setFemResultDates(femResultDates)
+					const femResultFileNames = femResFilesInfo.map(fileInfo => fileInfo.fileName.split("/")[5]);
+					setFemResultFileNames(femResultFileNames)
+				})
+				.catch((error) => {
+					const errorMessage = "FEM result files info can not be obtained";
+					toast.error(errorMessage);
+				});
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [femResFilesLastUpdate]);
+
+
+	useEffect(() => {
+		if (digitalTwinSelected && femResultDates.length !== 0 && femResultFileNames.length !== 0) {
+			let femResultDate = opts.femResultDate;
+			if (femResultDate === undefined || femResultDate === "-") {
+				femResultDate = femResultDates[0];
+			}
+			if (femResultDate !== undefined) {
+				const fileDateIndex = femResultDates.indexOf(femResultDate);
+				const femResultFileName = femResultFileNames[fileDateIndex];
+				const config = axiosAuth(accessToken);
+				const groupId = digitalTwinSelected.groupId;
+				const deviceId = digitalTwinSelected.deviceId;
+				const digitalTwinId = digitalTwinSelected.id;
+				let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_download_file`;
+				const urlFemResFileBase = `${urlBase}/${groupId}/${deviceId}/${digitalTwinId}`;
+				const urlFemResFile = `${urlFemResFileBase}/femResFiles/${femResultFileName}`;
+				axiosInstance(refreshToken, authDispatch)
+					.get(urlFemResFile, config)
+					.then((response) => {
+						const femResData = response.data;
+						setFemResultData(femResData);
+						readFemSimulationInfo(
+							femResData,
+							setFemSimulationGeneralInfo
+						)
+					})
+					.catch((error) => {
+						const errorMessage = "FEM result file can not be downloaded";
+						toast.error(errorMessage);
+					});
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		femResultDates,
+		femResultFileNames,
+		opts.femResultDate
+	]);
+
+	useEffect(() => {
+		if (
+			femResultData &&
+			opts.femSimulationResult !== "None result" &&
+			femMinValues.length !== 0 &&
+			femMinValueRef &&
+			femMinValueRef.current
+		) {
 			const femMinValuesFiltered: number[] = [];
 			if (!opts.hideAllFemSimulationObjects) {
 				femSimulationObjects.forEach((obj, index) => {
@@ -599,7 +701,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
 			if (femMinValuesFiltered.length !== 0) {
 				const sortedFemMinValues = femMinValuesFiltered.slice().sort((a, b) => a - b);
-				const resultFields = digitalTwinGltfData.femResData.metadata.resultFields;
+				const resultFields = femResultData.metadata.resultFields;
 				const resultFieldFiltered = resultFields.filter((result: { resultName: string; }) => result.resultName === opts.femSimulationResult)[0];
 				const units = resultFieldFiltered.units;
 				(femMinValueRef.current as any).innerHTML = `Min value: ${sortedFemMinValues[0].toExponential(4)} ${units}`;
@@ -609,6 +711,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
+		opts.femResultDate,
 		opts.femSimulationResult,
 		opts.hideAllFemSimulationObjects,
 		opts.femSimulationObjectsVisibilityState,
@@ -617,7 +720,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	]);
 
 	useEffect(() => {
-		if (opts.femSimulationResult !== "None result" && femMaxValues.length !== 0 && femMaxValueRef && femMaxValueRef.current) {
+		if (
+			femResultData &&
+			opts.femSimulationResult !== "None result" &&
+			femMaxValues.length !== 0 &&
+			femMaxValueRef &&
+			femMaxValueRef.current
+		) {
 			const femMaxValuesFiltered: number[] = [];
 			if (!opts.hideAllFemSimulationObjects) {
 				femSimulationObjects.forEach((obj, index) => {
@@ -628,7 +737,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
 			if (femMaxValuesFiltered.length !== 0) {
 				const sortedFemMaxValues = femMaxValuesFiltered.slice().sort((a, b) => b - a);
-				const resultFields = digitalTwinGltfData.femResData.metadata.resultFields;
+				const resultFields = femResultData.metadata.resultFields;
 				const resultFieldFiltered = resultFields.filter((result: { resultName: string; }) => result.resultName === opts.femSimulationResult)[0];
 				const units = resultFieldFiltered.units;
 				(femMaxValueRef.current as any).innerHTML = `Max value: ${sortedFemMaxValues[0].toExponential(4)} ${units}`;
@@ -638,6 +747,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
+		opts.femResultDate,
 		opts.femSimulationResult,
 		opts.hideAllFemSimulationObjects,
 		opts.femSimulationObjectsVisibilityState,
@@ -655,8 +765,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					digitalTwinGltfData.digitalTwinGltfUrl
 				) &&
 				<SetGltfObjects
-					digitalTwinSelected={digitalTwinSelected}
 					digitalTwinGltfData={digitalTwinGltfData}
+					femResultData={femResultData}
 					setSensorObjects={setSensorObjects}
 					setAssetObjects={setAssetObjects}
 					setGenericObjects={setGenericObjects}
@@ -665,7 +775,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					setInitialAssetsState={setInitialAssetsState}
 					setInitialGenericObjectsState={setInitialGenericObjectsState}
 					setInitialFemSimObjectsState={setInitialFemSimObjectsState}
-					setFemSimulationGeneralInfo={setFemSimulationGeneralInfo}
 					setInitialGenericObjectsVisibilityState={setInitialGenericObjectsVisibilityState}
 					setInitialSensorsVisibilityState={setInitialSensorsVisibilityState}
 					setInitialAssetsVisibilityState={setInitialAssetsVisibilityState}
@@ -696,6 +805,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						<MqttConnector hostname={domainName} options={mqttOptions} >
 							<Model
 								digitalTwinGltfData={digitalTwinGltfData}
+								femResultData={femResultData}
 								sensorObjects={sensorObjects}
 								initialSensorsState={initialSensorsState as Record<string, SensorState>}
 								sensorsVisibilityState={opts.sensorsVisibilityState}
@@ -740,6 +850,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								digitalTwinSimulatorSendData={digitalTwinSimulatorSendData}
 								setFemMinValues={setFemMinValues}
 								setFemMaxValues={setFemMaxValues}
+								setFemResFilesLastUpdate={setFemResFilesLastUpdate}
 								initialDigitalTwinSimulatorState={initialDigitalTwinSimulatorState}
 							/>
 						</MqttConnector>
@@ -750,7 +861,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					(
 						femSimulationObjects.length !== 0 &&
 						femSimulationGeneralInfo &&
-						(opts.femSimulationResult !== "None result" || opts.legendToShow !== "None result") &&
+						((femResultData && opts.femSimulationResult !== "None result") || opts.legendToShow !== "None result") &&
 						!opts.hideFemSimulationLegend
 					) &&
 					<>
@@ -910,6 +1021,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							femSimulationObjects.length !== 0 &&
 							<DatFolder title='Fem objects' closed={true}>
 								<DatFolder title='All meshes' closed={true}>
+									<StyledDatSelect
+										path='femResultDate'
+										label='Date'
+										options={femResultDates}
+									/>
 									<StyledDatSelect
 										path='femSimulationResult'
 										label='Results'

@@ -7,6 +7,7 @@ import { IResultRenderInfo, IFemSimulationObject } from './Model';
 interface FemSimulationObjectProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
     digitalTwinGltfData: IDigitalTwinGltfData;
+    femResultData: any;
     meshIndex: number;
     femSimulationObject: IFemSimulationObject;
     femSimulationObjectState: FemSimulationObjectState;
@@ -28,6 +29,7 @@ const noEmitColor = new THREE.Color(0, 0, 0);
 const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     femSimulationGeneralInfo,
     digitalTwinGltfData,
+    femResultData,
     meshIndex,
     femSimulationObject,
     femSimulationObjectState,
@@ -53,13 +55,13 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     material.transparent = (defOpacity * opacity) === 1 ? false : true;
     let lastIntervalTime = 0;
     let meshResult: any = null;
-    const isThereFemResData = Object.keys(digitalTwinGltfData.femResData).length !== 0;
+    const isThereFemResData = femResultData && Object.keys(femResultData).length !== 0;
     if (isThereFemResData) {
-        meshResult = digitalTwinGltfData.femResData.meshResults[meshIndex];
+        meshResult = femResultData.meshResults[meshIndex];
     }
     let deformationFields: string[] = [];
-    if (isThereFemResData && digitalTwinGltfData.femResData.metadata.deformationFields) {
-        deformationFields = digitalTwinGltfData.femResData.metadata.deformationFields;
+    if (isThereFemResData && femResultData.metadata.deformationFields) {
+        deformationFields = femResultData.metadata.deformationFields;
     }
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
@@ -246,7 +248,14 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [femSimulationResult, femSimulationStateString, showFemSimulationDeformation, femSimulationDefScale, showFemMesh]);
+    }, [
+        meshResult,
+        femSimulationResult,
+        femSimulationStateString,
+        showFemSimulationDeformation,
+        femSimulationDefScale,
+        showFemMesh
+    ]);
 
     return (
         <group ref={objectRef} >
@@ -308,15 +317,15 @@ const areEqual = (prevProps: FemSimulationObjectProps, nextProps: FemSimulationO
         prevProps.femSimulationResult === nextProps.femSimulationResult &&
         prevProps.femSimulationStateString === nextProps.femSimulationStateString &&
         prevProps.showFemSimulationDeformation === nextProps.showFemSimulationDeformation &&
-        prevProps.femSimulationDefScale === nextProps.femSimulationDefScale;
+        prevProps.femSimulationDefScale === nextProps.femSimulationDefScale &&
+        prevProps.femResultData === nextProps.femResultData;
 }
 
 const FemSimulationObject = React.memo(FemSimulationObjectBase, areEqual);
 
-
-
 interface FemSimulationObjectsProps {
     digitalTwinGltfData: IDigitalTwinGltfData;
+    femResultData: any;
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
     femSimulationObjects: IFemSimulationObject[];
     femSimulationObjectsOpacity: number;
@@ -335,6 +344,7 @@ interface FemSimulationObjectsProps {
 
 const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     digitalTwinGltfData,
+    femResultData,
     femSimulationGeneralInfo,
     femSimulationObjects,
     femSimulationObjectsOpacity,
@@ -358,6 +368,7 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
                         key={obj.node.uuid}
                         femSimulationGeneralInfo={femSimulationGeneralInfo}
                         digitalTwinGltfData={digitalTwinGltfData}
+                        femResultData={femResultData}
                         meshIndex={index}
                         femSimulationObject={obj}
                         femSimulationObjectState={femSimulationObjectsState[index]}

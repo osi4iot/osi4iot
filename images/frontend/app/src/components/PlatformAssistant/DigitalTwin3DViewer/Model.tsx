@@ -77,6 +77,7 @@ export interface IMqttTopicData {
 
 interface ModelProps {
 	digitalTwinGltfData: IDigitalTwinGltfData;
+	femResultData: any;
 	sensorObjects: ISensorObject[];
 	initialSensorsState: Record<string, SensorState>
 	sensorsVisibilityState: Record<string, ObjectVisibilityState>;
@@ -121,6 +122,7 @@ interface ModelProps {
 	digitalTwinSimulatorSendData: boolean;
 	setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
 	setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
+	setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void;
 	initialDigitalTwinSimulatorState: Record<string, number>;
 }
 
@@ -128,6 +130,7 @@ interface ModelProps {
 const Model: FC<ModelProps> = (
 	{
 		digitalTwinGltfData,
+		femResultData,
 		sensorObjects,
 		initialSensorsState,
 		sensorsVisibilityState,
@@ -168,6 +171,7 @@ const Model: FC<ModelProps> = (
 		digitalTwinSimulatorSendData,
 		setFemMinValues,
 		setFemMaxValues,
+		setFemResFilesLastUpdate,
 		initialDigitalTwinSimulatorState
 	}) => {
 	const camera = useThree((state) => state.camera);
@@ -206,8 +210,8 @@ const Model: FC<ModelProps> = (
 		setSensorsState,
 		setGenericObjectsState,
 		setFemSimulationObjectsState,
-		digitalTwinGltfData,
-		femSimulationGeneralInfo
+		femResultData,
+		setFemResFilesLastUpdate
 	)
 
 	useLayoutEffect(() => {
@@ -371,6 +375,7 @@ const Model: FC<ModelProps> = (
 				<FemSimulationObjects
 					femSimulationGeneralInfo={femSimulationGeneralInfo}
 					digitalTwinGltfData={digitalTwinGltfData}
+					femResultData={femResultData}
 					femSimulationObjects={femSimulationObjects}
 					femSimulationObjectsOpacity={femSimulationObjectsOpacity}
 					highlightAllFemSimulationObjects={highlightAllFemSimulationObjects}

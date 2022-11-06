@@ -198,7 +198,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 .then((response) => {
                     const gltfFileInfo = response.data;
                     if (gltfFileInfo.length !== 0) {
-                        setGltfFileName(gltfFileInfo[0].fileName);
+                        setGltfFileName(gltfFileInfo[0].fileName.split("/")[5]);
                         setGltfFileLastModif(gltfFileInfo[0].lastModified);
                         const urlfemResFileList = `${urlDigitalTwinFileListBase}/femResFiles`;
                         axiosInstance(refreshToken, authDispatch)
@@ -206,7 +206,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                             .then((response) => {
                                 const femResFileList: { fileName: string, lastModified: string }[] = response.data;
                                 if (femResFileList.length !== 0) {
-                                    const femResFileNames = femResFileList.map(femResFile => femResFile.fileName);
+                                    const femResFileNames = femResFileList.map(femResFile => femResFile.fileName.split("/")[5]);
                                     setFemResFileNames(femResFileNames);
                                     const femResFilesLastModif = femResFileList.map(femResFile => femResFile.lastModified);
                                     setFemResFilesLastModif(femResFilesLastModif);
@@ -277,8 +277,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             ) {
                 isGltfFileModified = true;
                 const gltfData = new FormData();
-                gltfData.append("file", gltfFile as File, gltfFileName);
-                const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
+                gltfData.append("file", gltfFile as File, values.gltfFileName);
+                const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${values.gltfFileName}`;
                 try {
                     const response = await axiosInstance(refreshToken, authDispatch)
                         .post(urlUploadGltfFile, gltfData, configMultipart);
@@ -298,8 +298,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     formatDateString(femResFilesLastModif[0]) !== formatDateString(values.femResDataFileLastModifDateString))
             ) {
                 const femResData = new FormData();
-                femResData.append("file", femResFile as File, "femResFile");
-                const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileNames[0]}`;
+                femResData.append("file", femResFile as File, values.femResDataFileName);
+                const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${values.femResDataFileName}`;
                 try {
                     const response = await axiosInstance(refreshToken, authDispatch)
                         .post(urlUploadFemResFile, femResData, configMultipart)

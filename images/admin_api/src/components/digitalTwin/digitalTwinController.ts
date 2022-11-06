@@ -38,6 +38,7 @@ import {
 	getBucketFolderInfoFileList,
 	deleteBucketFile,
 	removeFilesFromBucketFolder,
+	checkMaxNumberOfFemResFiles,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -432,6 +433,7 @@ class DigitalTwinController implements IController {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
 			};
+			await checkMaxNumberOfFemResFiles(req.digitalTwin);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -509,3 +511,4 @@ class DigitalTwinController implements IController {
 }
 
 export default DigitalTwinController;
+

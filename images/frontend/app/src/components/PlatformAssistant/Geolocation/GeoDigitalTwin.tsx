@@ -182,11 +182,6 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                         digitalTwinGltfData.digitalTwinGltfUrl = createUrl(gltfData);
                     } else digitalTwinGltfData.digitalTwinGltfUrl = null;
 
-                    const femResData = digitalTwinGltfData.femResData;
-                    if (femResData !== '{}') {
-                        digitalTwinGltfData.femSimulationUrl = createUrl(femResData);
-                    } else digitalTwinGltfData.femSimulationUrl = null;
-
                     const mqttTopics = digitalTwinGltfData.mqttTopicsData.map((topicData: IMqttTopicData) => topicData.mqttTopic);
                     const inexistentMqttTopics = mqttTopics.filter((topic: string) => topic.slice(0, 7) === "Warning");
                     if (inexistentMqttTopics.length !== 0) {

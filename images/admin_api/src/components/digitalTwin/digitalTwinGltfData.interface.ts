@@ -19,7 +19,6 @@ export interface IMqttTopicDataShort {
 export default interface IDigitalTwinGltfData {
 	id?: number;
 	gltfData: string;
-	femResData: string;
 	digitalTwinSimulationFormat: string;
 	mqttTopicsData: IMqttTopicDataShort[];
 }

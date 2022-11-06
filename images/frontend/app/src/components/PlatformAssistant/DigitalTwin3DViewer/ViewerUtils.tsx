@@ -5,7 +5,6 @@ import { ISensorObject, IAssetObject, IFemSimulationObject, IResultRenderInfo, I
 import { toast } from "react-toastify";
 import { IMeasurement } from "../TableColumns/measurementsColumns";
 import Lut, { ILegendLabels } from "./Lut";
-import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 
 export const loader = new GLTFLoader();
 
@@ -58,12 +57,17 @@ export interface DigitalTwinSimulationParameter {
 	topicId: number;
 }
 
+export interface IBucketFileInfoList {
+	fileName: string;
+	lastModified: string
+}
+
+
 export interface IDigitalTwinGltfData {
 	id: number;
 	gltfData: any;
 	digitalTwinGltfUrl: string | null;
-	femResData: any;
-	femSimulationUrl: string | null;
+	femResFileInfoList: IBucketFileInfoList[];
 	mqttTopicsData: IMqttTopicData[];
 	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
 }
@@ -262,6 +266,7 @@ export const generateInitialGenericObjectsState = (
 export const generateInitialFemSimObjectsState = (
 	femSimulationObjects: IFemSimulationObject[],
 	digitalTwinGltfData: IDigitalTwinGltfData,
+	femResultData: any
 ) => {
 	const highlight = false;
 	const initialFemSimObjectsState: FemSimulationObjectState[] = [];
@@ -269,8 +274,8 @@ export const generateInitialFemSimObjectsState = (
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const payloadObject = lastMeasurement?.payload as any;
 	let resultFields = [];
-	if (Object.keys(digitalTwinGltfData.femResData).length !== 0) {
-		resultFields = digitalTwinGltfData.femResData.metadata.resultFields;
+	if (Object.keys(femResultData).length !== 0) {
+		resultFields = femResultData.metadata.resultFields;
 	}
 	for (let imesh = 0; imesh < femSimulationObjects.length; imesh++) {
 		const obj = femSimulationObjects[imesh];
@@ -280,7 +285,7 @@ export const generateInitialFemSimObjectsState = (
 			if (lastMeasurement) {
 				resultFieldModalValues[resultName] = payloadObject.femResultsModalValues[imesh][ires];
 			} else {
-				const meshResult = digitalTwinGltfData.femResData.meshResults[imesh];
+				const meshResult = femResultData.meshResults[imesh];
 				const defaultValues = meshResult.resultFields[resultName].defaultModalValues;
 				resultFieldModalValues[resultName] = defaultValues;
 			}
@@ -814,10 +819,7 @@ export const defaultOpacity = (
 
 
 export const readFemSimulationInfo = (
-	digitalTwinSelected: IDigitalTwin,
-	digitalTwinGltfData: IDigitalTwinGltfData,
-	femSimulationObjects: IFemSimulationObject[],
-	setInitialFemSimObjectsState: (initialFemSimObjectsState: FemSimulationObjectState[]) => void,
+	femResultData: any,
 	setFemSimulationGeneralInfo: (femSimulationGeneralInfo: Record<string, IResultRenderInfo>) => void,
 ) => {
 	const colorMap = 'rainbow';
@@ -826,8 +828,8 @@ export const readFemSimulationInfo = (
 
 	const femSimulationGeneralInfo: Record<string, IResultRenderInfo> = {};
 	let resultFields = [];
-	if (Object.keys(digitalTwinGltfData.femResData).length !== 0) {
-		resultFields = digitalTwinGltfData.femResData.metadata.resultFields;
+	if (femResultData && Object.keys(femResultData).length !== 0) {
+		resultFields = femResultData.metadata.resultFields;
 	}
 
 	for (let ires = 0; ires < resultFields.length; ires++) {
@@ -874,16 +876,7 @@ export const readFemSimulationInfo = (
 		femSimulationGeneralInfo[resultFields[ires].resultName] = resultRenderInfo;
 	}
 
-
 	setFemSimulationGeneralInfo(femSimulationGeneralInfo);
-
-	setInitialFemSimObjectsState(
-		generateInitialFemSimObjectsState(
-			femSimulationObjects,
-			digitalTwinGltfData,
-		)
-	)
-
 }
 
 

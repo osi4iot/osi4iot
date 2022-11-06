@@ -3,8 +3,8 @@ import { SubscribeOptions } from "paho-mqtt";
 import MqttContext from './MqttContext';
 import { IMqttContext as Context, IMessage } from './interfaces';
 import matches from './matches';
-import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, IResultRenderInfo, ISensorObject } from '../Model';
-import { AssetState, FemSimulationObjectState, GenericObjectState, IDigitalTwinGltfData, SensorState } from '../ViewerUtils';
+import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData,  ISensorObject } from '../Model';
+import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from '../ViewerUtils';
 
 const useSubscription = (
     mqttTopics: string | string[],
@@ -22,15 +22,15 @@ const useSubscription = (
     setSensorsState: React.Dispatch<React.SetStateAction<Record<string, SensorState>>>,
     setGenericObjectsState: React.Dispatch<React.SetStateAction<Record<string, GenericObjectState>>>,
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
-    digitalTwinGltfData: IDigitalTwinGltfData,
-    femSimulationGeneralInfo: Record<string, IResultRenderInfo>,
+    femResultData: any,
+    setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
     options: SubscribeOptions = {} as SubscribeOptions,
 ) => {
     const { client } = useContext<Context>(MqttContext);
 
     let femResultNames: string[] = [];
-	if (femSimulationObjects.length && Object.keys(digitalTwinGltfData.femResData).length !== 0) {
-		femResultNames = digitalTwinGltfData.femResData.metadata.resultFields.map(
+	if (femSimulationObjects.length && Object.keys(femResultData).length !== 0) {
+		femResultNames = femResultData.metadata.resultFields.map(
 			(resultField: { resultName: string; }) => resultField.resultName
 		);
     }
@@ -74,6 +74,7 @@ const useSubscription = (
                         setGenericObjectsState,
                         setFemSimulationObjectsState,
                         femResultNames,
+                        setFemResFilesLastUpdate,
                     )
 
                 }
@@ -100,6 +101,7 @@ const updateObjectsState = (
     setGenericObjectsState: React.Dispatch<React.SetStateAction<Record<string, GenericObjectState>>>,
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
     femResultNames: string[],
+    setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
 ) => {
     const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
     const clipSimulationTopicId = mqttTopicsData.filter(topic => topic.topicType === "dev_sim_2dtm")[0].topicId;
@@ -319,6 +321,12 @@ const updateObjectsState = (
             if (isAssetStateChanged) setAssetsState(assestsNewState);
             if (isGenericObjectsStateChanged) setGenericObjectsState(genericObjectNewState);
             if (isfemSimulationObjectsStateChanged) setFemSimulationObjectsState(femSimulationObjectsNewState);
+
+            if (messageTopicType === "new_fem_res_file") {
+                console.log("Paso por aqui...")
+                const femResFilesLastUpdate = new Date();
+                setFemResFilesLastUpdate(femResFilesLastUpdate);
+            }
         }
 
     } catch (error) {
