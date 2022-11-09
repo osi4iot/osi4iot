@@ -416,7 +416,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         }),
         maxNumResFemFiles: Yup.number().when("type", {
             is: "Gltf 3D model",
-            then: Yup.number().min(1, "The minimum numer of FEM result files is 1").required("Must enter maxNumResFemFiles")
+            then: Yup.number().min(1, "The minimum numer of FEM results files is 1").required("Must enter maxNumResFemFiles")
         }),
         digitalTwinSimulationFormat: Yup.string().when("type", {
             is: "Gltf 3D model",

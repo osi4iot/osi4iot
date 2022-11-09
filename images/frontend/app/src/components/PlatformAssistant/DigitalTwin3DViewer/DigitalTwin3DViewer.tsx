@@ -276,6 +276,7 @@ const HeaderContainer = styled.div`
   position: fixed;
   top: 203px;
   right: 15px;
+  border-bottom: 3px solid #212121;
 `;
 
 const HeaderOptionsContainer = styled.div`
@@ -614,8 +615,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					setFemResultFileNames(femResultFileNames)
 				})
 				.catch((error) => {
-					const errorMessage = "FEM result files info can not be obtained";
-					toast.error(errorMessage);
+					const warningMessage = "This model not have FEM results file.";
+					toast.warning(warningMessage);
 				});
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
@@ -649,8 +650,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						)
 					})
 					.catch((error) => {
-						const errorMessage = "FEM result file can not be downloaded";
-						toast.error(errorMessage);
+						const errorMessage = "FEM results file can not be downloaded";
+						toast.warning(errorMessage);
 					});
 			}
 		}

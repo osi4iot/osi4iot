@@ -268,8 +268,36 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         const urlUploadGltfBase0 = `${protocol}://${domainName}/admin_api/digital_twin_upload_file`;
         const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${deviceId}/${digitalTwinId}`;
         let isGltfFileModified = false;
+        const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
 
         if (values.type === "Gltf 3D model") {
+            if (
+                Object.keys(digitalTwinFemResData).length !== 0 &&
+                (femResFileNames[0] !== values.femResDataFileName ||
+                    formatDateString(femResFilesLastModif[0]) !== formatDateString(values.femResDataFileLastModifDateString))
+            ) {
+                if (digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles &&  maxNumResFemFiles >=2 ) {
+                    const warningMessage = "Please increase the 'Max number of FEM result files stored' before uploading a new file.";
+                    toast.warning(warningMessage);
+                    setIsSubmitting(false);
+                    return;
+                }
+                const femResData = new FormData();
+                femResData.append("file", femResFile as File, values.femResDataFileName);
+                const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${values.femResDataFileName}`;
+                try {
+                    const response = await axiosInstance(refreshToken, authDispatch)
+                        .post(urlUploadFemResFile, femResData, configMultipart)
+                    if (response) {
+                        toast.success(response.data.message);
+                    }
+                } catch (error: any) {
+                    const errorMessage = error.response.data?.message;
+                    if (errorMessage !== undefined && errorMessage !== "jwt expired") toast.error(errorMessage);
+                    backToTable();
+                }
+            }
+
             if (
                 Object.keys(digitalTwinGltfData).length !== 0 &&
                 (gltfFileName !== values.gltfFileName ||
@@ -292,29 +320,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 }
             }
 
-            if (
-                Object.keys(digitalTwinFemResData).length !== 0 &&
-                (femResFileNames[0] !== values.femResDataFileName ||
-                    formatDateString(femResFilesLastModif[0]) !== formatDateString(values.femResDataFileLastModifDateString))
-            ) {
-                const femResData = new FormData();
-                femResData.append("file", femResFile as File, values.femResDataFileName);
-                const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${values.femResDataFileName}`;
-                try {
-                    const response = await axiosInstance(refreshToken, authDispatch)
-                        .post(urlUploadFemResFile, femResData, configMultipart)
-                    if (response) {
-                        toast.success(response.data.message);
-                    }
-                } catch (error: any) {
-                    const errorMessage = error.response.data?.message;
-                    if (errorMessage !== undefined && errorMessage !== "jwt expired") toast.error(errorMessage);
-                    backToTable();
-                }
-            }
         }
 
-        const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
 
         const digitalTwinData = {
             digitalTwinUid: values.digitalTwinUid,
@@ -353,7 +360,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         type: digitalTwins[digitalTwinRowIndex].type,
         gltfFileName: gltfFileName,
         gltfFileLastModifDateString: formatDateString(gltfFileLastModif),
-        femResDataFileName: femResFileNames[0],
+        femResDataFileName: femResFileNames[0] !== undefined ? femResFileNames[0] : "-",
         femResDataFileLastModifDateString: formatDateString(femResFilesLastModif[0]),
         maxNumResFemFiles: digitalTwins[digitalTwinRowIndex].maxNumResFemFiles as unknown as string,
         digitalTwinSimulationFormat: JSON.stringify(digitalTwins[digitalTwinRowIndex].digitalTwinSimulationFormat, null, 4)
@@ -381,7 +388,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         }),
         maxNumResFemFiles: Yup.number().when("type", {
             is: "Gltf 3D model",
-            then: Yup.number().min(1, "The minimum numer of FEM result files is 1").required("Must enter maxNumResFemFiles")
+            then: Yup.number().min(1, "The minimum number of FEM results files is 1").required("Must enter maxNumResFemFiles")
         }),
         digitalTwinSimulationFormat: Yup.string().when("type", {
             is: "Gltf 3D model",

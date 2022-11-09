@@ -338,6 +338,7 @@ const pointer = new THREE.Vector2();
 let meshList: THREE.Mesh[];
 var mouse = {
 	isInsideObject: false,
+	objSelectable: true,
 	objName: "",
 	type: "",
 	collectionName: ""
@@ -731,6 +732,7 @@ const processMouseEvent = (
 			}
 			mouse.isInsideObject = true;
 			mouse.type = type as string;
+			mouse.objSelectable = true;
 	
 			sendCustomEvent(event_name, { type, name: mouse.objName, collectionName: mouse.collectionName });
 		}
@@ -739,8 +741,17 @@ const processMouseEvent = (
 				sendCustomEvent("mesh_mouse_exit", { type: mouse.type, name: mouse.objName });
 				mouse.isInsideObject = false;
 				mouse.type = "";
+				mouse.objSelectable = false;
 			}
 		}
+	} else {
+		if (mouse.isInsideObject) {
+			sendCustomEvent("mesh_mouse_exit", { type: mouse.type, name: mouse.objName });
+			mouse.isInsideObject = false;
+			mouse.type = "";
+		}
+		mouse.collectionName = "";
+		mouse.objSelectable = false;
 	}
 }
 
@@ -760,7 +771,7 @@ export const onMouseDown = (event: MouseEvent) => {
 
 export const onMouseClick = (event: any) => {
 	processMouseEvent("mesh_mouse_down", event);
-	if (mouse.type !== "" && mouse.objName !== "") {
+	if (mouse.type !== "" && mouse.objName !== "" && mouse.objSelectable) {
 		if (dashboardUrl.slice(0, 7) === "Warning") {
 			toast.warning(dashboardUrl);
 		} else window.open(dashboardUrl, '_blank');

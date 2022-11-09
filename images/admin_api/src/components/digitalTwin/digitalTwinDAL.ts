@@ -288,7 +288,7 @@ export const verifyAndCorrectDigitalTwinTopics = async (
 			{
 				topicType: "new_fem_res_file",
 				topicName: `${digitalTwinUid}_new_fem_res_file`,
-				description: `New FEM result file for ${digitalTwinUid}`,
+				description: `New FEM results file for ${digitalTwinUid}`,
 				payloadFormat: '{"messagge": "string"}',
 				mqttAccessControl: "Pub & Sub"
 			};
@@ -624,7 +624,7 @@ export const createDigitalTwin = async (
 		{
 			topicType: "new_fem_res_file",
 			topicName: `${digitalTwinUid}_new_fem_res_file`,
-			description: `New FEM result file for ${digitalTwinUid}`,
+			description: `New FEM results file for ${digitalTwinUid}`,
 			payloadFormat: '{"messagge": "string"}',
 			mqttAccessControl: "Pub & Sub"
 		};
@@ -967,7 +967,7 @@ export const getBucketFolderInfoFileList = async (folderPath: string): Promise<I
 	};
 	const data = await s3Client.send(new ListObjectsV2Command(bucketParams));
 	let fileInfoList: IBucketFileInfoList[] = [];
-	if (data.Contents.length !== 0) {
+	if (data.KeyCount !== 0 &&  data.Contents.length !== 0) {
 		fileInfoList = data.Contents.map(fileinfo => {
 			const fileData = {
 				fileName: fileinfo.Key,
