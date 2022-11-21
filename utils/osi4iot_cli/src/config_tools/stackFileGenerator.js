@@ -32,7 +32,7 @@ export default function (osi4iotState) {
 	let storageSystem = "Local storage";
 	const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
 	if (deploymentLocation === "On-premise cluster deployment" && existNFSServer) {
-		storageSystem = "NFS server";
+		storageSystem = "NFS Server";
 	}
 	if (deploymentLocation === "AWS cluster deployment") {
 		storageSystem = "AWS EFS";
