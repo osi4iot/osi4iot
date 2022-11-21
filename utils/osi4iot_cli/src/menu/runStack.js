@@ -85,7 +85,7 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 	if (osi4iotState.platformInfo.NODES_DATA && osi4iotState.platformInfo.NODES_DATA.length !== 0) {
 		let encryption = "";
 		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
-			encryption = "-opt encrypted=true";
+			encryption = "-o encrypted=true";
 		}
 
 		const networks = execSync(`docker ${dockerHost} network ls`);
