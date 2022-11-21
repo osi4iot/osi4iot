@@ -31,7 +31,10 @@ const osi4iotCli = async () => {
         if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION !== "Local deployment") {
             try {
                 const sshKeysOutput = execSync("ssh-add -l").toString();
-                if (sshKeysOutput.includes("./.osi4iot_keys/osi4iot_key (RSA)")) {
+                if (
+                    sshKeysOutput.includes("./.osi4iot_keys/osi4iot_key (RSA)") ||
+                    sshKeysOutput.includes("osi4iot@osi4iotcli (RSA)")
+                ) {
                     if (argv._ !== undefined && argv._.length !== 0) await argsOptions(argv._[0]);
                     else chooseOption();
                 } else {
