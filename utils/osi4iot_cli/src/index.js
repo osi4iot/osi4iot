@@ -148,7 +148,7 @@ const osi4iotWelcome = () => {
                     let isKeysCreationOK = true;
                     //execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_key -t ed25519", { stdio: 'ignore' });
                     try {
-                        execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_key -t rsa -b 4096", { stdio: 'inherit' });
+                        execSync("ssh-keygen -f ./.osi4iot_keys/osi4iot_key -t rsa -b 4096 -N ''", { stdio: 'inherit' });
                     } catch (err) {
                         isKeysCreationOK = false;
                     }
