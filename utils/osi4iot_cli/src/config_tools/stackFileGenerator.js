@@ -1105,11 +1105,11 @@ export default function (osi4iotState) {
 			if (storageSystem === "NFS Server") {
 				osi4iotStackObj.volumes[nodeRedInstanceVolume] = {
 					driver: 'local',
-					driver_opts: {
-						type: 'nfs',
-						o: `nfsvers=4,addr=${nfsServerIP},rw`,
-						device: `:/var/nfs_osi4iot/${nodeRedInstanceVolume}`
-					}
+					// driver_opts: {
+					// 	type: 'nfs',
+					// 	o: `nfsvers=4,addr=${nfsServerIP},rw`,
+					// 	device: `:/var/nfs_osi4iot/${nodeRedInstanceVolume}`
+					// }
 				}
 			} else if (storageSystem === "AWS EFS") {
 				const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
