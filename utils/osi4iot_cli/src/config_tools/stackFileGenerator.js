@@ -812,7 +812,7 @@ export default function (osi4iotState) {
 			name: osi4iotState.certs.domain_certs.iot_platform_cert_name
 		};
 		osi4iotStackObj.secrets.iot_platform_comb_cert = {
-			file: './certs/domain_certs/iot_platform_comb_cert.cer',
+			file: './certs/domain_certs/iot_platform_comb_cert.pem',
 			name: osi4iotState.certs.domain_certs.iot_platform_comb_cert_name
 		};
 		osi4iotStackObj.secrets.iot_platform_key = {
@@ -823,7 +823,7 @@ export default function (osi4iotState) {
 		osi4iotStackObj.services['traefik'].secrets = [
 			{
 				source: 'iot_platform_comb_cert',
-				target: 'iot_platform_comb_cert.cer',
+				target: 'iot_platform_comb_cert.pem',
 				mode: 0o400
 			},
 			{
