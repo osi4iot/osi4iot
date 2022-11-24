@@ -23,11 +23,11 @@ export default async function () {
 			}
 	
 			if (networks.toString().indexOf("agent_network") === -1) {
-				execSync(`docker ${dockerHost} network create rm agent_network`);
+				execSync(`docker ${dockerHost} network rm agent_network`);
 			}
 	
 			if (networks.toString().indexOf("internal_net") === -1) {
-				execSync(`docker ${dockerHost} network create rm internal_net`);
+				execSync(`docker ${dockerHost} network rm internal_net`);
 			}
 	
 		} else {

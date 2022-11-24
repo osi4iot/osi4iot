@@ -71,6 +71,20 @@ export default function () {
 									})
 								})
 								.then(() => {
+									console.log(clc.green("\nRemoving all docker networks..."));
+									const networks = execSync(`docker ${dockerHost} network ls`);
+									if (networks.toString().indexOf("traefik_public") === -1) {
+										execSync(`docker ${dockerHost} network rm traefik_public`);
+									}
+							
+									if (networks.toString().indexOf("agent_network") === -1) {
+										execSync(`docker ${dockerHost} network rm agent_network`);
+									}
+							
+									if (networks.toString().indexOf("internal_net") === -1) {
+										execSync(`docker ${dockerHost} network rm internal_net`);
+									}
+
 									console.log(clc.green("\nRemoving all docker images and volumes..."));
 									cleanSystemAndVolumes(osi4iotState.platformInfo.NODES_DATA);
 
