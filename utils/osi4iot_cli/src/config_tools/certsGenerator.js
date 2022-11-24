@@ -75,7 +75,7 @@ export default async function (osi4iotState) {
 			current_iot_platform_comb_cert_name !== iot_platform_comb_cert_name
 		) {
 			fs.writeFileSync('./certs/domain_certs/iot_platform_comb_cert.cer', combinedCert);
-			osi4iotState.certs.domain_certs.iot_platform_comb_cert_name = iot_platform_cert_name;
+			osi4iotState.certs.domain_certs.iot_platform_comb_cert_name = iot_platform_comb_cert_name;
 		}
 	}
 
