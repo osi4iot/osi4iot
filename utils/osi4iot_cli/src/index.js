@@ -267,13 +267,16 @@ const awsQuestions = (oldAnswers) => {
 }
 
 const manageOptions = (argv, osi4iotState) => {
+    const areThereOptions = false;
     if (argv.v !== undefined) {
         osi4iotState.platformInfo.DOCKER_IMAGES_VERSION = argv.v;
-    } else {
-        answers.platformInfo.DOCKER_IMAGES_VERSION = "1.1.0";
+        areThereOptions = true;
     }
-    const osi4iotStateFile = JSON.stringify(osi4iotState);
-    fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+
+    if (areThereOptions) {
+        const osi4iotStateFile = JSON.stringify(osi4iotState);
+        fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+    }
 }
 
 osi4iotCli();
