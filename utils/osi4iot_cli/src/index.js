@@ -33,7 +33,6 @@ const osi4iotCli = async () => {
                 const sshKeysOutput = execSync("ssh-add -l").toString();
                 const username = execSync("whoami").toString().replace(/[\n\r]+/g, '').trim();
                 const hostname = execSync("hostname").toString().replace(/[\n\r]+/g, '').trim();
-                console.log(`${username}@${hostname} (RSA)`);
                 if (
                     sshKeysOutput.includes("./.osi4iot_keys/osi4iot_key (RSA)") ||
                     sshKeysOutput.includes(`${username}@${hostname} (RSA)`)
