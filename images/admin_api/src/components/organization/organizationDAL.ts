@@ -269,7 +269,8 @@ export const updateNodeRedInstancesInOrg = async (currentNodeRedInstancesInOrg: 
 				nriHash,
 				orgId,
 				longitude: 0,
-				latitude: 0
+				latitude: 0,
+				iconRadio: 1
 			}
 			nriToCreateQuerries.push(createNodeRedInstance(nodeRedInstancInput));
 		}

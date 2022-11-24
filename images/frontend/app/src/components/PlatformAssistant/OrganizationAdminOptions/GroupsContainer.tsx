@@ -63,7 +63,8 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
     const orgsManagedTable = useOrgsManagedTable();
     const editGroupInputData = useGroupInputData();
     const previousOption = useGroupsPreviousOption();
-    const [createGroupInputData, setCreateGroupInputData] = useState<IGroupInputData>(initialCreateGroupInputData);
+    const intialGroupInputData = {...initialCreateGroupInputData, orgId: orgsManagedTable[0].id}
+    const [createGroupInputData, setCreateGroupInputData] = useState<IGroupInputData>(intialGroupInputData);
     const [floorSelected, setFloorSelected] = useState<IFloor | null>(null);
 
     const setGroupLocationData = useCallback((floorNumber: number, featureIndex: number) => {

@@ -66,6 +66,9 @@ export default async function (osi4iotState) {
 			osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp = iotPlatformCertExpTimestamp;
 			osi4iotState.certs.domain_certs.iot_platform_cert_name = iot_platform_cert_name;
 		}
+
+		const combinedCert = `${osi4iotState.certs.domain_certs.ssl_ca_pem}${osi4iotState.certs.domain_certs.ssl_cert_crt}`;
+		fs.writeFileSync('./certs/domain_certs/iot_platform_comb_cert.cer', combinedCert);
 	}
 
 	let mqttCa = {

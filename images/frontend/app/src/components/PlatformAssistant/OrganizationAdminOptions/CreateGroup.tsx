@@ -112,6 +112,25 @@ const SelectSpaceButton = styled.button`
 const domainName = getDomainName();
 const protocol = getProtocol();
 
+const initialCreateGroupInputData = {
+    orgId: 1,
+    name: "",
+    acronym: "",
+    folderPermission: "Viewer",
+    telegramInvitationLink: "",
+    telegramChatId: "",
+    floorNumber: 0,
+    featureIndex: 0,
+    mqttAccessControl: "Pub & Sub",
+    groupAdminDataArray: [
+        {
+            firstName: "",
+            surname: "",
+            email: "",
+        }
+    ]
+};
+
 const folderPermissionOptions = [
     {
         label: "Viewer",
@@ -165,7 +184,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
     setGroupInputData,
     floorSelected
 }) => {
-    const [selectedOrgId, setSelectedOrgId] = useState(orgsManagedTable[0].id);
+    const [selectedOrgId, setSelectedOrgId] = useState(groupInputData.orgId as number);
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [showCreateGroup, setShowCreateGroup] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -173,7 +192,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const groupsDispatch = useGroupsDispatch();
-    const initialGroupData = { ...groupInputData, orgId: selectedOrgId };
+    // const initialGroupData = { ...groupInputData, orgId: selectedOrgId };
+    const initialGroupData = { ...groupInputData };
     if (selectedUsersArray.length !== 0) {
         const newGroupAdmins = selectedUsersArray.map(user => {
             const groupAdminData = {
@@ -250,9 +270,11 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                setGroupInputData(initialCreateGroupInputData);
                 toast.success(data.message);
             })
             .catch((error) => {
+                setGroupInputData(initialCreateGroupInputData);
                 const errorMessage = error.response.data.message;
                 if (errorMessage !== "jwt expired") toast.error(errorMessage);
                 backToTable();
@@ -282,24 +304,34 @@ const CreateGroup: FC<CreateGroupProps> = ({
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
+        setGroupInputData(initialCreateGroupInputData);
         backToTable();
     };
 
     const goToSelect = (groupInputData: IGroupInputData) => {
-        setGroupInputData(groupInputData);
+        const newgroupInputData = { ...groupInputData, orgId: selectedOrgId };
+        setGroupInputData(newgroupInputData);
         setShowCreateGroup(false);
     }
 
     const defineGroupOrgId = (orgId: number) => {
         setSelectedOrgId(orgId);
+        const newgroupInputData = { ...groupInputData, orgId };
+        setGroupInputData(newgroupInputData);
     }
 
     const selectSpace = (groupInputData: IGroupInputData) => {
-        setGroupInputData(groupInputData);
-        const buildingId = orgsManagedTable.filter(org => org.id === selectedOrgId)[0].buildingId;
-        const groupBuildingId = { groupBuildingId: buildingId };
-        setGroupBuildingId(groupsDispatch, groupBuildingId);
-        selectSpaceOption();
+        const newgroupInputData = { ...groupInputData, orgId: selectedOrgId };
+        setGroupInputData(newgroupInputData);
+        const orgFiltered = orgsManagedTable.filter(org => org.id === selectedOrgId)[0];
+        if (orgFiltered !== undefined) {
+            const groupBuildingId = { groupBuildingId: orgFiltered.buildingId };
+            setGroupBuildingId(groupsDispatch, groupBuildingId);
+            selectSpaceOption();
+        } else {
+            const warningMessage = `None organization with id: ${selectedOrgId} has been defined`
+            toast.warning(warningMessage);
+        }
     }
 
     return (
