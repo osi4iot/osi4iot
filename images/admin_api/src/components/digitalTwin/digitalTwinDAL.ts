@@ -1027,6 +1027,7 @@ export const deleteBucketFiles = async (filesToRemove: string[]) => {
 
 export const removeFilesFromBucketFolder = async (folderPath: string) => {
 	const filesToRemove = await getBucketFolderFileList(folderPath);
+	console.log("filesToRemove=", filesToRemove)
 	await deleteBucketFiles(filesToRemove);
 }
 

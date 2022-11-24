@@ -28,6 +28,7 @@ const osi4iotCli = async () => {
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
+        manageOptions(argv, osi4iotState);
         if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION !== "Local deployment") {
             try {
                 const sshKeysOutput = execSync("ssh-add -l").toString();
@@ -263,6 +264,16 @@ const awsQuestions = (oldAnswers) => {
             fs.writeFileSync(osi4iot_aws_key, answers.AWS_SSH_KEY, { mode: 0o400 });
             loadSSHAgentWarnning();
         });
+}
+
+const manageOptions = (argv, osi4iotState) => {
+    if (argv.v !== undefined) {
+        osi4iotState.platformInfo.DOCKER_IMAGES_VERSION = argv.v;
+    } else {
+        answers.platformInfo.DOCKER_IMAGES_VERSION = "1.1.0";
+    }
+    const osi4iotStateFile = JSON.stringify(osi4iotState);
+    fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 }
 
 osi4iotCli();
