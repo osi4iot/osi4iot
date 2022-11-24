@@ -1,5 +1,6 @@
 import fs from 'fs';
 import clc from 'cli-color';
+import { execSync } from 'child_process';
 import execShellCommand from '../generic_tools/execShellCommand.js';
 import findManagerDockerHost from './findManagerDockerHost.js';;
 import clearScreen from './clearScreen.js';
@@ -15,6 +16,20 @@ export default async function () {
 		if (nodesData && nodesData.length !== 0) {
 			const dockerHost = findManagerDockerHost(osi4iotState.platformInfo.NODES_DATA);
 			await execShellCommand(`docker ${dockerHost} stack rm osi4iot`);
+
+			const networks = execSync(`docker ${dockerHost} network ls`);
+			if (networks.toString().indexOf("traefik_public") === -1) {
+				execSync(`docker ${dockerHost} network rm traefik_public`);
+			}
+	
+			if (networks.toString().indexOf("agent_network") === -1) {
+				execSync(`docker ${dockerHost} network create rm agent_network`);
+			}
+	
+			if (networks.toString().indexOf("internal_net") === -1) {
+				execSync(`docker ${dockerHost} network create rm internal_net`);
+			}
+	
 		} else {
 			clearScreen();
 		}
