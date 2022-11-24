@@ -267,7 +267,7 @@ const awsQuestions = (oldAnswers) => {
 }
 
 const manageOptions = (argv, osi4iotState) => {
-    const areThereOptions = false;
+    let areThereOptions = false;
     if (argv.v !== undefined) {
         osi4iotState.platformInfo.DOCKER_IMAGES_VERSION = argv.v;
         areThereOptions = true;
