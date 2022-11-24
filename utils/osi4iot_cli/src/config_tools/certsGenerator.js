@@ -74,10 +74,10 @@ export default async function (osi4iotState) {
 		const current_iot_platform_comb_cert_name = osi4iotState.certs.domain_certs.iot_platform_comb_cert_name;
 		const iot_platform_comb_cert_name = `iot_platform_comb_cert_${md5(combinedCert)}`;
 		if (
-			!fs.existsSync('./certs/domain_certs/iot_platform_comb_cert.cer') ||
+			!fs.existsSync('./certs/domain_certs/iot_platform_comb_cert.pem') ||
 			current_iot_platform_comb_cert_name !== iot_platform_comb_cert_name
 		) {
-			fs.writeFileSync('./certs/domain_certs/iot_platform_comb_cert.cer', combinedCert);
+			fs.writeFileSync('./certs/domain_certs/iot_platform_comb_cert.pem', combinedCert);
 			osi4iotState.certs.domain_certs.iot_platform_comb_cert_name = iot_platform_comb_cert_name;
 		}
 	}
