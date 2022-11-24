@@ -31,8 +31,8 @@ const osi4iotCli = async () => {
         if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION !== "Local deployment") {
             try {
                 const sshKeysOutput = execSync("ssh-add -l").toString();
-                const username = execSync("whoami").toString();
-                const hostname = execSync("hostname").toString();
+                const username = execSync("whoami").toString().replace(/[\n\r]+/g, '').trim();
+                const hostname = execSync("hostname").toString().replace(/[\n\r]+/g, '').trim();
                 console.log(`${username}@${hostname} (RSA)`);
                 if (
                     sshKeysOutput.includes("./.osi4iot_keys/osi4iot_key (RSA)") ||
