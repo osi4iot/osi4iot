@@ -1,6 +1,6 @@
 tls:
   certificates:
-    - certFile: /run/secrets/iot_platform_cert.cer
+    - certFile: /run/secrets/iot_platform_comb_cert.cer
       keyFile: /run/secrets/iot_platform.key
   options:
     default:

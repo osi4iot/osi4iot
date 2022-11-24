@@ -68,7 +68,15 @@ export default async function (osi4iotState) {
 		}
 
 		const combinedCert = `${osi4iotState.certs.domain_certs.ssl_ca_pem}${osi4iotState.certs.domain_certs.ssl_cert_crt}`;
-		fs.writeFileSync('./certs/domain_certs/iot_platform_comb_cert.cer', combinedCert);
+		const current_iot_platform_comb_cert_name = osi4iotState.certs.domain_certs.iot_platform_comb_cert_name;
+		const iot_platform_comb_cert_name = `iot_platform_comb_cert_${md5(combinedCert)}`;
+		if (
+			!fs.existsSync('./certs/domain_certs/iot_platform_comb_cert.cer') ||
+			current_iot_platform_comb_cert_name !== iot_platform_comb_cert_name
+		) {
+			fs.writeFileSync('./certs/domain_certs/iot_platform_comb_cert.cer', combinedCert);
+			osi4iotState.certs.domain_certs.iot_platform_comb_cert_name = iot_platform_cert_name;
+		}
 	}
 
 	let mqttCa = {
