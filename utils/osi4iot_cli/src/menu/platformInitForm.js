@@ -189,7 +189,15 @@ const platformInitiation = () => {
 				);
 			}
 			const newAnswers = { ...prevAnswers, NODES_DATA: nodesData };
-			finalQuestions(newAnswers, deploymentLocation, awsAccessKeyId, awsSecretAccessKey, awsRegion, dockerImagesVersion);
+			finalQuestions(
+				newAnswers,
+				deploymentLocation,
+				deploymentMode,
+				awsAccessKeyId,
+				awsSecretAccessKey,
+				awsRegion,
+				dockerImagesVersion
+			);
 		});
 
 }
@@ -197,6 +205,7 @@ const platformInitiation = () => {
 const finalQuestions = (
 	oldAnswers,
 	deploymentLocation,
+	deploymentMode,
 	awsAccessKeyId,
 	awsSecretAccessKey,
 	awsRegion,
