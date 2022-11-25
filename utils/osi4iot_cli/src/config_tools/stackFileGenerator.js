@@ -718,7 +718,7 @@ export default function (osi4iotState) {
 			}
 		}
 
-		osi4iotStackObj.volumes.pgadmin4_data = {
+		osi4iotStackObj.volumes.minio_storage = {
 			driver: 'local',
 		}
 
