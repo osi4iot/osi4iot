@@ -532,6 +532,9 @@ export default function (osi4iotState) {
 			mosquitto_log: {
 				driver: 'local'
 			},
+			pgdata: {
+				driver: 'local'
+			},
 			portainer_data: {
 				driver: 'local'
 			},
