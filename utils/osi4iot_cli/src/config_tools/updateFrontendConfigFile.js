@@ -29,6 +29,4 @@ export default function (osi4iotState) {
     for (let iline = 0; iline < frontendConfig.length; iline++) {
         fs.appendFileSync(frontend_conf_file, frontendConfig[iline]);
     }
-
-    osi4iotState.frontend_conf_file_name = `frontend_conf_file_${md5(frontendConfig)}`;
 }

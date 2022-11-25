@@ -597,7 +597,6 @@ export default function (osi4iotState) {
 			},
 			frontend_conf: {
 				file: './config/frontend/frontend.conf',
-				name: osi4iotState.frontend_conf_file_name
 			}
 		}
 	}
