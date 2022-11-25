@@ -56,7 +56,7 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 					osi4iotStateFileNeedToBeUpdated = true;
 				}
 
-				const areSecretsCreated = checkIfSecretsAreCreated();
+				const areSecretsCreated = checkIfSecretsAreCreated(osi4iotState);
 				if (!areSecretsCreated) {
 					console.log(clc.green('Creating secrets...'))
 					secretsGenerator(osi4iotState);
