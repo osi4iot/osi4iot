@@ -53,7 +53,7 @@ export default async function () {
 					clc.cyanBright('Building Id'),
 					clc.cyanBright('Org hash'),
 					clc.cyanBright('Mqtt acc'),
-					clc.cyanBright('Num master devices')
+					clc.cyanBright('Num nodered instances')
 				],
 				colWidths: [5, 30, 15, 30, 19, 8, 19, 19, 12, 18, 12, 13],
 				wordWrap: true,
