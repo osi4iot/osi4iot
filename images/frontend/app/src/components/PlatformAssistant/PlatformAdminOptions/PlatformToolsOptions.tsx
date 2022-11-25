@@ -55,9 +55,13 @@ const PlatformTools: FC<{}> = () => {
 
     return (
         <PlatformToolsContainer>
-            <ImageContainer onClick={() => handleLinkClick("/pgadmin4/")} >
-                <ToolImage src="../images/platformTools/pgadmin4.png" alt="Pgadmin4" />
-            </ImageContainer>
+            {
+                (window._env_ && window._env_.DEPLOYMENT_MODE === "development") &&
+
+                <ImageContainer onClick={() => handleLinkClick("/pgadmin4/")} >
+                    <ToolImage src="../images/platformTools/pgadmin4.png" alt="Pgadmin4" />
+                </ImageContainer>
+            }
             <ImageContainer onClick={() => handleLinkClick("/portainer/")} >
                 <ToolImage src="../images/platformTools/portainer.png" alt="Portainer" />
             </ImageContainer>

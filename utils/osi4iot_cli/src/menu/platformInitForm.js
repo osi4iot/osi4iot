@@ -26,6 +26,7 @@ import { chooseOption } from './chooseOption.js';
 const platformInitiation = () => {
 	const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 	const osi4iotStateInitial = JSON.parse(osi4iotStateText);
+	const deploymentMode = osi4iotStateInitial.platformInfo.DEPLOYMENT_MODE;
 	const deploymentLocation = osi4iotStateInitial.platformInfo.DEPLOYMENT_LOCATION;
 	const awsAccessKeyId = osi4iotStateInitial.platformInfo.AWS_ACCESS_KEY_ID;
 	const awsSecretAccessKey = osi4iotStateInitial.platformInfo.AWS_SECRET_ACCESS_KEY;
@@ -631,6 +632,7 @@ const finalQuestions = (
 						const osi4iotState = {
 							platformInfo: {
 								DOCKER_IMAGES_VERSION: dockerImagesVersion,
+								DEPLOYMENT_MODE: deploymentMode,
 								DEPLOYMENT_LOCATION: deploymentLocation,
 								AWS_ACCESS_KEY_ID: awsAccessKeyId,
 								AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,

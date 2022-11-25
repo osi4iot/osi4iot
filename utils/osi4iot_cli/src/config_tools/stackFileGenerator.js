@@ -31,6 +31,7 @@ export default function (osi4iotState) {
 	const existNFSServer = nodesData.filter(node => node.nodeRole === "NFS server").length !== 0;
 	let storageSystem = "Local storage";
 	const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
+	const deploymentMode = osi4iotState.platformInfo.DEPLOYMENT_MODE;
 	if (deploymentLocation === "On-premise cluster deployment" && existNFSServer) {
 		storageSystem = "NFS Server";
 	}
@@ -261,43 +262,6 @@ export default function (osi4iotState) {
 						'traefik.http.routers.portainer.tls=true',
 						'traefik.http.routers.portainer.service=portainer',
 						'traefik.http.services.portainer.loadbalancer.server.port=9000'
-					]
-				}
-			},
-			pgadmin4: {
-				image: `ghcr.io/osi4iot/pgadmin4:${serviceImageVersion['pgadmin4']}`,
-				user: '${UID}:${GID}',
-				secrets: [
-					{
-						source: 'pgadmin4',
-						target: 'pgadmin4.txt',
-						mode: 0o400
-					}
-				],
-				volumes: [
-					'pgadmin4_data:/var/lib/pgadmin'
-				],
-				networks: [
-					'internal_net',
-					'traefik_public'
-				],
-				deploy: {
-					placement: {
-						constraints: workerConstraintsArray
-					},
-					labels: [
-						'traefik.enable=true',
-						`traefik.http.routers.pgadmin4.rule=Host(\`${domainName}\`) && PathPrefix(\`/pgadmin4/\`)`,
-						'traefik.http.middlewares.pgadmin4-prefix.stripprefix.prefixes=/pgadmin4',
-						'traefik.http.routers.pgadmin4.middlewares=pgadmin4-prefix,pgadmin4-header,pgadmin4-redirectregex',
-						'traefik.http.middlewares.pgadmin4-prefix.stripprefix.forceslash=false',
-						'traefik.http.middlewares.pgadmin4-header.headers.customrequestheaders.X-Script-Name=/pgadmin4/',
-						`traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.regex=${domainName}/(pgadmin4*)`,
-						`traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
-						"traefik.http.routers.pgadmin4.entrypoints=websecure",
-						'traefik.http.routers.pgadmin4.tls=true',
-						'traefik.http.routers.pgadmin4.service=pgadmin4',
-						'traefik.http.services.pgadmin4.loadbalancer.server.port=80'
 					]
 				}
 			},
@@ -568,12 +532,6 @@ export default function (osi4iotState) {
 			mosquitto_log: {
 				driver: 'local'
 			},
-			pgdata: {
-				driver: 'local'
-			},
-			pgadmin4_data: {
-				driver: 'local'
-			},
 			portainer_data: {
 				driver: 'local'
 			},
@@ -600,9 +558,6 @@ export default function (osi4iotState) {
 			mqtt_broker_key: {
 				file: './certs/mqtt_certs/broker/server.key',
 				name: osi4iotState.certs.mqtt_certs.broker.mqtt_broker_key_name
-			},
-			pgadmin4: {
-				file: './secrets/pgadmin4.txt'
 			},
 			postgres_grafana: {
 				file: './secrets/postgres_grafana.txt'
@@ -640,6 +595,54 @@ export default function (osi4iotState) {
 			frontend_conf: {
 				file: './config/frontend/frontend.conf'
 			}
+		}
+	}
+
+	if (deploymentMode === "development") {
+		osi4iotStackObj.services['pgadmin4'] =  {
+			image: `ghcr.io/osi4iot/pgadmin4:${serviceImageVersion['pgadmin4']}`,
+			user: '${UID}:${GID}',
+			secrets: [
+				{
+					source: 'pgadmin4',
+					target: 'pgadmin4.txt',
+					mode: 0o400
+				}
+			],
+			volumes: [
+				'pgadmin4_data:/var/lib/pgadmin'
+			],
+			networks: [
+				'internal_net',
+				'traefik_public'
+			],
+			deploy: {
+				placement: {
+					constraints: workerConstraintsArray
+				},
+				labels: [
+					'traefik.enable=true',
+					`traefik.http.routers.pgadmin4.rule=Host(\`${domainName}\`) && PathPrefix(\`/pgadmin4/\`)`,
+					'traefik.http.middlewares.pgadmin4-prefix.stripprefix.prefixes=/pgadmin4',
+					'traefik.http.routers.pgadmin4.middlewares=pgadmin4-prefix,pgadmin4-header,pgadmin4-redirectregex',
+					'traefik.http.middlewares.pgadmin4-prefix.stripprefix.forceslash=false',
+					'traefik.http.middlewares.pgadmin4-header.headers.customrequestheaders.X-Script-Name=/pgadmin4/',
+					`traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.regex=${domainName}/(pgadmin4*)`,
+					`traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.replacement=${domainName}/\$\${1}"`,
+					"traefik.http.routers.pgadmin4.entrypoints=websecure",
+					'traefik.http.routers.pgadmin4.tls=true',
+					'traefik.http.routers.pgadmin4.service=pgadmin4',
+					'traefik.http.services.pgadmin4.loadbalancer.server.port=80'
+				]
+			}
+		}
+
+		osi4iotStackObj.volumes.minio_storage = {
+			driver: 'local',
+		}
+
+		osi4iotStackObj.secrets.pgadmin4 = {
+			file: './secrets/pgadmin4.txt'
 		}
 	}
 
@@ -712,7 +715,7 @@ export default function (osi4iotState) {
 			}
 		}
 
-		osi4iotStackObj.volumes.minio_storage = {
+		osi4iotStackObj.volumes.pgadmin4_data = {
 			driver: 'local',
 		}
 
@@ -920,15 +923,6 @@ export default function (osi4iotState) {
 				}
 			}
 
-			osi4iotStackObj.volumes['pgadmin4_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs_osi4iot/pgadmin4_data'
-				}
-			}
-
 			osi4iotStackObj.volumes['portainer_data'] = {
 				driver: 'local',
 				driver_opts: {
@@ -953,6 +947,17 @@ export default function (osi4iotState) {
 					type: 'nfs',
 					o: `nfsvers=4,addr=${nfsServerIP},rw`,
 					device: ':/var/nfs_osi4iot/admin_api_log'
+				}
+			}
+
+			if (deploymentMode === "development") {
+				osi4iotStackObj.volumes['pgadmin4_data'] = {
+					driver: 'local',
+					driver_opts: {
+						type: 'nfs',
+						o: `nfsvers=4,addr=${nfsServerIP},rw`,
+						device: ':/var/nfs_osi4iot/pgadmin4_data'
+					}
 				}
 			}
 		} else if (storageSystem === "AWS EFS") {
@@ -984,15 +989,6 @@ export default function (osi4iotState) {
 				}
 			}
 
-			osi4iotStackObj.volumes['pgadmin4_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/pgadmin4_data`
-				}
-			}
-
 			osi4iotStackObj.volumes['portainer_data'] = {
 				driver: 'local',
 				driver_opts: {
@@ -1017,6 +1013,17 @@ export default function (osi4iotState) {
 					type: 'nfs',
 					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/admin_api_log`
+				}
+			}
+
+			if (deploymentMode === "development") {
+				osi4iotStackObj.volumes['pgadmin4_data'] = {
+					driver: 'local',
+					driver_opts: {
+						type: 'nfs',
+						o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+						device: `${efs_dns}:/pgadmin4_data`
+					}
 				}
 			}
 		}
