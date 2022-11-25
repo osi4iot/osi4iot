@@ -15,6 +15,7 @@ import findManagerDockerHost from './findManagerDockerHost.js';
 import { chooseOption } from './chooseOption.js';
 import pruneSystemAndVolumes from './pruneSystemAndVolumes.js';
 import clearScreen from './clearScreen.js';
+import checkFrontendConfigFile from '../config_tools/checkFrontendConfigFile.js';
 
 const dots = [
 	"       ",
@@ -69,6 +70,8 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 					configGenerator(osi4iotState);
 					osi4iotStateFileNeedToBeUpdated = true;
 				}
+
+				checkFrontendConfigFile(osi4iotState);
 
 				console.log(clc.green('Creating stack file...\n'))
 				stackFileGenerator(osi4iotState);
