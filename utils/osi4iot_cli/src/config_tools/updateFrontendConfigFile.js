@@ -1,4 +1,5 @@
 import fs from 'fs';
+import md5 from 'md5';
 import { insertQuotesInText } from "./configGenerator.js"
 
 export default function (osi4iotState) {
