@@ -4,6 +4,12 @@ export default function (osi4iotState) {
     const frontend_conf_file = "./config/frontend/frontend.conf"
 	if (fs.existsSync(frontend_conf_file)) {
 		fs.rmSync('./config/frontend/frontend.conf');
+    }
+    
+    let protocol = "https";
+	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
+	if (domainCertsType === "No certs") {
+		protocol = "http";
 	}
 
     const frontendConfig = [
