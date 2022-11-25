@@ -1,7 +1,7 @@
 tls:
   certificates:
-    - certFile: /run/secrets/iot_platform_comb_cert.pem
-      keyFile: /run/secrets/iot_platform_comb_cert.pem
+    - certFile: /run/secrets/iot_platform_cert.cer
+      keyFile: /run/secrets/iot_platform.key
   options:
     default:
       minVersion: VersionTLS12

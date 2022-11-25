@@ -66,20 +66,6 @@ export default async function (osi4iotState) {
 			osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp = iotPlatformCertExpTimestamp;
 			osi4iotState.certs.domain_certs.iot_platform_cert_name = iot_platform_cert_name;
 		}
-
-		const key = osi4iotState.certs.domain_certs.private_key;
-		const ca_pem = osi4iotState.certs.domain_certs.ssl_ca_pem;
-		const cert = osi4iotState.certs.domain_certs.ssl_cert_crt;
-		const combinedCert = `${key}${ca_pem}${cert}`;
-		const current_iot_platform_comb_cert_name = osi4iotState.certs.domain_certs.iot_platform_comb_cert_name;
-		const iot_platform_comb_cert_name = `iot_platform_comb_cert_${md5(combinedCert)}`;
-		if (
-			!fs.existsSync('./certs/domain_certs/iot_platform_comb_cert.pem') ||
-			current_iot_platform_comb_cert_name !== iot_platform_comb_cert_name
-		) {
-			fs.writeFileSync('./certs/domain_certs/iot_platform_comb_cert.pem', combinedCert);
-			osi4iotState.certs.domain_certs.iot_platform_comb_cert_name = iot_platform_comb_cert_name;
-		}
 	}
 
 	let mqttCa = {

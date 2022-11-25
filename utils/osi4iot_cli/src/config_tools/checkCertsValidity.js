@@ -39,10 +39,6 @@ export default function (osi4iotState) {
 		}
 	}
 
-	if (!fs.existsSync('./certs/domain_certs/iot_platform_comb_cert.pem')) {
-		certsUpdateIsNeedeed = true;
-	}
-
 	if (osi4iotState.certs.mqtt_certs.broker.expiration_timestamp < limitTimestamp) {
 		certsUpdateIsNeedeed = true;
 	}

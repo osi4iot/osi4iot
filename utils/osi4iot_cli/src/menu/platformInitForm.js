@@ -698,7 +698,6 @@ const finalQuestions = (
 									iot_platform_cert_name: "",
 									ca_pem_expiration_timestamp: 0,
 									cert_crt_expiration_timestamp: 0,
-									iot_platform_comb_cert_name: "",
 								},
 								mqtt_certs: {
 									ca_certs: {
