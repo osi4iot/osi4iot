@@ -1,11 +1,12 @@
 import fs from 'fs';
 import md5 from 'md5';
+import { insertQuotesInText } from "./configGenerator.js"
 
-const insertQuotesInText = (key, value, carrReturn) => {
-	let text = `${key}=${value}${carrReturn}`;
-	if (value.indexOf(" ") !== -1) text = `${key}="${value}"${carrReturn}`;
-	return text;
-}
+// const insertQuotesInText = (key, value, carrReturn) => {
+// 	let text = `${key}=${value}${carrReturn}`;
+// 	if (value.indexOf(" ") !== -1) text = `${key}="${value}"${carrReturn}`;
+// 	return text;
+// }
 
 export default function (osi4iotState) {
 

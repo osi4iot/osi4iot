@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { insertQuotesInText } from "./configGenerator.js"
 
 export default function (osi4iotState) {
     const frontend_conf_file = "./config/frontend/frontend.conf"

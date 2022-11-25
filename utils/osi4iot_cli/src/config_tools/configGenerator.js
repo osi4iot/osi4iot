@@ -1,7 +1,7 @@
 import fs from 'fs';
 import updateFrontendConfigFile from './updateFrontendConfigFile.js';
 
-const insertQuotesInText = (key, value, carrReturn) => {
+export const insertQuotesInText = (key, value, carrReturn) => {
 	let text = `${key}=${value}${carrReturn}`;
 	if (value.indexOf(" ") !== -1) text = `${key}="${value}"${carrReturn}`;
 	return text;
