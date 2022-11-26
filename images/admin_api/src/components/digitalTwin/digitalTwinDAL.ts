@@ -554,14 +554,19 @@ export const createDigitalTwin = async (
 	const digitalTwinUpdated: Partial<IDigitalTwin> = { ...digitalTwinInput, deviceId, dashboardId: digitalTwinDashboardId };
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 
-	const digitalTwinTopicSensorQueries: any[] = [];
-	for (const topicSensor of topicSensors) {
-		const index = topicSensor.topicName.split("_")[3];
-		const topicType = `dev2pdb_${index}`;
-		const digitalTwinTopicSensorQuery = createDigitalTwinTopic(digitalTwin.id, topicSensor.id, topicType)
-		digitalTwinTopicSensorQueries.push(digitalTwinTopicSensorQuery);
+	if (alreadyCreatedTopic) {
+		const topicType = digitalTwinInput.topicSensorTypes[0];
+		await createDigitalTwinTopic(digitalTwin.id, topicSensors[0].id, topicType)
+	} else {
+		const digitalTwinTopicSensorQueries: any[] = [];
+		for (const topicSensor of topicSensors) {
+			const index = topicSensor.topicName.split("_")[3];
+			const topicType = `dev2pdb_${index}`;
+			const digitalTwinTopicSensorQuery = createDigitalTwinTopic(digitalTwin.id, topicSensor.id, topicType)
+			digitalTwinTopicSensorQueries.push(digitalTwinTopicSensorQuery);
+		}
+		await Promise.all(digitalTwinTopicSensorQueries);
 	}
-	await Promise.all(digitalTwinTopicSensorQueries);
 
 
 	if (digitalTwinInput.type === "Gltf 3D model") {

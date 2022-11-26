@@ -637,7 +637,7 @@ export async function dataBaseInitialization() {
 							digitalTwinUid: generateDigitalTwinUid(),
 							description: demoDigitalTwinDescription(group, "Temperature"),
 							type: "Grafana dashboard",
-							topicSensorTypes: [] as string[],
+							topicSensorTypes: ['dev2pdb_1'] as string[],
 							maxNumResFemFiles: 0,
 							digitalTwinSimulationFormat: "{}"
 						},
@@ -645,7 +645,7 @@ export async function dataBaseInitialization() {
 							digitalTwinUid: generateDigitalTwinUid(),
 							description: demoDigitalTwinDescription(group, "Accelerations"),
 							type: "Grafana dashboard",
-							topicSensorTypes: [] as string[],
+							topicSensorTypes: ['dev2pdb_1'] as string[],
 							maxNumResFemFiles: 0,
 							digitalTwinSimulationFormat: "{}"
 						},
