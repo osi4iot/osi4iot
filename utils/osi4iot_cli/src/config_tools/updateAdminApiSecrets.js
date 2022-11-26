@@ -1,11 +1,6 @@
 import fs from 'fs';
 import md5 from 'md5';
-
-const insertQuotesInText = (key, value, carrReturn) => {
-	let text = `${key}=${value}${carrReturn}`;
-	if (value.indexOf(" ") !== -1) text = `${key}="${value}"${carrReturn}`;
-	return text;
-}
+import { insertQuotesInText } from "./configGenerator.js"
 
 export default function (osi4iotState) {
 

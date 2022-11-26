@@ -20,6 +20,8 @@ const cliOptions = [
     '- delete_platform: Stop all services and remove images and volumes in platform.',
 ];
 
+const dockerImagesVersions = ["dev", "1.1.0", "latest"];
+
 const osi4iotCli = async () => {
     const argv = yargs(hideBin(process.argv)).argv;
 
@@ -183,6 +185,7 @@ const osi4iotWelcome = () => {
 const createOsi4iotStateFile = (answers) => {
     const osi4iotState = {
         platformInfo: {
+            DEPLOYMENT_MODE: "production",
             DEPLOYMENT_LOCATION: answers.DEPLOYMENT_LOCATION,
             AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID || "",
             AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY || "",
@@ -269,7 +272,18 @@ const awsQuestions = (oldAnswers) => {
 const manageOptions = (argv, osi4iotState) => {
     let areThereOptions = false;
     if (argv.v !== undefined) {
-        osi4iotState.platformInfo.DOCKER_IMAGES_VERSION = argv.v;
+        if (dockerImagesVersions.indexOf(argv.v) !== -1) {
+            osi4iotState.platformInfo.DOCKER_IMAGES_VERSION = argv.v;
+            areThereOptions = true;
+        }
+    }
+
+    if (argv.m !== undefined) {
+        if (argv.m === "prod" || argv.m === "production") {
+            osi4iotState.platformInfo.DEPLOYMENT_MODE = "production";
+        } else if (argv.m === "dev" || argv.m === "development") {
+            osi4iotState.platformInfo.DEPLOYMENT_MODE = "development";
+        }
         areThereOptions = true;
     }
 

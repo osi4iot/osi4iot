@@ -28,21 +28,6 @@ export default function (osi4iotState) {
 		fs.appendFileSync('./secrets/grafana.txt', grafanaSecrets[iline]);
 	}
 
-	//pgadmin4 secrets
-	const pgadmin4Secrets = [
-		`PGADMIN_DEFAULT_EMAIL=${osi4iotState.platformInfo.PGADMIN_DEFAULT_EMAIL}\n`,
-		`PGADMIN_DEFAULT_PASSWORD=${osi4iotState.platformInfo.PGADMIN_DEFAULT_PASSWORD}\n`,
-		`POSTGRES_USER=${osi4iotState.platformInfo.POSTGRES_USER}`
-	];
-
-	if (fs.existsSync('./secrets/pgadmin4.txt')) {
-		fs.rmSync('./secrets/pgadmin4.txt');
-	}
-
-	for (let iline = 0; iline < pgadmin4Secrets.length; iline++) {
-		fs.appendFileSync('./secrets/pgadmin4.txt', pgadmin4Secrets[iline]);
-	}
-
 	//postgres_db secret
 	if (fs.existsSync('./secrets/postgres_db.txt')) {
 		fs.rmSync('./secrets/postgres_db.txt');
@@ -93,6 +78,22 @@ export default function (osi4iotState) {
 
 	for (let iline = 0; iline < minioSecrets.length; iline++) {
 		fs.appendFileSync('./secrets/minio.txt', minioSecrets[iline]);
+	}
+
+	//pgadmin4 secrets
+	if (fs.existsSync('./secrets/pgadmin4.txt')) {
+		fs.rmSync('./secrets/pgadmin4.txt');
+	}
+	if (osi4iotState.platformInfo.DEPLOYMENT_MODE === "development") {
+		const pgadmin4Secrets = [
+			`PGADMIN_DEFAULT_EMAIL=${osi4iotState.platformInfo.PGADMIN_DEFAULT_EMAIL}\n`,
+			`PGADMIN_DEFAULT_PASSWORD=${osi4iotState.platformInfo.PGADMIN_DEFAULT_PASSWORD}\n`,
+			`POSTGRES_USER=${osi4iotState.platformInfo.POSTGRES_USER}`
+		];
+	
+		for (let iline = 0; iline < pgadmin4Secrets.length; iline++) {
+			fs.appendFileSync('./secrets/pgadmin4.txt', pgadmin4Secrets[iline]);
+		}
 	}
 
 };

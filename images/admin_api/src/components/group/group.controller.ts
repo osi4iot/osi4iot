@@ -350,7 +350,7 @@ class GroupController implements IController {
 					digitalTwinUid: generateDigitalTwinUid(),
 					description: demoDigitalTwinDescription(groupCreated, "Temperature"),
 					type: "Grafana dashboard",
-					topicSensorTypes: [] as string[],
+					topicSensorTypes: ['dev2pdb_1'] as string[],
 					maxNumResFemFiles: 0,
 					digitalTwinSimulationFormat: "{}"
 				},
@@ -358,7 +358,7 @@ class GroupController implements IController {
 					digitalTwinUid: generateDigitalTwinUid(),
 					description: demoDigitalTwinDescription(groupCreated, "Accelerations"),
 					type: "Grafana dashboard",
-					topicSensorTypes: [] as string[],
+					topicSensorTypes: ['dev2pdb_1'] as string[],
 					maxNumResFemFiles: 0,
 					digitalTwinSimulationFormat: "{}"
 				},

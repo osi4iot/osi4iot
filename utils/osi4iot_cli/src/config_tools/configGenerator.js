@@ -1,6 +1,7 @@
 import fs from 'fs';
+import updateFrontendConfigFile from './updateFrontendConfigFile.js';
 
-const insertQuotesInText = (key, value, carrReturn) => {
+export const insertQuotesInText = (key, value, carrReturn) => {
 	let text = `${key}=${value}${carrReturn}`;
 	if (value.indexOf(" ") !== -1) text = `${key}="${value}"${carrReturn}`;
 	return text;
@@ -65,24 +66,7 @@ export default function (osi4iotState) {
 	}
 
 	//frontend config
-	const frontendConfig = [
-		`PLATFORM_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "_")}\n`,
-		`DOMAIN_NAME=${osi4iotState.platformInfo.DOMAIN_NAME}\n`,
-		`PROTOCOL=${protocol}\n`,
-		insertQuotesInText("DEPLOYMENT_LOCATION", osi4iotState.platformInfo.DEPLOYMENT_LOCATION, "\n"),
-		`MIN_LONGITUDE=${osi4iotState.platformInfo.MIN_LONGITUDE}\n`,
-		`MAX_LONGITUDE=${osi4iotState.platformInfo.MAX_LONGITUDE}\n`,
-		`MIN_LATITUDE=${osi4iotState.platformInfo.MIN_LATITUDE}\n`,
-		`MAX_LATITUDE=${osi4iotState.platformInfo.MAX_LATITUDE}`,
-	];
-
-	if (fs.existsSync('./config/frontend/frontend.conf')) {
-		fs.rmSync('./config/frontend/frontend.conf');
-	}
-
-	for (let iline = 0; iline < frontendConfig.length; iline++) {
-		fs.appendFileSync('./config/frontend/frontend.conf', frontendConfig[iline]);
-	}
+	updateFrontendConfigFile(osi4iotState);
 
 
 	//grafana config
