@@ -1,8 +1,7 @@
 import { execSync } from 'child_process';
 import isLocahostNode from '../nodes/isLocalhostNode';
 
-export default function (nodesDataIni) {
-    const nodesData = nodesDataIni.filter(node => node.nodeRole !== "NFS server");
+export default function (nodesData) {
     for (const nodeData of nodesData) {
         const userName = nodeData.nodeUserName;
         const nodeIP = nodeData.nodeIP;

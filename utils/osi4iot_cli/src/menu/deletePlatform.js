@@ -203,8 +203,7 @@ const removeDirectories = (deploymentLocation) => {
 	}
 }
 
-const removeNodesOfSwarmCluster = (nodesData) => {
-	const nodesInSwarm = nodesData.filter(node => node.nodeRole !== "NFS server");
+const removeNodesOfSwarmCluster = (nodesInSwarm) => {
 	for (const nodeData of nodesInSwarm) {
 		const userName = nodeData.nodeUserName;
 		const nodeIP = nodeData.nodeIP;
