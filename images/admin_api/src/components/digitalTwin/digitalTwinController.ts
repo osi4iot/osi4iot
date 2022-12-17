@@ -48,7 +48,7 @@ import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IRequestWithUserAndDeviceAndGroup from "../group/interfaces/requestWithUserAndDeviceAndGroup.interface";
 import s3Client from "../../config/s3Config";
 import process_env from "../../config/api_config";
-import { GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import digitalTwinDeviceGroupAndExist from "../../middleware/digitalTwinDeviceGroupAndExist.middleware";
 import IRequestWithDigitalTwinDeviceAndGroup from "../group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
 import UpdateDigitalTwinDto from "./digitalTwinUpdate.dto";

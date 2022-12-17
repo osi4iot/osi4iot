@@ -135,15 +135,11 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
 				}
 
 			})
-		const orgId = digitalTwinUpdated.orgId;
-		const groupId = digitalTwinUpdated.groupId;
-		const deviceId = digitalTwinUpdated.deviceId;
-		const digitalTwinId = digitalTwinUpdated.id;
-		const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
-		const fileKey = `${keyBase}/gltfFile/${gltfFileName}`
+
 		const bucketParams = {
 			Bucket: process_env.S3_BUCKET_NAME,
-			Key: fileKey,
+			Key: gltfFileName,
+			Body: JSON.stringify(gltfFileData)
 		};
 		await s3Client.send(new PutObjectCommand(bucketParams));
 	}
