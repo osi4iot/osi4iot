@@ -293,7 +293,7 @@ export const generateInitialFemSimObjectsState = (
 
 		const clipValues: (number | null)[] = [];
 		const clipTopicIds = obj.node.userData.clipTopicIds;
-		if (clipTopicIds && clipTopicIds.length !== 0) {
+		if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
 			clipTopicIds.forEach((clipTopicId: number, index: string | number) => {
 				const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
 				if (mqttTopicsDataFiltered.length !== 0) {
