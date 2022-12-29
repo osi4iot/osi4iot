@@ -212,7 +212,7 @@ class OrganizationController implements IController {
 				const orgIdsArray = groups.map(group => group.orgId);
 				const orgsOfGroupsManaged = await getOrganizationsWithIdsArray(orgIdsArray)
 				orgsOfGroupsManaged.forEach(org => {
-					if (orgsManagedIdArray.length !== 0 && orgsManagedIdArray.indexOf(org.id) === -1) {
+					if (orgsManagedIdArray.indexOf(org.id) === -1) {
 						organizations.push(org);
 					}
 				})
