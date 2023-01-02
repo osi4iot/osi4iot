@@ -1003,6 +1003,22 @@ export const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => 
 	}
 }
 
+export const checkNumberOfGltfFiles = async (digitalTwin: IDigitalTwin) => {
+	const orgId = digitalTwin.orgId;
+	const groupId = digitalTwin.groupId;
+	const deviceId = digitalTwin.deviceId;
+	const digitalTwinId = digitalTwin.id;
+	const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+	const folderPath = `${keyBase}/gltfFile`
+
+	const gltfFileInfoList = await getBucketFolderInfoFileList(folderPath);
+	if (gltfFileInfoList.length > 1) {
+		const gltfFileInfoListFiltered = gltfFileInfoList.slice(1);
+		const gltfFileKeysToRemove = gltfFileInfoListFiltered.map(file => file.fileName);
+		await deleteBucketFiles(gltfFileKeysToRemove);
+	}
+}
+
 
 export const deleteBucketFile = async (fileKey: string) => {
 	const bucketParams = {
