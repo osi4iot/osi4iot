@@ -413,7 +413,7 @@ class DigitalTwinController implements IController {
 						topicSensors: topicSensors.map(topicSensor => { return { id: topicSensor.id, topicName: topicSensor.topicName } })
 					};
 				} else {
-					throw new HttpException(400, "The dashboardUid inputted is not correct");
+					throw new HttpException(400, "The entered value of dashboardUid is not correct");
 				}
 			} else {
 				throw new HttpException(400, `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`);
@@ -434,7 +434,6 @@ class DigitalTwinController implements IController {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
 			};
-			
 			if (folder === "femResFile") {
 				await checkMaxNumberOfFemResFiles(req.digitalTwin);
 			} else if (folder === "gltfFile") {

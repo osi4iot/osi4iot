@@ -16,6 +16,7 @@ import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
 import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadNodeRedInstancesTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { IBuilding } from '../TableColumns/buildingsColumns';
 
 
 const FormContainer = styled.div`
@@ -163,6 +164,7 @@ const mqttAccessControlOptions = [
 
 
 interface CreateGroupProps {
+    buildings: IBuilding[];
     orgsManagedTable: IOrgManaged[];
     backToTable: () => void;
     selectSpaceOption: () => void;
@@ -176,6 +178,7 @@ const floorNumberWarning = "Floor number must an integer greater or equal to 0";
 const featureIndexWarning = "Feature index must an integer greater or equal to 0";
 
 const CreateGroup: FC<CreateGroupProps> = ({
+    buildings,
     orgsManagedTable,
     backToTable,
     selectSpaceOption,
@@ -192,7 +195,6 @@ const CreateGroup: FC<CreateGroupProps> = ({
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const groupsDispatch = useGroupsDispatch();
-    // const initialGroupData = { ...groupInputData, orgId: selectedOrgId };
     const initialGroupData = { ...groupInputData };
     if (selectedUsersArray.length !== 0) {
         const newGroupAdmins = selectedUsersArray.map(user => {
@@ -325,9 +327,15 @@ const CreateGroup: FC<CreateGroupProps> = ({
         setGroupInputData(newgroupInputData);
         const orgFiltered = orgsManagedTable.filter(org => org.id === selectedOrgId)[0];
         if (orgFiltered !== undefined) {
-            const groupBuildingId = { groupBuildingId: orgFiltered.buildingId };
-            setGroupBuildingId(groupsDispatch, groupBuildingId);
-            selectSpaceOption();
+            const existBuilding = buildings.filter(building => building.id === orgFiltered.buildingId ).length !== 0;
+            if (existBuilding) { 
+                const groupBuildingId = { groupBuildingId: orgFiltered.buildingId };
+                setGroupBuildingId(groupsDispatch, groupBuildingId);
+                selectSpaceOption();
+            } else {
+                const warningMessage = `Not exist a building with id=${orgFiltered.buildingId}`
+                toast.warning(warningMessage);
+            }
         } else {
             const warningMessage = `None organization with id: ${selectedOrgId} has been defined`
             toast.warning(warningMessage);

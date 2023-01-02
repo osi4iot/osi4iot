@@ -23,6 +23,7 @@ import { IGroup } from '../TableColumns/groupsColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
 import { setReloadDevicesTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadNodeRedInstancesTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { IBuilding } from '../TableColumns/buildingsColumns';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -146,6 +147,7 @@ const floorNumberWarning = "Floor number must an integer greater or equal to 0";
 const featureIndexWarning = "Feature index must an integer greater or equal to 0";
 
 interface EditGroupProps {
+    buildings: IBuilding[];
     groups: IGroup[];
     orgsManagedTable: IOrgManaged[];
     backToTable: () => void;
@@ -154,6 +156,7 @@ interface EditGroupProps {
 }
 
 const EditGroup: FC<EditGroupProps> = ({
+    buildings,
     groups,
     orgsManagedTable,
     selectSpaceOption,
@@ -241,9 +244,15 @@ const EditGroup: FC<EditGroupProps> = ({
             toast.warning(warningMessage);
         } else {
             const buildingId = orgsManagedTableFiltered[0].buildingId;
-            const groupBuildingId = { groupBuildingId: buildingId };
-            setGroupBuildingId(groupsDispatch, groupBuildingId);
-            selectSpaceOption();
+            const existBuilding = buildings.filter(building => building.id === buildingId).length !== 0;
+            if (existBuilding) { 
+                const groupBuildingId = { groupBuildingId: buildingId };
+                setGroupBuildingId(groupsDispatch, groupBuildingId);
+                selectSpaceOption();
+            } else {
+                const warningMessage = `Not exist a building with id=${buildingId}`
+                toast.warning(warningMessage);
+            }
         }
     }
 

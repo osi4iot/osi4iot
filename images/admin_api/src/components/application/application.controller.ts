@@ -146,7 +146,7 @@ class ApplicationController implements IController {
 				}
 
 			} else {
-				message = { message: `All the inputted users already exist` };
+				message = { message: `All the entered values for new users already exist` };
 			}
 			res.status(200).send(message);
 		} catch (error) {

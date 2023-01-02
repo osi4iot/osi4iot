@@ -8,7 +8,16 @@ import DeleteModal from '../../Tools/DeleteModal';
 import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { BUILDINGS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { setBuildingIdToEdit, setBuildingRowIndexToEdit, setBuildingsOptionToShow, useBuildingsDispatch } from '../../../contexts/buildingsOptions';
+import {
+    setBuildingIdToEdit,
+    setBuildingRowIndexToEdit,
+    setBuildingsOptionToShow,
+    useBuildingsDispatch
+} from '../../../contexts/buildingsOptions';
+import {
+    setReloadFloorsTable,
+    usePlatformAssitantDispatch
+} from '../../../contexts/platformAssistantContext';
 
 
 export interface IBuilding {
@@ -37,6 +46,7 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingId, refreshBuildings }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isBuildingDeleted, setIsBuildingDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE BUILDING";
@@ -65,6 +75,8 @@ const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingI
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
+                const reloadFloorsTable = true;
+                setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
                 hideModal();
             })
             .catch((error) => {
