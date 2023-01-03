@@ -150,3 +150,143 @@ export const digitalTwinFormatValidation = (value: any) => {
     }
     return output;
 }
+
+export interface IMeshNode {
+    name?: string;
+    mesh?: number;
+    extras: {
+        topicType: string;
+        type: string;
+        fieldName: string;
+        timeout: number;
+        assetPartIndex: number;
+        clipNames: string[];
+        clipTopicTypes: string[];
+        clipFieldNames: string[];
+        clipMaxValues: number[];
+        clipMinValues: number[];
+    };
+}
+
+const objectTypeList = ["asset", "sensor", "generic", "femObject"];
+const optionalKeys = [
+    "type",
+    "visible",
+    "opacity",
+    "collectionName",
+    "selectable",
+];
+const optionalEntriesConditional = (key: string) => {
+    return optionalKeys.indexOf(key) !== -1;
+}
+
+const clipKeys = ['clipNames', 'clipTopicTypes', 'clipFieldNames', 'clipMaxValues', 'clipMinValues'];
+const clipEntriesConditional = (key: string) => {
+    return clipKeys.indexOf(key) !== -1;
+};
+
+const optionalEntriesTypes = (key: string): string => {
+    if (key === "opacity") return 'number';
+    else return 'string';
+};
+
+const objectExtraEntriesConditional = (key: string) => {
+    const keysArray = [...optionalKeys, ...clipKeys];
+    return keysArray.indexOf(key) === -1;
+}
+
+
+const checkOptionalEntries = (entries: [string, string | number | string[] | number[]][]): boolean => {
+    let isCorrect = true;
+    for (const entry of entries) {
+        if (optionalEntriesTypes(entry[0]) !== typeof entry[1]) return false;
+    }
+    return isCorrect;
+}
+
+const checkExtrasEntries = (entries: [string, string | number | string[] | number[]][],
+    expectedKeys: string[],
+    expectedValuesTypes: string[],
+    arrayTypes: string[] = []
+): boolean => {
+    let isCorrect = true;
+    let arrayLength = 0;
+    if (entries.length === 0) {
+        return false;
+    }
+    for (const entry of entries) {
+        const index = expectedKeys.indexOf(entry[0]);
+        if (index === -1) {
+            return false;
+        } else {
+            if (typeof entry[1] !== expectedValuesTypes[index]) return false;
+            if (expectedValuesTypes[index] === "object") {
+                if (Array.isArray(entry[1])) {
+                    if (entry[1].length !== 0) {
+                        if (arrayTypes[index] !== typeof entry[1][0]) return false;
+                        if (arrayLength === 0) arrayLength = entry[1].length;
+                        if (entry[1].length !== arrayLength) return false;
+                    } else return false;
+                } else return false;
+            }
+        }
+    }
+    return isCorrect;
+}
+
+export const checkGltfFile = (gltfFileData: any): boolean => {
+    let isValidGltfFile = true;
+    if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
+        const meshNodes: IMeshNode[] = [];
+        gltfFileData.nodes.forEach((node: IMeshNode) => {
+            if (node.mesh !== undefined && node.extras !== undefined) meshNodes.push(node);
+        })
+
+        for (const node of meshNodes) {
+            if (node.extras.type !== undefined) {
+                const objectType = node.extras.type;
+                if (objectTypeList.indexOf(objectType) === -1) {
+                    return false;
+                }
+                const optionalEntries = Object.entries(node.extras).filter(entry =>
+                    optionalEntriesConditional(entry[0])
+                );
+                if (!checkOptionalEntries(optionalEntries)) return false;
+
+                const entries = Object.entries(node.extras).filter(entry =>
+                    objectExtraEntriesConditional(entry[0])
+                );
+
+                if (objectType === "asset") {
+                    const assetKeys = ['assetPartIndex'];
+                    const assetValuesTypes = ['number'];
+                    if (!checkExtrasEntries(entries, assetKeys, assetValuesTypes)) {
+                        return false;
+                    };
+                }
+
+                if (objectType === "sensor") {
+                    const sensorKeys = ['topicType', 'fieldName', 'timeout'];
+                    const sensorValuesTypes = ['string', 'string', 'number']
+                    if (!checkExtrasEntries(entries, sensorKeys, sensorValuesTypes)) {
+                        return false;
+                    };
+                }
+
+                const clipEntries = Object.entries(node.extras).filter(entry =>
+                    clipEntriesConditional(entry[0])
+                ); 
+                const clipEntriesKeys = clipEntries.map(entry => entry[0]);
+                const isObjectWithClip = clipEntriesKeys.filter(key => clipKeys.indexOf(key) !== -1).length !== 0;
+                if (isObjectWithClip) {
+                    const clipValuesTypes = ['object', 'object', 'object', 'object', 'object'];
+                    const arrayTypes = ['string', 'string', 'string', 'number', 'number'];
+                    if (!checkExtrasEntries(clipEntries, clipKeys, clipValuesTypes, arrayTypes)) {
+                        return false;
+                    };
+                }
+            }
+        }
+    }
+    return isValidGltfFile;
+}

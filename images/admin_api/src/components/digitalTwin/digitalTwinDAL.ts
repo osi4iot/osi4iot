@@ -29,7 +29,13 @@ import IMqttDigitalTwinTopicInfo from "./mqttDigitalTwinTopicInfo.interface";
 import ITopic from "../topic/topic.interface";
 import process_env from "../../config/api_config";
 import s3Client from "../../config/s3Config";
-import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+	DeleteObjectCommand,
+	DeleteObjectsCommand,
+	GetObjectCommand,
+	ListObjectsV2Command,
+	PutObjectCommand
+} from "@aws-sdk/client-s3";
 
 const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: string): string => {
 	const digitalTwinSimulationFormatObj = JSON.parse(digitalTwinSimulationFormat);
@@ -44,7 +50,8 @@ const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: strin
 	return payload;
 }
 
-interface IMeshNode {
+
+export interface IMeshNode {
 	name?: string;
 	mesh?: number;
 	extras: {
@@ -53,7 +60,6 @@ interface IMeshNode {
 		clipTopicTypes: string[];
 	};
 }
-
 
 const getTopicSensorTypesFromDigitalTwin = (type: string, gltfFileData: any): string[] => {
 	const topicTypes: string[] = [];

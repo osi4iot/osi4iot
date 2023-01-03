@@ -53,7 +53,7 @@ export const defaultDashboard = `
 							"type": "linear"
 						},
 						"showPoints": "auto",
-						"spanNulls": false,
+						"spanNulls": true,
 						"stacking": {
 							"group": "A",
 							"mode": "none"

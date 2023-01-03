@@ -4,7 +4,7 @@ import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { nanoid } from "nanoid";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, checkGltfFile, digitalTwinFormatValidation, getDomainName, getProtocol, IMeshNode } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -115,17 +115,6 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
 }
-
-interface IMeshNode {
-    name?: string;
-    mesh?: number;
-    extras: {
-        topicType: string;
-        type: string;
-        clipTopicTypes: string[];
-    };
-}
-
 
 export const getTopicSensorTypesFromDigitalTwin = (type: string, gltfData: any): string[] => {
     const topicTypes: string[] = [];
@@ -462,6 +451,10 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         const values = { ...formik.values };
                                         const fileContent = gltfFileParams.filesContent[0].content
                                         const gltfData = JSON.parse(fileContent);
+                                        const isValidGltfFile = checkGltfFile(gltfData);
+                                        if (!isValidGltfFile) {
+                                            throw new Error("Invalid gltffile");
+                                        }
                                         setDigitalTwinGltfData(gltfData);
                                         setGltfFile(gltfFileParams.plainFiles[0]);
                                         values.gltfFileName = gltfFileParams.plainFiles[0].name;
