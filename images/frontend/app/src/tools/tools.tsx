@@ -196,46 +196,73 @@ const objectExtraEntriesConditional = (key: string) => {
 }
 
 
-const checkOptionalEntries = (entries: [string, string | number | string[] | number[]][]): boolean => {
-    let isCorrect = true;
+const checkOptionalEntries = (entries: [string, string | number | string[] | number[]][]): string => {
+    let message = "OK";
     for (const entry of entries) {
-        if (optionalEntriesTypes(entry[0]) !== typeof entry[1]) return false;
+        if (optionalEntriesTypes(entry[0]) !== typeof entry[1]) {
+            return `The custom property ${entry[0]} must be of type ${optionalEntriesTypes(entry[0])}`;
+        }
     }
-    return isCorrect;
+    return message;
 }
 
-const checkExtrasEntries = (entries: [string, string | number | string[] | number[]][],
+const checkExtrasEntries = (
+    objectType: string,
+    entries: [string, string | number | string[] | number[]][],
     expectedKeys: string[],
     expectedValuesTypes: string[],
     arrayTypes: string[] = []
-): boolean => {
-    let isCorrect = true;
+): string => {
+    let message = "OK";
     let arrayLength = 0;
-    if (entries.length === 0) {
-        return false;
+    let wrongEntriesMessage = `For objects of type: ${objectType} the custom properties: ${expectedKeys} are required`;
+    if (objectType === "animatedObject") {
+        wrongEntriesMessage = `For objects with animations the custom properties: ${expectedKeys.join(", ")} are required`;
+    }
+    if (entries.length !== expectedKeys.length) {
+        return wrongEntriesMessage;
     }
     for (const entry of entries) {
         const index = expectedKeys.indexOf(entry[0]);
         if (index === -1) {
-            return false;
+            return wrongEntriesMessage;
         } else {
-            if (typeof entry[1] !== expectedValuesTypes[index]) return false;
+            let expectedType = expectedValuesTypes[index];
+            if (objectType === "animatedObject") expectedType = "array";
+            let wrongTypeMessage = `The custom property ${entry[0]} must be of type ${expectedType}.`;
+
+            if (typeof entry[1] !== expectedValuesTypes[index]) return wrongTypeMessage;
             if (expectedValuesTypes[index] === "object") {
                 if (Array.isArray(entry[1])) {
                     if (entry[1].length !== 0) {
-                        if (arrayTypes[index] !== typeof entry[1][0]) return false;
+                        for (const value of entry[1]) {
+                            if (arrayTypes[index] !== typeof value) return wrongTypeMessage;
+                        }
                         if (arrayLength === 0) arrayLength = entry[1].length;
-                        if (entry[1].length !== arrayLength) return false;
-                    } else return false;
-                } else return false;
+                        if (entry[1].length !== arrayLength) {
+                            return `The custom properties ${expectedKeys.join(", ")} must be arrays of equal size.`;
+                        };
+                        if (entry[0] === 'clipTopicTypes') {
+                            const clipTopicTypeErrorMessage = `The custom property clipTopicType must has the format dev2pdb_<i>.`;
+                            for (let i = 0; i < entry[1].length; i++) {
+                                const value = entry[1][i] as string;
+                                if (value.slice(0, 8) !== "dev2pdb_" || typeof value.slice(8) === 'number') {
+                                    return clipTopicTypeErrorMessage;
+                                }
+                            }
+                        }
+                    } else {
+                        return `The custom property ${entry[0]} cannot be an array of size zero.`;
+                    };
+                } else return wrongTypeMessage;
             }
         }
     }
-    return isCorrect;
+    return message;
 }
 
-export const checkGltfFile = (gltfFileData: any): boolean => {
-    let isValidGltfFile = true;
+export const checkGltfFile = (gltfFileData: any): string => {
+    let message = "OK";
     if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
         const meshNodes: IMeshNode[] = [];
         gltfFileData.nodes.forEach((node: IMeshNode) => {
@@ -243,50 +270,56 @@ export const checkGltfFile = (gltfFileData: any): boolean => {
         })
 
         for (const node of meshNodes) {
-            if (node.extras.type !== undefined) {
-                const objectType = node.extras.type;
-                if (objectTypeList.indexOf(objectType) === -1) {
-                    return false;
-                }
-                const optionalEntries = Object.entries(node.extras).filter(entry =>
-                    optionalEntriesConditional(entry[0])
-                );
-                if (!checkOptionalEntries(optionalEntries)) return false;
+            if (node.extras.type === undefined) continue;
+            const objectType = node.extras.type;
 
-                const entries = Object.entries(node.extras).filter(entry =>
-                    objectExtraEntriesConditional(entry[0])
-                );
+            if (node.name === undefined) return "The name of the object is not defined.";
+            const nodeName = node.name;
+            if (objectTypeList.indexOf(objectType) === -1) {
+                return `Object ${nodeName}: The custom property type is not recognized`;
+            }
+            const optionalEntries = Object.entries(node.extras).filter(entry =>
+                optionalEntriesConditional(entry[0])
+            );
+            const optionalEntriesMessage = checkOptionalEntries(optionalEntries);
+            if (optionalEntriesMessage !== "OK") return optionalEntriesMessage;
 
-                if (objectType === "asset") {
-                    const assetKeys = ['assetPartIndex'];
-                    const assetValuesTypes = ['number'];
-                    if (!checkExtrasEntries(entries, assetKeys, assetValuesTypes)) {
-                        return false;
-                    };
-                }
+            const entries = Object.entries(node.extras).filter(entry =>
+                objectExtraEntriesConditional(entry[0])
+            );
 
-                if (objectType === "sensor") {
-                    const sensorKeys = ['topicType', 'fieldName', 'timeout'];
-                    const sensorValuesTypes = ['string', 'string', 'number']
-                    if (!checkExtrasEntries(entries, sensorKeys, sensorValuesTypes)) {
-                        return false;
-                    };
-                }
+            if (objectType === "asset") {
+                const assetKeys = ['assetPartIndex'];
+                const assetValuesTypes = ['number'];
+                const message = checkExtrasEntries(objectType, entries, assetKeys, assetValuesTypes);
+                if (message !== "OK") {
+                    return message;
+                };
+            }
 
-                const clipEntries = Object.entries(node.extras).filter(entry =>
-                    clipEntriesConditional(entry[0])
-                ); 
-                const clipEntriesKeys = clipEntries.map(entry => entry[0]);
-                const isObjectWithClip = clipEntriesKeys.filter(key => clipKeys.indexOf(key) !== -1).length !== 0;
-                if (isObjectWithClip) {
-                    const clipValuesTypes = ['object', 'object', 'object', 'object', 'object'];
-                    const arrayTypes = ['string', 'string', 'string', 'number', 'number'];
-                    if (!checkExtrasEntries(clipEntries, clipKeys, clipValuesTypes, arrayTypes)) {
-                        return false;
-                    };
-                }
+            if (objectType === "sensor") {
+                const sensorKeys = ['topicType', 'fieldName', 'timeout'];
+                const sensorValuesTypes = ['string', 'string', 'number']
+                const message = checkExtrasEntries(objectType, entries, sensorKeys, sensorValuesTypes);
+                if (message !== "OK") {
+                    return message;
+                };
+            }
+
+            const clipEntries = Object.entries(node.extras).filter(entry =>
+                clipEntriesConditional(entry[0])
+            );
+            const clipEntriesKeys = clipEntries.map(entry => entry[0]);
+            const isObjectWithClip = clipEntriesKeys.filter(key => clipKeys.indexOf(key) !== -1).length !== 0;
+            if (isObjectWithClip) {
+                const clipValuesTypes = ['object', 'object', 'object', 'object', 'object'];
+                const arrayTypes = ['string', 'string', 'string', 'number', 'number'];
+                const message = checkExtrasEntries("animatedObject", clipEntries, clipKeys, clipValuesTypes, arrayTypes);
+                if (message !== "OK") {
+                    return message;
+                };
             }
         }
     }
-    return isValidGltfFile;
+    return message;
 }

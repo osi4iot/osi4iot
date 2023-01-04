@@ -215,7 +215,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
                                         values.geoJsonData = JSON.stringify(geojsonObj, null, 4);
                                         formik.setValues(values);
                                     } catch (e) {
-                                        console.error(e);
+                                        console.log(e);
                                         toast.error("Invalid geojson file");
                                         setLocalFileLabel("Select local file");
                                         setLocalFileContent("");

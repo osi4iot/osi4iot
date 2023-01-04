@@ -439,9 +439,9 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     const values = { ...formik.values };
                                                     const fileContent = gltfFileParams.filesContent[0].content
                                                     const gltfData = JSON.parse(fileContent);
-                                                    const isValidGltfFile = checkGltfFile(gltfData);
-                                                    if (!isValidGltfFile) {
-                                                        throw new Error("Invalid gltffile");
+                                                    const message = checkGltfFile(gltfData);
+                                                    if (message !== "OK") {
+                                                        throw new Error(message);
                                                     }
                                                     setDigitalTwinGltfData(gltfData);
                                                     setGltfFile(gltfFileParams.plainFiles[0]);
@@ -451,9 +451,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     formik.setValues(values);
                                                     setLocalGltfFileLabel("Select local file");
                                                     gltfFileParams.clear();
-                                                } catch (e) {
-                                                    console.error(e);
-                                                    toast.error("Invalid gltffile");
+                                                } catch (error) {
+                                                    if (error instanceof Error) {
+                                                        toast.error(`Invalid gltffile. ${error.message}`);
+                                                    } else {
+                                                        toast.error("Invalid gltffile");
+                                                    }
                                                     setLocalGltfFileLabel("Select local file");
                                                     setLocalGltfFileLoaded(false);
                                                     gltfFileParams.clear();
@@ -489,7 +492,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     setLocalFemSimFileLabel("Select local file");
                                                     femResFileParams.clear();
                                                 } catch (e) {
-                                                    console.error(e);
+                                                    console.log(e);
                                                     toast.error("Invalid fem simulation file");
                                                     setLocalFemSimFileLabel("Select local file");
                                                     setLocalFemSimFileLoaded(false);
