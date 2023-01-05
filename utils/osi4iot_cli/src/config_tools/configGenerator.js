@@ -165,7 +165,7 @@ export default function (osi4iotState) {
 		"auth_opt_cache true\n",
 		"auth_opt_cache_type go-cache\n",
 		"auth_opt_cache_reset true\n",
-		"auth_opt_cache_refresh true\n",
+		"auth_opt_cache_refresh false\n",
 		"\n",
 		"auth_opt_auth_cache_seconds 60\n",
 		"auth_opt_acl_cache_seconds 60\n",
