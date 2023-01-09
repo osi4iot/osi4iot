@@ -154,8 +154,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
                 let totalcolorValue = 0;
                 for (let imode = 1; imode <= numberOfModes; imode++) {
-                    let resultpath = `${femSimulationResult}__${imode}`
+                    let resultpath = `${femSimulationResult}__${imode}`;
                     const modalValue = femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1];
+                    if (modalValue === 0.0) continue;
                     if (meshResult.resultFields[femSimulationResult].resultLocation === "OnNodes") {
                         const resultValues = meshResult.resultFields[femSimulationResult].modalValues[resultpath];
                         const inode = meshResult.elemConnectivities.array[i] - 1;

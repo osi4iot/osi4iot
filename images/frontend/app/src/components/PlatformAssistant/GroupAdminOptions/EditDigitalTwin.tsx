@@ -4,7 +4,7 @@ import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, axiosInstance, checkGltfFile, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -439,6 +439,10 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     const values = { ...formik.values };
                                                     const fileContent = gltfFileParams.filesContent[0].content
                                                     const gltfData = JSON.parse(fileContent);
+                                                    const message = checkGltfFile(gltfData);
+                                                    if (message !== "OK") {
+                                                        throw new Error(message);
+                                                    }
                                                     setDigitalTwinGltfData(gltfData);
                                                     setGltfFile(gltfFileParams.plainFiles[0]);
                                                     values.gltfFileName = gltfFileParams.plainFiles[0].name;
@@ -447,9 +451,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     formik.setValues(values);
                                                     setLocalGltfFileLabel("Select local file");
                                                     gltfFileParams.clear();
-                                                } catch (e) {
-                                                    console.error(e);
-                                                    toast.error("Invalid gltffile");
+                                                } catch (error) {
+                                                    if (error instanceof Error) {
+                                                        toast.error(`Invalid gltffile. ${error.message}`);
+                                                    } else {
+                                                        toast.error("Invalid gltffile");
+                                                    }
                                                     setLocalGltfFileLabel("Select local file");
                                                     setLocalGltfFileLoaded(false);
                                                     gltfFileParams.clear();
@@ -485,7 +492,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     setLocalFemSimFileLabel("Select local file");
                                                     femResFileParams.clear();
                                                 } catch (e) {
-                                                    console.error(e);
+                                                    console.log(e);
                                                     toast.error("Invalid fem simulation file");
                                                     setLocalFemSimFileLabel("Select local file");
                                                     setLocalFemSimFileLoaded(false);

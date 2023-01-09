@@ -26,7 +26,7 @@ export default function (osi4iotState) {
 	let existAtLeastOnex86_64ArchNode = false;
 	let platformArch = 'x86_64';
 	const nodesData = osi4iotState.platformInfo.NODES_DATA;
-	const numSwarmNodes = nodesData.filter(node => node.nodeRole !== "NFS server").length;
+	const numSwarmNodes = nodesData.length;
 	const numManagerNodes = nodesData.filter(node => node.nodeRole === "Manager").length;
 	const existNFSServer = nodesData.filter(node => node.nodeRole === "NFS server").length !== 0;
 	let storageSystem = "Local storage";

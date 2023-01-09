@@ -63,7 +63,7 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
     const orgsManagedTable = useOrgsManagedTable();
     const editGroupInputData = useGroupInputData();
     const previousOption = useGroupsPreviousOption();
-    const intialGroupInputData = {...initialCreateGroupInputData, orgId: orgsManagedTable[0].id}
+    const intialGroupInputData = { ...initialCreateGroupInputData, orgId: orgsManagedTable[0].id }
     const [createGroupInputData, setCreateGroupInputData] = useState<IGroupInputData>(intialGroupInputData);
     const [floorSelected, setFloorSelected] = useState<IFloor | null>(null);
 
@@ -114,6 +114,7 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
 
             {groupsOptionToShow === GROUPS_OPTIONS.CREATE_GROUP &&
                 <CreateGroup
+                    buildings={buildingsFiltered}
                     orgsManagedTable={orgsManagedTable}
                     backToTable={showGroupsTableOption}
                     selectSpaceOption={showSelectSpaceOption}
@@ -125,6 +126,7 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
             }
             {groupsOptionToShow === GROUPS_OPTIONS.EDIT_GROUP &&
                 <EditGroup
+                    buildings={buildingsFiltered}
                     groups={groups}
                     orgsManagedTable={orgsManagedTable}
                     selectSpaceOption={showSelectSpaceOption}

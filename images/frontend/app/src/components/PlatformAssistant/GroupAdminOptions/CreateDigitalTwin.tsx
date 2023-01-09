@@ -4,7 +4,15 @@ import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { nanoid } from "nanoid";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
+import {
+    axiosAuth,
+    axiosInstance,
+    checkGltfFile,
+    digitalTwinFormatValidation,
+    getDomainName,
+    getProtocol,
+    IMeshNode
+} from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -115,17 +123,6 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
 }
-
-interface IMeshNode {
-    name?: string;
-    mesh?: number;
-    extras: {
-        topicType: string;
-        type: string;
-        clipTopicTypes: string[];
-    };
-}
-
 
 export const getTopicSensorTypesFromDigitalTwin = (type: string, gltfData: any): string[] => {
     const topicTypes: string[] = [];
@@ -462,6 +459,10 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         const values = { ...formik.values };
                                         const fileContent = gltfFileParams.filesContent[0].content
                                         const gltfData = JSON.parse(fileContent);
+                                        const message = checkGltfFile(gltfData);
+                                        if (message !== "OK") {
+                                            throw new Error(message);
+                                        }
                                         setDigitalTwinGltfData(gltfData);
                                         setGltfFile(gltfFileParams.plainFiles[0]);
                                         values.gltfFileName = gltfFileParams.plainFiles[0].name;
@@ -470,9 +471,12 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         formik.setValues(values);
                                         setLocalGltfFileLabel("Select local file");
                                         gltfFileParams.clear();
-                                    } catch (e) {
-                                        console.error(e);
-                                        toast.error("Invalid gltffile");
+                                    } catch (error) {
+                                        if (error instanceof Error) {
+                                            toast.error(`Invalid gltffile. ${error.message}`);
+                                        } else {
+                                            toast.error("Invalid gltffile");
+                                        }
                                         setLocalGltfFileLabel("Select local file");
                                         setLocalGltfFileLoaded(false);
                                         gltfFileParams.clear();
@@ -508,7 +512,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         setLocalFemResFileLabel("Select local file");
                                         femResFileParams.clear();
                                     } catch (e) {
-                                        console.error(e);
+                                        console.log(e);
                                         toast.error("Invalid fem simulation file");
                                         setLocalFemResFileLabel("Select local file");
                                         setLocalFemResFileLoaded(false);

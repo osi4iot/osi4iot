@@ -466,7 +466,7 @@ class AuthenticationController implements IController {
 			)) {
 				const isUpdateUserDataCorrect = await isUserProfileDataCorrect(userData);
 				if (!isUpdateUserDataCorrect)
-					throw new HttpException(400, "The inputted values of name, login and email already exists for another user.")
+					throw new HttpException(400, "The entered values of name, login and email already exists for another user.")
 				await updateUserProfileById(userData as CreateUserDto);
 			}
 			const message = { message: "User profile updated succesfully" };
@@ -487,7 +487,7 @@ class AuthenticationController implements IController {
 			const storedUserData = await getUserLoginDatadByEmailOrLogin(email);
 			const match = verifiyPassword(oldPassword, storedUserData.password, storedUserData.salt);
 			if (!match) {
-				const errorMessage = "The old password inputted is not correct.";
+				const errorMessage = "The entred value for old password is not correct.";
 				throw new HttpException(403, errorMessage);
 			}
 			const { message } = await this.grafanaRepository.changeUserPassword(user.id, newPassword);

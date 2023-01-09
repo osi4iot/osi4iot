@@ -29,7 +29,13 @@ import IMqttDigitalTwinTopicInfo from "./mqttDigitalTwinTopicInfo.interface";
 import ITopic from "../topic/topic.interface";
 import process_env from "../../config/api_config";
 import s3Client from "../../config/s3Config";
-import { DeleteObjectCommand, DeleteObjectsCommand, GetObjectCommand, ListObjectsV2Command, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+	DeleteObjectCommand,
+	DeleteObjectsCommand,
+	GetObjectCommand,
+	ListObjectsV2Command,
+	PutObjectCommand
+} from "@aws-sdk/client-s3";
 
 const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: string): string => {
 	const digitalTwinSimulationFormatObj = JSON.parse(digitalTwinSimulationFormat);
@@ -44,7 +50,8 @@ const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: strin
 	return payload;
 }
 
-interface IMeshNode {
+
+export interface IMeshNode {
 	name?: string;
 	mesh?: number;
 	extras: {
@@ -53,7 +60,6 @@ interface IMeshNode {
 		clipTopicTypes: string[];
 	};
 }
-
 
 const getTopicSensorTypesFromDigitalTwin = (type: string, gltfFileData: any): string[] => {
 	const topicTypes: string[] = [];
@@ -135,15 +141,11 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
 				}
 
 			})
-		const orgId = digitalTwinUpdated.orgId;
-		const groupId = digitalTwinUpdated.groupId;
-		const deviceId = digitalTwinUpdated.deviceId;
-		const digitalTwinId = digitalTwinUpdated.id;
-		const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
-		const fileKey = `${keyBase}/gltfFile/${gltfFileName}`
+
 		const bucketParams = {
 			Bucket: process_env.S3_BUCKET_NAME,
-			Key: fileKey,
+			Key: gltfFileName,
+			Body: JSON.stringify(gltfFileData)
 		};
 		await s3Client.send(new PutObjectCommand(bucketParams));
 	}
@@ -1004,6 +1006,22 @@ export const checkMaxNumberOfFemResFiles = async (digitalTwin: IDigitalTwin) => 
 		const femResFileInfoListFiltered = femResFileInfoList.slice(maxNumResFemFiles);
 		const femResFileKeysToRemove = femResFileInfoListFiltered.map(file => file.fileName);
 		await deleteBucketFiles(femResFileKeysToRemove);
+	}
+}
+
+export const checkNumberOfGltfFiles = async (digitalTwin: IDigitalTwin) => {
+	const orgId = digitalTwin.orgId;
+	const groupId = digitalTwin.groupId;
+	const deviceId = digitalTwin.deviceId;
+	const digitalTwinId = digitalTwin.id;
+	const keyBase = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+	const folderPath = `${keyBase}/gltfFile`
+
+	const gltfFileInfoList = await getBucketFolderInfoFileList(folderPath);
+	if (gltfFileInfoList.length > 1) {
+		const gltfFileInfoListFiltered = gltfFileInfoList.slice(1);
+		const gltfFileKeysToRemove = gltfFileInfoListFiltered.map(file => file.fileName);
+		await deleteBucketFiles(gltfFileKeysToRemove);
 	}
 }
 

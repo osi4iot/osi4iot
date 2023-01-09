@@ -380,7 +380,7 @@ const finalQuestions = (
 					if (text.length >= 20) {
 						return true;
 					} else {
-						return "Please type at least a telegram boottoken";
+						return "Please type at least a telegram bottoken";
 					}
 				}
 			},
@@ -450,7 +450,7 @@ const finalQuestions = (
 			},
 			{
 				name: 'S3_BUCKET_NAME',
-				message: 'S3 storage platform bucket name:',
+				message: 'S3 storage bucket name:',
 				default: defaultS3BucketName,
 				validate: (s3BucketName) => checkIfBucketNameIsValid(s3BucketName, deploymentLocation)
 			},	

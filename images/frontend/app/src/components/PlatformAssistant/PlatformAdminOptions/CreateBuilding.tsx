@@ -229,7 +229,7 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
                                         values.latitude = center.geometry.coordinates[1];
                                         formik.setValues(values);
                                     } catch (e) {
-                                        console.error(e);
+                                        console.log(e);
                                         toast.error("Invalid geojson file");
                                         setLocalFileLabel("Select local file");
                                         setLocalFileContent("");

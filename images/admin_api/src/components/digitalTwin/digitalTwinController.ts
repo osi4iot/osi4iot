@@ -39,6 +39,7 @@ import {
 	deleteBucketFile,
 	removeFilesFromBucketFolder,
 	checkMaxNumberOfFemResFiles,
+	checkNumberOfGltfFiles,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -48,7 +49,7 @@ import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IRequestWithUserAndDeviceAndGroup from "../group/interfaces/requestWithUserAndDeviceAndGroup.interface";
 import s3Client from "../../config/s3Config";
 import process_env from "../../config/api_config";
-import { GetObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { GetObjectCommand } from "@aws-sdk/client-s3";
 import digitalTwinDeviceGroupAndExist from "../../middleware/digitalTwinDeviceGroupAndExist.middleware";
 import IRequestWithDigitalTwinDeviceAndGroup from "../group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
 import UpdateDigitalTwinDto from "./digitalTwinUpdate.dto";
@@ -412,7 +413,7 @@ class DigitalTwinController implements IController {
 						topicSensors: topicSensors.map(topicSensor => { return { id: topicSensor.id, topicName: topicSensor.topicName } })
 					};
 				} else {
-					throw new HttpException(400, "The dashboardUid inputted is not correct");
+					throw new HttpException(400, "The entered value of dashboardUid is not correct");
 				}
 			} else {
 				throw new HttpException(400, `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`);
@@ -428,12 +429,16 @@ class DigitalTwinController implements IController {
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
-		const { fileName } = req.params;
+		const { fileName, folder } = req.params;
 		try {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
 			};
-			await checkMaxNumberOfFemResFiles(req.digitalTwin);
+			if (folder === "femResFile") {
+				await checkMaxNumberOfFemResFiles(req.digitalTwin);
+			} else if (folder === "gltfFile") {
+				await checkNumberOfGltfFiles(req.digitalTwin);
+			}
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

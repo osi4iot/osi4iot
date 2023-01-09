@@ -1,18 +1,17 @@
 import fs from 'fs';
-import md5 from 'md5';
 import { insertQuotesInText } from "./configGenerator.js"
 
 export default function (osi4iotState) {
     const frontend_conf_file = "./config/frontend/frontend.conf"
-	if (fs.existsSync(frontend_conf_file)) {
-		fs.rmSync('./config/frontend/frontend.conf');
+    if (fs.existsSync(frontend_conf_file)) {
+        fs.rmSync('./config/frontend/frontend.conf');
     }
-    
+
     let protocol = "https";
-	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
-	if (domainCertsType === "No certs") {
-		protocol = "http";
-	}
+    const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
+    if (domainCertsType === "No certs") {
+        protocol = "http";
+    }
 
     const frontendConfig = [
         `PLATFORM_NAME=${osi4iotState.platformInfo.PLATFORM_NAME.replace(/ /g, "_")}\n`,
@@ -25,7 +24,7 @@ export default function (osi4iotState) {
         `MIN_LATITUDE=${osi4iotState.platformInfo.MIN_LATITUDE}\n`,
         `MAX_LATITUDE=${osi4iotState.platformInfo.MAX_LATITUDE}`,
     ];
-    
+
     for (let iline = 0; iline < frontendConfig.length; iline++) {
         fs.appendFileSync(frontend_conf_file, frontendConfig[iline]);
     }
