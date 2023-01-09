@@ -1,4 +1,4 @@
-import pool from "../../config/dbconfig";
+import timescaledb_pool from "../../config/timescaledb_config";
 import IDevice from "../device/device.interface";
 import ITopic from "../topic/topic.interface";
 import { getTopicsByDeviceId } from "../topic/topicDAL";
@@ -12,7 +12,7 @@ export const updateMeasurement = async (groupUid: string, topic: string, timesta
                     group_uid = $3 AND
                     topic = $4
 					RETURNING *;`;
-	const result = await pool.query(query, [
+	const result = await timescaledb_pool.query(query, [
 		newPayload,
 		timestamp,
 		groupUid,
@@ -22,7 +22,7 @@ export const updateMeasurement = async (groupUid: string, topic: string, timesta
 };
 
 export const deleteMeasurement = async (groupUid: string, topic: string, timestamp: string,): Promise<IMeasurement> => {
-	const result = await pool.query(`DELETE FROM iot_data.thingData
+	const result = await timescaledb_pool.query(`DELETE FROM iot_data.thingData
                     WHERE timestamp = $1::TIMESTAMPTZ AND
                     group_uid = $2 AND
                     topic = $3
@@ -35,7 +35,7 @@ export const deleteMeasurementsBeforeDate = async (
 	topic: string,
 	deleteDate: string,
 ): Promise<IMeasurement[]> => {
-	const result = await pool.query(`DELETE FROM iot_data.thingData
+	const result = await timescaledb_pool.query(`DELETE FROM iot_data.thingData
                     WHERE timestamp <= $1 AND
                     group_uid = $2 AND
                     topic = $3
@@ -44,7 +44,7 @@ export const deleteMeasurementsBeforeDate = async (
 };
 
 export const getMeasurement = async (groupUid: string, topic: string, timestamp: string): Promise<IMeasurement> => {
-	const response = await pool.query(`SELECT ${timestampAsString}, topic, payload
+	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE timestamp = $1 AND
 									group_uid = $2 AND
@@ -53,7 +53,7 @@ export const getMeasurement = async (groupUid: string, topic: string, timestamp:
 }
 
 export const getLastMeasurements = async (groupUid: string, topic: string, count: number): Promise<IMeasurement[]> => {
-	const response = await pool.query(`SELECT ${timestampAsString}, topic, payload
+	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = $2
@@ -63,7 +63,7 @@ export const getLastMeasurements = async (groupUid: string, topic: string, count
 };
 
 export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topicsArray: string[]): Promise<IMeasurement[]> => {
-	const response = await pool.query(`SELECT DISTINCT ON (topic) ${timestampAsString}, topic, payload
+	const response = await timescaledb_pool.query(`SELECT DISTINCT ON (topic) ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = ANY($2::text[])
@@ -74,7 +74,7 @@ export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topic
 };
 
 export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
-	const response = await pool.query(`SELECT ${timestampAsString}, topic, payload
+	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = $2
@@ -92,7 +92,7 @@ export const getDuringMeasurementsWithPagination = async (
 	itemsPerPage: number
 ): Promise<IMeasurement[]> => {
 	const offset = pageIndex * itemsPerPage;
-	const response = await pool.query(`SELECT ${timestampAsString},
+	const response = await timescaledb_pool.query(`SELECT ${timestampAsString},
 	topic, payload FROM iot_data.thingData
 	WHERE group_uid = $1 AND
 	topic = $2 AND
@@ -111,7 +111,7 @@ export const getTotalRowsDuringMeasurements = async (
 	start: string,
 	end: string
 ): Promise<number> => {
-	const response = await pool.query(`SELECT COUNT(*) FROM iot_data.thingData
+	const response = await timescaledb_pool.query(`SELECT COUNT(*) FROM iot_data.thingData
 									WHERE group_uid = $1 AND
 									topic = $2 AND
 									timestamp >= $3 AND
@@ -127,7 +127,7 @@ export const updateMeasurementsTopicByDevice = async (device: IDevice, newDevice
 	topics.forEach(topic => {
 		const oldTopic = `Device_${device.deviceUid}/Topic_${topic.topicUid}`;
 		const newTopic = `Device_${newDeviceUid}/Topic_${topic.topicUid}`;
-		const query = pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`,
+		const query = timescaledb_pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`,
 			[newTopic, oldTopic]);
 		measurementUpdateQueries.push(query);
 	});
@@ -138,7 +138,7 @@ export const updateMeasurementsTopicByDevice = async (device: IDevice, newDevice
 export const updateMeasurementsTopicByTopic = async (device: IDevice, topic: ITopic, newTopicUid: string): Promise<void> => {
 	const oldTopic = `Device_${device.deviceUid}/Topic_${topic.topicUid}`;
 	const newTopic = `Device_${device.deviceUid}/Topic_${newTopicUid}`;
-	await pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`, [newTopic, oldTopic]);
+	await timescaledb_pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`, [newTopic, oldTopic]);
 }
 
 

@@ -292,9 +292,48 @@ export default function (osi4iotState) {
 					'pgdata:/var/lib/postgresql/data'
 				],
 				environment: [
-					'POSTGRES_DB=iot_platform_db',
+					`POSTGRES_DB=${osi4iotState.platformInfo.POSTGRES_DB}`,
 					'POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt',
 					'POSTGRES_USER_FILE=/run/secrets/postgres_user.txt'
+				],
+				deploy: {
+					mode: 'replicated',
+					replicas: 1,
+					placement: {
+						constraints: workerConstraintsArray
+					}
+				}
+			},			
+			timescaledb: {
+				image: `ghcr.io/osi4iot/timescaledb:${serviceImageVersion['postgres']}`,
+				networks: [
+					'internal_net'
+				],
+				secrets: [
+					{
+						source: 'timescaledb_user',
+						target: 'timescaledb_user.txt',
+						mode: 0o400
+					},
+					{
+						source: 'timescaledb_password',
+						target: 'timescaledb_password.txt',
+						mode: 0o400
+					},
+					{
+						source: 'postgres_grafana',
+						target: 'postgres_grafana.txt',
+						mode: 0o400
+					}
+
+				],
+				volumes: [
+					'pgdata:/var/lib/postgresql/data'
+				],
+				environment: [
+					`POSTGRES_DB=${osi4iotState.platformInfo.TIMESCALE_DB}`,
+					'POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt',
+					'POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt'
 				],
 				deploy: {
 					mode: 'replicated',
@@ -319,13 +358,13 @@ export default function (osi4iotState) {
 						mode: 0o400
 					},
 					{
-						source: 'postgres_user',
-						target: 'postgres_user.txt',
+						source: 'timescaledb_user',
+						target: 'timescaledb_user.txt',
 						mode: 0o400
 					},
 					{
-						source: 'postgres_password',
-						target: 'postgres_password.txt',
+						source: 'timescaledb_password',
+						target: 'timescaledb_password.txt',
 						mode: 0o400
 					}
 				],
@@ -562,14 +601,23 @@ export default function (osi4iotState) {
 				file: './certs/mqtt_certs/broker/server.key',
 				name: osi4iotState.certs.mqtt_certs.broker.mqtt_broker_key_name
 			},
-			postgres_grafana: {
-				file: './secrets/postgres_grafana.txt'
-			},
 			postgres_user: {
 				file: './secrets/postgres_user.txt'
 			},
 			postgres_password: {
 				file: './secrets/postgres_password.txt'
+			},
+			postgres_grafana: {
+				file: './secrets/postgres_grafana.txt'
+			},			
+			timescaledb_user: {
+				file: './secrets/timescaledb_user.txt'
+			},
+			timescaledb_password: {
+				file: './secrets/timescaledb_password.txt'
+			},
+			timescaledb_grafana: {
+				file: './secrets/timescaledb_grafana.txt'
 			},
 			dev2pdb_password: {
 				file: './secrets/dev2pdb_password.txt'

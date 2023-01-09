@@ -545,32 +545,6 @@ export async function dataBaseInitialization() {
 					logger.log("error", `NodeRed instance can not be assigned to group with id: ${group.id}: %s`, err.message);
 				}
 
-				const tableThingData = "iot_data.thingData";
-				const queryStringAlterThingData = `
-				ALTER TABLE ${tableThingData}
-					ADD CONSTRAINT fk_group_uid
-					FOREIGN KEY(group_uid)
-					REFERENCES grafanadb.group(group_uid)
-						ON DELETE CASCADE
-						ON UPDATE CASCADE,
-					ADD CONSTRAINT fk_device_uid
-					FOREIGN KEY(device_uid)
-					REFERENCES grafanadb.device(device_uid)
-						ON DELETE CASCADE
-						ON UPDATE CASCADE,
-					ADD CONSTRAINT fk_topic_uid
-					FOREIGN KEY(topic_uid)
-					REFERENCES grafanadb.topic(topic_uid)
-						ON DELETE CASCADE
-						ON UPDATE CASCADE;`;
-
-				try {
-					await client.query(queryStringAlterThingData);
-					logger.log("info", `Foreing key in table ${tableThingData} has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Foreing key in table ${tableThingData} could not be created: %s`, err.message);
-				}
-
 				let device: IDevice;
 				try {
 					const defaultGroupDeviceData =

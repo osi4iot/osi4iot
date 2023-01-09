@@ -10,14 +10,6 @@ export default function (osi4iotState) {
 		areSecretsCreated = false;
 	}
 
-	if (!fs.existsSync('./secrets/postgres_db.txt')) {
-		areSecretsCreated = false;
-	}
-
-	if (!fs.existsSync('./secrets/postgres_grafana.txt')) {
-		areSecretsCreated = false;
-	}
-
 	if (!fs.existsSync('./secrets/postgres_password.txt')) {
 		areSecretsCreated = false;
 	}
@@ -25,6 +17,24 @@ export default function (osi4iotState) {
 	if (!fs.existsSync('./secrets/postgres_user.txt')) {
 		areSecretsCreated = false;
 	}
+
+	if (!fs.existsSync('./secrets/postgres_grafana.txt')) {
+		areSecretsCreated = false;
+	}
+
+	if (!fs.existsSync('./secrets/timescaledb_password.txt')) {
+		areSecretsCreated = false;
+	}
+
+	if (!fs.existsSync('./secrets/timescaledb_user.txt')) {
+		areSecretsCreated = false;
+	}
+	
+	if (!fs.existsSync('./secrets/timescaledb_grafana.txt')) {
+		areSecretsCreated = false;
+	}
+
+
 
 	if (osi4iotState.platformInfo.DEPLOYMENT_MODE === "development") {
 		if (!fs.existsSync('./secrets/pgadmin4.txt')) {

@@ -4,8 +4,8 @@ datasources:
   - name: ${MAIN_ORGANIZATION_DATASOURCE_NAME}
     type: postgres
     access: proxy
-    url: postgres:5432
-    database: $POSTGRES_DB
+    url: timescaledb:5432
+    database: $TIMESCALE_DB
     orgId: 1
     isDefault: true
     user: grafana_datasource_user

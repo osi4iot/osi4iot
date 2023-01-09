@@ -30,6 +30,9 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	POSTGRES_USER: string;
 	POSTGRES_PASSWORD: string;
 	POSTGRES_DB: string;
+	TIMESCALE_USER: string;
+	TIMESCALE_PASSWORD: string;
+	TIMESCALE_DB: string;
 	S3_BUCKET_NAME: string;
 	AWS_ACCESS_KEY_ID: string;
 	AWS_SECRET_ACCESS_KEY: string;
@@ -74,6 +77,9 @@ const process_env: IProcessEnv = {
 	POSTGRES_USER: process.env.POSTGRES_USER,
 	POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
 	POSTGRES_DB: process.env.POSTGRES_DB,
+	TIMESCALE_USER: process.env.TIMESCALE_USER,
+	TIMESCALE_PASSWORD: process.env.TIMESCALE_PASSWORD,
+	TIMESCALE_DB: process.env.TIMESCALE_DB,
 	S3_BUCKET_NAME: process.env.S3_BUCKET_NAME,
 	AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
 	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,

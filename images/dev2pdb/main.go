@@ -22,9 +22,9 @@ type config struct {
 	mqttBrokerUrl      string
 	dev2pdbUsername    string
 	dev2pdbPassword    string
-	postgresUser       string
-	postgresPassword   string
-	postgresServiceUrl string
+	timescaledbUser       string
+	timescaledbPassword   string
+	timescaledbServiceUrl string
 	databaseName       string
 }
 
@@ -195,29 +195,29 @@ func getConfigData() config {
 	mqttBrokerServiceUrl := getEnv("MQTT_BROKER_SERVICE_URL", "mosquitto")
 	dev2pdbUsername := getEnv("DEV2PDB_USERNAME", "dev2pdb")
 	dev2pdbPassword := getParameterFromFileOrEnvVar("DEV2PDB_PASSWORD", "/run/secrets/dev2pdb_password.txt")
-	postgresPassword := getParameterFromFileOrEnvVar("POSTGRES_PASSWORD", "/run/secrets/postgres_password.txt")
-	postgresUser := getParameterFromFileOrEnvVar("POSTGRES_USER", "/run/secrets/postgres_user.txt")
-	postgresServiceUrl := getEnv("POSTGRES_SERVICE_URL", "postgres")
-	databaseName := getEnv("DATABASE_NAME", "iot_platform_db")
+	timescaledbPassword := getParameterFromFileOrEnvVar("TIMESCALE_PASSWORD", "/run/secrets/timescaledb_password.txt")
+	timescaledbUser := getParameterFromFileOrEnvVar("TIMESCALE_USER", "/run/secrets/timescaledb_user.txt")
+	timescaledbServiceUrl := getEnv("TIMESCALE_SERVICE_URL", "timescaledb")
+	databaseName := getEnv("DATABASE_NAME", "iot_data_db")
 	return config{
 		mqttClientId, 
 		mqttPort, 
 		mqttBrokerServiceUrl,
 		dev2pdbUsername,
 		dev2pdbPassword,
-		postgresUser,
-		postgresPassword, 
-		postgresServiceUrl, 
+		timescaledbUser,
+		timescaledbPassword, 
+		timescaledbServiceUrl, 
 		databaseName }
 }
 
 
 func getDatabaseUrl(configData config) string {
-	user := configData.postgresUser
-	password := configData.postgresPassword
-	postgresUrl := configData.postgresServiceUrl
+	user := configData.timescaledbUser
+	password := configData.timescaledbPassword
+	timescaledbUrl := configData.timescaledbServiceUrl
 	databaseName := configData.databaseName
-	return fmt.Sprintf("postgres://%s:%s@%s:5432/%s", user, password, postgresUrl, databaseName)
+	return fmt.Sprintf("timescaledb://%s:%s@%s:5432/%s", user, password, timescaledbUrl, databaseName)
 }
 
 func getMqttBrokerUrl(configData config) string {

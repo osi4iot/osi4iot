@@ -14,7 +14,11 @@ export default function (osi4iotState) {
 		areSecretsCreated = false;
 	}
 
-	if (!fs.existsSync('./secrets/postgres_db.txt')) {
+	if (!fs.existsSync('./secrets/postgres_password.txt')) {
+		areSecretsCreated = false;
+	}
+
+	if (!fs.existsSync('./secrets/postgres_user.txt')) {
 		areSecretsCreated = false;
 	}
 
@@ -22,11 +26,15 @@ export default function (osi4iotState) {
 		areSecretsCreated = false;
 	}
 
-	if (!fs.existsSync('./secrets/postgres_password.txt')) {
+	if (!fs.existsSync('./secrets/timescaledb_password.txt')) {
 		areSecretsCreated = false;
 	}
 
-	if (!fs.existsSync('./secrets/postgres_user.txt')) {
+	if (!fs.existsSync('./secrets/timescaledb_user.txt')) {
+		areSecretsCreated = false;
+	}
+
+	if (!fs.existsSync('./secrets/timescaledb_grafana.txt')) {
 		areSecretsCreated = false;
 	}
 
