@@ -30,6 +30,7 @@ import arrayCompare from "../../utils/helpers/arrayCompare";
 import { updateGroupDevicesLocation } from "../device/deviceDAL";
 import process_env from "../../config/api_config";
 import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
+import timescaledb_pool from "../../config/timescaledb_config";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName: string = `${orgName} general`;
@@ -592,12 +593,12 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 
 export const createView = async (groupUid: string): Promise<void> => {
 	const viewName = `Table_${groupUid}`;
-	await pool.query(`CREATE VIEW iot_datasource.${viewName} AS SELECT timestamp, topic, payload FROM iot_data.thingData WHERE group_uid = '${groupUid}'`);
+	await timescaledb_pool.query(`CREATE VIEW iot_datasource.${viewName} AS SELECT timestamp, topic, payload FROM iot_data.thingData WHERE group_uid = '${groupUid}'`);
 };
 
 export const deleteView = async (groupUid: string): Promise<void> => {
 	const viewName = `Table_${groupUid}`;
-	await pool.query(`DROP VIEW iot_datasource.${viewName}`);
+	await timescaledb_pool.query(`DROP VIEW iot_datasource.${viewName}`);
 };
 
 export const changeGroupUidByUid = async (group: IGroup): Promise<string> => {

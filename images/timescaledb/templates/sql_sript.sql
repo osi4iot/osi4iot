@@ -3,7 +3,7 @@ CREATE EXTENSION IF NOT EXISTS timescaledb;
 CREATE SCHEMA IF NOT EXISTS iot_data;
 CREATE SCHEMA IF NOT EXISTS iot_datasource;
 CREATE USER grafana_datasource_user WITH PASSWORD '${GRAFANA_DATASOURCE_PASSWORD}';
-GRANT CONNECT ON DATABASE iot_platform_db TO grafana_datasource_user;
+GRANT CONNECT ON DATABASE iot_data_db TO grafana_datasource_user;
 GRANT USAGE ON SCHEMA iot_datasource TO grafana_datasource_user;
 ALTER DEFAULT PRIVILEGES IN SCHEMA iot_datasource GRANT SELECT ON TABLES TO grafana_datasource_user;
 

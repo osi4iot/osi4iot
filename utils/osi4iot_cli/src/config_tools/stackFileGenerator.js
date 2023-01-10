@@ -350,7 +350,7 @@ export default function (osi4iotState) {
 					'internal_net',
 				],
 				environment: [
-					'DATABASE_NAME=iot_platform_db',
+					'DATABASE_NAME=iot_data_db',
 				],
 				secrets: [
 					{
