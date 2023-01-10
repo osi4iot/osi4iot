@@ -322,8 +322,8 @@ export default function (osi4iotState) {
 						mode: 0o400
 					},
 					{
-						source: 'postgres_grafana',
-						target: 'postgres_grafana.txt',
+						source: 'timescaledb_grafana',
+						target: 'timescaledb_grafana.txt',
 						mode: 0o400
 					}
 
