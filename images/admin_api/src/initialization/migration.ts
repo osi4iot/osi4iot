@@ -1,5 +1,4 @@
 import { logger } from "../config/winston";
-import { Pool } from "pg";
 import grafanaApi from "../GrafanaApi"
 import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
 import { addMembersToGroup, createGroup, defaultOrgGroupName } from "../components/group/groupDAL";
@@ -19,18 +18,13 @@ import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.inte
 import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
+import pool from "../config/dbconfig";
+import timescaledb_pool from "../config/timescaledb_config";
 
 
 export async function dataBaseInitialization() {
-	const pool = new Pool({
-		user: process_env.POSTGRES_USER,
-		host: "postgres",
-		password: process_env.POSTGRES_PASSWORD,
-		database: process_env.POSTGRES_DB,
-		port: 5432,
-	});
-
-	const client = await pool.connect();
+	const timescaledbClient = await timescaledb_pool.connect();
+	const postgresClient = await pool.connect();
 	const grafanaUrl = `grafana:5000/api/health`;
 	const grafanaState = await needle('get', grafanaUrl)
 		.then(res => (res.body.database))
@@ -67,13 +61,13 @@ export async function dataBaseInitialization() {
 	}
 
 
-	if (client && grafanaState === "ok" && existPlatformS3Bucket) {
+	if (timescaledbClient && postgresClient && grafanaState === "ok" && existPlatformS3Bucket) {
 		const tableOrg = "grafanadb.org";
 		const queryString1a = 'SELECT COUNT(*) FROM grafanadb.org WHERE name = $1';
 		const parameterArray1a = ["Main Org."];
 		let result0 = null;
 		try {
-			result0 = await client.query(queryString1a, parameterArray1a);
+			result0 = await postgresClient.query(queryString1a, parameterArray1a);
 		} catch (err) {
 			logger.log("error", `Table ${tableOrg} can not found: %s`, err.message);
 			process.exit(1);
@@ -88,7 +82,7 @@ export async function dataBaseInitialization() {
 											ADD COLUMN org_hash varchar(20) UNIQUE,
 											ADD COLUMN  mqtt_access_control VARCHAR(10)`;
 				try {
-					await client.query(queryStringAlterOrg);
+					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
 				} catch (err) {
 					logger.log("error", `Column acronym can not be added sucessfully to Table ${tableOrg}: %s`, err.message);
@@ -112,7 +106,7 @@ export async function dataBaseInitialization() {
 				];
 
 				try {
-					await client.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
+					await postgresClient.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
 					logger.log("info", `Table ${tableOrg} has been updated sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableOrg} can not be updated: %s`, err.message);
@@ -135,7 +129,7 @@ export async function dataBaseInitialization() {
 				ON grafanadb.building(name);`;
 
 				try {
-					await client.query(queryStringBuilding);
+					await postgresClient.query(queryStringBuilding);
 					logger.log("info", `Table ${tableBuilding} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableBuilding} can not be created: %s`, err.message);
@@ -144,7 +138,7 @@ export async function dataBaseInitialization() {
 				const queryStringInsertBuilding = `INSERT INTO ${tableBuilding} (name, geolocation, created, updated) VALUES ($1, $2, NOW(), NOW())`;
 				const queryParametersInsertBuilding = [process_env.MAIN_ORGANIZATION_NAME, `(0,0)`];
 				try {
-					await client.query(queryStringInsertBuilding, queryParametersInsertBuilding);
+					await postgresClient.query(queryStringInsertBuilding, queryParametersInsertBuilding);
 					logger.log("info", `Data in table ${tableBuilding} has been inserted sucessfully`);
 				} catch (err) {
 					logger.log("error", `Data in table ${tableBuilding} con not been inserted: %s`, err.message);
@@ -170,7 +164,7 @@ export async function dataBaseInitialization() {
 				ON grafanadb.floor(building_id,floor_number)`;
 
 				try {
-					await client.query(queryStringFloor);
+					await postgresClient.query(queryStringFloor);
 					logger.log("info", `Table ${tableFloor} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableFloor} can not be created: %s`, err.message);
@@ -179,7 +173,7 @@ export async function dataBaseInitialization() {
 				const queryStringInsertFloor = `INSERT INTO ${tableFloor} (building_id, floor_number, created, updated) VALUES ($1, $2, NOW(), NOW())`;
 				const queryParametersInsertFloor = [1, 0];
 				try {
-					await client.query(queryStringInsertFloor, queryParametersInsertFloor);
+					await postgresClient.query(queryStringInsertFloor, queryParametersInsertFloor);
 					logger.log("info", `Data in table ${tableFloor} has been inserted sucessfully`);
 				} catch (err) {
 					logger.log("error", `Data in table ${tableFloor} con not been inserted: %s`, err.message);
@@ -190,7 +184,7 @@ export async function dataBaseInitialization() {
 									ADD COLUMN first_name varchar(127),
 									ADD COLUMN surname varchar(127)`;
 				try {
-					await client.query(queryStringAlterUser);
+					await postgresClient.query(queryStringAlterUser);
 					logger.log("info", `Columns first_name and surnanme have been added sucessfully to Table ${tableUser}`);
 				} catch (err) {
 					logger.log("error", `Columns first_name and surnanme can not be added sucessfully to Table ${tableUser}: %s`, err.message);
@@ -227,7 +221,7 @@ export async function dataBaseInitialization() {
 
 				const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, name = $3 WHERE id = $4';
 				try {
-					await client.query(queryStringUpdateUser,
+					await postgresClient.query(queryStringUpdateUser,
 						[
 							process_env.PLATFORM_ADMIN_FIRST_NAME,
 							process_env.PLATFORM_ADMIN_SURNAME,
@@ -273,7 +267,7 @@ export async function dataBaseInitialization() {
 				ON grafanadb.org_token(org_id);`;
 
 				try {
-					await client.query(queryStringOrgToken);
+					await postgresClient.query(queryStringOrgToken);
 					logger.log("info", `Table ${tableOrgToken} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableOrgToken} can not be created: %s`, err.message);
@@ -283,7 +277,7 @@ export async function dataBaseInitialization() {
 				const hashedApiKey = encrypt(apiKeyMainOrg);
 				const queryParametersInsertOrgToken = [1, 1, hashedApiKey];
 				try {
-					await client.query(queryStringInsertOrgToken, queryParametersInsertOrgToken);
+					await postgresClient.query(queryStringInsertOrgToken, queryParametersInsertOrgToken);
 					logger.log("info", `Data in table ${tableOrgToken} has been inserted sucessfully`);
 				} catch (err) {
 					logger.log("error", `Data in table ${tableOrgToken} con not been inserted: %s`, err.message);
@@ -340,7 +334,7 @@ export async function dataBaseInitialization() {
 				ON grafanadb.group(group_uid);`;
 
 				try {
-					await client.query(queryStringGroup);
+					await postgresClient.query(queryStringGroup);
 					const mainOrgGroupAdmin = {
 						userId: 2,
 						firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
@@ -406,7 +400,7 @@ export async function dataBaseInitialization() {
 				ON grafanadb.device(name);`;
 
 				try {
-					await client.query(queryStringDevice);
+					await postgresClient.query(queryStringDevice);
 					logger.log("info", `Table ${tableDevice} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableDevice} can not be created: %s`, err.message);
@@ -438,7 +432,7 @@ export async function dataBaseInitialization() {
 				ON grafanadb.topic(topic_uid);`;
 
 				try {
-					await client.query(queryStringTopic);
+					await postgresClient.query(queryStringTopic);
 					logger.log("info", `Table ${tableTopic} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableTopic} can not be created: %s`, err.message);
@@ -476,7 +470,7 @@ export async function dataBaseInitialization() {
 				ON grafanadb.digital_twin(digital_twin_uid);`;
 
 				try {
-					await client.query(queryStringDigitalTwin);
+					await postgresClient.query(queryStringDigitalTwin);
 					logger.log("info", `Table ${tableDigitalTwin} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, err.message);
@@ -501,7 +495,7 @@ export async function dataBaseInitialization() {
 				);`;
 
 				try {
-					await client.query(queryStringDigitalTwinTopic);
+					await postgresClient.query(queryStringDigitalTwinTopic);
 					logger.log("info", `Table ${tableDigitalTwinTopic} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
@@ -530,7 +524,7 @@ export async function dataBaseInitialization() {
 
 				let mainNodeRedInstance: INodeRedInstance;
 				try {
-					await client.query(queryStringodeRedInstance);
+					await postgresClient.query(queryStringodeRedInstance);
 					const nodeRedInstances = await createNodeRedInstancesInOrg(process_env.MAIN_ORG_NODERED_INSTANCE_HASHES, 1);
 					mainNodeRedInstance = nodeRedInstances[0];
 					logger.log("info", `Table ${tableNodeRedInstance} has been created sucessfully`);
@@ -651,7 +645,7 @@ export async function dataBaseInitialization() {
 				ON grafanadb.refresh_token(token);`;
 
 				try {
-					await client.query(queryStringtableRefreshToken);
+					await postgresClient.query(queryStringtableRefreshToken);
 					logger.log("info", `Table ${tableRefreshToken} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableRefreshToken} can not be created: %s`, err.message);
@@ -666,7 +660,7 @@ export async function dataBaseInitialization() {
 							ON DELETE CASCADE;`;
 
 				try {
-					await client.query(queryStringAlterAlertNotification);
+					await postgresClient.query(queryStringAlterAlertNotification);
 					logger.log("info", `Foreing key in table ${tableAlertNotification} has been added sucessfully`);
 				} catch (err) {
 					logger.log("error", `Foreing key in table ${tableAlertNotification} couldd not be added: %s`, err.message);
