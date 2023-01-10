@@ -50,7 +50,12 @@ if [ ! -d  /var/nfs_osi4iot/pgdata ]; then
     sudo chown nobody:nogroup /var/nfs_osi4iot/pgdata
 fi
 
-if [ ! -d  /var/nfs_osi4iot/pgdata ]; then
+if [ ! -d  /var/nfs_osi4iot/timescaledb_data ]; then
+    sudo mkdir /var/nfs_osi4iot/timescaledb_data
+    sudo chown nobody:nogroup /var/nfs_osi4iot/timescaledb_data
+fi
+
+if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
     sudo mkdir /var/nfs_osi4iot/portainer_data
     sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
 fi

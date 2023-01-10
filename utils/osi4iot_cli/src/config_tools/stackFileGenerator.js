@@ -12,6 +12,7 @@ export default function (osi4iotState) {
 		portainer: defaultVersion || 'latest',
 		pgadmin4: defaultVersion || 'latest',
 		postgres: defaultVersion || 'latest',
+		timescaledb: defaultVersion || 'latest',
 		grafana: defaultVersion || 'latest',
 		grafana_renderer: defaultVersion || 'latest',
 		admin_api: defaultVersion || 'latest',
@@ -305,7 +306,7 @@ export default function (osi4iotState) {
 				}
 			},			
 			timescaledb: {
-				image: `ghcr.io/osi4iot/timescaledb:${serviceImageVersion['postgres']}`,
+				image: `ghcr.io/osi4iot/timescaledb:${serviceImageVersion['timescaledb']}`,
 				networks: [
 					'internal_net'
 				],
@@ -328,7 +329,7 @@ export default function (osi4iotState) {
 
 				],
 				volumes: [
-					'pgdata:/var/lib/postgresql/data'
+					'timescaledb_data:/var/lib/postgresql/data'
 				],
 				environment: [
 					`POSTGRES_DB=${osi4iotState.platformInfo.TIMESCALE_DB}`,
@@ -572,6 +573,9 @@ export default function (osi4iotState) {
 				driver: 'local'
 			},
 			pgdata: {
+				driver: 'local'
+			},
+			timescaledb_data: {
 				driver: 'local'
 			},
 			portainer_data: {
@@ -974,6 +978,15 @@ export default function (osi4iotState) {
 				}
 			}
 
+			osi4iotStackObj.volumes['timescaledb_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `nfsvers=4,addr=${nfsServerIP},rw`,
+					device: ':/var/nfs_osi4iot/timescaledb_data'
+				}
+			}
+
 			osi4iotStackObj.volumes['portainer_data'] = {
 				driver: 'local',
 				driver_opts: {
@@ -1037,6 +1050,15 @@ export default function (osi4iotState) {
 					type: 'nfs',
 					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/pgdata`
+				}
+			}
+
+			osi4iotStackObj.volumes['timescaledb_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+					device: `${efs_dns}:/timescaledb_data`
 				}
 			}
 
