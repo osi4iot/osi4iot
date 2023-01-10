@@ -2,12 +2,21 @@
     "Servers": {
         "1": {
             "Name": "iot_platform_db",
-            "Group": "Server IOT",
+            "Group": "OSI4IOT admin database",
             "Port": 5432,
             "Username": "${POSTGRES_USER}",
             "Host": "postgres",
             "SSLMode": "prefer",
             "MaintenanceDB": "postgres"
+        },
+        "2": {
+            "Name": "IOT data database",
+            "Group": "Server IOT",
+            "Port": 5432,
+            "Username": "${TIMESCALE_USER}",
+            "Host": "timescaledb",
+            "SSLMode": "prefer",
+            "MaintenanceDB": "timescaledb",
         }
     }
 }

@@ -96,7 +96,8 @@ export default function (osi4iotState) {
 		const pgadmin4Secrets = [
 			`PGADMIN_DEFAULT_EMAIL=${osi4iotState.platformInfo.PGADMIN_DEFAULT_EMAIL}\n`,
 			`PGADMIN_DEFAULT_PASSWORD=${osi4iotState.platformInfo.PGADMIN_DEFAULT_PASSWORD}\n`,
-			`POSTGRES_USER=${osi4iotState.platformInfo.POSTGRES_USER}`
+			`POSTGRES_USER=${osi4iotState.platformInfo.POSTGRES_USER}\n`,
+			`TIMESCALE_USER=${osi4iotState.platformInfo.TIMESCALE_USER}`
 		];
 
 		for (let iline = 0; iline < pgadmin4Secrets.length; iline++) {

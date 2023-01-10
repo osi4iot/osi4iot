@@ -15,6 +15,7 @@ import transporter from "./config/mailer";
 import IRequestWithSwaggerDoc from "./interfaces/requestWithSwaggerDoc";
 import getDomainUrl from "./utils/helpers/getDomainUrl";
 import process_env from "./config/api_config";
+import timescaledb_pool from "./config/timescaledb_config";
 
 class App {
 	private app: express.Application;
@@ -82,7 +83,12 @@ class App {
 	private dbConnect() {
 		pool.connect((error, client, done) => {
 			if (error) return logger.log("error", "Database connection failed: %s ", error.message);
-			logger.log("info", "Database connected");
+			logger.log("info", "Postgres database connected");
+		});
+
+		timescaledb_pool.connect((error, client, done) => {
+			if (error) return logger.log("error", "Database connection failed: %s ", error.message);
+			logger.log("info", "Timecaledb database connected");
 		});
 	}
 

@@ -1,4 +1,5 @@
 import { logger } from "../config/winston";
+import { Pool } from "pg";
 import grafanaApi from "../GrafanaApi"
 import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
 import { addMembersToGroup, createGroup, defaultOrgGroupName } from "../components/group/groupDAL";
@@ -18,13 +19,30 @@ import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.inte
 import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
-import pool from "../config/dbconfig";
-import timescaledb_pool from "../config/timescaledb_config";
 
 
 export async function dataBaseInitialization() {
+	const timescaledb_pool = new Pool({
+		max: 20,
+		user: process_env.TIMESCALE_USER,
+		host: "timescaledb",
+		password: process_env.TIMESCALE_PASSWORD,
+		database: process_env.TIMESCALE_DB,
+		port: 5432,
+		idleTimeoutMillis: 30000,
+	});
+
 	const timescaledbClient = await timescaledb_pool.connect();
+
+	const pool = new Pool({
+		user: process_env.POSTGRES_USER,
+		host: "postgres",
+		password: process_env.POSTGRES_PASSWORD,
+		database: process_env.POSTGRES_DB,
+		port: 5432,
+	});
 	const postgresClient = await pool.connect();
+
 	const grafanaUrl = `grafana:5000/api/health`;
 	const grafanaState = await needle('get', grafanaUrl)
 		.then(res => (res.body.database))
@@ -666,9 +684,12 @@ export async function dataBaseInitialization() {
 					logger.log("error", `Foreing key in table ${tableAlertNotification} couldd not be added: %s`, err.message);
 				}
 
-
 				pool.end(() => {
-					logger.log("info", `Migration pool has ended`);
+					logger.log("info", `Postgres migration pool has ended`);
+				})
+
+				timescaledb_pool.end(() => {
+					logger.log("info", `Timescaldb migration pool has ended`);
 				})
 			}
 		}

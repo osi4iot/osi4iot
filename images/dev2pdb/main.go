@@ -217,7 +217,7 @@ func getDatabaseUrl(configData config) string {
 	password := configData.timescaledbPassword
 	timescaledbUrl := configData.timescaledbServiceUrl
 	databaseName := configData.databaseName
-	return fmt.Sprintf("timescaledb://%s:%s@%s:5432/%s", user, password, timescaledbUrl, databaseName)
+	return fmt.Sprintf("postgres://%s:%s@%s:5432/%s", user, password, timescaledbUrl, databaseName)
 }
 
 func getMqttBrokerUrl(configData config) string {
