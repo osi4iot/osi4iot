@@ -267,7 +267,7 @@ export default function (osi4iotState) {
 				}
 			},
 			postgres: {
-				image: `ghcr.io/osi4iot/timescaledb:${serviceImageVersion['postgres']}`,
+				image: `ghcr.io/osi4iot/postgres:${serviceImageVersion['postgres']}`,
 				networks: [
 					'internal_net'
 				],
