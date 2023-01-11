@@ -1,4 +1,4 @@
-FROM postgres:15.1-alpine
+FROM postgres:14.6-alpine
 ENV POSTGRES_DB=$POSTGRES_DB
 COPY entry_script.sh /src/scripts/entry_script.sh
 RUN chmod +x /src/scripts/entry_script.sh

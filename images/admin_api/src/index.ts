@@ -39,6 +39,8 @@ async function main(): Promise<void> {
 		app.listen();
 	} catch (error) {
 		logger.log("error", "Server initiation failed: %s ", error.message);
+		logger.log("error", "Process finished");
+		process.exit(1);
 	}
 }
 
