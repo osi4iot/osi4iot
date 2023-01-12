@@ -14,23 +14,23 @@ import normalizeString from '../../utils/helpers/normalizeString';
 
 export const getUserLoginDatadByEmailOrLogin = async (emailOrLogin: string): Promise<IUserLoginData> => {
 	const response: QueryResult = await
-		pool.query('SELECT id, login, email, password, salt FROM grafanadb.user WHERE email = $1 OR login = $1', [emailOrLogin]);
-	return response.rows[0];
+	pool.query('SELECT id, login, email, password, salt FROM grafanadb.user WHERE email = $1 OR login = $1', [emailOrLogin]);
+	return response.rows[0] as IUserLoginData;
 };
 
 export const getUsersIdByEmailsArray = async (emailArray: string[]): Promise<(Partial<IUser> | null)[]> => {
 	const response: QueryResult =
 		await pool.query('SELECT id, name, login, email FROM grafanadb.user WHERE email =  ANY($1::varchar(190)[])', [emailArray]);
-	return response.rows;
+	return response.rows as (Partial<IUser> | null)[];
 };
 
 export const getUserByProp = async (propName: string, propValue: string | number): Promise<IUser> => {
 	const response: QueryResult = await
-		pool.query(`SELECT id, name, login, email, is_admin as "isGrafanaAdmin",
+	pool.query(`SELECT id, name, login, email, is_admin as "isGrafanaAdmin",
 					is_disabled as "isDisabled", last_seen_at as lastSeenAt,
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user WHERE ${propName} = $1`, [propValue]);
-	return response.rows[0];
+	return response.rows[0] as IUser;
 };
 
 export const getGlobalUsers = async (): Promise<IUser[]> => {
@@ -40,17 +40,17 @@ export const getGlobalUsers = async (): Promise<IUser[]> => {
 					FROM grafanadb.user WHERE login != $1
 					ORDER BY id ASC`
 	const result = await pool.query(query, ["dev2pdb"]);
-	return result.rows;
+	return result.rows as IUser[];
 };
 
 export const getUserdByEmailOrLogin = async (emailOrLogin: string): Promise<IUser> => {
 	const response: QueryResult = await
-		pool.query(`SELECT id, first_name as "firstName", surname, login, email,
+	pool.query(`SELECT id, first_name as "firstName", surname, login, email,
 					is_admin as "isGrafanaAdmin",
 					is_disabled as "isDisabled", last_seen_at as "lastSeenAt",
 					AGE(NOW(),last_seen_at) as "lastSeenAtAge"
 					FROM grafanadb.user WHERE email = $1 OR login = $1`, [emailOrLogin]);
-	return response.rows[0];
+	return response.rows[0] as IUser;
 };
 
 export const createOrganizationUsers = async (orgId: number, usersData: CreateUserDto[]) => {
@@ -142,7 +142,7 @@ export const getOrganizationUsers = async (orgId: number): Promise<IUserInOrg[]>
 					WHERE grafanadb.org_user.org_id = $1 AND login != $2
 					ORDER BY grafanadb.user.id ASC`
 	const result = await pool.query(query, [orgId, "dev2pdb"]);
-	return result.rows;
+	return result.rows as IUserInOrg[];
 };
 
 export const getOrganizationUsersForOrgIdsArray = async (orgIdsArray: number[]): Promise<IUserInOrg[]> => {
@@ -154,7 +154,7 @@ export const getOrganizationUsersForOrgIdsArray = async (orgIdsArray: number[]):
 					WHERE grafanadb.org_user.org_id = ANY($1::bigint[]) AND login != $2
 					ORDER BY grafanadb.user.id ASC, grafanadb.org_user.org_id ASC`
 	const result = await pool.query(query, [orgIdsArray, "dev2pdb"]);
-	return result.rows;
+	return result.rows as IUserInOrg[];
 };
 
 export const getOrganizationUsersWithGrafanaAdmin = async (orgId: number): Promise<IUserInOrg[]> => {
@@ -167,7 +167,7 @@ export const getOrganizationUsersWithGrafanaAdmin = async (orgId: number): Promi
 					WHERE grafanadb.org_user.org_id = $1
 					ORDER BY grafanadb.user.id ASC`
 	const result = await pool.query(query, [orgId]);
-	return result.rows;
+	return result.rows as IUserInOrg[];
 };
 
 export const getOrganizationUserWithGrafanaAdminByProp = async (orgId: number, propName: string, propValue: string | number): Promise<IUserInOrg> => {
@@ -178,7 +178,7 @@ export const getOrganizationUserWithGrafanaAdminByProp = async (orgId: number, p
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.${propName} = $2`
 	const result = await pool.query(query, [orgId, propValue]);
-	return result.rows[0];
+	return result.rows[0] as IUserInOrg;
 };
 
 export const getOrganizationUserByProp = async (orgId: number, propName: string, propValue: string | number): Promise<IUserInOrg> => {
@@ -190,7 +190,7 @@ export const getOrganizationUserByProp = async (orgId: number, propName: string,
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.${propName} = $2  AND login != $3`
 	const result = await pool.query(query, [orgId, propValue, "dev2pdb"]);
-	return result.rows[0];
+	return result.rows[0] as IUserInOrg;
 };
 
 export const getOrganizationUsersByEmailArray = async (orgId: number, emailsArray: string[]): Promise<IUserInOrg[]> => {
@@ -201,7 +201,7 @@ export const getOrganizationUsersByEmailArray = async (orgId: number, emailsArra
 					INNER JOIN grafanadb.org_user ON grafanadb.org_user.user_id = grafanadb.user.id
 					WHERE grafanadb.org_user.org_id = $1 AND grafanadb.user.email =  ANY($2::varchar(190)[]) AND login != $3`
 	const result = await pool.query(query, [orgId, emailsArray, "dev2pdb"]);
-	return result.rows;
+	return result.rows as IUserInOrg[];
 };
 
 
@@ -273,7 +273,7 @@ export const isUsersDataCorrect = async (usersInputData: (CreateUserDto | Create
 						WHERE name =  ANY($1::varchar(225)[])
 						OR login =  ANY($2::varchar(190)[])
 						OR email =  ANY($3::varchar(190)[])`,
-			[namesArray, loginArray, emailsArray]);
+		[namesArray, loginArray, emailsArray]);
 	const existentUsers = response.rows;
 
 	if (existentUsers.length > usersInputData.length) return false;
@@ -298,7 +298,7 @@ export const isUserProfileDataCorrect = async (userProfileData: UserProfileDto):
 						WHERE name = $1
 						OR login =  $2
 						OR email =  $3`,
-			[userProfileData.name, userProfileData.login, userProfileData.email]);
+		[userProfileData.name, userProfileData.login, userProfileData.email]);
 	const existentUsers = response.rows;
 
 	if (existentUsers.length > 1) return false;

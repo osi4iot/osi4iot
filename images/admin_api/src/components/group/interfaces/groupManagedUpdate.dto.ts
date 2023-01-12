@@ -1,4 +1,3 @@
-import { Type } from "class-transformer";
 import { IsEnum, IsNumber, IsString } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 
@@ -19,10 +18,10 @@ class UpdateGroupManagedDto {
 	public nriInGroupIconLongitude: number;
 
 	@IsNumber()
-	nriInGroupIconLatitude: number;
+		nriInGroupIconLatitude: number;
 
 	@IsNumber()
-	nriInGroupIconRadio: number;
+		nriInGroupIconRadio: number;
 }
 
 export default UpdateGroupManagedDto;

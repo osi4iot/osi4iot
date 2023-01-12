@@ -1,3 +1,4 @@
+
 import { Router, NextFunction, Request, Response } from "express";
 import pointOnFeature from '@turf/point-on-feature';
 import { polygon } from '@turf/helpers';
@@ -331,7 +332,7 @@ class BuildingController implements IController {
 		try {
 			const { buildingId } = req.params;
 			const buildingData: CreateBuildingDto = req.body;
-			const existBuilding = await await getBuildingByProp("id", parseInt(buildingId, 10));
+			const existBuilding = await getBuildingByProp("id", parseInt(buildingId, 10));
 			if (!existBuilding) {
 				throw new ItemNotFoundException("The building", "id", buildingId);
 			}

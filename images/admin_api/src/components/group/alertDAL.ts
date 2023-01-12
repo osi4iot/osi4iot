@@ -3,33 +3,33 @@ import IAlert from "./interfaces/Alert.interface";
 import IGroup from "./interfaces/Group.interface";
 
 export const createAlert = async (alertData: Partial<IAlert>): Promise<void> => {
-	const response = await pool.query(`INSERT INTO grafanadb.alert (version, dashboard_id, panel_id,
+	await pool.query(`INSERT INTO grafanadb.alert (version, dashboard_id, panel_id,
 					org_id, name, message, state, settings, frequency, handler, severity, silenced,
 					execution_error, eval_data, new_state_date, state_changes, created, updated, "for")
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW(), $15,
 					NOW(), NOW(), $16)`,
-		[
-			alertData.version,
-			alertData.dashboardId,
-			alertData.panelId,
-			alertData.orgId,
-			alertData.name,
-			alertData.message,
-			alertData.state,
-			alertData.settings,
-			alertData.frequency,
-			alertData.handler,
-			'',
-			false,
-			'',
-			'',
-			0,
-			alertData.for]
+	[
+		alertData.version,
+		alertData.dashboardId,
+		alertData.panelId,
+		alertData.orgId,
+		alertData.name,
+		alertData.message,
+		alertData.state,
+		alertData.settings,
+		alertData.frequency,
+		alertData.handler,
+		'',
+		false,
+		'',
+		'',
+		0,
+		alertData.for]
 	);
 };
 
 export const upatedAlertSettings = async (id: number, settings: any): Promise<void> => {
-	const result = await pool.query(`UPDATE grafanadb.alert SET settings = $1, updated = NOW() WHERE id = $2`,
+	await pool.query(`UPDATE grafanadb.alert SET settings = $1, updated = NOW() WHERE id = $2`,
 		[settings, id]);
 };
 
@@ -45,7 +45,7 @@ export const getAlertsByFolderId = async (folderId: number): Promise<IAlert[]> =
 	  	FROM grafanadb.alert
 		INNER JOIN grafanadb.dashboard ON grafanadb.alert.dashboard_id = grafanadb.dashboard.id
 		WHERE grafanadb.dashboard.folder_id = $1`, [folderId]);
-	return result.rows;
+	return result.rows as IAlert[];
 };
 
 export const updateGroupUidOfRawSqlAlertSettingOfGroup = async (group: IGroup, newGroupUid: string): Promise<void> => {

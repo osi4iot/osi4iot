@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import bodyParser from "body-parser";
 import express, { Response, NextFunction } from "express";
 import helmet from "helmet";

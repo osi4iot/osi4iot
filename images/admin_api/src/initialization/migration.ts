@@ -44,7 +44,7 @@ export async function dataBaseInitialization() {
 
 	const grafanaUrl = `grafana:5000/api/health`;
 	const grafanaState = await needle('get', grafanaUrl)
-		.then(res => (res.body.database))
+		.then(res => (res.body.database as string))
 		.catch(err => {
 			logger.log("error", "Grafana service is not healthy: %s", err.message)
 			process.exit(1);
@@ -54,7 +54,7 @@ export async function dataBaseInitialization() {
 	if (process_env.DEPLOYMENT_LOCATION !== "AWS cluster deployment") {
 		const minioUrl = `minio:9000/minio/health/live`;
 		await needle('get', minioUrl)
-			.then(res => "ok")
+			.then(() => "ok")
 			.catch(err => {
 				logger.log("error", "Minio service is not healthy: %s", err.message)
 				process.exit(1);
@@ -706,7 +706,7 @@ export async function dataBaseInitialization() {
 					const queryString = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = '${dataSourceSchema}';`;
 					const result = await timescaledbClient.query(queryString);
 					if (groups.length !== result.rows.length) {
-						const viewsNames = result.rows.map(row => row.table_name);
+						const viewsNames = result.rows.map(row => row.table_name as string);
 						await createAllViews(groups, viewsNames);
 					};
 				} catch (err) {

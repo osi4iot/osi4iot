@@ -1,4 +1,4 @@
-import { IsString, IsEmail, ValidateIf, IsNumber, IsEnum } from "class-validator";
+import { IsEnum } from "class-validator";
 import { RoleInGroupOption, RoleInGroupOptions } from "./RoleInGroupOptions";
 
 class UpdateGroupMemberDto {

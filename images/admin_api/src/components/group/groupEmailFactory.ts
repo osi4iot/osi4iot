@@ -183,7 +183,7 @@ export const sendChangeGroupDataInformationEmail = async (newGroupData: IGroup, 
 	await Promise.all(groupChangeDataInformationEmailQuery);
 }
 
-export const sendRemoveGroupInformationEmail = async (group: IGroup, groupMembersToRemove: CreateGroupMemberDto[], removeOrgMembership: boolean = false): Promise<void> => {
+export const sendRemoveGroupInformationEmail = async (group: IGroup, groupMembersToRemove: CreateGroupMemberDto[], removeOrgMembership = false): Promise<void> => {
 	const subject = `Unsubscribed information from the "${group.name}" group`;
 	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g," ").toUpperCase()} PLATFORM`;
 	const groupChangeDataInformationEmailQuery = [];

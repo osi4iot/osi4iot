@@ -1,4 +1,4 @@
-import { Router, NextFunction, Request, Response } from "express";
+import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { groupAdminAuth } from "../../middleware/auth.middleware";

@@ -1,4 +1,4 @@
-import { IsString, IsEmail, ValidateIf, IsNumber, IsBoolean } from "class-validator";
+import { IsString, IsEmail, ValidateIf } from "class-validator";
 
 class CreateGlobalUserDto {
 	public id?: number;

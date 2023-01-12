@@ -2,7 +2,7 @@ import { Request } from "express";
 import IGroup from "./Group.interface";
 
 interface IRequestWithGroup extends Request {
-  group: IGroup;
+	group: IGroup;
 }
 
 export default IRequestWithGroup;

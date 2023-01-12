@@ -1,11 +1,11 @@
 interface IOrganizationWithoutDate {
-  id: string;
+	id: string;
 
-  name: string;
+	name: string;
 
-  acronym: string;
+	acronym: string;
 
-  geometry: string;
+	geometry: string;
 }
 
 export default IOrganizationWithoutDate;

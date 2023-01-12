@@ -1,4 +1,3 @@
-import { Type } from "class-transformer";
 import { IsEnum, IsNumber, IsString } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 

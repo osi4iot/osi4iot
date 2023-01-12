@@ -1,4 +1,4 @@
-import { Router, NextFunction, Request, Response } from "express";
+import { Router, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 
 class HealthCheckController implements IController {

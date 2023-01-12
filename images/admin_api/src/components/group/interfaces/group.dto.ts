@@ -1,5 +1,5 @@
 import { Type } from "class-transformer";
-import { IsEmail, IsEnum, IsNumber, IsString, ValidateIf, ValidateNested } from "class-validator";
+import { IsEnum, IsNumber, IsString, ValidateNested } from "class-validator";
 import { FolderPermissionOptions, FolderPermissionOption } from "./FolerPermissionsOptions";
 import CreateGroupAdminDto from "./groupAdmin.dto";
 

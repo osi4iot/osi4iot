@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import process_env from "../../config/api_config";
 import transporter from "../../config/mailer";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 
-const sendEmail = async (subject: string, mailTo: string[], bodyType: string, mailBody: string = "html"): Promise<IMessage> => {
+const sendEmail = async (subject: string, mailTo: string[], bodyType: string, mailBody = "html"): Promise<IMessage> => {
 	return new Promise((resolve, reject) => {
 		let mailOptions;
 		if (bodyType === "text") {
@@ -23,7 +24,7 @@ const sendEmail = async (subject: string, mailTo: string[], bodyType: string, ma
 
 		transporter.sendMail(mailOptions, (error, info) => {
 			if (error) {
-				const message = `Mail not sended.  ${error}`;
+				const message = `Mail not sended.  ${error.message}`;
 				reject({ message });
 			}
 			else {

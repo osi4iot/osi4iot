@@ -1,6 +1,4 @@
 import IMessage from "./interfaces/Message";
-import IUserDTO from "./interfaces/UserDTO";
-import IUser from "../components/user/interfaces/User.interface";
 import ITeamDTO from "./interfaces/TeamDTO";
 import IFolderDTO from "./interfaces/FolderDTO";
 import IFolder from "./interfaces/Folder";

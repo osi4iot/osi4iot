@@ -5,9 +5,8 @@ import EMAIL_REGEX from "./emailRegex";
 export const isEmailsArrayCheck = (emailsArray: string[]): boolean => {
 	let isArrayOfEmails = true;
 	if (emailsArray instanceof Array) {
-		// tslint:disable-next-line: prefer-for-of
-		for (let i = 0; i < emailsArray.length; i++) {
-			if (!EMAIL_REGEX.test(emailsArray[i])) {
+		for (const email of emailsArray) {
+			if (!EMAIL_REGEX.test(email)) {
 				isArrayOfEmails = false;
 				break;
 			}
@@ -19,7 +18,7 @@ export const isEmailsArrayCheck = (emailsArray: string[]): boolean => {
 	return isArrayOfEmails;
 };
 
-export function IsEmailsArray(validationOptions?: ValidationOptions) {
+export const IsEmailsArray = (validationOptions?: ValidationOptions) => {
 	return (object: Record<string, any>, propertyName: string): void => {
 		registerDecorator({
 			name: "isEmailsArray",
@@ -28,10 +27,11 @@ export function IsEmailsArray(validationOptions?: ValidationOptions) {
 			constraints: [],
 			options: validationOptions,
 			validator: {
+				// eslint-disable-next-line prefer-arrow/prefer-arrow-functions
 				validate(value: any): boolean | Promise<boolean> {
-					return isEmailsArrayCheck(value);
+					return isEmailsArrayCheck(value as string[]);
 				}
-			}
+			},
 		});
 	};
 }

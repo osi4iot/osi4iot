@@ -18,7 +18,7 @@ export const updateMeasurement = async (groupUid: string, topic: string, timesta
 		groupUid,
 		topic
 	]);
-	return result.rows[0];
+	return result.rows[0] as IMeasurement;
 };
 
 export const deleteMeasurement = async (groupUid: string, topic: string, timestamp: string,): Promise<IMeasurement> => {
@@ -27,20 +27,20 @@ export const deleteMeasurement = async (groupUid: string, topic: string, timesta
                     group_uid = $2 AND
                     topic = $3
 					RETURNING *;`, [timestamp, groupUid, topic]);
-	return result.rows[0];
+	return result.rows[0] as IMeasurement;
 };
 
 export const deleteMeasurementsBeforeDate = async (
 	groupUid: string,
 	topic: string,
 	deleteDate: string,
-): Promise<IMeasurement[]> => {
+): Promise<IMeasurement> => {
 	const result = await timescaledb_pool.query(`DELETE FROM iot_data.thingData
                     WHERE timestamp <= $1 AND
                     group_uid = $2 AND
                     topic = $3
 					RETURNING *;`, [deleteDate, groupUid, topic]);
-	return result.rows[0];
+	return result.rows[0] as IMeasurement;
 };
 
 export const getMeasurement = async (groupUid: string, topic: string, timestamp: string): Promise<IMeasurement> => {
@@ -49,7 +49,7 @@ export const getMeasurement = async (groupUid: string, topic: string, timestamp:
 									WHERE timestamp = $1 AND
 									group_uid = $2 AND
 									topic = $3;`, [timestamp, groupUid, topic]);
-	return response.rows[0];
+	return response.rows[0] as IMeasurement;
 }
 
 export const getLastMeasurements = async (groupUid: string, topic: string, count: number): Promise<IMeasurement[]> => {
@@ -59,7 +59,7 @@ export const getLastMeasurements = async (groupUid: string, topic: string, count
 									topic = $2
 									ORDER BY timestamp DESC
 									LIMIT $3;`, [groupUid, topic, count]);
-	return response.rows;
+	return response.rows as IMeasurement[];
 };
 
 export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topicsArray: string[]): Promise<IMeasurement[]> => {
@@ -70,7 +70,7 @@ export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topic
 									ORDER BY topic DESC,
 											timestamp DESC
 									LIMIT $3;`, [groupUid, topicsArray, topicsArray.length]);
-	return response.rows;
+	return response.rows as IMeasurement[];
 };
 
 export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
@@ -80,7 +80,7 @@ export const getLastMeasurement = async (groupUid: string, topic: string): Promi
 									topic = $2
 									ORDER BY timestamp DESC
 									LIMIT $3;`, [groupUid, topic, 1]);
-	return response.rows[0];
+	return response.rows[0] as IMeasurement;
 };
 
 export const getDuringMeasurementsWithPagination = async (
@@ -102,7 +102,7 @@ export const getDuringMeasurementsWithPagination = async (
 	LIMIT $5
 	OFFSET  $6;`, [groupUid, topic, start, end, itemsPerPage, offset]);
 
-	return response.rows;
+	return response.rows as IMeasurement[];
 };
 
 export const getTotalRowsDuringMeasurements = async (
@@ -116,8 +116,8 @@ export const getTotalRowsDuringMeasurements = async (
 									topic = $2 AND
 									timestamp >= $3 AND
 									timestamp <= $4`,
-		[groupUid, topic, start, end]);
-	return response.rows[0].count;
+	[groupUid, topic, start, end]);
+	return response.rows[0].count as number;
 };
 
 export const updateMeasurementsTopicByDevice = async (device: IDevice, newDeviceUid: string): Promise<void> => {

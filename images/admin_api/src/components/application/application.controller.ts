@@ -17,7 +17,6 @@ import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import { cleanEmailNotificationChannelForGroupsArray, getGroupsWhereUserIdIsMember } from "../group/groupDAL";
-import CreateUsersArrayDto from "../user/interfaces/UsersArray.dto";
 import CreateGlobalUsersArrayDto from "../user/interfaces/GlobalUsersArray.dto";
 import HttpException from "../../exceptions/HttpException";
 

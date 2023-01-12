@@ -10,7 +10,7 @@ export const getS3PresignedUrl = async (action: string, key: string): Promise<st
 		const command = new GetObjectCommand(actionObjectParams);
 		url = await getSignedUrl(s3Client, command, { expiresIn: 30 });
 	} else if (action === "put") {
-		const command = new PutObjectCommand(actionObjectParams) as PutObjectCommand;
+		const command = new PutObjectCommand(actionObjectParams) ;
 		url = await getSignedUrl(s3Client, command, { expiresIn: 60 * 30 });
 	}
 	return url;

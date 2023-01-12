@@ -1,15 +1,15 @@
 interface IUserWithoutPassword {
-  id: string;
+	id: string;
 
-  firstName: string;
+	firstName: string;
 
-  surnName1: string;
+	surnName1: string;
 
-  surnName2: string;
+	surnName2: string;
 
-  dni: string;
+	dni: string;
 
-  email: string;
+	email: string;
 }
 
 export default IUserWithoutPassword;

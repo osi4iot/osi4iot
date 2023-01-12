@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import needle from "needle";
 import IFolder from "./interfaces/Folder";
 import IFolderDTO from "./interfaces/FolderDTO";
@@ -294,7 +295,7 @@ export default class GrafanaApi implements IDashboardApi {
 			.then(res => res.body)
 			.catch(err => logger.log("error", "The user with username=${userName} could not be deleted: %s", err.message));
 
-		const url = `${GrafanaApiURL}/admin/users/${user_message.id}`;
+		const url = `${GrafanaApiURL}/admin/users/${user_message.id as number}`;
 		const message = await needle('delete', url, null, optionsBasicAuthApiAdmin)
 			.then(res => res.body)
 			.catch(err => logger.log("error", "The user with id=${user_message.id} could not be deleted: %s", err.message));

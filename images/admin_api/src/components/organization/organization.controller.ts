@@ -45,7 +45,18 @@ import HttpException from "../../exceptions/HttpException";
 import CreateUsersArrayDto from "../user/interfaces/UsersArray.dto";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import UserInOrgToUpdateDto from "../user/interfaces/UserInOrgToUpdate.dto";
-import { createGroup, defaultOrgGroupName, getAllGroupsInOrganization, getGroupMemberByProp, getGroupMembers, getGroupsManagedByUserId, getGroupsOfOrgIdWhereUserIdIsMember, getOrgsIdArrayForGroupsManagedByUserId, removeMembersInGroup, removeMembersInGroupsArray } from "../group/groupDAL";
+import {
+	createGroup,
+	defaultOrgGroupName,
+	getAllGroupsInOrganization,
+	getGroupMemberByProp,
+	getGroupMembers,
+	getGroupsManagedByUserId,
+	getGroupsOfOrgIdWhereUserIdIsMember,
+	getOrgsIdArrayForGroupsManagedByUserId,
+	removeMembersInGroup,
+	removeMembersInGroupsArray
+} from "../group/groupDAL";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
@@ -59,10 +70,19 @@ import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic, demoTopicName } from "../topic/topicDAL";
-import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid, removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
+import {
+	createDigitalTwin,
+	demoDigitalTwinDescription,
+	generateDigitalTwinUid,
+	removeFilesFromBucketFolder
+} from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
-import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg, getNodeRedInstancesByOrgsIdArray, getNodeRedInstancesUnassignedInOrg } from "../nodeRedInstance/nodeRedInstanceDAL";
+import {
+	assignNodeRedInstanceToGroup,
+	createNodeRedInstancesInOrg,
+	getNodeRedInstancesByOrgsIdArray
+} from "../nodeRedInstance/nodeRedInstanceDAL";
 
 
 class OrganizationController implements IController {
@@ -532,7 +552,7 @@ class OrganizationController implements IController {
 				const groupMember = await getGroupMemberByProp(groupsArray[0], "id", user.userId);
 				await removeMembersInGroupsArray(groupsArray, [groupMember]);
 			}
-			const msg = await grafanaApi.removeUserFromOrganization(organization.id, user.userId);
+			await grafanaApi.removeUserFromOrganization(organization.id, user.userId);
 			const message = { message: `User removed from the organization` }
 			res.status(200).json(message);
 		} catch (error) {
@@ -573,7 +593,7 @@ class OrganizationController implements IController {
 			} else {
 				usersIdArray = usersArray.filter(user => user.roleInOrg !== "Admin").map(user => user.userId);
 			}
-			const msgArray = await grafanaApi.removeUsersFromOrganization(organization.id, usersIdArray);
+			await grafanaApi.removeUsersFromOrganization(organization.id, usersIdArray);
 			const message = { message: `Users removed from the organization` }
 			res.status(200).json(message);
 		} catch (error) {

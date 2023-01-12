@@ -1,11 +1,11 @@
 interface IOrgTreeNodeParent {
-  id: string;
+	id: string;
 
-  name: string;
+	name: string;
 
-  acronym: string;
+	acronym: string;
 
-  description: string;
+	description: string;
 }
 
 export default IOrgTreeNodeParent;

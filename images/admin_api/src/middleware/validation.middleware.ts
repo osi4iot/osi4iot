@@ -33,7 +33,7 @@ function reducerCallback(result: string[], errorArray: ValErr[]): string[] {
 	return result;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
 function validationMiddleware<T>(type: any, skipMissingProperties = false): express.RequestHandler {
 	return async (req: IRequestWithOrganization, res, next): Promise<void> => {
 		try {

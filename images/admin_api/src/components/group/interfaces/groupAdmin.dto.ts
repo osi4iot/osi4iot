@@ -1,4 +1,4 @@
-import { IsString, IsEmail, ValidateIf, IsNumber } from "class-validator";
+import { IsString, IsEmail } from "class-validator";
 import { RoleInGroupOption } from "./RoleInGroupOptions";
 
 class CreateGroupAdminDto {

@@ -1,5 +1,4 @@
 import { createLogger, format, transports } from "winston";
-import process_env from "./api_config";
 
 const { combine } = format;
 

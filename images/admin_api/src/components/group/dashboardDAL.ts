@@ -26,8 +26,9 @@ export const insertDashboard = async (orgId: number, folderId: number, title: st
 					plugin_id, folder_id, is_folder, has_acl, uid)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 					RETURNING *`,
-		[1, slug, title, data, orgId, now, now, -1, -1, 0, '', folderId, false, false, uuid]
+	[1, slug, title, data, orgId, now, now, -1, -1, 0, '', folderId, false, false, uuid]
 	);
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 	return response.rows[0];
 };
 
@@ -39,12 +40,12 @@ export const deleteDashboard = async (dashboardId: number): Promise<void> => {
 export const getDashboardsDataOfGroup = async (group: IGroup): Promise<IDashboardData[]> => {
 	const folderId = group.folderId;
 	const response = await pool.query(`SELECT id, data FROM grafanadb.dashboard WHERE folder_id = $1 AND is_folder = $2`, [folderId, false]);
-	return response.rows;
+	return response.rows as IDashboardData[];
 };
 
 export const getDashboardDataByUid = async (orgId: number, uid: string): Promise<IDashboardData> => {
 	const response = await pool.query(`SELECT id, data FROM grafanadb.dashboard WHERE org_id=$1 AND uid= $2`, [orgId, uid]);
-	return response.rows[0];
+	return response.rows[0] as IDashboardData;
 };
 
 export const getDashboardsDataWithRawSqlOfGroup = async (group: IGroup): Promise<IDashboardData[]> => {
@@ -132,10 +133,10 @@ export const updateDashboardData = async (dashboardId: number, data: any): Promi
 
 export const insertPreference = async (orgId: number, homeDashboardId: number): Promise<void> => {
 	const now = new Date();
-	const response = await pool.query(`INSERT INTO grafanadb.preferences (org_id, user_id, version,
+	await pool.query(`INSERT INTO grafanadb.preferences (org_id, user_id, version,
 					home_dashboard_id, timezone, theme, created, updated, team_id)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-		[orgId, 0, 0, homeDashboardId, '', '', now, now, 0]
+	[orgId, 0, 0, homeDashboardId, '', '', now, now, 0]
 	);
 };
 
@@ -156,8 +157,8 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 		w: 24,
 		x: 0,
 		y: 4
-	},
-		homeDashboard.uid = uuidv4();
+	};
+	homeDashboard.uid = uuidv4();
 	const response = await insertDashboard(orgId, folderId, title, homeDashboard);
 	await insertPreference(orgId, response.id);
 };
@@ -212,7 +213,7 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 	const accelAlert = createAccelDemoAlert(group.orgId, accelDashboardCreated.id, 2, accelAlertData);
 	await createAlert(accelAlert);
 
-	return [tempDashboardCreated.id, accelDashboardCreated.id];
+	return [tempDashboardCreated.id as number, accelDashboardCreated.id  as number];
 };
 
 export const createDashboard = async (group: IGroup, device: IDevice, topic: Partial<ITopic>, digitalTwinUid: string): Promise<number> => {
@@ -234,7 +235,7 @@ export const createDashboard = async (group: IGroup, device: IDevice, topic: Par
 	dashboard.panels[0].targets[0].datasource.uid = dataSource.uid;
 	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboardTitle, dashboard);
 
-	return dashboardCreated.id;
+	return dashboardCreated.id as number;
 };
 
 

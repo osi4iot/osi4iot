@@ -19,7 +19,7 @@ export const getAllNodeRedInstances = async (): Promise<INodeRedInstance[]> => {
 									ORDER BY grafanadb.nodered_instance.id ASC,
 											grafanadb.nodered_instance.org_id ASC,
 											grafanadb.nodered_instance.group_id ASC;`);
-	return response.rows;
+	return response.rows as INodeRedInstance[];
 }
 
 export const getNodeRedInstancesByOrgsIdArray = async (orgsIdArray: number[]): Promise<INodeRedInstance[]> => {
@@ -36,7 +36,7 @@ export const getNodeRedInstancesByOrgsIdArray = async (orgsIdArray: number[]): P
 									ORDER BY grafanadb.nodered_instance.id ASC,
 											grafanadb.nodered_instance.org_id ASC,
 											grafanadb.nodered_instance.group_id ASC;`, [orgsIdArray]);
-	return response.rows;
+	return response.rows as INodeRedInstance[];
 };
 
 export const getNodeRedInstancesByGroupsIdArray = async (groupsIdArray: number[]): Promise<INodeRedInstance[]> => {
@@ -53,7 +53,7 @@ export const getNodeRedInstancesByGroupsIdArray = async (groupsIdArray: number[]
 									ORDER BY grafanadb.nodered_instance.id ASC,
 											grafanadb.nodered_instance.org_id ASC,
 											grafanadb.nodered_instance.group_id ASC;`, [groupsIdArray]);
-	return response.rows;
+	return response.rows as INodeRedInstance[];
 };
 
 export const getNodeRedInstanceByProp = async (propName: string, propValue: (string | number)): Promise<INodeRedInstance> => {
@@ -67,7 +67,7 @@ export const getNodeRedInstanceByProp = async (propName: string, propValue: (str
 									grafanadb.nodered_instance.deleted
 									FROM grafanadb.nodered_instance
 									WHERE grafanadb.nodered_instance.${propName} = $1`, [propValue]);
-	return response.rows[0];
+	return response.rows[0] as INodeRedInstance;
 }
 
 export const getNodeRedInstancesInGroup = async (groupId: number): Promise<INodeRedInstance> => {
@@ -81,7 +81,7 @@ export const getNodeRedInstancesInGroup = async (groupId: number): Promise<INode
 									grafanadb.nodered_instance.deleted
 									FROM grafanadb.nodered_instance
 									WHERE grafanadb.nodered_instance.group_id = $1`, [groupId]);
-	return response.rows[0];
+	return response.rows[0] as INodeRedInstance;
 }
 
 export const markAsDeleteNodeRedInstancesInGroup = async (groupId: number): Promise<void> => {
@@ -140,8 +140,8 @@ export const createNodeRedInstance = async (nriInput: CreateNodeRedInstanceDto):
 		group_id, geolocation, icon_radio, created, updated) VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 		RETURNING id, nri_hash AS "nriHash", org_id AS "orgId", group_id AS "groupId",geolocation[0] AS longitude,
 		geolocation[1] AS latitude, icon_radio AS "iconRadio", deleted`,
-		[nriInput.nriHash, nriInput.orgId, 0, `(${nriInput.longitude},${nriInput.latitude})`, nriInput.iconRadio]);
-	return result.rows[0];
+	[nriInput.nriHash, nriInput.orgId, 0, `(${nriInput.longitude},${nriInput.latitude})`, nriInput.iconRadio]);
+	return result.rows[0] as INodeRedInstance;
 };
 
 export const assignNodeRedInstanceToGroup = async (nriInput: INodeRedInstance, groupId: number): Promise<void> => {
@@ -167,7 +167,7 @@ export const getNodeRedInstancesUnassignedInOrg = async (orgId: number): Promise
 									WHERE grafanadb.nodered_instance.org_Id = $1 AND
 									grafanadb.nodered_instance.deleted = FALSE AND
 									grafanadb.nodered_instance.group_id = $2`, [orgId, 0]);
-	return response.rows;
+	return response.rows as INodeRedInstance[];
 }
 
 export const updateGroupNodeRedInstanceLocation = async (geoJsonDataString: string, group: IGroup): Promise<void> => {

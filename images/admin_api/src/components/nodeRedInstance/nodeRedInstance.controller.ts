@@ -1,7 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { groupAdminNodeRedInstanceAuth, organizationAdminAuth, superAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { groupAdminNodeRedInstanceAuth, superAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";

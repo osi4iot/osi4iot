@@ -1,15 +1,15 @@
 import IUserWithoutPassword from "./userWithoutPassword.interface";
 
 interface IOrganizationWithAdminList {
-  id: string;
+	id: string;
 
-  name: string;
+	name: string;
 
-  acronym: string;
+	acronym: string;
 
-  geometry: string;
+	geometry: string;
 
-  administratorsList: IUserWithoutPassword[];
+	administratorsList: IUserWithoutPassword[];
 }
 
 export default IOrganizationWithAdminList;

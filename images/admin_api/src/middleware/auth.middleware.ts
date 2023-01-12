@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/require-await */
 import passport from "passport";
 import { NextFunction, Response } from "express";
 import IRequestWithUser from "../interfaces/requestWithUser.interface";
@@ -75,7 +76,6 @@ export const adminForSomeOrganizationAuth = async (req: IRequestWithUser, res: R
 		if (!user) {
 			return next(new HttpException(401, "You are not allowed to access."));
 		}
-		const { orgId } = req.params;
 
 		let isAdminOfSomeOrganization = await isThisUserAdminOfSomeOrg(user.id);
 		if (user.isGrafanaAdmin) isAdminOfSomeOrganization = true;

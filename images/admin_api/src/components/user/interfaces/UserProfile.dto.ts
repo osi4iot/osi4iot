@@ -6,7 +6,7 @@ class UserProfileDto {
 	name?: string;
 
 	@IsNumber()
-	userId?: number;
+		userId?: number;
 
 	@IsString()
 	public firstName: string;

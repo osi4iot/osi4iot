@@ -1,15 +1,15 @@
 import IUserWithoutPassword from "./userWithoutPassword.interface";
 
 interface ICreateUsersOutput {
-  numInputedUser: number;
+	numInputedUser: number;
 
-  numExistingUsers: number;
+	numExistingUsers: number;
 
-  numExistingUsersAddedToInstitution: number;
+	numExistingUsersAddedToInstitution: number;
 
-  numNewUsers: number;
+	numNewUsers: number;
 
-  newUsers: IUserWithoutPassword[];
+	newUsers: IUserWithoutPassword[];
 }
 
 export default ICreateUsersOutput;

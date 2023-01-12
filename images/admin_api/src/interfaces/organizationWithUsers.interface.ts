@@ -1,11 +1,11 @@
 import IUserWithoutPassword from "./userWithoutPassword.interface";
 
 interface IOrganizationWithUsers {
-  orgId: string;
+	orgId: string;
 
-  organizationnName: string;
+	organizationnName: string;
 
-  users: IUserWithoutPassword[];
+	users: IUserWithoutPassword[];
 }
 
 export default IOrganizationWithUsers;

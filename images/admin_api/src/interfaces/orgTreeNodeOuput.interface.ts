@@ -3,12 +3,12 @@ import IInstitutionWithoutDate from "./organizationWithoutDate.interface";
 
 
 interface IOrgTreeNodeOutput {
-  id: string;
-  name: string;
-  acronym: string;
-  description: string;
-  parent: IOrgTreeNodeParent;
-  institution: IInstitutionWithoutDate;
+	id: string;
+	name: string;
+	acronym: string;
+	description: string;
+	parent: IOrgTreeNodeParent;
+	institution: IInstitutionWithoutDate;
 }
 
 export default IOrgTreeNodeOutput;

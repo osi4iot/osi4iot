@@ -29,23 +29,23 @@ export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> =
 					payload_format AS "payloadFormat", topic_uid AS "topicUid",
 					 mqtt_access_control AS "mqttAccessControl",
 					created, updated`,
-		[
-			topicData.deviceId,
-			topicData.topicType,
-			topicData.topicName,
-			topicData.description,
-			topicData.payloadFormat,
-			topicData.topicUid,
-			topicData.mqttAccessControl
-		]);
-	return result.rows[0];
+	[
+		topicData.deviceId,
+		topicData.topicType,
+		topicData.topicName,
+		topicData.description,
+		topicData.payloadFormat,
+		topicData.topicUid,
+		topicData.mqttAccessControl
+	]);
+	return result.rows[0] as ITopic;
 };
 
 export const updateTopicById = async (topicId: number, topic: ITopic): Promise<void> => {
 	const query = `UPDATE grafanadb.topic SET topic_type = $1, topic_name = $2, description = $3,
 					payload_format = $4,  mqtt_access_control = $5, updated = NOW()
 					WHERE grafanadb.topic.id = $6;`;
-	const result = await pool.query(query, [
+	await pool.query(query, [
 		topic.topicType,
 		topic.topicName,
 		topic.description,
@@ -91,7 +91,7 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									WHERE grafanadb.topic.${propName} = $1`, [propValue]);
-	return response.rows[0];
+	return response.rows[0] as ITopic;
 }
 
 export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number): Promise<ITopic[]> => {
@@ -108,7 +108,7 @@ export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number):
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.topic_id = grafanadb.topic.id
 									WHERE grafanadb.digital_twin_topic.digital_twin_id = $1`, [digitalTwinId]);
-	return response.rows;
+	return response.rows as ITopic[];
 }
 
 export const getAllTopics = async (): Promise<ITopic[]> => {
@@ -126,7 +126,7 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC;`);
-	return response.rows;
+	return response.rows as ITopic[];
 }
 
 export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
@@ -149,13 +149,13 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 									        grafanadb.group.acronym ASC,
 											grafanadb.device.name ASC,
 											grafanadb.topic.topic_name ASC;`);
-	return response.rows;
+	return response.rows as IMobileTopic[];
 }
 
 
 export const getNumTopics = async (): Promise<number> => {
 	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.topic;`);
-	return parseInt(result.rows[0].count, 10);
+	return parseInt(result.rows[0].count as string, 10);
 }
 
 
@@ -175,7 +175,7 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC`, [groupId]);
-	return response.rows;
+	return response.rows as ITopic[];
 };
 
 export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ITopic[]> => {
@@ -194,7 +194,7 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC`, [groupsIdArray]);
-	return response.rows;
+	return response.rows as ITopic[];
 };
 
 export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IMobileTopic[]> => {
@@ -216,7 +216,7 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC`, [groupsIdArray]);
-	return response.rows;
+	return response.rows as IMobileTopic[];
 };
 
 
@@ -224,7 +224,7 @@ export const getNumTopicsByGroupsIdArray = async (groupsIdArray: number[]): Prom
 	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									WHERE grafanadb.device.group_id = ANY($1::bigint[])`, [groupsIdArray]);
-	return parseInt(result.rows[0].count, 10);
+	return parseInt(result.rows[0].count as string, 10);
 }
 
 export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
@@ -243,7 +243,7 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC`, [orgId]);
-	return response.rows;
+	return response.rows as ITopic[];
 };
 
 export const getTopicsByDeviceId = async (deviceId: number): Promise<ITopic[]> => {
@@ -262,7 +262,7 @@ export const getTopicsByDeviceId = async (deviceId: number): Promise<ITopic[]> =
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC`, [deviceId]);
-	return response.rows;
+	return response.rows as ITopic[];
 };
 
 export const checkIfExistTopics = async (topicsIdArray: number[]): Promise<string> => {
@@ -270,7 +270,7 @@ export const checkIfExistTopics = async (topicsIdArray: number[]): Promise<strin
 	const response = await pool.query(`SELECT grafanadb.topic.id FROM grafanadb.topic
 									WHERE grafanadb.topic.id = ANY($1::bigint[])
 									ORDER BY grafanadb.topic.id ASC;`, [topicsIdArray]);
-	const existentTopicsId = response.rows.map(elem => elem.id);
+	const existentTopicsId = response.rows.map(elem => elem.id as number);
 	const nonExistentTopicsId = topicsIdArray.filter(topicId => !existentTopicsId.includes(topicId));
 	if (nonExistentTopicsId.length !== 0) {
 		message = `Topics with id=[${nonExistentTopicsId.toString()}] no longer exist`
@@ -282,7 +282,7 @@ export const markInexistentTopics = async (topicsId: number[]): Promise<number[]
 	const response = await pool.query(`SELECT grafanadb.topic.id FROM grafanadb.topic
 									WHERE grafanadb.topic.id = ANY($1::bigint[])
 									ORDER BY grafanadb.topic.id ASC;`, [topicsId]);
-	const existentTopicsId = response.rows.map(elem => elem.id);
+	const existentTopicsId = response.rows.map(elem => elem.id as number);
 	const markedTopics = topicsId.map(topicId => {
 		if (!existentTopicsId.includes(topicId)) return -topicId;
 		else return topicId;
@@ -302,7 +302,7 @@ export const getMqttTopicsInfoFromIdArray = async (topicsIdArray: number[]): Pro
 									WHERE grafanadb.topic.id = ANY($1::bigint[])
 									ORDER BY grafanadb.topic.id ASC;`, [filteredTopicsIdArray]);
 
-	return response.rows;
+	return response.rows as IMqttTopicInfo[];
 }
 
 export const getTopicInfoForMqttAclByTopicUid = async (topicUid: string): Promise<ITopicInfoForMqttAcl> => {
@@ -319,6 +319,5 @@ export const getTopicInfoForMqttAclByTopicUid = async (topicUid: string): Promis
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
 									WHERE grafanadb.topic.topic_uid = $1`, [topicUid]);
-	return response.rows[0];
+	return response.rows[0] as ITopicInfoForMqttAcl;
 };
-

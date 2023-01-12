@@ -12,7 +12,7 @@ export const getDashboardById = async (dashboardId: number): Promise<IDashboard>
 									INNER JOIN grafanadb.group ON grafanadb.dashboard_acl.team_id = grafanadb.group.team_id
 									WHERE grafanadb.dashboard.id = $1 AND
 									grafanadb.dashboard.is_folder = $2`, [dashboardId, false]);
-	return response.rows[0];
+	return response.rows[0] as IDashboard;
 }
 
 export const getAllDashboards = async (): Promise<IDashboard[]> => {
@@ -25,7 +25,7 @@ export const getAllDashboards = async (): Promise<IDashboard[]> => {
 									INNER JOIN grafanadb.group ON grafanadb.dashboard_acl.team_id = grafanadb.group.team_id
                                     WHERE grafanadb.dashboard.is_folder = $1
 									ORDER BY grafanadb.dashboard.id ASC;`, [false]);
-	return response.rows;
+	return response.rows as IDashboard[];
 }
 
 export const getDashboardsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDashboard[]> => {
@@ -39,7 +39,7 @@ export const getDashboardsByGroupsIdArray = async (groupsIdArray: number[]): Pro
 									WHERE grafanadb.group.id = ANY($1::bigint[]) AND grafanadb.dashboard.is_folder = $2
 									ORDER BY grafanadb.dashboard.id ASC,
                                     grafanadb.group.id ASC;`, [groupsIdArray, false]);
-	return response.rows;
+	return response.rows as IDashboard[];
 };
 
 export const checkIfExistDashboards = async (dashboardsIdArray: number[]): Promise<string> => {
@@ -48,7 +48,7 @@ export const checkIfExistDashboards = async (dashboardsIdArray: number[]): Promi
 									WHERE grafanadb.dashboard.id = ANY($1::bigint[]) AND grafanadb.dashboard.is_folder = $2
 									ORDER BY grafanadb.dashboard.id ASC;`, [dashboardsIdArray, false]);
 
-	const existentDashboardsId = response.rows.map(elem => elem.id);
+	const existentDashboardsId = response.rows.map(elem => elem.id as number);
 	const nonExistentDashboardsId = dashboardsIdArray.filter(dashboardId => !existentDashboardsId.includes(dashboardId));
 	if (nonExistentDashboardsId.length !== 0) {
 		message = `Dashboards with id=[${nonExistentDashboardsId.toString()}] no longer exist`
@@ -61,7 +61,7 @@ export const markInexistentDashboards = async (dashboardsIdArray: number[]): Pro
 									WHERE grafanadb.dashboard.id = ANY($1::bigint[]) AND grafanadb.dashboard.is_folder = $2
 									ORDER BY grafanadb.dashboard.id ASC;`, [dashboardsIdArray, false]);
 
-	const existentDashboardsId = response.rows.map(elem => elem.id);
+	const existentDashboardsId = response.rows.map(elem => elem.id as number);
 	const markedDashboards = dashboardsIdArray.map(dashboardId => {
 		if (!existentDashboardsId.includes(dashboardId)) return -dashboardId;
 		else return dashboardId;
@@ -82,5 +82,5 @@ export const getDashboardsInfoFromIdArray = async (idArray: number[]): Promise<I
 		const fakeDashboard = { dashboardId: -id, slug: "Inexistent", uid: "" };
 		return fakeDashboard;
 	});
-	return dashboardsInfo.concat(nonExistentDashboardsInfo);
+	return dashboardsInfo.concat(nonExistentDashboardsInfo) as IDashboardInfo[];
 }

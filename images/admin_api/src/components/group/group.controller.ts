@@ -467,7 +467,6 @@ class GroupController implements IController {
 
 	private addMembersToGroup = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const teamId = req.group.teamId;
 			const orgId = req.group.orgId;
 			const groupMembersArray: CreateGroupMemberDto[] = req.body.members;
 			const usersArray = await getOrganizationUsersByEmailArray(orgId, groupMembersArray.map(user => user.email));
@@ -566,7 +565,6 @@ class GroupController implements IController {
 
 	private addMemberToGroup = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const teamId = req.group.teamId;
 			const orgId = req.group.orgId;
 			const groupMember: CreateGroupMemberDto = req.body;
 			const user = await getOrganizationUserByProp(orgId, "email", groupMember.email);

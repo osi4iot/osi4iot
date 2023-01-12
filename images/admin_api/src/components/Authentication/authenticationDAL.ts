@@ -2,12 +2,12 @@ import pool from "../../config/dbconfig";
 import IRefreshToken from "./refreshToken.interface";
 
 export const insertRefreshToken = async (userId: number, refreshToken: string): Promise<void> => {
-	const result = await pool.query(`INSERT INTO grafanadb.refresh_token (user_id, token, created, updated)
+	await pool.query(`INSERT INTO grafanadb.refresh_token (user_id, token, created, updated)
 					VALUES ($1, $2, NOW(), NOW())`,
-		[
-			userId,
-			refreshToken
-		]);
+	[
+		userId,
+		refreshToken
+	]);
 };
 
 export const exitsRefreshToken = async (refreshToken: string): Promise<boolean> => {
@@ -19,7 +19,7 @@ export const exitsRefreshToken = async (refreshToken: string): Promise<boolean> 
 export const deleteRefreshToken = async (refreshToken: string): Promise<string> => {
 	const result = await pool.query(`DELETE FROM grafanadb.refresh_token WHERE token = $1
 							RETURNING *`,
-		[refreshToken]);
+	[refreshToken]);
 	const deletedRefreshToken = result.rows[0];
 	if (deletedRefreshToken) return "Refresh token disabled successfully";
 	else return "The indicated refresh token not exists";
@@ -28,7 +28,7 @@ export const deleteRefreshToken = async (refreshToken: string): Promise<string> 
 export const deleteRefreshTokenById = async (refreshTokenId: number): Promise<string> => {
 	const result = await pool.query(`DELETE FROM grafanadb.refresh_token WHERE id = $1
 							RETURNING *`,
-		[refreshTokenId]);
+	[refreshTokenId]);
 	const deletedRefreshToken = result.rows[0];
 	if (deletedRefreshToken) return "Refresh token disabled successfully";
 	else return "The indicated refresh token not exists";
@@ -37,13 +37,13 @@ export const deleteRefreshTokenById = async (refreshTokenId: number): Promise<st
 export const deleteUserRefreshTokens = async (userId: number): Promise<string> => {
 	const result = await pool.query(`DELETE FROM grafanadb.refresh_token WHERE user_id = $1
 							RETURNING *`,
-		[userId]);
+	[userId]);
 	if (result.rows.length !== 0) return "User refresh tokens are been disabled successfully";
 	else return "None user refresh tokens are been disabled";
 };
 
 export const updateRefreshToken = async (oldRefreshToken: string, newRefreshToken: string): Promise<void> => {
-	const result = await pool.query('UPDATE grafanadb.refresh_token SET token = $1, updated = NOW() WHERE token = $2 RETURNING *',
+	await pool.query('UPDATE grafanadb.refresh_token SET token = $1, updated = NOW() WHERE token = $2 RETURNING *',
 		[newRefreshToken, oldRefreshToken]);
 };
 
@@ -52,7 +52,7 @@ export const getRefreshTokenByUserId = async (userId: number): Promise<IRefreshT
 									created, AGE(NOW(), created) AS "createdAtAge",
 									updated, AGE(NOW(), updated) AS "updatedAtAge"
 							 		FROM grafanadb.refresh_token WHERE user_id = $1`, [userId]);
-	return result.rows[0];
+	return result.rows[0] as IRefreshToken;
 };
 
 export const getAllRefreshTokens = async (): Promise<IRefreshToken[]> => {
@@ -61,7 +61,7 @@ export const getAllRefreshTokens = async (): Promise<IRefreshToken[]> => {
 									updated, AGE(NOW(), updated) AS "updatedAtAge"
 	 								FROM grafanadb.refresh_token
 									ORDER BY id ASC, user_id ASC`);
-	return result.rows;
+	return result.rows as IRefreshToken[];
 }
 
 

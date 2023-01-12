@@ -27,20 +27,20 @@ export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 					mqtt_salt AS "mqttSalt",
 					 mqtt_access_control AS "mqttAccessControl",
 					created, updated`,
-		[
-			deviceData.orgId,
-			deviceData.groupId,
-			deviceData.name,
-			deviceData.description,
-			deviceData.deviceUid,
-			`(${deviceData.longitude},${deviceData.latitude})`,
-			deviceData.type,
-			deviceData.iconRadio,
-			deviceData.mqttPassword,
-			deviceData.mqttSalt,
-			deviceData.mqttAccessControl
-		]);
-	return result.rows[0];
+	[
+		deviceData.orgId,
+		deviceData.groupId,
+		deviceData.name,
+		deviceData.description,
+		deviceData.deviceUid,
+		`(${deviceData.longitude},${deviceData.latitude})`,
+		deviceData.type,
+		deviceData.iconRadio,
+		deviceData.mqttPassword,
+		deviceData.mqttSalt,
+		deviceData.mqttAccessControl
+	]);
+	return result.rows[0] as IDevice;
 };
 
 export const updateDeviceByProp = async (propName: string, propValue: (string | number), device: IDevice): Promise<void> => {
@@ -114,7 +114,7 @@ export const getDeviceByProp = async (propName: string, propValue: (string | num
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.device.${propName} = $1`, [propValue]);
-	return response.rows[0];
+	return response.rows[0] as IDevice;
 }
 
 export const getFullDeviceDataById = async (id: number): Promise<IDevice> => {
@@ -130,7 +130,7 @@ export const getFullDeviceDataById = async (id: number): Promise<IDevice> => {
 									FROM grafanadb.device
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.device.id = $1`, [id]);
-	return response.rows[0];
+	return response.rows[0] as IDevice;
 }
 
 export const getAllDevices = async (): Promise<IDevice[]> => {
@@ -146,7 +146,7 @@ export const getAllDevices = async (): Promise<IDevice[]> => {
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.device.id IS NOT NULL
 									ORDER BY grafanadb.device.id  ASC;`);
-	return response.rows;
+	return response.rows as IDevice[];
 }
 
 export const getNumDevices = async (): Promise<number> => {
@@ -168,7 +168,7 @@ export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> =
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.device.group_id = $1
 									ORDER BY grafanadb.device.id  ASC`, [groupId]);
-	return response.rows;
+	return response.rows as IDevice[];
 };
 
 export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDevice[]> => {
@@ -184,7 +184,7 @@ export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promis
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.device.group_id = ANY($1::bigint[])
 									ORDER BY grafanadb.device.id  ASC`, [groupsIdArray]);
-	return response.rows;
+	return response.rows as IDevice[];
 };
 
 
@@ -207,7 +207,7 @@ export const getDevicesByOrgId = async (orgId: number): Promise<IDevice[]> => {
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE grafanadb.device.org_id = $1
 									ORDER BY grafanadb.device.id  ASC`, [orgId]);
-	return response.rows;
+	return response.rows as IDevice[];
 };
 
 export const updateGroupDevicesLocation = async (geoJsonDataString: string, group: IGroup): Promise<void> => {

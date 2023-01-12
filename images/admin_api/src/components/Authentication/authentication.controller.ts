@@ -102,7 +102,6 @@ class AuthenticationController implements IController {
 			action: "access"
 		};
 
-		let loginOutput: ILoginOutput;
 		const algorithm = "HS256" as jwt.Algorithm;
 		const accessToken = jwt.sign({ ...payloadAccessToken }, process_env.ACCESS_TOKEN_SECRET, {
 			algorithm,
@@ -130,7 +129,7 @@ class AuthenticationController implements IController {
 			await insertRefreshToken(user.id, refreshToken);
 		}
 
-		loginOutput = {
+		const loginOutput: ILoginOutput = {
 			userName: user.login,
 			accessToken,
 			refreshToken,
@@ -162,7 +161,7 @@ class AuthenticationController implements IController {
 
 	private userMosquittoAuth = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const { password, username, clientid } = req.body;
+			const { password, username } = req.body;
 			const usernameArray = username.split("_");
 			if (usernameArray[0] === "jwt") {
 				const algorithm = "HS256" as jwt.Algorithm;
@@ -225,7 +224,7 @@ class AuthenticationController implements IController {
 
 	private userMosquittoAclCheck = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
-			const { acc, clientid, username, topic } = req.body;
+			const { acc, username, topic } = req.body;
 			const topicArray = topic.split("/");
 			if (username === "dev2pdb") {
 				const topicType = topicArray[0];
@@ -422,7 +421,7 @@ class AuthenticationController implements IController {
 
 	};
 
-	private getUserRegisterData = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getUserRegisterData = (req: IRequestWithUser, res: Response, next: NextFunction) => {
 		try {
 			const { user } = req;
 			const userData = {
@@ -436,7 +435,7 @@ class AuthenticationController implements IController {
 		}
 	};
 
-	private getUserProfile = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getUserProfile = (req: IRequestWithUser, res: Response, next: NextFunction) => {
 		try {
 			const { user } = req;
 			const userData = {

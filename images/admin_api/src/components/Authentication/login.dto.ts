@@ -1,4 +1,4 @@
-import { IsString, IsEmail } from "class-validator";
+import { IsString } from "class-validator";
 
 class LoginDto {
 	@IsString()

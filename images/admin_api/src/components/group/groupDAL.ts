@@ -33,7 +33,7 @@ import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedIn
 import timescaledb_pool from "../../config/timescaledb_config";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
-	let groupName: string = `${orgName} general`;
+	let groupName = `${orgName} general`;
 	if (groupName.length > 50) groupName = `${orgAcronym.replace(/"/g, "").toUpperCase()} general`;
 	return groupName;
 };
@@ -42,9 +42,8 @@ export const createGroup = async (
 	orgId: number,
 	groupInput: CreateGroupDto,
 	orgName: string,
-	isOrgDefaultGroup: boolean = false
+	isOrgDefaultGroup = false
 ): Promise<IGroup> => {
-	let group: IGroup;
 	const groupUid = uuidv4().replace(/-/g, "_");
 	if (!groupInput.telegramInvitationLink) groupInput.telegramInvitationLink = "";
 	if (!groupInput.telegramChatId) groupInput.telegramChatId = "";
@@ -126,7 +125,7 @@ export const createGroup = async (
 	const telegramNotificationChannelId = telegramNotificationChannel.id;
 	const mqttAccessControl = "Pub & Sub";
 
-	group = {
+	const group: IGroup = {
 		orgId,
 		teamId,
 		folderId,
@@ -239,7 +238,7 @@ export const getAllGroups = async (): Promise<IGroup[]> => {
 	const result = await pool.query(query);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
-	return result.rows;
+	return result.rows as IGroup[];
 }
 
 export const getNumGroups = async (): Promise<number> => {
@@ -278,7 +277,7 @@ export const getGroupsThatCanBeEditatedAndAdministratedByUserId = async (userId:
 	const result = await pool.query(query, [userId, 2, 4]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
-	return result.rows;
+	return result.rows as IGroup[];
 }
 
 
@@ -312,7 +311,7 @@ export const getGroupsManagedByUserId = async (userId: number): Promise<IGroup[]
 	const result = await pool.query(query, [userId, 4]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
-	return result.rows;
+	return result.rows as IGroup[];
 }
 
 export const getOrgsIdArrayForGroupsManagedByUserId = async (userId: number): Promise<{ orgId: number }[]> => {
@@ -323,7 +322,7 @@ export const getOrgsIdArrayForGroupsManagedByUserId = async (userId: number): Pr
 				WHERE grafanadb.team_member.user_id = $1 AND grafanadb.team_member.permission = $2
 				ORDER BY grafanadb.group.org_id ASC;`;
 	const result = await pool.query(query, [userId, 4]);
-	return result.rows;
+	return result.rows as { orgId: number }[];
 }
 
 export const groupsWhichTheLoggedUserIsMember = async (userId: number): Promise<IMembershipInGroups[]> => {
@@ -340,7 +339,7 @@ export const groupsWhichTheLoggedUserIsMember = async (userId: number): Promise<
 	const result = await pool.query(query, [userId]);
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
 	result.rows.forEach(row => row.roleInGroup = permissionCodes[row.roleInGroup]);
-	return result.rows;
+	return result.rows as IMembershipInGroups[];
 }
 
 export const getGroupsOfOrgIdWhereUserIdIsMember = async (orgId: number, userId: number): Promise<IGroup[]> => {
@@ -362,7 +361,7 @@ export const getGroupsOfOrgIdWhereUserIdIsMember = async (orgId: number, userId:
 	const result = await pool.query(query, [userId, orgId]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
-	return result.rows;
+	return result.rows as IGroup[];
 }
 
 export const getGroupsWhereUserIdIsMember = async (userId: number): Promise<IGroup[]> => {
@@ -384,7 +383,7 @@ export const getGroupsWhereUserIdIsMember = async (userId: number): Promise<IGro
 	const result = await pool.query(query, [userId]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
-	return result.rows;
+	return result.rows as IGroup[];
 }
 
 export const getNumGroupsManagedByUserId = async (userId: number): Promise<number> => {
@@ -425,7 +424,7 @@ export const getAllGroupsInOrganization = async (orgId: number): Promise<IGroup[
 	const result = await pool.query(query, [orgId]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
-	return result.rows;
+	return result.rows as IGroup[];
 }
 
 export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGroup[]> => {
@@ -457,7 +456,7 @@ export const getAllGroupsInOrgArray = async (orgIdsArray: number[]): Promise<IGr
 	const result = await pool.query(query, [orgIdsArray]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows.forEach(row => row.folderPermission = permissionCodes[row.folderPermission]);
-	return result.rows;
+	return result.rows as IGroup[];
 }
 
 export const getGroupByWithFolderPermissionProp = async (propName: string, propValue: (string | number)): Promise<IGroup> => {
@@ -487,7 +486,7 @@ export const getGroupByWithFolderPermissionProp = async (propName: string, propV
 	const result = await pool.query(query, [propValue]);
 	const permissionCodes = ["None", "Viewer", "Editor"];
 	result.rows[0].folderPermission = permissionCodes[result.rows[0].folderPermission];
-	return result.rows[0];
+	return result.rows[0] as IGroup;
 }
 
 export const getGroupByProp = async (propName: string, propValue: (string | number)): Promise<IGroup> => {
@@ -513,7 +512,7 @@ export const getGroupByProp = async (propName: string, propValue: (string | numb
 				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
 				WHERE grafanadb.group.${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
-	return result.rows[0];
+	return result.rows[0] as IGroup;
 }
 
 export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
@@ -533,7 +532,7 @@ export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 				FROM grafanadb.group
 				WHERE grafanadb.group.org_id = $1 AND is_org_default_group = $2;`;
 	const result = await pool.query(query, [orgId, true]);
-	return result.rows[0];
+	return result.rows[0] as IGroup;
 };
 
 
@@ -547,25 +546,25 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					created, updated)
 					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
 					RETURNING *`,
-		[
-			group.orgId,
-			group.teamId,
-			group.folderId,
-			group.folderUid,
-			group.name,
-			group.acronym,
-			group.groupUid,
-			group.telegramInvitationLink,
-			group.telegramChatId,
-			group.emailNotificationChannelId,
-			group.telegramNotificationChannelId,
-			group.isOrgDefaultGroup,
-			group.floorNumber,
-			group.featureIndex,
-			group.outerBounds,
-			group.mqttAccessControl
-		])
-	return response.rows[0];
+	[
+		group.orgId,
+		group.teamId,
+		group.folderId,
+		group.folderUid,
+		group.name,
+		group.acronym,
+		group.groupUid,
+		group.telegramInvitationLink,
+		group.telegramChatId,
+		group.emailNotificationChannelId,
+		group.telegramNotificationChannelId,
+		group.isOrgDefaultGroup,
+		group.floorNumber,
+		group.featureIndex,
+		group.outerBounds,
+		group.mqttAccessControl
+	])
+	return response.rows[0] as IGroup;
 };
 
 export const updateGroupById = async (group: IGroup): Promise<void> => {
@@ -578,7 +577,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 				mqtt_access_control = $8,
 				updated = NOW()
 				WHERE grafanadb.group.id = $9;`;
-	const result = await pool.query(query, [
+	await pool.query(query, [
 		group.name,
 		group.acronym,
 		group.telegramInvitationLink,
@@ -643,17 +642,18 @@ export const updateNotificationChannelName = async (id: number, newName: string)
 
 export const getNotificationChannelSettings = async (id: number): Promise<any> => {
 	const result = await pool.query('SELECT settings FROM grafanadb.alert_notification WHERE id = $1', [id]);
+	// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 	return result.rows[0];
 };
 
 export const getNotificationChannelName = async (id: number): Promise<string> => {
 	const result = await pool.query('SELECT name FROM grafanadb.alert_notification WHERE id = $1', [id]);
-	return result.rows[0].name;
+	return result.rows[0].name as string;
 };
 
 export const getNotificationChannelUid = async (id: number): Promise<string> => {
 	const result = await pool.query('SELECT uid FROM grafanadb.alert_notification WHERE id = $1', [id]);
-	return result.rows[0].uid;
+	return result.rows[0].uid as string;
 };
 
 export const getNotificationChannelById = async (id: number): Promise<INotificationChannel> => {
@@ -663,12 +663,11 @@ export const getNotificationChannelById = async (id: number): Promise<INotificat
 		disable_resolve_message AS "disableResolveMessage",
 		uid, secure_settings AS "secureSettings"
 	  	FROM grafanadb.alert_notification WHERE id = $1`, [id]);
-	return result.rows[0];
+	return result.rows[0] as INotificationChannel;
 };
 
 
 export const setFolderPermissionsForNewAddedMember = async (group: IGroup, groupMembersArray: CreateGroupMemberDto[]): Promise<void> => {
-	// const folderPermission = await getGroupFolderPermission(group);
 	let groupMembersWithEditOrAdminPrivileges: CreateGroupMemberDto[] = [];
 	if (group.folderPermission === "Edit") {
 		groupMembersWithEditOrAdminPrivileges = groupMembersArray.filter(member => (member.roleInGroup === "Admin"));
@@ -678,22 +677,15 @@ export const setFolderPermissionsForNewAddedMember = async (group: IGroup, group
 	await giveFolderPermissionsForMemberArray(group, groupMembersWithEditOrAdminPrivileges);
 }
 
-const getGroupFolderPermission = async (group: IGroup): Promise<string> => {
-	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
-	const result = await pool.query('SELECT permission FROM grafanadb.dashboard_acl WHERE dashboard_id = $1 AND team_id  = $2',
-		[group.folderId, group.teamId]);
-	return permissionCodes[result.rows[0]];
-};
-
 const updateFolderPermissionsForMemberArray = async (group: IGroup, groupMembersArray: CreateGroupMemberDto[]): Promise<void> => {
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
 	const folderPermissionQueries = [];
 	// tslint:disable-next-line: prefer-for-of
-	for (let i = 0; i < groupMembersArray.length; i++) {
+	for (const groupMember of groupMembersArray) {
 		const now = new Date();
-		const permission = permissionCodes.indexOf(groupMembersArray[i].roleInGroup);
+		const permission = permissionCodes.indexOf(groupMember.roleInGroup);
 		const query = pool.query(`UPDATE grafanadb.dashboard_acl SET permission = $1, updated = $2 WHERE dashboard_id = $3 AND user_id = $4`,
-			[permission, now, group.folderId, groupMembersArray[i].userId]);
+			[permission, now, group.folderId, groupMember.userId]);
 		folderPermissionQueries.push(query);
 	}
 	await Promise.all(folderPermissionQueries)
@@ -703,11 +695,11 @@ const giveFolderPermissionsForMemberArray = async (group: IGroup, groupMembersAr
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
 	const folderPermissionQueries = [];
 	// tslint:disable-next-line: prefer-for-of
-	for (let i = 0; i < groupMembersArray.length; i++) {
+	for (const groupMember of groupMembersArray) {
 		const now = new Date();
-		const permission = permissionCodes.indexOf(groupMembersArray[i].roleInGroup);
+		const permission = permissionCodes.indexOf(groupMember.roleInGroup);
 		const query = pool.query(`INSERT INTO grafanadb.dashboard_acl (org_id, dashboard_id, user_id, permission, created, updated) VALUES ($1, $2, $3, $4, $5, $6)`,
-			[group.orgId, group.folderId, groupMembersArray[i].userId, permission, now, now]);
+			[group.orgId, group.folderId, groupMember.userId, permission, now, now]);
 		folderPermissionQueries.push(query);
 	}
 	await Promise.all(folderPermissionQueries)
@@ -717,9 +709,9 @@ const giveFolderPermissionsForMemberArray = async (group: IGroup, groupMembersAr
 export const removeFolderPermissionsForMemberArray = async (group: IGroup, groupMembersArray: CreateGroupMemberDto[]): Promise<void> => {
 	const folderPermissionQueries = [];
 	// tslint:disable-next-line: prefer-for-of
-	for (let i = 0; i < groupMembersArray.length; i++) {
+	for (const groupMember of groupMembersArray) {
 		const query = pool.query(`DELETE FROM grafanadb.dashboard_acl WHERE dashboard_id = $1 AND user_id = $2`,
-			[group.folderId, groupMembersArray[i].userId]);
+			[group.folderId, groupMember.userId]);
 		folderPermissionQueries.push(query);
 	}
 	await Promise.all(folderPermissionQueries)
@@ -730,17 +722,17 @@ const setFolderPermissions = async (orgId: number, folderId: number, permissions
 	const permissionCodes = ["None", "Viewer", "Editor", "None", "Admin"];
 	const folderPermissionQueries = [];
 	// tslint:disable-next-line: prefer-for-of
-	for (let i = 0; i < permissionsArray.length; i++) {
+	for (const permissions of permissionsArray) {
 		const now = new Date()
-		if (permissionsArray[i].teamId) {
-			const permission = permissionCodes.indexOf(permissionsArray[i].permission);
+		if (permissions.teamId) {
+			const permission = permissionCodes.indexOf(permissions.permission);
 			const query = pool.query(`INSERT INTO grafanadb.dashboard_acl (org_id, dashboard_id, team_id, permission, created, updated) VALUES ($1, $2, $3, $4, $5, $6)`,
-				[orgId, folderId, permissionsArray[i].teamId, permission, now, now]);
+				[orgId, folderId, permissions.teamId, permission, now, now]);
 			folderPermissionQueries.push(query);
-		} else if (permissionsArray[i].userId) {
-			const permission = permissionCodes.indexOf(permissionsArray[i].permission);
+		} else if (permissions.userId) {
+			const permission = permissionCodes.indexOf(permissions.permission);
 			const query = pool.query(`INSERT INTO grafanadb.dashboard_acl (org_id, dashboard_id, user_id, permission, created, updated) VALUES ($1, $2, $3, $4, $5, $6)`,
-				[orgId, folderId, permissionsArray[i].userId, permission, now, now]);
+				[orgId, folderId, permissions.userId, permission, now, now]);
 			folderPermissionQueries.push(query);
 		}
 	}
@@ -809,7 +801,7 @@ export const getGroupMembers = async (group: IGroup): Promise<IGroupMember[]> =>
 					ORDER BY grafanadb.user.id ASC`;
 	const result = await pool.query(query, [group.teamId]);
 	result.rows.forEach(member => member.roleInGroup = permissionCodes[member.roleInGroup]);
-	return result.rows;
+	return result.rows as IGroupMember[];
 };
 
 export const getGroupMembersInTeamIdArray = async (teamIdsArray: number[]): Promise<IGroupMember[]> => {
@@ -825,7 +817,7 @@ export const getGroupMembersInTeamIdArray = async (teamIdsArray: number[]): Prom
 					ORDER BY grafanadb.user.id ASC`;
 	const result = await pool.query(query, [teamIdsArray]);
 	result.rows.forEach(member => member.roleInGroup = permissionCodes[member.roleInGroup]);
-	return result.rows;
+	return result.rows as IGroupMember[];
 };
 
 export const getGroupMembersByEmailsArray = async (group: IGroup, emailsArray: string[]): Promise<IGroupMember[]> => {
@@ -840,7 +832,7 @@ export const getGroupMembersByEmailsArray = async (group: IGroup, emailsArray: s
 					WHERE grafanadb.team_member.team_id = $1 AND grafanadb.user.email =  ANY($2::varchar(190)[])`
 	const result = await pool.query(query, [group.teamId, emailsArray]);
 	result.rows.forEach(member => member.roleInGroup = permissionCodes[member.roleInGroup]);
-	return result.rows;
+	return result.rows as IGroupMember[];
 };
 
 export const getGroupMemberByProp = async (group: IGroup, propName: string, propValue: (string | number)): Promise<IGroupMember> => {
@@ -856,7 +848,7 @@ export const getGroupMemberByProp = async (group: IGroup, propName: string, prop
 					AND  grafanadb.user.${propName} = $2`
 	const result = await pool.query(query, [group.teamId, propValue]);
 	if (result.rows[0]) result.rows[0].roleInGroup = permissionCodes[result.rows[0].roleInGroup];
-	return result.rows[0];
+	return result.rows[0] as IGroupMember;
 };
 
 export const addMembersToGroup = async (group: IGroup, groupMembersArray: CreateGroupMemberDto[]): Promise<IMessage> => {
@@ -958,10 +950,9 @@ export const removeMembersInGroupsArray = async (groupsArray: IGroup[], groupMem
 export const removeMembersInGroup = async (group: IGroup, groupMembersToRemove: IGroupMember[]): Promise<IMessage> => {
 	if (groupMembersToRemove.length === 0) return { message: "All non admin members has been already removed of the group" };
 	const groupMembersToRemoveFolderPermissions: CreateGroupMemberDto[] = [];
-	// tslint:disable-next-line: prefer-for-of
-	for (let i = 0; i < groupMembersToRemove.length; i++) {
-		if (groupMembersToRemove[i].roleInGroup === "Admin" || groupMembersToRemove[i].roleInGroup === "Editor") {
-			groupMembersToRemoveFolderPermissions.push(groupMembersToRemove[i]);
+	for (const groupMember of groupMembersToRemove) {
+		if (groupMember.roleInGroup === "Admin" || groupMember.roleInGroup === "Editor") {
+			groupMembersToRemoveFolderPermissions.push(groupMember);
 		}
 	}
 

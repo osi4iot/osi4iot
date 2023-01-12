@@ -12,5 +12,5 @@ export const getDataSourceByProp = async (propName: string, propValue: (string |
 				FROM grafanadb.data_source
 				WHERE ${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
-	return result.rows[0];
+	return result.rows[0] as IDatasource;
 }

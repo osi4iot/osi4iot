@@ -12,7 +12,7 @@ export const findBuildingBounds = (geoJsonDataString: any): number[][] => {
 	let minLongitude = 180;
 	let maxLatitude = -90;
 	let minLatitude = 90;
-	const geoJsonData = JSON.parse(geoJsonDataString);
+	const geoJsonData = JSON.parse(geoJsonDataString as string);
 	if (geoJsonData.features && geoJsonData.features.length !== 0) {
 		let coordsArray: number[][];
 		if (geoJsonData.features[0].geometry.type === "Polygon") {

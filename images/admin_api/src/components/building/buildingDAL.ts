@@ -10,13 +10,13 @@ export const createBuilding = async (buildingInput: CreateBuildingDto): Promise<
         RETURNING  id, name, geodata AS "geoJsonData", outer_bounds AS "outerBounds",
         geolocation[0] AS longitude, geolocation[0] AS latitude,
         created, updated`,
-		[
-			buildingInput.name,
-			buildingInput.geoJsonData,
-			buildingInput.outerBounds,
-			`(${buildingInput.longitude},${buildingInput.latitude})`
-		]);
-	return result.rows[0];
+	[
+		buildingInput.name,
+		buildingInput.geoJsonData,
+		buildingInput.outerBounds,
+		`(${buildingInput.longitude},${buildingInput.latitude})`
+	]);
+	return result.rows[0] as IBuiliding;
 };
 
 export const getBuildingByProp = async (propName: string, propValue: (string | number)): Promise<IBuiliding> => {
@@ -27,7 +27,7 @@ export const getBuildingByProp = async (propName: string, propValue: (string | n
 									AGE(NOW(), updated) AS "timeFromLastUpdate"
 									FROM grafanadb.building
 									WHERE grafanadb.building.${propName} = $1`, [propValue]);
-	return response.rows[0];
+	return response.rows[0] as IBuiliding;
 };
 
 export const getBuildingByOrgId = async (orgId: number): Promise<IBuiliding> => {
@@ -41,7 +41,7 @@ export const getBuildingByOrgId = async (orgId: number): Promise<IBuiliding> => 
 									FROM grafanadb.building
 									INNER JOIN grafanadb.org ON grafanadb.building.id = grafanadb.org.building_id
 									WHERE grafanadb.org.building_id = $1`, [orgId]);
-	return response.rows[0];
+	return response.rows[0] as IBuiliding;
 };
 
 export const existsBuildingWithId = async (buildingId: number): Promise<boolean> => {
@@ -61,7 +61,7 @@ export const getFloorByBuildingIdAndFloorNumber = async (buildingId: number, flo
 									FROM grafanadb.floor
 									INNER JOIN grafanadb.building ON grafanadb.building.id = grafanadb.floor.building_id
 									WHERE building_id = $1 AND floor_number = $2`, [buildingId, floorNumber]);
-	return response.rows[0];
+	return response.rows[0] as IFloor;
 };
 
 export const getFloorById = async (floorId: number): Promise<IFloor> => {
@@ -72,7 +72,7 @@ export const getFloorById = async (floorId: number): Promise<IFloor> => {
 									AGE(NOW(), updated) AS "timeFromLastUpdate"
 									FROM grafanadb.floor
 									WHERE id = $1`, [floorId]);
-	return response.rows[0];
+	return response.rows[0] as IFloor;
 };
 
 export const getFloorByOrgIdAndFloorNumber = async (orgId: number, floorNumber: number): Promise<IFloor> => {
@@ -88,7 +88,7 @@ export const getFloorByOrgIdAndFloorNumber = async (orgId: number, floorNumber: 
 									INNER JOIN grafanadb.org ON grafanadb.floor.building_id = grafanadb.org.building_id
 									WHERE grafanadb.org.id = $1
 									AND grafanadb.floor.floor_number = $2`, [orgId, floorNumber]);
-	return response.rows[0];
+	return response.rows[0] as IFloor;
 };
 
 
@@ -97,23 +97,23 @@ export const createFloor = async (floorInput: CreateFloorDto): Promise<IFloor> =
         VALUES ($1, $2, $3, $4, NOW(), NOW())
         RETURNING  id, building_id AS "buildingId", floor_number AS "floorNumber", geodata AS "geoJsonData",
         outer_bounds[1:2][1:2] AS "outerBounds", created, updated`,
-		[
-			floorInput.buildingId,
-			floorInput.floorNumber,
-			floorInput.geoJsonData,
-			floorInput.outerBounds
-		]);
-	return result.rows[0];
+	[
+		floorInput.buildingId,
+		floorInput.floorNumber,
+		floorInput.geoJsonData,
+		floorInput.outerBounds
+	]);
+	return result.rows[0] as IFloor;
 };
 
 export const deleteBuildingById = async (buildingId: number): Promise<IBuiliding> => {
 	const response = await pool.query(`DELETE FROM grafanadb.building WHERE id = $1 RETURNING *`, [buildingId]);
-	return response.rows[0];
+	return response.rows[0] as IBuiliding;
 };
 
 export const deleteFloorById = async (floorId: number): Promise<IFloor> => {
 	const response = await pool.query(`DELETE FROM grafanadb.floor WHERE id = $1 RETURNING *`, [floorId]);
-	return response.rows[0];
+	return response.rows[0] as IFloor;
 };
 
 export const updateBuildingById = async (buildingId: number, building: IBuiliding): Promise<IBuiliding> => {
@@ -128,7 +128,7 @@ export const updateBuildingById = async (buildingId: number, building: IBuilidin
 		`(${building.longitude},${building.latitude})`,
 		buildingId
 	]);
-	return response.rows[0];
+	return response.rows[0] as IBuiliding;
 };
 
 export const updateFloorById = async (floorId: number, floor: IFloor): Promise<IFloor> => {
@@ -143,7 +143,7 @@ export const updateFloorById = async (floorId: number, floor: IFloor): Promise<I
 		floor.outerBounds,
 		floorId
 	]);
-	return response.rows[0];
+	return response.rows[0] as IFloor;
 };
 
 export const getAllBuildings = async (): Promise<IBuiliding[]> => {
@@ -155,7 +155,7 @@ export const getAllBuildings = async (): Promise<IBuiliding[]> => {
 									AGE(NOW(), updated) AS "timeFromLastUpdate"
 									FROM grafanadb.building
 									ORDER BY id ASC;`);
-	return response.rows;
+	return response.rows as IBuiliding[];
 };
 
 export const getBuildingsFromOrgIdArray = async (orgIdArray: number[]): Promise<IBuiliding[]> => {
@@ -170,7 +170,7 @@ export const getBuildingsFromOrgIdArray = async (orgIdArray: number[]): Promise<
 									INNER JOIN grafanadb.org ON grafanadb.org.building_id = grafanadb.building.id
 									WHERE grafanadb.org.id = ANY($1::integer[])
 									ORDER BY id ASC;`, [orgIdArray]);
-	return response.rows;
+	return response.rows as IBuiliding[];
 };
 
 export const getAllFloors = async (): Promise<IFloor[]> => {
@@ -186,7 +186,7 @@ export const getAllFloors = async (): Promise<IFloor[]> => {
 									ORDER BY grafanadb.floor.id ASC,
 											grafanadb.floor.building_id ASC,
 											grafanadb.floor.floor_number ASC;`);
-	return response.rows;
+	return response.rows as IFloor[];
 };
 
 export const getAllFloorsFromOrgIdArray = async (orgIdArray: number[]): Promise<IFloor[]> => {
@@ -205,5 +205,5 @@ export const getAllFloorsFromOrgIdArray = async (orgIdArray: number[]): Promise<
 									ORDER BY grafanadb.floor.id ASC,
 											grafanadb.floor.building_id ASC,
 											grafanadb.floor.floor_number ASC;`, [orgIdArray]);
-	return response.rows;
+	return response.rows as IFloor[];
 };
