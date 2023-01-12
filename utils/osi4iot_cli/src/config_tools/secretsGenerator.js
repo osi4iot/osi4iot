@@ -68,6 +68,13 @@ export default function (osi4iotState) {
 	}
 	fs.appendFileSync('./secrets/timescaledb_grafana.txt', timescaledbGrafanaSecrets);
 
+	//timescaledb_data_retention_interval secret
+	const timescaledbDataRetentionIntervalSecret = `DATA_RETENTION_INTERVAL="${osi4iotState.platformInfo.TIMESCALE_DATA_RETENTION_INTERVAL}"`;
+	if (fs.existsSync('./secrets/timescaledb_data_ret_int.txt')) {
+		fs.rmSync('./secrets/timescaledb_data_ret_int.txt');
+	}
+	fs.appendFileSync('./secrets/timescaledb_data_ret_int.txt', timescaledbDataRetentionIntervalSecret);	
+
 	//dev2pdb_password secret
 	if (fs.existsSync('./secrets/dev2pdb_password.txt')) {
 		fs.rmSync('./secrets/dev2pdb_password.txt');

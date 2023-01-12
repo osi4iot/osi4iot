@@ -325,8 +325,12 @@ export default function (osi4iotState) {
 						source: 'timescaledb_grafana',
 						target: 'timescaledb_grafana.txt',
 						mode: 0o400
+					},
+					{
+						source: 'timescaledb_data_ret_int',
+						target: 'timescaledb_data_ret_int.txt',
+						mode: 0o400
 					}
-
 				],
 				volumes: [
 					'timescaledb_data:/var/lib/postgresql/data'
@@ -334,7 +338,8 @@ export default function (osi4iotState) {
 				environment: [
 					`POSTGRES_DB=${osi4iotState.platformInfo.TIMESCALE_DB}`,
 					'POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt',
-					'POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt'
+					'POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt',
+					'TZ=Europe/Madrid'
 				],
 				deploy: {
 					mode: 'replicated',
@@ -622,6 +627,9 @@ export default function (osi4iotState) {
 			},
 			timescaledb_grafana: {
 				file: './secrets/timescaledb_grafana.txt'
+			},
+			timescaledb_data_ret_int: {
+				file: './secrets/timescaledb_data_ret_int.txt'
 			},
 			dev2pdb_password: {
 				file: './secrets/dev2pdb_password.txt'

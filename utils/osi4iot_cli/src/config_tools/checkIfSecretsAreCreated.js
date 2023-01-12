@@ -34,6 +34,10 @@ export default function (osi4iotState) {
 		areSecretsCreated = false;
 	}
 
+	if (!fs.existsSync('./secrets/timescaledb_data_ret_int.txt')) {
+		areSecretsCreated = false;
+	}
+
 
 
 	if (osi4iotState.platformInfo.DEPLOYMENT_MODE === "development") {

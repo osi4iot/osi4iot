@@ -579,6 +579,20 @@ const finalQuestions = (
 				}
 			},
 			{
+				name: 'TIMESCALE_DATA_RET_INT_DAYS',
+				message: 'Data retention interval in days for timescaldb:',
+				default: 365,
+				validate: function (validityDays) {
+					let valid = false;
+					if (validityDays !== "" && Number(validityDays) >= 1) valid = true;
+					if (valid) {
+						return true;
+					} else {
+						return "Please type an integer number greater or equal to 1";
+					}
+				}
+			},			
+			{
 				name: 'FLOATING_IP_ADDRES',
 				message: 'Floating IP address:',
 				when: () => managerNodes.length > 1 && deploymentLocation === "On-premise cluster deployment",
@@ -693,6 +707,7 @@ const finalQuestions = (
 								TIMESCALE_USER: answers.PLATFORM_ADMIN_USER_NAME,
 								TIMESCALE_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
 								TIMESCALE_DB: "iot_data_db",
+								TIMESCALE_DATA_RETENTION_INTERVAL: `${answers.TIMESCALE_DATA_RET_INT_DAYS} days`,
 								GRAFANA_DB_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 								GRAFANA_DATASOURCE_PASSWORD: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 								DEV2PDB_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
