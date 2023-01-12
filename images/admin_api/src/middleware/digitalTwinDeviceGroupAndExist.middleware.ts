@@ -8,11 +8,11 @@ import DigitalTwinNotFoundException from "../exceptions/DigitalTwinNotFoundExcep
 import IRequestWithDigitalTwinDeviceAndGroup from "../components/group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
 
 
-async function digitalTwinDeviceGroupAndExist(
+const digitalTwinDeviceGroupAndExist = async (
 	request: IRequestWithDigitalTwinDeviceAndGroup,
 	response: Response,
 	next: NextFunction
-): Promise<void> {
+): Promise<void> => {
 	const { groupId, deviceId, digitalTwinId } = request.params;
 	const existingGroup = await getGroupByProp("id", groupId);
 	const existingDevice = await getDeviceByProp("id", deviceId);

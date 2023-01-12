@@ -20,7 +20,7 @@ import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../co
 import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 
-export async function dataBaseInitialization() {
+export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
 		max: 20,
 		user: process_env.TIMESCALE_USER,

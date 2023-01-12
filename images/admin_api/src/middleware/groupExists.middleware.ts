@@ -4,11 +4,11 @@ import GroupNotFoundException from "../exceptions/GroupNotFoundException";
 import IRequestWithGroup from "../components/group/interfaces/requestWithGroup.interface";
 
 
-async function groupExists(
+const groupExists = async (
 	request: IRequestWithGroup,
 	response: Response,
 	next: NextFunction
-): Promise<void> {
+): Promise<void> =>{
 	const { groupId } = request.params;
 	const existingGroup = await getGroupByProp("id", groupId);
 	if (!existingGroup) {

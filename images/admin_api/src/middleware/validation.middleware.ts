@@ -4,7 +4,7 @@ import { transformAndValidate } from "class-transformer-validator";
 import HttpException from "../exceptions/HttpException";
 import IRequestWithOrganization from "../components/organization/interfaces/requestWithOrganization.interface";
 
-function errorMessageItem(errorArray: ValErr[]): string {
+const errorMessageItem = (errorArray: ValErr[]): string => {
 	return errorArray
 		.map((error: ValErr) => {
 			let mesgSubItem: string;
@@ -25,7 +25,7 @@ function errorMessageItem(errorArray: ValErr[]): string {
 		.join(", ");
 }
 
-function reducerCallback(result: string[], errorArray: ValErr[]): string[] {
+const  reducerCallback = (result: string[], errorArray: ValErr[]): string[] => {
 	if (errorArray.length) {
 		const mesgItem: string = errorMessageItem(errorArray);
 		result.push(mesgItem);
@@ -34,7 +34,7 @@ function reducerCallback(result: string[], errorArray: ValErr[]): string[] {
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
-function validationMiddleware<T>(type: any, skipMissingProperties = false): express.RequestHandler {
+const validationMiddleware = <T>(type: any, skipMissingProperties = false): express.RequestHandler =>  {
 	return async (req: IRequestWithOrganization, res, next): Promise<void> => {
 		try {
 			await transformAndValidate(type, req.body, {

@@ -1,4 +1,4 @@
-function isInstanceOf<T>(instance: T, keysArray: string[]): instance is T {
+const isInstanceOf = <T>(instance: T, keysArray: string[]): instance is T =>  {
 	keysArray.sort();
 	const instanceKeys = Object.keys(instance);
 	instanceKeys.sort();

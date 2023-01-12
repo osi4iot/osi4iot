@@ -8,7 +8,7 @@ import verifiyPassword from "../utils/helpers/verifiyPassword";
 import process_env from "./api_config";
 
 
-export default function passportInitialize(): void {
+const passportInitialize = () => {
 	const LocalStrategy = passportLocal.Strategy;
 	const JwtStrategy = passportJwt.Strategy;
 	const { ExtractJwt } = passportJwt;
@@ -138,5 +138,6 @@ export default function passportInitialize(): void {
 			}
 		)
 	);
-
 }
+
+export default passportInitialize;

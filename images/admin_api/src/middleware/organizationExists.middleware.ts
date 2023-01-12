@@ -4,11 +4,11 @@ import IRequestWithOrganization from "../components/organization/interfaces/requ
 import { getOrganizationByProp } from "../components/organization/organizationDAL";
 
 
-async function organizationExists(
+const organizationExists = async (
 	request: IRequestWithOrganization,
 	response: Response,
 	next: NextFunction
-): Promise<void> {
+): Promise<void> => {
 	const { orgId } = request.params;
 	const existingOrganization = await getOrganizationByProp("id", orgId);
 	if (!existingOrganization) {

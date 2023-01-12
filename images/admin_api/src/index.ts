@@ -17,7 +17,7 @@ import DashboardController from "./components/dashboard/dashboardController";
 import NodeRedInstanceController from "./components/nodeRedInstance/nodeRedInstance.controller";
 
 
-async function main(): Promise<void> {
+const main= async (): Promise<void> => {
 	try {
 		await dataBaseInitialization();
 

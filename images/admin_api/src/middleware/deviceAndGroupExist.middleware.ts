@@ -6,11 +6,11 @@ import { getDeviceByProp } from "../components/device/deviceDAL";
 import DeviceNotFoundException from "../exceptions/DeviceNotFoundException";
 
 
-async function deviceAndGroupExist(
+const deviceAndGroupExist = async (
 	request: IRequestWithDeviceAndGroup,
 	response: Response,
 	next: NextFunction
-): Promise<void> {
+): Promise<void> => {
 	const { groupId, deviceId } = request.params;
 	const existingGroup = await getGroupByProp("id", groupId);
 	const existingDevice = await getDeviceByProp("id", deviceId);
