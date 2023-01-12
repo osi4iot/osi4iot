@@ -2,7 +2,7 @@ import { logger } from "../config/winston";
 import { Pool } from "pg";
 import grafanaApi from "../GrafanaApi"
 import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
-import { addMembersToGroup, createGroup, defaultOrgGroupName } from "../components/group/groupDAL";
+import { addMembersToGroup, createAllViews, createGroup, defaultOrgGroupName, getAllGroups } from "../components/group/groupDAL";
 import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
 import { createDemoDashboards, createHomeDashboard } from "../components/group/dashboardDAL";
 import { createDevice, defaultGroupDeviceName } from "../components/device/deviceDAL";
@@ -19,7 +19,6 @@ import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.inte
 import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
-
 
 export async function dataBaseInitialization() {
 	const timescaledb_pool = new Pool({
@@ -88,6 +87,15 @@ export async function dataBaseInitialization() {
 			result0 = await postgresClient.query(queryString1a, parameterArray1a);
 		} catch (err) {
 			logger.log("error", `Table ${tableOrg} can not found: %s`, err.message);
+			process.exit(1);
+		}
+
+		const tableThingData = "iot_data.thingData";
+		const queryString2 = `SELECT '${tableThingData}'::regclass;`;
+		try {
+			await timescaledbClient.query(queryString2);
+		} catch (err) {
+			logger.log("error", `Table ${tableThingData} can not found in timescaledb: %s`, err.message);
 			process.exit(1);
 		}
 
@@ -691,6 +699,20 @@ export async function dataBaseInitialization() {
 				timescaledb_pool.end(() => {
 					logger.log("info", `Timescaldb migration pool has ended`);
 				})
+			} else {
+				try {
+					const groups = await getAllGroups();
+					const dataSourceSchema = "iot_datasource";
+					const queryString = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = '${dataSourceSchema}';`;
+					const result = await timescaledbClient.query(queryString);
+					if (groups.length !== result.rows.length) {
+						const viewsNames = result.rows.map(row => row.table_name);
+						await createAllViews(groups, viewsNames);
+					};
+				} catch (err) {
+					logger.log("error", `Views in timescaledb could not be checked: %s`, err.message);
+					process.exit(1);
+				}
 			}
 		}
 	} else {

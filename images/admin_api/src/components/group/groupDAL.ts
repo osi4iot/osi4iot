@@ -1012,3 +1012,15 @@ export const cleanEmailNotificationChannelForGroupsArray = async (userEmail: str
 	await Promise.all(queriesArray);
 }
 
+export const createAllViews = async (groups: IGroup[], viewsNames: string[]): Promise<void> => {
+	const queriesArray = [];
+	for (const group of groups) {
+		const tableName = `table_${group.groupUid}`;
+		if (viewsNames.indexOf(tableName) === -1) {
+			const query = createView(group.groupUid);
+			queriesArray.push(query);
+		}
+	}
+	await Promise.all(queriesArray);
+}
+

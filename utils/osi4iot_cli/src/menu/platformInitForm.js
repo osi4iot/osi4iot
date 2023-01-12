@@ -581,7 +581,7 @@ const finalQuestions = (
 			{
 				name: 'TIMESCALE_DATA_RET_INT_DAYS',
 				message: 'Data retention interval in days for timescaldb:',
-				default: 365,
+				default: 7,
 				validate: function (validityDays) {
 					let valid = false;
 					if (validityDays !== "" && Number(validityDays) >= 1) valid = true;
