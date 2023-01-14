@@ -129,6 +129,9 @@ export default function (osi4iotState) {
 		services: {
 			system_prune: {
 				image: `ghcr.io/osi4iot/system_prune:${serviceImageVersion['system_prune']}`,
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
 				volumes: [
 					'/var/run/docker.sock:/var/run/docker.sock'
 				],
@@ -143,6 +146,9 @@ export default function (osi4iotState) {
 			traefik: {
 				image: `ghcr.io/osi4iot/traefik:${serviceImageVersion['traefik']}`,
 				command: traefik_command,
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
 				deploy: {
 					mode: 'replicated',
 					replicas: numReplicas,
@@ -171,6 +177,9 @@ export default function (osi4iotState) {
 			mosquitto: {
 				image: `ghcr.io/osi4iot/mosquitto_go_auth:${serviceImageVersion['mosquitto_go_auth']}`,
 				user: '${UID}:${GID}',
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
 				networks: [
 					'internal_net'
 				],
@@ -217,12 +226,13 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: workerConstraintsArray
 					}
-				}
+				},
 			},
 			agent: {
 				image: `ghcr.io/osi4iot/portainer_agent:${serviceImageVersion['agent']}`,
 				environment: [
-					"AGENT_CLUSTER_ADDR=tasks.agent"
+					"AGENT_CLUSTER_ADDR=tasks.agent",
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
 				],
 				volumes: [
 					'/var/run/docker.sock:/var/run/docker.sock',
@@ -241,6 +251,9 @@ export default function (osi4iotState) {
 			portainer: {
 				image: `ghcr.io/osi4iot/portainer:${serviceImageVersion['portainer']}`,
 				command: '-H tcp://tasks.agent:9001 --tlsskipverify',
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
 				volumes: [
 					'portainer_data:/data'
 				],
@@ -295,7 +308,8 @@ export default function (osi4iotState) {
 				environment: [
 					`POSTGRES_DB=${osi4iotState.platformInfo.POSTGRES_DB}`,
 					'POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt',
-					'POSTGRES_USER_FILE=/run/secrets/postgres_user.txt'
+					'POSTGRES_USER_FILE=/run/secrets/postgres_user.txt',
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
 				],
 				deploy: {
 					mode: 'replicated',
@@ -339,7 +353,7 @@ export default function (osi4iotState) {
 					`POSTGRES_DB=${osi4iotState.platformInfo.TIMESCALE_DB}`,
 					'POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt',
 					'POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt',
-					'TZ=Europe/Madrid'
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
 				],
 				deploy: {
 					mode: 'replicated',
@@ -356,6 +370,7 @@ export default function (osi4iotState) {
 				],
 				environment: [
 					'DATABASE_NAME=iot_data_db',
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
 				],
 				secrets: [
 					{
@@ -383,6 +398,9 @@ export default function (osi4iotState) {
 			grafana: {
 				image: `ghcr.io/osi4iot/grafana:${serviceImageVersion['grafana']}`,
 				user: '${UID}:${GID}',
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
 				networks: [
 					'internal_net',
 					'traefik_public'
@@ -441,6 +459,9 @@ export default function (osi4iotState) {
 			},
 			admin_api: {
 				image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
 				networks: [
 					'internal_net',
 					'traefik_public'
@@ -518,6 +539,9 @@ export default function (osi4iotState) {
 			},
 			frontend: {
 				image: `ghcr.io/osi4iot/frontend:${serviceImageVersion['frontend']}`,
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
 				configs: [
 					{
 						source: 'frontend_conf',
@@ -738,6 +762,7 @@ export default function (osi4iotState) {
 			environment: [
 				"MINIO_VOLUMES=/mnt/data",
 				`MINIO_BROWSER_REDIRECT_URL=${protocol}://${domainName}/minio`,
+				`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
 			],
 			command: 'server --console-address ":9090" /mnt/data',
 			volumes: [
