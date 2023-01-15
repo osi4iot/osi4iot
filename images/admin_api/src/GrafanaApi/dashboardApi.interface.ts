@@ -16,6 +16,7 @@ import IUserGlobalGrafana from "./interfaces/UserGlobalGrafana.interface";
 import IPlatformStatistics from "./interfaces/PlatformStatistics";
 import INotificationChannel from "./interfaces/NotificationChannel";
 import CreateUserDto from "../components/user/interfaces/User.dto";
+import IDataSource from "../components/group/interfaces/DataSource.interface";
 
 export default interface IDashboardApi {
 	getPlatformStatistics(): Promise<IPlatformStatistics>;
@@ -60,10 +61,32 @@ export default interface IDashboardApi {
 	removeMembersFromTeam(orgId: number, teamId: number, userIdsArray: number[]): Promise<IMessage[]>;
 
 	createFolder(folderData: IFolderDTO, orgKey: string): Promise<IFolder>;
-	folderPermission(orgId: number, uid: string, folderPermissionDTO: IFolderPermissionDTO, orgKey: string): Promise<IMessage>;
+	folderPermission(
+		orgId: number,
+		uid: string,
+		folderPermissionDTO: IFolderPermissionDTO,
+		orgKey: string
+	): Promise<IMessage>;
 	deleteFolderByUid(orgId: number, folderUid: string, orgKey: string): Promise<IMessage>;
 
-	createDataSourcePostgres(orgId: number, name: string, orgKey: string): Promise<IMessage>;
+	createDataSourceTimescaledb(
+		orgId: number,
+		name: string,
+		user: string,
+		password: string,
+		orgKey: string
+	): Promise<IMessage>;
+
+	updateDataSourceimescaledb(
+		oldDataSource: IDataSource,
+		newPassword: string,
+		orgKey: string
+	): Promise<IMessage>;
+
+	getDataSourceByName(
+		datasourceName: string,
+		orgKey: string
+	): Promise<IDataSource | IMessage>;
 
 	createNotificationChannel(orgKey: string, notifChannelData: INotificationChannel): Promise<INotificationChannel>;
 	updateNotificationChannel(orgKey: string, notifChannelData: INotificationChannel): Promise<INotificationChannel>;

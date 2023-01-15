@@ -3,7 +3,6 @@ import pool from "../../config/dbconfig";
 import IDevice from "../device/device.interface";
 import ITopic from "../topic/topic.interface";
 import { createAlert } from "./alertDAL";
-import { getDataSourceByProp } from "./datasourceDAL";
 import { accelDashboardJson } from "./defaultDashboards/accelDashboardJson";
 import { homeDashboardJson } from "./defaultDashboards/homeDashboardJson";
 import { tempAlertJson } from "./defaultDashboards/tempAlertJson";
@@ -14,8 +13,11 @@ import IAlert from "./interfaces/Alert.interface";
 import IDashboardData from "./interfaces/DashboardData.interface";
 import IGroup from "./interfaces/Group.interface";
 import process_env from "../../config/api_config";
-import { getOrganizationByProp } from "../organization/organizationDAL";
 import { defaultDashboard } from "./defaultDashboards/defaultDashboard";
+import { generateGrafanaDataSourceName } from "./datasourceDAL";
+import grafanaApi from "../../GrafanaApi";
+import { getOrganizationKey } from "../organization/organizationDAL";
+import IDataSource from "./interfaces/DataSource.interface";
 
 export const insertDashboard = async (orgId: number, folderId: number, title: string, data: any): Promise<any> => {
 	const now = new Date();
@@ -163,9 +165,10 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 	await insertPreference(orgId, response.id);
 };
 
-export const createDemoDashboards = async (orgAcronym: string, group: IGroup, device: IDevice, topics: Partial<ITopic>[]): Promise<number[]> => {
-	const dataSourceName = `iot_${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toLowerCase()}_db`;
-	const dataSource = await getDataSourceByProp("name", dataSourceName);
+export const createDemoDashboards = async (group: IGroup, device: IDevice, topics: Partial<ITopic>[]): Promise<number[]> => {
+	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
+	const orgKey = await getOrganizationKey(group.orgId);
+	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;
 	const grouAcronym = group.acronym;
 	const tempDashboard = JSON.parse(tempDashboardJson);
 	const titleTempDashboard = `${grouAcronym.replace(/ /g, "_")}_Temp_demo`;
@@ -217,9 +220,9 @@ export const createDemoDashboards = async (orgAcronym: string, group: IGroup, de
 };
 
 export const createDashboard = async (group: IGroup, device: IDevice, topic: Partial<ITopic>, digitalTwinUid: string): Promise<number> => {
-	const org = await getOrganizationByProp("id", group.orgId);
-	const dataSourceName = `iot_${org.acronym.replace(/ /g, "_").replace(/"/g, "").toLowerCase()}_db`;
-	const dataSource = await getDataSourceByProp("name", dataSourceName);
+	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
+	const orgKey = await getOrganizationKey(group.orgId);
+	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;;
 	const dashboard = JSON.parse(defaultDashboard);
 	const dashboardTitle = `${digitalTwinUid} dashboard`;
 	dashboard.uid = uuidv4();
@@ -283,8 +286,3 @@ const createAccelDemoAlert = (orgId: number, dashboardId: number, panelId: numbe
 	}
 	return alert;
 }
-
-
-
-
-

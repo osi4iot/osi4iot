@@ -16,7 +16,6 @@ import {
 	getOrganizations,
 	getOrganizationByProp,
 	updateOrganizationByProp,
-	createDefaultOrgDataSource,
 	addAdminToOrganization,
 	addOrgUsersToDefaultOrgGroup,
 	addUsersToOrganizationAndMembersToDefaultOrgGroup,
@@ -83,6 +82,7 @@ import {
 	createNodeRedInstancesInOrg,
 	getNodeRedInstancesByOrgsIdArray
 } from "../nodeRedInstance/nodeRedInstanceDAL";
+import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
 
 
 class OrganizationController implements IController {
@@ -290,8 +290,6 @@ class OrganizationController implements IController {
 		}
 	};
 
-
-
 	private createOrganization = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const organizationData: CreateOrganizationDto = req.body;
@@ -319,8 +317,7 @@ class OrganizationController implements IController {
 				const apiKeyId = await getApiKeyIdByName(apyKeyName);
 				await insertOrganizationToken(newOrg.orgId, apiKeyId, hashedApiKey);
 				await grafanaApi.changeUserRoleInOrganization(newOrg.orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
-				const dataSourceName = `iot_${organizationData.acronym.replace(/ /g, "_").replace(/"/g, "").toLowerCase()}_db`;
-				await createDefaultOrgDataSource(newOrg.orgId, dataSourceName, apiKeyObj.key);
+				await createTimescaledbOrgDataSource(newOrg.orgId, apiKeyObj.key);
 				const groupAdminDataArray: CreateGroupAdminDto[] = [];
 				const platformAdminEmail = process_env.PLATFORM_ADMIN_EMAIL;
 				const orgAdminArrayFiltered = organizationData.orgAdminArray.filter(orgAdmin => orgAdmin.email === platformAdminEmail);
@@ -408,7 +405,7 @@ class OrganizationController implements IController {
 				const dashboardsId: number[] = [];
 
 				[dashboardsId[0], dashboardsId[1]] =
-					await createDemoDashboards(organizationData.acronym, group, device, [topic1, topic2]);
+					await createDemoDashboards(group, device, [topic1, topic2]);
 
 				const defaultDeviceDigitalTwinsData = [
 					{

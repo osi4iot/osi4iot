@@ -12,7 +12,6 @@ import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import IMessage from "../../GrafanaApi/interfaces/Message";
 import IUserInOrg from "../user/interfaces/UserInOrg.interface";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
-import process_env from "../../config/api_config";
 import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import { createNodeRedInstance, deleteNodeRedInstanceById } from "../nodeRedInstance/nodeRedInstanceDAL";
 import INodeRedInstance from "../nodeRedInstance/nodeRedInstance.interface";
@@ -114,22 +113,6 @@ export const getOrganizationKey = async (orgId: number): Promise<string> => {
 	const result = await pool.query(query, [orgId]);
 	const apiKey = decrypt(result.rows[0].orgKey);
 	return apiKey;
-}
-
-export const createDefaultOrgDataSource = async (orgId: number, name: string, orgKey: string): Promise<void> => {
-	const query1 = `SELECT id, json_data, secure_json_data
-					FROM grafanadb.data_source WHERE name = $1;`;
-	const dataSourceName = `iot_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").replace(/"/g,"").toLowerCase()}_db`;
-	const result = await pool.query(query1, [dataSourceName]);
-	if (result.rows.length === 0) throw new Error("Main organization default data source not found");
-	const jsonData = result.rows[0].json_data;
-	const secureJsonData = result.rows[0].secure_json_data;
-	const message = await grafanaApi.createDataSourcePostgres(orgId, name, orgKey);
-	if ((message as any).message !== "Datasource added") throw new Error("Problem creating new data source");
-	const dataSourceId = (message as any).id;
-
-	const querry2 = 'UPDATE grafanadb.data_source SET is_default = $1, read_only= $2, json_data = $3, secure_json_data = $4 WHERE id = $5';
-	await pool.query(querry2, [true, true, jsonData, secureJsonData, dataSourceId]);
 }
 
 export const addUsersToOrganizationAndMembersToDefaultOrgGroup = async (orgId: number, orgUsersArray: CreateUserDto[]): Promise<IMessage[]> => {
@@ -249,13 +232,13 @@ export const updateOrgUserRoleInDefaultOrgGroup = async (orgId: number, user: IU
 }
 
 export const updateNodeRedInstancesInOrg = async (currentNodeRedInstancesInOrg: INodeRedInstance[], newOrganizationData: UpdateOrganizationDto) => {
-	const nriToCreateQuerries = [];
-	const nriToRemoveQuerries = [];
+	const nriToCreateQueries = [];
+	const nriToRemoveQueries = [];
 	if (currentNodeRedInstancesInOrg.length > newOrganizationData.nriHashes.length) {
 		const newNriHashes = newOrganizationData.nriHashes;
 		const nodeRedInstancesToRemove = currentNodeRedInstancesInOrg.filter(nri => !newNriHashes.includes(nri.nriHash));
 		for (const nodeRedInstance of nodeRedInstancesToRemove) {
-			nriToRemoveQuerries.push(deleteNodeRedInstanceById(nodeRedInstance.id));
+			nriToRemoveQueries.push(deleteNodeRedInstanceById(nodeRedInstance.id));
 		}
 	}
 
@@ -272,16 +255,16 @@ export const updateNodeRedInstancesInOrg = async (currentNodeRedInstancesInOrg: 
 				latitude: 0,
 				iconRadio: 1
 			}
-			nriToCreateQuerries.push(createNodeRedInstance(nodeRedInstancInput));
+			nriToCreateQueries.push(createNodeRedInstance(nodeRedInstancInput));
 		}
 	}
 
-	if (nriToCreateQuerries.length !== 0) {
-		await Promise.all(nriToCreateQuerries);
+	if (nriToCreateQueries.length !== 0) {
+		await Promise.all(nriToCreateQueries);
 	}
 
-	if (nriToRemoveQuerries.length !== 0) {
-		await Promise.all(nriToRemoveQuerries);
+	if (nriToRemoveQueries.length !== 0) {
+		await Promise.all(nriToRemoveQueries);
 	}
 
 }

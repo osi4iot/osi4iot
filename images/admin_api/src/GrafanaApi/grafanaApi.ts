@@ -24,6 +24,8 @@ import { updateNotificationChannelSettings } from "../components/group/groupDAL"
 import CreateUserDto from "../components/user/interfaces/User.dto";
 import wait from "../utils/helpers/wait";
 import process_env from "../config/api_config";
+import IDataSource from "../components/group/interfaces/DataSource.interface";
+
 
 const GrafanaApiURL = "grafana:5000/api"
 const optionsBasicAuthApiAdmin = {
@@ -457,35 +459,100 @@ export default class GrafanaApi implements IDashboardApi {
 
 	private generateOptionsToken(orgKey: string): IOptionsToken {
 		const optionsToken = {
-			headers: { "Authorization": `Bearer ${orgKey}`, "Content-Type": "application/json", "Accept": "application/json" }
+			headers: { "Authorization": `Bearer ${orgKey}`, "Content-Type": "application/json", "Accept": "application/json" },
+			json: true
 		}
 		return optionsToken;
 	}
 
+	async getDataSourceByName(
+		datasourceName: string,
+		orgKey: string
+	): Promise<IDataSource | IMessage> {
+		const url = `${GrafanaApiURL}/datasources/name/${datasourceName}`;
+		const optionsToken = this.generateOptionsToken(orgKey);
 
-	async createDataSourcePostgres(orgId: number, name: string, orgKey: string): Promise<IMessage> {
+		const response = await needle('get', url, optionsToken)
+			.then(res => res.body)
+			.catch(err => logger.log("error", `Data source with name: ${datasourceName} could not be obtained: %s`, err.message));
+		return response;
+	}
+
+
+	async createDataSourceTimescaledb(
+		orgId: number,
+		name: string,
+		user: string,
+		password: string,
+		orgKey: string
+	): Promise<IMessage> {
 		const url = `${GrafanaApiURL}/datasources`;
 		const optionsToken = this.generateOptionsToken(orgKey);
 
 		const dataSource = {
 			access: "proxy",
 			basicAuth: false,
-			basicAuthPassword: "",
 			basicAuthUser: "",
-			database: process_env.POSTGRES_DB,
+			database: process_env.TIMESCALE_DB,
 			name,
 			orgId,
 			password: "",
 			type: "postgres",
-			url: "postgres:5432",
-			user: "grafana_datasource_user",
+			url: "timescaledb:5432",
+			user,
+			isDefault: true,
+			secureJsonData: {
+				password,
+			},
+			jsonData: {
+				sslmode: "disable",
+				maxOpenConns: 0,
+				maxIdleConns: 2,
+				connMaxLifetime: 14400,
+				postgresVersion: 903,
+				timescaledb: true,
+			},
 			version: 1,
 			withCredentials: false
 		};
 
+
 		const message = await needle('post', url, dataSource, optionsToken)
 			.then(res => res.body)
 			.catch(err => logger.log("error", `Data source for the organization with id: ${orgId} could not be created: %s`, err.message));
+		return message;
+	}
+
+	async updateDataSourceimescaledb(
+		oldDataSource: IDataSource,
+		newPassword: string,
+		orgKey: string
+	): Promise<IMessage> {
+		const url = `${GrafanaApiURL}/datasources/${oldDataSource.id}`;
+		const optionsToken = this.generateOptionsToken(orgKey);
+
+		const dataSourceUpdated = {
+			id: oldDataSource.id,
+			orgId: oldDataSource.orgId,
+			name: oldDataSource.name,
+			type: oldDataSource.type,
+			access: oldDataSource.access,
+			url: oldDataSource.url,
+			password: oldDataSource.password,
+			user: oldDataSource.user,
+			database: oldDataSource.database,
+			basicAuth: oldDataSource.basicAuth,
+			basicAuthUser: oldDataSource.basicAuthUser,
+			secureJsonData: {
+				password: newPassword
+			},
+			isDefault: oldDataSource.isDefault,
+			jsonData: oldDataSource.jsonData
+		};
+
+		const message = await needle('put', url, dataSourceUpdated, optionsToken)
+			.then(res => res.body)
+			.catch(err => logger.log("error", `Data source with id: ${oldDataSource.id} could not be updated: %s`, err.message));
 		return message;
 	}
 

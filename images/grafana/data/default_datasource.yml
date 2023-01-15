@@ -1,14 +1,14 @@
 apiVersion: 1
 
 datasources:
-  - name: ${MAIN_ORGANIZATION_DATASOURCE_NAME}
+  - name: timescaledb_org_1
     type: postgres
     access: proxy
     url: timescaledb:5432
     database: $TIMESCALE_DB
     orgId: 1
     isDefault: true
-    user: grafana_datasource_user
+    user: data_source_user_org_1
     secureJsonData:
       password: ${GRAFANA_DATASOURCE_PASSWORD}
     jsonData:

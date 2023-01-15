@@ -460,6 +460,7 @@ export default function (osi4iotState) {
 			admin_api: {
 				image: `ghcr.io/osi4iot/admin_api:${serviceImageVersion['admin_api']}`,
 				environment: [
+					'REPLICA={{.Task.Slot}}',
 					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
 				],
 				networks: [
@@ -497,9 +498,6 @@ export default function (osi4iotState) {
 				],
 				ports: [
 					'3200:3200'
-				],
-				environment: [
-					'REPLICA={{.Task.Slot}}'
 				],
 				deploy: {
 					mode: 'replicated',
@@ -689,6 +687,9 @@ export default function (osi4iotState) {
 		osi4iotStackObj.services['pgadmin4'] =  {
 			image: `ghcr.io/osi4iot/pgadmin4:${serviceImageVersion['pgadmin4']}`,
 			user: '${UID}:${GID}',
+			environment: [
+				`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+			],
 			secrets: [
 				{
 					source: 'pgadmin4',
@@ -949,6 +950,7 @@ export default function (osi4iotState) {
 				'8081'
 			],
 			environment: [
+				`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`,
 				'ENABLE_METRICS=true'
 			],
 			deploy: {
@@ -971,6 +973,7 @@ export default function (osi4iotState) {
 					'internal_net'
 				],
 				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`,
 					`KEEPALIVED_VIRTUAL_IPS=${osi4iotState.platformInfo.FLOATING_IP_ADDRES}`,
 					`KEEPALIVED_INTERFACE=${osi4iotState.platformInfo.NETWORK_INTERFACE}`
 				],
@@ -1159,6 +1162,7 @@ export default function (osi4iotState) {
 					`${serviceName}_data:/data`,
 				],
 				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`,
 					`NODERED_INSTANCE_HASH=${nodeRedInstanceHash}`,
 					`IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=${isVolumeCreated === 'true'}`,
 				],

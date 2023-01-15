@@ -21,9 +21,6 @@ then
     export GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
     export GF_RENDERING_CALLBACK_URL=http://grafana:5000/grafana/
     export GF_LOG_FILTERS=rendering:debug
-    MAIN_ORGANIZATION_ACRONYM_LINE=$(cat /run/configs/grafana.conf | grep MAIN_ORGANIZATION_ACRONYM)
-    MAIN_ORGANIZATION_ACRONYM_LOWER_CASE=$(echo ${MAIN_ORGANIZATION_ACRONYM_LINE} | sed -e 's/^[^=]*=//' | sed -e 's/"//g' | sed -e 's/\(.*\)/\L\1/' | sed -e 's/\s/_/g')
-    export MAIN_ORGANIZATION_DATASOURCE_NAME="iot_${MAIN_ORGANIZATION_ACRONYM_LOWER_CASE}_db"
     export $(cat /run/configs/grafana.conf | grep DOMAIN_NAME)
     export $(cat /run/configs/grafana.conf | grep DEFAULT_TIME_ZONE)
     MAIN_ORGANIZATION_NAME_LINE=$(cat /run/configs/grafana.conf | grep MAIN_ORGANIZATION_NAME)

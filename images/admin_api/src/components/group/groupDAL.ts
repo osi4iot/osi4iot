@@ -5,7 +5,7 @@ import grafanaApi from "../../GrafanaApi";
 import IEmailNotificationChannelSettings from "../../GrafanaApi/interfaces/EmailNotificationChannelSettings";;
 import IGrafanaNotificationChannelSettings from "../../GrafanaApi/interfaces/GrafanaNotificationChannelSettings";
 import IFolderPermission from "../../GrafanaApi/interfaces/FolderPermission";
-import { getOrganizationKey } from "../organization/organizationDAL";
+import {  getOrganizationKey } from "../organization/organizationDAL";
 import CreateGroupDto from "./interfaces/group.dto";
 import IGroup from "./interfaces/Group.interface";
 import {
@@ -31,6 +31,7 @@ import { updateGroupDevicesLocation } from "../device/deviceDAL";
 import process_env from "../../config/api_config";
 import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
 import timescaledb_pool from "../../config/timescaledb_config";
+import { generateGrafanaDataSourceUser } from "./datasourceDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName = `${orgName} general`;
@@ -144,7 +145,7 @@ export const createGroup = async (
 		mqttAccessControl
 	}
 
-	await createView(groupUid);
+	await createView(group);
 	const groupResponse = await insertGroup(group);
 	group.id = groupResponse.id;
 	group.folderPermission = folderPermission;
@@ -590,14 +591,17 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 	]);
 }
 
-export const createView = async (groupUid: string): Promise<void> => {
-	const viewName = `Table_${groupUid}`;
-	await timescaledb_pool.query(`CREATE VIEW iot_datasource.${viewName} AS SELECT timestamp, topic, payload FROM iot_data.thingData WHERE group_uid = '${groupUid}'`);
+export const createView = async (group: IGroup): Promise<void> => {
+	const viewName = `Table_${group.groupUid}`;
+	await timescaledb_pool.query(`CREATE OR REPLACE VIEW iot_datasource.${viewName} AS SELECT timestamp, topic, payload FROM iot_data.thingData WHERE group_uid = '${group.groupUid}';`);
+	const dataSourceUser = generateGrafanaDataSourceUser(group.orgId);
+	const query1 = `GRANT SELECT ON iot_datasource.${viewName} TO ${dataSourceUser};`;
+	await timescaledb_pool.query(query1);
 };
 
 export const deleteView = async (groupUid: string): Promise<void> => {
 	const viewName = `Table_${groupUid}`;
-	await timescaledb_pool.query(`DROP VIEW iot_datasource.${viewName}`);
+	await timescaledb_pool.query(`DROP VIEW iot_datasource.${viewName};`);
 };
 
 export const changeGroupUidByUid = async (group: IGroup): Promise<string> => {
@@ -606,7 +610,7 @@ export const changeGroupUidByUid = async (group: IGroup): Promise<string> => {
 	await pool.query('UPDATE grafanadb.group SET group_uid = $1 WHERE group_uid = $2',
 		[newGroupUid, oldGroupUid]);
 	await deleteView(oldGroupUid);
-	await createView(newGroupUid);
+	await createView(group);
 	return newGroupUid;
 };
 
@@ -1008,7 +1012,7 @@ export const createAllViews = async (groups: IGroup[], viewsNames: string[]): Pr
 	for (const group of groups) {
 		const tableName = `table_${group.groupUid}`;
 		if (viewsNames.indexOf(tableName) === -1) {
-			const query = createView(group.groupUid);
+			const query = createView(group);
 			queriesArray.push(query);
 		}
 	}

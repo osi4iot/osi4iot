@@ -15,7 +15,8 @@ FROM node:lts-alpine
 RUN mkdir -p /app/node_modules && chown -R node:node /app
 WORKDIR /app
 COPY package*.json ./
-RUN apk --no-cache add curl
+RUN apk add --no-cache tzdata
+RUN apk add --no-cache curl
 RUN npm install --only=production
 USER node
 COPY --from=0 /app/build ./build

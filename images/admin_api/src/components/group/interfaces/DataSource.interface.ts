@@ -1,23 +1,24 @@
-export default interface IDatasource {
+export default interface IDataSource {
 	id: number;
-	ordId: number;
-	version: number;
-	type: string;
+	uid: string;
+	orgId: number;
 	name: string;
+	type: string;
+	typeLogoUrl: string;
 	access: string;
 	url: string;
 	password: string;
 	user: string;
 	database: string;
-	basicAuth: boolean;
-	basicAuthUser: boolean;
-	basicAuthPassword: boolean;
-	isDefault: boolean;
-	jsonData: string;
-	created: string;
-	updated: string;
-	withCredentials: string;
-	secureJsonData: string;
+	basicAuth: string;
+	basicAuthUser: string;
+	basicAuthPassword: string;
+	withCredential: boolean;
+	isDefault: string;
+	jsonData: Record<string, string | number>,
+	secureJsonFields: {
+		password: boolean;
+	};
 	readOnly: boolean;
-	uid: string;
+	version: number;
 }

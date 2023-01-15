@@ -2,23 +2,40 @@ import { logger } from "../config/winston";
 import { Pool } from "pg";
 import grafanaApi from "../GrafanaApi"
 import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
-import { addMembersToGroup, createAllViews, createGroup, defaultOrgGroupName, getAllGroups } from "../components/group/groupDAL";
+import {
+	addMembersToGroup,
+	createGroup,
+	createView,
+	defaultOrgGroupName,
+	getAllGroups
+} from "../components/group/groupDAL";
 import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
 import { createDemoDashboards, createHomeDashboard } from "../components/group/dashboardDAL";
 import { createDevice, defaultGroupDeviceName } from "../components/device/deviceDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import { createTopic, demoTopicName } from "../components/topic/topicDAL";
-import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid } from "../components/digitalTwin/digitalTwinDAL";
+import {
+	createDigitalTwin,
+	demoDigitalTwinDescription,
+	generateDigitalTwinUid
+} from "../components/digitalTwin/digitalTwinDAL";
 import process_env from "../config/api_config";
 import IDevice from "../components/device/device.interface";
 import needle from "needle";
 import ITopic from "../components/topic/topic.interface";
 import { createFictitiousUserForService } from "../components/user/userDAL";
 import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
-import { assignNodeRedInstanceToGroup, createNodeRedInstancesInOrg } from "../components/nodeRedInstance/nodeRedInstanceDAL";
+import {
+	assignNodeRedInstanceToGroup,
+	createNodeRedInstancesInOrg
+} from "../components/nodeRedInstance/nodeRedInstanceDAL";
 import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
+import {
+	getOrganizations
+} from "../components/organization/organizationDAL";
+import { createTimescaledbOrgDataSource } from "../components/group/datasourceDAL";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -624,7 +641,7 @@ export const dataBaseInitialization = async () => {
 					const dashboardsId: number[] = [];
 
 					[dashboardsId[0], dashboardsId[1]] =
-						await createDemoDashboards(orgAcronym, group, device, [topic1, topic2]);
+						await createDemoDashboards(group, device, [topic1, topic2]);
 
 					const defaultDeviceDigitalTwinsData = [
 						{
@@ -701,14 +718,27 @@ export const dataBaseInitialization = async () => {
 				})
 			} else {
 				try {
-					const groups = await getAllGroups();
-					const dataSourceSchema = "iot_datasource";
-					const queryString = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = '${dataSourceSchema}';`;
-					const result = await timescaledbClient.query(queryString);
-					if (groups.length !== result.rows.length) {
-						const viewsNames = result.rows.map(row => row.table_name as string);
-						await createAllViews(groups, viewsNames);
-					};
+					const queryViews = `SELECT table_name from INFORMATION_SCHEMA.views WHERE table_schema = 'iot_datasource';`;
+					const result = await timescaledbClient.query(queryViews);
+					if (result.rows.length === 0) {
+						const orgs = await getOrganizations();
+						const dataSourceQueries = [];
+						for (const org of orgs) {
+							if (org.id === 1) continue;
+							const query = createTimescaledbOrgDataSource(org.id);
+							dataSourceQueries.push(query);
+						}
+						await Promise.all(dataSourceQueries);
+
+						const groups = await getAllGroups();
+						const createViewsQueries = [];
+						for (const group of groups) {
+							const query = createView(group);
+							createViewsQueries.push(query);
+						}
+						await Promise.all(createViewsQueries);
+					}
+
 				} catch (err) {
 					logger.log("error", `Views in timescaledb could not be checked: %s`, err.message);
 					process.exit(1);

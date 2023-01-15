@@ -342,7 +342,7 @@ class GroupController implements IController {
 			const dashboardsId: number[] = [];
 
 			[dashboardsId[0], dashboardsId[1]] =
-				await createDemoDashboards(req.organization.acronym, groupCreated, device, [topic1, topic2]);
+				await createDemoDashboards(groupCreated, device, [topic1, topic2]);
 
 
 			const defaultDeviceDigitalTwinsData = [

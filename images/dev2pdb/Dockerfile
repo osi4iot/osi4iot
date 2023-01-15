@@ -12,6 +12,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -a -o /app/output/dev2p
 FROM alpine:latest
 WORKDIR /
 COPY --from=builder /app/output/dev2pdb /dev2pdb
+RUN apk add --no-cache tzdata
 RUN apk --no-cache add curl
 EXPOSE 3300
 HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
