@@ -46,8 +46,7 @@ export const createTimescaledbOrgDataSource = async (orgId: number, orgKey?: str
 		const message = await grafanaApi.createDataSourceTimescaledb(orgId, dataSourceName, dataSourceUser, password, orgKey);
 		if (message.message !== "Datasource added") throw new Error("Problem creating new data source");
 		const dataSourceId = message.id;
-		const query4 = 'UPDATE grafanadb.data_source SET read_only= $1 WHERE id = $2';
-		await pool.query(query4, [true, dataSourceId]);
+		await pool.query('UPDATE grafanadb.data_source SET read_only= $1 WHERE id = $2', [true, dataSourceId]);
 	} else {
 		const dataSource = response as IDataSource;
 		await pool.query('UPDATE grafanadb.data_source SET read_only= $1 WHERE id = $2', [false, dataSource.id]);
