@@ -545,7 +545,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 								/>
 							}
 							{(optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData) &&
-								<Suspense fallback={<SceneLoader />}>
+								<Suspense fallback={<SceneLoader/>}>
 									<DigitalTwin3DViewer
 										digitalTwinSelected={digitalTwinSelected}
 										digitalTwinGltfData={digitalTwinGltfData}

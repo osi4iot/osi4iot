@@ -3,7 +3,7 @@ import styled from "styled-components";
 import Spinner from "react-loader-spinner";
 
 
-const LoadingSceneContainer = styled.div`
+const SceneLoaderContainer = styled.div`
 	display: flex;
 	justify-content: center;
     flex-direction: row;
@@ -21,12 +21,14 @@ const StyledLoader = styled(Spinner)`
 	background-color: #202226;
 `
 
+
+
 const SceneLoader: FC<{}> = () => {
     return (
-        <LoadingSceneContainer>
+        <SceneLoaderContainer>
             <Text>Loading scene</Text>
             <StyledLoader type="Oval" color="#3274d9" height={20} width={20} />
-        </LoadingSceneContainer>
+        </SceneLoaderContainer>
     );
 };
 
