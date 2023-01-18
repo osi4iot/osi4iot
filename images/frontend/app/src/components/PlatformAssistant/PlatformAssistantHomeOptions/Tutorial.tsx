@@ -17,10 +17,8 @@ const TutorialContainer = styled.div`
 
 const PageContainer = styled.div`
     width: 100%;
-    height: calc(100vh - 278px);
-	background-color: #0c0d0f;
-    margin-top: 25px;
-    margin-bottom: 8px;
+    height: calc(100vh - 290px);
+	background-color: #202226;
 
 	overflow: auto;
     /* width */
@@ -37,17 +35,16 @@ const PageContainer = styled.div`
 
     /* Handle */
     ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
+        background: #485257;
         border-radius: 5px;
     }
 
     /* Handle on hover */
     ::-webkit-scrollbar-thumb:hover {
-		background-color: #343840;
+        background-color: #3b4347;
 	}
 
 	::-webkit-scrollbar-corner {
-        /* background-color: #0c0d0f; */
         background: #202226;
     }
 `;
@@ -62,6 +59,7 @@ const PageControlsContainer = styled.div`
     padding: 8px;
     background-color: #0c0d0f;
     border-radius: 15px;
+    margin-top: 10px;
 `;
 
 const FirstPageIcon = styled(ImFirst)`
@@ -134,6 +132,7 @@ const StyledDocument = styled(Document)`
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    margin-top: 25px;
 `;
 
 const PageNumbersContainer = styled.div`
@@ -148,7 +147,7 @@ const PageNumbersContainer = styled.div`
 const Tutorial: FC<{}> = () => {
     const [numPages, setNumPages] = useState<null | number>(null);
     const [pageNumber, setPageNumber] = useState(1);
-    const [scale, setScale] = useState(0.78);
+    const [scale, setScale] = useState(1.0);
     const ref = useRef(null);
     const windowHeight = useWindowHeight();
 
@@ -165,15 +164,14 @@ const Tutorial: FC<{}> = () => {
     }
 
     const onWheelHandler = (e: WheelEvent<HTMLDivElement>) => {
-        e.preventDefault();
         const rect = (ref.current as any)?.getBoundingClientRect();
-        const bottomDist = windowHeight - rect.bottom;
         if (rect !== undefined) {
+            const bottomDist = windowHeight - rect.bottom;
             if (numPages) {
-                if (e.deltaY === 100 && bottomDist > 0.0 && bottomDist <= 63) {
+                if ((e.deltaY === 100 || e.deltaY === 102) && bottomDist > 0.0 && bottomDist <= 106) {
                     const nextPageNumber = pageNumber === numPages ? numPages : pageNumber + 1;
                     setPageNumber(nextPageNumber);
-                } else if (e.deltaY === -100 && rect.top === 218) {
+                } else if ((e.deltaY === -100 || e.deltaY === -102) && rect.top === 218) {
                     const previousPageNumber = pageNumber === 1 ? 1 : pageNumber - 1;
                     setPageNumber(previousPageNumber);
                 }
@@ -218,7 +216,7 @@ const Tutorial: FC<{}> = () => {
                 loading={<PdfLoader />}
             >
                 <PageContainer onWheel={onWheelHandler}>
-                    <Page pageNumber={pageNumber} scale={scale} canvasRef={ref} />
+                    <Page pageNumber={pageNumber} height={645} scale={scale} canvasRef={ref} />
                 </PageContainer>
                 <PageControlsContainer>
                     < ZoomOutIcon onClick={zoomOutHandler} />
