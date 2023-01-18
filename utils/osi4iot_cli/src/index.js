@@ -21,16 +21,16 @@ const cliOptions = [
 ];
 
 const dockerImagesVersions = ["dev", "1.1.0", "latest"];
+var argv = null;
 
 const osi4iotCli = async () => {
-    const argv = yargs(hideBin(process.argv)).argv;
-
+    argv = yargs(hideBin(process.argv)).argv;
     if (!fs.existsSync("./osi4iot_state.json")) {
         osi4iotWelcome();
     } else {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
-        manageOptions(argv, osi4iotState);
+        manageOptions(osi4iotState);
         if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION !== "Local deployment") {
             try {
                 const sshKeysOutput = execSync("ssh-add -l").toString();
@@ -134,12 +134,6 @@ const osi4iotWelcome = () => {
             }
         ])
         .then(async (answers) => {
-            const argv = yargs(hideBin(process.argv)).argv;
-            if (argv.v !== undefined) {
-                answers.DOCKER_IMAGES_VERSION = argv.v;
-            } else {
-                answers.DOCKER_IMAGES_VERSION = "1.1.0";
-            }
             if (answers.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
                 awsQuestions(answers);
             } else {
@@ -195,6 +189,7 @@ const createOsi4iotStateFile = (answers) => {
     }
     const osi4iotStateFile = JSON.stringify(osi4iotState);
     fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
+    manageOptions(osi4iotState);
 }
 
 const awsQuestions = (oldAnswers) => {
@@ -269,7 +264,7 @@ const awsQuestions = (oldAnswers) => {
         });
 }
 
-const manageOptions = (argv, osi4iotState) => {
+const manageOptions = (osi4iotState) => {
     let areThereOptions = false;
     if (argv.v !== undefined) {
         if (dockerImagesVersions.indexOf(argv.v) !== -1) {
