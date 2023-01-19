@@ -24,8 +24,12 @@ export async function loginUser(authDispatch: AuthDispatch, loginPayload: LoginD
 		console.log(data.errors[0]);
 		return;
 	} catch (error: any) {
-		const message = error.response.data.message;
-		authDispatch({ type: 'LOGIN_ERROR', error: message });
+		if (error.response !== undefined) {
+			const message = error.response.data.message;
+			authDispatch({ type: 'LOGIN_ERROR', error: message });
+		} else {
+			authDispatch({ type: 'LOGIN_ERROR', error: error.message });
+		}
 	}
 }
 

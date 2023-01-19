@@ -167,8 +167,9 @@ const Tutorial: FC<{}> = () => {
         const rect = (ref.current as any)?.getBoundingClientRect();
         if (rect !== undefined) {
             const bottomDist = windowHeight - rect.bottom;
+            const bottomLimit = scale >= 1.0 ? 106 : 235;
             if (numPages) {
-                if ((e.deltaY === 100 || e.deltaY === 102) && bottomDist > 0.0 && bottomDist <= 106) {
+                if ((e.deltaY === 100 || e.deltaY === 102) && bottomDist > 0.0 && bottomDist <= bottomLimit) {
                     const nextPageNumber = pageNumber === numPages ? numPages : pageNumber + 1;
                     setPageNumber(nextPageNumber);
                 } else if ((e.deltaY === -100 || e.deltaY === -102) && rect.top === 218) {
