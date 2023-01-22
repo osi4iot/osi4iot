@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import TableWithPagination from '../Utils/TableWithPagination';
 import Loader from "../../Tools/Loader";
@@ -36,6 +36,8 @@ import BuildingsContainer from './BuildingsContainer';
 import { FloorsProvider } from '../../../contexts/floorsOptions';
 import FloorsContainer from './FloorsContainer';
 import { IGlobalUser } from '../TableColumns/globalUsersColumns';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;
@@ -167,7 +169,7 @@ const PlatformAdminOptions: FC<{}> = () => {
         if (organizationsTable.length === 0 || reloadOrgs) {
             const urlOrganizations = `${protocol}://${domainName}/admin_api/organizations`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizations, config)
                 .then((response) => {
                     const organizations = response.data;
@@ -175,7 +177,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     setOrgsLoading(false);
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
 
         } else {
@@ -195,7 +197,7 @@ const PlatformAdminOptions: FC<{}> = () => {
         if (buildingsTable.length === 0 || reloadBuildingsTable) {
             const urlBuildings = `${protocol}://${domainName}/admin_api/buildings`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlBuildings, config)
                 .then((response) => {
                     const buildings = response.data;
@@ -205,7 +207,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
 
         } else {
@@ -224,7 +226,7 @@ const PlatformAdminOptions: FC<{}> = () => {
         if (floorsTable.length === 0 || reloadFloorsTable) {
             const urlFloors = `${protocol}://${domainName}/admin_api/building_floors`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlFloors, config)
                 .then((response) => {
                     const floors = response.data;
@@ -234,7 +236,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
 
         } else {
@@ -253,7 +255,7 @@ const PlatformAdminOptions: FC<{}> = () => {
         if (globalUsersTable.length === 0 || reloadGlobalUsersTable) {
             const config = axiosAuth(accessToken);
             const urlGlobalUsers = `${protocol}://${domainName}/admin_api/application/global_users`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
                     const globalUsers = response.data.filter((user: IGlobalUser) => user.login.slice(-9) !== "api_admin");
@@ -268,7 +270,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     setReloadGlobalUsersTable(plaformAssistantDispatch, { reloadGlobalUsersTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setGlobalUsersLoading(false);
@@ -287,7 +289,7 @@ const PlatformAdminOptions: FC<{}> = () => {
         if (refreshTokensTable.length === 0 || reloadRefreshTokens) {
             const config = axiosAuth(accessToken);
             const urlRefreshTokens = `${protocol}://${domainName}/admin_api/auth/refresh_tokens`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlRefreshTokens, config)
                 .then((response) => {
                     const refreshTokens = response.data;
@@ -300,7 +302,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     setRefreshTokensLoading(false);
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setRefreshTokensLoading(false);

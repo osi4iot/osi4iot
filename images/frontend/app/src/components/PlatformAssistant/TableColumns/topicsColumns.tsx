@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
@@ -15,6 +15,9 @@ import {
     setTopicIdToEdit,
     setTopicRowIndexToEdit
 } from '../../../contexts/topicsOptions';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+
 
 export interface ITopic {
     id: number;
@@ -82,7 +85,7 @@ const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, device
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsTopicDeleted(true);
@@ -92,8 +95,7 @@ const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, device
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -163,7 +165,7 @@ const ChangeTopicHashModal: FC<ChangeTopicHashModalProps> = ({ rowIndex, groupId
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/changeUid/${topicId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .patch(url, null, config)
             .then((response) => {
                 setIsTopicHashChanged(true);
@@ -176,8 +178,7 @@ const ChangeTopicHashModal: FC<ChangeTopicHashModalProps> = ({ rowIndex, groupId
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

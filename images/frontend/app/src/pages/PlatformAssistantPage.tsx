@@ -3,13 +3,14 @@ import styled from "styled-components";
 import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
 import PlatformAssistantMenu from "./PlatformAssistantMenu";
-import { useAuthState } from "../contexts/authContext";
+import { useAuthDispatch, useAuthState } from "../contexts/authContext";
 import { usePlatformAssitantDispatch } from "../contexts/platformAssistantContext";
 import { axiosAuth, getDomainName, getProtocol } from "../tools/tools";
-import axios from "axios";
 import { setUserRole } from "../contexts/platformAssistantContext";
 import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 import PlatformAssistantHomeOptions from '../components/PlatformAssistant/PlatformAssistantHomeOptions/PlatformAssistantHomeOptions';
+import { getAxiosInstance } from "../tools/axiosIntance";
+import axiosErrorHandler from "../tools/axiosErrorHandler";
 
 
 const Container = styled.div`
@@ -35,22 +36,28 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const PlatformAssistantPage: FC<{}> = () => {
-	const { accessToken } = useAuthState();
+	const { accessToken, refreshToken } = useAuthState();
+	const authDispatch = useAuthDispatch();
 	const platformAssistantDispatch = usePlatformAssitantDispatch();
 
 	useEffect(() => {
 		const url = `${protocol}://${domainName}/admin_api/auth/user_managed_components`;
 		const config = axiosAuth(accessToken);
-		axios
+		getAxiosInstance(refreshToken, authDispatch)
 			.get(url, config)
 			.then((response) => {
 				const data = response.data;
 				setUserRole(platformAssistantDispatch, data);
 			})
 			.catch((error) => {
-				console.log(error);
+				axiosErrorHandler(error, authDispatch);
 			});
-	}, [accessToken, platformAssistantDispatch]);
+	}, [
+		accessToken,
+		refreshToken,
+        authDispatch,
+		platformAssistantDispatch
+	]);
 
 	return (
 		<>

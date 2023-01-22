@@ -15,11 +15,13 @@ import {
 } from '../../../contexts/groupsManagedOptions';
 import { GROUPS_MANAGED_OPTIONS } from '../Utils/platformAssistantOptions';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import DeleteModal from '../../Tools/DeleteModal';
 import ChangeModal from '../../Tools/ChangeModal';
 import { IGroupManagedData } from '../../../contexts/groupsManagedOptions/interfaces';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 interface AddGroupMembersProps {
@@ -80,7 +82,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/group/${groupId}/members`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsGroupMembersRemoved(true);
@@ -90,8 +92,7 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })
@@ -134,7 +135,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/group/${groupId}/change_uid`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .patch(url, null, config)
             .then((response) => {
                 setIsGroupHashChanged(true);
@@ -144,8 +145,7 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

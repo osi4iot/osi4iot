@@ -2,7 +2,7 @@ import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
 import { FeatureCollection } from 'geojson';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
@@ -16,7 +16,21 @@ import {
     useGroupsDispatch
 } from '../../../contexts/groupsOptions';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
-import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadNodeRedInstancesTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadDashboardsTable,
+    setReloadDevicesTable,
+    setReloadDigitalTwinsTable,
+    setReloadGroupMembersTable,
+    setReloadGroupsManagedTable,
+    setReloadGroupsMembershipTable,
+    setReloadNodeRedInstancesTable,
+    setReloadOrgsOfGroupsManagedTable,
+    setReloadTopicsTable,
+    usePlatformAssitantDispatch
+} from '../../../contexts/platformAssistantContext';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+
 
 export interface IGroup {
     id: number;
@@ -73,7 +87,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsGroupDeleted(true);
@@ -102,8 +116,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

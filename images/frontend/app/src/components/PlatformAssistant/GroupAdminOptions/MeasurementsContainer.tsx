@@ -1,6 +1,6 @@
 import React, { FC, useCallback, useMemo, useState } from 'react'
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { MEASUREMENTS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { ITopic } from '../TableColumns/topicsColumns';
 import {
@@ -15,6 +15,8 @@ import { ISelectTopic } from '../TableColumns/selectTopicColumns';
 import EditMeasurement from './EditMeasurement';
 import { IDevice } from '../TableColumns/devicesColumns';
 import timeRangeCalculator from '../../../tools/timeRangeCalculator';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 const giveMeasurementTopic = (devices: IDevice[], selectedTopic: ITopic) => {
     const deviceId = selectedTopic.deviceId;
@@ -65,7 +67,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
                 itemsPerPage
             }
             setMeasurementsLoading(true);
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .post(urlMeasurements, paginationData, config)
                 .then((response) => {
                     const measurements = response.data;
@@ -84,7 +86,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
                     setMeasurementsLoading(false);
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         }, [accessToken, refreshToken, authDispatch, startDate, endDate, groupId, measurementTopic]);
 

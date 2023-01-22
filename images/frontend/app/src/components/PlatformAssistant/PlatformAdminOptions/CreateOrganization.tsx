@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -29,6 +29,8 @@ import {
     setReloadTopicsTable,
     setReloadNodeRedInstancesTable
 } from '../../../contexts/platformAssistantContext';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 
@@ -176,7 +178,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
         }
 
         setIsSubmitting(true);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
             .then((response) => {
                 const data = response.data;
@@ -214,8 +216,7 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

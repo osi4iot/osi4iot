@@ -1,6 +1,6 @@
 import { FC, useEffect, useState, useCallback, Suspense } from 'react'
 import styled from "styled-components";
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import Loader from "../../Tools/Loader";
 import { PLATFORM_ASSISTANT_HOME_OPTIONS } from '../Utils/platformAssistantOptions';
@@ -43,6 +43,9 @@ import DigitalTwin3DViewer from '../DigitalTwin3DViewer/DigitalTwin3DViewer';
 import { toast } from 'react-toastify';
 import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
 import SceneLoader from '../../Tools/SceneLoader';
+import { useHistory } from 'react-router-dom';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -157,6 +160,7 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const PlatformAssistantHomeOptions: FC<{}> = () => {
+	const history = useHistory();
 	const { accessToken, refreshToken } = useAuthState();
 	const authDispatch = useAuthDispatch();
 	const plaformAssistantDispatch = usePlatformAssitantDispatch();
@@ -299,7 +303,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		if (buildingsTable.length === 0 || reloadBuildingsTable) {
 			const urlBuildings = `${protocol}://${domainName}/admin_api/buildings/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
-			axiosInstance(refreshToken, authDispatch)
+			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlBuildings, config)
 				.then((response) => {
 					const buildings = response.data;
@@ -314,15 +318,16 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
 				})
 				.catch((error) => {
-					console.log(error);
+					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
 			setBuildingsLoading(false);
 		}
 	}, [
-		accessToken,
 		refreshToken,
+		accessToken,
 		authDispatch,
+		history,
 		plaformAssistantDispatch,
 		reloadBuildingsTable,
 		buildingsTable.length
@@ -332,7 +337,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		if (floorsTable.length === 0 || reloadFloorsTable) {
 			const urlFloors = `${protocol}://${domainName}/admin_api/building_floors/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
-			axiosInstance(refreshToken, authDispatch)
+			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlFloors, config)
 				.then((response) => {
 					const floors = response.data;
@@ -344,14 +349,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
 				})
 				.catch((error) => {
-					console.log(error);
+					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
 			setFloorsLoading(false);
 		}
 	}, [
-		accessToken,
 		refreshToken,
+		accessToken,
 		authDispatch,
 		plaformAssistantDispatch,
 		reloadFloorsTable,
@@ -362,7 +367,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		if (orgsOfGroupsManagedTable.length === 0 || reloadOrgsOfGroupsManagedTable) {
 			const urlOrgsManaged = `${protocol}://${domainName}/admin_api/organizations/user_groups_managed/`;
 			const config = axiosAuth(accessToken);
-			axiosInstance(refreshToken, authDispatch)
+			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlOrgsManaged, config)
 				.then((response) => {
 					const orgsOfGroupsManaged = response.data;
@@ -372,14 +377,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
 				})
 				.catch((error) => {
-					console.log(error);
+					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
 			setOrgsOfGroupsManagedLoading(false);
 		}
 	}, [
-		accessToken,
 		refreshToken,
+		accessToken,
 		authDispatch,
 		plaformAssistantDispatch,
 		reloadOrgsOfGroupsManagedTable,
@@ -390,7 +395,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		if (groupsManagedTable.length === 0 || reloadGroupsManagedTable) {
 			const config = axiosAuth(accessToken);
 			const urlGroupsManaged = `${protocol}://${domainName}/admin_api/groups/user_managed`;
-			axiosInstance(refreshToken, authDispatch)
+			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlGroupsManaged, config)
 				.then((response) => {
 					const groupsManaged = response.data;
@@ -404,14 +409,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
 				})
 				.catch((error) => {
-					console.log(error);
+					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
 			setGroupsManagedLoading(false);
 		}
 	}, [
-		accessToken,
 		refreshToken,
+		accessToken,
 		authDispatch,
 		plaformAssistantDispatch,
 		groupsManagedTable.length,
@@ -423,7 +428,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		if (devicesTable.length === 0 || reloadDevicesTable) {
 			const config = axiosAuth(accessToken);
 			const urlDevices = `${protocol}://${domainName}/admin_api/devices/user_managed`;
-			axiosInstance(refreshToken, authDispatch)
+			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlDevices, config)
 				.then((response) => {
 					const devices = response.data;
@@ -433,14 +438,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
 				})
 				.catch((error) => {
-					console.log(error);
+					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
 			setDevicesLoading(false);
 		}
 	}, [
-		accessToken,
 		refreshToken,
+		accessToken,
 		authDispatch,
 		plaformAssistantDispatch,
 		devicesTable.length,
@@ -451,7 +456,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
 			const config = axiosAuth(accessToken);
 			const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
-			axiosInstance(refreshToken, authDispatch)
+			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlDigitalTwins, config)
 				.then((response) => {
 					const digitalTwins = response.data;
@@ -467,17 +472,19 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const digitalTwins: never[] = [];
 					setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
 					setDigitalTwinsLoading(false);
-					if (error.response !== undefined) {
-						const errorMessage = error.response.data.message;
-						if (errorMessage !== "jwt expired") toast.error(errorMessage);
-					} else {
-						console.log(error);
-					}
+					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
 			setDigitalTwinsLoading(false);
 		}
-	}, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadDigitalTwins, digitalTwinsTable.length]);
+	}, [
+		refreshToken,
+		accessToken,
+		authDispatch,
+		plaformAssistantDispatch,
+		reloadDigitalTwins,
+		digitalTwinsTable.length
+	]);
 
 	const clickHandler = (optionToShow: string) => {
 		setOptionToShow(optionToShow);

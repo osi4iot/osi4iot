@@ -5,7 +5,7 @@ import { toast } from 'react-toastify';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { BUILDINGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import {
@@ -18,6 +18,8 @@ import {
     setReloadFloorsTable,
     usePlatformAssitantDispatch
 } from '../../../contexts/platformAssistantContext';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 export interface IBuilding {
@@ -68,7 +70,7 @@ const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingI
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/building/${buildingId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsBuildingDeleted(true);
@@ -80,8 +82,7 @@ const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingI
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

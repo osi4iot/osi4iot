@@ -7,13 +7,15 @@ import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns'
 import SelectOrgOfGroupsManaged from './SelectOrgOfGroupsManaged';
 import SelectDevice from './SelectDevice';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
 import useInterval from '../../../tools/useInterval';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import SelectFloorWithState from './SelectFloorWithState';
 import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -121,20 +123,20 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
 
     useEffect(() => {
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .get(urlDigitalTwinsState, config)
             .then((response) => {
                 const digitalTwinsState = response.data;
                 setDigitalTwinsState(digitalTwinsState);
             })
             .catch((error) => {
-                console.log(error);
+                axiosErrorHandler(error, authDispatch);
             });
     }, [accessToken, refreshToken, authDispatch]);
 
     useInterval(() => {
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .get(urlDigitalTwinsState, config)
             .then((response) => {
                 const newDigitalTwinsState = response.data;
@@ -143,7 +145,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                 }
             })
             .catch((error) => {
-                console.log(error);
+                axiosErrorHandler(error, authDispatch);
             });
     }, 10000);
 

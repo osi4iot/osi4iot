@@ -4,13 +4,15 @@ import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
 import { FLOORS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setFloorsOptionToShow, useFloorsDispatch } from '../../../contexts/floorsOptions';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const FormContainer = styled.div`
@@ -155,7 +157,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
         }
 
         setIsSubmitting(true);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .post(url, floorData, config)
             .then((response) => {
                 const data = response.data;
@@ -166,8 +168,7 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
                 refreshFloors();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

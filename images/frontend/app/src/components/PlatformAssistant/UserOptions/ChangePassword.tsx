@@ -3,11 +3,13 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import FormikControl from "../../Tools/FormikControl";
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { toast } from "react-toastify";
 import FormButtonsProps from "../../Tools/FormButtons";
-import FormTitle from "../../Tools/FormTitle"
+import FormTitle from "../../Tools/FormTitle";
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -41,13 +43,13 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
         confirmPassword: Yup.string().oneOf([Yup.ref('newPassword'), null], "Passwords don't match!"),
     });
 
-    
+
     const onSubmit = (values: IChangePassword, actions: any) => {
         const url = `${protocol}://${domainName}/admin_api/auth/change_password`;
         const config = axiosAuth(accessToken);
         const passwordData = { oldPassword: values.oldPassword, newPassword: values.newPassword }
         setIsSubmitting(true);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .patch(url, passwordData, config)
             .then((response) => {
                 const data = response.data;
@@ -56,8 +58,7 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
                 backToUserProfile();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToUserProfile();
             })
     };

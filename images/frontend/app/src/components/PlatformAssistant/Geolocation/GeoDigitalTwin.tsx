@@ -9,11 +9,13 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import { IDigitalTwinState } from "./GeolocationContainer";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { createUrl, IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { toast } from "react-toastify";
 import { IMqttTopicData } from "../DigitalTwin3DViewer/Model";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
@@ -173,7 +175,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             const deviceId = digitalTwinData.deviceId;
             let urlDigitalTwinGltfData = `${protocol}://${domainName}/admin_api/digital_twin_gltfdata`;
             urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${deviceId}/${digitalTwinData.id}`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwinGltfData, config)
                 .then((response) => {
                     const digitalTwinGltfData = response.data;
@@ -192,8 +194,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                     openDigitalTwin3DViewer(digitalTwinGltfData);
                 })
                 .catch((error) => {
-                    const errorMessage = error.response.data.message;
-                    if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                    axiosErrorHandler(error, authDispatch);
                 });
 
         } else if (digitalTwinData.type === "Grafana dashboard") {

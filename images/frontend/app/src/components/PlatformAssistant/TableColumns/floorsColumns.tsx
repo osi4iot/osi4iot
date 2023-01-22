@@ -5,11 +5,17 @@ import { toast } from 'react-toastify';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { FLOORS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { setFloorIdToEdit, setFloorRowIndexToEdit, setFloorsOptionToShow, useFloorsDispatch } from '../../../contexts/floorsOptions';
-
+import {
+    setFloorIdToEdit,
+    setFloorRowIndexToEdit,
+    setFloorsOptionToShow,
+    useFloorsDispatch
+} from '../../../contexts/floorsOptions';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 export interface IFloor {
     id: number;
@@ -58,7 +64,7 @@ const DeleteFloorModal: FC<DeleteFloorModalProps> = ({ rowIndex, floorId, refres
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/building_floor/${floorId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsFloorDeleted(true);
@@ -68,8 +74,7 @@ const DeleteFloorModal: FC<DeleteFloorModalProps> = ({ rowIndex, floorId, refres
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

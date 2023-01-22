@@ -1,6 +1,5 @@
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
-import axios, { AxiosStatic } from 'axios';
-import createAuthRefreshInterceptor from 'axios-auth-refresh';
+
 
 export const isRegistrationRequest = () => {
     let isRegistrationReq = false;
@@ -87,26 +86,6 @@ export const getPlatformAssistantPathForUserRole = (userRole: string) => {
     return platformAssistantPath;
 }
 
-export const axiosInstance = (refreshToken: string, authDispatch: any): AxiosStatic => {
-    const domainName = getDomainName();
-    const protocol = getProtocol();
-
-    const udpateTokenUrl = `${protocol}://${domainName}/admin_api/auth/update_token`;
-    const config = axiosAuth(refreshToken);
-
-    // Function that will be called to refresh authorization
-    const refreshAuthLogic = (failedRequest: any) => axios.patch(udpateTokenUrl, null, config).then(tokenRefreshResponse => {
-        const data = tokenRefreshResponse.data;
-        localStorage.setItem('iot_platform_auth', JSON.stringify(data));
-        authDispatch({ type: 'REFRESH_TOKEN', payload: data });
-        failedRequest.response.config.headers['Authorization'] = 'Bearer ' + tokenRefreshResponse.data.accessToken;
-        return Promise.resolve();
-    });
-
-    // Instantiate the interceptor (you can chain it as it returns the axios instance)
-    createAuthRefreshInterceptor(axios, refreshAuthLogic);
-    return axios;
-}
 
 export const digitalTwinFormatValidation = (value: any) => {
     let output = false;

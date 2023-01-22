@@ -3,11 +3,18 @@ import { Column } from 'react-table';
 import AddUsersIcon from '../Utils/AddUsersIcon';
 import RemoveUsersIcon from '../Utils/RemoveUsersIcon';
 import { ORGS_MANAGED_OPTIONS } from '../Utils/platformAssistantOptions';
-import { useOrgsManagedDispatch, setOrgManagedIdToCreateOrgUsers, setOrgManagedRowIndex, setOrgsManagedOptionToShow } from '../../../contexts/orgsManagedOptions';
+import {
+    useOrgsManagedDispatch,
+    setOrgManagedIdToCreateOrgUsers,
+    setOrgManagedRowIndex,
+    setOrgsManagedOptionToShow
+} from '../../../contexts/orgsManagedOptions';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import DeleteModalWithSelect from '../../Tools/DeleteModalWithSelect';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 interface AddOrgUsersProps {
     rowIndex: number;
@@ -74,7 +81,7 @@ const RemoveAllOrgUsersModal: FC<RemoveAllOrgUsersModalProps> = ({ rowIndex, org
     const action = (hideModal: () => void, whoToRemove: string) => {
         const url = `${protocol}://${domainName}/admin_api/organization/${orgId}/users/${whoToRemove}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsGroupMembersRemoved(true);
@@ -84,8 +91,7 @@ const RemoveAllOrgUsersModal: FC<RemoveAllOrgUsersModalProps> = ({ rowIndex, org
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

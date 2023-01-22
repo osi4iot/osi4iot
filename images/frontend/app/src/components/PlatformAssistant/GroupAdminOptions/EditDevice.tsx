@@ -2,7 +2,7 @@ import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
@@ -19,6 +19,8 @@ import {
     setDevicesPreviousOption
 } from '../../../contexts/devicesOptions/devicesAction';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const FormContainer = styled.div`
@@ -219,7 +221,7 @@ const EditDevice: FC<EditDeviceProps> = ({
         const deviceInputFormData = { deviceInputFormData: deviceInitInputFormData };
         setDeviceInputData(devicesDispatch, deviceInputFormData);
 
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .patch(url, deviceEditData, config)
             .then((response) => {
                 const data = response.data;
@@ -230,8 +232,7 @@ const EditDevice: FC<EditDeviceProps> = ({
                 refreshDevices();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

@@ -1,6 +1,6 @@
 import React, { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import Loader from "../../Tools/Loader";
 import TableWithPagination from '../Utils/TableWithPagination';
@@ -21,6 +21,8 @@ import {
     setReloadOrgsMembershipTable,
     setReloadGroupsMembershipTable,
 } from '../../../contexts/platformAssistantContext';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const UserOptionsContainer = styled.div`
@@ -136,7 +138,7 @@ const UserOptions: FC<{}> = () => {
         if (userProfileTable.userId === 0 || reloadUserProfile) {
             const config = axiosAuth(accessToken);
             const urlUserProfile = `${protocol}://${domainName}/admin_api/auth/user_profile`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlUserProfile, config)
                 .then((response) => {
                     const userProfile = response.data;
@@ -144,7 +146,7 @@ const UserOptions: FC<{}> = () => {
                     setUserProfileLoading(false);
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setUserProfileLoading(false);
@@ -157,7 +159,7 @@ const UserOptions: FC<{}> = () => {
 
             const config = axiosAuth(accessToken);
             const urlMembershipInOrgs = `${protocol}://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInOrgs, config)
                 .then((response) => {
                     const orgsMembership = response.data;
@@ -167,7 +169,7 @@ const UserOptions: FC<{}> = () => {
                     setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setLoadingOrgsMembership(false);
@@ -185,7 +187,7 @@ const UserOptions: FC<{}> = () => {
         if (groupsMembershipTable.length === 0 || reloadGroupsMembershipTable) {
             const config = axiosAuth(accessToken);
             const urlMembershipInGroups = `${protocol}://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInGroups, config)
                 .then((response) => {
                     const groupsMembership = response.data;
@@ -195,7 +197,7 @@ const UserOptions: FC<{}> = () => {
                     setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setLoadinGroupsMembership(false);

@@ -3,9 +3,11 @@ import { toast } from 'react-toastify';
 import { FaTrash } from "react-icons/fa";
 import styled from "styled-components";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { ITopic } from "../TableColumns/topicsColumns";
 import DeleteModalWithDatePicker from "../../Tools/DeleteModalWithDatePicker";
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -69,7 +71,7 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
         const url = `${protocol}://${domainName}/admin_api/measurements_before_date/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);
         const headers = config.headers;
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, { data: payload, headers })
             .then((response) => {
                 setIsSubmitting(false);
@@ -79,8 +81,7 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

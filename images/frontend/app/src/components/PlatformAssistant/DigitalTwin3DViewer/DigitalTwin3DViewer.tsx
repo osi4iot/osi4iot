@@ -28,7 +28,7 @@ import {
 	generateInitialFemSimObjectsState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
@@ -36,6 +36,8 @@ import { useLoggedUserLogin } from '../../../contexts/authContext/authContext';
 import MqttConnector from './MqttHook/MqttConnector';
 import formatDateString from '../../../tools/formatDate';
 import { toast } from 'react-toastify';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 const CanvasContainer = styled.div`
 	background-color: #212121;
@@ -444,7 +446,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				const urlLastMeasurements = `${protocol}://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
 				const config = axiosAuth(accessToken);
 				const topicsIdArrayObj = { topicsIdArray }
-				axiosInstance(refreshToken, authDispatch)
+				getAxiosInstance(refreshToken, authDispatch)
 					.post(urlLastMeasurements, topicsIdArrayObj, config)
 					.then((response) => {
 						const lastMeasurements = response.data;
@@ -462,7 +464,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
 					})
 					.catch((error) => {
-						console.log(error);
+						axiosErrorHandler(error, authDispatch);
 						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
 					});
 			}
@@ -605,7 +607,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
 			const urlFemResFolderBase = `${urlBase}/${groupId}/${deviceId}/${digitalTwinId}`;
 			const urlFemResFolder = `${urlFemResFolderBase}/femResFiles`;
-			axiosInstance(refreshToken, authDispatch)
+			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlFemResFolder, config)
 				.then((response) => {
 					const femResFilesInfo: { fileName: string; lastModified: string }[] = response.data;
@@ -639,7 +641,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_download_file`;
 				const urlFemResFileBase = `${urlBase}/${groupId}/${deviceId}/${digitalTwinId}`;
 				const urlFemResFile = `${urlFemResFileBase}/femResFiles/${femResultFileName}`;
-				axiosInstance(refreshToken, authDispatch)
+				getAxiosInstance(refreshToken, authDispatch)
 					.get(urlFemResFile, config)
 					.then((response) => {
 						const femResData = response.data;

@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -11,6 +11,8 @@ import FormTitle from "../../Tools/FormTitle";
 import { MEASUREMENTS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IMeasurement } from '../TableColumns/measurementsColumns';
 import { setMeasurementsOptionToShow, useMeasurementRowIndexToEdit, useMeasurementsDispatch, useMeasurementTimestampToEdit } from '../../../contexts/measurementsOptions';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const FormContainer = styled.div`
@@ -84,7 +86,7 @@ const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, back
         };
         setIsSubmitting(true);
 
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .patch(url, updatedMesurement, config)
             .then((response) => {
                 const data = response.data;
@@ -97,8 +99,7 @@ const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, back
                 updateMeasurementsTable(newMesurementsTable);
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

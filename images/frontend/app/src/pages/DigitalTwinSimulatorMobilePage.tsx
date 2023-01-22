@@ -6,11 +6,14 @@ import Main from "../components/Layout/Main";
 import ServerError from "../components/Tools/ServerError";
 import { useAuthDispatch, useAuthState } from "../contexts/authContext";
 import { ChildrenProp } from "../interfaces/interfaces";
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../tools/tools";
 import MqttConnection from "../tools/MqttConnection";
 import { IDigitalTwinSimulator } from "../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
 import Slider from "../components/Tools/Slider";
 import { useLoggedUserLogin } from "../contexts/authContext/authContext";
+import { getAxiosInstance } from "../tools/axiosIntance";
+import axiosErrorHandler from "../tools/axiosErrorHandler";
+
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -192,7 +195,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 				const urlLastMeasurements = `${protocol}://${domainName}/admin_api/measurements_last_from_topicsid_array/${groupId}/`;
 				const config = axiosAuth(accessToken);
 				const topicsIdArrayObj = { topicsIdArray }
-				axiosInstance(refreshToken, authDispatch)
+				getAxiosInstance(refreshToken, authDispatch)
 					.post(urlLastMeasurements, topicsIdArrayObj, config)
 					.then((response) => {
 						const lastMeasurements = response.data;
@@ -210,7 +213,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
 					})
 					.catch((error) => {
-						console.log(error);
+						axiosErrorHandler(error, authDispatch);
 						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
 					});
 			}
@@ -220,7 +223,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 	useEffect(() => {
 		const urlDigitalTwinSimulators = `${protocol}://${domainName}/admin_api/digital_twin_simulators/user_managed`;
 		const config = axiosAuth(accessToken);
-		axiosInstance(refreshToken, authDispatch)
+		getAxiosInstance(refreshToken, authDispatch)
 			.get(urlDigitalTwinSimulators, config)
 			.then((response) => {
 				const digitalTwinSimulatorsManaged: IDigitalTwinSimulator[] = response.data;
@@ -228,7 +231,7 @@ const DigitalTwinSimulatorMobilePage: FC<ChildrenProp> = ({ children }) => {
 				if (digitalTwinSimulatorsManaged.length !== 0) setDigitalTwinSelectedIndex(0);
 			})
 			.catch((error) => {
-				console.log(error);
+				axiosErrorHandler(error, authDispatch);
 			});
 	}, [accessToken, authDispatch, refreshToken]);
 

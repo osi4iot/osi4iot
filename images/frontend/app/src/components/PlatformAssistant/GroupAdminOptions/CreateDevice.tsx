@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -14,6 +14,8 @@ import { IDeviceInputData } from '../../../contexts/devicesOptions/interfaces';
 import { setDeviceBuildingId, setDeviceGroupId, setDeviceInputData } from '../../../contexts/devicesOptions/devicesAction';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
 
 
 const FormContainer = styled.div`
@@ -198,7 +200,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
         }
 
         setIsSubmitting(true);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .post(url, deviceData, config)
             .then((response) => {
                 const data = response.data;
@@ -209,8 +211,7 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                 refreshDevices();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

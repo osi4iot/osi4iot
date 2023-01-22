@@ -1,15 +1,26 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { setDigitalTwinIdToEdit, setDigitalTwinRowIndexToEdit, setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
+import {
+    setDigitalTwinIdToEdit,
+    setDigitalTwinRowIndexToEdit,
+    setDigitalTwinsOptionToShow,
+    useDigitalTwinsDispatch
+} from '../../../contexts/digitalTwinsOptions';
 import { DigitalTwinSimulationParameter } from '../DigitalTwin3DViewer/ViewerUtils';
-import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadDashboardsTable,
+    setReloadTopicsTable,
+    usePlatformAssitantDispatch
+} from '../../../contexts/platformAssistantContext';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 export interface IDigitalTwin {
     id: number;
@@ -80,7 +91,7 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsDigitalTwinDeleted(true);
@@ -97,8 +108,7 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
 
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

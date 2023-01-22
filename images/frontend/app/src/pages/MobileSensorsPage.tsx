@@ -2,7 +2,7 @@ import { FC, useState,useEffect } from 'react';
 import Paho from "paho-mqtt";
 import { ChildrenProp } from '../interfaces/interfaces';
 import MqttConnection from '../tools/MqttConnection';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from '../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../tools/tools';
 import Header from '../components/Layout/Header';
 import Main from '../components/Layout/Main';
 import MobileSensorSelectForm from '../components/Tools/MobileSensorSelectForm';
@@ -11,6 +11,8 @@ import MobilePhotoForm from '../components/Tools/MobilePhotoForm';
 import { useAuthDispatch, useAuthState } from '../contexts/authContext';
 import { IMobileTopic } from '../components/PlatformAssistant/TableColumns/topicsColumns';
 import { useLoggedUserLogin } from '../contexts/authContext/authContext';
+import { getAxiosInstance } from '../tools/axiosIntance';
+import axiosErrorHandler from '../tools/axiosErrorHandler';
 
 export interface InitialMobileSensorData {
     orgAcronym: string;
@@ -38,7 +40,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	useEffect(() => {
 		const urlTopics = `${protocol}://${domainName}/admin_api/topics_in_mobile/user_managed`;
 		const config = axiosAuth(accessToken);
-		axiosInstance(refreshToken, authDispatch)
+		getAxiosInstance(refreshToken, authDispatch)
 			.get(urlTopics, config)
 			.then((response) => {
 				const mobileTopics: IMobileTopic[] = response.data;
@@ -60,7 +62,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 				setInitialMobileSensorData(initialMobileSensorData);
 			})
 			.catch((error) => {
-				console.log(error);
+				axiosErrorHandler(error, authDispatch);
 			});
 	}, [accessToken, refreshToken, authDispatch]);
 

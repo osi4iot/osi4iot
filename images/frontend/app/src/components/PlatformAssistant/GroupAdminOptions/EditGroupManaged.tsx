@@ -2,7 +2,7 @@ import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
@@ -21,6 +21,8 @@ import {
     useGroupsManagedDispatch
 } from '../../../contexts/groupsManagedOptions';
 import { IGroupManagedData } from '../../../contexts/groupsManagedOptions/interfaces';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const FormContainer = styled.div`
@@ -222,10 +224,7 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({
             nriInGroupIconRadio: values.nriInGroupIconRadio,
         }
 
-        // const groupManagedInputFormData = { groupManagedInputFormData: groupManagedUpdateData };
-        // setGroupManagedInputFormData(groupsManagedDispatch, groupManagedInputFormData);
-
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .patch(url, groupManagedUpdateData, config)
             .then((response) => {
                 const data = response.data;
@@ -236,8 +235,7 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({
                 refreshGroupsManaged();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

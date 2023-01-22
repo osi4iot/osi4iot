@@ -6,7 +6,6 @@ import { nanoid } from "nanoid";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import {
     axiosAuth,
-    axiosInstance,
     checkGltfFile,
     digitalTwinFormatValidation,
     getDomainName,
@@ -22,6 +21,8 @@ import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../c
 import { useFilePicker } from 'use-file-picker';
 import formatDateString from '../../../tools/formatDate';
 import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const FormContainer = styled.div`
@@ -326,7 +327,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         }
 
         setIsSubmitting(true);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .post(url, digitalTwinData, config)
             .then((response) => {
                 const data = response.data;
@@ -352,7 +353,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                     const gltfData = new FormData();
                     gltfData.append("file", gltfFile as File, gltfFileName);
                     const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
-                    axiosInstance(refreshToken, authDispatch)
+                    getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadGltfFile, gltfData, configMultipart)
                         .then((response) => {
                             toast.success(response.data.message);
@@ -368,14 +369,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                     const femResData = new FormData();
                     femResData.append("file", femResFile as File, "femResFile");
                     const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
-                    axiosInstance(refreshToken, authDispatch)
+                    getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadFemResFile, femResData, configMultipart)
                         .then((response) => {
                             toast.success(response.data.message);
                         })
                         .catch((error) => {
-                            const errorMessage = error.response.data?.message;
-                            if (errorMessage !== undefined && errorMessage !== "jwt expired") toast.error(errorMessage);
+                            axiosErrorHandler(error, authDispatch);
                             backToTable();
                         })
                 }
@@ -383,8 +383,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

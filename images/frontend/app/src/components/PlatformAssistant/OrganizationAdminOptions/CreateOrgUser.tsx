@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -12,7 +12,16 @@ import { useOrgManagedIdToCreateOrgUsers, useOrgManagedRowIndex } from '../../..
 import { IOrgUsersInput } from './OrgsManagedContainer';
 import SelectGlobalUsers from '../PlatformAdminOptions/SelectGlobalUsers';
 import { ISelectGlobalUser } from '../TableColumns/selectGlobalUserColumns';
-import { setReloadGroupMembersTable, setReloadGroupsMembershipTable, setReloadOrgsMembershipTable, setReloadSelectOrgUsersTable, useOrgsManagedTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadGroupMembersTable,
+    setReloadGroupsMembershipTable,
+    setReloadOrgsMembershipTable,
+    setReloadSelectOrgUsersTable,
+    useOrgsManagedTable,
+    usePlatformAssitantDispatch
+} from '../../../contexts/platformAssistantContext';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -149,7 +158,7 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
         const url = `${protocol}://${domainName}/admin_api/organization/${orgManagedId}/users`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
             .then((response) => {
                 const data = response.data;
@@ -166,8 +175,7 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

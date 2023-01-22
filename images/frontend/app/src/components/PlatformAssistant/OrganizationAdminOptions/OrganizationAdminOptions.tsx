@@ -1,7 +1,7 @@
 import { FC, useEffect, useState, useCallback } from 'react'
 import styled from "styled-components";
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import Loader from "../../Tools/Loader";
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { ORG_ADMIN_OPTIONS } from '../Utils/platformAssistantOptions';
@@ -45,6 +45,8 @@ import { filterFloors } from '../../../tools/filterFloors';
 import { IGlobalUser } from '../TableColumns/globalUsersColumns';
 import { NodeRedInstancesProvider } from '../../../contexts/nodeRedInstancesOptions';
 import NodeRedInstancesInOrgsContainer from './NodeRedInstancesInOrgsContainer';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const OrganizationAdminOptionsContainer = styled.div`
@@ -190,7 +192,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         if (buildingsTable.length === 0 || reloadBuildings) {
             const urlBuildings = `${protocol}://${domainName}/admin_api/buildings/user_groups_managed/`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlBuildings, config)
                 .then((response) => {
                     const buildings = response.data;
@@ -200,7 +202,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setBuildingsFiltered(buildingsFiltered);
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setBuildingsLoading(false);
@@ -218,7 +220,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         if (floorsTable.length === 0 || reloadFloors) {
             const urlFloors = `${protocol}://${domainName}/admin_api/building_floors/user_groups_managed/`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlFloors, config)
                 .then((response) => {
                     const floors = response.data;
@@ -228,7 +230,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setFloorsFiltered(floorsFiltered);
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setFloorsLoading(false);
@@ -261,7 +263,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         if (orgsManagedTable.length === 0 || reloadOrgsManagedTable) {
             const urlOrgsManaged = `${protocol}://${domainName}/admin_api/organizations/user_managed/`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsManaged, config)
                 .then((response) => {
                     const orgsManaged = response.data;
@@ -271,7 +273,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setOrgsManagedLoading(false);
@@ -289,7 +291,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         if (nodeRedInstancesTable.length === 0 || reloadNodeRedInstancesTable) {
             const urlNodeRedInstances = `${protocol}://${domainName}/admin_api/nodered_instances/user_managed`;
             const config = axiosAuth(accessToken);
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlNodeRedInstances, config)
                 .then((response) => {
                     const nodeRedInstances = response.data;
@@ -304,7 +306,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
 
         } else {
@@ -323,7 +325,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         if (orgUsersTable.length === 0 || reloadOrgUsersTable) {
             const config = axiosAuth(accessToken);
             const urlOrganizationUsers = `${protocol}://${domainName}/admin_api/organization_users/user_orgs_managed/`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizationUsers, config)
                 .then((response) => {
                     const orgUsers = response.data.filter((user: IOrgUser) => user.login.slice(-9) !== "api_admin");
@@ -339,7 +341,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setReloadGlobalUsersTable(plaformAssistantDispatch, { reloadGlobalUsersTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setOrgUsersLoading(false);
@@ -357,7 +359,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         if (groupsTable.length === 0 || reloadGroupsTable) {
             const config = axiosAuth(accessToken);
             const urlGroups = `${protocol}://${domainName}/admin_api/groups/user_managed`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGroups, config)
                 .then((response) => {
                     const groups = response.data;
@@ -371,7 +373,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setGroupsLoading(false);
@@ -389,7 +391,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
         if (globalUsersTable.length === 0 || reloadOrgUsersTable) {
             const config = axiosAuth(accessToken);
             const urlGlobalUsers = `${protocol}://${domainName}/admin_api/application/global_users`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
                 .then((response) => {
                     const globalUsers = response.data.filter((user: IGlobalUser) => user.login.slice(-9) !== "api_admin");
@@ -402,7 +404,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setGlobalUsersLoading(false);
                 })
                 .catch((error) => {
-                    console.log(error);
+                    axiosErrorHandler(error, authDispatch);
                 });
         } else {
             setGlobalUsersLoading(false);

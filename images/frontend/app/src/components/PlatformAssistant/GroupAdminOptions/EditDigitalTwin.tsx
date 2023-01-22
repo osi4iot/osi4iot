@@ -4,7 +4,7 @@ import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, axiosInstance, checkGltfFile, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, checkGltfFile, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -15,6 +15,8 @@ import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import Loader from '../../Tools/Loader';
 import formatDateString from '../../../tools/formatDate';
 import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 
 const FormContainer = styled.div`
@@ -193,7 +195,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             const urlDigitalTwinFileListBase0 = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
             const urlDigitalTwinFileListBase = `${urlDigitalTwinFileListBase0}/${groupId}/${deviceId}/${digitalTwinId}`;
             const urlGltfFileList = `${urlDigitalTwinFileListBase}/gltfFile`;
-            axiosInstance(refreshToken, authDispatch)
+            getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGltfFileList, config)
                 .then((response) => {
                     const gltfFileInfo = response.data;
@@ -201,7 +203,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         setGltfFileName(gltfFileInfo[0].fileName.split("/")[5]);
                         setGltfFileLastModif(gltfFileInfo[0].lastModified);
                         const urlfemResFileList = `${urlDigitalTwinFileListBase}/femResFiles`;
-                        axiosInstance(refreshToken, authDispatch)
+                        getAxiosInstance(refreshToken, authDispatch)
                             .get(urlfemResFileList, config)
                             .then((response) => {
                                 const femResFileList: { fileName: string, lastModified: string }[] = response.data;
@@ -215,8 +217,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 setIsSubmitting(false);
                             })
                             .catch((error) => {
-                                const errorMessage = error.response.data.message;
-                                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                                axiosErrorHandler(error, authDispatch);
                                 setDigitalTwinGltfDataLoading(false);
                             })
                     } else {
@@ -286,14 +287,13 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 femResData.append("file", femResFile as File, values.femResDataFileName);
                 const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${values.femResDataFileName}`;
                 try {
-                    const response = await axiosInstance(refreshToken, authDispatch)
+                    const response = await getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadFemResFile, femResData, configMultipart)
                     if (response) {
                         toast.success(response.data.message);
                     }
                 } catch (error: any) {
-                    const errorMessage = error.response.data?.message;
-                    if (errorMessage !== undefined && errorMessage !== "jwt expired") toast.error(errorMessage);
+                    axiosErrorHandler(error, authDispatch);
                     backToTable();
                 }
             }
@@ -308,14 +308,13 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 gltfData.append("file", gltfFile as File, values.gltfFileName);
                 const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${values.gltfFileName}`;
                 try {
-                    const response = await axiosInstance(refreshToken, authDispatch)
+                    const response = await getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadGltfFile, gltfData, configMultipart);
                     if (response) {
                         toast.success(response.data.message);
                     }
                 } catch (error: any) {
-                    const errorMessage = error.response.data?.message;
-                    if (errorMessage !== undefined && errorMessage !== "jwt expired") toast.error(errorMessage);
+                    axiosErrorHandler(error, authDispatch);
                     backToTable();
                 }
             }
@@ -332,7 +331,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
         }
 
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .patch(url, digitalTwinData, config)
             .then((response) => {
                 const data = response.data;
@@ -348,8 +347,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
     }

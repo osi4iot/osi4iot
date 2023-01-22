@@ -528,7 +528,8 @@ const finalQuestions = (
 				default: 86400,
 				validate: function (tokenLifeTime) {
 					let valid = false;
-					if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 3600) valid = true;
+					// if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 3600) valid = true;
+					if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 0) valid = true;
 					if (valid) {
 						return true;
 					} else {
@@ -542,7 +543,8 @@ const finalQuestions = (
 				default: 604800,
 				validate: function (tokenLifeTime) {
 					let valid = false;
-					if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 3600) valid = true;
+					// if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 3600) valid = true;
+					if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 0) valid = true;
 					if (valid) {
 						return true;
 					} else {
@@ -556,7 +558,8 @@ const finalQuestions = (
 				default: 31536000,
 				validate: function (tokenLifeTime) {
 					let valid = false;
-					if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 86400) valid = true;
+					// if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 86400) valid = true;
+					if (tokenLifeTime !== "" && Number(tokenLifeTime) >= 0) valid = true;
 					if (valid) {
 						return true;
 					} else {

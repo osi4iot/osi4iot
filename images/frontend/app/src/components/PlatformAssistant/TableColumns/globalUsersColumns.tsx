@@ -1,14 +1,20 @@
 import { FC, useEffect, useState } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { useGlobalUsersDispatch } from '../../../contexts/globalUsersOptions';
 import { GLOBAL_USERS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { setGlobalUserIdToEdit, setGlobalUserRowIndexToEdit, setGlobalUsersOptionToShow } from '../../../contexts/globalUsersOptions';
+import {
+    setGlobalUserIdToEdit,
+    setGlobalUserRowIndexToEdit,
+    setGlobalUsersOptionToShow
+} from '../../../contexts/globalUsersOptions';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 export interface IGlobalUser {
     id: number;
@@ -57,7 +63,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/application/global_user/id/${globalUserId}`;
         const config = axiosAuth(accessToken);
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
             .then((response) => {
                 setIsGlobalUserDeleted(true);
@@ -67,8 +73,7 @@ const DeleteGlobalUserModal: FC<DeleteGlobalUserModalProps> = ({ rowIndex, globa
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })

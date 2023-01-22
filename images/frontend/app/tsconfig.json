@@ -16,5 +16,9 @@
 		"noEmit": true,
 		"jsx": "react-jsx"
 	},
-	"include": ["src", "src/tools/ReadingAccelerations.tsx", "src/contexts/orgsOptions/index.tsx"]
+	"include": [
+		"src", 
+		"src/tools/ReadingAccelerations.tsx", 
+		"src/contexts/orgsOptions/index.tsx"
+	]
 }

@@ -1,7 +1,7 @@
 import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { toast } from 'react-toastify';
-import { axiosAuth, getDomainName, axiosInstance, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import EditIcon from '../Utils/EditIcon';
 import DeleteIcon from '../Utils/DeleteIcon';
@@ -13,6 +13,8 @@ import {
     setMeasurementTimestampToEdit,
     setMeasurementRowIndexToEdit
 } from '../../../contexts/measurementsOptions';
+import { getAxiosInstance } from '../../../tools/axiosIntance';
+import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 export interface IMeasurement {
     timestamp: number;
@@ -63,7 +65,7 @@ const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({ groupId, topi
         const url = `${protocol}://${domainName}/admin_api/measurement/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);
         const headers = config.headers;
-        axiosInstance(refreshToken, authDispatch)
+        getAxiosInstance(refreshToken, authDispatch)
             .delete(url, { data: payload, headers })
             .then((response) => {
                 setIsMeasurementDeleted(true);
@@ -73,8 +75,7 @@ const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({ groupId, topi
                 hideModal();
             })
             .catch((error) => {
-                const errorMessage = error.response.data.message;
-                if(errorMessage !== "jwt expired") toast.error(errorMessage);
+                axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
             })
