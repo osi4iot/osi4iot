@@ -60,6 +60,7 @@ import {
 } from "../nodeRedInstance/nodeRedInstanceDAL";
 import UpdateGroupManagedDto from "./interfaces/groupManagedUpdate.dto";
 import rhumbDestination from "@turf/rhumb-destination";
+import { updateMeasurementsGroupUid } from "../mesurement/measurementDAL";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -667,6 +668,7 @@ class GroupController implements IController {
 			const newGroupUid = await changeGroupUidByUid(req.group);
 			await updateDashboardsDataRawSqlOfGroup(req.group, newGroupUid, dashboards);
 			await updateGroupUidOfRawSqlAlertSettingOfGroup(req.group, newGroupUid);
+			await updateMeasurementsGroupUid(req.group, newGroupUid);
 			const message = { message: "Group hash changed successfully" };
 			res.status(200).send(message);
 		} catch (error) {

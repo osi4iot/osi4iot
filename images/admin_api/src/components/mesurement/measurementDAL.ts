@@ -1,5 +1,6 @@
 import timescaledb_pool from "../../config/timescaledb_config";
 import IDevice from "../device/device.interface";
+import IGroup from "../group/interfaces/Group.interface";
 import ITopic from "../topic/topic.interface";
 import { getTopicsByDeviceId } from "../topic/topicDAL";
 import IMeasurement from "./measurement.interface";
@@ -140,5 +141,11 @@ export const updateMeasurementsTopicByTopic = async (device: IDevice, topic: ITo
 	const newTopic = `Device_${device.deviceUid}/Topic_${newTopicUid}`;
 	await timescaledb_pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`, [newTopic, oldTopic]);
 }
+
+export const updateMeasurementsGroupUid = async (group: IGroup, newGroupUid: string): Promise<void> => {
+	const oldGroupUid = group.groupUid;
+	await timescaledb_pool.query(`UPDATE iot_data.thingData SET group_uid = $1 WHERE group_uid = $2;`, [newGroupUid, oldGroupUid]);
+}
+
 
 
