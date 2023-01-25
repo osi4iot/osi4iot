@@ -47,10 +47,7 @@ The OSI4IOT platform has been developed to give answer to all the elements requi
 - [x] Digital twin model
 - [x] Dashboard
 - [ ] Machine Learning 
-- [ ] 
-- [ ] 
-- [ ] 
-- [ ] 
+
 
 ## Quickstart (For The Impatient)
 
@@ -81,7 +78,7 @@ The Command Line Interface (CLI) can be installed by running the appropriate scr
 
 >./utils/osi4iot_cli/dist/
 
-<details>
+<!-- <details> -->
 <summary>Distribution information</summary>
 <p>
 
@@ -100,9 +97,9 @@ The folders for installation found in the subfolder indicate the type of operati
 The ARM architecture in Linux is specially build for low consuming microprocessors such as Raspberry Pi or similar. These types of microprocessors are very common in the building of any IOT infrastructure.
 
 </p>
-</details>
+<!-- </details> -->
 
-<details>
+<!-- <details> -->
 <summary>CLI installation</summary>
 <p>
 
@@ -124,14 +121,115 @@ And execute the installer
     bash osi4iot_installer_linux_arm64.sh
 
 </p>
-</details>
+<!-- </details> -->
 
-<details>
+<!-- <details> -->
 <summary>Platform initialization</summary>
 <p>
 
+If the Platform CLI has been correctly installed, then initialize the platform by typing
+
+    osi4iot
+
+A message prompt similar to this should appear:
+
+    ************************************************
+    **   WELCOME TO OSI4IOT PLATFORM CLI v1.1.0  **
+    ************************************************
+
+    ? Select the place of deployment of the platform: (Use arrow keys)
+    > Local deployment
+    On-premise cluster deployment
+    AWS cluster deployment
+
+<!-- <details> -->
+<summary> Local Deployment </summary> 
+<p>
+
+Select the local deployment option. The following options will be available
+
+    ************************************************
+    **   WELCOME TO OSI4IOT PLATFORM CLI v1.1.0  **
+    ************************************************
+
+    ? Select the place of deployment of the platform: Local deployment
+
+    Init platform
+    Run platform
+    Clear screen
+    List organizations
+    Create organization
+    Update organization
+    Remove organization
+    Recover nodered instances
+    List nodes
+    Add nodes
+    Remove node
+    Update domain certs
+    Platform status
+    Stop platform
+    Delete platform
+    Exit
+
+To initialize the platform for first time, use
+
+    Init platform
+
+Several fields will be then prompt to be input. If enter pressed, the option between parenthesis will be inserted instead.
+
+    ************************************************
+    **   WELCOME TO OSI4IOT PLATFORM CLI v1.1.0  **
+    ************************************************
+
+    ? Select the place of deployment of the platform: Local deployment
+
+    ? Choose one of the following options:  Init platform
+    ? Platform name: OSI-DEMO
+    ? Domain name: iot_fiber4yards_demo.org
+    ? Platform motivational phrase: Open source integration for internet of things
+    ? Platform admin first name: admin_f4y
+    ? Platform admin last name: demo
+    ? Platform admin user name: admin_f4y_demo
+    ? Platform admin email: admin_f4y_demo@gmail.com
+    ? Platform admin password: **************
+    ? Retype platform admin password: **************
+    ? Min longitude of the geographical zone of the platform: -10.56884765625
+    ? Max longitude of the geographical zone of the platform: 1.42822265625
+    ? Min latitude of the geographical zone of the platform: 35.55010533588552
+    ? Max latitude of the geographical zone of the platform: 44.134913443750726
+    ? Default time zone: Europe/Madrid
+    ? Main organization name: My main org
+    ? Main organization acronym: MYORG
+    ? Main organization address: fake street, fake number
+    ? Main organization city: fake city
+    ? Main organization zip code: 00000
+    ? Main organization state/province: fake province
+    ? Main organization country: Spain
+    ? Telegram boottoken for main organization default group: 5342540378:AAHrJ4ABFiX54m6uf9RvxHxLRKeo0dGiHA0
+    ? Telegram chat id for main organization default group: -694425020
+    ? Telegram invitation link for main organization default group: https://t.me/+MgGprvw5SAozODq0
+    ? Number of node-red instances in main org: 3
+    ? Email account for platform notifications: admin_f4y_demo@gmail.com
+    ? Email account password: **************
+    ? S3 storage bucket name: osi-demo
+
+The different entries are defined in [![Link:local_deployment](https://img.shields.io/badge/Local_Deployment-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/local_deployment_entries.md).
+
+Next, select the type of certificate for your domain SSL certification.
+
+    ? Choose the type of domain ssl certs to be used: (Use arrow keys)
+    > No certs
+    Certs provided by an CA
+    Let's encrypt certs and AWS Route 53
+    AWS Certificate Manager
+
+A guideline for the SSL certificates is found in [![Link:ssl_certs](https://img.shields.io/badge/SSL_Certs-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/ssl_certs.md).
+
 </p>
-</details>
+<!-- </details> -->
+
+</p>
+<!-- </details> -->
 
 ## Other Instructions, Specifications, Attributes, or Project Info
 <!-- ### Docker  -->
