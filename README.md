@@ -78,7 +78,7 @@ The Command Line Interface (CLI) can be installed by running the appropriate scr
 
 >./utils/osi4iot_cli/dist/
 
-<!-- <details> -->
+<details>
 <summary>Distribution information</summary>
 <p>
 
@@ -97,9 +97,9 @@ The folders for installation found in the subfolder indicate the type of operati
 The ARM architecture in Linux is specially build for low consuming microprocessors such as Raspberry Pi or similar. These types of microprocessors are very common in the building of any IOT infrastructure.
 
 </p>
-<!-- </details> -->
+</details>
 
-<!-- <details> -->
+<details>
 <summary>CLI installation</summary>
 <p>
 
@@ -121,9 +121,9 @@ And execute the installer
     bash osi4iot_installer_linux_arm64.sh
 
 </p>
-<!-- </details> -->
+</details>
 
-<!-- <details> -->
+<details>
 <summary>Platform initialization</summary>
 <p>
 
@@ -142,7 +142,7 @@ A message prompt similar to this should appear:
     On-premise cluster deployment
     AWS cluster deployment
 
-<!-- <details> -->
+<details>
 <summary> Local Deployment </summary> 
 <p>
 
@@ -226,10 +226,10 @@ Next, select the type of certificate for your domain SSL certification.
 A guideline for the SSL certificates is found in [![Link:ssl_certs](https://img.shields.io/badge/SSL_Certs-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/ssl_certs.md).
 
 </p>
-<!-- </details> -->
+</details>
 
 </p>
-<!-- </details> -->
+</details>
 
 ## Other Instructions, Specifications, Attributes, or Project Info
 <!-- ### Docker  -->
