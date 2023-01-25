@@ -18,11 +18,11 @@
 
 <!-- ![img:frontpage_dataflow](./docs/img/frontpage_dataflow.png) -->
 
-OSI4IOT is an IOT platform based in the integration of several open source packages with custom code. 
+OSI4IOT is an IOT platform based in the integration of several open source packages with custom code. This repository contains implementation of the OSI4OT platform.
 
 ## Description
 
-This repository contains implementation of the OSI4OT platform. This platform allows the creation of digital twins with their respective 3D representation which is updated in real time based on the values received from sensors.
+This platform allows the creation of Digital Twins Models (DTM). A 3D respresentation of these DTM can be visualized in the web user interface of the platform. The different objects of the models are animated in function of the values recieved from sensors. Results provided by the Finite Elements Method can be integrated in the DTM. 
 
 ![img:description_tank](./docs/img/description_tank.png)
 
