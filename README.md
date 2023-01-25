@@ -213,7 +213,7 @@ Several fields will be then prompt to be input. If enter pressed, the option bet
     ? Email account password: **************
     ? S3 storage bucket name: osi-demo
 
-The different entries are defined in [![Link:local_deployment](https://img.shields.io/badge/Local_Deployment-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/local_deployment_entries.md).
+The different entries are defined in [![Link:local_deployment](https://img.shields.io/badge/Local_Deployment-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/local_deployment.md).
 
 Next, select the type of certificate for your domain SSL certification.
 
