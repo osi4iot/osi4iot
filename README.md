@@ -22,7 +22,7 @@ OSI4IOT is an IOT platform based in the integration of several open source packa
 
 ## Description
 
-This OSI4IOT platform allows the creation of Digital Twins Models (DTM). A 3D respresentation of these DTM can be visualized in the web user interface of the platform. The different objects of the DTM are animated in function of the values recieved from sensors. Results provided by the Finite Elements Method can be integrated in the DTM. <br/><br/>
+This OSI4IOT platform allows the creation of Digital Twins Models (DTM). A 3D respresentation of these DTM can be visualized in the web user interface of the platform. The different objects of the DTM are animated in function of the values recieved from sensors. Results provided by the Finite Elements Method can be integrated in the DTM. <br/>
 
 ![img:description_tank](./docs/img/description_tank.png)
 
