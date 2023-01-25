@@ -18,11 +18,11 @@
 
 <!-- ![img:frontpage_dataflow](./docs/img/frontpage_dataflow.png) -->
 
-Open Source Integration for Internet Of Things (IoT) is a framework that facilitates the integration of open-source software and hardware in IoT devices.
+OSI4IOT is an IOT platform based in the integration of several open source packages with custom code. 
 
 ## Description
 
-This repository contains implementation of Open Source Integration for IoT devices. The OSI model is a framework that describes how different open-source software and hardware components can be integrated in IoT devices. By understanding and applying the OSI model, developers can build robust, flexible and cost-effective IoT systems.
+This repository contains implementation of the OSI4OT platform. This platform allows the creation of digital twins with their respective 3D representation which is updated in real time based on the values received from sensors.
 
 ![img:description_tank](./docs/img/description_tank.png)
 
@@ -38,7 +38,7 @@ This repository contains implementation of Open Source Integration for IoT devic
 - [Test](#test)
 - [Example](#example)
 ## About
-The OSI4IOT platform has been developed to give answer to all the elements required in the Shipyard 4.0 strategy. The OSI4IOT name stand for "Open Source Integration For Internet of Thing". This project continues in development and can be download from the web address: https://github.com/osi4iot/osi4iot.
+The OSI4IOT platform has been developed to give answer to all the elements required in the Industry 4.0 strategy. The OSI4IOT name stand for "Open Source Integration For Internet of Thing". 
 
 ## Status
 
