@@ -126,6 +126,6 @@ The different entries found when the platform is initialize are:
     
 * S3 storage bucket name: 
 
-    The platform allows to store the data inside AWS S3 service and also locally using the [minio](minio.io) technology, which offers native export support to AWS S3. By default
+    The platform allows to store the data inside AWS S3 service and also locally using the [minio](http://minio.io) technology, which offers native export support to AWS S3. By default
 
         (osi-demo)
