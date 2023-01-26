@@ -4,57 +4,67 @@
 
 [![Telegram](https://img.shields.io/badge/Telegram-gray?style=flat&logo=telegram&link=https://web.telegram.org/k/)](https://web.telegram.org/k/)
 
+To create a telegram bot notification system, you need to adquire these 3 following things.
 
 -	Telegram bot token.
 -	Group id of Telegram for main organization default group.
 -	Telegram invitation link for main organization default group.
 
-BotFather is a simple way to create a bot in telegram.
- 
-Figure 2. BotFather icon.
-First you need to send a message to BotFather. Visit: 
-https://telegram.me/botfather
-Then to start creating a bot type:
-/start
- 
-Figure 3. BotFather: List of commands available.
-To create a bot, use
-	/newbot
- 
-Figure 4. BotFather: New bot.
-Then complete the prompts required by the BotFather form.
- 
-Figure 5. BotFather: Fill the requirements.
-If everything has gone correctly, the bot token will be generated.
- 
-Figure 6. BotFather: Bot token successfuly created.
+One of the simplest ways to create a bot is using the BotFather's telegram application. Search the bot by typing `BotFather` in the telegram search bar.
 
-Once the bot token and the bot has been created. Create a Group and add the bot you have created. Select New Group.
- 
-Figure 7. Create a Telegram group.
-Then it will prompt to add members. Remember that when the bot was created it provides you a link to send a message to it. Here the username will be shown with an @ at the beginning of the username.
- 
-Figure 8. Profile of the bot created.
-Add the bot as a Member of the group your are creating.
- 
-Figure 9. Add members to the telegram group.
-When all the group members have been added beside the bot, you will be prompt to fill the Group Name.
- 
-Figure 10. Fill the group name.
-Then the group is created and this should be visible on the screen.
- 
-Figure 11. Group created.
-When the group is created, now you have the three following things:
-•	Bot token: 5342540378:AAHrJ4ABFiX54m6uf9RvxHxLRKeo0dGiHA0
-•	Chat id: -694425020
-•	Invitation Url: https://t.me/+MgGprvw5SAozODq0
-Note that the Bot token is obtained from the BotFather chat, after filling the form. These three keys are needed later when creating an organization in the Command Line Interface (CLI) of the platform. In particular when initialising the platform.
+![Telegram:botfather:0](./img/resize_50/telegram_botfather_search.jpg)
 
- 
-Figure 12. CLI input: telegram bot token.
- 
-Figure 13. CLI input: chat id.
- 
-Figure 14. CLI input: invitation link.
+Or visit the following link https://telegram.me/botfather and click send message.
 
 
+Then to start creating a bot by typing `/start` in the conversation or click the start button.
+
+![Telegram:botfather:1](./img/resize_50/telegram_botfather_1.jpg)
+
+![Telegram:botfather:2](./img/resize_50/telegram_botfather_2.png)
+
+To create a bot use	`/newbot`
+
+![Telegram:botfather:3](./img/resize_50/telegram_botfather_3.jpg)
+
+Then complete the Botfather form.
+
+![Telegram:botfather:4](./img/resize_50/telegram_botfather_4.png)
+
+Once completed you should receive a similar message to this. In here you will obtain the `bot token`.
+
+![Telegram:botfather:5](./img/resize_50/telegram_botfather_5.png)
+
+Then create a new group.
+
+![Telegram:botfather:6](./img/resize_50/telegram_botfather_6.png)
+
+Then it will allow you to add members. Remember that when the bot was created it provides you a link to send a message to it. Here the username will be shown with an @ at the beginning of the username.
+
+![Telegram:botfather:7](./img/resize_50/telegram_botfather_7.png)
+
+Add the bot.
+
+![Telegram:botfather:8](./img/resize_50/telegram_botfather_8.png)
+
+Name the group.
+
+![Telegram:botfather:9](./img/resize_50/telegram_botfather_9.png)
+
+If you succeeded in creating the group. Now you can obtain the `chat id` and the `telegram invitation link`. The `chat id` can be obtained from the id after the last *#* in the URL displayed in the browser. The `telegram invitation link` will be given in the profile information. 
+
+![Telegram:botfather:10](./img/resize_50/telegram_botfather_10.png)
+
+
+In this example, the `bot token`, `chat id` and `telegram invitation link` where.
+
+* Bot token: **5342540378:AAHrJ4ABFiX54m6uf9RvxHxLRKeo0dGiHA0**
+* Chat id: **-694425020**
+* Invitation Url: **https://t.me/+MgGprvw5SAozODq0**
+
+Save the `bot token`, `chat id` and `telegram invitation link` to later be inputed in the Command Line Interface (CLI) of the platform when being initializing.
+
+![Telegram:botfather:11](./img/resize_50/telegram_botfather_11.png)
+
+
+ 

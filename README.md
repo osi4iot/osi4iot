@@ -213,7 +213,7 @@ Several fields will be then prompt to be input. If enter pressed, the option bet
     ? Email account password: **************
     ? S3 storage bucket name: osi-demo
 
-The different entries are defined in [![Link:local_deployment](https://img.shields.io/badge/Local_Deployment-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/local_deployment.md).
+A guideline for the local deployment can be found in [![Link:local_deployment](https://img.shields.io/badge/Local_Deployment-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/local_deployment.md).
 
 Next, select the type of certificate for your domain SSL certification.
 
@@ -225,11 +225,19 @@ Next, select the type of certificate for your domain SSL certification.
 
 A guideline for the SSL certificates is found in [![Link:ssl_certs](https://img.shields.io/badge/SSL_Certs-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/ssl_certs.md).
 
-</p>
-</details>
+If the certificates are correctly introduced, the platform should be installed. A similar image to this one should be obtained.
+
+![local:CA:0](./docs/img/cli_installed.jpg)
 
 </p>
 </details>
+
+Now the platform should be accessible through the browser.
+
+</p>
+</details>
+
+
 
 ## Other Instructions, Specifications, Attributes, or Project Info
 <!-- ### Docker  -->

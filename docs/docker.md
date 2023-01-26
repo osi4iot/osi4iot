@@ -8,7 +8,7 @@ The platform runs using Docker. Docker is an innovative open platform for develo
 To install Docker, refer to their website https://www.docker.com/ , and install the Docker Desktop for your OS.
 
 
-
+<!-- 
 ___
 ___
 ___
@@ -181,4 +181,4 @@ The following instruction is required when installing the osi4iot platform in th
 
 <pre class="bash">
 <div>pi@ubuntu: ~</div>
-<code class="bash"><div><div style="width:fit-content;">pi@ubuntu:~$</div><div  style="width:fit-content;">sudo apt install linux-modules-extra-raspi</div></div></code></pre>
+<code class="bash"><div><div style="width:fit-content;">pi@ubuntu:~$</div><div  style="width:fit-content;">sudo apt install linux-modules-extra-raspi</div></div></code></pre> -->
