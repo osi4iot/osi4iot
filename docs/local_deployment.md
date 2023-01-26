@@ -1,6 +1,25 @@
 # Local Deployment 
 
-## Init platform
+## Options listed in the main screen
+
+![cli:local:main](./img/cli_local_main.jpg)
+
+1. Init platform: Initiate the platform.
+2. Run platform: to run it if stopped.
+3. List organizations: retrieve the list of organisations.
+4. Create organization: creates an organization.
+5. Update organization: updates the information of an existing organization.
+6. Remove organization: removes an organization.
+7. List nodes: retrieve the list of nodes.
+8. Add nodes: adds nodes to the platform.
+9. Remove node: removes a node from the platform.
+10. Update domain certs: update the certificates of the platform is certificates where selected.
+11. Platform status: retrieves the status of the platform.
+12. Stop platform: stops the platform.
+13. Delete platform: deletes the platform.
+14. Exits: exits the cli.
+
+## The Init Platform
 
 The different entries found when the platform is initialize are:
 
