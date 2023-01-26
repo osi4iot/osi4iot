@@ -16,7 +16,9 @@
 [![Link:Portainer](https://img.shields.io/badge/Portainer-gray?style=flat-square&logo=Portainer&logoColor=blue&link=https://www.portainer.io/)](https://www.portainer.io/)
 [![Link:Keepalived](https://img.shields.io/badge/Keepalived-gray?style=flat&logo=Keepalived&link=https://github.com/acassen/keepalived)](https://github.com/acassen/keepalived)
 
-<!-- ![img:frontpage_dataflow](./docs/img/frontpage_dataflow.png) -->
+
+
+![img:intro_0](./docs/img/intro_0.jpg)
 
 OSI4IOT is an IOT platform based in the integration of several open source packages with custom code. This repository contains implementation of the OSI4OT platform.
 
@@ -28,6 +30,16 @@ This OSI4IOT platform allows the creation of Digital Twins Models (DTM). A 3D re
 
 ## Table of contents
 - [About](#about)
+- [Status](#status)
+- [Getting Started](#getting_started)
+- [Installation](#installation)
+- [Glossary](#glossary)
+- [Usage](#usage)
+- [Contributing](#contributing)
+- [License](#license)
+
+
+<!-- - [About](#about)
 - [Quick Start](#quick_start)
 - [Getting Started](#getting_started)
 - [Instalation](#instalation)
@@ -36,9 +48,9 @@ This OSI4IOT platform allows the creation of Digital Twins Models (DTM). A 3D re
 - [Contributing](#contributing)
 - [License](#license)
 - [Test](#test)
-- [Example](#example)
-## About
-The OSI4IOT platform has been developed to give answer to all the elements required in the Industry 4.0 strategy. The OSI4IOT name stand for "Open Source Integration For Internet of Thing". 
+- [Example](#example) -->
+<!-- ## About
+The OSI4IOT platform has been developed to give answer to all the elements required in the Industry 4.0 strategy. The OSI4IOT name stand for "Open Source Integration For Internet of Thing".  -->
 
 ## Status
 
@@ -49,7 +61,7 @@ The OSI4IOT platform has been developed to give answer to all the elements requi
 - [ ] Machine Learning 
 
 
-## Quickstart (For The Impatient)
+<!-- ## Quickstart (For The Impatient) -->
 
 ## Getting Started
 
@@ -78,7 +90,9 @@ The Command Line Interface (CLI) can be installed by running the appropriate scr
 
 >./utils/osi4iot_cli/dist/
 
-<details>
+![img:installation_distGitHub](./docs/img/installation_distGitHub.png)
+
+<!-- <details>
 <summary>Distribution information</summary>
 <p>
 
@@ -97,7 +111,7 @@ The folders for installation found in the subfolder indicate the type of operati
 The ARM architecture in Linux is specially build for low consuming microprocessors such as Raspberry Pi or similar. These types of microprocessors are very common in the building of any IOT infrastructure.
 
 </p>
-</details>
+</details>  -->
 
 <details>
 <summary>CLI installation</summary>
@@ -112,11 +126,16 @@ To proceed with the installation, download the appropriate installer for your sy
 
 Download the appropriate installer for your system.
 
-In this case, if you are using a Linux ARM 64-bit system, you can download the linux_arm64 installer from https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_arm64/osi4iot_installer_linux_arm64.sh or by using the following command:
+    // Installer Linux amd64:
+    curl -o osi4iot_installer_linux_x64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_x64/osi4iot_installer_linux_x64.sh
 
-    curl -o osi4iot_installer_linux_arm64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_arm64/osi4iot_installer_linux_arm64.sh 
+    // Installer Linux arm64:
+    curl -o osi4iot_installer_linux_arm64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_arm64/osi4iot_installer_linux_arm64.sh
 
-And execute the installer
+    // Installer Windows:
+    curl -o osi4iot_installer_winx_x64.ps1 https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/win_x64/osi4iot_installer_winx_x64.ps1
+
+For example, if you are using a Linux ARM 64-bit system, download and execute the installer by using
 
     bash osi4iot_installer_linux_arm64.sh
 
@@ -225,30 +244,38 @@ Next, select the type of certificate for your domain SSL certification.
 
 A guideline for the SSL certificates is found in [![Link:ssl_certs](https://img.shields.io/badge/SSL_Certs-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/ssl_certs.md).
 
-If the certificates are correctly introduced, the platform should be installed. A similar image to this one should be obtained.
+If the certificates are correctly introduced, the platform should be initialized correctly. A similar image to this one should be obtained.
 
 ![local:CA:0](./docs/img/cli_installed.jpg)
 
 </p>
 </details>
 
-Now the platform should be accessible through the browser.
-
 </p>
 </details>
 
+Now the platform should be accessible through the browser.
 
+![local:CA:0](./docs/img/web_home.png)
 
-## Other Instructions, Specifications, Attributes, or Project Info
+<!-- ## Other Instructions, Specifications, Attributes, or Project Info -->
 <!-- ### Docker  -->
 
-## Concepts
+## Glossary
 
 Roles (org, group, device, sensor, stake holder, dtm)
 
+![img:frontpage_dataflow](./docs/img/resize_50/frontpage_dataflow.png)
+
+[![Link:glossary](https://img.shields.io/badge/Glossary-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
+
+[![Link:roles](https://img.shields.io/badge/Roles-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
+
 ## Usage
 
-![img:frontpage_dataflow](./docs/img/frontpage_dataflow.png)
+### Login
+
+
 
 (DTM, Dashboard, Node-red)
 
@@ -259,7 +286,8 @@ We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://githu
 
 ## License
 This project is licensed under the MIT License - see the [LICENSE](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/LICENSE) file for details.
-## Test
+
+<!-- ## Test -->
 
 
 ## Examples
