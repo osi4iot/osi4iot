@@ -493,6 +493,10 @@ The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 L
 
 ![vid:tank](./docs/img/tank.gif)
 
+### Encastred-Supported Beam 
+
+![vid:tank](./docs/img/beam.gif)
+
 ## Status
 
 
