@@ -8,15 +8,26 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="167.26154mm"
-   height="69.892418mm"
-   viewBox="0 0 167.26153 69.892419"
+   width="170.95898mm"
+   height="72.990234mm"
+   viewBox="0 0 170.95898 72.990236"
    version="1.1"
    id="svg8"
    inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
    sodipodi:docname="stakeholders.svg">
   <defs
      id="defs2">
+    <inkscape:path-effect
+       effect="offset"
+       id="path-effect209201"
+       is_visible="true"
+       lpeversion="1"
+       linejoin_type="miter"
+       unit="mm"
+       offset="2"
+       miter_limit="4"
+       attempt_force_join="true"
+       update_on_knot_move="true" />
     <marker
        style="overflow:visible"
        id="Arrow1Lend"
@@ -84,8 +95,8 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.2424844"
-     inkscape:cx="354.07414"
-     inkscape:cy="261.99504"
+     inkscape:cx="361.06085"
+     inkscape:cy="267.8503"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
@@ -103,7 +114,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -111,14 +122,17 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-3.7040355,0.26329684)">
-    <rect
+     transform="translate(-1.8554688,1.8125)">
+    <path
        style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.9008;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect100651"
        width="166.96019"
        height="68.991203"
        x="3.8547111"
-       y="0.18730868" />
+       y="0.18730868"
+       inkscape:path-effect="#path-effect209201"
+       d="M 1.8554688,-1.8125 V 71.177734 H 172.81445 V -1.8125 Z"
+       sodipodi:type="rect" />
     <g
        id="g100637">
       <g
@@ -187,11 +201,11 @@
              id="rect2-0" />
           <polygon
              style="fill:#003a7f"
-             points="438.849,313.469 438.849,48.065 286.313,48.065 286.313,179.722 338.547,179.722 338.547,313.469 "
+             points="286.313,48.065 286.313,179.722 338.547,179.722 338.547,313.469 438.849,313.469 438.849,48.065 "
              id="polygon4-98" />
           <polygon
              style="fill:#c2edff"
-             points="338.547,179.722 158.824,179.722 158.824,501.551 338.547,501.551 338.547,309.381 "
+             points="158.824,501.551 338.547,501.551 338.547,309.381 338.547,179.722 158.824,179.722 "
              id="polygon6-4" />
           <g
              id="g16">
@@ -318,21 +332,21 @@
                id="rect2-7" />
             <polygon
                style="fill:#4baf78"
-               points="448.087,55.267 480.092,135.56 32.006,135.56 64.013,55.267 "
+               points="32.006,135.56 64.013,55.267 448.087,55.267 480.092,135.56 "
                id="polygon4-1" />
             <g
                id="g14-3">
               <polygon
                  style="fill:#fcbb3b"
-                 points="120.023,55.267 96.018,135.56 160.031,135.56 176.034,55.267 "
+                 points="160.031,135.56 176.034,55.267 120.023,55.267 96.018,135.56 "
                  id="polygon6-2" />
               <polygon
                  style="fill:#fcbb3b"
-                 points="392.075,55.267 416.08,135.56 352.068,135.56 336.065,55.267 "
+                 points="352.068,135.56 336.065,55.267 392.075,55.267 416.08,135.56 "
                  id="polygon8-5" />
               <polygon
                  style="fill:#fcbb3b"
-                 points="288.056,135.608 224.043,135.608 232.044,55.592 280.054,55.592 "
+                 points="232.044,55.592 280.054,55.592 288.056,135.608 224.043,135.608 "
                  id="polygon10-1" />
               <path
                  style="fill:#fcbb3b"
@@ -436,7 +450,7 @@
                d="M 327.883,423.482 H 72.194 V 247.81 H 327.882 V 423.482 Z M 87.836,407.841 H 312.241 V 263.452 H 87.836 Z"
                id="path50-4" />
             <polygon
-               points="448.391,462.99 424.407,462.99 424.407,295.104 359.756,295.104 359.756,462.99 63.609,462.99 63.609,447.348 344.114,447.348 344.114,279.462 440.049,279.462 440.049,447.348 448.391,447.348 "
+               points="424.407,295.104 359.756,295.104 359.756,462.99 63.609,462.99 63.609,447.348 344.114,447.348 344.114,279.462 440.049,279.462 440.049,447.348 448.391,447.348 448.391,462.99 424.407,462.99 "
                id="polygon52" />
             <rect
                x="368.09799"
@@ -508,7 +522,7 @@
                  id="path6" />
               <polygon
                  style="fill:#f8cf26"
-                 points="31.293,13.854 28.122,13.854 41.708,27.147 41.708,23.976 "
+                 points="41.708,27.147 41.708,23.976 31.293,13.854 28.122,13.854 "
                  id="polygon8-9" />
               <path
                  style="fill:#66cedb"
@@ -683,11 +697,11 @@
              transform="matrix(0.02825117,0,0,0.02825117,90.832483,160.70083)">
             <polygon
                style="fill:#fcbb3b"
-               points="88.056,55.267 112.072,455.69 24.015,455.69 40.026,55.267 "
+               points="24.015,455.69 40.026,55.267 88.056,55.267 112.072,455.69 "
                id="polygon2-0" />
             <polygon
                style="fill:#bd8c2c"
-               points="63.609,55.267 63.609,455.69 24.015,455.69 40.026,55.267 "
+               points="24.015,455.69 40.026,55.267 63.609,55.267 63.609,455.69 "
                id="polygon4-7" />
             <rect
                x="40.021999"
@@ -698,7 +712,7 @@
                id="rect6-8" />
             <polygon
                style="fill:#589095"
-               points="40.026,95.461 72.046,95.461 72.046,135.487 36.836,135.039 "
+               points="72.046,135.487 36.836,135.039 40.026,95.461 72.046,95.461 "
                id="polygon8-4" />
             <polyline
                style="fill:#fcbb3b"
@@ -710,7 +724,7 @@
                id="polyline12" />
             <polygon
                style="fill:#ffffff"
-               points="36.836,135.039 93.751,135.487 96.061,159.502 35.876,159.022 "
+               points="96.061,159.502 35.876,159.022 36.836,135.039 93.751,135.487 "
                id="polygon14-9" />
             <rect
                x="144.09"
@@ -721,11 +735,11 @@
                id="rect16-4" />
             <polygon
                style="fill:#ffffff"
-               points="140.919,135.039 197.817,135.469 200.127,159.502 139.943,159.022 "
+               points="200.127,159.502 139.943,159.022 140.919,135.039 197.817,135.469 "
                id="polygon18-1" />
             <polygon
                style="fill:#589095"
-               points="144.092,95.461 176.112,95.461 176.112,135.487 140.919,135.039 "
+               points="176.112,135.487 140.919,135.039 144.092,95.461 176.112,95.461 "
                id="polygon20" />
             <polyline
                style="fill:#4baf78"
@@ -779,7 +793,7 @@
                id="rect38" />
             <polygon
                style="fill:#1e834e"
-               points="80.051,287.583 176.112,255.437 176.112,455.69 80.051,455.69 "
+               points="176.112,455.69 80.051,455.69 80.051,287.583 176.112,255.437 "
                id="polygon40" />
             <g
                id="g46-1">
@@ -807,7 +821,7 @@
                id="rect48" />
             <polygon
                style="fill:#75c0c7"
-               points="288.183,215.537 424.407,263.568 152.096,263.568 "
+               points="152.096,263.568 288.183,215.537 424.407,263.568 "
                id="polygon50" />
             <rect
                x="112.066"
@@ -854,15 +868,15 @@
                id="path2-6" />
             <polygon
                style="fill:#ef9a1d"
-               points="90.188,173.272 99.126,8.249 77.128,8.249 67.197,191.574 "
+               points="77.128,8.249 67.197,191.574 90.188,173.272 99.126,8.249 "
                id="polygon4-9" />
             <polygon
                style="fill:#e35f46"
-               points="75.378,40.566 72.817,87.862 140.991,87.862 138.428,40.566 "
+               points="140.991,87.862 138.428,40.566 75.378,40.566 72.817,87.862 "
                id="polygon6-8" />
             <polygon
                style="fill:#d8422e"
-               points="97.376,40.566 75.378,40.566 72.817,87.862 94.815,87.862 "
+               points="72.817,87.862 94.815,87.862 97.376,40.566 75.378,40.566 "
                id="polygon8-8" />
             <path
                style="fill:#f7984b"
@@ -874,11 +888,11 @@
                id="path12-7" />
             <polygon
                style="fill:#e35f46"
-               points="457.008,219.63 364.709,146.5 256.001,116.69 147.313,146.495 54.994,219.993 54.994,262.607 54.994,459.766 54.994,502.38 256.001,502.38 457.008,502.38 457.008,459.766 457.008,348.006 457.008,318.309 457.008,305.392 457.008,275.695 457.008,262.244 "
+               points="256.001,116.69 147.313,146.495 54.994,219.993 54.994,262.607 54.994,459.766 54.994,502.38 256.001,502.38 457.008,502.38 457.008,459.766 457.008,348.006 457.008,318.309 457.008,305.392 457.008,275.695 457.008,262.244 457.008,219.63 364.709,146.5 "
                id="polygon14-5" />
             <polygon
                style="fill:#d8422e"
-               points="54.994,262.607 54.994,459.766 54.994,502.38 76.714,502.38 76.714,459.766 76.714,262.607 76.714,219.993 169.034,146.495 266.86,119.668 256.001,116.69 147.313,146.495 54.994,219.993 "
+               points="54.994,502.38 76.714,502.38 76.714,459.766 76.714,262.607 76.714,219.993 169.034,146.495 266.86,119.668 256.001,116.69 147.313,146.495 54.994,219.993 54.994,262.607 54.994,459.766 "
                id="polygon16-0" />
             <g
                id="g24">
@@ -1193,7 +1207,7 @@
          id="path99160" />
       <text
          xml:space="preserve"
-         style="font-size:5.75204px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;stroke-width:0.264583;fill:#054a63;fill-opacity:1;"
+         style="font-size:5.75204px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;fill:#054a63;fill-opacity:1;stroke-width:0.264583"
          x="63.233349"
          y="3.9243455"
          id="text99452"><tspan
@@ -1201,7 +1215,7 @@
            id="tspan99450"
            x="63.233349"
            y="3.9243455"
-           style="stroke-width:0.264583;fill:#054a63;fill-opacity:1;">Levels of Hierarchy</tspan></text>
+           style="fill:#054a63;fill-opacity:1;stroke-width:0.264583">Levels of Hierarchy</tspan></text>
     </g>
   </g>
 </svg>

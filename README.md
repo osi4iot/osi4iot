@@ -332,37 +332,139 @@ In the platform there are different types of assets.
 
 
 
-<!-- <details> -->
+<details>
 <summary> The Role System  </summary> 
 <p>
 
 <!-- For a more extensive documentation visit [![Link:roles](https://img.shields.io/badge/Roles-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md). -->
 
+Once you understand the key points of the platform components, the hierarchy levels and what is the purpose of each level. The other missing part is how to manage the platform components. This is the purpose of the role managing system, which associates a role to certain levels.
+
+If logged into the platform, the first thing that you will see is the role menu bar in the left. From bottom to top of the role menu bar we have:
+
+- Super Admin: role associated generally to the people who are in charge of the `platform` and generally install it.
+- Organizations Admin: role associated to the management of the `organizations`, creation of `groups`, etc.
+- Groups Admin: role associated to the management of `groups`, creation of `devices` and `assets`.
+- User: role associated to the display of `devices` and `assets`.
+
 ![img:glossary:roles:general](./docs/img/role_general.png)
 
+The hierarchy of roles is established as: 
 
+`Super Admin` > `Organizations Admin` > `Groups Admin` > `User`
 
+The `home` button is just the viewer and it is available to all the roles. The descendent order implicates that the role below is of higher rank, for example a `Super Admin` can manage the same information as the `Organizations Admin`, but not otherwise. 
 
+The following picture illustrates the information that can be accessed by the different roles. Note that although the `User` can view and access the devices of a `group`, it is not able to create, edit or erase them. This options are available at the `Group Admin` level.
 
+![img:glossary:roles](./docs/img/roles.svg)
 </p>
-<!-- </details> -->
+</details>
 
 
 
 
 ## Usage
 
-(DTM, Dashboard, Node-red)
+This section aims to explain what can be done and how the different services provided by the `OSI4IOT` platform can be accessed.
 
-### Login
+<details>
+<summary> Home screen  </summary>  
+<p>
+The home screen hosted in the the domain provided in the CLI offers 4 possibilities:
 
-### Dashboard
+- Platform assistant:
 
-### Digital Twin Model
+    The core of the platform where the different users can access to the `BIM` information stored in the platform. It gives access to the managing role menus.
 
-### Node-RED
+- Dashboards
+
+    Use this option to load quickly a particular or various dashboards already created.
+- Digital twin simulator
+
+     Use this option to load quickly a particular or various Digital Twin Models already created and have access to the simulation parameters in real time. With this, you can display the model in a device and control the simulation parameters from another one.
+- Mobile sensors (Only Android devices)
+
+    This option is used to demonstrate that the platform also integrates mobile technology. For example, it is possible to capture the accelerometers of an android phone or even use machine learning models to label information from a picture taken by the phone.
+
+</p>
+</details>
+
+<details>
+<summary> Login  </summary>  
+<p>
+The first thing that is needed is the access through the login screen. If you are the `Super Admin`, then you will login with the credentials introduced in the `CLI`, however if you are not the one who initialized the platform or have a lower rank assigned, then you will need to be invited by the `Super Admin`. This is easily done by means of adding a new user (you need an e-mail) in the `Global users` tab of the actions available to the `Super Admin`.
+
+Click on the top right icon to login.
+
+![img:login_0](./docs/img/web_login_0.png)
+
+Then fill the form and submit.
+
+![img:login_1](./docs/img/web_login_1.png)
+
+Then you will be redirected to the Platform assistant app, where you will be able to see the different organizations in the map.
+
+</p>
+</details>
+
+<details>
+<summary> Dashboards  </summary>  
+<p>
+
+One of the type of information that can be visualized are dashboards, useful to desplay simple sensor data and with the option to send alerts through the notification system when a certain threshold is trespassed. 
+
+It can be accessed from the viewer by clicking the `dashboard` icon. 
+
+![img:dashboards_0](./docs/img/web_dashboards_0.png)
+
+Then the dashboard is displayed. In this example the measurements of a temperature sensor.
+
+![img:dashboards_1](./docs/img/web_dashboards_1.png)
+
+The same result can be achieved from the `Dashboards` option in the home screen. A list of the different dashboards is shown, the access to the list depends on the account rank of the user, then select the appropiate dashboard.
+
+![img:dashboards_2](./docs/img/web_dashboards_2.png)
 
 
+</p>
+</details>
+
+<details>
+<summary> Digital Twin Model  </summary>  
+<p>
+
+The other type of information that can be displayed are the `Digital Twin Models` (`DTM`). They can be accessed when selecting a device, and by clicking the `DTM` icon (three boxes), the viewer will load a 3D digital twin.
+
+![img:dtm_0](./docs/img/web_dtm_0.png)
+
+Here you can control and monitor the sensor information, in this example, the level of water in a tank on top of a building structure. The rendering offers the possibility to show the current results in the format of a `Finite Element Method` mesh or in short `FEM` mesh. For example the distribution of stresses in the floor and at the current time to plot the deformation, in real scale or custom. The platform offers the possibility to lock the measurements and use the simulator to observe hypothetical scenarios. Sensors embedded in the digital twin can also be accessed by clicking the sensor in the 3D model.
+
+![img:dtm_1](./docs/img/web_dtm_1.png)
+
+It can also be the case that you may want to monitor an asset with the 3D view while simulating the model with an external device. This can be done by using the `Digital Twin Simulator` option in the home screen. You will see in real time the modifications introduced in the simulation.
+
+![img:dtm_2](./docs/img/web_dtm_2.png)
+
+
+</p>
+</details>
+
+
+<details>
+<summary> Node-RED  </summary>  
+<p>
+
+Any `dashboard` or `dtm` requires a logic or core to decide how the information from sensors is connected with the database and how the alerts are displayed. This task can be done with the help of Node-RED, an open source package that allows graphically to interconnect the data and manipulate it. You can either create custom boxes or use existing template boxes to design the flow diagram of the logic of your `devices`.
+
+![img:node-red](./docs/img/web-node-red.png)
+
+The Node-RED instances can be accessed by clicking into the Node-RED icon in the map.
+
+![img:node-red:access](./docs/img/web-node-red-access.png)
+
+</p>
+</details>
 
 
 ## Contributing
@@ -374,15 +476,22 @@ The OSI4IOT platform has been funded by the European Union's Research and Innova
 
 ## License
 
-All the open source package referenced have their own license.
+The open-source packages utilized within the OSI4IOT platform are being used in compliance with their respective licenses.
 
-The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 License - see the [LICENSE](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/LICENSE) file for details.
+The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 License - see the [LICENSE](https://github.com/osi4iot/OSI4IOT/blob/master/LICENSE) file for details.
 
 <!-- ## Test -->
 
 
 ## Examples
 
+### Pool
+
+![vid:pool](./docs/img/pool.gif)
+
+### Tank
+
+![vid:tank](./docs/img/tank.gif)
 
 ## Status
 

@@ -8,15 +8,26 @@
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   width="96.358353mm"
-   height="70.558998mm"
-   viewBox="0 0 96.358351 70.558999"
+   width="100.35938mm"
+   height="74.558594mm"
+   viewBox="0 0 100.35937 74.558595"
    version="1.1"
    id="svg103969"
    inkscape:version="1.0.1 (3bc2e813f5, 2020-09-07)"
    sodipodi:docname="devices.svg">
   <defs
      id="defs103963">
+    <inkscape:path-effect
+       effect="offset"
+       id="path-effect208347"
+       is_visible="true"
+       lpeversion="1"
+       linejoin_type="miter"
+       unit="mm"
+       offset="2"
+       miter_limit="4"
+       attempt_force_join="true"
+       update_on_knot_move="true" />
     <marker
        style="overflow:visible"
        id="marker105313"
@@ -96,17 +107,17 @@
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
      inkscape:zoom="1.1367775"
-     inkscape:cx="130.5264"
-     inkscape:cy="308.41833"
+     inkscape:cx="138.08776"
+     inkscape:cy="315.97604"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
      showgrid="false"
-     inkscape:window-width="1267"
-     inkscape:window-height="1041"
-     inkscape:window-x="1920"
-     inkscape:window-y="46"
-     inkscape:window-maximized="0" />
+     inkscape:window-width="1280"
+     inkscape:window-height="961"
+     inkscape:window-x="1912"
+     inkscape:window-y="38"
+     inkscape:window-maximized="1" />
   <metadata
      id="metadata103966">
     <rdf:RDF>
@@ -115,7 +126,7 @@
         <dc:format>image/svg+xml</dc:format>
         <dc:type
            rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-        <dc:title></dc:title>
+        <dc:title />
       </cc:Work>
     </rdf:RDF>
   </metadata>
@@ -123,14 +134,17 @@
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-49.266234,-58.579723)">
-    <rect
+     transform="translate(-47.265625,-56.580078)">
+    <path
        style="fill:#ffffff;fill-opacity:1;stroke:none;stroke-width:0.692062;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
        id="rect100651"
        width="96.358002"
        height="70.558998"
        x="49.266411"
-       y="58.579723" />
+       y="58.579723"
+       inkscape:path-effect="#path-effect208347"
+       d="M 47.265625,56.580078 V 131.13867 H 147.625 V 56.580078 Z"
+       sodipodi:type="rect" />
     <g
        id="g105633">
       <g
@@ -195,15 +209,15 @@
            style="fill:none;fill-opacity:1;stroke:none;stroke-width:0.599001;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
            sodipodi:type="inkscape:offset"
            inkscape:radius="-2.1294706"
-           inkscape:original="M 15.986328 16.822266 C 15.210727 16.822266 14.585938 17.447056 14.585938 18.222656 L 14.585938 24.195312 C 14.585938 24.970913 15.210727 25.595703 15.986328 25.595703 L 27.289062 25.595703 C 28.064663 25.595703 28.689453 24.970913 28.689453 24.195312 L 28.689453 18.222656 C 28.689453 17.447056 28.064663 16.822266 27.289062 16.822266 L 15.986328 16.822266 z "
+           inkscape:original="M 15.986328 16.822266 C 15.210727 16.822266 14.585938 17.447056 14.585938 18.222656 L 14.585938 24.195312 C 14.585938 24.970913 15.210727 25.595703 15.986328 25.595703 L 29.40625 25.595703 C 30.18185 25.595703 30.806641 24.970913 30.806641 24.195312 L 30.806641 18.222656 C 30.806641 17.447056 30.18185 16.822266 29.40625 16.822266 L 15.986328 16.822266 z "
            xlink:href="#rect878-6"
            id="path887-4"
            inkscape:href="#rect878-6"
-           d="m 16.714844,18.951172 v 4.515625 h 9.845703 v -4.515625 z" />
+           d="m 16.714844,18.951172 v 4.515625 h 11.96289 v -4.515625 z" />
         <path
            id="rect878-6"
            style="fill:none;fill-opacity:1;stroke:#a5e3eb;stroke-width:0.599001;stroke-linecap:round;stroke-linejoin:miter;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-           d="m 15.986871,16.822813 h 11.302513 c 0.7756,0 1.4,0.6244 1.4,1.4 v 5.972438 c 0,0.7756 -0.6244,1.400001 -1.4,1.400001 H 15.986871 c -0.775601,0 -1.400001,-0.624401 -1.400001,-1.400001 v -5.972438 c 0,-0.7756 0.6244,-1.4 1.400001,-1.4 z"
+           d="m 15.986871,16.822813 h 13.41918 c 0.7756,0 1.4,0.6244 1.4,1.4 v 5.972438 c 0,0.7756 -0.6244,1.400001 -1.4,1.400001 h -13.41918 c -0.775601,0 -1.400001,-0.624401 -1.400001,-1.400001 v -5.972438 c 0,-0.7756 0.6244,-1.4 1.400001,-1.4 z"
            sodipodi:nodetypes="sssssssss" />
         <text
            xml:space="preserve"
@@ -211,7 +225,7 @@
            style="font-size:3.52778px;line-height:1.25;font-family:Arial;-inkscape-font-specification:Arial;white-space:pre;shape-inside:url(#path887-4);fill:#054a63;fill-opacity:1;stroke:none;stroke-opacity:1;"
            transform="translate(0.20627819,0.11574214)"><tspan
              x="16.714844"
-             y="22.128835"><tspan>Group</tspan></tspan></text>
+             y="22.128835"><tspan>Groups</tspan></tspan></text>
       </g>
       <g
          id="g914-8-9"
@@ -324,19 +338,19 @@
           <polygon
              id="XMLID_809_"
              style="fill:#606060"
-             points="335,270 280,270 290,300 335,300 " />
+             points="290,300 335,300 335,270 280,270 " />
           <polygon
              id="XMLID_810_"
              style="fill:#404040"
-             points="240,270 320,270 330,253.333 322.001,240 240,240 " />
+             points="330,253.333 322.001,240 240,240 240,270 320,270 " />
           <polygon
              id="XMLID_811_"
              style="fill:#404040"
-             points="430,240 350,240 350,270 335,270 335,300 380,300 390,270 430,270 " />
+             points="350,270 335,270 335,300 380,300 390,270 430,270 430,240 350,240 " />
           <polygon
              id="XMLID_812_"
              style="fill:#a3a3a3"
-             points="330,253.333 320,270 350,270 350,170 320,170 330,186.667 320,203.335 330,220 320,236.665 322.001,240 " />
+             points="350,270 350,170 320,170 330,186.667 320,203.335 330,220 320,236.665 322.001,240 330,253.333 320,270 " />
           <rect
              id="XMLID_813_"
              x="320"
@@ -394,7 +408,7 @@
           <polygon
              id="XMLID_1319_"
              style="fill:#8f8f8f"
-             points="230,70 230,100 400,100 400,160 430,160 430,70 " />
+             points="400,100 400,160 430,160 430,70 230,70 230,100 " />
           <path
              id="XMLID_1320_"
              style="fill:#bfbfbf"
@@ -402,11 +416,11 @@
           <polygon
              id="XMLID_1321_"
              style="fill:#bfbfbf"
-             points="120,100 230,100 230,70 30,70 30,160 120,160 " />
+             points="230,70 30,70 30,160 120,160 120,100 230,100 " />
           <polygon
              id="XMLID_1322_"
              style="fill:#e8e8e8"
-             points="230,0 60,0 30,70 230,70 " />
+             points="30,70 230,70 230,0 60,0 " />
           <rect
              id="XMLID_1323_"
              x="370"
