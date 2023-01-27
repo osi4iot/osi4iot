@@ -114,9 +114,9 @@ A message prompt similar to this should appear:
 
 The OSI4IOT platform allows three types of deployments
 
-    -	Local deployment: Deployment in a single machine
-    -	On-premise cluster deployment: Deployment in a cluster on-premise
-    -	AWS cluster deployment: Deployment in a cluster on AWS
+-	Local deployment: Deployment in a single machine
+-	On-premise cluster deployment: Deployment in a cluster on-premise
+-	AWS cluster deployment: Deployment in a cluster on AWS
 
 <details>
 <summary> Local Deployment </summary> 
