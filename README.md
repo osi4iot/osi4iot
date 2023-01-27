@@ -1,8 +1,5 @@
-# Open Source Integration for Internet Of Things (OSI4IOT)
+# OSI4IOT - Open Source Integration for Internet Of Things 
 
-![Windows](https://img.shields.io/badge/Windows-gray?style=flat&logo=windows)
-![Linux](https://img.shields.io/badge/Linux-gray?style=flat&logo=linux)
-![Machintosh](https://img.shields.io/badge/Machintosh-gray?style=flat&logo=Machintosh)
 [![Link:Docker](https://img.shields.io/badge/Docker-gray?style=flat&logo=docker&link=https://www.docker.com/)](https://www.docker.com/)
 [![Link:Telegram](https://img.shields.io/badge/Telegram-gray?style=flat&logo=telegram&link=https://web.telegram.org/k/)](https://web.telegram.org/k/)
 [![Link:Mosquitto](https://img.shields.io/badge/Mosquitto-gray?style=flat-square&logo=Mosquitto&logoColor=blue&link=https://github.com/eclipse/mosquitto)](https://github.com/eclipse/mosquitto)
@@ -30,13 +27,13 @@ This OSI4IOT platform allows the creation of Digital Twins Models (DTM). A 3D re
 
 ## Table of contents
 - [About](#about)
-- [Status](#status)
 - [Getting Started](#getting_started)
 - [Installation](#installation)
 - [Glossary](#glossary)
 - [Usage](#usage)
 - [Contributing](#contributing)
 - [License](#license)
+- [Status](#status)
 
 
 <!-- - [About](#about)
@@ -52,13 +49,6 @@ This OSI4IOT platform allows the creation of Digital Twins Models (DTM). A 3D re
 <!-- ## About
 The OSI4IOT platform has been developed to give answer to all the elements required in the Industry 4.0 strategy. The OSI4IOT name stand for "Open Source Integration For Internet of Thing".  -->
 
-## Status
-
-
-- [x] Mqqt 
-- [x] Digital twin model
-- [x] Dashboard
-- [ ] Machine Learning 
 
 
 <!-- ## Quickstart (For The Impatient) -->
@@ -229,7 +219,7 @@ Now the platform should be accessible through the browser.
 
 ## Glossary
 <details>
-<summary> The Industry 4.0  </summary>  
+<summary> Platform components  </summary>  
 <p>
 
 For a more extensive documentation visit [![Link:glossary](https://img.shields.io/badge/Glossary-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
@@ -346,7 +336,7 @@ In the platform there are different types of assets.
 <summary> The Role System  </summary> 
 <p>
 
-For a more extensive documentation visit [![Link:roles](https://img.shields.io/badge/Roles-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
+<!-- For a more extensive documentation visit [![Link:roles](https://img.shields.io/badge/Roles-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md). -->
 
 ![img:glossary:roles:general](./docs/img/role_general.png)
 
@@ -380,10 +370,29 @@ We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://githu
 
 ## Acknowledgements
 
+The OSI4IOT platform has been funded by the European Union's Research and Innovation Programme Horizon 2020 under the Grant Agreement No 101006860.
+
 ## License
-This project is licensed under the MIT License - see the [LICENSE](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/LICENSE) file for details.
+
+All the open source package referenced have their own license.
+
+The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 License - see the [LICENSE](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/LICENSE) file for details.
 
 <!-- ## Test -->
 
 
 ## Examples
+
+
+## Status
+
+
+- [x] Mqqt protocol (Mosquitto).
+- [x] Time series database (Timescale).
+- [x] Dashboards Customization (Grafana).
+- [x] Digital Twin Model Core (Node-Red).
+- [x] Digital Twin Model 3D Viewer (React).
+- [x] S3 bucket storage (Minio - AWS S3).
+- [ ] Machine Learning.
+- [ ] Improve database data retention policies.
+- [ ] Org2Org & Group2Group message system.   
