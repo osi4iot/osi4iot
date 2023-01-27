@@ -95,13 +95,6 @@ Once the appropriate installer for your operating system has been downloaded, it
 
     bash osi4iot_installer_linux_arm64.sh
 
-</p>
-</details>
-
-<details>
-<summary>Platform initialization</summary>
-<p>
-
 Once the `osi4iot` CLI tool has been successfully installed, then initialize the OS4IOT platform by typing
 
     mkdir <my project>  // Example: mkdir iot_fiber4yard
