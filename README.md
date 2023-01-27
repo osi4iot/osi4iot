@@ -376,9 +376,10 @@ In the platform there are different types of assets.
 
 
 
-<details>
+<!-- <details> -->
 <summary> The Role System  </summary> 
 <p>
+
 For a more extensive documentation visit [![Link:roles](https://img.shields.io/badge/Roles-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
 
 ![img:glossary:roles:general](./docs/img/role_general.png)
@@ -388,7 +389,7 @@ For a more extensive documentation visit [![Link:roles](https://img.shields.io/b
 
 
 </p>
-</details>
+<!-- </details> -->
 
 
 
