@@ -80,51 +80,7 @@ In order to have the OSI4IOT platform running correctly, the following requireme
 
 ## Installation
 
-<!-- To install the osi4iot package from Github, use the following command:
-```
-git clone https://github.com/osi4iot/osi4iot
-cd osi4iot
-``` -->
-
-The Command Line Interface (CLI) can be installed by running the appropriate script inside the `osi4iot` repository.
-
->./utils/osi4iot_cli/dist/
-
-![img:installation_distGitHub](./docs/img/installation_distGitHub.png)
-
-<!-- <details>
-<summary>Distribution information</summary>
-<p>
-
-![img:installation_distGitHub](./docs/img/installation_distGitHub.png)
-
-
-The folders for installation found in the subfolder indicate the type of operative system and architecture. The following table contains a summary:
-
-| **Operative System** | **Architecture** | **Installer Folder** |
-| -------------------- | ---------------- | -------------------- |
-| **Windows**          | AMD (x64)        | win_x64              |
-| **Linux**            | AMD (x64)        | linux_x64            |
-| **Linux**            | ARM (arm64)      | linux_arm64          |
-| **Mac**              | AMD (x64)        | linux_x64            |
-
-The ARM architecture in Linux is specially build for low consuming microprocessors such as Raspberry Pi or similar. These types of microprocessors are very common in the building of any IOT infrastructure.
-
-</p>
-</details>  -->
-
-<details>
-<summary>CLI installation</summary>
-<p>
-
-
-
-To proceed with the installation, download the appropriate installer for your system and run it in the terminal. For example, on a UNIX-based system such as Linux ARM, you can use the following command:
-
-    mkdir <my project>  // Example: mkdir iot_fiber4yard
-    cd <myproject>      // Example: cd iot_fiber4yard
-
-Download the appropriate installer for your system.
+The OSI4IOT platform must to be installed by mean a Command Line Interface (CLI) tool called `osi4iot`. To install the `osi4iot` in your machine it is neccesary to download from Github the proper installer for your operating system:
 
     // Installer Linux amd64:
     curl -o osi4iot_installer_linux_x64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_x64/osi4iot_installer_linux_x64.sh
@@ -133,21 +89,16 @@ Download the appropriate installer for your system.
     curl -o osi4iot_installer_linux_arm64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_arm64/osi4iot_installer_linux_arm64.sh
 
     // Installer Windows:
-    curl -o osi4iot_installer_winx_x64.ps1 https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/win_x64/osi4iot_installer_winx_x64.ps1
+    curl -o osi4iot_installer_win_x64.ps1 https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/win_x64/osi4iot_installer_winx_x64.ps1
 
-For example, if you are using a Linux ARM 64-bit system, download and execute the installer by using
+Once the appropriate installer for your operating system has been downloaded, it must be executed. For example, if you are using a Linux ARM 64-bit system use 
 
     bash osi4iot_installer_linux_arm64.sh
 
-</p>
-</details>
+Once the `osi4iot` CLI tool has been successfully installed, then initialize the OS4IOT platform by typing
 
-<details>
-<summary>Platform initialization</summary>
-<p>
-
-If the Platform CLI has been correctly installed, then initialize the platform by typing
-
+    mkdir <my project>  // Example: mkdir iot_fiber4yard
+    cd <myproject>      // Example: cd iot_fiber4yard
     osi4iot
 
 A message prompt similar to this should appear:
@@ -161,10 +112,13 @@ A message prompt similar to this should appear:
     On-premise cluster deployment
     AWS cluster deployment
 
+The OSI4IOT platform allows three types of deployments
+
 <details>
-<summary> Local Deployment </summary> 
+<summary> Local deployment </summary> 
 <p>
 
+The local deployment option if for install the OSI4IOT plataform in a single machine.
 Select the local deployment option. The following options will be available
 
     ************************************************
@@ -251,8 +205,20 @@ If the certificates are correctly introduced, the platform should be initialized
 </p>
 </details>
 
+<details>
+<summary> On-premise cluster deployment </summary> 
+<p>
+The on-premise cluster deployment option if for install the OSI4IOT plataform in a cluster of machines on-premise.
 </p>
 </details>
+
+<details>
+<summary> AWS cluster deployment </summary> 
+<p>
+The AWS cluster deployment option if for install the OSI4IOT plataform in a cluster of machines on AWS.
+</p>
+</details>
+<br/><br/>
 
 Now the platform should be accessible through the browser.
 
