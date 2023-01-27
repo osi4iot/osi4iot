@@ -114,14 +114,11 @@ A message prompt similar to this should appear:
 
 The OSI4IOT platform allows three types of deployments
 
--	Local deployment: Deployment in a single machine
--	On-premise cluster deployment: Deployment in a cluster on-premise
--	AWS cluster deployment: Deployment in a cluster on AWS
-
 <details>
-<summary> Local Deployment </summary> 
+<summary> Local deployment </summary> 
 <p>
 
+The local deployment option if for install the OSI4IOT plataform in a single machine.
 Select the local deployment option. The following options will be available
 
     ************************************************
@@ -208,8 +205,20 @@ If the certificates are correctly introduced, the platform should be initialized
 </p>
 </details>
 
+<details>
+<summary> On-premise cluster deployment </summary> 
+<p>
+The on-premise cluster deployment option if for install the OSI4IOT plataform in a cluster of machines on-premise.
 </p>
 </details>
+
+<details>
+<summary> AWS cluster deployment </summary> 
+<p>
+The AWS cluster deployment option if for install the OSI4IOT plataform in a cluster of machines on AWS.
+</p>
+</details>
+<br/><br/>
 
 Now the platform should be accessible through the browser.
 
