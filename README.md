@@ -228,22 +228,151 @@ Now the platform should be accessible through the browser.
 <!-- ### Docker  -->
 
 ## Glossary
+<details>
+<summary> The Industry 4.0  </summary>  
+<p>
 
-Roles (org, group, device, sensor, stake holder, dtm)
+For a more extensive documentation visit [![Link:glossary](https://img.shields.io/badge/Glossary-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
 
-![img:frontpage_dataflow](./docs/img/resize_50/frontpage_dataflow.png)
+The `OSI4IOT` ecosystem is not limited to monitor different sensors and to provide an equivalent 3D digital twin of an asset. When considering the Industry 4.0 technology, large and distinct information can be gathered, post-processed and generated. The platform is built around the concept of `Building Information Modeling` (`BIM`), a technology that aims to contain and interlink all information available in a unique integrated system.
 
-[![Link:glossary](https://img.shields.io/badge/Glossary-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
+In order to monitor and access the available `BIM` information. The platform divides the information in several layers or levels of hierarchy. 
 
-[![Link:roles](https://img.shields.io/badge/Roles-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
+![img:glossary:industry4.0](./docs/img/industry4_0.svg)
+
+
+<!-- ![img:frontpage_dataflow](./docs/img/resize_50/frontpage_dataflow.png) -->
+
+
+
+
+
+
+
+### Stakeholders and organizations
+
+`Stakeholders` and `organizations` are the most external level of hierarchy found in the platform. The stakeholder represents an entity that can be either a `cluster of organizations` or a `unique organization`. The contents of a `stakeholder` is not limitted to the `partial` or `complete` content of the `same` organization, but `partial` or `complete` contents of `different` organizations. 
+
+![img:glossary:stakeholders](./docs/img/stakeholders.svg)
+
+Only the `platform admin` has access to all the information stored in each `stakeholder`, however, `different organizations` can share with each other partial information through a `organization-to-organization message protocol`.
+
+#### The simple organization
+___
+The simplest stakeholder would be to harbor the `partial` or `complete` contents of a `unique organization`. In this case the stakeholder could be just a company and the immediate inner level of hierarchy, the `group` level, could be departments of the company.
+
+#### Partners and more complex structures
+___
+When the structure of the stakeholder is not straightforward, for example in the case of a `cluster of organizations` harboring `partial` or `complete` content of the `different` organizations.
+
+This type of structure could be useful in the case of a `unique organization` that not only subdivides its structure in departments at the `group` level, but also has `BIM` data from the partners, client and provider organizations, integrated in the platform.
+
+The most complex infrastructure that can be deployed and integrated in the `OSI4IOT` platform would be the case of different organizations working together (`cluster`) and wanting to digitalize and interconnect their processes and information generated. In this case the stakeholder level would be the `cluster` and the `group` level would be comprised from `organization's departments` to `partners`.
+
+Inside the platform, the `organizations` or `stakeholders` are geolocated and displayed in the map with all their content information (`groups`, `devices` and `nodes`).
+
+![img:glossary:stakeholders:ma](./docs/img/web_orgs.png)
+
+### Groups
+
+The next level of hierarchy is the `group`. This level offers the possibility to divide the `bim` information stored in the platform in different compartments. This way only members that are at the `stakeholder` or `organizations` level can access to all the groups, but a unique member of a specific group cannot access the information of another group.
+
+![img:glossary:groups](./docs/img/groups.svg)
+
+Although a member of `Group 1` would not have access to `Group 2`. There is the possibility to share information between groups using a `group-to-group message protocol` similar to the protocol between `organizations`.
+
+Inside the platform, the `groups` are geolocated and displayed in the map inside the domain of their `organization`, the information that can be displayed are the `devices` and `nodes` of the `group`.
+
+![img:glossary:groups:map](./docs/img/web_group.png)
+
+
+
+
+
+
+### Devices
+
+The type of information stored inside a `group` are `devices`. These are the next hierarchy level. Each `group` within an `organization` can have several `devices` connected to internet to send data. These `devices` can be PLCs, microcontrollers, microcomputers (like Raspberry Pi), IOT gateways (like SIMATIC IOT2050 of Siemens), etc. 
+
+![img:glossary:devices](./docs/img/devices.svg)
+
+In the platform, the `devices` are geolocated inside their corresponding `group` and displayed with a bubble. Each `device` contains `assets`.
+
+![img:glossary:devices:map](./docs/img/web_dev.png)
+
+### Assets
+
+A `device` can have one or more industrial machines connected to it in order to control the production process. This machines or parts of a machine are represented by `assets`.
+
+![img:glossary:assets](./docs/img/assets.svg)
+
+In the platform there are different types of assets. 
+
+-	Sensors
+
+    An `asset` can have multiple sensors to measure the relevant parameters that allow defining its status. Temperature, pressure, viscosity or accelerometer sensors are typically used in the manufacturing industry.
+
+-	Digital twins
+
+    An `asset` can have one or several digital twins. A digital twin is a virtual model designed for accurately reflect the physical state of the asset. The function of the digital twin models are the following. 
+
+    -	Asset state monitoring
+    -	Predictive maintenance
+    -	Alert system in case of incidents
+
+    To implement a digital twin, machine learning models trained by mean of the data collected by the sensors, can be used. Other methodologies, such as the application of model order reduction to physically-based model are also available.
+
+-	Asset state
+
+    The state of the `asset` at a given instant is defined by a set of parameters. These parameters are obtained from the data collected by the sensors and from some evolution model. It is important to store in a database the historical evolution of the asset state so that they can be used in the development of digital twins.
+
+-	Asset topics
+
+    The communication protocols typically used in IOT technologies (MQTT, Apache Kafka and Apache Pulsar) use the term topic to refer to the text string used to filter the messages that a publisher sends to the receivers.
+    It is necessary to store in database a list of the different topics used to send data related with the assets.
+
+-	Product list
+-	Product tracking
+-	Supplies management
+
+
+
+</p>
+</details>
+
+
+
+<details>
+<summary> The Role System  </summary> 
+<p>
+For a more extensive documentation visit [![Link:roles](https://img.shields.io/badge/Roles-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
+
+![img:glossary:roles:general](./docs/img/role_general.png)
+
+
+
+
+
+</p>
+</details>
+
+
+
 
 ## Usage
 
+(DTM, Dashboard, Node-red)
+
 ### Login
 
+### Dashboard
+
+### Digital Twin Model
+
+### Node-RED
 
 
-(DTM, Dashboard, Node-red)
+
 
 ## Contributing
 We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/CONTRIBUTING.md) for more information.
