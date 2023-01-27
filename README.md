@@ -80,7 +80,51 @@ In order to have the OSI4IOT platform running correctly, the following requireme
 
 ## Installation
 
-The OSI4IOT platform must to be installed by mean a Command Line Interface (CLI) tool called `osi4iot`. To install the `osi4iot` in your machine it is neccesary to download from Github the proper installer for your operating system:
+<!-- To install the osi4iot package from Github, use the following command:
+```
+git clone https://github.com/osi4iot/osi4iot
+cd osi4iot
+``` -->
+
+The Command Line Interface (CLI) can be installed by running the appropriate script inside the `osi4iot` repository.
+
+>./utils/osi4iot_cli/dist/
+
+![img:installation_distGitHub](./docs/img/installation_distGitHub.png)
+
+<!-- <details>
+<summary>Distribution information</summary>
+<p>
+
+![img:installation_distGitHub](./docs/img/installation_distGitHub.png)
+
+
+The folders for installation found in the subfolder indicate the type of operative system and architecture. The following table contains a summary:
+
+| **Operative System** | **Architecture** | **Installer Folder** |
+| -------------------- | ---------------- | -------------------- |
+| **Windows**          | AMD (x64)        | win_x64              |
+| **Linux**            | AMD (x64)        | linux_x64            |
+| **Linux**            | ARM (arm64)      | linux_arm64          |
+| **Mac**              | AMD (x64)        | linux_x64            |
+
+The ARM architecture in Linux is specially build for low consuming microprocessors such as Raspberry Pi or similar. These types of microprocessors are very common in the building of any IOT infrastructure.
+
+</p>
+</details>  -->
+
+<details>
+<summary>CLI installation</summary>
+<p>
+
+
+
+To proceed with the installation, download the appropriate installer for your system and run it in the terminal. For example, on a UNIX-based system such as Linux ARM, you can use the following command:
+
+    mkdir <my project>  // Example: mkdir iot_fiber4yard
+    cd <myproject>      // Example: cd iot_fiber4yard
+
+Download the appropriate installer for your system.
 
     // Installer Linux amd64:
     curl -o osi4iot_installer_linux_x64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_x64/osi4iot_installer_linux_x64.sh
@@ -89,16 +133,21 @@ The OSI4IOT platform must to be installed by mean a Command Line Interface (CLI)
     curl -o osi4iot_installer_linux_arm64.sh https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/linux_arm64/osi4iot_installer_linux_arm64.sh
 
     // Installer Windows:
-    curl -o osi4iot_installer_win_x64.ps1 https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/win_x64/osi4iot_installer_winx_x64.ps1
+    curl -o osi4iot_installer_winx_x64.ps1 https://raw.githubusercontent.com/osi4iot/osi4iot/master/utils/osi4iot_cli/dist/win_x64/osi4iot_installer_winx_x64.ps1
 
-Once the appropriate installer for your operating system has been downloaded, it must be executed. For example, if you are using a Linux ARM 64-bit system use 
+For example, if you are using a Linux ARM 64-bit system, download and execute the installer by using
 
     bash osi4iot_installer_linux_arm64.sh
 
-Once the `osi4iot` CLI tool has been successfully installed, then initialize the OS4IOT platform by typing
+</p>
+</details>
 
-    mkdir <my project>  // Example: mkdir iot_fiber4yard
-    cd <myproject>      // Example: cd iot_fiber4yard
+<details>
+<summary>Platform initialization</summary>
+<p>
+
+If the Platform CLI has been correctly installed, then initialize the platform by typing
+
     osi4iot
 
 A message prompt similar to this should appear:
@@ -111,12 +160,6 @@ A message prompt similar to this should appear:
     > Local deployment
     On-premise cluster deployment
     AWS cluster deployment
-
-The OSI4IOT platform allows three types of deployments
-
--	Local deployment: Deployment in a single machine
--	On-premise cluster deployment: Deployment in a cluster on-premise
--	AWS cluster deployment: Deployment in a cluster on AWS
 
 <details>
 <summary> Local Deployment </summary> 
@@ -221,6 +264,7 @@ Now the platform should be accessible through the browser.
 ## Glossary
 <details>
 <summary> The Industry 4.0  </summary>  
+<p>
 
 For a more extensive documentation visit [![Link:glossary](https://img.shields.io/badge/Glossary-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
 
@@ -229,12 +273,6 @@ The `OSI4IOT` ecosystem is not limited to monitor different sensors and to provi
 In order to monitor and access the available `BIM` information. The platform divides the information in several layers or levels of hierarchy. 
 
 ![img:glossary:industry4.0](./docs/img/industry4_0.svg)
-
-
- 
-<p>
-
-
 
 
 <!-- ![img:frontpage_dataflow](./docs/img/resize_50/frontpage_dataflow.png) -->
@@ -338,19 +376,19 @@ In the platform there are different types of assets.
 
 
 
-<!-- <details> -->
+<details>
 <summary> The Role System  </summary> 
-
+<p>
 For a more extensive documentation visit [![Link:roles](https://img.shields.io/badge/Roles-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/roles.md).
 
 ![img:glossary:roles:general](./docs/img/role_general.png)
 
-<!-- <p>
+
 
 
 
 </p>
-</details> -->
+</details>
 
 
 
