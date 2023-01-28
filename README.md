@@ -31,7 +31,6 @@ This platform allows the creation of Digital Twins Models (DTM). A 3D respresent
 - [Installation](#installation)
 - [Glossary](#glossary)
 - [Usage](#usage)
-- [Contributing](#contributing)
 - [License](#license)
 - [Status](#status)
 
