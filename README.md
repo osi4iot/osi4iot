@@ -324,7 +324,7 @@ If logged into the platform, the first thing that you will see is the role menu 
 - Super Admin: role associated generally to the people who are in charge of the `platform` and generally install it.
 - Organizations Admin: role associated to the management of the `organizations`, creation of `groups`, etc.
 - Groups Admin: role associated to the management of `groups`, creation of `devices` and `assets`.
-- User: role associated to the display of `devices` and `assets`.
+- User: role associated with the management of the personal information of the corresponding user.
 
 ![img:glossary:roles:general](./docs/img/role_general.png)
 
@@ -334,7 +334,7 @@ The hierarchy of roles is established as:
 
 The `home` button is just the viewer and it is available to all the roles. The descendent order implicates that the role below is of higher rank, for example a `Super Admin` can manage the same information as the `Organizations Admin`, but not otherwise. 
 
-The following picture illustrates the information that can be accessed by the different roles. Note that although the `User` can view and access the devices of a `group`, it is not able to create, edit or erase them. This options are available at the `Group Admin` level.
+The following picture illustrates the information that can be accessed by the different roles.
  <br/><br/>
 ![img:glossary:roles](./docs/img/roles.svg)
 </p>
@@ -351,19 +351,19 @@ The home screen hosted in the the domain provided in the CLI offers 4 possibilit
 
 - Platform assistant:
 
-    The core of the platform where the different users can access to the `BIM` information stored in the platform. It gives access to the managing role menus.
+    The core of the platform where the different users can access to all information stored in the platform. It gives access to the managing role menus.
 
 - Dashboards
 
-    Use this option to load quickly a particular or various dashboards already created.
+    Use this option to open Grafana application in another browser tab.
 
 - Digital twin simulator
 
-     Use this option to load quickly a particular or various Digital Twin Models already created and have access to the simulation parameters in real time. With this, you can display the model in a device and control the simulation parameters from another one.
+    This option is a simulator for the Digital Twin Models. The change in the parameters of the `DTM` can be modified in real time. With this, you can display the model in a device and control the simulation parameters from another one.
 
 - Mobile sensors (Only Android devices)
 
-    This option is used to demonstrate that the platform also integrates mobile technology. For example, it is possible to capture the accelerometers of an android phone or even use machine learning models to label information from a picture taken by the phone.
+    This option is used to demonstrate that the platform also integrates mobile technology. For example, it is possible to capture the accelerometers of an Android phone or even use machine learning models to label information from a picture taken by the phone.
 
 </p>
 </details>
@@ -433,7 +433,7 @@ It can also be the case that you may want to monitor an asset with the 3D view w
 <summary> Node-RED  </summary>  
 <p>
 
-Any `dashboard` or `dtm` requires a logic or core to decide how the information from sensors is connected with the database and how the alerts are displayed. This task can be done with the help of Node-RED, an open source package that allows graphically to interconnect the data and manipulate it. You can either create custom boxes or use existing template boxes to design the flow diagram of the logic of your `devices`.
+Any 'DTM' requires a logic to decide how the information received by the sensors is managed in real time and when an alert is triggered when something goes wrong. This task can be done with the help of Node-RED, an open source package that allows graphically to interconnect the data and manipulate it. You can either create custom boxes or use existing template boxes to design the flow diagram of the logic of your `devices`.
 
 ![img:node-red](./docs/img/web-node-red.png)
 
