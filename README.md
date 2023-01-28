@@ -459,8 +459,6 @@ The open-source packages utilized within the OSI4IOT platform are being used in 
 
 The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 License - see the [LICENSE](https://github.com/osi4iot/OSI4IOT/blob/master/LICENSE) file for details.
 
- <br/>
-
 ## Examples
 
 ### Composites slab
@@ -474,8 +472,6 @@ The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 L
 ### Aluminium beam 
 
 ![vid:tank](./docs/img/beam.gif)
-
- <br/>
 
 ## Status
 
