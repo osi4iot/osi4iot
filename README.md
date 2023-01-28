@@ -444,7 +444,6 @@ The Node-RED instances can be accessed by clicking into the Node-RED icon in the
 
 </p>
 </details>
- <br/>
 
 <!-- ## Contributing
 We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/CONTRIBUTING.md) for more information. -->
