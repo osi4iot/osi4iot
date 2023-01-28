@@ -339,7 +339,6 @@ The following picture illustrates the information that can be accessed by the di
 ![img:glossary:roles](./docs/img/roles.svg)
 </p>
 </details>
- <br/>
 
 ## Usage
 
