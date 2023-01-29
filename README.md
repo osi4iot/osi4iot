@@ -460,17 +460,17 @@ The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 L
 
 ### Composites slab
 
-<img src="./docs/img/pool.gif" width="60%" height="60%">
+<img src="./docs/img/pool.gif" width="70%" height="70%">
 <!-- ![vid:pool](./docs/img/pool.gif) -->
 
 ### Gas tank
 
-<img src="./docs/img/tank.gif" width="60%" height="60%">
+<img src="./docs/img/tank.gif" width="70%" height="70%">
 <!-- ![vid:tank](./docs/img/tank.gif) -->
 
 ### Aluminium beam 
 
-<img src="./docs/img/beam.gif" width="60%" height="60%">
+<img src="./docs/img/beam.gif" width="70%" height="70%">
 <!-- ![vid:beam](./docs/img/beam.gif) -->
 
 ## Status
