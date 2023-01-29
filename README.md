@@ -458,6 +458,8 @@ The custom code developed in OSI4IOT platform is licensed under the Apache 2.0 L
 
 ## Examples
 
+Note: videos may take a few seconds to be loaded.
+
 ### Composites slab
 
 <!-- <img src="./docs/img/pool.gif" width="50%" height="50%"> -->
