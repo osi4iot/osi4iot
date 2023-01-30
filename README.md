@@ -467,7 +467,7 @@ Note: videos may take a few seconds to be loaded.
 
 ![vid:pool](./docs/img/pool.gif)
 
-<p>
+</p>
 </details>
 
 <summary> Gas tank </summary>  
@@ -475,7 +475,7 @@ Note: videos may take a few seconds to be loaded.
 
 ![vid:tank](./docs/img/tank.gif)
 
-<p>
+</p>
 </details>
 
 <summary> Aluminium beam </summary>  
@@ -483,7 +483,7 @@ Note: videos may take a few seconds to be loaded.
 
 ![vid:beam](./docs/img/beam.gif)
 
-<p>
+</p>
 </details>
 
 ## Status
