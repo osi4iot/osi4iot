@@ -94,37 +94,6 @@ class NodeRedInstanceController implements IController {
 		}
 	};
 
-	// private getNodeRedInstancesForGroupsManagedByUser = async (
-	// 	req: IRequestWithUser,
-	// 	res: Response,
-	// 	next: NextFunction
-	// ): Promise<void> => {
-	// 	try {
-	// 		let nodeRedInstances: INodeRedInstance[] = [];
-	// 		if (req.user.isGrafanaAdmin) {
-	// 			nodeRedInstances = await getAllNodeRedInstances();
-	// 		} else {
-	// 			const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
-	// 			const organizations = await getOrganizationsManagedByUserId(req.user.id);
-	// 			if (organizations.length !== 0) {
-	// 				const orgIdsArray = organizations.map(org => org.id);
-	// 				const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-	// 				const groupsIdArray = groups.map(group => group.id);
-	// 				groupsInOrgs.forEach(groupInOrg => {
-	// 					if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-	// 				})
-	// 			}
-	// 			if (groups.length !== 0) {
-	// 				const groupsIdArray = groups.map(group => group.id);
-	// 				nodeRedInstances = await getNodeRedInstancesByGroupsIdArray(groupsIdArray);
-	// 			}
-	// 		}
-	// 		res.status(200).send(nodeRedInstances);
-	// 	} catch (error) {
-	// 		next(error);
-	// 	}
-	// };
-
 	private getAllNodeRedInstances = async (
 		req: Request,
 		res: Response,

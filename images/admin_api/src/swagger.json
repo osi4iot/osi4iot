@@ -69,6 +69,10 @@
 		{
 			"name": "Dashboard",
 			"description": "List of dashboards of the IOT Platform - Default role required: Group_Admin"
+		},
+		{
+			"name": "Node-RED instances",
+			"description": "List of Node-RED instances of the IOT Platform - Default role required: Group_Admin"
 		}
 	],
 	"consumes": [
@@ -2840,55 +2844,6 @@
 				}
 			}
 		},
-		"/group/{groupId}/ssl_certs": {
-			"parameters": [
-				{
-					"name": "groupId",
-					"in": "path",
-					"required": true,
-					"description": "Group id",
-					"type": "number"
-				}
-			],
-			"get": {
-				"tags": [
-					"Group"
-				],
-				"summary": "Get ssl certificates for the group  - Role required: Group_Admin",
-				"responses": {
-					"200": {
-						"description": "OK",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/definitions/SSLCerts"
-								}
-							}
-						}
-					},
-					"401": {
-						"description": "No auth token or invalid token",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/definitions/Credentials_rejected"
-								}
-							}
-						}
-					},
-					"404": {
-						"description": "Group not found",
-						"content": {
-							"application/json": {
-								"schema": {
-									"$ref": "#/definitions/GroupNotFoundMessage"
-								}
-							}
-						}
-					}
-				}
-			}
-		},
 		"/group/{groupId}/change_uid": {
 			"parameters": [
 				{
@@ -3642,7 +3597,7 @@
 				"tags": [
 					"Topic"
 				],
-				"summary": "Get Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
+				"summary": "Get Topic by id, name or TopicUid  - Role required: Group_Admin",
 				"responses": {
 					"200": {
 						"description": "OK",
@@ -3705,7 +3660,7 @@
 				"tags": [
 					"Topic"
 				],
-				"summary": "Update Topic by propName: id, name or TopicUid  - Role required: Group_Admin",
+				"summary": "Update Topic id  - Role required: Group_Admin",
 				"requestBody": {
 					"description": "Member data",
 					"required": false,
@@ -4920,6 +4875,318 @@
 				}
 			}
 		},
+		"/digital_twin_upload_file/{groupId}/{deviceId}/{digitalTwinId}/{folder}/{fileName}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "number"
+				},
+				{
+					"name": "digitalTwinId",
+					"in": "path",
+					"required": true,
+					"description": "Digital twin id",
+					"type": "number"
+				},
+				{
+					"name": "folder",
+					"in": "path",
+					"required": true,
+					"description": "S3 bucket folder",
+					"type": "string"
+				},
+				{
+					"name": "fileName",
+					"in": "path",
+					"required": true,
+					"description": "S3 bucket file name",
+					"type": "string"
+				}								
+			],
+			"post": {
+				"tags": [
+					"Digital twin"
+				],
+				"summary": "Upload digital twin file to S3 bucket  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/DigitalTwinUploadFileInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/digital_twin_download_file/{groupId}/{deviceId}/{digitalTwinId}/{folder}/{fileName}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "number"
+				},
+				{
+					"name": "digitalTwinId",
+					"in": "path",
+					"required": true,
+					"description": "Digital twin id",
+					"type": "number"
+				},
+				{
+					"name": "folder",
+					"in": "path",
+					"required": true,
+					"description": "S3 bucket folder",
+					"type": "string"
+				},
+				{
+					"name": "fileName",
+					"in": "path",
+					"required": true,
+					"description": "S3 bucket file name",
+					"type": "string"
+				}					
+			],
+			"get": {
+				"tags": [
+					"Digital twin"
+				],
+				"summary": "Download digital twin file to S3 bucket  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/DigitalTwinDownloadFileInput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/digital_twin_file_list/{groupId}/{deviceId}/{digitalTwinId}/{folder}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "number"
+				},
+				{
+					"name": "digitalTwinId",
+					"in": "path",
+					"required": true,
+					"description": "Digital twin id",
+					"type": "number"
+				},
+				{
+					"name": "folder",
+					"in": "path",
+					"required": true,
+					"description": "S3 bucket folder",
+					"type": "string"
+				}					
+			],
+			"get": {
+				"tags": [
+					"Digital twin"
+				],
+				"summary": "Get digital twin file list to S3 bucket  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/BucketFileInfoList"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/digital_twin_delete_file/{groupId}/{deviceId}/{digitalTwinId}/{folder}/{fileName}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "deviceId",
+					"in": "path",
+					"required": true,
+					"description": "Device id",
+					"type": "number"
+				},
+				{
+					"name": "digitalTwinId",
+					"in": "path",
+					"required": true,
+					"description": "Digital twin id",
+					"type": "number"
+				},
+				{
+					"name": "folder",
+					"in": "path",
+					"required": true,
+					"description": "S3 bucket folder",
+					"type": "string"
+				},
+				{
+					"name": "fileName",
+					"in": "path",
+					"required": true,
+					"description": "S3 bucket file name",
+					"type": "string"
+				}					
+			],
+			"delete": {
+				"tags": [
+					"Digital twin"
+				],
+				"summary": "Delete digital twin file to S3 bucket  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},					
 		"/dashboards/user_managed": {
 			"get": {
 				"tags": [
@@ -4999,6 +5266,272 @@
 							"application/json": {
 								"schema": {
 									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/nodered_instance/user_managed": {
+			"get": {
+				"tags": [
+					"Node-RED instances"
+				],
+				"summary": "Get all Node-RED instances managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NodeRedInstances"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/nodered_instances": {
+			"get": {
+				"tags": [
+					"Node-RED instances"
+				],
+				"summary": "Get all Node-RED instances managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NodeRedInstances"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/nodered_instances/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id or nri_hash",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "nri property value",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": [
+					"Node-RED instances"
+				],
+				"summary": "Get Node-RED instance by id or nri_hash",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NodeRedInstanceOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/nodered_instances/{nriId}": {
+			"parameters": [
+				{
+					"name": "nriId",
+					"in": "path",
+					"required": true,
+					"description": "Node-RED instance id",
+					"type": "string"
+				}
+			],
+			"delete": {
+				"tags": [
+					"Node-RED instances"
+				],
+				"summary": "Delete Node-RED instance by id",
+				"responses": {
+					"200": {
+						"description": "Node-RED instance deleted successfully",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/nodered_instance/recover_instances": {
+			"patch": {
+				"tags": [
+					"Node-RED instances"
+				],
+				"summary": "Recover Node-RED instances marked as deleted",
+				"requestBody": {
+					"description": "Recover Node-RED instances",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/RecoverNodeRedInstancesInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/nodered_instance": {
+			"post": {
+				"tags": [
+					"Node-RED instances"
+				],
+				"summary": "Create Node-RED instances",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/NodeRedInstancesInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/nodered_instance_authentication/{nriHash}": {
+			"parameters": [
+				{
+					"name": "nriHash",
+					"in": "path",
+					"required": true,
+					"description": "nri_hash",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": [
+					"Node-RED instances"
+				],
+				"summary": "Authentication for Node-RED instance",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/NodeRedInstanceAuthenticationOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
 								}
 							}
 						}
@@ -5288,6 +5821,9 @@
 				"telegramChatId": {
 					"type": "string"
 				},
+				"mqttAccessControl": {
+					"type": "string"
+				},
 				"orgAdminArray": {
 					"type": "array",
 					"items": {
@@ -5326,6 +5862,9 @@
 				"orgHash": {
 					"type": "string"
 				},
+				"mqttAccessControl": {
+					"type": "string"
+				},				
 				"nriHashes": {
 					"type": "array",
 					"items": {
@@ -5385,6 +5924,9 @@
 					"type": "number"
 				},
 				"orgHash": {
+					"type": "string"
+				},
+				"mqttAccessControl": {
 					"type": "string"
 				}
 			}
@@ -5842,6 +6384,9 @@
 				},
 				"featureIndex": {
 					"type": "number"
+				},
+				"mqttAccessControl": {
+					"type": "number"
 				}
 			}
 		},
@@ -5958,6 +6503,9 @@
 					"type": "number"
 				},
 				"featureIndex": {
+					"type": "number"
+				},
+				"mqttAccessControl": {
 					"type": "number"
 				}
 			}
@@ -6140,6 +6688,9 @@
 				},
 				"payloadFormat": {
 					"type": "string"
+				},
+				"mqttAccessControl": {
+					"type": "string"
 				}
 			}
 		},
@@ -6170,6 +6721,9 @@
 					"type": "string"
 				},
 				"payloadFormat": {
+					"type": "string"
+				},
+				"mqttAccessControl": {
 					"type": "string"
 				},
 				"created": {
@@ -6401,7 +6955,7 @@
 					"type": "string"
 				},
 				"lastMeasurement": {
-					"type": "string"
+					"$ref": "#/definitions/Measurements"
 				}
 			}
 		},
@@ -6417,7 +6971,7 @@
 					"type": "string"
 				},				
 				"mqttTopicsData": {
-					"type": "string"
+					"$ref": "#/definitions/MqttTopicDataShort"
 				}
 			}
 		},
@@ -6528,6 +7082,20 @@
 				}
 			}
 		},
+		"DigitalTwinUploadFileInput": {
+			"properties": {
+				"formData": {
+					"type": "string"
+				}
+			}
+		},
+		"DigitalTwinDownloadFileInput": {
+			"properties": {
+				"data": {
+					"type": "string"
+				}
+			}
+		},
 		"BucketFileInfoOutput": {
 			"properties": {
 				"fileName": {
@@ -6577,6 +7145,76 @@
 			"items": {
 				"$ref": "#/definitions/DashboardOutput"
 			}
+		},
+		"NodeRedInstanceOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"groupId": {
+					"type": "number"
+				},
+				"nriHash": {
+					"type": "string"
+				},
+				"iconRadio": {
+					"type": "number"
+				},
+				"longitude": {
+					"type": "number"
+				},
+				"latitude": {
+					"type": "number"
+				},
+				"deleted": {
+					"type": "boolean"
+				},							
+				"created": {
+					"type": "string"
+				},
+				"updated": {
+					"type": "string"
+				}
+			}
+		},
+		"NodeRedInstances": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/NodeRedInstanceOutput"
+			}
+		},
+		"RecoverNodeRedInstancesInput": {
+			"properties": {
+				"nriIdArray": {
+					"type": "array",
+					"items": {
+						"type": "number"
+					}
+				}
+			}
+		},
+		"NodeRedInstancesInput": {
+			"properties": {
+				"nriHash": {
+					"type": "string"
+				},
+				"orgId": {
+					"type": "number"
+				}
+			}			
+		},
+		"NodeRedInstanceAuthenticationOutput": {
+			"properties": {
+				"user": {
+					"$ref": "#/definitions/UserOutput"
+				},
+				"groupId": {
+					"type": "number"
+				}
+			}			
 		}
 	}
 }
