@@ -464,6 +464,7 @@ Note: videos may take a few seconds to be loaded.
 <details>
 <summary> Composite slab </summary>  
 <p>
+
 ![vid:pool](./docs/img/pool_r.gif)
 
 </p>
