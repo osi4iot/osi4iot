@@ -265,6 +265,7 @@ Inside the platform, the `groups` are geolocated and displayed in the map inside
 <p>
 The type of information stored inside a `group` are `devices`. These are the next hierarchy level. Each `group` within an `organization` can have several `devices` connected to internet to send data. These `devices` can be PLCs, microcontrollers, microcomputers (like Raspberry Pi), IOT gateways (like SIMATIC IOT2050 of Siemens), etc. 
 <br/><br/>
+
 ![img:glossary:devices](./docs/img/devices.svg)
 
 In the platform, the `devices` are geolocated inside their corresponding `group` and displayed with a bubble. Each `device` contains `assets`.
