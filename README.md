@@ -464,12 +464,14 @@ Note: videos may take a few seconds to be loaded.
 <details>
 <summary> Composites slab </summary>  
 <p>
+Note: videos may take a few seconds to be loaded.
 
 ![vid:pool](./docs/img/pool.gif)
 
 </p>
 </details>
 
+<details>
 <summary> Gas tank </summary>  
 <p>
 
@@ -478,6 +480,7 @@ Note: videos may take a few seconds to be loaded.
 </p>
 </details>
 
+<details>
 <summary> Aluminium beam </summary>  
 <p>
 
