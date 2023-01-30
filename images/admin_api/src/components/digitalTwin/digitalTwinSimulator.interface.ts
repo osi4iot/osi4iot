@@ -3,9 +3,9 @@ export default interface IDigitalTwinSimulator {
 	orgId: number;
 	groupId: number;
 	deviceId: number;
-	name: string;
+	digitalTwinUid: string;
 	description: string;
 	digitalTwinSimulationFormat: string;
 	sensorSimulationTopicId: number;
-	mqttTopic: string;
+	mqttTopic?: string;
 }

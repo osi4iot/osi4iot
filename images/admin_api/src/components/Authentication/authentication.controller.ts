@@ -57,8 +57,6 @@ class AuthenticationController implements IController {
 	private initializeRoutes(): void {
 		passportInitialize();
 		this.router.post(`${this.path}/login`, validationMiddleware<LoginDto>(LoginDto), this.userLogin);
-		this.router.post(`${this.path}/mosquitto_user`, this.userMosquittoAuth);
-		this.router.post(`${this.path}/mosquitto_aclcheck`, this.userMosquittoAclCheck);
 		this.router.patch(`${this.path}/register`, registerAuth, validationMiddleware<UserRegisterDto>(UserRegisterDto), this.userRegister);
 		this.router.get(`${this.path}/user_data_for_register`, registerAuth, this.getUserRegisterData);
 		this.router.get(`${this.path}/user_profile`, userAuth, this.getUserProfile);
@@ -76,6 +74,8 @@ class AuthenticationController implements IController {
 		this.router.delete(`${this.path}/disable_refresh_token_by_id/:refreshTokenId`, superAdminAuth, this.disableRefreshTokenById);
 		this.router.delete(`${this.path}/disable_user_refresh_tokens/:userId`, superAdminAuth, this.disableUsersRefreshToken);
 		this.router.get(`${this.path}/user_managed_components`, userAuth, this.numComponentsManagedByUser);
+		this.router.post(`${this.path}/mosquitto_user`, this.userMosquittoAuth);
+		this.router.post(`${this.path}/mosquitto_aclcheck`, this.userMosquittoAclCheck);
 	}
 
 	private generateNewRefreshToken = (user: IUser) => {

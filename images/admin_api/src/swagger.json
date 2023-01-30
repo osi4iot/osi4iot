@@ -5533,6 +5533,9 @@
 				"geoJsonData": {
 					"type": "string"
 				},
+				"outerBounds": {
+					"type": "array"
+				},
 				"timeFromCreation": {
 					"type": "string"
 				},
@@ -5697,10 +5700,10 @@
 				"surname": {
 					"type": "string"
 				},
-				"email": {
+				"login": {
 					"type": "string"
 				},
-				"login": {
+				"email": {
 					"type": "string"
 				},
 				"isGrafanaAdmin": {
@@ -6027,6 +6030,12 @@
 		"SSLCerts": {
 			"type": "object",
 			"properties": {
+				"username": {
+					"type": "string"
+				},
+				"password": {
+					"type": "string"
+				},
 				"caCert": {
 					"type": "string"
 				},
@@ -6050,6 +6059,12 @@
 					"type": "string"
 				},
 				"type": {
+					"type": "string"
+				},
+				"mqttAccessControl": {
+					"type": "string"
+				},
+				"iconRadio": {
 					"type": "string"
 				},
 				"longitude": {
@@ -6078,6 +6093,12 @@
 					"type": "string"
 				},
 				"type": {
+					"type": "string"
+				},
+				"mqttAccessControl": {
+					"type": "string"
+				},
+				"iconRadio": {
 					"type": "string"
 				},
 				"groupUid": {
@@ -6314,17 +6335,11 @@
 				"type": {
 					"type": "string"
 				},
-				"gltfFileName": {
+				"topicSensorTypes": {
 					"type": "string"
 				},
-				"gltfFileLastModifDateString": {
-					"type": "string"
-				},
-				"femSimDataFileName": {
-					"type": "string"
-				},
-				"femSimDataFileLastModifDateString": {
-					"type": "string"
+				"maxNumResFemFiles": {
+					"type": "number"
 				},
 				"digitalTwinSimulationFormat": {
 					"type": "string"
@@ -6357,22 +6372,35 @@
 				"dashboardId": {
 					"type": "number"
 				},
-				"gltfFileName": {
-					"type": "string"
-				},
-				"gltfFileLastModifDateString": {
-					"type": "string"
-				},
-				"femSimDataFileName": {
-					"type": "string"
+				"maxNumResFemFiles": {
+					"type": "number"
 				},
 				"digitalTwinSimulationFormat": {
+					"type": "string"
+				},
+				"dashboardUrl": {
 					"type": "string"
 				},
 				"created": {
 					"type": "string"
 				},
 				"updated": {
+					"type": "string"
+				}
+			}
+		},
+		"MqttTopicDataShort": {
+			"properties": {
+				"topicId": {
+					"type": "number"
+				},
+				"topicType": {
+					"type": "string"
+				},
+				"mqttTopic":  {
+					"type": "string"
+				},
+				"lastMeasurement": {
 					"type": "string"
 				}
 			}
@@ -6385,10 +6413,10 @@
 				"gltfData": {
 					"type": "string"
 				},
-				"femResData": {
-					"type": "string"
-				},
 				"digitalTwinSimulationFormat": {
+					"type": "string"
+				},				
+				"mqttTopicsData": {
 					"type": "string"
 				}
 			}
@@ -6498,6 +6526,22 @@
 						}
 					}
 				}
+			}
+		},
+		"BucketFileInfoOutput": {
+			"properties": {
+				"fileName": {
+					"type": "string"
+				},
+				"lastModified": {
+					"type": "string"
+				}
+			}
+		},
+		"BucketFileInfoList": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/BucketFileInfoOutput"
 			}
 		},
 		"DashboardOutput": {
