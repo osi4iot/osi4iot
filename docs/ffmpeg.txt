@@ -1,0 +1,2 @@
+# To convert a gif and retain the quality use
+../ffmpeg-2023-01-25-git-2c3107c3e9-full_build/bin/ffmpeg.exe -i beam.mkv  -vf "setpts=0.25*PTS,fps=60,scale=1920:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse"  -loop 0 beam.gif
