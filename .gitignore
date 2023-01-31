@@ -58,5 +58,3 @@ utils/osi4iot_cli/.osi4iot_keys
 !utils/osi4iot_cli/dist
 utils/osi4iot_cli/lib
 !README.md
-utils/gid2json/node_modules
-utils/gid2json/projects/*
