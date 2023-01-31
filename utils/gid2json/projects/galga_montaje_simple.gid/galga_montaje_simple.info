@@ -1,0 +1,33 @@
+This is the Ram Series FULL PROFESSIONAL version
+
+Number of total nodes in model: 555
+num_threads=4 --- using metis split=1
+Using Hybrid-Sparse Solver.
+Using DKT elements.
+
+COMBINED LOAD CASE: New_combined_1
+Sparse matrix storage with Direct Solver (Hybrid-Sparse)
+
+Using 4 CPUs for Hybrid-Sparse solver
+Degrees of freedom= 2775
+Total number of positions= 55175
+Amount of memory= 0.6Mb
+
+Just before filling global stiffness matrix for static analysis
+Stiffness matrix filled
+Load vector constructed
+Beginning to apply constraints
+Just before Solver
+
+Starting solution process
+Total Hybrid-Sparse solver time = 0.0018 min. = 0.11 seg.
+Solver finished
+Beginning calc strengths and reactions
+End of calc strengths and reactions
+
+Beginning smooth of the gaussian variables
+
+COMBINED LOAD CASE: New_combined_1
+Transfering results
+
+Total time = 0.0096 min. = 0.58 seg.
