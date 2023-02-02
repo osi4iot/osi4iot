@@ -1,12 +1,9 @@
-import { GLTFLoader } from "three-stdlib";
 import * as THREE from 'three'
 import { Camera } from '@react-three/fiber';
 import { ISensorObject, IAssetObject, IFemSimulationObject, IResultRenderInfo, IGenericObject, IMqttTopicData } from './Model';
 import { toast } from "react-toastify";
 import { IMeasurement } from "../TableColumns/measurementsColumns";
 import Lut, { ILegendLabels } from "./Lut";
-
-export const loader = new GLTFLoader();
 
 export interface SensorState {
 	stateString: string;
