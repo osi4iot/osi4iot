@@ -816,17 +816,19 @@ export default function (osi4iotState) {
 	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
 		osi4iotStackObj.services['portainer'].deploy.labels = osi4iotStackObj.services['portainer'].deploy.labels.filter(elm => elm !== 'traefik.http.routers.portainer.tls=true');
 
-		osi4iotStackObj.services['pgadmin4'].deploy.labels = [
-			'traefik.enable=true',
-			`traefik.http.routers.pgadmin4.rule=Host(\`${domainName}\`) && PathPrefix(\`/pgadmin4/\`)`,
-			'traefik.http.middlewares.pgadmin4-prefix.stripprefix.prefixes=/pgadmin4',
-			'traefik.http.routers.pgadmin4.middlewares=pgadmin4-prefix,pgadmin4-header',
-			'traefik.http.middlewares.pgadmin4-prefix.stripprefix.forceslash=false',
-			'traefik.http.middlewares.pgadmin4-header.headers.customrequestheaders.X-Script-Name=/pgadmin4/',
-			"traefik.http.routers.pgadmin4.entrypoints=web",
-			'traefik.http.routers.pgadmin4.service=pgadmin4',
-			'traefik.http.services.pgadmin4.loadbalancer.server.port=80'
-		];
+		if (deploymentMode === "development") {
+			osi4iotStackObj.services['pgadmin4'].deploy.labels = [
+				'traefik.enable=true',
+				`traefik.http.routers.pgadmin4.rule=Host(\`${domainName}\`) && PathPrefix(\`/pgadmin4/\`)`,
+				'traefik.http.middlewares.pgadmin4-prefix.stripprefix.prefixes=/pgadmin4',
+				'traefik.http.routers.pgadmin4.middlewares=pgadmin4-prefix,pgadmin4-header',
+				'traefik.http.middlewares.pgadmin4-prefix.stripprefix.forceslash=false',
+				'traefik.http.middlewares.pgadmin4-header.headers.customrequestheaders.X-Script-Name=/pgadmin4/',
+				"traefik.http.routers.pgadmin4.entrypoints=web",
+				'traefik.http.routers.pgadmin4.service=pgadmin4',
+				'traefik.http.services.pgadmin4.loadbalancer.server.port=80'
+			];
+		}
 
 		osi4iotStackObj.services['grafana'].deploy.labels = [
 			'traefik.enable=true',
