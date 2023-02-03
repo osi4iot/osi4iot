@@ -209,6 +209,9 @@ The `OSI4IOT` platform is not limited to monitor different sensors and to provid
 -	Assets
 
 ![img:glossary:industry4.0](./docs/img/industry4_0.svg)
+
+
+
 </p>
 </details>
 
@@ -235,6 +238,14 @@ This type of structure could be useful in the case of a `single organization` th
 The most complex infrastructure that can be deployed and integrated in the `OSI4IOT` platform would be the case of different organizations working together (`cluster`) and wanting to digitalize and interconnect their processes and information generated. In this case the stakeholder level would be the `cluster` and the `group` level would be comprised from `organization's departments` to `partners`.
 
 Inside the platform, the `organizations` or `stakeholders` are geolocated and displayed in the map with all their content information (`groups`, `devices` and `assets`).
+
+In the map, first you can see a general view with all the `organizations` included in the platform.
+
+<br/><br/>
+![img:glossary:industry4.0:map](./docs/img/web-map-orgs.png)
+
+If one of the `leaflets` are selected, the view will focus on the building of the selected `organization`.
+
 <br/><br/>
 ![img:glossary:stakeholders:ma](./docs/img/web_orgs.png)
 
