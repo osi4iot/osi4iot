@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json"
+	"github.com/buger/jsonparser"
 	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/jackc/pgx/v4"
@@ -59,36 +59,6 @@ func createClientOptions(configData config) *mqtt.ClientOptions {
 	return opts
 }
 
-func saveToDatabaseWithTimestampHandler(dbPool *pgxpool.Pool, msg mqtt.Message) {
-	sqlQuery := "INSERT INTO iot_data.thingData (group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted) VALUES ($1, $2, $3, $4, $5, $6, $7);"
-
-	topicsSlice := strings.Split(msg.Topic(), "/")
-	group_uid := topicsSlice[1][6:]
-	device_uid := topicsSlice[2][7:]
-	topic_uid := topicsSlice[3][6:]
-	topic := fmt.Sprintf("%s/%s", topicsSlice[2], topicsSlice[3])
-	deleted := 0
-
-	var payloadStruct map[string]interface{}
-	err := json.Unmarshal(msg.Payload(), &payloadStruct)
-	if err == nil && payloadStruct["timestamp"] != nil {
-		timestampString := payloadStruct["timestamp"].(string)
-		timestamp, error := time.Parse(time.RFC3339, timestampString)
-		if error != nil {
-			fmt.Println(error)
-			return
-		}
-		delete(payloadStruct, "timestamp")
-		payload, _ := json.Marshal(payloadStruct)
-
-		if _, err := dbPool.Exec(context.Background(), sqlQuery, group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted); err != nil {
-			// Handling error, if occur
-			fmt.Println("Unable to insert due to: ", err)
-			return
-		}
-	}
-}
-
 func sendRowToChannelHandler1000ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel1000ms chan []interface{}) {
 	timestamp := time.Now()
 	payload := msg.Payload()
@@ -112,21 +82,47 @@ func sendRowToChannelHandler200ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowCha
 	topic := fmt.Sprintf("%s/%s", topicsSlice[2], topicsSlice[3])
 	deleted := 0
 
-	var payloadStruct map[string]interface{}
-	err := json.Unmarshal(msg.Payload(), &payloadStruct)
-	if err == nil && payloadStruct["timestamp"] != nil {
-		timestampString := payloadStruct["timestamp"].(string)
+	timestampString, err := jsonparser.GetString(msg.Payload(), "timestamp");
+	if err != nil {
+		fmt.Println("Timestamp field not defined")
+		return
+	} else {
 		timestamp, error := time.Parse(time.RFC3339, timestampString)
 		if error != nil {
 			fmt.Println(error)
 			return
 		}
-		delete(payloadStruct, "timestamp")
-		payload, _ := json.Marshal(payloadStruct)
-
+		payload := jsonparser.Delete(msg.Payload(), "timestamp")
 		item := []interface{}{group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted}
 		rowChannel200ms <- item
 	}
+}
+
+func sendRowToChannelHandlerMessagedArray(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel1000ms chan []interface{}) {
+	messagesArray := msg.Payload()
+	topicsSlice := strings.Split(msg.Topic(), "/")
+	group_uid := topicsSlice[1][6:]
+	device_uid := topicsSlice[2][7:]
+	topic_uid := topicsSlice[3][6:]
+	topic := fmt.Sprintf("%s/%s", topicsSlice[2], topicsSlice[3])
+	deleted := 0
+
+	jsonparser.ArrayEach(messagesArray, func(message []byte, dataType jsonparser.ValueType, offset int, err error) {
+		timestampString, err := jsonparser.GetString(message, "timestamp");
+		if err != nil {
+			fmt.Println("Timestamp field not defined")
+			return
+		} else {
+			timestamp, error := time.Parse(time.RFC3339, timestampString)
+			if error != nil {
+				fmt.Println(error)
+				return
+			}
+			payload := jsonparser.Delete(message, "timestamp")
+			item := []interface{}{group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted}
+			rowChannel1000ms <- item
+		}
+	})
 }
 
 func saveRowsInDatabaseHandler(dbPool *pgxpool.Pool, rowsSlice [][]interface{}) {
@@ -180,6 +176,12 @@ func appendRowInSlice1000ms(dbPool *pgxpool.Pool, tickerStorage1000ms *time.Tick
 func listen(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel1000ms chan []interface{}) {
 	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
 		go sendRowToChannelHandler1000ms(dbPool, msg, rowChannel1000ms)
+	})
+}
+
+func listenMessagesArray(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel1000ms chan []interface{}) {
+	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
+		go sendRowToChannelHandlerMessagedArray(dbPool, msg, rowChannel1000ms)
 	})
 }
 
@@ -270,6 +272,7 @@ func main() {
 	tickerStorage1000ms := time.NewTicker(1 * time.Second)
 	go appendRowInSlice1000ms(dbPool, tickerStorage1000ms, rowChannel1000ms)
 	go listen("dev2pdb/#", client, dbPool, rowChannel1000ms)
+	go listenMessagesArray("dev2pdb_ma/#", client, dbPool, rowChannel1000ms)
 	go listen("dtm_as2pdb/#", client, dbPool, rowChannel1000ms)
 	go listen("dtm_fmv2pdb/#", client, dbPool, rowChannel1000ms)
 
@@ -287,4 +290,5 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error listenging on port 3300: %v", err)
 		os.Exit(1)
 	}
+	  
 }

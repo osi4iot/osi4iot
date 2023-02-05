@@ -69,6 +69,10 @@ const topicTypeOptions = [
         value: "dev2pdb"
     },
     {
+        label: "Device to platform DB message array",
+        value: "dev2pdb_ma"
+    },    
+    {
         label: "Device to platform DB with timestamp",
         value: "dev2pdb_wt"
     },

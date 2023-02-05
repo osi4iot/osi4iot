@@ -231,6 +231,7 @@ class AuthenticationController implements IController {
 				if (
 					!(
 						topicType === "dev2pdb" ||
+						topicType === "dev2pdb_ma" ||
 						topicType === "dtm_as2pdb" ||
 						topicType === "dtm_fmv2pdb" ||
 						topicType === "dev2pdb_wt" ||

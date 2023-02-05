@@ -8,6 +8,7 @@ require (
 )
 
 require (
+	github.com/buger/jsonparser v1.1.1
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgconn v1.12.1 // indirect
