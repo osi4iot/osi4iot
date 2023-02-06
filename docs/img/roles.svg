@@ -354,16 +354,16 @@
      borderopacity="1.0"
      inkscape:pageopacity="0.0"
      inkscape:pageshadow="2"
-     inkscape:zoom="0.59996619"
-     inkscape:cx="424.6198"
-     inkscape:cy="491.43423"
+     inkscape:zoom="0.84848032"
+     inkscape:cx="569.47589"
+     inkscape:cy="301.23028"
      inkscape:document-units="mm"
      inkscape:current-layer="layer1"
      inkscape:document-rotation="0"
      showgrid="false"
      inkscape:window-width="1920"
      inkscape:window-height="1057"
-     inkscape:window-x="-8"
+     inkscape:window-x="3192"
      inkscape:window-y="-8"
      inkscape:window-maximized="1" />
   <metadata
@@ -1898,7 +1898,7 @@
                style="font-variant:normal;font-weight:bold;font-size:4.10001px;font-family:'Courier New';-inkscape-font-specification:CourierNewPS-BoldMT;writing-mode:lr-tb;fill:#000000;fill-opacity:1;fill-rule:nonzero;stroke:none"
                x="0"
                y="0"
-               id="tspan98">o</tspan></text>
+               id="tspan384">o</tspan></text>
           <text
              transform="matrix(0.00174,1,1,-0.00174,197.5,203.5)"
              id="text100"
@@ -6326,7 +6326,7 @@
            id="tspan106153"
            x="165.04286"
            y="117.38246"
-           style="font-size:3.52779px;fill:#054a63;fill-opacity:1;stroke-width:0.264584">Asset 2 (Digital Twin)</tspan></text>
+           style="font-size:3.52779px;fill:#054a63;fill-opacity:1;stroke-width:0.264584">Component 2 (Digital Twin)</tspan></text>
       <path
          style="font-variation-settings:normal;vector-effect:none;fill:none;fill-opacity:1;stroke:#ff1a00;stroke-width:0.599001;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker-start:url(#DotS);paint-order:stroke fill markers;stop-color:#000000"
          d="m 218.3035,133.25796 -5.72394,8.21122 v 41.44853"
@@ -6568,7 +6568,7 @@
            id="tspan106153-7"
            x="165.04286"
            y="172.47983"
-           style="font-size:3.5278px;fill:#054a63;fill-opacity:1;stroke-width:0.264583">Asset 1 (Sensor)</tspan></text>
+           style="font-size:3.5278px;fill:#054a63;fill-opacity:1;stroke-width:0.264583">Component 1 (Sensor)</tspan></text>
       <path
          style="font-variation-settings:normal;vector-effect:none;fill:none;fill-opacity:1;stroke:#ff1a00;stroke-width:0.599001;stroke-linecap:round;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-dashoffset:0;stroke-opacity:1;marker-start:url(#marker106001);paint-order:stroke fill markers;stop-color:#000000"
          d="m 125.92709,182.8998 v -63.16152 h 29.65994 l 7.24861,-3.13439"
