@@ -458,6 +458,35 @@ The Node-RED instances can be accessed by clicking into the Node-RED icon in the
 <!-- ## Contributing
 We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/CONTRIBUTING.md) for more information. -->
 
+<details><summary> How to send messages through a MQTT topic </summary>
+<p>
+The platform uses `Mosquitto` as the message broker. This message protocol uses a `publish`/`subscribe` model associated to a `topic`. `Topics` are the channels of information where a `device` can connect to `publish` data or `subscribe` to fetch information.
+
+The platform implements a specific format to communicate through the MQQT protocol. Note that `devices` are associated to `groups`, and they send information through a `topic`. However, the format also takes into account the type of information that is sent in the `topic`. Therefore the format required to establish communication from a `device` to the platform is:
+
+    <topic type>/Group_<group hash>/Device_<device hash>/Topic_<topic hash>
+
+Topic types:
+
+- dev2pdb : Device to platform database.
+- dev2pdb_wt : Device to platform database with timestamp.
+- dev_sim_2dtm: Simulated device to DTM.
+- dtm_as2pdb : DTM assets state to platform database.
+- dtm_sim_as2dts: DTM simulated assets state to DTS.          
+- dtm_fmv2pdb: DTM fem modal value to platform database.  
+- dtm_sim_fmv2dts: DTM simulated fem modal value to DTS.
+
+Besides complying with the format, the security of the platform ensures that only the roles that can manage devices are allowed to send or receive information through a topic. Therefore you need to connect through credentials to the platform prior to use a `topic`.
+
+Not only users can use their credentials to send or receive information. There is the option that the `device` that `publish` and `subscribes` to the `topic` does itself. In that case, there is the option to download the `SSL certificates`, three certficates (`CA`,`Client Certificate`, `Client Key`). This method enables the device to send or fetch information without any account.
+
+![img:mqtt:ssl](./docs/img/mqtt-SSL.png)
+
+There is a more complete manual on how to communicate and use the MQTT protocol available in [![Link:MQTTX](https://img.shields.io/badge/MQTTX-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/telegram.md).
+
+</p>
+</details>
+
 ## Acknowledgements
 
 This OSI4IOT platform has been funded thanks to H2020 project FIBRE4YARDS sponsored by the EUROPEAN COMMISSION under the grant agreement 101006860 ‘‘FIBRE composite manufacturing technologies FOR the automation and modular construction in shipYARDS’’. https://www.fibre4yards.eu/.
