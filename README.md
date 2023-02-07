@@ -460,6 +460,7 @@ We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://githu
 
 <details><summary> How to send messages through a MQTT topic </summary>
 <p>
+
 The platform uses `Mosquitto` as the message broker. This message protocol uses a `publish`/`subscribe` model associated to a `topic`. `Topics` are the channels of information where a `device` can connect to `publish` data or `subscribe` to fetch information.
 
 The platform implements a specific format to communicate through the MQQT protocol. Note that `devices` are associated to `groups`, and they send information through a `topic`. However, the format also takes into account the type of information that is sent in the `topic`. Therefore the format required to establish communication from a `device` to the platform is:
@@ -482,7 +483,7 @@ Not only users can use their credentials to send or receive information. There i
 
 ![img:mqtt:ssl](./docs/img/mqtt-SSL.png)
 
-There is a more complete manual on how to communicate and use the MQTT protocol available in [![Link:MQTTX](https://img.shields.io/badge/MQTTX-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/telegram.md).
+There is a more complete manual on how to communicate and use the MQTT protocol available in [![Link:MQTTX](https://img.shields.io/badge/MQTTX-Manual-blue?style=flat&logo=GitBook&logoColor=blue&link=LINK)](./docs/MQQTX.md).
 
 </p>
 </details>
