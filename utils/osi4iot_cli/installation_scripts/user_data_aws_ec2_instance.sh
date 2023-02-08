@@ -21,4 +21,4 @@ sudo groupadd docker
 sudo usermod -a -G docker ubuntu
 
 # Install nfs-common
- sudo apt-get install nfs-common -y
+sudo apt-get install nfs-common -y

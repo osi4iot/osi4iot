@@ -20,6 +20,7 @@ export const getDomainName = () => {
     let domainName = location.split("/")[2];
     // if (domainName === "localhost:3000") domainName = "localhost";  //Development case
     if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
+    // if (domainName === "localhost:3000") domainName = "dev.iot-rafa.tk";
     return domainName;
 }
 
