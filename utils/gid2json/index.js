@@ -1,5 +1,8 @@
 import nReadlines from 'n-readlines';
 import fs from 'fs';
+
+
+
 // import process from 'process';
 
 
@@ -47,10 +50,27 @@ const readGaussPoints = (liner) => {
     return;
 }
 
-// const resultsOfInterest = ["Displacements", "Shells//Stresses_Top//Von_mises"];
-const resultsOfInterest = ["Displacements", "Shells//Stresses_Top", "Shells//Stresses_Bottom"];
-// const numCompOfInterest = [3, 1];
-const numCompOfInterest = [3, 1, 1];
+let resultsOfInterest
+try {
+    resultsOfInterest = process.argv[3].replace('[','').replace(']','').split(/[ ,]+/);
+} catch (error) {
+    console.log('No result specified, using the defaults.')
+    resultsOfInterest = ["Displacements", "Shells//Stresses_Top", "Shells//Stresses_Bottom"]
+}
+
+const dictCompOfInterest = {
+    'Displacements':3,
+    'Shells//Stresses_Top':1,
+    'Shells//Stresses_Bottom':1,
+    // Please if you ask for something different, complete this dictionary.
+}
+
+
+var numCompOfInterest = new Array(resultsOfInterest.length).fill(0);
+
+for (let icomp = 0; icomp < numCompOfInterest.length; icomp++) {
+    numCompOfInterest[icomp] = dictCompOfInterest[resultsOfInterest[icomp]];
+}
 let numberOfModes = 0;
 
 const isResultOfInterest = (resultName) => {
@@ -59,9 +79,10 @@ const isResultOfInterest = (resultName) => {
 
 const readResults = (header, liner, elements, nodalResults, elemResults, maxValues, minValues, units) => {
     const headerStringArray = header.split(" ").filter(word => word !== "");
-    const modeAux = headerStringArray[2].slice(1, -1);
-    let mode = null;
-    if (modeAux !== "") mode = parseInt(modeAux.slice(5), 10);
+    let mode = parseInt(headerStringArray[3]);
+    // const modeAux = headerStringArray[2].slice(1, -1);
+    // let mode = null;
+    // if (modeAux !== "") mode = parseInt(modeAux.slice(5), 10);
     if (mode > numberOfModes) numberOfModes = mode;
 
     const resultName = headerStringArray[1].slice(1, -1);
@@ -167,11 +188,32 @@ const gid2json = () => {
     // const inputMeshPath = './projects/montaje_galgas/montaje_galgas.post.msh'
     // const inputResultsPath = './projects/montaje_galgas/montaje_galgas.post.res'
 
-    const rootFolder = 'D:/documents/software/dropbox/Dropbox/Work/Project/Fibre4Yards/GIT/osi4iot/osi4iot-master/utils/gid2json/'
+    // print process.argv
+    const args = process.argv;
+    args.forEach(function (val, index, array) {
+        console.log(index + ': ' + val);
+    });
+    
+    // const rootFolder = 'D:/documents/software/dropbox/Dropbox/GIT/UPC/CIMNE/osi4iot/utils/gid2json/'
 
-    const inputMeshPath = rootFolder+'projects/galga_montaje.gid/galga_montaje.post.msh'
-    const inputResultsPath = rootFolder+'projects/galga_montaje.gid/galga_montaje.post.res'
+    // const inputMeshPath = rootFolder+'projects/model1.gid/model1.post.msh'
+    // const inputResultsPath = rootFolder+'projects/model1.gid/model1.post.res'
 
+    let arg2 = args[2];
+    
+    if (arg2.includes('/')){
+
+    }
+    else{if(arg2.includes('\\')){
+        arg2=arg2.replace(/\\/g,'/')
+    }
+    else{
+        console.log(`introduce the path using '/' instead of '\\'`)
+    }}
+
+
+    const inputMeshPath = `${arg2}/${arg2.split('/')[arg2.split('/').length-1].replace('.gid','')}.post.msh`
+    const inputResultsPath = `${arg2}/${arg2.split('/')[arg2.split('/').length-1].replace('.gid','')}.post.res`
     const inputDataPathArray = inputMeshPath.split('/');
     const directory = inputDataPathArray.slice(0, -1).join('/');
     const fileName = inputDataPathArray[inputDataPathArray.length - 1].split('.')[0];
@@ -409,7 +451,7 @@ const gid2json = () => {
 
         const resultsFilePath = `${directory}/${fileName}_res.json`
         fs.writeFileSync(resultsFilePath, resultsDataString);
-        console.log("JSON data is saved.");
+        console.log(`JSON data is saved in ${directory}.`);
     } catch (error) {
         console.error(err);
     }

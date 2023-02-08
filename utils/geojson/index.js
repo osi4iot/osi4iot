@@ -10,7 +10,6 @@ args.forEach(function (val, index, array) {
 });
 
 
-// file='D:/documents/software/dropbox/Dropbox/Work/Project/Fibre4Yards/tasks/plans/campus nord/c1/c1_planta0.geojson'
 file = process.argv[2];
 
 var building=[];
