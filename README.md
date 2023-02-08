@@ -458,7 +458,7 @@ The Node-RED instances can be accessed by clicking into the Node-RED icon in the
 <!-- ## Contributing
 We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://github.com/%3Cyour_username%3E/OSI4IOT/blob/master/CONTRIBUTING.md) for more information. -->
 
-<details><summary> How to send messages through a MQTT topic </summary>
+<details><summary> How to send messages through the MQTT protocol </summary>
 <p>
 
 The platform uses `Mosquitto` as the message broker. This message protocol uses a `publish`/`subscribe` model associated to a `topic`. `Topics` are the channels of information where a `device` can connect to `publish` data or `subscribe` to fetch information.
@@ -471,6 +471,7 @@ Topic types:
 
 - dev2pdb : Device to platform database.
 - dev2pdb_wt : Device to platform database with timestamp.
+- dev2pdb_ma : Device to platform database messages array.
 - dev_sim_2dtm: Simulated device to DTM.
 - dtm_as2pdb : DTM assets state to platform database.
 - dtm_sim_as2dts: DTM simulated assets state to DTS.          
