@@ -463,7 +463,7 @@ We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://githu
 
 The platform uses `Mosquitto` as the message broker. This message protocol uses a `publish`/`subscribe` model associated to a `topic`. `Topics` are the channels of information where a `device` can connect to `publish` data or `subscribe` to fetch information.
 
-The platform implements a specific format to communicate through the MQQT protocol. Note that `devices` are associated to `groups`, and they send information through a `topic`. However, the format also takes into account the type of information that is sent in the `topic`. Therefore the format required to establish communication from a `device` to the platform is:
+The platform implements a specific format to communicate through the MQTT protocol. Note that `devices` are associated to `groups`, and they send information through a `topic`. However, the format also takes into account the type of information that is sent in the `topic`. Therefore the format required to establish communication from a `device` to the platform is:
 
     <topic type>/Group_<group hash>/Device_<device hash>/Topic_<topic hash>
 
