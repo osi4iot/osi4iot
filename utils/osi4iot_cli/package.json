@@ -13,6 +13,8 @@
     "postbuild_linux_x64": "sudo cp ./dist/linux_x64/osi4iot /usr/local/bin/osi4iot",
     "build_linux_arm64": "pkg -t node16-linux-arm64 -o ./dist/linux_arm64/osi4iot ./lib/index.js",
     "build:prod": "yarn build && yarn build_win_x64 && yarn build_linux_x64 && yarn build_linux_arm64",
+    "build:prod_amd64": "yarn build && yarn build_win_x64 && yarn build_linux_x64",
+    "build:prod_arm64": "yarn build && yarn build_linux_arm64",
     "start": "babel-node ./src/index.js"
   },
   "dependencies": {
