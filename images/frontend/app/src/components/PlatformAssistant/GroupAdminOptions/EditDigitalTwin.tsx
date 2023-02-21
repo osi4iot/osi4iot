@@ -444,7 +444,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     setDigitalTwinGltfData(gltfData);
                                                     setGltfFile(gltfFileParams.plainFiles[0]);
                                                     values.gltfFileName = gltfFileParams.plainFiles[0].name;
-                                                    const dateString = (gltfFileParams.plainFiles[0] as any).lastModifiedDate.toString();
+                                                    const dateString = (gltfFileParams.plainFiles[0] as any).lastModified;
                                                     values.gltfFileLastModifDateString = formatDateString(dateString);
                                                     formik.setValues(values);
                                                     setLocalGltfFileLabel("Select local file");
@@ -484,7 +484,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                     setDigitalTwiFemResData(femResData);
                                                     setFemResFile(femResFileParams.plainFiles[0]);
                                                     values.femResDataFileName = femResFileParams.plainFiles[0].name;
-                                                    const dateString = (femResFileParams.plainFiles[0] as any).lastModifiedDate.toString();
+                                                    const dateString = (femResFileParams.plainFiles[0] as any).lastModified;
                                                     values.femResDataFileLastModifDateString = formatDateString(dateString);
                                                     formik.setValues(values);
                                                     setLocalFemSimFileLabel("Select local file");

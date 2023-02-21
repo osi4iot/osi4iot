@@ -17,12 +17,11 @@
 
 ![img:intro_0](./docs/img/intro_0.jpg)
 
-OSI4IOT is an IOT platform based in the integration of several open source packages with custom code. This repository contains implementation of the OSI4OT platform.
+OSI4IOT is an IOT platform based on the integration and extension with custom code of several open source packages. This repository contains the implementation of the OSI4OT platform.
 
 ## Description
 
-The OSI4IOT platform is an IOT platform for monitoring in real time industrial assets and structures.
-This platform allows the creation of Digital Twins Models (DTM). A 3D respresentation of these DTM can be visualized in the web user interface of the platform. The different objects of the DTM are animated in function of the values recieved from sensors. Results provided by the Finite Elements Method can be integrated in the DTM. <br/><br/>
+The OSI4IOT platform is a web-based IOT platform for monitoring in real time industrial assets and structures. Besides, the platform allows the implementation of Digital Twins Models (DTM) of those assests. A 3D representation of these DTM can be visualized in the web viewer of the platform. The different objects of the DTM are animated in function of the values received from the sensors. Results provided by Finite Elements Method (FEM) models can also be integrated in the DTM. <br/><br/>
 
 ![img:description_tank](./docs/img/description_tank.png)
 
@@ -463,7 +462,7 @@ We welcome contributions to OSI4IOT. Please read [CONTRIBUTING.md](https://githu
 
 The platform uses `Mosquitto` as the message broker. This message protocol uses a `publish`/`subscribe` model associated to a `topic`. `Topics` are the channels of information where a `device` can connect to `publish` data or `subscribe` to fetch information.
 
-The platform implements a specific format to communicate through the MQQT protocol. Note that `devices` are associated to `groups`, and they send information through a `topic`. However, the format also takes into account the type of information that is sent in the `topic`. Therefore the format required to establish communication from a `device` to the platform is:
+The platform implements a specific format to communicate through the MQTT protocol. Note that `devices` are associated to `groups`, and they send information through a `topic`. However, the format also takes into account the type of information that is sent in the `topic`. Therefore the format required to establish communication from a `device` to the platform is:
 
     <topic type>/Group_<group hash>/Device_<device hash>/Topic_<topic hash>
 
