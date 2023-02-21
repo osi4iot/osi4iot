@@ -30,8 +30,11 @@ The OSI4IOT platform is a web-based IOT platform for monitoring in real time ind
 - [Installation](#installation)
 - [Glossary](#glossary)
 - [Usage](#usage)
+- [Acknowledgements](#acknowledgements)
 - [License](#license)
+- [Examples](#examples)
 - [Status](#status)
+
 
 
 ## Getting Started
