@@ -1,7 +1,7 @@
 import L from "leaflet";
-import marker from "./assets/marker.svg";
-import alertingMarker from "./assets/alertingMarker.svg";
-import pendingMarker from "./assets/pendingMarker.svg";
+import marker from "./assets/basic_marker/marker.svg";
+import alertingMarker from "./assets/basic_marker/alertingMarker.svg";
+import pendingMarker from "./assets/basic_marker/pendingMarker.svg";
 
 export const IconMarker = L.icon({
     iconUrl: marker,
