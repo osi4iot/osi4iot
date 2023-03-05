@@ -124,7 +124,7 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN building_id bigint,
 											ADD COLUMN org_hash varchar(20) UNIQUE,
 											ADD COLUMN mqtt_access_control VARCHAR(10),
-											ADD COLUMN role VARCHAR(20)`;
+											ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'Generic'`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
