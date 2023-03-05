@@ -106,7 +106,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             castShadow
             receiveShadow
             geometry={obj.geometry}
-            material={obj.material}
+            material={material}
             position={[obj.position.x, obj.position.y, obj.position.z]}
             rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
             scale={[obj.scale.x, obj.scale.y, obj.scale.z]}

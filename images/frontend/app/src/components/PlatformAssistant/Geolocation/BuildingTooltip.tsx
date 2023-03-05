@@ -27,9 +27,11 @@ interface BuildingTooltipProps {
 const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuilding, orgSelected }) => {
     let orgAcronym = orgsInBuilding[0]?.acronym;
     let orgStatus = orgsInBuilding[0]?.orgStatus;
+    let orgRole = "";
     if (orgSelected) {
         orgAcronym = orgSelected.acronym;
-        orgStatus = orgsInBuilding.filter(org => org.id === orgSelected.id)[0]?.orgStatus
+        orgStatus = orgsInBuilding.filter(org => org.id === orgSelected.id)[0]?.orgStatus;
+        orgRole = `(${orgsInBuilding.filter(org => org.id === orgSelected.id)[0]?.role} org) `;
     }
 
     return (
@@ -39,7 +41,7 @@ const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuildin
                     <Tooltip sticky opacity={1}>
                         <div>
                             <span style={{ fontWeight: 'bold' }}>Org:</span>
-                            {` ${orgAcronym} `}<StatusLed status={orgStatus} size="8px" />
+                            {` ${orgAcronym} ${orgRole}`}<StatusLed status={orgStatus} size="8px" />
                         </div>
                     </Tooltip>
                     :
@@ -55,7 +57,7 @@ const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuildin
                                 <Ul>
                                     {
                                         orgsInBuilding.map(org =>
-                                            <li key={org.id}>{` ${org.acronym} `}<StatusLed status={org.orgStatus} size="8px" /></li>
+                                            <li key={org.id}>{` ${org.acronym} (${org.role} org) `}<StatusLed status={org.orgStatus} size="8px" /></li>
                                         )
                                     }
                                 </Ul>

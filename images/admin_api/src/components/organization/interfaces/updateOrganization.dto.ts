@@ -1,4 +1,5 @@
-import { IsNumber, IsString } from "class-validator";
+import { IsEnum, IsNumber, IsString } from "class-validator";
+import { OrgRoleOption, OrgRoleOptions } from "./orgRoleOptions";
 
 class UpdateOrganizationDto {
 	id?: number;
@@ -8,6 +9,9 @@ class UpdateOrganizationDto {
 
 	@IsString()
 	public acronym: string;
+
+	@IsEnum(OrgRoleOptions, { message: " 'Main', 'Generic' or 'Provider' are the only valid options for org role." })
+	public role: OrgRoleOption;
 
 	@IsString()
 	public address: string;

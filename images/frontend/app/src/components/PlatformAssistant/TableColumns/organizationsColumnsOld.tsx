@@ -31,6 +31,7 @@ export interface IOrganization {
     id: number;
     name: string;
     acronym: string;
+    role: string;
     address: string;
     city: string;
     zipCode: string;
@@ -170,6 +171,10 @@ export const Create_ORGANIZATIONS_COLUMNS = (refreshOrgs: () => void): Column<IO
             Header: "Acronym",
             accessor: "acronym"
         },
+        {
+            Header: "Role",
+            accessor: "role"
+        },        
         {
             Header: "Address",
             accessor: "address",

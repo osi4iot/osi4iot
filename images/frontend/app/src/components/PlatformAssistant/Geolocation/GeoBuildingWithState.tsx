@@ -103,17 +103,17 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
                 (orgsInBuilding.length !== 0 && !floorSelected) &&
                 <>
                     {buildingStatus === "ok" &&
-                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconMarker} >
+                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconMarker(orgsInBuilding)} >
                         <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
                         </Marker>
                     }
                     {buildingStatus === "pending" &&
-                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconPendingMarker} >
+                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconPendingMarker(orgsInBuilding)} >
                         <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
                         </Marker>
                     }
                     {buildingStatus === "alerting" &&
-                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconAlertingMarker} >
+                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconAlertingMarker(orgsInBuilding)} >
                             <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
                         </Marker>
                     }

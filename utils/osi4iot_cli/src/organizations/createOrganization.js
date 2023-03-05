@@ -80,6 +80,13 @@ export default async function () {
 						}
 					},
 					{
+						name: 'ORGANIZATION_ROLE',
+						message: 'Organization role in platform:',
+						type: 'list',
+						default: "Generic",
+						choices: ["Generic", "Provider"],
+					},
+					{
 						name: 'ORGANIZATION_ADDRESS',
 						message: 'Organization address:',
 						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_ADDRESS1,

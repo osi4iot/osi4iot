@@ -123,7 +123,8 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN acronym varchar(20) UNIQUE,
 											ADD COLUMN building_id bigint,
 											ADD COLUMN org_hash varchar(20) UNIQUE,
-											ADD COLUMN  mqtt_access_control VARCHAR(10)`;
+											ADD COLUMN mqtt_access_control VARCHAR(10),
+											ADD COLUMN role VARCHAR(20)`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
@@ -131,12 +132,13 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Column acronym can not be added sucessfully to Table ${tableOrg}: %s`, err.message);
 				}
 
-				const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, address1 = $3, city = $4, zip_code = $5,
-											state = $6, country = $7, building_id = $8, org_hash = $9,
-											 mqtt_access_control = $10 WHERE name = $11`;
+				const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, role = $3, address1 = $4, city = $5, 
+				                            zip_code = $6, state = $7, country = $8, building_id = $9, org_hash = $10,
+											mqtt_access_control = $11 WHERE name = $12`;
 				const parameterArrayUpdateOrg = [
 					process_env.MAIN_ORGANIZATION_NAME,
 					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
+					"Main",
 					process_env.MAIN_ORGANIZATION_ADDRESS1,
 					process_env.MAIN_ORGANIZATION_CITY,
 					process_env.MAIN_ORGANIZATION_ZIP_CODE,

@@ -1,4 +1,3 @@
-import { FC, useState, useEffect } from 'react';
 import { Column } from 'react-table';
 import { FeatureCollection } from 'geojson';
 
@@ -7,6 +6,7 @@ export interface IOrgOfGroupsManaged {
     id: number;
     name: string;
     acronym: string;
+    role: string;
     address: string;
     city: string;
     zipCode: string;
@@ -35,6 +35,10 @@ export const ORGS_OF_GROUPS_MANAGED_COLUMNS: Column<IOrgOfGroupsManaged>[] = [
         Header: "Acronym",
         accessor: "acronym"
     },
+    {
+        Header: "Role",
+        accessor: "role"
+    },    
     {
         Header: "Address",
         accessor: "address",

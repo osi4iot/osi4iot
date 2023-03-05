@@ -84,7 +84,6 @@ import {
 } from "../nodeRedInstance/nodeRedInstanceDAL";
 import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
 
-
 class OrganizationController implements IController {
 	public path = "/organization";
 

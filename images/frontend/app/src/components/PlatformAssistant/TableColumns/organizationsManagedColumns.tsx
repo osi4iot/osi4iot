@@ -119,6 +119,7 @@ export interface IOrgManaged {
     id: number;
     name: string;
     acronym: string;
+    role: string;
     address: string;
     city: string;
     zipCode: string;
@@ -149,6 +150,10 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             Header: "Acronym",
             accessor: "acronym"
         },
+        {
+            Header: "Role",
+            accessor: "role"
+        },        
         {
             Header: "Address",
             accessor: "address",

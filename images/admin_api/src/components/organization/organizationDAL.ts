@@ -31,12 +31,12 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
-	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, address1 = $3,  city = $4, zip_code = $5, state = $6, country = $7,
-	building_id = $8, org_hash = $9,  mqtt_access_control = $10  WHERE ${propName} = $11;`;
+	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, address1 = $4,  city = $5, zip_code = $6, state = $7, country = $8, building_id = $9, org_hash = $10,  mqtt_access_control = $11  WHERE ${propName} = $12;`;
 	const queryArray =
 		[
 			orgData.name,
 			orgData.acronym,
+			orgData.role,
 			orgData.address,
 			orgData.city,
 			orgData.zipCode,
@@ -72,9 +72,9 @@ export const insertOrganizationToken = async (orgId: number, apiKeyId: number, h
 };
 
 export const getOrganizations = async (): Promise<IOrganization[]> => {
-	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode",
+	const query = `SELECT id, org.name, acronym, role, address1 as address, city, grafanadb.org.zip_code as "zipCode",
 					state, country, building_id AS "buildingId", org_hash AS "orgHash",
-					 mqtt_access_control AS "mqttAccessControl"
+					mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
 					ORDER BY id ASC;`;
 	const result = await pool.query(query);
@@ -82,7 +82,7 @@ export const getOrganizations = async (): Promise<IOrganization[]> => {
 }
 
 export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promise<IOrganization[]> => {
-	const query = `SELECT id, org.name, acronym, address1 as address, city, grafanadb.org.zip_code as "zipCode",
+	const query = `SELECT id, org.name, acronym, role, address1 as address, city, grafanadb.org.zip_code as "zipCode",
 					state, country, building_id AS "buildingId", org_hash AS "orgHash",
 					 mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
@@ -99,7 +99,7 @@ export const getNumOrganizations = async (): Promise<number> => {
 }
 
 export const getOrganizationByProp = async (propName: string, propValue: (string | number)): Promise<IOrganization> => {
-	const query = `SELECT id, org.name, acronym, address1 as adress, city, grafanadb.org.zip_code as "zipCode",
+	const query = `SELECT id, org.name, acronym, role, address1 as adress, city, grafanadb.org.zip_code as "zipCode",
 					 state, country, building_id AS "buildingId", org_hash AS "orgHash",
 					  mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org WHERE ${propName} = $1;`;
@@ -164,7 +164,7 @@ export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser
 }
 
 export const getOrganizationsManagedByUserId = async (userId: number): Promise<IOrganization[]> => {
-	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, address1 as address, city,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, role, address1 as address, city,
 	                grafanadb.org.zip_code as "zipCode", state, country, building_id AS "buildingId",
 					org_hash AS "orgHash",  mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
@@ -177,7 +177,7 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 
 
 export const organizationsWhichTheLoggedUserIsUser = async (userId: number): Promise<IOrganizationWichTheLoggedUserIsUser[]> => {
-	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, address1 as address, city,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, role, address1 as address, city,
 					grafanadb.org.zip_code as "zipCode", state, country,
 					grafanadb.org.building_id AS "buildingId",
 					grafanadb.org_user.role AS "roleInOrg"

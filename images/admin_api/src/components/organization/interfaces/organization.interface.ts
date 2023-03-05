@@ -1,7 +1,10 @@
+import { OrgRoleOption } from "./orgRoleOptions";
+
 export default interface IOrganization {
 	id: number;
 	name: string;
 	acronym: string;
+	role: OrgRoleOption;
 	address: string;
 	city: string;
 	zipCode: string;
@@ -16,6 +19,7 @@ export interface IOrganizationWichTheLoggedUserIsUser {
 	id: number;
 	name: string;
 	acronym: string;
+	role: OrgRoleOption;
 	address: string;
 	city: string;
 	zipCode: string;

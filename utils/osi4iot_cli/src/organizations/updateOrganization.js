@@ -188,6 +188,20 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInsta
 				}
 			},
 			{
+				name: 'ORGANIZATION_ROLE',
+				message: 'Organization role in platform:',
+				type: 'list',
+				default: orgToUpdate.role,
+				choices: ["Generic", "Provider"],
+				validate: () => {
+					if (orgToUpdate.role !== "Main") {
+						return true;
+					} else {
+						return "Role of main Org can not be modified.";
+					}
+				}
+			},			
+			{
 				name: 'ORGANIZATION_ADDRESS',
 				message: 'Organization address:',
 				default: orgToUpdate.address,
