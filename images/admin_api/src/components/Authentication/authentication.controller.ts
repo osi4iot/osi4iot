@@ -143,7 +143,7 @@ class AuthenticationController implements IController {
 		passport.authenticate(
 			"local-login",
 			{ session: false },
-			async (err, user): Promise<Response | void> => {
+			async (err: any, user: any): Promise<Response | void> => {
 				if (err || !user) {
 					const errorMessage = "User credentials not correct.";
 					return next(new HttpException(400, errorMessage));
@@ -508,7 +508,7 @@ class AuthenticationController implements IController {
 		passport.authenticate(
 			"refresh_jwt",
 			{ session: false },
-			async (err, user, info): Promise<Response | void> => {
+			async (err: any, user: any, info: any): Promise<Response | void> => {
 				if (info) {
 					return next(new HttpException(401, info.message));
 				}

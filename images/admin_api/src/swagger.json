@@ -5788,6 +5788,9 @@
 				"acronym": {
 					"type": "string"
 				},
+				"role": {
+					"type": "string"
+				},				
 				"address": {
 					"type": "string"
 				},
@@ -5841,6 +5844,9 @@
 				"acronym": {
 					"type": "string"
 				},
+				"role": {
+					"type": "string"
+				},				
 				"address": {
 					"type": "string"
 				},
@@ -5905,6 +5911,9 @@
 				"acronym": {
 					"type": "string"
 				},
+				"role": {
+					"type": "string"
+				},				
 				"address": {
 					"type": "string"
 				},

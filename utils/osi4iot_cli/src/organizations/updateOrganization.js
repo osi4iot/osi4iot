@@ -471,6 +471,7 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 	const updateOrgData = {
 		name: orgData.ORGANIZATION_NAME,
 		acronym: orgData.ORGANIZATION_ACRONYM,
+		role: orgData.ORGANIZATION_ROLE,
 		address: orgData.ORGANIZATION_ADDRESS,
 		city: orgData.ORGANIZATION_CITY,
 		zipCode: orgData.ORGANIZATION_ZIP_CODE,

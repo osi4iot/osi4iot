@@ -9,7 +9,7 @@ import IRequestWithUserAndGroup from "../components/group/interfaces/requestWith
 import { getNodeRedInstanceByProp } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 
 export const registerAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
-	passport.authenticate("register_jwt", { session: false }, (err, user, info) => {
+	passport.authenticate("register_jwt", { session: false }, (err: any, user: any, info: any) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}
@@ -28,7 +28,7 @@ export const registerAuth = (req: IRequestWithUser, res: Response, next: NextFun
 
 
 export const userAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
-	passport.authenticate("access_jwt", { session: false }, (err, user, info) => {
+	passport.authenticate("access_jwt", { session: false }, (err: any, user: any, info: any) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}
@@ -46,7 +46,7 @@ export const userAuth = (req: IRequestWithUser, res: Response, next: NextFunctio
 };
 
 export const superAdminAuth = (req: IRequestWithUser, res: Response, next: NextFunction): void => {
-	passport.authenticate("access_jwt", { session: false }, (err, user, info) => {
+	passport.authenticate("access_jwt", { session: false }, (err: any, user: any, info: any) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}
@@ -66,7 +66,7 @@ export const superAdminAuth = (req: IRequestWithUser, res: Response, next: NextF
 };
 
 export const adminForSomeOrganizationAuth = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
-	passport.authenticate("access_jwt", { session: false }, async (err, user, info) => {
+	passport.authenticate("access_jwt", { session: false }, async (err: any, user: any, info: any) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}
@@ -89,7 +89,7 @@ export const adminForSomeOrganizationAuth = async (req: IRequestWithUser, res: R
 };
 
 export const organizationAdminAuth = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
-	passport.authenticate("access_jwt", { session: false }, async (err, user, info) => {
+	passport.authenticate("access_jwt", { session: false }, async (err: any, user: any, info: any) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}
@@ -113,7 +113,7 @@ export const organizationAdminAuth = async (req: IRequestWithUser, res: Response
 };
 
 export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
-	passport.authenticate("access_jwt", { session: false }, async (err, user, info) => {
+	passport.authenticate("access_jwt", { session: false }, async (err: any, user: any, info: any) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}
@@ -138,7 +138,7 @@ export const groupAdminAuth = async (req: IRequestWithUserAndGroup, res: Respons
 };
 
 export const groupAdminNodeRedInstanceAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
-	passport.authenticate("nodered_instance_access_jwt", { session: false }, async (err, user, info) => {
+	passport.authenticate("nodered_instance_access_jwt", { session: false }, async (err: any, user: any, info: any) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}
@@ -169,7 +169,7 @@ export const groupAdminNodeRedInstanceAuth = async (req: IRequestWithUserAndGrou
 
 
 export const basicGroupAdminAuth = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
-	passport.authenticate("local-login", { session: false }, async (err, user, info) => {
+	passport.authenticate("local-login", { session: false }, async (err: any, user: any, info: any) => {
 		if (info) {
 			return next(new HttpException(401, info.message));
 		}

@@ -38,6 +38,7 @@ export default async function () {
 					clc.cyanBright('Id'),
 					clc.cyanBright('Name'),
 					clc.cyanBright('Acronym'),
+					clc.cyanBright('Role'),
 					clc.cyanBright('Address'),
 					clc.cyanBright('City'),
 					clc.cyanBright('Zip Code'),
@@ -48,7 +49,7 @@ export default async function () {
 					clc.cyanBright('Mqtt acc'),
 					clc.cyanBright('Num nodered instances')
 				],
-				colWidths: [5, 30, 15, 30, 19, 8, 19, 19, 12, 18, 12, 13],
+				colWidths: [5, 30, 10, 10, 30, 19, 8, 19, 19, 12, 18, 12, 13],
 				wordWrap: true,
 				style: { 'padding-left': 1, 'padding-right': 1 }
 			});
@@ -60,6 +61,7 @@ export default async function () {
 					orgs[iorg].id,
 					orgs[iorg].name,
 					orgs[iorg].acronym,
+					orgs[iorg].role,
 					orgs[iorg].address,
 					orgs[iorg].city,
 					orgs[iorg].zipCode,
