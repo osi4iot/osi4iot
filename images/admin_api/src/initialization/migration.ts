@@ -121,10 +121,10 @@ export const dataBaseInitialization = async () => {
 			if (result0.rows[0].count !== 0) {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
+											ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'Generic',
 											ADD COLUMN building_id bigint,
 											ADD COLUMN org_hash varchar(20) UNIQUE,
-											ADD COLUMN mqtt_access_control VARCHAR(10),
-											ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'Generic'`;
+											ADD COLUMN mqtt_access_control VARCHAR(10)`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
 					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
