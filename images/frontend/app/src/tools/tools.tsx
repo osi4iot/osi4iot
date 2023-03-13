@@ -149,7 +149,7 @@ export interface IMeshNode {
     };
 }
 
-const objectTypeList = ["asset", "sensor", "generic", "femObject"];
+const objectTypeList = ["asset", "sensor", "generic", "dynamic", "display", "femObject"];
 const optionalKeys = [
     "type",
     "visible",

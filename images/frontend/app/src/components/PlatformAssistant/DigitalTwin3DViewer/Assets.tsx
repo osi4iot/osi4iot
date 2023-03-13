@@ -29,7 +29,7 @@ const AssetBase: FC<AssetProps> = ({
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>();
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
-    material.transparent = (defOpacity*opacity) === 1 ? false : true;
+    material.transparent = (defOpacity * opacity) === 1 ? false : true;
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
@@ -69,7 +69,10 @@ const AssetBase: FC<AssetProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mixer, assetState.clipValues]);
 
-    useFrame(({ clock }) => {
+    useFrame(({ clock }, delta) => {
+        if (obj.userData.clipType && obj.userData.clipType === "endless") {
+            mixer?.update(delta);
+        }
         if (visible) {
             if (blinking) {
                 if (lastIntervalTime === 0) {
@@ -79,9 +82,9 @@ const AssetBase: FC<AssetProps> = ({
                 if (deltaInterval <= 0.30) {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
                     material.emissive = noEmitColor;
-                    material.opacity = defOpacity*opacity;
+                    material.opacity = defOpacity * opacity;
                 } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                    material.opacity = defOpacity*opacity;
+                    material.opacity = defOpacity * opacity;
                     if (meshRef.current) meshRef.current.visible = true;
                     if (assetState?.stateString === "ok") {
                         material.emissive = assetOkColor;
@@ -102,7 +105,7 @@ const AssetBase: FC<AssetProps> = ({
                     }
                 } else {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    material.opacity = defOpacity*opacity;
+                    material.opacity = defOpacity * opacity;
                     if (assetState.stateString === "ok") {
                         material.emissive = noEmitColor;
                     } else if (assetState.stateString === "alerting") {
@@ -121,17 +124,31 @@ const AssetBase: FC<AssetProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [opacity]);
 
+
     return (
-        <mesh
-            ref={meshRef}
-            castShadow
-            receiveShadow
-            geometry={obj.geometry}
-            material={material}
-            position={[obj.position.x, obj.position.y, obj.position.z]}
-            rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
-            scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
-        />
+        obj.type === "Group" ?
+            <mesh
+                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                castShadow
+                receiveShadow
+                material={material}
+            >
+                <primitive
+                    object={obj}
+                />
+            </mesh>
+            :
+            <mesh
+                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                castShadow
+                receiveShadow
+                geometry={obj.geometry}
+                material={material}
+                position={[obj.position.x, obj.position.y, obj.position.z]}
+                rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
+                scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
+            />
+
     )
 }
 
@@ -172,7 +189,7 @@ const Assets: FC<AssetsProps> = ({
                     return <Asset
                         key={obj.node.uuid}
                         obj={obj.node}
-                        opacity={assetsOpacity*assetsVisibilityState[obj.collectionName].opacity}
+                        opacity={assetsOpacity * assetsVisibilityState[obj.collectionName].opacity}
                         blinking={
                             highlightAllAssets ||
                             assetsState[obj.node.name].stateString === "alerting" ||

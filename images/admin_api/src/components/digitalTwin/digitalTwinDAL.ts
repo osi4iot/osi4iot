@@ -56,6 +56,7 @@ export interface IMeshNode {
 	mesh?: number;
 	extras: {
 		topicType: string;
+		displayTopicType: string;
 		type: string;
 		clipTopicTypes: string[];
 	};
@@ -76,6 +77,12 @@ const getTopicSensorTypesFromDigitalTwin = (type: string, gltfFileData: any): st
 					const topicType = node.extras?.topicType;
 					if (topicType && topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
 						topicTypes.push(topicType)
+					}
+				}
+				if (node.extras?.type !== undefined && node.extras?.type === "dynamic") {
+					const displayTopicType = node.extras?.displayTopicType;
+					if (displayTopicType && topicTypes.findIndex(topicTypei => topicTypei === displayTopicType) === -1) {
+						topicTypes.push(displayTopicType)
 					}
 				}
 				if (node.extras?.clipTopicTypes !== undefined && node.extras?.clipTopicTypes.length !== 0) {
@@ -117,7 +124,15 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
 			(
 				node: {
 					name?: string; mesh?: number;
-					extras: { topicType: string; topicId: number; type: string; clipTopicTypes: string[]; clipTopicIds: number[]; };
+					extras: {
+						topicType: string;
+						displayTopicType: string;
+						dynamicTopicType: string;
+						topicId: number;
+						type: string;
+						clipTopicTypes: string[];
+						clipTopicIds: number[];
+					};
 				}
 			) => {
 				if (node.mesh !== undefined && node.extras !== undefined) {
@@ -125,6 +140,20 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
 						const topicType = node.extras?.topicType;
 						if (topicType) {
 							const topicSensorId = findTopicSensorId(topicType, topicSensors);
+							node.extras.topicId = topicSensorId;
+						}
+					}
+					if (node.extras.type !== undefined && node.extras.type === "display") {
+						const displayTopicType = node.extras?.displayTopicType;
+						if (displayTopicType) {
+							const topicSensorId = findTopicSensorId(displayTopicType, topicSensors);
+							node.extras.topicId = topicSensorId;
+						}
+					}
+					if (node.extras.type !== undefined && node.extras.type === "dynamic") {
+						const dynamicTopicType = node.extras?.dynamicTopicType;
+						if (dynamicTopicType) {
+							const topicSensorId = findTopicSensorId(dynamicTopicType, topicSensors);
 							node.extras.topicId = topicSensorId;
 						}
 					}

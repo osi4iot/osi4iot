@@ -3,8 +3,8 @@ import { SubscribeOptions } from "paho-mqtt";
 import MqttContext from './MqttContext';
 import { IMqttContext as Context, IMessage } from './interfaces';
 import matches from './matches';
-import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData,  ISensorObject } from '../Model';
-import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from '../ViewerUtils';
+import { IAssetObject, IDynamicObject, IFemSimulationObject, IGenericObject, IMqttTopicData,  ISensorObject } from '../Model';
+import { AssetState, DynamicObjectState, FemSimulationObjectState, GenericObjectState, SensorState } from '../ViewerUtils';
 
 const useSubscription = (
     mqttTopics: string | string[],
@@ -12,15 +12,18 @@ const useSubscription = (
     sensorsState: Record<string, SensorState>,
     assetsState: Record<string, AssetState>,
     genericObjectsState: Record<string, GenericObjectState>,
+    dynamicObjectsState: Record<string, DynamicObjectState>,
     femSimulationObjectsState: FemSimulationObjectState[],
     digitalTwinSimulatorSendData: boolean,
     sensorObjects: ISensorObject[],
     assetObjects: IAssetObject[],
     genericObjects: IGenericObject[],
+    dynamicObjects: IDynamicObject[],
     femSimulationObjects: IFemSimulationObject[],
     setAssetsState: React.Dispatch<React.SetStateAction<Record<string, AssetState>>>,
     setSensorsState: React.Dispatch<React.SetStateAction<Record<string, SensorState>>>,
     setGenericObjectsState: React.Dispatch<React.SetStateAction<Record<string, GenericObjectState>>>,
+    setDynamicObjectsState: React.Dispatch<React.SetStateAction<Record<string, DynamicObjectState>>>,
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
     femResultData: any,
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
@@ -63,15 +66,18 @@ const useSubscription = (
                         sensorsState,
                         assetsState,
                         genericObjectsState,
+                        dynamicObjectsState,
                         femSimulationObjectsState,
                         digitalTwinSimulatorSendData,
                         sensorObjects,
                         assetObjects,
                         genericObjects,
+                        dynamicObjects,
                         femSimulationObjects,
                         setAssetsState,
                         setSensorsState,
                         setGenericObjectsState,
+                        setDynamicObjectsState,
                         setFemSimulationObjectsState,
                         femResultNames,
                         setFemResFilesLastUpdate,
@@ -90,15 +96,18 @@ const updateObjectsState = (
     sensorsState: Record<string, SensorState>,
     assetsState: Record<string, AssetState>,
     genericObjectsState: Record<string, GenericObjectState>,
+    dynamicObjectsState: Record<string, DynamicObjectState>,
     femSimulationObjectsState: FemSimulationObjectState[],
     digitalTwinSimulatorSendData: boolean,
     sensorObjects: ISensorObject[],
     assetObjects: IAssetObject[],
     genericObjects: IGenericObject[],
+    dynamicObjects: IDynamicObject[],
     femSimulationObjects: IFemSimulationObject[],
     setAssetsState: React.Dispatch<React.SetStateAction<Record<string, AssetState>>>,
     setSensorsState: React.Dispatch<React.SetStateAction<Record<string, SensorState>>>,
     setGenericObjectsState: React.Dispatch<React.SetStateAction<Record<string, GenericObjectState>>>,
+    setDynamicObjectsState: React.Dispatch<React.SetStateAction<Record<string, DynamicObjectState>>>,
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
     femResultNames: string[],
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
@@ -119,6 +128,8 @@ const updateObjectsState = (
             let isAssetStateChanged = false;
             const genericObjectNewState = { ...genericObjectsState };
             let isGenericObjectsStateChanged = false;
+            const dynamicObjectNewState = { ...dynamicObjectsState };
+            let isDynamicObjectsStateChanged = false;
             let isfemSimulationObjectsStateChanged = false;
             const femSimulationObjectsNewState = [...femSimulationObjectsState];
 
@@ -249,6 +260,45 @@ const updateObjectsState = (
                     }
                 });
 
+                dynamicObjects.forEach((obj) => {
+                    const objName = obj.node.name;
+                    const dynamicTopicId = obj.node.userData.dynamicTopicId;
+                    if (dynamicTopicId !== undefined) {
+                        const position = dynamicObjectNewState[objName].position.clone();
+                        const scale = dynamicObjectNewState[objName].scale.clone();
+                        const quaternion = dynamicObjectNewState[objName].quaternion.clone();
+                        if (dynamicTopicId === messageTopicId) {
+                            if (messagePayloadKeys.indexOf("position") !== -1) {
+                                const values = mqttMessage["position"];
+                                if (typeof values === 'object' && values.isArray && values.length === 3) {
+                                    position.set(values[0], values[1], values[2]);
+                                    isDynamicObjectsStateChanged = true;
+                                }
+                            }
+                            if (messagePayloadKeys.indexOf("scale") !== -1) {
+                                const values = mqttMessage["scale"];
+                                if (typeof values === 'object' && values.isArray && values.length === 3) {
+                                    scale.set(values[0], values[1], values[2]);
+                                    isDynamicObjectsStateChanged = true;
+                                }
+                            }
+                            if (messagePayloadKeys.indexOf("quaternion") !== -1) {
+                                const values = mqttMessage["quaternion"];
+                                if (typeof values === 'object' && values.isArray && values.length === 4) {
+                                    quaternion.set(values[0], values[1], values[2], values[3]);
+                                    isDynamicObjectsStateChanged = true;
+                                }
+                            }
+                        }
+                        dynamicObjectNewState[objName] = {
+                            ...dynamicObjectNewState[objName],
+                            position,
+                            scale,
+                            quaternion
+                        };
+                    }
+                });                
+
                 femSimulationObjects.forEach((obj, index) => {
                     const clipTopicIds = obj.node.userData.clipTopicIds;
                     if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
@@ -323,6 +373,7 @@ const updateObjectsState = (
             if (isSensorStateChanged) setSensorsState(sensorsNewState);
             if (isAssetStateChanged) setAssetsState(assestsNewState);
             if (isGenericObjectsStateChanged) setGenericObjectsState(genericObjectNewState);
+            if(isDynamicObjectsStateChanged) setDynamicObjectsState(dynamicObjectNewState);
             if (isfemSimulationObjectsStateChanged) setFemSimulationObjectsState(femSimulationObjectsNewState);
 
             if (messageTopicType === "new_fem_res_file") {

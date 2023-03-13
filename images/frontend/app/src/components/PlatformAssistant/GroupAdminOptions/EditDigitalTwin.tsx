@@ -227,8 +227,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
                 })
                 .catch((error) => {
-                    const errorMessage = error.response.data.message;
-                    if (errorMessage !== "jwt expired") toast.error(errorMessage);
+                    axiosErrorHandler(error, authDispatch);
                     setDigitalTwinGltfDataLoading(false);
                 })
         } else setDigitalTwinGltfDataLoading(false);

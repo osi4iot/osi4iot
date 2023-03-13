@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import { Camera } from '@react-three/fiber';
-import { ISensorObject, IAssetObject, IFemSimulationObject, IResultRenderInfo, IGenericObject, IMqttTopicData } from './Model';
+import { ISensorObject, IAssetObject, IFemSimulationObject, IResultRenderInfo, IGenericObject, IMqttTopicData, IDynamicObject } from './Model';
 import { toast } from "react-toastify";
 import { IMeasurement } from "../TableColumns/measurementsColumns";
 import Lut, { ILegendLabels } from "./Lut";
@@ -22,6 +22,12 @@ export interface GenericObjectState {
 	clipValues: (number | null)[];
 }
 
+export interface DynamicObjectState {
+	highlight: boolean;
+	position: THREE.Vector3;
+	scale: THREE.Vector3;
+	quaternion: THREE.Quaternion;
+}
 
 export interface ObjectVisibilityState {
 	hide: boolean;
@@ -260,6 +266,61 @@ export const generateInitialGenericObjectsState = (
 	return initialGenericObjectsState;
 }
 
+export const generateInitialDynamicObjectsState = (
+	dynamicObjects: IDynamicObject[],
+	digitalTwinGltfData: IDigitalTwinGltfData,
+) => {
+	const initialDynamicObjectsState: Record<string, DynamicObjectState> = {};
+	dynamicObjects.forEach(obj => {
+		const objName = obj.node.name;
+		const dynamicObjectState: DynamicObjectState =
+		{
+			highlight: false,
+			position: new THREE.Vector3(0.0, 0.0, 0.0),
+			scale: new THREE.Vector3(1.0, 1.0, 1.0),
+			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
+		};
+
+		const dynamicTopicId = obj.node.userData.dynamicTopicId;
+		if (dynamicTopicId) {
+			const position = new THREE.Vector3(0.0, 0.0, 0.0);
+			const scale = new THREE.Vector3(1.0, 1.0, 1.0);
+			const quaternion = new THREE.Quaternion(0.0, 0.0, 0.0, 1.0);
+			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === dynamicTopicId);
+			if (mqttTopicsDataFiltered.length !== 0) {
+				const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
+				if (lastMeasurement) {
+					const payloadObject = lastMeasurement.payload as any;
+					const payloadKeys = Object.keys(lastMeasurement.payload);
+					if (payloadKeys.indexOf("position") !== -1) {
+						const values = payloadObject["position"];
+						if (typeof values === 'object' && values.isArray && values.length === 3) {
+							position.set(values[0], values[1], values[2]);
+						}
+					}
+					if (payloadKeys.indexOf("scale") !== -1) {
+						const values = payloadObject["scale"];
+						if (typeof values === 'object' && values.isArray && values.length === 3) {
+							scale.set(values[0], values[1], values[2]);
+						}
+					}
+					if (payloadKeys.indexOf("quaternion") !== -1) {
+						const values = payloadObject["quaternion"];
+						if (typeof values === 'object' && values.isArray && values.length === 4) {
+							quaternion.set(values[0], values[1], values[2], values[3]);
+						}
+					}
+				}
+				dynamicObjectState.position = position;
+				dynamicObjectState.scale = scale;
+				dynamicObjectState.quaternion = quaternion;
+			}
+		}
+		initialDynamicObjectsState[objName] = dynamicObjectState;
+	})
+	return initialDynamicObjectsState;
+}
+
 export const generateInitialFemSimObjectsState = (
 	femSimulationObjects: IFemSimulationObject[],
 	digitalTwinGltfData: IDigitalTwinGltfData,
@@ -341,7 +402,6 @@ var mouse = {
 	collectionName: ""
 };
 
-
 export const setMeshList = (nodes: any) => {
 	meshList = [];
 	for (const prop in nodes) {
@@ -351,6 +411,13 @@ export const setMeshList = (nodes: any) => {
 			objBox.min.sub(obj.position);
 			objBox.max.sub(obj.position);
 			meshList.push(obj);
+		} else if (obj.type === "Group" && obj.children.length !== 0) {
+			for (const groupObj of obj.children) {
+				const objBox = new THREE.Box3().setFromObject(groupObj);
+				objBox.min.sub(groupObj.position);
+				objBox.max.sub(groupObj.position);
+				meshList.push(groupObj);
+			}
 		}
 	};
 }
@@ -453,24 +520,26 @@ const giveDefaultObjectMaterialColor = (obj: any) => {
 const noEmitColor = new THREE.Color(0, 0, 0);
 export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStandardMaterial>) => {
 	let objMaterial = null;
-	for (const materialName in materials) {
-		if (materials[materialName].uuid === obj.material.uuid) {
-			objMaterial = materials[materialName].clone();
-			objMaterial.transparent = true;
-			objMaterial.opacity = 1;
-			objMaterial.side = 2;
-			if (objMaterial.name === "") {
-				const materialColor = giveDefaultObjectMaterialColor(obj);
-				objMaterial = new THREE.MeshLambertMaterial({
-					color: materialColor,
-					emissive: noEmitColor,
-					transparent: true,
-					opacity: 1,
-					side: 2
-				});
-				objMaterial.name = `${obj.name}_material`;
+	if (obj.type === "Mesh") {
+		for (const materialName in materials) {
+			if (materials[materialName].uuid === obj.material.uuid) {
+				objMaterial = materials[materialName].clone();
+				objMaterial.transparent = true;
+				objMaterial.opacity = 1;
+				objMaterial.side = 2;
+				if (objMaterial.name === "") {
+					const materialColor = giveDefaultObjectMaterialColor(obj);
+					objMaterial = new THREE.MeshLambertMaterial({
+						color: materialColor,
+						emissive: noEmitColor,
+						transparent: true,
+						opacity: 1,
+						side: 2
+					});
+					objMaterial.name = `${obj.name}_material`;
+				}
+				break;
 			}
-			break;
 		}
 	}
 
@@ -496,10 +565,12 @@ export const sortObjects: (
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
 	genericObjects: IGenericObject[],
+	dynamicObjects: IDynamicObject[],
 	femSimulationObjects: IFemSimulationObject[],
 	sensorsCollectionNames: string[],
 	assetsCollectionNames: string[],
 	genericObjectsCollectionNames: string[],
+	dynamicObjectsCollectionNames: string[],
 	femSimulationObjectsCollectionNames: string[],
 
 } = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
@@ -507,16 +578,18 @@ export const sortObjects: (
 	const sensorObjects: ISensorObject[] = [];
 	const assetObjects: IAssetObject[] = [];
 	const genericObjects: IGenericObject[] = [];
+	const dynamicObjects: IDynamicObject[] = [];
 	const femSimulationObjects: IFemSimulationObject[] = [];
 	const genericObjectsCollectionNames: string[] = [];
+	const dynamicObjectsCollectionNames: string[] = [];
 	const sensorsCollectionNames: string[] = [];
 	const assetsCollectionNames: string[] = [];
 	const femSimulationObjectsCollectionNames: string[] = [];
 
 	for (const prop in nodes) {
 		const obj = nodes[prop];
-		if (obj.type === "Mesh") {
-			obj.material = findMaterial(obj, materials)
+		if ((obj.type === "Mesh" && obj.parent.parent === null) || (obj.type === "Group" && obj.parent !== null)) {
+			obj.material = findMaterial(obj, materials);
 			switch (obj.userData.type) {
 				case "sensor":
 					{
@@ -542,6 +615,19 @@ export const sortObjects: (
 							collectionName,
 						}
 						assetObjects.push(assestObject);
+						break;
+					}
+				case "dynamic":
+					{
+						let collectionName = "General";
+						if (obj.userData.collectionName) {
+							collectionName = obj.userData.collectionName;
+						}
+						const dynamicObject: IDynamicObject = {
+							node: obj,
+							collectionName,
+						}
+						dynamicObjects.push(dynamicObject);
 						break;
 					}
 				case "femObject":
@@ -641,6 +727,13 @@ export const sortObjects: (
 		}
 	})
 
+	dynamicObjects.forEach((obj: IDynamicObject) => {
+		const collectionName = obj.collectionName
+		if (dynamicObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			dynamicObjectsCollectionNames.push(collectionName);
+		}
+	})
+
 	femSimulationObjects.forEach((obj: IFemSimulationObject) => {
 		const collectionName = obj.collectionName
 		if (femSimulationObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
@@ -660,10 +753,12 @@ export const sortObjects: (
 		sensorObjects,
 		assetObjects,
 		genericObjects,
+		dynamicObjects,
 		femSimulationObjects,
 		sensorsCollectionNames,
 		assetsCollectionNames,
 		genericObjectsCollectionNames,
+		dynamicObjectsCollectionNames,
 		femSimulationObjectsCollectionNames
 	}
 }
@@ -686,10 +781,14 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 		camera.projectionMatrixInverse = new THREE.Matrix4();
 		camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
 		raycaster.setFromCamera(pointer, camera);
-		var intersects = raycaster.intersectObjects(meshList);
+		const intersects = raycaster.intersectObjects(meshList);
 		if (intersects.length > 0) {
 			objName = intersects[0].object.name;
-			type = intersects[0].object.userData.type;
+			if (intersects[0].object.userData.type) {
+				type = intersects[0].object.userData.type;
+			} else {
+				type = "generic";
+			}
 			if (type === "femObject") collectionName = objName;
 			else {
 				if (intersects[0].object.userData.collectionName) {
@@ -730,7 +829,7 @@ const processMouseEvent = (
 			mouse.isInsideObject = true;
 			mouse.type = type as string;
 			mouse.objSelectable = true;
-	
+
 			sendCustomEvent(event_name, { type, name: mouse.objName, collectionName: mouse.collectionName });
 		}
 		else {

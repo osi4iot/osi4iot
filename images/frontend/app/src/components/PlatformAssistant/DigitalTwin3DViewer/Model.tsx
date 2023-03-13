@@ -8,6 +8,7 @@ import useInterval from '../../../tools/useInterval';
 import { useThree } from '@react-three/fiber';
 import {
 	AssetState,
+	DynamicObjectState,
 	FemSimObjectVisibilityState,
 	FemSimulationObjectState,
 	GenericObjectState,
@@ -27,6 +28,7 @@ import FemSimulationObjects from './FemSimulationObjects';
 import { toast } from 'react-toastify';
 import useMqttState from './MqttHook/useMqttState';
 import useSubscription from './MqttHook/useSubscription';
+import DynamicObjects from './DynamicObjects';
 
 
 export interface ISensorObject {
@@ -40,6 +42,11 @@ export interface IAssetObject {
 }
 
 export interface IGenericObject {
+	node: THREE.Mesh;
+	collectionName: string;
+}
+
+export interface IDynamicObject {
 	node: THREE.Mesh;
 	collectionName: string;
 }
@@ -91,6 +98,9 @@ interface ModelProps {
 	genericObjects: IGenericObject[];
 	initialGenericObjectsState: Record<string, GenericObjectState>;
 	genericObjectsVisibilityState: Record<string, ObjectVisibilityState>;
+	dynamicObjects: IDynamicObject[];
+	initialDynamicObjectsState: Record<string, DynamicObjectState>;
+	dynamicObjectsVisibilityState: Record<string, ObjectVisibilityState>;
 	mqttTopicsData: IMqttTopicData[];
 	dashboardUrl: string;
 	sensorsOpacity: number;
@@ -109,6 +119,9 @@ interface ModelProps {
 	genericObjectsOpacity: number;
 	highlightAllGenericObjects: boolean;
 	hideAllGenericObjects: boolean;
+	dynamicObjectsOpacity: number;
+	highlightAllDynamicObjects: boolean;
+	hideAllDynamicObjects: boolean;
 	setIsMqttConnected: (isMqttConnected: boolean) => void;
 	canvasRef: React.MutableRefObject<null>;
 	selectedObjTypeRef: React.MutableRefObject<null>;
@@ -143,6 +156,9 @@ const Model: FC<ModelProps> = (
 		genericObjects,
 		initialGenericObjectsState,
 		genericObjectsVisibilityState,
+		dynamicObjects,
+		initialDynamicObjectsState,
+		dynamicObjectsVisibilityState,
 		mqttTopicsData,
 		dashboardUrl,
 		sensorsOpacity,
@@ -158,6 +174,9 @@ const Model: FC<ModelProps> = (
 		genericObjectsOpacity,
 		highlightAllGenericObjects,
 		hideAllGenericObjects,
+		dynamicObjectsOpacity,
+		highlightAllDynamicObjects,
+		hideAllDynamicObjects,
 		setIsMqttConnected,
 		canvasRef,
 		selectedObjTypeRef,
@@ -179,6 +198,7 @@ const Model: FC<ModelProps> = (
 	const [sensorsState, setSensorsState] = useState<Record<string, SensorState>>(initialSensorsState);
 	const [assetsState, setAssetsState] = useState<Record<string, AssetState>>(initialAssetsState);
 	const [genericObjectsState, setGenericObjectsState] = useState<Record<string, GenericObjectState>>(initialGenericObjectsState);
+	const [dynamicObjectsState, setDynamicObjectsState] = useState<Record<string, DynamicObjectState>>(initialDynamicObjectsState);
 	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
 	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
@@ -199,15 +219,18 @@ const Model: FC<ModelProps> = (
 		sensorsState,
 		assetsState,
 		genericObjectsState,
+		dynamicObjectsState,
 		femSimulationObjectsState,
 		digitalTwinSimulatorSendData,
 		sensorObjects,
 		assetObjects,
 		genericObjects,
+		dynamicObjects,
 		femSimulationObjects,
 		setAssetsState,
 		setSensorsState,
 		setGenericObjectsState,
+		setDynamicObjectsState,
 		setFemSimulationObjectsState,
 		femResultData,
 		setFemResFilesLastUpdate
@@ -218,10 +241,12 @@ const Model: FC<ModelProps> = (
 			let highlightSensor = false;
 			let highlightAsset = false;
 			let highlightGenericObject = false;
+			let highlightDynamicObject = false;
 			let highlightFemSimulationObject = false;
 			if (objType === "sensor" && highlighted) highlightSensor = true;
 			else if (objType === "asset" && highlighted) highlightAsset = true;
 			else if (objType === "generic" && highlighted) highlightGenericObject = true;
+			else if (objType === "dynamic" && highlighted) highlightDynamicObject = true;
 			else if (objType === "femObject" && highlighted) highlightFemSimulationObject = true;
 
 			setSensorsState((prevSensorsState) => {
@@ -258,6 +283,18 @@ const Model: FC<ModelProps> = (
 					}
 				};
 				return newGenericObjectsState;
+			});
+
+			setDynamicObjectsState((prevDynamicObjectState) => {
+				const newDynamicObjectsState = { ...prevDynamicObjectState };
+				for (const objLabel in newDynamicObjectsState) {
+					if (objType === "dynamic" && objLabel === objName) {
+						newDynamicObjectsState[objLabel] = { ...newDynamicObjectsState[objLabel], highlight: highlightDynamicObject }
+					} else {
+						newDynamicObjectsState[objLabel] = { ...newDynamicObjectsState[objLabel], highlight: false }
+					}
+				};
+				return newDynamicObjectsState;
 			});
 
 			setFemSimulationObjectsState((prevFemSimulationObjectState) => {
@@ -367,6 +404,17 @@ const Model: FC<ModelProps> = (
 					hideAllGenericObjects={hideAllGenericObjects}
 					genericObjectsState={genericObjectsState}
 					genericObjectsVisibilityState={genericObjectsVisibilityState}
+				/>
+			}
+			{
+				(dynamicObjects.length !== 0 && dynamicObjectsState && dynamicObjectsVisibilityState) &&
+				<DynamicObjects
+					dynamicObjects={dynamicObjects}
+					dynamicObjectsOpacity={dynamicObjectsOpacity}
+					highlightAllDynamicObjects={highlightAllDynamicObjects}
+					hideAllDynamicObjects={hideAllDynamicObjects}
+					dynamicObjectsState={dynamicObjectsState}
+					dynamicObjectsVisibilityState={dynamicObjectsVisibilityState}
 				/>
 			}
 			{

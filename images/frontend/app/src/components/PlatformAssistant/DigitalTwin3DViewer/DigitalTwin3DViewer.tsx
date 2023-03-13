@@ -11,6 +11,7 @@ import "react-dat-gui/dist/dist/index.css";
 import { Stage } from "./Stage";
 import Model, {
 	IAssetObject,
+	IDynamicObject,
 	IFemSimulationObject,
 	IGenericObject,
 	IResultRenderInfo,
@@ -26,6 +27,7 @@ import {
 	FemSimObjectVisibilityState,
 	readFemSimulationInfo,
 	generateInitialFemSimObjectsState,
+	DynamicObjectState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
@@ -395,14 +397,20 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [sensorObjects, setSensorObjects] = useState<ISensorObject[]>([]);
 	const [assetObjects, setAssetObjects] = useState<IAssetObject[]>([]);
 	const [genericObjects, setGenericObjects] = useState<IGenericObject[]>([]);
+	const [dynamicObjects, setDynamicObjects] = useState<IDynamicObject[]>([]);
 	const [femSimulationObjects, setFemSimulationObjects] = useState<IFemSimulationObject[]>([]);
 	const [initialSensorsState, setInitialSensorsState] = useState<Record<string, SensorState> | null>(null);
 	const [initialAssetsState, setInitialAssetsState] = useState<Record<string, AssetState> | null>(null);
 	const [initialGenericObjectsState, setInitialGenericObjectsState] = useState<Record<string, GenericObjectState> | null>(null);
+	const [initialDynamicObjectsState, setInitialDynamicObjectsState] = useState<Record<string, DynamicObjectState> | null>(null);
 	const [initialFemSimObjectsState, setInitialFemSimObjectsState] = useState<FemSimulationObjectState[]>([]);
 	const [
 		initialGenericObjectsVisibilityState,
 		setInitialGenericObjectsVisibilityState
+	] = useState<Record<string, ObjectVisibilityState> | null>(null);
+	const [
+		initialDynamicObjectsVisibilityState,
+		setInitialDynamicObjectsVisibilityState
 	] = useState<Record<string, ObjectVisibilityState> | null>(null);
 	const [femSimulationGeneralInfo, setFemSimulationGeneralInfo] = useState<Record<string, IResultRenderInfo> | null>(null);
 	const [initialSensorsVisibilityState, setInitialSensorsVisibilityState] = useState<Record<string, ObjectVisibilityState> | null>(null);
@@ -516,6 +524,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		highlightAllGenericObjects: false,
 		hideAllGenericObjects: false,
 		genericObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
+		dynamicObjectsOpacity: 1,
+		highlightAllDynamicObjects: false,
+		hideAllDynamicObjects: false,
+		dynamicObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
 		femSimulationObjectsOpacity: 1,
 		highlightAllFemSimulationObjects: false,
 		hideAllFemSimulationObjects: false,
@@ -539,6 +551,16 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			})
 		}
 	}, [initialGenericObjectsVisibilityState])
+
+	useEffect(() => {
+		if (initialDynamicObjectsVisibilityState) {
+			setOpts((prevOpts) => {
+				const newOpts = { ...prevOpts };
+				newOpts.dynamicObjectsVisibilityState = initialDynamicObjectsVisibilityState;
+				return newOpts;
+			})
+		}
+	}, [initialDynamicObjectsVisibilityState])
 
 	useEffect(() => {
 		if (initialSensorsVisibilityState) {
@@ -768,12 +790,15 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					setSensorObjects={setSensorObjects}
 					setAssetObjects={setAssetObjects}
 					setGenericObjects={setGenericObjects}
+					setDynamicObjects={setDynamicObjects}
 					setFemSimulationObjects={setFemSimulationObjects}
 					setInitialSensorsState={setInitialSensorsState}
 					setInitialAssetsState={setInitialAssetsState}
 					setInitialGenericObjectsState={setInitialGenericObjectsState}
+					setInitialDynamicObjectsState={setInitialDynamicObjectsState}
 					setInitialFemSimObjectsState={setInitialFemSimObjectsState}
 					setInitialGenericObjectsVisibilityState={setInitialGenericObjectsVisibilityState}
+					setInitialDynamicObjectsVisibilityState={setInitialDynamicObjectsVisibilityState}
 					setInitialSensorsVisibilityState={setInitialSensorsVisibilityState}
 					setInitialAssetsVisibilityState={setInitialAssetsVisibilityState}
 					setInitialFemSimObjectsVisibilityState={setInitialFemSimObjectsVisibilityState}
@@ -786,6 +811,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					orthographic
 					shadows
 					onCreated={canvasCtx => { canvasCtx.gl.physicallyCorrectLights = true; }}
+					camera={{ position: [4, 4, 0], zoom: 300 }}
 				>
 					<Stage
 						controls={controlsRef}
@@ -818,6 +844,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								genericObjects={genericObjects}
 								initialGenericObjectsState={initialGenericObjectsState as Record<string, GenericObjectState>}
 								genericObjectsVisibilityState={opts.genericObjectsVisibilityState}
+								dynamicObjects={dynamicObjects}
+								initialDynamicObjectsState={initialDynamicObjectsState as Record<string, DynamicObjectState>}
+								dynamicObjectsVisibilityState={opts.dynamicObjectsVisibilityState}
 								mqttTopicsData={digitalTwinGltfData.mqttTopicsData}
 								dashboardUrl={digitalTwinSelected?.dashboardUrl as string}
 								sensorsOpacity={opts.sensorsOpacity}
@@ -837,6 +866,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								genericObjectsOpacity={opts.genericObjectsOpacity}
 								highlightAllGenericObjects={opts.highlightAllGenericObjects}
 								hideAllGenericObjects={opts.hideAllGenericObjects}
+								dynamicObjectsOpacity={opts.dynamicObjectsOpacity}
+								highlightAllDynamicObjects={opts.highlightAllDynamicObjects}
+								hideAllDynamicObjects={opts.hideAllDynamicObjects}
 								setIsMqttConnected={isMqttConnected => setIsMqttConnected(isMqttConnected)}
 								canvasRef={canvasRef}
 								selectedObjTypeRef={selectedObjTypeRef}
@@ -1015,6 +1047,40 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								}
 							</DatFolder>
 						}
+						{
+							dynamicObjects.length !== 0 &&
+							<DatFolder title='Dynamic objects' closed={true}>
+								<DatFolder title='All nodes' closed={true}>
+									<StyledDatNumber label="Opacity" path="dynamicObjectsOpacity" min={0} max={1} step={0.05} />
+									<StyledDatBoolean label="Highlight" path="highlightAllDynamicObjects" />
+									<StyledDatBoolean label="Hide" path="hideAllDynamicObjects" />
+								</DatFolder>
+								{
+									(
+										(Object.keys(initialDynamicObjectsVisibilityState || []).length > 1) ?
+											Object.keys(initialDynamicObjectsVisibilityState || []) : []
+									).map(collecionName =>
+										<DatFolder key={collecionName} title={collecionName} closed={true}>
+											<StyledDatNumber
+												label="Opacity"
+												path={`dynamicObjectsVisibilityState[${collecionName}].opacity`}
+												min={0}
+												max={1}
+												step={0.05}
+											/>
+											<StyledDatBoolean
+												label="Highlight"
+												path={`dynamicObjectsVisibilityState[${collecionName}].highlight`}
+											/>
+											<StyledDatBoolean
+												label="Hide"
+												path={`dynamicObjectsVisibilityState[${collecionName}].hide`}
+											/>
+										</DatFolder>
+									)
+								}
+							</DatFolder>
+						}						
 						{
 							femSimulationObjects.length !== 0
 							&&

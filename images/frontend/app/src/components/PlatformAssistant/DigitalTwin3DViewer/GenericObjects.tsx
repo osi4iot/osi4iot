@@ -16,7 +16,6 @@ interface GenericObjectProps {
 const highlightColor = new THREE.Color(0x00ff00);
 const noEmitColor = new THREE.Color(0, 0, 0);
 
-
 const GenericObjectBase: FC<GenericObjectProps> = ({
     obj,
     blinking,
@@ -25,7 +24,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     genericObjectState,
     genericObjectStateString
 }) => {
-    const meshRef = useRef<THREE.Mesh>();
+    const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
     material.transparent = (defOpacity * opacity) === 1 ? false : true;
@@ -38,8 +37,8 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             if (obj.userData.clipNames) {
                 const mixer = new THREE.AnimationMixer(meshRef.current as any);
                 obj.animations.forEach(clip => {
-                        const action = mixer.clipAction(clip);
-                        action.play();
+                    const action = mixer.clipAction(clip);
+                    action.play();
                 });
                 const clipsDuration = obj.animations[0].duration - 0.00001; //All clips must have the same duration
                 setClipsDuration(clipsDuration);
@@ -68,7 +67,11 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mixer, genericObjectState.clipValues]);
 
-    useFrame(({ clock }) => {
+
+    useFrame(({ clock }, delta) => {
+        if (obj.userData.clipType && obj.userData.clipType === "endless") {
+            mixer?.update(delta);
+        }
         if (visible) {
             if (blinking) {
                 if (lastIntervalTime === 0) {
@@ -92,7 +95,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                 } else {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
                     material.emissive = noEmitColor;
-                    material.opacity = defOpacity*opacity;
+                    material.opacity = defOpacity * opacity;
                 }
             }
         } else {
@@ -101,16 +104,29 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     })
 
     return (
-        <mesh
-            ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
-            castShadow
-            receiveShadow
-            geometry={obj.geometry}
-            material={material}
-            position={[obj.position.x, obj.position.y, obj.position.z]}
-            rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
-            scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
-        />
+        obj.type === "Group" ?
+            <mesh
+                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                castShadow
+                receiveShadow
+                // material={material}
+            >
+                <primitive
+                    object={obj}
+                />
+            </mesh>
+            :
+            <mesh
+                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                castShadow
+                receiveShadow
+                geometry={obj.geometry}
+                material={material}
+                position={[obj.position.x, obj.position.y, obj.position.z]}
+                rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
+                scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
+            />
+
     )
 }
 

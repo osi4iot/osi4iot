@@ -187,7 +187,15 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
             (
                 node: {
                     name?: string; mesh?: number;
-                    extras: { topicType: string; topicId: number; type: string; clipTopicTypes: string[]; clipTopicIds: number[]; };
+                    extras: {
+                        topicType: string;
+                        displayTopicType: string;
+                        dynamicTopicType: string;
+                        topicId: number;
+                        type: string;
+                        clipTopicTypes: string[];
+                        clipTopicIds: number[];
+                    };
                 }
             ) => {
                 if (node.mesh !== undefined && node.extras !== undefined) {
@@ -195,6 +203,20 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                         const topicType = node.extras?.topicType;
                         if (topicType) {
                             const topicSensorId = findTopicSensorId(topicType, topicSensors);
+                            node.extras.topicId = topicSensorId;
+                        }
+                    }
+                    if (node.extras.type && node.extras.type === "display") {
+                        const displayTopicType = node.extras?.displayTopicType;
+                        if (displayTopicType) {
+                            const topicSensorId = findTopicSensorId(displayTopicType, topicSensors);
+                            node.extras.topicId = topicSensorId;
+                        }
+                    }
+                    if (node.extras.type && node.extras.type === "dynamic") {
+                        const dynamicTopicType = node.extras?.dynamicTopicType;
+                        if (dynamicTopicType) {
+                            const topicSensorId = findTopicSensorId(dynamicTopicType, topicSensors);
                             node.extras.topicId = topicSensorId;
                         }
                     }
@@ -359,8 +381,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                             toast.success(response.data.message);
                         })
                         .catch((error) => {
-                            const errorMessage = error.response.data?.message;
-                            if (errorMessage !== undefined && errorMessage !== "jwt expired") toast.error(errorMessage);
+                            axiosErrorHandler(error, authDispatch);
                             backToTable();
                         })
                 }

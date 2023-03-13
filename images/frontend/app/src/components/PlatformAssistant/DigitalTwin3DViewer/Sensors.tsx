@@ -37,6 +37,8 @@ const SensorBase: FC<SensorProps> = ({
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
+    // const euler = new THREE.Euler( obj.rotation.x, obj.rotation.y, obj.rotation.z, 'XYZ' );
+    // const quaternion = new THREE.Quaternion().setFromEuler(euler);
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
@@ -73,7 +75,10 @@ const SensorBase: FC<SensorProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mixer, sensorState.clipValues]);
 
-    useFrame(({ clock }) => {
+    useFrame(({ clock }, delta) => {
+        if (obj.userData.clipType && obj.userData.clipType === "endless") {
+            mixer?.update(delta);
+        }
         if (visible) {
             if (blinking) {
                 if (lastIntervalTime === 0) {
@@ -140,16 +145,29 @@ const SensorBase: FC<SensorProps> = ({
 
 
     return (
-        <mesh
-            ref={meshRef}
-            castShadow
-            receiveShadow
-            geometry={obj.geometry}
-            material={material}
-            position={[obj.position.x, obj.position.y, obj.position.z]}
-            rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
-            scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
-        />
+        obj.type === "Group" ?
+            <mesh
+                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                castShadow
+                receiveShadow
+                material={material}
+            >
+                <primitive
+                    object={obj}
+                />
+            </mesh>
+            :
+            <mesh
+                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                castShadow
+                receiveShadow
+                geometry={obj.geometry}
+                material={material}
+                position={[obj.position.x, obj.position.y, obj.position.z]}
+                rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
+                scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
+            />
+
     )
 }
 
