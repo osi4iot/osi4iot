@@ -262,29 +262,29 @@ const updateObjectsState = (
 
                 dynamicObjects.forEach((obj) => {
                     const objName = obj.node.name;
-                    const dynamicTopicId = obj.node.userData.dynamicTopicId;
-                    if (dynamicTopicId !== undefined) {
+                    const topicId = obj.node.userData.topicId as number;
+                    if (topicId !== undefined) {
                         const position = dynamicObjectNewState[objName].position.clone();
                         const scale = dynamicObjectNewState[objName].scale.clone();
                         const quaternion = dynamicObjectNewState[objName].quaternion.clone();
-                        if (dynamicTopicId === messageTopicId) {
+                        if (topicId === messageTopicId) {
                             if (messagePayloadKeys.indexOf("position") !== -1) {
                                 const values = mqttMessage["position"];
-                                if (typeof values === 'object' && values.isArray && values.length === 3) {
+                                if (Array.isArray(values) && values.length === 3) {
                                     position.set(values[0], values[1], values[2]);
                                     isDynamicObjectsStateChanged = true;
                                 }
                             }
                             if (messagePayloadKeys.indexOf("scale") !== -1) {
                                 const values = mqttMessage["scale"];
-                                if (typeof values === 'object' && values.isArray && values.length === 3) {
+                                if (Array.isArray(values) && values.length === 3) {
                                     scale.set(values[0], values[1], values[2]);
                                     isDynamicObjectsStateChanged = true;
                                 }
                             }
                             if (messagePayloadKeys.indexOf("quaternion") !== -1) {
                                 const values = mqttMessage["quaternion"];
-                                if (typeof values === 'object' && values.isArray && values.length === 4) {
+                                if (Array.isArray(values) && values.length === 4) {
                                     quaternion.set(values[0], values[1], values[2], values[3]);
                                     isDynamicObjectsStateChanged = true;
                                 }

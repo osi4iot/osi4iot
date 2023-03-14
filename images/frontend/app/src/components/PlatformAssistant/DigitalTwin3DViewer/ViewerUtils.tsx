@@ -281,12 +281,12 @@ export const generateInitialDynamicObjectsState = (
 			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
 		};
 
-		const dynamicTopicId = obj.node.userData.dynamicTopicId;
-		if (dynamicTopicId) {
+		const topicId = obj.node.userData.topicId;
+		if (topicId) {
 			const position = new THREE.Vector3(0.0, 0.0, 0.0);
 			const scale = new THREE.Vector3(1.0, 1.0, 1.0);
 			const quaternion = new THREE.Quaternion(0.0, 0.0, 0.0, 1.0);
-			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === dynamicTopicId);
+			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === topicId);
 			if (mqttTopicsDataFiltered.length !== 0) {
 				const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
 				if (lastMeasurement) {
@@ -294,19 +294,19 @@ export const generateInitialDynamicObjectsState = (
 					const payloadKeys = Object.keys(lastMeasurement.payload);
 					if (payloadKeys.indexOf("position") !== -1) {
 						const values = payloadObject["position"];
-						if (typeof values === 'object' && values.isArray && values.length === 3) {
+						if (Array.isArray(values) && values.length === 3) {
 							position.set(values[0], values[1], values[2]);
 						}
 					}
 					if (payloadKeys.indexOf("scale") !== -1) {
 						const values = payloadObject["scale"];
-						if (typeof values === 'object' && values.isArray && values.length === 3) {
+						if (Array.isArray(values) && values.length === 3) {
 							scale.set(values[0], values[1], values[2]);
 						}
 					}
 					if (payloadKeys.indexOf("quaternion") !== -1) {
 						const values = payloadObject["quaternion"];
-						if (typeof values === 'object' && values.isArray && values.length === 4) {
+						if (Array.isArray(values) && values.length === 4) {
 							quaternion.set(values[0], values[1], values[2], values[3]);
 						}
 					}

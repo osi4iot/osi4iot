@@ -142,6 +142,12 @@ export const getTopicSensorTypesFromDigitalTwin = (type: string, gltfData: any):
                         topicTypes.push(topicType)
                     }
                 }
+                if (node.extras?.type !== undefined && node.extras?.type === "dynamic") {
+                    const dynamicTopicType = node.extras?.dynamicTopicType;
+                    if (dynamicTopicType && topicTypes.findIndex(topicTypei => topicTypei === dynamicTopicType) === -1) {
+                        topicTypes.push(dynamicTopicType)
+                    }
+                }
                 if (node.extras?.clipTopicTypes !== undefined && node.extras?.clipTopicTypes.length !== 0) {
                     node.extras?.clipTopicTypes.forEach(topicType => {
                         if (topicType && topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
@@ -369,11 +375,19 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${deviceId}/${data.digitalTwinId}`;
 
                 if (Object.keys(digitalTwinGltfData).length !== 0) {
+                    let file = gltfFile as File; 
                     if (values.type === "Gltf 3D model") {
-                        updatedTopicSensorIdsFromDigitalTwinGltfData(digitalTwinGltfData, setDigitalTwinGltfData, data.topicSensors);
+                        updatedTopicSensorIdsFromDigitalTwinGltfData(
+                            digitalTwinGltfData,
+                            setDigitalTwinGltfData,
+                            data.topicSensors,
+                        );
+                        const str = JSON.stringify(digitalTwinGltfData);
+                        const bytes = new TextEncoder().encode(str);
+                        file = new File([bytes], (gltfFile as File).name);
                     }
                     const gltfData = new FormData();
-                    gltfData.append("file", gltfFile as File, gltfFileName);
+                    gltfData.append("file", file, gltfFileName);
                     const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadGltfFile, gltfData, configMultipart)
@@ -471,7 +485,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                 gltfFileParams.clear();
                             }
 
-                            const localGltfFileButtonHandler = () => {
+                            const localGltfFileButtonHandler = async () => {
                                 if (!localGltfFileLoaded) {
                                     selectFile(openGlftFileSelector, gltfFileParams.clear);
                                 } else {

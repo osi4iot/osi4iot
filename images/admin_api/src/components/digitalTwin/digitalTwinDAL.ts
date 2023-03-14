@@ -57,6 +57,7 @@ export interface IMeshNode {
 	extras: {
 		topicType: string;
 		displayTopicType: string;
+		dynamicTopicType: string;
 		type: string;
 		clipTopicTypes: string[];
 	};
@@ -80,9 +81,9 @@ const getTopicSensorTypesFromDigitalTwin = (type: string, gltfFileData: any): st
 					}
 				}
 				if (node.extras?.type !== undefined && node.extras?.type === "dynamic") {
-					const displayTopicType = node.extras?.displayTopicType;
-					if (displayTopicType && topicTypes.findIndex(topicTypei => topicTypei === displayTopicType) === -1) {
-						topicTypes.push(displayTopicType)
+					const dynamicTopicType = node.extras?.dynamicTopicType;
+					if (dynamicTopicType && topicTypes.findIndex(topicTypei => topicTypei === dynamicTopicType) === -1) {
+						topicTypes.push(dynamicTopicType)
 					}
 				}
 				if (node.extras?.clipTopicTypes !== undefined && node.extras?.clipTopicTypes.length !== 0) {

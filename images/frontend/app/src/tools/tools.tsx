@@ -19,8 +19,8 @@ export const getDomainName = () => {
     const location = window.location.href;
     let domainName = location.split("/")[2];
     // if (domainName === "localhost:3000") domainName = "localhost";  //Development case
-    // if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
-    if (domainName === "localhost:3000") domainName = "osi4iot.com";
+    if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
+    // if (domainName === "localhost:3000") domainName = "osi4iot.com";
     // if (domainName === "localhost:3000") domainName = "dev.iot-rafa.tk";
     return domainName;
 }
@@ -137,6 +137,8 @@ export interface IMeshNode {
     mesh?: number;
     extras: {
         topicType: string;
+        displayTopicType: string;
+		dynamicTopicType: string;
         type: string;
         fieldName: string;
         timeout: number;
