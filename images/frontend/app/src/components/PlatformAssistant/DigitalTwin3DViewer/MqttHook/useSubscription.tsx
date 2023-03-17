@@ -3,8 +3,19 @@ import { SubscribeOptions } from "paho-mqtt";
 import MqttContext from './MqttContext';
 import { IMqttContext as Context, IMessage } from './interfaces';
 import matches from './matches';
-import { IAssetObject, IDynamicObject, IFemSimulationObject, IGenericObject, IMqttTopicData,  ISensorObject } from '../Model';
-import { AssetState, DynamicObjectState, FemSimulationObjectState, GenericObjectState, SensorState } from '../ViewerUtils';
+import {
+    IAssetObject,
+    IFemSimulationObject,
+    IGenericObject,
+    IMqttTopicData,
+    ISensorObject
+} from '../Model';
+import {
+    AssetState,
+    FemSimulationObjectState,
+    GenericObjectState,
+    SensorState
+} from '../ViewerUtils';
 
 const useSubscription = (
     mqttTopics: string | string[],
@@ -12,18 +23,15 @@ const useSubscription = (
     sensorsState: Record<string, SensorState>,
     assetsState: Record<string, AssetState>,
     genericObjectsState: Record<string, GenericObjectState>,
-    dynamicObjectsState: Record<string, DynamicObjectState>,
     femSimulationObjectsState: FemSimulationObjectState[],
     digitalTwinSimulatorSendData: boolean,
     sensorObjects: ISensorObject[],
     assetObjects: IAssetObject[],
     genericObjects: IGenericObject[],
-    dynamicObjects: IDynamicObject[],
     femSimulationObjects: IFemSimulationObject[],
     setAssetsState: React.Dispatch<React.SetStateAction<Record<string, AssetState>>>,
     setSensorsState: React.Dispatch<React.SetStateAction<Record<string, SensorState>>>,
     setGenericObjectsState: React.Dispatch<React.SetStateAction<Record<string, GenericObjectState>>>,
-    setDynamicObjectsState: React.Dispatch<React.SetStateAction<Record<string, DynamicObjectState>>>,
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
     femResultData: any,
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
@@ -32,12 +40,12 @@ const useSubscription = (
     const { client } = useContext<Context>(MqttContext);
 
     let femResultNames: string[] = [];
-	if (femSimulationObjects.length && femResultData && Object.keys(femResultData).length !== 0) {
-		femResultNames = femResultData.metadata.resultFields.map(
-			(resultField: { resultName: string; }) => resultField.resultName
-		);
+    if (femSimulationObjects.length && femResultData && Object.keys(femResultData).length !== 0) {
+        femResultNames = femResultData.metadata.resultFields.map(
+            (resultField: { resultName: string; }) => resultField.resultName
+        );
     }
-    
+
     useEffect(() => {
         if (client?.isConnected) {
             // subscribe();
@@ -66,18 +74,15 @@ const useSubscription = (
                         sensorsState,
                         assetsState,
                         genericObjectsState,
-                        dynamicObjectsState,
                         femSimulationObjectsState,
                         digitalTwinSimulatorSendData,
                         sensorObjects,
                         assetObjects,
                         genericObjects,
-                        dynamicObjects,
                         femSimulationObjects,
                         setAssetsState,
                         setSensorsState,
                         setGenericObjectsState,
-                        setDynamicObjectsState,
                         setFemSimulationObjectsState,
                         femResultNames,
                         setFemResFilesLastUpdate,
@@ -96,18 +101,15 @@ const updateObjectsState = (
     sensorsState: Record<string, SensorState>,
     assetsState: Record<string, AssetState>,
     genericObjectsState: Record<string, GenericObjectState>,
-    dynamicObjectsState: Record<string, DynamicObjectState>,
     femSimulationObjectsState: FemSimulationObjectState[],
     digitalTwinSimulatorSendData: boolean,
     sensorObjects: ISensorObject[],
     assetObjects: IAssetObject[],
     genericObjects: IGenericObject[],
-    dynamicObjects: IDynamicObject[],
     femSimulationObjects: IFemSimulationObject[],
     setAssetsState: React.Dispatch<React.SetStateAction<Record<string, AssetState>>>,
     setSensorsState: React.Dispatch<React.SetStateAction<Record<string, SensorState>>>,
     setGenericObjectsState: React.Dispatch<React.SetStateAction<Record<string, GenericObjectState>>>,
-    setDynamicObjectsState: React.Dispatch<React.SetStateAction<Record<string, DynamicObjectState>>>,
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
     femResultNames: string[],
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
@@ -128,176 +130,180 @@ const updateObjectsState = (
             let isAssetStateChanged = false;
             const genericObjectNewState = { ...genericObjectsState };
             let isGenericObjectsStateChanged = false;
-            const dynamicObjectNewState = { ...dynamicObjectsState };
-            let isDynamicObjectsStateChanged = false;
             let isfemSimulationObjectsStateChanged = false;
             const femSimulationObjectsNewState = [...femSimulationObjectsState];
 
-            if ((messageTopicType === "dev2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dev_sim_2dtm") {
+            if ((messageTopicType === "dev2pdb" || messageTopicType === "dev_sim_2dtm") &&
+                !digitalTwinSimulatorSendData
+            ) {
                 sensorObjects.forEach((obj) => {
                     const objName = obj.node.name;
-                    const sensorTopicId = obj.node.userData.topicId;
+                    const sensorTopicId = obj.node.userData.sensorTopicId;
                     if (sensorTopicId === messageTopicId && sensorsState[objName].stateString === "off") {
                         const fieldName = obj.node.userData.fieldName;
                         if (messagePayloadKeys.indexOf(fieldName) !== -1) {
                             const value = mqttMessage[fieldName];
-                            if (typeof value === 'number' || (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)) {
+                            if (typeof value === 'number' ||
+                                (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)
+                            ) {
                                 sensorsNewState[objName] = { ...sensorsNewState[objName], stateString: "on" };
                                 isSensorStateChanged = true;
                             }
                         }
                     }
-                    const clipTopicIds = obj.node.userData.clipTopicIds;
-                    if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
-                        const clipValues = [...sensorsNewState[objName].clipValues];
-                        clipTopicIds.forEach((clipTopicId: number, index: number) => {
-                            if (clipTopicId === messageTopicId) {
-                                const fieldName = obj.node.userData.clipFieldNames[index];
-                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                    const value = mqttMessage[fieldName];
-                                    if (typeof value === 'number') {
-                                        clipValues[index] = value;
-                                        isSensorStateChanged = true;
-                                    }
-                                }
-                            }
-                        });
-                        sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
-                    }
-
-                    if (clipSimulationTopicId === messageTopicId) {
-                        const clipValues = [...sensorsNewState[objName].clipValues];
-                        const fieldNames: string[] = obj.node.userData.clipFieldNames;
-                        if (fieldNames !== undefined && fieldNames.length !== 0) {
-                            fieldNames.forEach((fieldName, index) => {
-                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                    const value = mqttMessage[fieldName];
-                                    if (typeof value === 'number') {
-                                        clipValues[index] = value;
-                                        isSensorStateChanged = true;
+                    const animationType = obj.node.userData.animationType;
+                    if (animationType === "dynamic") {
+                        isSensorStateChanged = updateDynamicAnimationState(
+                            obj.node,
+                            sensorsNewState,
+                            messageTopicId,
+                            mqttMessage,
+                            isSensorStateChanged
+                        )
+                    } else if (
+                        animationType === "blenderTemporary" ||
+                        animationType === "blenderEndless"
+                    ) {
+                        const clipTopicIds = obj.node.userData.clipTopicIds;
+                        if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
+                            const clipValues = [...sensorsNewState[objName].clipValues];
+                            clipTopicIds.forEach((clipTopicId: number, index: number) => {
+                                if (clipTopicId === messageTopicId) {
+                                    const fieldName = obj.node.userData.clipFieldNames[index];
+                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                        const value = mqttMessage[fieldName];
+                                        if (typeof value === 'number') {
+                                            clipValues[index] = value;
+                                            isSensorStateChanged = true;
+                                        }
                                     }
                                 }
                             });
                             sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
+                        }
+
+                        if (clipSimulationTopicId === messageTopicId) {
+                            const clipValues = [...sensorsNewState[objName].clipValues];
+                            const fieldNames: string[] = obj.node.userData.clipFieldNames;
+                            if (fieldNames !== undefined && fieldNames.length !== 0) {
+                                fieldNames.forEach((fieldName, index) => {
+                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                        const value = mqttMessage[fieldName];
+                                        if (typeof value === 'number') {
+                                            clipValues[index] = value;
+                                            isSensorStateChanged = true;
+                                        }
+                                    }
+                                });
+                                sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
+                            }
                         }
                     }
                 });
 
                 assetObjects.forEach((obj) => {
                     const objName = obj.node.name;
-                    const clipTopicIds = obj.node.userData.clipTopicIds;
-                    if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
-                        const clipValues = [...assestsNewState[objName].clipValues];
-                        clipTopicIds.forEach((clipTopicId: number, index: number) => {
-                            if (clipTopicId === messageTopicId) {
-                                const fieldName = obj.node.userData.clipFieldNames[index];
-                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                    const value = mqttMessage[fieldName];
-                                    if (typeof value === 'number') {
-                                        clipValues[index] = value;
-                                        isAssetStateChanged = true;
-                                    }
-                                }
-                            }
-                        });
-                        assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
-                    }
-
-                    if (clipSimulationTopicId === messageTopicId) {
-                        const clipValues = [...assestsNewState[objName].clipValues];
-                        const fieldNames: string[] = obj.node.userData.clipFieldNames;
-                        if (fieldNames !== undefined && fieldNames.length !== 0) {
-                            fieldNames.forEach((fieldName, index) => {
-                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                    const value = mqttMessage[fieldName];
-                                    if (typeof value === 'number') {
-                                        clipValues[index] = value;
-                                        isAssetStateChanged = true;
+                    const animationType = obj.node.userData.animationType;
+                    if (animationType === "dynamic") {
+                        isAssetStateChanged = updateDynamicAnimationState(
+                            obj.node,
+                            assestsNewState,
+                            messageTopicId,
+                            mqttMessage,
+                            isAssetStateChanged
+                        )
+                    } else if (
+                        animationType === "blenderTemporary" ||
+                        animationType === "blenderEndless"
+                    ) {
+                        const clipTopicIds = obj.node.userData.clipTopicIds;
+                        if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
+                            const clipValues = [...assestsNewState[objName].clipValues];
+                            clipTopicIds.forEach((clipTopicId: number, index: number) => {
+                                if (clipTopicId === messageTopicId) {
+                                    const fieldName = obj.node.userData.clipFieldNames[index];
+                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                        const value = mqttMessage[fieldName];
+                                        if (typeof value === 'number') {
+                                            clipValues[index] = value;
+                                            isAssetStateChanged = true;
+                                        }
                                     }
                                 }
                             });
                             assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
                         }
-                    }
 
+                        if (clipSimulationTopicId === messageTopicId) {
+                            const clipValues = [...assestsNewState[objName].clipValues];
+                            const fieldNames: string[] = obj.node.userData.clipFieldNames;
+                            if (fieldNames !== undefined && fieldNames.length !== 0) {
+                                fieldNames.forEach((fieldName, index) => {
+                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                        const value = mqttMessage[fieldName];
+                                        if (typeof value === 'number') {
+                                            clipValues[index] = value;
+                                            isAssetStateChanged = true;
+                                        }
+                                    }
+                                });
+                                assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
+                            }
+                        }
+                    }
                 });
 
                 genericObjects.forEach((obj) => {
                     const objName = obj.node.name;
-                    const clipTopicIds = obj.node.userData.clipTopicIds;
-                    if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
-                        const clipValues = [...genericObjectNewState[objName].clipValues];
-                        clipTopicIds.forEach((clipTopicId: number, index: number) => {
-                            if (clipTopicId === messageTopicId) {
-                                const fieldName = obj.node.userData.clipFieldNames[index];
-                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                    const value = mqttMessage[fieldName];
-                                    if (typeof value === 'number') {
-                                        clipValues[index] = value;
-                                        isGenericObjectsStateChanged = true;
-                                    }
-                                }
-                            }
-                        });
-                        genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
-                    }
-
-                    if (clipSimulationTopicId === messageTopicId) {
-                        const clipValues = [...genericObjectNewState[objName].clipValues];
-                        const fieldNames: string[] = obj.node.userData.clipFieldNames;
-                        if (fieldNames !== undefined && fieldNames.length !== 0) {
-                            fieldNames.forEach((fieldName, index) => {
-                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                    const value = mqttMessage[fieldName];
-                                    if (typeof value === 'number') {
-                                        clipValues[index] = value;
-                                        isGenericObjectsStateChanged = true;
+                    const animationType = obj.node.userData.animationType;
+                    if (animationType === "dynamic") {
+                        isGenericObjectsStateChanged = updateDynamicAnimationState(
+                            obj.node,
+                            genericObjectNewState,
+                            messageTopicId,
+                            mqttMessage,
+                            isGenericObjectsStateChanged
+                        )
+                    } else if (
+                        animationType === "blenderTemporary" ||
+                        animationType === "blenderEndless"
+                    ) {
+                        const clipTopicIds = obj.node.userData.clipTopicIds;
+                        if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
+                            const clipValues = [...genericObjectNewState[objName].clipValues];
+                            clipTopicIds.forEach((clipTopicId: number, index: number) => {
+                                if (clipTopicId === messageTopicId) {
+                                    const fieldName = obj.node.userData.clipFieldNames[index];
+                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                        const value = mqttMessage[fieldName];
+                                        if (typeof value === 'number') {
+                                            clipValues[index] = value;
+                                            isGenericObjectsStateChanged = true;
+                                        }
                                     }
                                 }
                             });
                             genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
                         }
-                    }
-                });
 
-                dynamicObjects.forEach((obj) => {
-                    const objName = obj.node.name;
-                    const topicId = obj.node.userData.topicId as number;
-                    if (topicId !== undefined) {
-                        const position = dynamicObjectNewState[objName].position.clone();
-                        const scale = dynamicObjectNewState[objName].scale.clone();
-                        const quaternion = dynamicObjectNewState[objName].quaternion.clone();
-                        if (topicId === messageTopicId) {
-                            if (messagePayloadKeys.indexOf("position") !== -1) {
-                                const values = mqttMessage["position"];
-                                if (Array.isArray(values) && values.length === 3) {
-                                    position.set(values[0], values[1], values[2]);
-                                    isDynamicObjectsStateChanged = true;
-                                }
-                            }
-                            if (messagePayloadKeys.indexOf("scale") !== -1) {
-                                const values = mqttMessage["scale"];
-                                if (Array.isArray(values) && values.length === 3) {
-                                    scale.set(values[0], values[1], values[2]);
-                                    isDynamicObjectsStateChanged = true;
-                                }
-                            }
-                            if (messagePayloadKeys.indexOf("quaternion") !== -1) {
-                                const values = mqttMessage["quaternion"];
-                                if (Array.isArray(values) && values.length === 4) {
-                                    quaternion.set(values[0], values[1], values[2], values[3]);
-                                    isDynamicObjectsStateChanged = true;
-                                }
+                        if (clipSimulationTopicId === messageTopicId) {
+                            const clipValues = [...genericObjectNewState[objName].clipValues];
+                            const fieldNames: string[] = obj.node.userData.clipFieldNames;
+                            if (fieldNames !== undefined && fieldNames.length !== 0) {
+                                fieldNames.forEach((fieldName, index) => {
+                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                        const value = mqttMessage[fieldName];
+                                        if (typeof value === 'number') {
+                                            clipValues[index] = value;
+                                            isGenericObjectsStateChanged = true;
+                                        }
+                                    }
+                                });
+                                genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
                             }
                         }
-                        dynamicObjectNewState[objName] = {
-                            ...dynamicObjectNewState[objName],
-                            position,
-                            scale,
-                            quaternion
-                        };
                     }
-                });                
+                });
 
                 femSimulationObjects.forEach((obj, index) => {
                     const clipTopicIds = obj.node.userData.clipTopicIds;
@@ -342,7 +348,7 @@ const updateObjectsState = (
                 });
             }
 
-            if ((messageTopicType === "dtm_as2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dtm_sim_as2dts") {
+            if ((messageTopicType === "dtm_as2pdb" || messageTopicType === "dtm_sim_as2dts") && !digitalTwinSimulatorSendData) {
                 const assestsNewState = { ...assetsState };
                 assetObjects.forEach((obj) => {
                     const objName = obj.node.name;
@@ -373,7 +379,6 @@ const updateObjectsState = (
             if (isSensorStateChanged) setSensorsState(sensorsNewState);
             if (isAssetStateChanged) setAssetsState(assestsNewState);
             if (isGenericObjectsStateChanged) setGenericObjectsState(genericObjectNewState);
-            if(isDynamicObjectsStateChanged) setDynamicObjectsState(dynamicObjectNewState);
             if (isfemSimulationObjectsStateChanged) setFemSimulationObjectsState(femSimulationObjectsNewState);
 
             if (messageTopicType === "new_fem_res_file") {
@@ -385,6 +390,58 @@ const updateObjectsState = (
     } catch (error) {
         console.log("Error reading Mqtt message: ", error);
     }
+}
+
+const updateDynamicAnimationState = (
+    node: THREE.Mesh,
+    newObjectState: Record<string, SensorState> | Record<string, AssetState> | Record<string, GenericObjectState>,
+    messageTopicId: number,
+    mqttMessage: any,
+    hasStateChangeIni: boolean
+) => {
+    const objName = node.name;
+    const dynamicTopicId = node.userData.dynamicTopicId as number;
+    let isDynamicStateChanged = false;
+    if (dynamicTopicId !== undefined) {
+        const position = newObjectState[objName].position.clone();
+        const scale = newObjectState[objName].scale.clone();
+        const quaternion = newObjectState[objName].quaternion.clone();
+        if (dynamicTopicId === messageTopicId &&
+            mqttMessage.dynamicAnimation !== undefined &&
+            mqttMessage.dynamicAnimation[objName] !== undefined
+        ) {
+            const messagePayloadKeys = Object.keys(mqttMessage.dynamicAnimation[objName]);
+            if (messagePayloadKeys.indexOf("position") !== -1) {
+                const values = mqttMessage.dynamicAnimation[objName]["position"];
+                if (Array.isArray(values) && values.length === 3) {
+                    position.set(values[0], values[1], values[2]);
+                    isDynamicStateChanged = true;
+                }
+            }
+            if (messagePayloadKeys.indexOf("scale") !== -1) {
+                const values = mqttMessage.dynamicAnimation[objName]["scale"];
+                if (Array.isArray(values) && values.length === 3) {
+                    scale.set(values[0], values[1], values[2]);
+                    isDynamicStateChanged = true;
+                }
+            }
+            if (messagePayloadKeys.indexOf("quaternion") !== -1) {
+                const values = mqttMessage.dynamicAnimation[objName]["quaternion"];
+                if (Array.isArray(values) && values.length === 4) {
+                    quaternion.set(values[0], values[1], values[2], values[3]);
+                    isDynamicStateChanged = true;
+                }
+            }
+        }
+        newObjectState[objName] = {
+            ...newObjectState[objName],
+            position,
+            scale,
+            quaternion
+        };
+    }
+
+    return (hasStateChangeIni || isDynamicStateChanged);
 }
 
 export default useSubscription;

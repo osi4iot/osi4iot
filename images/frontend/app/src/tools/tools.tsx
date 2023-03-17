@@ -136,6 +136,7 @@ export interface IMeshNode {
     name?: string;
     mesh?: number;
     extras: {
+        animationType: string;
         topicType: string;
         displayTopicType: string;
 		dynamicTopicType: string;

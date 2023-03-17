@@ -9,17 +9,26 @@ export interface SensorState {
 	stateString: string;
 	highlight: boolean;
 	clipValues: (number | null)[];
+	position: THREE.Vector3;
+	scale: THREE.Vector3;
+	quaternion: THREE.Quaternion;
 }
 
 export interface AssetState {
 	stateString: string;
 	highlight: boolean;
 	clipValues: (number | null)[];
+	position: THREE.Vector3;
+	scale: THREE.Vector3;
+	quaternion: THREE.Quaternion;
 }
 
 export interface GenericObjectState {
 	highlight: boolean;
 	clipValues: (number | null)[];
+	position: THREE.Vector3;
+	scale: THREE.Vector3;
+	quaternion: THREE.Quaternion;
 }
 
 export interface DynamicObjectState {
@@ -107,8 +116,16 @@ export const generateInitialSensorsState = (
 	const initialSensorsState: Record<string, SensorState> = {}
 	sensorObjects.forEach(obj => {
 		const objName = obj.node.name;
-		const sensorTopicId = obj.node.userData.topicId;
-		const sensorsState: SensorState = { stateString: "off", highlight: false, clipValues: [] };
+		const sensorTopicId = obj.node.userData.sensorTopicId;
+		const sensorsState: SensorState = {
+			stateString: "off",
+			highlight: false,
+			clipValues: [],
+			position: new THREE.Vector3(0.0, 0.0, 0.0),
+			scale: new THREE.Vector3(1.0, 1.0, 1.0),
+			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
+		};
+		generateInitialDynamicAnimationObjectState(obj.node, sensorsState, digitalTwinGltfData);
 		if (sensorTopicId) {
 			const lastMeasurement = findLastMeasurement(sensorTopicId, digitalTwinGltfData);
 			if (lastMeasurement) {
@@ -169,7 +186,15 @@ export const generateInitialAssetsState = (
 	const assetStateTopicId = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm_as2pdb")[0].topicId;
 	assetObjects.forEach(obj => {
 		const objName = obj.node.name;
-		const assetState: AssetState = { stateString: "ok", highlight: false, clipValues: [] };
+		const assetState: AssetState = {
+			stateString: "ok",
+			highlight: false,
+			clipValues: [],
+			position: new THREE.Vector3(0.0, 0.0, 0.0),
+			scale: new THREE.Vector3(1.0, 1.0, 1.0),
+			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
+		};
+		generateInitialDynamicAnimationObjectState(obj.node, assetState, digitalTwinGltfData);
 		const lastMeasurement = findLastMeasurement(assetStateTopicId, digitalTwinGltfData);
 		if (lastMeasurement) {
 			const assetPartIndex = obj.node.userData.assetPartIndex;
@@ -229,7 +254,14 @@ export const generateInitialGenericObjectsState = (
 	const initialGenericObjectsState: Record<string, GenericObjectState> = {};
 	genericObjects.forEach(obj => {
 		const objName = obj.node.name;
-		const genericObjectState: GenericObjectState = { highlight: false, clipValues: [] };
+		const genericObjectState: GenericObjectState = {
+			highlight: false,
+			clipValues: [],
+			position: new THREE.Vector3(0.0, 0.0, 0.0),
+			scale: new THREE.Vector3(1.0, 1.0, 1.0),
+			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
+		};
+		generateInitialDynamicAnimationObjectState(obj.node, genericObjectState, digitalTwinGltfData);
 
 		const clipValues: (number | null)[] = [];
 		const clipTopicIds = obj.node.userData.clipTopicIds;
@@ -266,59 +298,57 @@ export const generateInitialGenericObjectsState = (
 	return initialGenericObjectsState;
 }
 
-export const generateInitialDynamicObjectsState = (
-	dynamicObjects: IDynamicObject[],
+export const generateInitialDynamicAnimationObjectState = (
+	node: THREE.Mesh,
+	objectState: GenericObjectState | AssetState | SensorState,
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
-	const initialDynamicObjectsState: Record<string, DynamicObjectState> = {};
-	dynamicObjects.forEach(obj => {
-		const objName = obj.node.name;
-		const dynamicObjectState: DynamicObjectState =
-		{
-			highlight: false,
-			position: new THREE.Vector3(0.0, 0.0, 0.0),
-			scale: new THREE.Vector3(1.0, 1.0, 1.0),
-			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
-		};
-
-		const topicId = obj.node.userData.topicId;
-		if (topicId) {
-			const position = new THREE.Vector3(0.0, 0.0, 0.0);
-			const scale = new THREE.Vector3(1.0, 1.0, 1.0);
-			const quaternion = new THREE.Quaternion(0.0, 0.0, 0.0, 1.0);
-			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === topicId);
-			if (mqttTopicsDataFiltered.length !== 0) {
-				const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
-				if (lastMeasurement) {
-					const payloadObject = lastMeasurement.payload as any;
-					const payloadKeys = Object.keys(lastMeasurement.payload);
+	if (node.type === "Mesh") {
+		objectState.position.set(node.position.x, node.position.y, node.position.z);
+		objectState.scale.set(node.scale.x, node.scale.y, node.scale.z);
+		const euler = new THREE.Euler(node.rotation.x, node.rotation.y, node.rotation.z);
+		const quaternion = new THREE.Quaternion().setFromEuler(euler);
+		objectState.quaternion.copy(quaternion);
+	}
+	
+	if (
+		node.userData.animationType !== undefined &&
+		node.userData.animationType === "dynamic" &&
+		node.userData.dynamicTopicId !== undefined
+	) {
+		const dynamicTopicId = node.userData.dynamicTopicId;
+		const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === dynamicTopicId);
+		if (mqttTopicsDataFiltered.length !== 0) {
+			const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
+			if (lastMeasurement) {
+				const objName = node.name;
+				const payloadObject = lastMeasurement.payload as any;
+				if (payloadObject.dynamicAnimation !== undefined &&
+					payloadObject.dynamicAnimation[objName] !== undefined
+				) {
+					const payloadKeys = Object.keys(payloadObject.dynamicAnimation[objName]);
 					if (payloadKeys.indexOf("position") !== -1) {
-						const values = payloadObject["position"];
+						const values = payloadObject.dynamicAnimation[objName]["position"];
 						if (Array.isArray(values) && values.length === 3) {
-							position.set(values[0], values[1], values[2]);
+							objectState.position.set(values[0], values[1], values[2]);
 						}
 					}
 					if (payloadKeys.indexOf("scale") !== -1) {
-						const values = payloadObject["scale"];
+						const values = payloadObject.dynamicAnimation[objName]["scale"];
 						if (Array.isArray(values) && values.length === 3) {
-							scale.set(values[0], values[1], values[2]);
+							objectState.scale.set(values[0], values[1], values[2]);
 						}
 					}
 					if (payloadKeys.indexOf("quaternion") !== -1) {
-						const values = payloadObject["quaternion"];
+						const values = payloadObject.dynamicAnimation[objName]["quaternion"];
 						if (Array.isArray(values) && values.length === 4) {
-							quaternion.set(values[0], values[1], values[2], values[3]);
+							objectState.quaternion.set(values[0], values[1], values[2], values[3]);
 						}
 					}
 				}
-				dynamicObjectState.position = position;
-				dynamicObjectState.scale = scale;
-				dynamicObjectState.quaternion = quaternion;
 			}
 		}
-		initialDynamicObjectsState[objName] = dynamicObjectState;
-	})
-	return initialDynamicObjectsState;
+	}
 }
 
 export const generateInitialFemSimObjectsState = (

@@ -51,7 +51,13 @@ const AssetBase: FC<AssetProps> = ({
     }, [obj.animations, meshRef]);
 
     useEffect(() => {
-        if (mixer && clipsDuration && assetState.clipValues && assetState.clipValues.length !== 0) {
+        if (mixer &&
+            clipsDuration &&
+            assetState.clipValues &&
+            assetState.clipValues.length !== 0 &&
+            obj.userData.animationType &&
+            obj.userData.animationType === "blenderTemporary"
+        ) {
             assetState.clipValues.forEach((clipValue, index) => {
                 if (clipValue !== null) {
                     const maxValue = obj.userData.clipMaxValues[index];
@@ -70,8 +76,14 @@ const AssetBase: FC<AssetProps> = ({
     }, [mixer, assetState.clipValues]);
 
     useFrame(({ clock }, delta) => {
-        if (obj.userData.clipType && obj.userData.clipType === "endless") {
-            mixer?.update(delta);
+        if (obj.userData.animationType &&
+            obj.userData.animationType === "blenderEndless"
+        ) {
+            let newDelta = delta;
+            if (assetState.clipValues[0] !== null) {
+                newDelta = assetState.clipValues[0];
+            }
+            mixer?.update(newDelta);
         }
         if (visible) {
             if (blinking) {

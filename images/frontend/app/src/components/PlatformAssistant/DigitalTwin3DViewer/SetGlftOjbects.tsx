@@ -2,7 +2,6 @@ import { useGLTF } from '@react-three/drei';
 import { FC, useEffect } from 'react'
 import {
     IAssetObject,
-    IDynamicObject,
     IFemSimulationObject,
     IGenericObject,
     ISensorObject
@@ -19,8 +18,6 @@ import {
     generateInitialGenericObjectsState,
     FemSimObjectVisibilityState,
     FemSimulationObjectState,
-    generateInitialDynamicObjectsState,
-    DynamicObjectState,
 } from './ViewerUtils';
 
 interface SetGltfObjectsProps {
@@ -29,15 +26,12 @@ interface SetGltfObjectsProps {
     setSensorObjects: (sensorObjects: ISensorObject[]) => void;
     setAssetObjects: (assetObjects: IAssetObject[]) => void;
     setGenericObjects: (genericObjects: IGenericObject[]) => void;
-    setDynamicObjects: (dynamicObjects: IDynamicObject[]) => void;
     setFemSimulationObjects: (femSimulationObjects: IFemSimulationObject[]) => void;
     setInitialSensorsState: (initialSensorsState: Record<string, SensorState> | null) => void;
     setInitialAssetsState: (initialAssetsState: Record<string, AssetState> | null) => void;
     setInitialGenericObjectsState: (initialGenericObjectsState: Record<string, GenericObjectState> | null) => void;
-    setInitialDynamicObjectsState: (initialDynamicObjectsState: Record<string, DynamicObjectState> | null) => void;
     setInitialFemSimObjectsState: (initialFemSimObjectsState: FemSimulationObjectState[]) => void;
     setInitialGenericObjectsVisibilityState: (initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
-    setInitialDynamicObjectsVisibilityState: (initialDynamicObjectsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialSensorsVisibilityState: (initialSensorsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialAssetsVisibilityState: (initialAssetsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialFemSimObjectsVisibilityState: (initialFemSimObjectsVisibilityState: Record<string, FemSimObjectVisibilityState> | null) => void;
@@ -51,15 +45,12 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     setSensorObjects,
     setAssetObjects,
     setGenericObjects,
-    setDynamicObjects,
     setFemSimulationObjects,
     setInitialSensorsState,
     setInitialAssetsState,
     setInitialGenericObjectsState,
-    setInitialDynamicObjectsState,
     setInitialFemSimObjectsState,
     setInitialGenericObjectsVisibilityState,
-    setInitialDynamicObjectsVisibilityState,
     setInitialSensorsVisibilityState,
     setInitialAssetsVisibilityState,
     setInitialFemSimObjectsVisibilityState,
@@ -73,18 +64,15 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 sensorObjects,
                 assetObjects,
                 genericObjects,
-                dynamicObjects,
                 femSimulationObjects,
                 sensorsCollectionNames,
                 assetsCollectionNames,
                 genericObjectsCollectionNames,
-                dynamicObjectsCollectionNames,
                 femSimulationObjectsCollectionNames
             } = sortObjects(nodes, materials, animations);
             setSensorObjects(sensorObjects);
             setAssetObjects(assetObjects);
             setGenericObjects(genericObjects);
-            setDynamicObjects(dynamicObjects);
             setFemSimulationObjects(femSimulationObjects);
             setInitialSensorsState(generateInitialSensorsState(
                 sensorObjects,
@@ -99,11 +87,6 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 digitalTwinGltfData,
             ))
 
-            setInitialDynamicObjectsState(generateInitialDynamicObjectsState(
-                dynamicObjects,
-                digitalTwinGltfData,
-            ));
-
             const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
             if (Object.keys(digitalTwinSimulationFormat).length !== 0) {
                 const initialDigitalTwinSimulatorState: Record<string, number> = {};
@@ -117,14 +100,7 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             for (const collectionName of genericObjectsCollectionNames) {
                 initialGenericObjectsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
             }
-            setInitialGenericObjectsVisibilityState(initialGenericObjectsVisibilityState);
-
-            const initialDynamicObjectsVisibilityState: Record<string, ObjectVisibilityState> = {}
-            for (const collectionName of dynamicObjectsCollectionNames) {
-                initialDynamicObjectsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
-            }
-            setInitialDynamicObjectsVisibilityState(initialDynamicObjectsVisibilityState);
-
+            setInitialGenericObjectsVisibilityState(initialGenericObjectsVisibilityState);;
 
             const initialSensorsVisibilityState: Record<string, ObjectVisibilityState> = {}
             for (const collectionName of sensorsCollectionNames) {

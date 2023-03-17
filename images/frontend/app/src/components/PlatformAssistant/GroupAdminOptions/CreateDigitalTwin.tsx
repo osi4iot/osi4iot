@@ -142,10 +142,20 @@ export const getTopicSensorTypesFromDigitalTwin = (type: string, gltfData: any):
                         topicTypes.push(topicType)
                     }
                 }
-                if (node.extras?.type !== undefined && node.extras?.type === "dynamic") {
+                if (node.extras.animationType !== undefined &&
+                    node.extras.animationType === "dynamic"
+                ) {
                     const dynamicTopicType = node.extras?.dynamicTopicType;
                     if (dynamicTopicType && topicTypes.findIndex(topicTypei => topicTypei === dynamicTopicType) === -1) {
                         topicTypes.push(dynamicTopicType)
+                    }
+                }
+                if (node.extras.animationType !== undefined &&
+                    node.extras.animationType === "display"
+                ) {
+                    const displayTopicType = node.extras?.displayTopicType;
+                    if (displayTopicType && topicTypes.findIndex(topicTypei => topicTypei === displayTopicType) === -1) {
+                        topicTypes.push(displayTopicType)
                     }
                 }
                 if (node.extras?.clipTopicTypes !== undefined && node.extras?.clipTopicTypes.length !== 0) {
@@ -170,7 +180,7 @@ interface ITopicSensor {
     topicName: string;
 }
 
-const findTopicSensorId = (topicName: string, topicSensors: ITopicSensor[]) => {
+const findTopicIdForSensor = (topicName: string, topicSensors: ITopicSensor[]) => {
     let sensorTopicId = -1;
     for (const topicSensor of topicSensors) {
         const topicSensorIndex = parseInt(topicSensor.topicName.split("_").slice(-1)[0], 10);
@@ -194,10 +204,13 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                 node: {
                     name?: string; mesh?: number;
                     extras: {
+                        animationType: string;
                         topicType: string;
                         displayTopicType: string;
                         dynamicTopicType: string;
-                        topicId: number;
+                        sensorTopicId: number;
+                        displayTopicId: number;
+                        dynamicTopicId: number;
                         type: string;
                         clipTopicTypes: string[];
                         clipTopicIds: number[];
@@ -208,30 +221,34 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                     if (node.extras.type && node.extras.type === "sensor") {
                         const topicType = node.extras?.topicType;
                         if (topicType) {
-                            const topicSensorId = findTopicSensorId(topicType, topicSensors);
-                            node.extras.topicId = topicSensorId;
+                            const topicId = findTopicIdForSensor(topicType, topicSensors);
+                            node.extras.sensorTopicId = topicId;
                         }
                     }
-                    if (node.extras.type && node.extras.type === "display") {
+                    if (node.extras.animationType !== undefined &&
+						node.extras.animationType === "display"
+					) {
                         const displayTopicType = node.extras?.displayTopicType;
                         if (displayTopicType) {
-                            const topicSensorId = findTopicSensorId(displayTopicType, topicSensors);
-                            node.extras.topicId = topicSensorId;
+                            const topicId = findTopicIdForSensor(displayTopicType, topicSensors);
+                            node.extras.displayTopicId = topicId;
                         }
                     }
-                    if (node.extras.type && node.extras.type === "dynamic") {
+                    if (node.extras.animationType !== undefined &&
+						node.extras.animationType === "dynamic"
+					) {
                         const dynamicTopicType = node.extras?.dynamicTopicType;
                         if (dynamicTopicType) {
-                            const topicSensorId = findTopicSensorId(dynamicTopicType, topicSensors);
-                            node.extras.topicId = topicSensorId;
+                            const topicId = findTopicIdForSensor(dynamicTopicType, topicSensors);
+                            node.extras.dynamicTopicId = topicId;
                         }
                     }
                     if (node.extras.clipTopicTypes && node.extras.clipTopicTypes.length !== 0) {
                         node.extras.clipTopicIds = [];
                         node.extras?.clipTopicTypes.forEach(topicType => {
                             if (topicType) {
-                                const topicSensorId = findTopicSensorId(topicType, topicSensors);
-                                node.extras.clipTopicIds.push(topicSensorId);
+                                const topicId = findTopicIdForSensor(topicType, topicSensors);
+                                node.extras.clipTopicIds.push(topicId);
                             }
                         })
                     }

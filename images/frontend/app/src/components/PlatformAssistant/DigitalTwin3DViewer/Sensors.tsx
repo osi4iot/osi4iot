@@ -37,8 +37,6 @@ const SensorBase: FC<SensorProps> = ({
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
-    // const euler = new THREE.Euler( obj.rotation.x, obj.rotation.y, obj.rotation.z, 'XYZ' );
-    // const quaternion = new THREE.Quaternion().setFromEuler(euler);
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
@@ -57,7 +55,14 @@ const SensorBase: FC<SensorProps> = ({
     }, [obj.animations, meshRef]);
 
     useEffect(() => {
-        if (mixer && clipsDuration && sensorState.clipValues && sensorState.clipValues.length !== 0) {
+        if (
+            mixer &&
+            clipsDuration &&
+            sensorState.clipValues &&
+            sensorState.clipValues.length !== 0 &&
+            obj.userData.animationType &&
+            obj.userData.animationType === "blenderTemporary"
+        ) {
             sensorState.clipValues.forEach((clipValue, index) => {
                 if (clipValue !== null) {
                     const maxValue = obj.userData.clipMaxValues[index];
@@ -76,8 +81,14 @@ const SensorBase: FC<SensorProps> = ({
     }, [mixer, sensorState.clipValues]);
 
     useFrame(({ clock }, delta) => {
-        if (obj.userData.clipType && obj.userData.clipType === "endless") {
-            mixer?.update(delta);
+        if (obj.userData.animationType &&
+            obj.userData.animationType === "blenderEndless"
+        ) {
+            let newDelta = delta;
+            if (sensorState.clipValues[0] !== null) {
+                newDelta = sensorState.clipValues[0];
+            }
+            mixer?.update(newDelta);
         }
         if (visible) {
             if (blinking) {

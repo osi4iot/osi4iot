@@ -49,7 +49,13 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     }, [obj.animations, meshRef]);
 
     useEffect(() => {
-        if (mixer && clipsDuration && genericObjectState.clipValues && genericObjectState.clipValues.length !== 0) {
+        if (mixer &&
+            clipsDuration &&
+            genericObjectState.clipValues &&
+            genericObjectState.clipValues.length !== 0 &&
+            obj.userData.animationType &&
+            obj.userData.animationType === "blenderTemporary"
+        ) {
             genericObjectState.clipValues.forEach((clipValue, index) => {
                 if (clipValue !== null) {
                     const maxValue = obj.userData.clipMaxValues[index];
@@ -69,8 +75,14 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 
 
     useFrame(({ clock }, delta) => {
-        if (obj.userData.clipType && obj.userData.clipType === "endless") {
-            mixer?.update(delta);
+        if (obj.userData.animationType &&
+            obj.userData.animationType === "blenderEndless"
+        ) {
+            let newDelta = delta;
+            if (genericObjectState.clipValues[0] !== null) {
+                newDelta = genericObjectState.clipValues[0];
+            }
+            mixer?.update(newDelta);
         }
         if (visible) {
             if (blinking) {
@@ -109,7 +121,10 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                 ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
                 castShadow
                 receiveShadow
-                // material={material}
+                material={material}
+                position={genericObjectState.position}
+                scale={genericObjectState.scale}
+                quaternion={genericObjectState.quaternion}
             >
                 <primitive
                     object={obj}
@@ -122,9 +137,9 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                 receiveShadow
                 geometry={obj.geometry}
                 material={material}
-                position={[obj.position.x, obj.position.y, obj.position.z]}
-                rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
-                scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
+                position={genericObjectState.position}
+                scale={genericObjectState.scale}
+                quaternion={genericObjectState.quaternion}
             />
 
     )
