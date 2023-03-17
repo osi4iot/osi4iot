@@ -200,19 +200,31 @@ const checkExtrasEntries = (
     let message = "OK";
     let arrayLength = 0;
     let wrongEntriesMessage = `For objects of type: ${objectType} the custom properties: ${expectedKeys} are required`;
-    if (objectType === "animatedObject") {
-        wrongEntriesMessage = `For objects with animations the custom properties: ${expectedKeys.join(", ")} are required`;
+    if (objectType === "blenderAnimationTempObject") {
+        wrongEntriesMessage = `For objects with temporary Blender animations the custom properties: ${expectedKeys.join(", ")} are required`;
+        if (entries.length !== expectedKeys.length) {
+            return wrongEntriesMessage;
+        }
+    } else if (objectType === "blenderAnimationEndlessObject") {
+        wrongEntriesMessage = `For objects with endless Blender animations the custom property: ${expectedKeys[0]} is required`;
+        if (entries[0][0] !== expectedKeys[0] as string) {
+            return wrongEntriesMessage;
+        }
+    } else {
+        if (entries.length !== expectedKeys.length) {
+            return wrongEntriesMessage;
+        }
     }
-    if (entries.length !== expectedKeys.length) {
-        return wrongEntriesMessage;
-    }
+
     for (const entry of entries) {
         const index = expectedKeys.indexOf(entry[0]);
         if (index === -1) {
             return wrongEntriesMessage;
         } else {
             let expectedType = expectedValuesTypes[index];
-            if (objectType === "animatedObject") expectedType = "array";
+            if (objectType === "blenderAnimationTempObject" ||
+                objectType === "blenderAnimationEndlessObject"
+            ) expectedType = "array";
             let wrongTypeMessage = `The custom property ${entry[0]} must be of type ${expectedType}.`;
 
             if (typeof entry[1] !== expectedValuesTypes[index]) return wrongTypeMessage;
@@ -298,7 +310,12 @@ export const checkGltfFile = (gltfFileData: any): string => {
             if (isObjectWithClip) {
                 const clipValuesTypes = ['object', 'object', 'object', 'object', 'object'];
                 const arrayTypes = ['string', 'string', 'string', 'number', 'number'];
-                const message = checkExtrasEntries("animatedObject", clipEntries, clipKeys, clipValuesTypes, arrayTypes);
+                let message = "OK";
+                if (node.extras.animationType === "blenderTemporary") {
+                    message = checkExtrasEntries("blenderAnimationTempObject", clipEntries, clipKeys, clipValuesTypes, arrayTypes);
+                } else if (node.extras.animationType === "blenderTemporary") {
+                    message = checkExtrasEntries("blenderAnimationEndlessObject", clipEntries, clipKeys, clipValuesTypes, arrayTypes);
+                }
                 if (message !== "OK") {
                     return message;
                 };

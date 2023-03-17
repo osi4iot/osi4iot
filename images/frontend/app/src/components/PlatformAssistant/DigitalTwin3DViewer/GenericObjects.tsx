@@ -79,7 +79,9 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             obj.userData.animationType === "blenderEndless"
         ) {
             let newDelta = delta;
-            if (genericObjectState.clipValues[0] !== null) {
+            if (genericObjectState.clipValues.length !== 0 &&
+                genericObjectState.clipValues[0] !== null
+            ) {
                 newDelta = genericObjectState.clipValues[0];
             }
             mixer?.update(newDelta);
@@ -116,7 +118,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     })
 
     return (
-        obj.type === "Group" ?
+        (obj.type === "Group" || obj.animations.length !== 0) ?
             <mesh
                 ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
                 castShadow

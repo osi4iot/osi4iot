@@ -310,7 +310,7 @@ export const generateInitialDynamicAnimationObjectState = (
 		const quaternion = new THREE.Quaternion().setFromEuler(euler);
 		objectState.quaternion.copy(quaternion);
 	}
-	
+
 	if (
 		node.userData.animationType !== undefined &&
 		node.userData.animationType === "dynamic" &&
@@ -775,7 +775,7 @@ export const sortObjects: (
 				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
 				if (objAnimations) objAnimations.push(objAnimation);
 			});
-			obj.node.animations = objAnimations;
+			obj.node.animations = objAnimations;;
 		}
 	})
 

@@ -138,7 +138,7 @@ const AssetBase: FC<AssetProps> = ({
 
 
     return (
-        obj.type === "Group" ?
+        (obj.type === "Group" || obj.animations.length !== 0) ?
             <mesh
                 ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
                 castShadow
