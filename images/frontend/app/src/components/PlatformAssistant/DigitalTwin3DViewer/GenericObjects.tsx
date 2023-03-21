@@ -1,8 +1,9 @@
 import * as THREE from 'three'
-import React, { FC, useEffect, useRef, useState } from 'react'
+import React, { FC, useCallback, useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber';
 import { defaultOpacity, defaultVisibility, GenericObjectState, ObjectVisibilityState } from './ViewerUtils';
 import { IGenericObject } from './Model';
+import { changeMaterialPropRecursively } from '../../../tools/tools';
 
 interface GenericObjectProps {
     obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>;
@@ -26,8 +27,13 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 }) => {
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
     const material = Object.assign(obj.material);
+    const changeMatPropRecursively = useCallback((obj, prop, propValue) => {
+        changeMaterialPropRecursively(obj, prop, propValue);
+    }, []);
     const defOpacity = defaultOpacity(obj);
-    material.transparent = (defOpacity * opacity) === 1 ? false : true;
+    changeMatPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    
+
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
@@ -93,23 +99,23 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                 }
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
                 if (deltaInterval <= 0.30) {
-                    material.emissive = noEmitColor;
-                    material.opacity = defOpacity * opacity;
+                    changeMatPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
                 } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                    material.emissive = highlightColor;
-                    material.opacity = 1;
+                    changeMatPropRecursively(obj, 'emissive', highlightColor);
+                    changeMatPropRecursively(obj, 'opacity', 1.0);
                 } else if (deltaInterval > 0.60) {
                     lastIntervalTime = clock.elapsedTime;
                 }
             } else {
                 if (genericObjectState.highlight) {
                     if (meshRef.current) meshRef.current.visible = true;
-                    material.opacity = 1;
-                    material.emissive = highlightColor;
+                    changeMatPropRecursively(obj, 'emissive', highlightColor);
+                    changeMatPropRecursively(obj, 'opacity', 1.0);
                 } else {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    material.emissive = noEmitColor;
-                    material.opacity = defOpacity * opacity;
+                    changeMatPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
                 }
             }
         } else {
@@ -118,7 +124,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     })
 
     return (
-        (obj.type === "Group" || obj.animations.length !== 0) ?
+        (obj.type === "Group" || obj.animations.length !== 0 || obj.children.length !== 0) ?
             <mesh
                 ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
                 castShadow
@@ -129,6 +135,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                 quaternion={genericObjectState.quaternion}
             >
                 <primitive
+                    material={material}
                     object={obj}
                 />
             </mesh>

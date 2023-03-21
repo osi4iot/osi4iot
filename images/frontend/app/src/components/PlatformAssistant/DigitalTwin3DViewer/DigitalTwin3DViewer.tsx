@@ -393,9 +393,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [isMqttConnected, setIsMqttConnected] = useState(false);
 	const [isControlPanelOpen, setIsControlPanelOpen] = useState(false);
 	const [sensorObjects, setSensorObjects] = useState<ISensorObject[]>([]);
+	const [sensorCollectionNames, setSensorCollectionNames] = useState<string[]>([]);
 	const [assetObjects, setAssetObjects] = useState<IAssetObject[]>([]);
+	const [assetCollectionNames, setAssetCollectionNames] = useState<string[]>([]);
 	const [genericObjects, setGenericObjects] = useState<IGenericObject[]>([]);
+	const [genericObjectCollectionNames, setGenericObjectCollectionNames] = useState<string[]>([]);
 	const [femSimulationObjects, setFemSimulationObjects] = useState<IFemSimulationObject[]>([]);
+	const [femSimObjectCollectionNames, setFemSimObjectCollectionNames] = useState<string[]>([]);
 	const [initialSensorsState, setInitialSensorsState] = useState<Record<string, SensorState> | null>(null);
 	const [initialAssetsState, setInitialAssetsState] = useState<Record<string, AssetState> | null>(null);
 	const [initialGenericObjectsState, setInitialGenericObjectsState] = useState<Record<string, GenericObjectState> | null>(null);
@@ -757,7 +761,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		femMaxValues
 	]);
 
-
 	return (
 		<>
 			{
@@ -768,15 +771,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				) &&
 				<SetGltfObjects
 					digitalTwinGltfData={digitalTwinGltfData}
-					femResultData={femResultData}
 					setSensorObjects={setSensorObjects}
+					setSensorCollectionNames={setSensorCollectionNames}
 					setAssetObjects={setAssetObjects}
+					setAssetCollectionNames={setAssetCollectionNames}
 					setGenericObjects={setGenericObjects}
+					setGenericObjectCollectionNames={setGenericObjectCollectionNames}
 					setFemSimulationObjects={setFemSimulationObjects}
+					setFemSimObjectCollectionNames={setFemSimObjectCollectionNames}
 					setInitialSensorsState={setInitialSensorsState}
 					setInitialAssetsState={setInitialAssetsState}
 					setInitialGenericObjectsState={setInitialGenericObjectsState}
-					setInitialFemSimObjectsState={setInitialFemSimObjectsState}
 					setInitialGenericObjectsVisibilityState={setInitialGenericObjectsVisibilityState}
 					setInitialSensorsVisibilityState={setInitialSensorsVisibilityState}
 					setInitialAssetsVisibilityState={setInitialAssetsVisibilityState}
@@ -924,15 +929,20 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						{
 							sensorObjects.length !== 0 &&
 							<DatFolder title='Sensors' closed={true}>
-								<DatFolder title='All nodes' closed={true}>
+								<DatFolder
+									title={sensorCollectionNames.length > 1 ?
+										'All nodes'
+										:
+										sensorCollectionNames[0]
+									}
+									closed={true}
+								>
 									<StyledDatNumber label="Opacity" path="sensorsOpacity" min={0} max={1} step={0.05} />
 									<StyledDatBoolean label="Highlight" path="highlightAllSensors" />
 									<StyledDatBoolean label="Hide" path="hideAllSensors" />
 								</DatFolder>
 								{
-									(
-										(Object.keys(initialSensorsVisibilityState || []).length > 1) ?
-											Object.keys(initialSensorsVisibilityState || []) : []
+									((sensorCollectionNames.length > 1) ? sensorCollectionNames : []
 									).map(collecionName =>
 										<DatFolder key={collecionName} title={collecionName} closed={true}>
 											<StyledDatNumber
@@ -958,15 +968,20 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						{
 							assetObjects.length !== 0 &&
 							<DatFolder title='Assests' closed={true}>
-								<DatFolder title='All nodes' closed={true}>
+								<DatFolder
+									title={assetCollectionNames.length > 1 ?
+										'All nodes'
+										:
+										assetCollectionNames[0]
+									}
+									closed={true}
+								>
 									<StyledDatNumber label="Opacity" path="assetsOpacity" min={0} max={1} step={0.05} />
 									<StyledDatBoolean label="Highlight" path="highlightAllAssets" />
 									<StyledDatBoolean label="Hide" path="hideAllAssets" />
 								</DatFolder>
 								{
-									(
-										(Object.keys(initialAssetsVisibilityState || []).length > 1) ?
-											Object.keys(initialAssetsVisibilityState || []) : []
+									((assetCollectionNames.length > 1) ? assetCollectionNames : []
 									).map(collecionName =>
 										<DatFolder key={collecionName} title={collecionName} closed={true}>
 											<StyledDatNumber
@@ -992,15 +1007,20 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						{
 							genericObjects.length !== 0 &&
 							<DatFolder title='Generic objects' closed={true}>
-								<DatFolder title='All nodes' closed={true}>
+								<DatFolder
+									title={genericObjectCollectionNames.length > 1 ?
+										'All nodes'
+										:
+										genericObjectCollectionNames[0]
+									}
+									closed={true}
+								>
 									<StyledDatNumber label="Opacity" path="genericObjectsOpacity" min={0} max={1} step={0.05} />
 									<StyledDatBoolean label="Highlight" path="highlightAllGenericObjects" />
 									<StyledDatBoolean label="Hide" path="hideAllGenericObjects" />
 								</DatFolder>
 								{
-									(
-										(Object.keys(initialGenericObjectsVisibilityState || []).length > 1) ?
-											Object.keys(initialGenericObjectsVisibilityState || []) : []
+									((genericObjectCollectionNames.length > 1) ? genericObjectCollectionNames : []
 									).map(collecionName =>
 										<DatFolder key={collecionName} title={collecionName} closed={true}>
 											<StyledDatNumber
@@ -1022,12 +1042,19 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 									)
 								}
 							</DatFolder>
-						}						
+						}
 						{
 							femSimulationObjects.length !== 0
 							&&
 							<DatFolder title='Fem objects' closed={true}>
-								<DatFolder title='All meshes' closed={true}>
+								<DatFolder
+									title={femSimObjectCollectionNames.length > 1 ?
+										'All nodes'
+										:
+										femSimObjectCollectionNames[0]
+									}
+									closed={true}
+								>
 									<StyledDatSelect
 										path='femResultDate'
 										label='Date'
@@ -1058,8 +1085,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 									<StyledDatBoolean label="Hide legend" path="hideFemSimulationLegend" />
 								</DatFolder>
 								{
-									initialFemSimObjectsVisibilityState &&
-									Object.keys(initialFemSimObjectsVisibilityState).map(collecionName =>
+									((femSimObjectCollectionNames.length > 1) ? femSimObjectCollectionNames : []
+									).map(collecionName =>
 										<DatFolder key={collecionName} title={collecionName} closed={true}>
 											<StyledDatSelect
 												path={`femSimulationObjectsVisibilityState[${collecionName}].femSimulationResult`}

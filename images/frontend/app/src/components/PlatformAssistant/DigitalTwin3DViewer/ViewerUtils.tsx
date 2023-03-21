@@ -303,7 +303,7 @@ export const generateInitialDynamicAnimationObjectState = (
 	objectState: GenericObjectState | AssetState | SensorState,
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
-	if (node.type === "Mesh") {
+	if (node.type === "Mesh" && node.animations.length === 0 && node.children.length === 0) {
 		objectState.position.set(node.position.x, node.position.y, node.position.z);
 		objectState.scale.set(node.scale.x, node.scale.y, node.scale.z);
 		const euler = new THREE.Euler(node.rotation.x, node.rotation.y, node.rotation.z);
@@ -587,7 +587,7 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 	return objMaterial;
 }
 
-export const sortObjects: (
+export const sortObjectsOld: (
 	nodes: any,
 	materials: Record<string, THREE.MeshStandardMaterial>,
 	animations: THREE.AnimationClip[]
@@ -601,7 +601,7 @@ export const sortObjects: (
 	assetsCollectionNames: string[],
 	genericObjectsCollectionNames: string[],
 	dynamicObjectsCollectionNames: string[],
-	femSimulationObjectsCollectionNames: string[],
+	femSimObjectCollectionNames: string[],
 
 } = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
 	setMeshList(nodes);
@@ -614,11 +614,15 @@ export const sortObjects: (
 	const dynamicObjectsCollectionNames: string[] = [];
 	const sensorsCollectionNames: string[] = [];
 	const assetsCollectionNames: string[] = [];
-	const femSimulationObjectsCollectionNames: string[] = [];
+	const femSimObjectCollectionNames: string[] = [];
 
 	for (const prop in nodes) {
 		const obj = nodes[prop];
-		if ((obj.type === "Mesh" && obj.parent.parent === null) || (obj.type === "Group" && obj.parent !== null)) {
+
+		//if ((obj.type === "Mesh" && obj.parent.parent === null) || (obj.type === "Group" && obj.parent !== null)) {
+		// if ((obj.type === "Mesh" && (obj.parent.parent === null || obj.parent.type === "Mesh")) ||
+		// 	(obj.type === "Group" && obj.parent !== null)) {
+		if (obj.parent !== null) {
 			obj.material = findMaterial(obj, materials);
 			switch (obj.userData.type) {
 				case "sensor":
@@ -766,8 +770,8 @@ export const sortObjects: (
 
 	femSimulationObjects.forEach((obj: IFemSimulationObject) => {
 		const collectionName = obj.collectionName
-		if (femSimulationObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
-			femSimulationObjectsCollectionNames.push(collectionName);
+		if (femSimObjectCollectionNames.findIndex(name => name === collectionName) === -1) {
+			femSimObjectCollectionNames.push(collectionName);
 		}
 		if (obj.node.userData.clipNames && obj.node.userData.clipNames.length !== 0) {
 			const objAnimations: THREE.AnimationClip[] = [];
@@ -789,7 +793,222 @@ export const sortObjects: (
 		assetsCollectionNames,
 		genericObjectsCollectionNames,
 		dynamicObjectsCollectionNames,
-		femSimulationObjectsCollectionNames
+		femSimObjectCollectionNames
+	}
+}
+
+export const sortObjects: (
+	nodes: any,
+	materials: Record<string, THREE.MeshStandardMaterial>,
+	animations: THREE.AnimationClip[]
+) => {
+	sensorObjects: ISensorObject[],
+	assetObjects: IAssetObject[],
+	genericObjects: IGenericObject[],
+	dynamicObjects: IDynamicObject[],
+	femSimulationObjects: IFemSimulationObject[],
+	sensorsCollectionNames: string[],
+	assetsCollectionNames: string[],
+	genericObjectsCollectionNames: string[],
+	dynamicObjectsCollectionNames: string[],
+	femSimObjectCollectionNames: string[],
+
+} = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
+	setMeshList(nodes);
+	const sensorObjects: ISensorObject[] = [];
+	const assetObjects: IAssetObject[] = [];
+	const genericObjects: IGenericObject[] = [];
+	const dynamicObjects: IDynamicObject[] = [];
+	const femSimulationObjects: IFemSimulationObject[] = [];
+	const genericObjectsCollectionNames: string[] = [];
+	const dynamicObjectsCollectionNames: string[] = [];
+	const sensorsCollectionNames: string[] = [];
+	const assetsCollectionNames: string[] = [];
+	const femSimObjectCollectionNames: string[] = [];
+
+	let sceneName = "Scene";
+	for (const prop in nodes) {
+		const obj = nodes[prop];
+		if (obj.parent === null) {
+			sceneName = obj.name;
+			break;
+		}
+	}
+	const objectList = nodes[sceneName].children;
+
+	for (let imesh = 0; imesh < objectList.length; imesh++) {
+		const obj = objectList[imesh];
+		obj.material = findMaterial(obj, materials);
+		switch (obj.userData.type) {
+			case "sensor":
+				{
+					let collectionName = "General";
+					if (obj.userData.collectionName) {
+						collectionName = obj.userData.collectionName;
+					}
+					const sensorObject: ISensorObject = {
+						node: obj,
+						collectionName,
+					}
+					sensorObjects.push(sensorObject);
+					break;
+				}
+			case "asset":
+				{
+					let collectionName = "General";
+					if (obj.userData.collectionName) {
+						collectionName = obj.userData.collectionName;
+					}
+					const assestObject: IAssetObject = {
+						node: obj,
+						collectionName,
+					}
+					assetObjects.push(assestObject);
+					break;
+				}
+			case "dynamic":
+				{
+					let collectionName = "General";
+					if (obj.userData.collectionName) {
+						collectionName = obj.userData.collectionName;
+					}
+					const dynamicObject: IDynamicObject = {
+						node: obj,
+						collectionName,
+					}
+					dynamicObjects.push(dynamicObject);
+					break;
+				}
+			case "femObject":
+				{
+					const collectionName = obj.name;
+					const originalGeometryArray = [];
+					for (let i = 0, n = obj.geometry.attributes.position.count; i < n; ++i) {
+						const coordX = obj.geometry.attributes.position.array[i * 3];
+						const coordY = obj.geometry.attributes.position.array[i * 3 + 1];
+						const coordZ = obj.geometry.attributes.position.array[i * 3 + 2];
+						originalGeometryArray.push(coordX, coordY, coordZ);
+					}
+					const originalGeometry = new Float32Array(originalGeometryArray);
+
+					const wireFrameMaterial = new THREE.LineBasicMaterial({
+						color: 0xffffff,
+						linewidth: 1.5,
+					});
+					const wireframeGeometry = new THREE.WireframeGeometry(obj.geometry);
+					const wireFrameMesh = new THREE.LineSegments(wireframeGeometry, wireFrameMaterial);
+					const materialColor = new THREE.Color("#F5F5F5");
+					const femResultMaterial = new THREE.MeshLambertMaterial({
+						side: THREE.DoubleSide,
+						color: materialColor,
+						vertexColors: true,
+						transparent: true,
+						opacity: 1.0
+					});
+					const femSimulationObject: IFemSimulationObject = {
+						node: obj,
+						originalGeometry,
+						wireFrameMesh,
+						collectionName,
+						femResultMaterial
+					}
+					femSimulationObjects.push(femSimulationObject);
+					break;
+				}
+			default:
+				{
+					let collectionName = "General";
+					if (obj.userData.collectionName) {
+						collectionName = obj.userData.collectionName;
+					}
+					const genericObject: IGenericObject = {
+						node: obj,
+						collectionName,
+					}
+					genericObjects.push(genericObject);
+				}
+		}
+	}
+
+	sensorObjects.forEach((obj: ISensorObject) => {
+		const collectionName = obj.collectionName
+		if (sensorsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			sensorsCollectionNames.push(collectionName);
+		}
+		if (obj.node.userData.clipNames && obj.node.userData.clipNames.length !== 0) {
+			const objAnimations: THREE.AnimationClip[] = [];
+			obj.node.userData.clipNames.forEach((clipName: string) => {
+				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
+				if (objAnimations) objAnimations.push(objAnimation);
+			});
+			obj.node.animations = objAnimations;
+		}
+	})
+
+	assetObjects.forEach((obj: IAssetObject) => {
+		const collectionName = obj.collectionName
+		if (assetsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			assetsCollectionNames.push(collectionName);
+		}
+		if (obj.node.userData.clipNames && obj.node.userData.clipNames.length !== 0) {
+			const objAnimations: THREE.AnimationClip[] = [];
+			obj.node.userData.clipNames.forEach((clipName: string) => {
+				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
+				if (objAnimations) objAnimations.push(objAnimation);
+			});
+			obj.node.animations = objAnimations;
+		}
+	})
+
+	genericObjects.forEach((obj: IGenericObject) => {
+		const collectionName = obj.collectionName
+		if (genericObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			genericObjectsCollectionNames.push(collectionName);
+		}
+
+		if (obj.node.userData.clipNames && obj.node.userData.clipNames.length !== 0) {
+			const objAnimations: THREE.AnimationClip[] = [];
+			obj.node.userData.clipNames.forEach((clipName: string) => {
+				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
+				if (objAnimations) objAnimations.push(objAnimation);
+			});
+			obj.node.animations = objAnimations;
+		}
+	})
+
+	dynamicObjects.forEach((obj: IDynamicObject) => {
+		const collectionName = obj.collectionName
+		if (dynamicObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
+			dynamicObjectsCollectionNames.push(collectionName);
+		}
+	})
+
+	femSimulationObjects.forEach((obj: IFemSimulationObject) => {
+		const collectionName = obj.collectionName
+		if (femSimObjectCollectionNames.findIndex(name => name === collectionName) === -1) {
+			femSimObjectCollectionNames.push(collectionName);
+		}
+		if (obj.node.userData.clipNames && obj.node.userData.clipNames.length !== 0) {
+			const objAnimations: THREE.AnimationClip[] = [];
+			obj.node.userData.clipNames.forEach((clipName: string) => {
+				const objAnimation = animations.filter(clip => clip.name === clipName)[0];
+				if (objAnimations) objAnimations.push(objAnimation);
+			});
+			obj.node.animations = objAnimations;;
+		}
+	})
+
+	return {
+		sensorObjects,
+		assetObjects,
+		genericObjects,
+		dynamicObjects,
+		femSimulationObjects,
+		sensorsCollectionNames,
+		assetsCollectionNames,
+		genericObjectsCollectionNames,
+		dynamicObjectsCollectionNames,
+		femSimObjectCollectionNames
 	}
 }
 

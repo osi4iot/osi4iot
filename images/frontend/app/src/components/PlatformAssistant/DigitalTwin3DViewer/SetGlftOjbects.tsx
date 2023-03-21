@@ -17,20 +17,21 @@ import {
     GenericObjectState,
     generateInitialGenericObjectsState,
     FemSimObjectVisibilityState,
-    FemSimulationObjectState,
 } from './ViewerUtils';
 
 interface SetGltfObjectsProps {
     digitalTwinGltfData: IDigitalTwinGltfData;
-    femResultData: any;
     setSensorObjects: (sensorObjects: ISensorObject[]) => void;
+    setSensorCollectionNames: (sensorCollectionNames: string[]) => void;
     setAssetObjects: (assetObjects: IAssetObject[]) => void;
+    setAssetCollectionNames: (assetCollectionNames: string[]) => void;
     setGenericObjects: (genericObjects: IGenericObject[]) => void;
+    setGenericObjectCollectionNames: (genericObjectCollectionNames: string[]) => void;
     setFemSimulationObjects: (femSimulationObjects: IFemSimulationObject[]) => void;
+    setFemSimObjectCollectionNames: (femSimObjectCollectionNames: string[]) => void;
     setInitialSensorsState: (initialSensorsState: Record<string, SensorState> | null) => void;
     setInitialAssetsState: (initialAssetsState: Record<string, AssetState> | null) => void;
     setInitialGenericObjectsState: (initialGenericObjectsState: Record<string, GenericObjectState> | null) => void;
-    setInitialFemSimObjectsState: (initialFemSimObjectsState: FemSimulationObjectState[]) => void;
     setInitialGenericObjectsVisibilityState: (initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialSensorsVisibilityState: (initialSensorsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
     setInitialAssetsVisibilityState: (initialAssetsVisibilityState: Record<string, ObjectVisibilityState> | null) => void;
@@ -41,15 +42,17 @@ interface SetGltfObjectsProps {
 
 const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     digitalTwinGltfData,
-    femResultData,
     setSensorObjects,
+    setSensorCollectionNames,
     setAssetObjects,
+    setAssetCollectionNames,
     setGenericObjects,
+    setGenericObjectCollectionNames,
     setFemSimulationObjects,
+    setFemSimObjectCollectionNames,
     setInitialSensorsState,
     setInitialAssetsState,
     setInitialGenericObjectsState,
-    setInitialFemSimObjectsState,
     setInitialGenericObjectsVisibilityState,
     setInitialSensorsVisibilityState,
     setInitialAssetsVisibilityState,
@@ -68,12 +71,16 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 sensorsCollectionNames,
                 assetsCollectionNames,
                 genericObjectsCollectionNames,
-                femSimulationObjectsCollectionNames
+                femSimObjectCollectionNames
             } = sortObjects(nodes, materials, animations);
             setSensorObjects(sensorObjects);
+            setSensorCollectionNames(sensorsCollectionNames);
             setAssetObjects(assetObjects);
+            setAssetCollectionNames(assetsCollectionNames);
             setGenericObjects(genericObjects);
+            setGenericObjectCollectionNames(genericObjectsCollectionNames);
             setFemSimulationObjects(femSimulationObjects);
+            setFemSimObjectCollectionNames(femSimObjectCollectionNames);
             setInitialSensorsState(generateInitialSensorsState(
                 sensorObjects,
                 digitalTwinGltfData,
@@ -115,7 +122,7 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             setInitialAssetsVisibilityState(initialAssetsVisibilityState);
 
             const initialFemSimObjectsVisibilityState: Record<string, FemSimObjectVisibilityState> = {}
-            for (const collectionName of femSimulationObjectsCollectionNames) {
+            for (const collectionName of femSimObjectCollectionNames) {
                 initialFemSimObjectsVisibilityState[collectionName] = {
                     hide: false,
                     showMesh: false,

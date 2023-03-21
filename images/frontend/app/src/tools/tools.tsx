@@ -139,7 +139,7 @@ export interface IMeshNode {
         animationType: string;
         topicType: string;
         displayTopicType: string;
-		dynamicTopicType: string;
+        dynamicTopicType: string;
         type: string;
         fieldName: string;
         timeout: number;
@@ -164,7 +164,30 @@ const optionalEntriesConditional = (key: string) => {
     return optionalKeys.indexOf(key) !== -1;
 }
 
-const clipKeys = ['clipNames', 'clipTopicTypes', 'clipFieldNames', 'clipMaxValues', 'clipMinValues'];
+// const dynamicKeys = [
+//     "dynamicTopicType",
+// ];
+
+// const displayKeys = [
+//     "displayType",
+//     "displayTopicType",
+//     "displayFieldName",
+//     "displayColor",
+//     "displayTimeout",
+//     "timeoutAction",
+//     "digitPosition",
+//     "digitMeshType"
+// ];
+
+const clipKeys = [
+    "animationType",
+    "clipNames",
+    "clipTopicTypes",
+    "clipFieldNames",
+    "clipMaxValues",
+    "clipMinValues"
+];
+
 const clipEntriesConditional = (key: string) => {
     return clipKeys.indexOf(key) !== -1;
 };
@@ -174,11 +197,28 @@ const optionalEntriesTypes = (key: string): string => {
     else return 'string';
 };
 
-const objectExtraEntriesConditional = (key: string) => {
-    const keysArray = [...optionalKeys, ...clipKeys];
+const sensorEntriesConditional = (key: string) => {
+    const keysArray = [
+        "topicType",
+        "fieldName",
+        "timeout",
+    ];
+    return keysArray.indexOf(key) !== -1;
+}
+
+const assetEntriesConditional = (key: string) => {
+    const keysArray = [
+        "assetPartIndex",
+    ];
     return keysArray.indexOf(key) === -1;
 }
 
+// const objectExtraEntriesConditional = (key: string) => {
+//     const keysArray = [
+//         ...optionalKeys
+//     ];
+//     return keysArray.indexOf(key) === -1;
+// }
 
 const checkOptionalEntries = (entries: [string, string | number | string[] | number[]][]): string => {
     let message = "OK";
@@ -197,8 +237,8 @@ const checkExtrasEntries = (
     expectedValuesTypes: string[],
     arrayTypes: string[] = []
 ): string => {
+    // Length verification
     let message = "OK";
-    let arrayLength = 0;
     let wrongEntriesMessage = `For objects of type: ${objectType} the custom properties: ${expectedKeys} are required`;
     if (objectType === "blenderAnimationTempObject") {
         wrongEntriesMessage = `For objects with temporary Blender animations the custom properties: ${expectedKeys.join(", ")} are required`;
@@ -216,19 +256,18 @@ const checkExtrasEntries = (
         }
     }
 
+    // Type verification
+    let arrayLength = 0;
     for (const entry of entries) {
         const index = expectedKeys.indexOf(entry[0]);
         if (index === -1) {
             return wrongEntriesMessage;
         } else {
-            let expectedType = expectedValuesTypes[index];
-            if (objectType === "blenderAnimationTempObject" ||
-                objectType === "blenderAnimationEndlessObject"
-            ) expectedType = "array";
-            let wrongTypeMessage = `The custom property ${entry[0]} must be of type ${expectedType}.`;
+            let expectedValueType = expectedValuesTypes[index];
+            let wrongTypeMessage = `The custom property ${entry[0]} must be of type ${expectedValueType}.`;
 
-            if (typeof entry[1] !== expectedValuesTypes[index]) return wrongTypeMessage;
-            if (expectedValuesTypes[index] === "object") {
+            if (typeof entry[1] !== expectedValueType) return wrongTypeMessage;
+            if (expectedValueType === "object") {
                 if (Array.isArray(entry[1])) {
                     if (entry[1].length !== 0) {
                         for (const value of entry[1]) {
@@ -280,13 +319,13 @@ export const checkGltfFile = (gltfFileData: any): string => {
             const optionalEntriesMessage = checkOptionalEntries(optionalEntries);
             if (optionalEntriesMessage !== "OK") return optionalEntriesMessage;
 
-            const entries = Object.entries(node.extras).filter(entry =>
-                objectExtraEntriesConditional(entry[0])
-            );
 
             if (objectType === "asset") {
                 const assetKeys = ['assetPartIndex'];
                 const assetValuesTypes = ['number'];
+                const entries = Object.entries(node.extras).filter(entry =>
+                    assetEntriesConditional(entry[0])
+                );
                 const message = checkExtrasEntries(objectType, entries, assetKeys, assetValuesTypes);
                 if (message !== "OK") {
                     return message;
@@ -295,7 +334,10 @@ export const checkGltfFile = (gltfFileData: any): string => {
 
             if (objectType === "sensor") {
                 const sensorKeys = ['topicType', 'fieldName', 'timeout'];
-                const sensorValuesTypes = ['string', 'string', 'number']
+                const sensorValuesTypes = ['string', 'string', 'number'];
+                const entries = Object.entries(node.extras).filter(entry =>
+                    sensorEntriesConditional(entry[0])
+                );
                 const message = checkExtrasEntries(objectType, entries, sensorKeys, sensorValuesTypes);
                 if (message !== "OK") {
                     return message;
@@ -308,12 +350,14 @@ export const checkGltfFile = (gltfFileData: any): string => {
             const clipEntriesKeys = clipEntries.map(entry => entry[0]);
             const isObjectWithClip = clipEntriesKeys.filter(key => clipKeys.indexOf(key) !== -1).length !== 0;
             if (isObjectWithClip) {
-                const clipValuesTypes = ['object', 'object', 'object', 'object', 'object'];
-                const arrayTypes = ['string', 'string', 'string', 'number', 'number'];
                 let message = "OK";
                 if (node.extras.animationType === "blenderTemporary") {
+                    const clipValuesTypes = ['string', 'object', 'object', 'object', 'object', 'object'];
+                    const arrayTypes = ['string', 'string', 'string', 'string', 'number', 'number'];
                     message = checkExtrasEntries("blenderAnimationTempObject", clipEntries, clipKeys, clipValuesTypes, arrayTypes);
-                } else if (node.extras.animationType === "blenderTemporary") {
+                } else if (node.extras.animationType === "blenderEndless") {
+                    const clipValuesTypes = ['string', 'object', 'object', 'object', 'object', 'object'];
+                    const arrayTypes = ['string', 'string', 'string', 'string', 'number', 'number'];
                     message = checkExtrasEntries("blenderAnimationEndlessObject", clipEntries, clipKeys, clipValuesTypes, arrayTypes);
                 }
                 if (message !== "OK") {
@@ -323,4 +367,22 @@ export const checkGltfFile = (gltfFileData: any): string => {
         }
     }
     return message;
+}
+
+
+export const changeMaterialPropRecursively = (
+    obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>,
+    prop: string,
+    propValue: string | number | boolean | THREE.Color
+) => {
+    if ((obj.material as THREE.Material) && (obj.material as any)[prop] !== undefined) {
+        (obj.material as any)[prop] = propValue;
+    }
+    for (let node of obj.children) {
+        changeMaterialPropRecursively(
+            node as THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>,
+            prop,
+            propValue
+        );
+    }
 }

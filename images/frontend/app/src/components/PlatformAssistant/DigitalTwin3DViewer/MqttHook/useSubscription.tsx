@@ -133,9 +133,7 @@ const updateObjectsState = (
             let isfemSimulationObjectsStateChanged = false;
             const femSimulationObjectsNewState = [...femSimulationObjectsState];
 
-            if ((messageTopicType === "dev2pdb" || messageTopicType === "dev_sim_2dtm") &&
-                !digitalTwinSimulatorSendData
-            ) {
+            if ((messageTopicType === "dev2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dev_sim_2dtm") {
                 sensorObjects.forEach((obj) => {
                     const objName = obj.node.name;
                     const sensorTopicId = obj.node.userData.sensorTopicId;
@@ -348,7 +346,7 @@ const updateObjectsState = (
                 });
             }
 
-            if ((messageTopicType === "dtm_as2pdb" || messageTopicType === "dtm_sim_as2dts") && !digitalTwinSimulatorSendData) {
+            if ((messageTopicType === "dtm_as2pdb" && !digitalTwinSimulatorSendData) || messageTopicType === "dtm_sim_as2dts") {
                 const assestsNewState = { ...assetsState };
                 assetObjects.forEach((obj) => {
                     const objName = obj.node.name;
