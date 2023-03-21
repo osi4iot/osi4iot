@@ -1,12 +1,17 @@
 import * as THREE from 'three'
 import React, { FC, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber';
-import { defaultOpacity, defaultVisibility, FemSimObjectVisibilityState, FemSimulationObjectState, IDigitalTwinGltfData } from './ViewerUtils';
+import {
+    defaultOpacity,
+    defaultVisibility,
+    FemSimObjectVisibilityState,
+    FemSimulationObjectState,
+    IDigitalTwinGltfData
+} from './ViewerUtils';
 import { IResultRenderInfo, IFemSimulationObject } from './Model';
 
 interface FemSimulationObjectProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
-    digitalTwinGltfData: IDigitalTwinGltfData;
     femResultData: any;
     meshIndex: number;
     femSimulationObject: IFemSimulationObject;
@@ -28,7 +33,6 @@ const noEmitColor = new THREE.Color(0, 0, 0);
 
 const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     femSimulationGeneralInfo,
-    digitalTwinGltfData,
     femResultData,
     meshIndex,
     femSimulationObject,
@@ -67,14 +71,15 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
-        if (femSimulationObject.node.animations.length !== 0 && !(femSimulationObject.node.animations as any).includes(undefined) && objectRef.current) {
-            if (femSimulationObject.node.userData.clipNames) {
-                const mixer = new THREE.AnimationMixer(objectRef.current as any);
-                femSimulationObject.node.animations.forEach(clip => {
-                    const action = mixer.clipAction(clip);
-                    action.play();
-                });
-                const clipsDuration = femSimulationObject.node.animations[0].duration - 0.00001; //All clips must have the same duration
+        if (femSimulationObject.node.animations.length !== 0 &&
+            !(femSimulationObject.node.animations as any).includes(undefined) && objectRef.current
+        ) {
+            if (femSimulationObject.node.userData.clipName) {
+                const mixer = new THREE.AnimationMixer(meshRef.current as any);
+                const clip = femSimulationObject.node.animations[0];
+                const action = mixer.clipAction(clip);
+                action.play();
+                const clipsDuration = femSimulationObject.node.animations[0].duration - 0.00001;
                 setClipsDuration(clipsDuration);
                 setMixer(mixer);
             }
@@ -86,22 +91,13 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         if (mixer &&
             clipsDuration &&
             femSimulationObjectState !== undefined &&
-            femSimulationObjectState.clipValues &&
-            femSimulationObjectState.clipValues.length !== 0
+            femSimulationObjectState.clipValue !== null
         ) {
-            femSimulationObjectState.clipValues.forEach((clipValue, index) => {
-                if (clipValue !== null) {
-                    const maxValue = femSimulationObject.node.userData.clipMaxValues[index];
-                    const minValue = femSimulationObject.node.userData.clipMinValues[index];
-                    let weigth = (clipValue - minValue) / (maxValue - minValue) / femSimulationObjectState.clipValues.length;
-                    const action = mixer.existingAction(femSimulationObject.node.animations[index]);
-                    if (action) {
-                        action.setEffectiveWeight(weigth);
-                        action.setEffectiveTimeScale(1.0);
-                    }
-                }
-            })
-            mixer.setTime(clipsDuration);
+            const maxValue = femSimulationObject.node.userData.clipMaxValue;
+            const minValue = femSimulationObject.node.userData.clipMinValue;
+            const weigth = (femSimulationObjectState.clipValue - minValue) / (maxValue - minValue);
+            const clipsDuration = femSimulationObject.node.animations[0].duration - 0.00001;
+            mixer.setTime(weigth * clipsDuration);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mixer, femSimulationObjectState]);
@@ -311,6 +307,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
 const areEqual = (prevProps: FemSimulationObjectProps, nextProps: FemSimulationObjectProps) => {
     return (prevProps.femSimulationObjectState !== undefined &&
         (prevProps.femSimulationObjectState.highlight === nextProps.femSimulationObjectState.highlight || nextProps.blinking)) &&
+        prevProps.femSimulationObjectState.clipValue === nextProps.femSimulationObjectState.clipValue &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.hideObject === nextProps.hideObject &&
@@ -368,7 +365,6 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
                     return <FemSimulationObject
                         key={obj.node.uuid}
                         femSimulationGeneralInfo={femSimulationGeneralInfo}
-                        digitalTwinGltfData={digitalTwinGltfData}
                         femResultData={femResultData}
                         meshIndex={index}
                         femSimulationObject={obj}

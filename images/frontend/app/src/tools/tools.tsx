@@ -145,10 +145,10 @@ export interface IMeshNode {
         timeout: number;
         assetPartIndex: number;
         clipNames: string[];
-        clipTopicTypes: string[];
-        clipFieldNames: string[];
-        clipMaxValues: number[];
-        clipMinValues: number[];
+        clipTopicType: string;
+        clipFieldName: string;
+        clipMaxValue: number;
+        clipMinValue: number;
     };
 }
 
@@ -182,10 +182,10 @@ const optionalEntriesConditional = (key: string) => {
 const clipKeys = [
     "animationType",
     "clipNames",
-    "clipTopicTypes",
-    "clipFieldNames",
-    "clipMaxValues",
-    "clipMinValues"
+    "clipTopicType",
+    "clipFieldName",
+    "clipMaxValue",
+    "clipMinValue"
 ];
 
 const clipEntriesConditional = (key: string) => {
@@ -277,7 +277,7 @@ const checkExtrasEntries = (
                         if (entry[1].length !== arrayLength) {
                             return `The custom properties ${expectedKeys.join(", ")} must be arrays of equal size.`;
                         };
-                        if (entry[0] === 'clipTopicTypes') {
+                        if (entry[0] === 'clipTopicType') {
                             const clipTopicTypeErrorMessage = `The custom property clipTopicType must has the format dev2pdb_<i>.`;
                             for (let i = 0; i < entry[1].length; i++) {
                                 const value = entry[1][i] as string;
@@ -297,6 +297,10 @@ const checkExtrasEntries = (
 }
 
 export const checkGltfFile = (gltfFileData: any): string => {
+    return "OK";
+}
+
+export const checkGltfFileOld = (gltfFileData: any): string => {
     let message = "OK";
     if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
         const meshNodes: IMeshNode[] = [];

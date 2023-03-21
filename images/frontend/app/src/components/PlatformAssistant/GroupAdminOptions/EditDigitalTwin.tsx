@@ -276,7 +276,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 (femResFileNames[0] !== values.femResDataFileName ||
                     formatDateString(femResFilesLastModif[0]) !== formatDateString(values.femResDataFileLastModifDateString))
             ) {
-                if (digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles &&  maxNumResFemFiles >=2 ) {
+                if (digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles && maxNumResFemFiles >= 2) {
                     const warningMessage = "Please increase the 'Max number of FEM result files stored' before uploading a new file.";
                     toast.warning(warningMessage);
                     setIsSubmitting(false);

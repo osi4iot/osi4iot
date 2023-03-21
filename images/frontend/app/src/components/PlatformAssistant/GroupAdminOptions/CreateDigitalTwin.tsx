@@ -158,12 +158,11 @@ export const getTopicSensorTypesFromDigitalTwin = (type: string, gltfData: any):
                         topicTypes.push(displayTopicType)
                     }
                 }
-                if (node.extras?.clipTopicTypes !== undefined && node.extras?.clipTopicTypes.length !== 0) {
-                    node.extras?.clipTopicTypes.forEach(topicType => {
-                        if (topicType && topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
-                            topicTypes.push(topicType);
-                        }
-                    })
+                if (node.extras?.clipTopicType !== undefined) {
+                    const topicType = node.extras?.clipTopicType;
+                    if (topicType && topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
+                        topicTypes.push(topicType);
+                    }
                 }
             })
         }
@@ -212,8 +211,8 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                         displayTopicId: number;
                         dynamicTopicId: number;
                         type: string;
-                        clipTopicTypes: string[];
-                        clipTopicIds: number[];
+                        clipTopicType: string;
+                        clipTopicId: number;
                     };
                 }
             ) => {
@@ -243,14 +242,10 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                             node.extras.dynamicTopicId = topicId;
                         }
                     }
-                    if (node.extras.clipTopicTypes && node.extras.clipTopicTypes.length !== 0) {
-                        node.extras.clipTopicIds = [];
-                        node.extras?.clipTopicTypes.forEach(topicType => {
-                            if (topicType) {
-                                const topicId = findTopicIdForSensor(topicType, topicSensors);
-                                node.extras.clipTopicIds.push(topicId);
-                            }
-                        })
+                    if (node.extras.clipTopicType !== undefined) {
+                        const topicType = node.extras?.clipTopicType;
+                        const topicId = findTopicIdForSensor(topicType, topicSensors);
+                        node.extras.clipTopicId = topicId;
                     }
                 }
 

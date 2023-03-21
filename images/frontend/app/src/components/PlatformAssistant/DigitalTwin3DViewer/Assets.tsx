@@ -40,13 +40,13 @@ const AssetBase: FC<AssetProps> = ({
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
-            if (obj.userData.clipNames) {
+            if (obj.userData.clipName) {
                 const mixer = new THREE.AnimationMixer(meshRef.current as any);
                 obj.animations.forEach(clip => {
                     const action = mixer.clipAction(clip);
                     action.play();
                 });
-                const clipsDuration = obj.animations[0].duration - 0.00001; //All clips must have the same duration
+                const clipsDuration = obj.animations[0].duration - 0.00001;
                 setClipsDuration(clipsDuration);
                 setMixer(mixer);
             }
@@ -57,35 +57,26 @@ const AssetBase: FC<AssetProps> = ({
     useEffect(() => {
         if (mixer &&
             clipsDuration &&
-            assetState.clipValues &&
-            assetState.clipValues.length !== 0 &&
+            assetState.clipValue !== null &&
             obj.userData.animationType &&
             obj.userData.animationType === "blenderTemporary"
         ) {
-            assetState.clipValues.forEach((clipValue, index) => {
-                if (clipValue !== null) {
-                    const maxValue = obj.userData.clipMaxValues[index];
-                    const minValue = obj.userData.clipMinValues[index];
-                    let weigth = (clipValue - minValue) / (maxValue - minValue) / assetState.clipValues.length;
-                    const action = mixer.existingAction(obj.animations[index]);
-                    if (action) {
-                        action.setEffectiveWeight(weigth);
-                        action.setEffectiveTimeScale(1.0);
-                    }
-                }
-            })
-            mixer.setTime(clipsDuration);
+            const maxValue = obj.userData.clipMaxValue;
+            const minValue = obj.userData.clipMinValue;
+            let weigth = (assetState.clipValue - minValue) / (maxValue - minValue);
+            const clipsDuration = obj.animations[0].duration - 0.00001;
+            mixer.setTime(weigth * clipsDuration);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mixer, assetState.clipValues]);
+    }, [mixer, assetState.clipValue]);
 
     useFrame(({ clock }, delta) => {
         if (obj.userData.animationType &&
             obj.userData.animationType === "blenderEndless"
         ) {
             let newDelta = delta;
-            if (assetState.clipValues[0] !== null) {
-                newDelta = assetState.clipValues[0];
+            if (assetState.clipValue !== null) {
+                newDelta = assetState.clipValue;
             }
             mixer?.update(newDelta);
         }
@@ -172,6 +163,7 @@ const areEqual = (prevProps: AssetProps, nextProps: AssetProps) => {
     return (prevProps.assetState.highlight === nextProps.assetState.highlight || nextProps.blinking) &&
         prevProps.assetState.stateString === nextProps.assetState.stateString &&
         (prevProps.assetsStateString === nextProps.assetsStateString && nextProps.blinking) &&
+        prevProps.assetState.clipValue === nextProps.assetState.clipValue &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.visible === nextProps.visible;

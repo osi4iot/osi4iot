@@ -44,13 +44,12 @@ const SensorBase: FC<SensorProps> = ({
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
-            if (obj.userData.clipNames) {
+            if (obj.userData.clipName) {
                 const mixer = new THREE.AnimationMixer(meshRef.current as any);
-                obj.animations.forEach(clip => {
-                    const action = mixer.clipAction(clip);
-                    action.play();
-                });
-                const clipsDuration = obj.animations[0].duration - 0.00001; //All clips must have the same duration
+                const clip = obj.animations[0];
+                const action = mixer.clipAction(clip);
+                action.play();
+                const clipsDuration = obj.animations[0].duration - 0.00001;
                 setClipsDuration(clipsDuration);
                 setMixer(mixer);
             }
@@ -62,37 +61,26 @@ const SensorBase: FC<SensorProps> = ({
         if (
             mixer &&
             clipsDuration &&
-            sensorState.clipValues &&
-            sensorState.clipValues.length !== 0 &&
+            sensorState.clipValue !== null &&
             obj.userData.animationType &&
             obj.userData.animationType === "blenderTemporary"
         ) {
-            sensorState.clipValues.forEach((clipValue, index) => {
-                if (clipValue !== null) {
-                    const maxValue = obj.userData.clipMaxValues[index];
-                    const minValue = obj.userData.clipMinValues[index];
-                    let weigth = (clipValue - minValue) / (maxValue - minValue) / sensorState.clipValues.length;
-                    // const action = mixer.existingAction(obj.animations[index]);
-                    // if (action) {
-                    //     action.setEffectiveWeight(weigth);
-                    //     action.setEffectiveTimeScale(1.0);
-                    // }
-                    const clipsDuration = obj.animations[0].duration - 0.00001;
-                    mixer.setTime(weigth*clipsDuration)
-                }
-            })
-            //mixer.setTime(clipsDuration);
+            const maxValue = obj.userData.clipMaxValue;
+            const minValue = obj.userData.clipMinValue;
+            let weigth = (sensorState.clipValue - minValue) / (maxValue - minValue);
+            const clipsDuration = obj.animations[0].duration - 0.00001;
+            mixer.setTime(weigth * clipsDuration);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mixer, sensorState.clipValues]);
+    }, [mixer, sensorState.clipValue]);
 
     useFrame(({ clock }, delta) => {
         if (obj.userData.animationType &&
             obj.userData.animationType === "blenderEndless"
         ) {
             let newDelta = delta;
-            if (sensorState.clipValues[0] !== null) {
-                newDelta = sensorState.clipValues[0];
+            if (sensorState.clipValue !== null) {
+                newDelta = sensorState.clipValue;
             }
             mixer?.update(newDelta);
         }
@@ -194,6 +182,7 @@ const areEqual = (prevProps: SensorProps, nextProps: SensorProps) => {
     return (prevProps.sensorState.highlight === nextProps.sensorState.highlight || nextProps.blinking) &&
         prevProps.sensorState.stateString === nextProps.sensorState.stateString &&
         (prevProps.sensorsStateString === nextProps.sensorsStateString && nextProps.blinking) &&
+        prevProps.sensorState.clipValue === nextProps.sensorState.clipValue &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.visible === nextProps.visible;

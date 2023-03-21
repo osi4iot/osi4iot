@@ -162,38 +162,34 @@ const updateObjectsState = (
                         animationType === "blenderTemporary" ||
                         animationType === "blenderEndless"
                     ) {
-                        const clipTopicIds = obj.node.userData.clipTopicIds;
-                        if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
-                            const clipValues = [...sensorsNewState[objName].clipValues];
-                            clipTopicIds.forEach((clipTopicId: number, index: number) => {
-                                if (clipTopicId === messageTopicId) {
-                                    const fieldName = obj.node.userData.clipFieldNames[index];
-                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                        const value = mqttMessage[fieldName];
-                                        if (typeof value === 'number') {
-                                            clipValues[index] = value;
-                                            isSensorStateChanged = true;
-                                        }
+                        const clipTopicId = obj.node.userData.clipTopicId;
+                        if (clipTopicId !== undefined) {
+                            let clipValue = sensorsNewState[objName].clipValue;
+                            if (clipTopicId === messageTopicId) {
+                                const fieldName = obj.node.userData.clipFieldName;
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isSensorStateChanged = true;
                                     }
                                 }
-                            });
-                            sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
+                            }
+                            sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
                         }
 
                         if (clipSimulationTopicId === messageTopicId) {
-                            const clipValues = [...sensorsNewState[objName].clipValues];
-                            const fieldNames: string[] = obj.node.userData.clipFieldNames;
-                            if (fieldNames !== undefined && fieldNames.length !== 0) {
-                                fieldNames.forEach((fieldName, index) => {
-                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                        const value = mqttMessage[fieldName];
-                                        if (typeof value === 'number') {
-                                            clipValues[index] = value;
-                                            isSensorStateChanged = true;
-                                        }
+                            let clipValue = sensorsNewState[objName].clipValue;
+                            const fieldName = obj.node.userData.clipFieldName;
+                            if (fieldName !== undefined) {
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isSensorStateChanged = true;
                                     }
-                                });
-                                sensorsNewState[objName] = { ...sensorsNewState[objName], clipValues };
+                                }
+                                sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
                             }
                         }
                     }
@@ -214,38 +210,34 @@ const updateObjectsState = (
                         animationType === "blenderTemporary" ||
                         animationType === "blenderEndless"
                     ) {
-                        const clipTopicIds = obj.node.userData.clipTopicIds;
-                        if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
-                            const clipValues = [...assestsNewState[objName].clipValues];
-                            clipTopicIds.forEach((clipTopicId: number, index: number) => {
-                                if (clipTopicId === messageTopicId) {
-                                    const fieldName = obj.node.userData.clipFieldNames[index];
-                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                        const value = mqttMessage[fieldName];
-                                        if (typeof value === 'number') {
-                                            clipValues[index] = value;
-                                            isAssetStateChanged = true;
-                                        }
+                        const clipTopicId = obj.node.userData.clipTopicId;
+                        if (clipTopicId !== undefined && clipTopicId.length !== 0) {
+                            let clipValue = assestsNewState[objName].clipValue;
+                            if (clipTopicId === messageTopicId) {
+                                const fieldName = obj.node.userData.clipFieldName;
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isAssetStateChanged = true;
                                     }
                                 }
-                            });
-                            assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
+                            }
+                            assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
                         }
 
                         if (clipSimulationTopicId === messageTopicId) {
-                            const clipValues = [...assestsNewState[objName].clipValues];
-                            const fieldNames: string[] = obj.node.userData.clipFieldNames;
-                            if (fieldNames !== undefined && fieldNames.length !== 0) {
-                                fieldNames.forEach((fieldName, index) => {
-                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                        const value = mqttMessage[fieldName];
-                                        if (typeof value === 'number') {
-                                            clipValues[index] = value;
-                                            isAssetStateChanged = true;
-                                        }
+                            let clipValue = assestsNewState[objName].clipValue;
+                            const fieldName = obj.node.userData.clipFieldName;
+                            if (fieldName !== undefined) {
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isAssetStateChanged = true;
                                     }
-                                });
-                                assestsNewState[objName] = { ...assestsNewState[objName], clipValues };
+                                }
+                                assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
                             }
                         }
                     }
@@ -266,79 +258,71 @@ const updateObjectsState = (
                         animationType === "blenderTemporary" ||
                         animationType === "blenderEndless"
                     ) {
-                        const clipTopicIds = obj.node.userData.clipTopicIds;
-                        if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
-                            const clipValues = [...genericObjectNewState[objName].clipValues];
-                            clipTopicIds.forEach((clipTopicId: number, index: number) => {
-                                if (clipTopicId === messageTopicId) {
-                                    const fieldName = obj.node.userData.clipFieldNames[index];
-                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                        const value = mqttMessage[fieldName];
-                                        if (typeof value === 'number') {
-                                            clipValues[index] = value;
-                                            isGenericObjectsStateChanged = true;
-                                        }
+                        const clipTopicId = obj.node.userData.clipTopicId;
+                        if (clipTopicId !== undefined) {
+                            let clipValue = genericObjectNewState[objName].clipValue;
+                            if (clipTopicId === messageTopicId) {
+                                const fieldName = obj.node.userData.clipFieldName;
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isGenericObjectsStateChanged = true;
                                     }
                                 }
-                            });
-                            genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
+                            }
+                            genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
                         }
 
                         if (clipSimulationTopicId === messageTopicId) {
-                            const clipValues = [...genericObjectNewState[objName].clipValues];
-                            const fieldNames: string[] = obj.node.userData.clipFieldNames;
-                            if (fieldNames !== undefined && fieldNames.length !== 0) {
-                                fieldNames.forEach((fieldName, index) => {
-                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                        const value = mqttMessage[fieldName];
-                                        if (typeof value === 'number') {
-                                            clipValues[index] = value;
-                                            isGenericObjectsStateChanged = true;
-                                        }
+                            let clipValue = genericObjectNewState[objName].clipValue;
+                            const fieldName = obj.node.userData.clipFieldName;
+                            if (fieldName !== undefined ) {
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isGenericObjectsStateChanged = true;
                                     }
-                                });
-                                genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValues };
+                                }
+                                genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
                             }
                         }
                     }
                 });
 
                 femSimulationObjects.forEach((obj, index) => {
-                    const clipTopicIds = obj.node.userData.clipTopicIds;
-                    if (clipTopicIds !== undefined && clipTopicIds.length !== 0) {
-                        const clipValues = [...femSimulationObjectsNewState[index].clipValues];
-                        clipTopicIds.forEach((clipTopicId: number, index: number) => {
-                            if (clipTopicId === messageTopicId) {
-                                const fieldName = obj.node.userData.clipFieldNames[index];
-                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                    const value = mqttMessage[fieldName];
-                                    if (typeof value === 'number') {
-                                        clipValues[index] = value;
-                                        isfemSimulationObjectsStateChanged = true;
-                                    }
+                    const clipTopicId = obj.node.userData.clipTopicId;
+                    if (clipTopicId !== undefined) {
+                        let clipValue = femSimulationObjectsNewState[index].clipValue;
+                        clipTopicId.forEach((clipTopicId: number, index: number) => {
+                            const fieldName = obj.node.userData.clipFieldName;
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                const value = mqttMessage[fieldName];
+                                if (typeof value === 'number') {
+                                    clipValue = value;
+                                    isfemSimulationObjectsStateChanged = true;
                                 }
                             }
                         });
-                        femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
+                        femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValue };
                     }
 
                     if (clipSimulationTopicId === messageTopicId) {
                         if (femSimulationObjectsNewState[index] !== undefined &&
-                            femSimulationObjectsNewState[index].clipValues !== undefined
+                            femSimulationObjectsNewState[index].clipValue !== null
                         ) {
-                            const clipValues = [...femSimulationObjectsNewState[index].clipValues];
-                            const fieldNames: string[] = obj.node.userData.clipFieldNames;
-                            if (fieldNames !== undefined && fieldNames.length !== 0) {
-                                fieldNames.forEach((fieldName, index) => {
-                                    if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                        const value = mqttMessage[fieldName];
-                                        if (typeof value === 'number') {
-                                            clipValues[index] = value;
-                                            isfemSimulationObjectsStateChanged = true;
-                                        }
+                            let clipValue = femSimulationObjectsNewState[index].clipValue;
+                            const fieldName = obj.node.userData.clipFieldName;
+                            if (fieldName !== undefined) {
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isfemSimulationObjectsStateChanged = true;
                                     }
-                                });
-                                femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValues };
+                                }
+                                femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValue };
                             }
                         }
                     }

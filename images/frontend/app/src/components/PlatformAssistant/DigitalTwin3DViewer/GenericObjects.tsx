@@ -32,7 +32,6 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     }, []);
     const defOpacity = defaultOpacity(obj);
     changeMatPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
-    
 
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
@@ -40,13 +39,12 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
-            if (obj.userData.clipNames) {
+            if (obj.userData.clipName) {
                 const mixer = new THREE.AnimationMixer(meshRef.current as any);
-                obj.animations.forEach(clip => {
-                    const action = mixer.clipAction(clip);
-                    action.play();
-                });
-                const clipsDuration = obj.animations[0].duration - 0.00001; //All clips must have the same duration
+                const clip = obj.animations[0];
+                const action = mixer.clipAction(clip);
+                action.play();
+                const clipsDuration = obj.animations[0].duration - 0.00001;
                 setClipsDuration(clipsDuration);
                 setMixer(mixer);
             }
@@ -57,27 +55,18 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     useEffect(() => {
         if (mixer &&
             clipsDuration &&
-            genericObjectState.clipValues &&
-            genericObjectState.clipValues.length !== 0 &&
+            genericObjectState.clipValue !== null &&
             obj.userData.animationType &&
             obj.userData.animationType === "blenderTemporary"
         ) {
-            genericObjectState.clipValues.forEach((clipValue, index) => {
-                if (clipValue !== null) {
-                    const maxValue = obj.userData.clipMaxValues[index];
-                    const minValue = obj.userData.clipMinValues[index];
-                    let weigth = (clipValue - minValue) / (maxValue - minValue) / genericObjectState.clipValues.length;
-                    const action = mixer.existingAction(obj.animations[index]);
-                    if (action) {
-                        action.setEffectiveWeight(weigth);
-                        action.setEffectiveTimeScale(1.0);
-                    }
-                }
-            })
-            mixer.setTime(clipsDuration);
+            const maxValue = obj.userData.clipMaxValue;
+            const minValue = obj.userData.clipMinValue;
+            let weigth = (genericObjectState.clipValue - minValue) / (maxValue - minValue);
+            const clipsDuration = obj.animations[0].duration - 0.00001;
+            mixer.setTime(weigth * clipsDuration);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mixer, genericObjectState.clipValues]);
+    }, [mixer, genericObjectState.clipValue]);
 
 
     useFrame(({ clock }, delta) => {
@@ -85,10 +74,8 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             obj.userData.animationType === "blenderEndless"
         ) {
             let newDelta = delta;
-            if (genericObjectState.clipValues.length !== 0 &&
-                genericObjectState.clipValues[0] !== null
-            ) {
-                newDelta = genericObjectState.clipValues[0];
+            if (genericObjectState.clipValue !== null) {
+                newDelta = genericObjectState.clipValue;
             }
             mixer?.update(newDelta);
         }
@@ -158,6 +145,7 @@ const areEqual = (prevProps: GenericObjectProps, nextProps: GenericObjectProps) 
     return (prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.visible === nextProps.visible) &&
+        prevProps.genericObjectState.clipValue === nextProps.genericObjectState.clipValue &&
         prevProps.genericObjectStateString === nextProps.genericObjectStateString;
 }
 
