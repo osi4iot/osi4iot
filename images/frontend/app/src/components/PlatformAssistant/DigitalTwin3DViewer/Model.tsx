@@ -44,11 +44,6 @@ export interface IGenericObject {
 	collectionName: string;
 }
 
-export interface IDynamicObject {
-	node: THREE.Mesh;
-	collectionName: string;
-}
-
 export interface IResultRenderInfo {
 	resultLut: Lut;
 	legendCamera: THREE.PerspectiveCamera;
@@ -114,9 +109,6 @@ interface ModelProps {
 	genericObjectsOpacity: number;
 	highlightAllGenericObjects: boolean;
 	hideAllGenericObjects: boolean;
-	dynamicObjectsOpacity: number;
-	highlightAllDynamicObjects: boolean;
-	hideAllDynamicObjects: boolean;
 	setIsMqttConnected: (isMqttConnected: boolean) => void;
 	canvasRef: React.MutableRefObject<null>;
 	selectedObjTypeRef: React.MutableRefObject<null>;

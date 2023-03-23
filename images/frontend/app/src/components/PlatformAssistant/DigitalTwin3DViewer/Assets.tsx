@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import React, { FC, useRef, useLayoutEffect, useState, useEffect, useCallback } from 'react';
+import React, { FC, useRef, useLayoutEffect, useState, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { IAssetObject } from './Model';
 import { AssetState, defaultOpacity, defaultVisibility, ObjectVisibilityState } from './ViewerUtils';
@@ -30,10 +30,7 @@ const AssetBase: FC<AssetProps> = ({
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>();
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
-    const changeMatPropRecursively = useCallback((obj, prop, propValue) => {
-        changeMaterialPropRecursively(obj, prop, propValue);
-      }, []);
-    changeMatPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
@@ -88,15 +85,15 @@ const AssetBase: FC<AssetProps> = ({
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
                 if (deltaInterval <= 0.30) {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMatPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
                 } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
                     if (meshRef.current) meshRef.current.visible = true;
                     if (assetState?.stateString === "ok") {
-                        changeMatPropRecursively(obj, 'emissive', assetOkColor);
+                        changeMaterialPropRecursively(obj, 'emissive', assetOkColor);
                     } else if (assetState?.stateString === "alerting") {
-                        changeMatPropRecursively(obj, 'emissive', assetAlertingColor);
+                        changeMaterialPropRecursively(obj, 'emissive', assetAlertingColor);
                     }
                 } else if (deltaInterval > 0.60) {
                     lastIntervalTime = clock.elapsedTime;
@@ -104,19 +101,19 @@ const AssetBase: FC<AssetProps> = ({
             } else {
                 if (assetState.highlight) {
                     if (meshRef.current) meshRef.current.visible = true;
-                    changeMatPropRecursively(obj, 'opacity', 1.0);
+                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
                     if (assetState.stateString === "ok") {
-                        changeMatPropRecursively(obj, 'emissive', assetOkColor);
+                        changeMaterialPropRecursively(obj, 'emissive', assetOkColor);
                     } else if (assetState?.stateString === "alerting") {
                         material.emissive = assetAlertingColor;
                     }
                 } else {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
                     if (assetState.stateString === "ok") {
-                        changeMatPropRecursively(obj, 'emissive', noEmitColor);
+                        changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
                     } else if (assetState.stateString === "alerting") {
-                        changeMatPropRecursively(obj, 'emissive', assetAlertingColor);
+                        changeMaterialPropRecursively(obj, 'emissive', assetAlertingColor);
                     }
                 }
             }

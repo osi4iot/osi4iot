@@ -71,7 +71,8 @@ const getTopicSensorTypesFromDigitalTwin = (type: string, gltfFileData: any): st
 		if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
 			const meshNodes: IMeshNode[] = [];
 			gltfFileData.nodes.forEach((node: IMeshNode) => {
-				if (node.mesh !== undefined && node.extras !== undefined) meshNodes.push(node);
+				// node.mesh are not included for taking into account root nodes
+				if (node.extras !== undefined) meshNodes.push(node);
 			})
 
 			meshNodes.forEach((node: IMeshNode) => {
@@ -151,7 +152,8 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
 					};
 				}
 			) => {
-				if (node.mesh !== undefined && node.extras !== undefined) {
+				// if (node.mesh !== undefined && node.extras !== undefined) {
+			    if (node.extras !== undefined) {
 					if (node.extras.type !== undefined && node.extras.type === "sensor") {
 						const topicType = node.extras?.topicType;
 						if (topicType) {

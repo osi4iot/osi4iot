@@ -305,7 +305,8 @@ export const checkGltfFileOld = (gltfFileData: any): string => {
     if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
         const meshNodes: IMeshNode[] = [];
         gltfFileData.nodes.forEach((node: IMeshNode) => {
-            if (node.mesh !== undefined && node.extras !== undefined) meshNodes.push(node);
+            // node.mesh are not included for taking into account root nodes
+            if (node.extras !== undefined) meshNodes.push(node);
         })
 
         for (const node of meshNodes) {

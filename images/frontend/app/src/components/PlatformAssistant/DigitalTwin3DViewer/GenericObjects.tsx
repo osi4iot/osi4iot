@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import React, { FC, useCallback, useEffect, useRef, useState } from 'react'
+import React, { FC, useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber';
 import { defaultOpacity, defaultVisibility, GenericObjectState, ObjectVisibilityState } from './ViewerUtils';
 import { IGenericObject } from './Model';
@@ -27,11 +27,8 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 }) => {
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
     const material = Object.assign(obj.material);
-    const changeMatPropRecursively = useCallback((obj, prop, propValue) => {
-        changeMaterialPropRecursively(obj, prop, propValue);
-    }, []);
     const defOpacity = defaultOpacity(obj);
-    changeMatPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
 
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
@@ -86,23 +83,23 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                 }
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
                 if (deltaInterval <= 0.30) {
-                    changeMatPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
                 } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                    changeMatPropRecursively(obj, 'emissive', highlightColor);
-                    changeMatPropRecursively(obj, 'opacity', 1.0);
+                    changeMaterialPropRecursively(obj, 'emissive', highlightColor);
+                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
                 } else if (deltaInterval > 0.60) {
                     lastIntervalTime = clock.elapsedTime;
                 }
             } else {
                 if (genericObjectState.highlight) {
                     if (meshRef.current) meshRef.current.visible = true;
-                    changeMatPropRecursively(obj, 'emissive', highlightColor);
-                    changeMatPropRecursively(obj, 'opacity', 1.0);
+                    changeMaterialPropRecursively(obj, 'emissive', highlightColor);
+                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
                 } else {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMatPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
                 }
             }
         } else {

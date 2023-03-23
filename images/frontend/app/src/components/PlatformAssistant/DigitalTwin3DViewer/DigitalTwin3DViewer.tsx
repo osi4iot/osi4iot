@@ -520,10 +520,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		highlightAllGenericObjects: false,
 		hideAllGenericObjects: false,
 		genericObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
-		dynamicObjectsOpacity: 1,
-		highlightAllDynamicObjects: false,
-		hideAllDynamicObjects: false,
-		dynamicObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
 		femSimulationObjectsOpacity: 1,
 		highlightAllFemSimulationObjects: false,
 		hideAllFemSimulationObjects: false,
@@ -847,9 +843,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								genericObjectsOpacity={opts.genericObjectsOpacity}
 								highlightAllGenericObjects={opts.highlightAllGenericObjects}
 								hideAllGenericObjects={opts.hideAllGenericObjects}
-								dynamicObjectsOpacity={opts.dynamicObjectsOpacity}
-								highlightAllDynamicObjects={opts.highlightAllDynamicObjects}
-								hideAllDynamicObjects={opts.hideAllDynamicObjects}
 								setIsMqttConnected={isMqttConnected => setIsMqttConnected(isMqttConnected)}
 								canvasRef={canvasRef}
 								selectedObjTypeRef={selectedObjTypeRef}

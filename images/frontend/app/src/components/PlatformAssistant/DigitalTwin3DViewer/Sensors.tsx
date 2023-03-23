@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import React, { FC, useRef, useState, useLayoutEffect, useEffect, useCallback } from 'react';
+import React, { FC, useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { ISensorObject } from './Model';
 import { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState } from './ViewerUtils';
@@ -32,11 +32,8 @@ const SensorBase: FC<SensorProps> = ({
     const [lastTimestamp, setLastTimestamp] = useState<Date | null>(null);
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
     const material = Object.assign(obj.material);
-    const changeMatPropRecursively = useCallback((obj, prop, propValue) => {
-        changeMaterialPropRecursively(obj, prop, propValue);
-    }, []);
     const defOpacity = defaultOpacity(obj);
-    changeMatPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
     const timeout = obj.userData.timeout as number || 60;
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
@@ -92,15 +89,15 @@ const SensorBase: FC<SensorProps> = ({
                 const deltaInterval = clock.elapsedTime - lastIntervalTime;
                 if (deltaInterval <= 0.30) {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMatPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
                 } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
                     if (meshRef.current) meshRef.current.visible = true;
-                    changeMatPropRecursively(obj, 'opacity', 1.0);
+                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
                     if (sensorState?.stateString === "on") {
-                        changeMatPropRecursively(obj, 'emissive', sensorOnColor);
+                        changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
                     } else {
-                        changeMatPropRecursively(obj, 'emissive', sensorOffColor);
+                        changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
                     }
                 } else if (deltaInterval > 0.60) {
                     lastIntervalTime = clock.elapsedTime;
@@ -110,14 +107,14 @@ const SensorBase: FC<SensorProps> = ({
                     if (meshRef.current) meshRef.current.visible = true;
                     material.opacity = 1;
                     if (sensorState?.stateString === "on") {
-                        changeMatPropRecursively(obj, 'emissive', sensorOnColor);
+                        changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
                     } else {
-                        changeMatPropRecursively(obj, 'emissive', sensorOffColor);
+                        changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
                     }
                 } else {
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMatPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMatPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
                 }
             }
         } else {

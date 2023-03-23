@@ -1,6 +1,13 @@
 import * as THREE from 'three'
 import { Camera } from '@react-three/fiber';
-import { ISensorObject, IAssetObject, IFemSimulationObject, IResultRenderInfo, IGenericObject, IMqttTopicData, IDynamicObject } from './Model';
+import {
+	ISensorObject,
+	IAssetObject,
+	IFemSimulationObject,
+	IResultRenderInfo,
+	IGenericObject,
+	IMqttTopicData
+} from './Model';
 import { toast } from "react-toastify";
 import { IMeasurement } from "../TableColumns/measurementsColumns";
 import Lut, { ILegendLabels } from "./Lut";
@@ -26,13 +33,6 @@ export interface AssetState {
 export interface GenericObjectState {
 	highlight: boolean;
 	clipValue: (number | null);
-	position: THREE.Vector3;
-	scale: THREE.Vector3;
-	quaternion: THREE.Quaternion;
-}
-
-export interface DynamicObjectState {
-	highlight: boolean;
 	position: THREE.Vector3;
 	scale: THREE.Vector3;
 	quaternion: THREE.Quaternion;
@@ -576,7 +576,6 @@ export const sortObjects: (
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
 	genericObjects: IGenericObject[],
-	dynamicObjects: IDynamicObject[],
 	femSimulationObjects: IFemSimulationObject[],
 	sensorsCollectionNames: string[],
 	assetsCollectionNames: string[],
@@ -589,7 +588,6 @@ export const sortObjects: (
 	const sensorObjects: ISensorObject[] = [];
 	const assetObjects: IAssetObject[] = [];
 	const genericObjects: IGenericObject[] = [];
-	const dynamicObjects: IDynamicObject[] = [];
 	const femSimulationObjects: IFemSimulationObject[] = [];
 	const genericObjectsCollectionNames: string[] = [];
 	const dynamicObjectsCollectionNames: string[] = [];
@@ -635,19 +633,6 @@ export const sortObjects: (
 						collectionName,
 					}
 					assetObjects.push(assestObject);
-					break;
-				}
-			case "dynamic":
-				{
-					let collectionName = "General";
-					if (obj.userData.collectionName) {
-						collectionName = obj.userData.collectionName;
-					}
-					const dynamicObject: IDynamicObject = {
-						node: obj,
-						collectionName,
-					}
-					dynamicObjects.push(dynamicObject);
 					break;
 				}
 			case "femObject":
@@ -741,13 +726,6 @@ export const sortObjects: (
 		}
 	})
 
-	dynamicObjects.forEach((obj: IDynamicObject) => {
-		const collectionName = obj.collectionName
-		if (dynamicObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
-			dynamicObjectsCollectionNames.push(collectionName);
-		}
-	})
-
 	femSimulationObjects.forEach((obj: IFemSimulationObject) => {
 		const collectionName = obj.collectionName
 		if (femSimObjectCollectionNames.findIndex(name => name === collectionName) === -1) {
@@ -765,7 +743,6 @@ export const sortObjects: (
 		sensorObjects,
 		assetObjects,
 		genericObjects,
-		dynamicObjects,
 		femSimulationObjects,
 		sensorsCollectionNames,
 		assetsCollectionNames,

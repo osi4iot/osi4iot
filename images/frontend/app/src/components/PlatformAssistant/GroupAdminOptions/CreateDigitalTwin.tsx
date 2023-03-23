@@ -132,7 +132,8 @@ export const getTopicSensorTypesFromDigitalTwin = (type: string, gltfData: any):
         if (Object.keys(gltfData).length && gltfData.nodes?.length !== 0) {
             const meshNodes: IMeshNode[] = [];
             gltfData.nodes.forEach((node: IMeshNode) => {
-                if (node.mesh !== undefined && node.extras !== undefined) meshNodes.push(node);
+                //node.mesh are not included for taking into account root nodes
+                if (node.extras !== undefined) meshNodes.push(node); 
             })
 
             meshNodes.forEach((node: IMeshNode) => {
@@ -216,7 +217,8 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                     };
                 }
             ) => {
-                if (node.mesh !== undefined && node.extras !== undefined) {
+                // if (node.mesh !== undefined && node.extras !== undefined) {
+                if (node.extras !== undefined) {
                     if (node.extras.type && node.extras.type === "sensor") {
                         const topicType = node.extras?.topicType;
                         if (topicType) {
@@ -235,7 +237,7 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                     }
                     if (node.extras.animationType !== undefined &&
 						node.extras.animationType === "dynamic"
-					) {
+                    ) {
                         const dynamicTopicType = node.extras?.dynamicTopicType;
                         if (dynamicTopicType) {
                             const topicId = findTopicIdForSensor(dynamicTopicType, topicSensors);
