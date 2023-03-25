@@ -138,8 +138,8 @@ export interface IMeshNode {
     extras: {
         animationType: string;
         topicType: string;
-        displayTopicType: string;
-        dynamicTopicType: string;
+        objectOnOffTopicType: string;
+        customTopicType: string;
         type: string;
         fieldName: string;
         timeout: number;
@@ -152,7 +152,7 @@ export interface IMeshNode {
     };
 }
 
-const objectTypeList = ["asset", "sensor", "generic", "dynamic", "display", "femObject"];
+const objectTypeList = ["asset", "sensor", "generic", "custom", "display", "femObject"];
 const optionalKeys = [
     "type",
     "visible",
@@ -164,8 +164,8 @@ const optionalEntriesConditional = (key: string) => {
     return optionalKeys.indexOf(key) !== -1;
 }
 
-// const dynamicKeys = [
-//     "dynamicTopicType",
+// const customKeys = [
+//     "customTopicType",
 // ];
 
 // const displayKeys = [

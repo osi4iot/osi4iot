@@ -130,7 +130,7 @@ const AssetBase: FC<AssetProps> = ({
 
 
     return (
-        (obj.type === "Group" || obj.animations.length !== 0) ?
+        (obj.type === "Group" || obj.animations.length !== 0  || obj.children.length !== 0) ?
             <mesh
                 ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
                 castShadow
@@ -186,11 +186,12 @@ const Assets: FC<AssetsProps> = ({
     assetsVisibilityState
 }) => {
     const assetsStateString = Object.values(assetsState).map(state => state.stateString === "alerting" ? "1" : "0").join("");
+    const assetObjectsFiltered = assetObjects.filter(obj => assetsState[obj.node.name].onOff === "on");
 
     return (
         <>
             {
-                assetObjects.map((obj, index) => {
+                assetObjectsFiltered.map((obj, index) => {
                     return <Asset
                         key={obj.node.uuid}
                         obj={obj.node}

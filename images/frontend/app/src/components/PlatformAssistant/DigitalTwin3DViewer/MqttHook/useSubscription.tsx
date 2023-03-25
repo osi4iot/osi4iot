@@ -92,7 +92,7 @@ const useSubscription = (
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [client, femSimulationObjectsState]);
+    }, [client, femSimulationObjectsState, digitalTwinSimulatorSendData]);
 }
 
 const updateObjectsState = (
@@ -137,21 +137,24 @@ const updateObjectsState = (
                 sensorObjects.forEach((obj) => {
                     const objName = obj.node.name;
                     const sensorTopicId = obj.node.userData.sensorTopicId;
-                    if (sensorTopicId === messageTopicId && sensorsState[objName].stateString === "off") {
+                    //if (sensorTopicId === messageTopicId && sensorsState[objName].stateString === "off") {
+                    if (sensorTopicId === messageTopicId || clipSimulationTopicId === messageTopicId) {
                         const fieldName = obj.node.userData.fieldName;
                         if (messagePayloadKeys.indexOf(fieldName) !== -1) {
                             const value = mqttMessage[fieldName];
+                            let stateString = sensorsNewState[objName].stateString;
                             if (typeof value === 'number' ||
-                                (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)
+                                (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)
                             ) {
-                                sensorsNewState[objName] = { ...sensorsNewState[objName], stateString: "on" };
+                                if (sensorTopicId === messageTopicId) stateString = "on";
+                                sensorsNewState[objName] = { ...sensorsNewState[objName], stateString, sensorValue: value };
                                 isSensorStateChanged = true;
                             }
                         }
                     }
                     const animationType = obj.node.userData.animationType;
-                    if (animationType === "dynamic") {
-                        isSensorStateChanged = updateDynamicAnimationState(
+                    if (animationType === "custom") {
+                        isSensorStateChanged = updateCustomAnimationState(
                             obj.node,
                             sensorsNewState,
                             messageTopicId,
@@ -159,8 +162,7 @@ const updateObjectsState = (
                             isSensorStateChanged
                         )
                     } else if (
-                        animationType === "blenderTemporary" ||
-                        animationType === "blenderEndless"
+                        animationType === "blenderTemporary"
                     ) {
                         const clipTopicId = obj.node.userData.clipTopicId;
                         if (clipTopicId !== undefined) {
@@ -192,14 +194,50 @@ const updateObjectsState = (
                                 sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
                             }
                         }
+                    } else if (
+                        animationType === "blenderEndless"
+                    ) {
+                        const clipTopicId = obj.node.userData.clipTopicId;
+                        if (clipTopicId !== undefined) {
+                            let clipValue = sensorsNewState[objName].clipValue;
+                            if (clipTopicId === messageTopicId) {
+                                const fieldName = "endlessTimeFactor";
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName][objName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isSensorStateChanged = true;
+                                    }
+                                }
+                            }
+                            sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
+                        }
+                    }
+
+                    const objectOnOffTopicId = obj.node.userData.objectOnOffTopicId;
+                    if (objectOnOffTopicId !== undefined) {
+                        let onOff = sensorsNewState[objName].onOff;
+                        if (objectOnOffTopicId === messageTopicId) {
+                            const fieldName = "objectOnOff";
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                if (mqttMessage[fieldName][objName] === "on") {
+                                    onOff = "on";
+                                    isSensorStateChanged = true;
+                                } else if (mqttMessage[fieldName][objName] === "off") {
+                                    onOff = "off";
+                                    isSensorStateChanged = true;
+                                }
+                            }
+                        }
+                        sensorsNewState[objName] = { ...sensorsNewState[objName], onOff };
                     }
                 });
 
                 assetObjects.forEach((obj) => {
                     const objName = obj.node.name;
                     const animationType = obj.node.userData.animationType;
-                    if (animationType === "dynamic") {
-                        isAssetStateChanged = updateDynamicAnimationState(
+                    if (animationType === "custom") {
+                        isAssetStateChanged = updateCustomAnimationState(
                             obj.node,
                             assestsNewState,
                             messageTopicId,
@@ -207,8 +245,7 @@ const updateObjectsState = (
                             isAssetStateChanged
                         )
                     } else if (
-                        animationType === "blenderTemporary" ||
-                        animationType === "blenderEndless"
+                        animationType === "blenderTemporary" 
                     ) {
                         const clipTopicId = obj.node.userData.clipTopicId;
                         if (clipTopicId !== undefined && clipTopicId.length !== 0) {
@@ -240,14 +277,50 @@ const updateObjectsState = (
                                 assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
                             }
                         }
+                    } else if (
+                        animationType === "blenderEndless"
+                    ) {
+                        const clipTopicId = obj.node.userData.clipTopicId;
+                        if (clipTopicId !== undefined && clipTopicId.length !== 0) {
+                            let clipValue = assestsNewState[objName].clipValue;
+                            if (clipTopicId === messageTopicId) {
+                                const fieldName = "endlessTimeFactor";
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName][objName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isAssetStateChanged = true;
+                                    }
+                                }
+                            }
+                            assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
+                        }
+                    }
+
+                    const objectOnOffTopicId = obj.node.userData.objectOnOffTopicId;
+                    if (objectOnOffTopicId !== undefined) {
+                        let onOff = assestsNewState[objName].onOff;
+                        if (objectOnOffTopicId === messageTopicId) {
+                            const fieldName = "objectOnOff";
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                if (mqttMessage[fieldName][objName] === "on") {
+                                    onOff = "on";
+                                    isAssetStateChanged = true;
+                                } else if (mqttMessage[fieldName][objName] === "off") {
+                                    onOff = "off";
+                                    isAssetStateChanged = true;
+                                }
+                            }
+                        }
+                        assestsNewState[objName] = { ...assestsNewState[objName], onOff };
                     }
                 });
 
                 genericObjects.forEach((obj) => {
                     const objName = obj.node.name;
                     const animationType = obj.node.userData.animationType;
-                    if (animationType === "dynamic") {
-                        isGenericObjectsStateChanged = updateDynamicAnimationState(
+                    if (animationType === "custom") {
+                        isGenericObjectsStateChanged = updateCustomAnimationState(
                             obj.node,
                             genericObjectNewState,
                             messageTopicId,
@@ -255,8 +328,7 @@ const updateObjectsState = (
                             isGenericObjectsStateChanged
                         )
                     } else if (
-                        animationType === "blenderTemporary" ||
-                        animationType === "blenderEndless"
+                        animationType === "blenderTemporary"
                     ) {
                         const clipTopicId = obj.node.userData.clipTopicId;
                         if (clipTopicId !== undefined) {
@@ -288,10 +360,48 @@ const updateObjectsState = (
                                 genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
                             }
                         }
+                    } else if (
+                        animationType === "blenderEndless"
+                    ) {
+                        const clipTopicId = obj.node.userData.clipTopicId;
+                        if (clipTopicId !== undefined) {
+                            let clipValue = genericObjectNewState[objName].clipValue;
+                            if (clipTopicId === messageTopicId) {
+                                const fieldName = "endlessTimeFactor";
+                                if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                    const value = mqttMessage[fieldName][objName];
+                                    if (typeof value === 'number') {
+                                        clipValue = value;
+                                        isGenericObjectsStateChanged = true;
+                                    }
+                                }
+                            }
+                            genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
+                        }
                     }
+
+                    const objectOnOffTopicId = obj.node.userData.objectOnOffTopicId;
+                    if (objectOnOffTopicId !== undefined) {
+                        let onOff = genericObjectNewState[objName].onOff;
+                        if (objectOnOffTopicId === messageTopicId) {
+                            const fieldName = "objectOnOff";
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                if (mqttMessage[fieldName][objName] === "on") {
+                                    onOff = "on";
+                                    isGenericObjectsStateChanged = true;
+                                } else if (mqttMessage[fieldName][objName] === "off") {
+                                    onOff = "off";
+                                    isGenericObjectsStateChanged = true;
+                                }
+                            }
+                        }
+                        genericObjectNewState[objName] = { ...genericObjectNewState[objName], onOff };
+                    }
+
                 });
 
                 femSimulationObjects.forEach((obj, index) => {
+                    const objName = obj.node.name;
                     const clipTopicId = obj.node.userData.clipTopicId;
                     if (clipTopicId !== undefined) {
                         let clipValue = femSimulationObjectsNewState[index].clipValue;
@@ -326,6 +436,23 @@ const updateObjectsState = (
                             }
                         }
                     }
+
+                    const objectOnOffTopicId = obj.node.userData.objectOnOffTopicId;
+                    if (objectOnOffTopicId !== undefined) {
+                        let onOff = femSimulationObjectsNewState[index].onOff;
+                        if (objectOnOffTopicId === messageTopicId) {
+                            const fieldName = "objectOnOff";
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                if (mqttMessage[fieldName][objName] === "on") {
+                                    onOff = "on";
+                                    isfemSimulationObjectsStateChanged = true;
+                                } else if (mqttMessage[fieldName][objName] === "off") {
+                                    isfemSimulationObjectsStateChanged = true;
+                                }
+                            }
+                        }
+                        femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], onOff };
+                    }                    
 
                 });
             }
@@ -374,7 +501,7 @@ const updateObjectsState = (
     }
 }
 
-const updateDynamicAnimationState = (
+const updateCustomAnimationState = (
     node: THREE.Mesh,
     newObjectState: Record<string, SensorState> | Record<string, AssetState> | Record<string, GenericObjectState>,
     messageTopicId: number,
@@ -382,36 +509,36 @@ const updateDynamicAnimationState = (
     hasStateChangeIni: boolean
 ) => {
     const objName = node.name;
-    const dynamicTopicId = node.userData.dynamicTopicId as number;
-    let isDynamicStateChanged = false;
-    if (dynamicTopicId !== undefined) {
+    const customTopicId = node.userData.customTopicId as number;
+    let isCustomStateChanged = false;
+    if (customTopicId !== undefined) {
         const position = newObjectState[objName].position.clone();
         const scale = newObjectState[objName].scale.clone();
         const quaternion = newObjectState[objName].quaternion.clone();
-        if (dynamicTopicId === messageTopicId &&
-            mqttMessage.dynamicAnimation !== undefined &&
-            mqttMessage.dynamicAnimation[objName] !== undefined
+        if (customTopicId === messageTopicId &&
+            mqttMessage.customAnimation !== undefined &&
+            mqttMessage.customAnimation[objName] !== undefined
         ) {
-            const messagePayloadKeys = Object.keys(mqttMessage.dynamicAnimation[objName]);
+            const messagePayloadKeys = Object.keys(mqttMessage.customAnimation[objName]);
             if (messagePayloadKeys.indexOf("position") !== -1) {
-                const values = mqttMessage.dynamicAnimation[objName]["position"];
+                const values = mqttMessage.customAnimation[objName]["position"];
                 if (Array.isArray(values) && values.length === 3) {
                     position.set(values[0], values[1], values[2]);
-                    isDynamicStateChanged = true;
+                    isCustomStateChanged = true;
                 }
             }
             if (messagePayloadKeys.indexOf("scale") !== -1) {
-                const values = mqttMessage.dynamicAnimation[objName]["scale"];
+                const values = mqttMessage.customAnimation[objName]["scale"];
                 if (Array.isArray(values) && values.length === 3) {
                     scale.set(values[0], values[1], values[2]);
-                    isDynamicStateChanged = true;
+                    isCustomStateChanged = true;
                 }
             }
             if (messagePayloadKeys.indexOf("quaternion") !== -1) {
-                const values = mqttMessage.dynamicAnimation[objName]["quaternion"];
+                const values = mqttMessage.customAnimation[objName]["quaternion"];
                 if (Array.isArray(values) && values.length === 4) {
                     quaternion.set(values[0], values[1], values[2], values[3]);
-                    isDynamicStateChanged = true;
+                    isCustomStateChanged = true;
                 }
             }
         }
@@ -423,7 +550,7 @@ const updateDynamicAnimationState = (
         };
     }
 
-    return (hasStateChangeIni || isDynamicStateChanged);
+    return (hasStateChangeIni || isCustomStateChanged);
 }
 
 export default useSubscription;

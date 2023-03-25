@@ -57,8 +57,8 @@ export interface IMeshNode {
 	extras: {
 		animationType: string;
 		topicType: string;
-		displayTopicType: string;
-		dynamicTopicType: string;
+		objectOnOffTopicType: string;
+		customTopicType: string;
 		type: string;
 		clipTopicType: string;
 	};
@@ -83,25 +83,22 @@ const getTopicSensorTypesFromDigitalTwin = (type: string, gltfFileData: any): st
 					}
 				}
 				if (node.extras.animationType !== undefined &&
-					node.extras.animationType === "dynamic" &&
-					node.extras?.dynamicTopicType !== undefined
+					node.extras.animationType === "custom" &&
+					node.extras?.customTopicType !== undefined
 				) {
-					const dynamicTopicType = node.extras?.dynamicTopicType;
-					if (dynamicTopicType && topicTypes.findIndex(topicTypei => topicTypei === dynamicTopicType) === -1) {
-						topicTypes.push(dynamicTopicType)
-					}
-				}
-				if (node.extras.animationType !== undefined &&
-					node.extras.animationType === "display" &&
-					node.extras?.displayTopicType !== undefined
-				) {
-					const displayTopicType = node.extras?.displayTopicType;
-					if (displayTopicType && topicTypes.findIndex(topicTypei => topicTypei === displayTopicType) === -1) {
-						topicTypes.push(displayTopicType)
+					const customTopicType = node.extras?.customTopicType;
+					if (customTopicType && topicTypes.findIndex(topicTypei => topicTypei === customTopicType) === -1) {
+						topicTypes.push(customTopicType)
 					}
 				}
 				if (node.extras?.clipTopicType !== undefined) {
 					const topicType = node.extras?.clipTopicType;
+					if (topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
+						topicTypes.push(topicType);
+					}
+				}
+				if (node.extras.objectOnOffTopicType !== undefined) {
+					const topicType = node.extras.objectOnOffTopicType
 					if (topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
 						topicTypes.push(topicType);
 					}
@@ -142,10 +139,12 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
 						animationType: string;
 						topicType: string;
 						displayTopicType: string;
-						dynamicTopicType: string;
+						customTopicType: string;
+						objectOnOffTopicType: string;
 						sensorTopicId: number;
-						dynamicTopicId: number;
+						customTopicId: number;
 						displayTopicId: number;
+						objectOnOffTopicId: number;
 						type: string;
 						clipTopicType: string;
 						clipTopicId: number;
@@ -162,26 +161,21 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
 						}
 					}
 					if (node.extras.animationType !== undefined &&
-						node.extras.animationType === "display"
+						node.extras.animationType === "custom"
 					) {
-						const displayTopicType = node.extras?.displayTopicType;
-						if (displayTopicType) {
-							const topicId = findTopicIdForSensor(displayTopicType, topicSensors);
-							node.extras.displayTopicId = topicId;
-						}
-					}
-					if (node.extras.animationType !== undefined &&
-						node.extras.animationType === "dynamic"
-					) {
-						const dynamicTopicType = node.extras?.dynamicTopicType;
-						if (dynamicTopicType) {
-							const topicId = findTopicIdForSensor(dynamicTopicType, topicSensors);
-							node.extras.dynamicTopicId = topicId;
+						const customTopicType = node.extras?.customTopicType;
+						if (customTopicType) {
+							const topicId = findTopicIdForSensor(customTopicType, topicSensors);
+							node.extras.customTopicId = topicId;
 						}
 					}
 					if (node.extras.clipTopicType !== undefined) {
 						const topicType = node.extras.clipTopicType
 						node.extras.clipTopicId = findTopicIdForSensor(topicType, topicSensors);
+					}
+					if (node.extras.objectOnOffTopicType !== undefined) {
+						const topicType = node.extras.objectOnOffTopicType;
+						node.extras.objectOnOffTopicId = findTopicIdForSensor(topicType, topicSensors);
 					}
 				}
 

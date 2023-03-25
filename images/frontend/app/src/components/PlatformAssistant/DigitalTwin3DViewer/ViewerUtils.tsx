@@ -15,6 +15,8 @@ import Lut, { ILegendLabels } from "./Lut";
 export interface SensorState {
 	stateString: string;
 	highlight: boolean;
+	onOff: string;
+	sensorValue: (number | number[] | null);
 	clipValue: (number | null);
 	position: THREE.Vector3;
 	scale: THREE.Vector3;
@@ -23,6 +25,7 @@ export interface SensorState {
 
 export interface AssetState {
 	stateString: string;
+	onOff: string;
 	highlight: boolean;
 	clipValue: (number | null);
 	position: THREE.Vector3;
@@ -32,6 +35,7 @@ export interface AssetState {
 
 export interface GenericObjectState {
 	highlight: boolean;
+	onOff: string;
 	clipValue: (number | null);
 	position: THREE.Vector3;
 	scale: THREE.Vector3;
@@ -56,6 +60,7 @@ export interface FemSimObjectVisibilityState {
 export interface FemSimulationObjectState {
 	resultFieldModalValues: Record<string, number[]>;
 	highlight: boolean;
+	onOff: string;
 	clipValue: (number | null);
 }
 
@@ -105,7 +110,7 @@ const findLastMeasurement = (topicId: number, digitalTwinGltfData: IDigitalTwinG
 const getElapsedTimeInSeconds = (timestamp: number) => {
 	const datetime = new Date(timestamp).getTime();
 	const now = new Date().getTime();
-	const elapsedTime = (now - datetime) * 1000;
+	const elapsedTime = (now - datetime) / 1000;
 	return elapsedTime;
 }
 
@@ -119,14 +124,16 @@ export const generateInitialSensorsState = (
 		const sensorTopicId = obj.node.userData.sensorTopicId;
 		const sensorsState: SensorState = {
 			stateString: "off",
+			onOff: "on",
 			highlight: false,
+			sensorValue: null,
 			clipValue: null,
 			position: new THREE.Vector3(0.0, 0.0, 0.0),
 			scale: new THREE.Vector3(1.0, 1.0, 1.0),
 			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
 		};
-		generateInitialDynamicAnimationObjectState(obj.node, sensorsState, digitalTwinGltfData);
-		if (sensorTopicId) {
+		generateInitialCustomAnimationObjectState(obj.node, sensorsState, digitalTwinGltfData);
+		if (sensorTopicId !== undefined) {
 			const lastMeasurement = findLastMeasurement(sensorTopicId, digitalTwinGltfData);
 			if (lastMeasurement) {
 				const fieldName = obj.node.userData.fieldName;
@@ -134,11 +141,27 @@ export const generateInitialSensorsState = (
 				const payloadObject = lastMeasurement.payload as any;
 				const payloadKeys = Object.keys(lastMeasurement.payload);
 				const elpasedTimeInSeconds = getElapsedTimeInSeconds(lastMeasurement.timestamp);
-				if (payloadKeys.indexOf(fieldName) !== -1 && elpasedTimeInSeconds < timeout) {
+				let timeoutAction = "switchOff";
+				if (obj.node.userData.sensorObjectType !== undefined &&
+					obj.node.userData.sensorObjectType === "display"
+				) {
+					if(obj.node.userData.timeoutAction !== undefined &&
+						obj.node.userData.timeoutAction === "keepLastValue"
+					) {
+						timeoutAction = "keepLastValue";
+					} else {
+						if (elpasedTimeInSeconds < timeout) timeoutAction = "keepLastValue";
+					}
+				} else {
+					if (elpasedTimeInSeconds < timeout) timeoutAction = "keepLastValue";
+				}
+
+				if (payloadKeys.indexOf(fieldName) !== -1 && timeoutAction === "keepLastValue") {
 					const value = payloadObject[fieldName];
-					if (typeof value === 'number' || (typeof value === 'object' && value.findIndex((elem: any) => elem === null) !== -1)) {
+					if (typeof value === 'number' || (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)) {
 						sensorsState.stateString = "on";
 						sensorsState.highlight = false;
+						sensorsState.sensorValue = value;
 					};
 				}
 			}
@@ -183,13 +206,14 @@ export const generateInitialAssetsState = (
 		const objName = obj.node.name;
 		const assetState: AssetState = {
 			stateString: "ok",
+			onOff: "on",
 			highlight: false,
 			clipValue: null,
 			position: new THREE.Vector3(0.0, 0.0, 0.0),
 			scale: new THREE.Vector3(1.0, 1.0, 1.0),
 			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
 		};
-		generateInitialDynamicAnimationObjectState(obj.node, assetState, digitalTwinGltfData);
+		generateInitialCustomAnimationObjectState(obj.node, assetState, digitalTwinGltfData);
 		const lastMeasurement = findLastMeasurement(assetStateTopicId, digitalTwinGltfData);
 		if (lastMeasurement) {
 			const assetPartIndex = obj.node.userData.assetPartIndex;
@@ -245,13 +269,14 @@ export const generateInitialGenericObjectsState = (
 	genericObjects.forEach(obj => {
 		const objName = obj.node.name;
 		const genericObjectState: GenericObjectState = {
+			onOff: "on",
 			highlight: false,
 			clipValue: null,
 			position: new THREE.Vector3(0.0, 0.0, 0.0),
 			scale: new THREE.Vector3(1.0, 1.0, 1.0),
 			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
 		};
-		generateInitialDynamicAnimationObjectState(obj.node, genericObjectState, digitalTwinGltfData);
+		generateInitialCustomAnimationObjectState(obj.node, genericObjectState, digitalTwinGltfData);
 
 		let clipValue: (number | null) = null;
 		const clipTopicId = obj.node.userData.clipTopicId;
@@ -283,7 +308,7 @@ export const generateInitialGenericObjectsState = (
 	return initialGenericObjectsState;
 }
 
-export const generateInitialDynamicAnimationObjectState = (
+export const generateInitialCustomAnimationObjectState = (
 	node: THREE.Mesh,
 	objectState: GenericObjectState | AssetState | SensorState,
 	digitalTwinGltfData: IDigitalTwinGltfData,
@@ -298,34 +323,34 @@ export const generateInitialDynamicAnimationObjectState = (
 
 	if (
 		node.userData.animationType !== undefined &&
-		node.userData.animationType === "dynamic" &&
-		node.userData.dynamicTopicId !== undefined
+		node.userData.animationType === "custom" &&
+		node.userData.customTopicId !== undefined
 	) {
-		const dynamicTopicId = node.userData.dynamicTopicId;
-		const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === dynamicTopicId);
+		const customTopicId = node.userData.customTopicId;
+		const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === customTopicId);
 		if (mqttTopicsDataFiltered.length !== 0) {
 			const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
 			if (lastMeasurement) {
 				const objName = node.name;
 				const payloadObject = lastMeasurement.payload as any;
-				if (payloadObject.dynamicAnimation !== undefined &&
-					payloadObject.dynamicAnimation[objName] !== undefined
+				if (payloadObject.customAnimation !== undefined &&
+					payloadObject.customAnimation[objName] !== undefined
 				) {
-					const payloadKeys = Object.keys(payloadObject.dynamicAnimation[objName]);
+					const payloadKeys = Object.keys(payloadObject.customAnimation[objName]);
 					if (payloadKeys.indexOf("position") !== -1) {
-						const values = payloadObject.dynamicAnimation[objName]["position"];
+						const values = payloadObject.customAnimation[objName]["position"];
 						if (Array.isArray(values) && values.length === 3) {
 							objectState.position.set(values[0], values[1], values[2]);
 						}
 					}
 					if (payloadKeys.indexOf("scale") !== -1) {
-						const values = payloadObject.dynamicAnimation[objName]["scale"];
+						const values = payloadObject.customAnimation[objName]["scale"];
 						if (Array.isArray(values) && values.length === 3) {
 							objectState.scale.set(values[0], values[1], values[2]);
 						}
 					}
 					if (payloadKeys.indexOf("quaternion") !== -1) {
-						const values = payloadObject.dynamicAnimation[objName]["quaternion"];
+						const values = payloadObject.customAnimation[objName]["quaternion"];
 						if (Array.isArray(values) && values.length === 4) {
 							objectState.quaternion.set(values[0], values[1], values[2], values[3]);
 						}
@@ -387,8 +412,9 @@ export const generateInitialFemSimObjectsState = (
 				}
 			}
 		}
+		const onOff = "on";
 
-		initialFemSimObjectsState[imesh] = { highlight, clipValue, resultFieldModalValues };
+		initialFemSimObjectsState[imesh] = { onOff, highlight, clipValue, resultFieldModalValues };
 	}
 	return initialFemSimObjectsState;
 }
@@ -580,7 +606,6 @@ export const sortObjects: (
 	sensorsCollectionNames: string[],
 	assetsCollectionNames: string[],
 	genericObjectsCollectionNames: string[],
-	dynamicObjectsCollectionNames: string[],
 	femSimObjectCollectionNames: string[],
 
 } = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
@@ -590,7 +615,6 @@ export const sortObjects: (
 	const genericObjects: IGenericObject[] = [];
 	const femSimulationObjects: IFemSimulationObject[] = [];
 	const genericObjectsCollectionNames: string[] = [];
-	const dynamicObjectsCollectionNames: string[] = [];
 	const sensorsCollectionNames: string[] = [];
 	const assetsCollectionNames: string[] = [];
 	const femSimObjectCollectionNames: string[] = [];
@@ -747,7 +771,6 @@ export const sortObjects: (
 		sensorsCollectionNames,
 		assetsCollectionNames,
 		genericObjectsCollectionNames,
-		dynamicObjectsCollectionNames,
 		femSimObjectCollectionNames
 	}
 }

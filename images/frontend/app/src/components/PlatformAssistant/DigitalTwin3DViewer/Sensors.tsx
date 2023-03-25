@@ -4,6 +4,7 @@ import { useThree, useFrame } from '@react-three/fiber';
 import { ISensorObject } from './Model';
 import { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState } from './ViewerUtils';
 import { changeMaterialPropRecursively } from '../../../tools/tools';
+import { sensorDisplay } from '../../../tools/sensorDisplay';
 
 interface SensorProps {
     obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>;
@@ -71,6 +72,16 @@ const SensorBase: FC<SensorProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mixer, sensorState.clipValue]);
 
+    useEffect(() => {
+        if (
+            obj.userData.sensorObjectType === "display" &&
+            sensorState.sensorValue !== null
+        ) {
+            sensorDisplay(obj, sensorState.sensorValue);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [sensorState.sensorValue]);
+
     useFrame(({ clock }, delta) => {
         if (obj.userData.animationType &&
             obj.userData.animationType === "blenderEndless"
@@ -82,39 +93,44 @@ const SensorBase: FC<SensorProps> = ({
             mixer?.update(newDelta);
         }
         if (visible) {
-            if (blinking) {
-                if (lastIntervalTime === 0) {
-                    lastIntervalTime = clock.elapsedTime;
-                }
-                const deltaInterval = clock.elapsedTime - lastIntervalTime;
-                if (deltaInterval <= 0.30) {
-                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
-                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                    if (meshRef.current) meshRef.current.visible = true;
-                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
-                    if (sensorState?.stateString === "on") {
-                        changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
-                    } else {
-                        changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
+            if (
+                obj.userData.sensorObjectType === undefined ||
+                (obj.userData.sensorObjectType !== undefined && obj.userData.sensorObjectType === "general")
+            ) {
+                if (blinking) {
+                    if (lastIntervalTime === 0) {
+                        lastIntervalTime = clock.elapsedTime;
                     }
-                } else if (deltaInterval > 0.60) {
-                    lastIntervalTime = clock.elapsedTime;
-                }
-            } else {
-                if (sensorState.highlight) {
-                    if (meshRef.current) meshRef.current.visible = true;
-                    material.opacity = 1;
-                    if (sensorState?.stateString === "on") {
-                        changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
-                    } else {
-                        changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
+                    const deltaInterval = clock.elapsedTime - lastIntervalTime;
+                    if (deltaInterval <= 0.30) {
+                        if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                        changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                        changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                        if (meshRef.current) meshRef.current.visible = true;
+                        changeMaterialPropRecursively(obj, 'opacity', 1.0);
+                        if (sensorState?.stateString === "on") {
+                            changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
+                        } else {
+                            changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
+                        }
+                    } else if (deltaInterval > 0.60) {
+                        lastIntervalTime = clock.elapsedTime;
                     }
                 } else {
-                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
-                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    if (sensorState.highlight) {
+                        if (meshRef.current) meshRef.current.visible = true;
+                        material.opacity = 1;
+                        if (sensorState?.stateString === "on") {
+                            changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
+                        } else {
+                            changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
+                        }
+                    } else {
+                        if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                        changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                        changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
+                    }
                 }
             }
         } else {
@@ -147,7 +163,7 @@ const SensorBase: FC<SensorProps> = ({
 
 
     return (
-        (obj.type === "Group" || obj.animations.length !== 0) ?
+        (obj.type === "Group" || obj.animations.length !== 0 || obj.children.length !== 0) ?
             <mesh
                 ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
                 castShadow
@@ -179,6 +195,7 @@ const areEqual = (prevProps: SensorProps, nextProps: SensorProps) => {
     return (prevProps.sensorState.highlight === nextProps.sensorState.highlight || nextProps.blinking) &&
         prevProps.sensorState.stateString === nextProps.sensorState.stateString &&
         (prevProps.sensorsStateString === nextProps.sensorsStateString && nextProps.blinking) &&
+        prevProps.sensorState.sensorValue === nextProps.sensorState.sensorValue &&
         prevProps.sensorState.clipValue === nextProps.sensorState.clipValue &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
@@ -207,11 +224,12 @@ const Sensors: FC<SensorsProps> = ({
     updateSensorStateString,
 }) => {
     const sensorsStateString = Object.values(sensorsState).map(state => state.stateString === "off" ? "1" : "0").join("");
+    const sensorObjectsFiltered = sensorObjects.filter(obj => sensorsState[obj.node.name].onOff === "on");
 
     return (
         <>
             {
-                sensorObjects.map((obj, index) => {
+                sensorObjectsFiltered.map((obj, index) => {
                     return <Sensor
                         key={obj.node.uuid}
                         obj={obj.node}

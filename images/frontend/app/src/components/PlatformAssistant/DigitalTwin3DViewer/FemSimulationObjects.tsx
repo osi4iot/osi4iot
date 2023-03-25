@@ -358,10 +358,12 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     setFemMaxValues
 }) => {
 
+    const femSimulationObjectsFiltered = femSimulationObjects.filter((obj, index) => femSimulationObjectsState[index].onOff === "on");
+
     return (
         <>
             {
-                femSimulationObjects.map((obj, index) => {
+                femSimulationObjectsFiltered.map((obj, index) => {
                     return <FemSimulationObject
                         key={obj.node.uuid}
                         femSimulationGeneralInfo={femSimulationGeneralInfo}

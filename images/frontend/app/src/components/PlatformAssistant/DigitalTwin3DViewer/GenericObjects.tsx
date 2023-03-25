@@ -72,7 +72,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
         ) {
             let newDelta = delta;
             if (genericObjectState.clipValue !== null) {
-                newDelta = genericObjectState.clipValue;
+                newDelta = delta * genericObjectState.clipValue;
             }
             mixer?.update(newDelta);
         }
@@ -166,11 +166,12 @@ const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjectsState,
     genericObjectsVisibilityState,
 }) => {
+    const genericObjectsFiltered = genericObjects.filter(obj => genericObjectsState[obj.node.name].onOff === "on");
 
     return (
         <>
             {
-                genericObjects.map((obj, index) => {
+                genericObjectsFiltered.map((obj, index) => {
                     return <GenericObject
                         key={obj.node.uuid}
                         obj={obj.node}
