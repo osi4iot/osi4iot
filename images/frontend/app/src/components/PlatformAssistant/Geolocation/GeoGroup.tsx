@@ -1,4 +1,4 @@
-import { FC, useRef, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { GeoJSON, LayerGroup, useMap } from 'react-leaflet';
 import { FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 import { LatLngTuple } from 'leaflet';
@@ -95,6 +95,11 @@ const GeoGroup: FC<GeoGroupProps> = (
         const status = findOutStatus(groupsStateFiltered);
         return setGroupStyle(status, isGroupSelected);
     }
+    
+    useEffect(() => {
+        if (groupSelected && !deviceSelected) map.fitBounds(groupSelected.outerBounds as LatLngTuple[]);
+    }, [groupSelected, deviceSelected, map]);
+
 
     const clickHandler = () => {
         selectGroup(groupData);

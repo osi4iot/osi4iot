@@ -1,4 +1,4 @@
-import { FC, useRef } from "react";
+import { FC, useEffect, useRef } from "react";
 import { GeoJSON, Marker, useMap } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
@@ -73,6 +73,12 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
         }
         return { ...org, orgStatus };
     });
+
+    useEffect(() => {
+        if (buildingSelected) {
+            map.fitBounds(buildingSelected.outerBounds as LatLngTuple[]);
+        }
+    }, [buildingSelected, map]);
 
     const clickHandler = () => {
         map.fitBounds(buildingData.outerBounds as LatLngTuple[]);

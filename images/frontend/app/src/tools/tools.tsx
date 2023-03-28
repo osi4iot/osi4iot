@@ -20,7 +20,7 @@ export const getDomainName = () => {
     let domainName = location.split("/")[2];
     // if (domainName === "localhost:3000") domainName = "localhost";  //Development case
     if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
-    // if (domainName === "localhost:3000") domainName = "osi4iot.com";
+    //if (domainName === "localhost:3000") domainName = "osi4iot.com";
     // if (domainName === "localhost:3000") domainName = "dev.iot-rafa.tk";
     return domainName;
 }
@@ -138,8 +138,7 @@ export interface IMeshNode {
     extras: {
         animationType: string;
         topicType: string;
-        objectOnOffTopicType: string;
-        customTopicType: string;
+        objectOnOff: string;
         type: string;
         fieldName: string;
         timeout: number;
@@ -300,7 +299,7 @@ export const checkGltfFile = (gltfFileData: any): string => {
     return "OK";
 }
 
-export const checkGltfFileOld = (gltfFileData: any): string => {
+export const checkGltfFile_Old = (gltfFileData: any): string => {
     let message = "OK";
     if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
         const meshNodes: IMeshNode[] = [];

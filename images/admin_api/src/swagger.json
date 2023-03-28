@@ -7072,21 +7072,24 @@
 						"dev2pdb_n": {
 							"type": "string"
 						},
-						"dev_sim_2dtm": {
+						"dev2dtm": {
 							"type": "string"
 						},
-						"dtm_as2pdb": {
+						"dtm2dev": {
 							"type": "string"
 						},
-						"dtm_sim_as2dts": {
+						"dev2sim": {
 							"type": "string"
 						},
-						"dtm_fmv2pdb": {
+						"dtm2sim": {
 							"type": "string"
 						},
-						"dtm_sim_fmv2dts": {
+						"sim2dtm": {
 							"type": "string"
-						}
+						},
+						"dtm2pdb": {
+							"type": "string"
+						}						
 					}
 				}
 			}

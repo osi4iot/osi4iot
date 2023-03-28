@@ -231,12 +231,14 @@ class AuthenticationController implements IController {
 				if (
 					!(
 						topicType === "dev2pdb" ||
-						topicType === "dev2pdb_ma" ||
-						topicType === "dtm_as2pdb" ||
-						topicType === "dtm_fmv2pdb" ||
 						topicType === "dev2pdb_wt" ||
-						topicType === "dtm_as2pdb_wt" ||
-						topicType === "dtm_fmv2pdb_wt"
+						topicType === "dev2pdb_ma" ||
+						topicType === "dev2dtm" ||
+						topicType === "dev2sim" ||
+						topicType === "dtm2dev" ||
+						topicType === "dtm2sim" ||
+						topicType === "dtm2pdb" ||
+						topicType === "sim2dtm"
 					)) {
 					res.status(400).json({ Ok: false, Error: "Topic type not allowed for dev2pdb" });
 					return;

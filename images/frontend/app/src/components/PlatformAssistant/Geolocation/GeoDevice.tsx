@@ -39,7 +39,7 @@ const GeoDevice: FC<GeoDeviceProps> = ({
 
     useEffect(() => {
         if (deviceSelected?.id === deviceData.id) map.fitBounds(outerBounds as LatLngTuple[]);
-    }, [deviceSelected, deviceData.id, outerBounds, map]);
+    }, [deviceSelected, deviceData, outerBounds, map]);
 
     return (
         <Circle

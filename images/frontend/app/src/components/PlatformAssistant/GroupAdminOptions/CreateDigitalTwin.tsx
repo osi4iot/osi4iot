@@ -143,26 +143,12 @@ export const getTopicSensorTypesFromDigitalTwin = (type: string, gltfData: any):
                         topicTypes.push(topicType);
                     }
                 }
-                if (node.extras.animationType !== undefined &&
-                    node.extras.animationType === "custom"
-                ) {
-                    const customTopicType = node.extras?.customTopicType;
-                    if (customTopicType && topicTypes.findIndex(topicTypei => topicTypei === customTopicType) === -1) {
-                        topicTypes.push(customTopicType);
-                    }
-                }
                 if (node.extras?.clipTopicType !== undefined) {
                     const topicType = node.extras?.clipTopicType;
                     if (topicType && topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
                         topicTypes.push(topicType);
                     }
                 }
-                if (node.extras.objectOnOffTopicType !== undefined) {
-					const topicType = node.extras.objectOnOffTopicType
-					if (topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
-						topicTypes.push(topicType);
-					}
-				}
             })
         }
 
@@ -204,11 +190,8 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                     extras: {
                         animationType: string;
                         topicType: string;
-                        objectOnOffTopicType: string;
-                        customTopicType: string;
+                        objectOnOff: string;
                         sensorTopicId: number;
-                        objectOnOffTopicId: number;
-                        customTopicId: number;
                         type: string;
                         clipTopicType: string;
                         clipTopicId: number;
@@ -224,24 +207,11 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                             node.extras.sensorTopicId = topicId;
                         }
                     }
-                    if (node.extras.animationType !== undefined &&
-						node.extras.animationType === "custom"
-                    ) {
-                        const customTopicType = node.extras?.customTopicType;
-                        if (customTopicType) {
-                            const topicId = findTopicIdForSensor(customTopicType, topicSensors);
-                            node.extras.customTopicId = topicId;
-                        }
-                    }
                     if (node.extras.clipTopicType !== undefined) {
                         const topicType = node.extras?.clipTopicType;
                         const topicId = findTopicIdForSensor(topicType, topicSensors);
                         node.extras.clipTopicId = topicId;
-                    }
-                    if (node.extras.objectOnOffTopicType !== undefined) {
-						const topicType = node.extras.objectOnOffTopicType;
-						node.extras.objectOnOffTopicId = findTopicIdForSensor(topicType, topicSensors);
-					}                  
+                    }                
                 }
 
             })

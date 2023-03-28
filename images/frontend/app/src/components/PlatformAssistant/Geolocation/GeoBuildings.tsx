@@ -45,11 +45,13 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
     const map = useMap();
 
     useEffect(() => {
-        map.fitBounds(outerBounds as LatLngTuple[]);
-    }, [map, outerBounds])
+        if (!buildingSelected) {
+            map.fitBounds(outerBounds as LatLngTuple[]);
+        }
+    }, [map, outerBounds, buildingSelected])
 
     return (
-        <LayerGroup>
+        <LayerGroup>          
             {
                 buildings.map(building => 
                     <GeoBuildingWithState

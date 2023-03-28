@@ -99,7 +99,7 @@ const findLastMeasurement = (topicId: number, digitalTwinGltfData: IDigitalTwinG
 		const topicType = mqttTopicData.topicType;
 		if (mqttTopic &&
 			mqttTopic.slice(0, 7) !== "Warning" &&
-			(topicType === "dev2pdb" || topicType === "dtm_as2pdb" || topicType === "dtm_fmv2pdb")
+			(topicType === "dev2pdb" || topicType === "dtm2pdb")
 		) {
 			lastMeasurement = mqttTopicData.lastMeasurement;
 		}
@@ -201,7 +201,7 @@ export const generateInitialAssetsState = (
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
 	const initialAssetsState: Record<string, AssetState> = {};
-	const assetStateTopicId = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm_as2pdb")[0].topicId;
+	const assetStateTopicId = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm2sim")[0].topicId;
 	assetObjects.forEach(obj => {
 		const objName = obj.node.name;
 		const assetState: AssetState = {
@@ -368,7 +368,7 @@ export const generateInitialFemSimObjectsState = (
 ) => {
 	const highlight = false;
 	const initialFemSimObjectsState: FemSimulationObjectState[] = [];
-	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm_fmv2pdb")[0].topicId;
+	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm2sim")[0].topicId;
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const payloadObject = lastMeasurement?.payload as any;
 	let resultFields = [];

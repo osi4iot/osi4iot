@@ -77,36 +77,28 @@ const topicTypeOptions = [
         value: "dev2pdb_wt"
     },
     {
-        label: "Device to DT",
+        label: "Device to DTM",
         value: "dev2dtm"
     },
     {
-        label: "Simulated device to DT",
-        value: "dev_sim_2dtm"
+        label: "DTM to device",
+        value: "dtm2dev"
     },
     {
-        label: "DTM assets state to plaform database",
-        value: "dtm_as2pdb"
-    },
-    {
-        label: "DTM assets state to plaform database with timestamp",
-        value: "dtm_as2pdb_wt"
+        label: "Device to simulator",
+        value: "dev2sim"
     },    
     {
-        label: "DTM simulated assets state to DTS",
-        value: "dtm_sim_as2dts"
+        label: "DTM to simulator",
+        value: "dtm2sim"
     },
     {
-        label: "DTM fem modal value to platform database",
-        value: "dtm_fmv2pdb"
+        label: "Simulator to DTM",
+        value: "sim2dtm"
     },
     {
-        label: "DTM fem modal value to platform database with timestamp",
-        value: "dtm_fmv2pdb_wt"
-    },    
-    {
-        label: "DTM simulated fem modal value to DTS",
-        value: "dtm_sim_fmv2dts"
+        label: "DTM to platform database",
+        value: "dtm2pdb"
     },
     {
         label: "Test topic",

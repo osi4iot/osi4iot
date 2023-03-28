@@ -182,7 +182,7 @@ const Model: FC<ModelProps> = (
 	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
 	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
-	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicType === "dev_sim_2dtm")[0] || null;
+	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicType === "sim2dtm")[0] || null;
 	const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
 
 	const updateSensorStateString = useCallback((objName: string, state: string) => {
