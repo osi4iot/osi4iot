@@ -22,9 +22,23 @@ export const sensorDisplay = (
 ) => {
 
     if (typeof sensorValue === "number") {
+        let defaultNumDecimals = 0;
+        if (obj.userData.defaultNumDecimals !== undefined) {
+            defaultNumDecimals = obj.userData.defaultNumDecimals;
+        }
         const digits = (sensorValue + '').split('');
         let decimalPointPos = digits.indexOf(".");
-        if (decimalPointPos === -1) decimalPointPos = digits.length;
+        let numDecimals = digits.length - decimalPointPos - 1;
+        if (decimalPointPos === -1) {
+            decimalPointPos = digits.length;
+            numDecimals = 0;
+            digits.push(".");
+        }
+        if (numDecimals < defaultNumDecimals) {
+            for (let ipos = numDecimals; ipos < defaultNumDecimals; ipos++) {
+                digits.push("0");
+            }
+        }
         let emitColor = defaulEmitColor;
         if (obj.userData.displayColor !== undefined) {
             emitColor = new THREE.Color(parseInt(obj.userData.displayColor, 16));
@@ -56,7 +70,9 @@ export const sensorDisplay = (
                     }
                 }
             } else {
-                (obj.children[imesh] as any).material.emissive = emitColor;
+                if ((obj.children[imesh] as any).material !== undefined) {
+                    (obj.children[imesh] as any).material.emissive = emitColor;
+                }
             }
         }
     }

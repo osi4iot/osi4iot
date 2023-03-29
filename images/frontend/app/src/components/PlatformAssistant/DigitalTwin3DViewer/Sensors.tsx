@@ -75,9 +75,10 @@ const SensorBase: FC<SensorProps> = ({
     useEffect(() => {
         if (
             obj.userData.sensorObjectType === "display" &&
-            sensorState.sensorValue !== null
+            (sensorState.sensorValue !== null || obj.userData.timeoutAction === "defaultValue")
         ) {
-            sensorDisplay(obj, sensorState.sensorValue);
+            if (sensorState.sensorValue !== null) sensorDisplay(obj, sensorState.sensorValue);
+            else sensorDisplay(obj, parseFloat(obj.userData.displayDefaultValue));
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sensorState.sensorValue]);
