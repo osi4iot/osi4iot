@@ -26,6 +26,9 @@ import {
 	FemSimObjectVisibilityState,
 	readFemSimulationInfo,
 	generateInitialFemSimObjectsState,
+	generateInitialSensorsState,
+	generateInitialAssetsState,
+	generateInitialGenericObjectsState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
@@ -477,12 +480,24 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
 	const handleLockReadMeasurementsButtonClick = () => {
 		if (lockReadingButtomLabel === "LOCK READ MEASUREMENTS") {
-			setLockReadingButtomLabel("UNLOCK READ MEASUREMENTS")
+			setLockReadingButtomLabel("UNLOCK READ MEASUREMENTS");
 		} else if (lockReadingButtomLabel === "UNLOCK READ MEASUREMENTS") {
-			handleGetLastMeasurementsButton();
-			setLockReadingButtomLabel("LOCK READ MEASUREMENTS")
+			setLockReadingButtomLabel("LOCK READ MEASUREMENTS");
+			setInitialSensorsState(generateInitialSensorsState(
+				sensorObjects,
+				digitalTwinGltfData,
+			));
+			setInitialAssetsState(generateInitialAssetsState(
+				assetObjects,
+				digitalTwinGltfData,
+			));
+			setInitialGenericObjectsState(generateInitialGenericObjectsState(
+				genericObjects,
+				digitalTwinGltfData,
+			))
 		}
 		setDigitalTwinSimulatorSendData(prevState => !prevState);
+		handleGetLastMeasurementsButton();
 	}
 
 	const handleControlPanelOpenAndClose = () => {

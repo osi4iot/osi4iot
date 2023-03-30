@@ -145,24 +145,29 @@ export const generateInitialSensorsState = (
 				if (obj.node.userData.sensorObjectType !== undefined &&
 					obj.node.userData.sensorObjectType === "display"
 				) {
-					if(obj.node.userData.timeoutAction !== undefined &&
-						obj.node.userData.timeoutAction === "keepLastValue"
-					) {
-						timeoutAction = "keepLastValue";
-					} else {
+					if (obj.node.userData.timeoutAction !== undefined) {
+						timeoutAction = obj.node.userData.timeoutAction;
 						if (elpasedTimeInSeconds < timeout) timeoutAction = "keepLastValue";
 					}
 				} else {
 					if (elpasedTimeInSeconds < timeout) timeoutAction = "keepLastValue";
 				}
 
-				if (payloadKeys.indexOf(fieldName) !== -1 && timeoutAction === "keepLastValue") {
-					const value = payloadObject[fieldName];
-					if (typeof value === 'number' || (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)) {
-						sensorsState.stateString = "on";
-						sensorsState.highlight = false;
-						sensorsState.sensorValue = value;
-					};
+				if (timeoutAction === "keepLastValue") {
+					if (payloadKeys.indexOf(fieldName) !== -1) {
+						const value = payloadObject[fieldName];
+						if (typeof value === 'number' || (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)) {
+							sensorsState.stateString = "on";
+							sensorsState.highlight = false;
+							sensorsState.sensorValue = value;
+						};
+					}
+				} else if (timeoutAction === "defaultValue") {
+					let value = 0.0;
+					if (obj.node.userData.displayDefaultValue !== undefined) {
+						value = parseFloat(obj.node.userData.displayDefaultValue);
+					}
+					sensorsState.sensorValue = value;
 				}
 			}
 		}

@@ -75,10 +75,9 @@ const SensorBase: FC<SensorProps> = ({
     useEffect(() => {
         if (
             obj.userData.sensorObjectType === "display" &&
-            (sensorState.sensorValue !== null || obj.userData.timeoutAction === "defaultValue")
+            (sensorState.sensorValue !== null)
         ) {
-            if (sensorState.sensorValue !== null) sensorDisplay(obj, sensorState.sensorValue);
-            else sensorDisplay(obj, parseFloat(obj.userData.displayDefaultValue));
+            sensorDisplay(obj, sensorState.sensorValue);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [sensorState.sensorValue]);
@@ -226,7 +225,7 @@ const Sensors: FC<SensorsProps> = ({
 }) => {
     const sensorsStateString = Object.values(sensorsState).map(state => state.stateString === "off" ? "1" : "0").join("");
     const sensorObjectsFiltered = sensorObjects.filter(obj => sensorsState[obj.node.name].onOff === "on");
-
+    
     return (
         <>
             {

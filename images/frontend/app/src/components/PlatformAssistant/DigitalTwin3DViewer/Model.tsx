@@ -193,6 +193,18 @@ const Model: FC<ModelProps> = (
 		setFemSimulationObjectsState(initialFemSimObjectsState);
 	}, [initialFemSimObjectsState, femSimulationObjects]);
 
+	useLayoutEffect(() => {
+		setSensorsState(initialSensorsState);
+	}, [initialSensorsState]);
+
+	useLayoutEffect(() => {
+		setAssetsState(initialAssetsState);
+	}, [initialAssetsState]);
+
+	useLayoutEffect(() => {
+		setGenericObjectsState(initialGenericObjectsState);
+	}, [initialGenericObjectsState]);
+
 	useSubscription(
 		mqttTopics,
 		mqttTopicsData,
