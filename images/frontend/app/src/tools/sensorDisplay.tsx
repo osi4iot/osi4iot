@@ -18,13 +18,13 @@ const noEmitColor = new THREE.Color(0, 0, 0);
 
 export const sensorDisplay = (
     obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>,
-    sensorValueIn: number | number[]
+    sensorValue: number | number[]
 ) => {
 
-    if (typeof sensorValueIn === "number") {
+    if (typeof sensorValue === "number") {
         const defaultNumDecimals = calcDefaultNumDecimals(obj);
-        const sensorValue = sensorValueIn.toFixed(defaultNumDecimals);
-        const digits = (sensorValue + '').split('');
+        const sensorValueFixed = sensorValue.toFixed(defaultNumDecimals);
+        const digits = (sensorValueFixed + '').split('');
         let decimalPointPos = digits.indexOf(".");
         let numDecimals = digits.length - decimalPointPos - 1;
         if (decimalPointPos === -1) {
