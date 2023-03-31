@@ -18,14 +18,12 @@ const noEmitColor = new THREE.Color(0, 0, 0);
 
 export const sensorDisplay = (
     obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>,
-    sensorValue: number | number[]
+    sensorValueIn: number | number[]
 ) => {
 
-    if (typeof sensorValue === "number") {
-        let defaultNumDecimals = 0;
-        if (obj.userData.defaultNumDecimals !== undefined) {
-            defaultNumDecimals = obj.userData.defaultNumDecimals;
-        }
+    if (typeof sensorValueIn === "number") {
+        const defaultNumDecimals = calcDefaultNumDecimals(obj);
+        const sensorValue = sensorValueIn.toFixed(defaultNumDecimals);
         const digits = (sensorValue + '').split('');
         let decimalPointPos = digits.indexOf(".");
         let numDecimals = digits.length - decimalPointPos - 1;
@@ -76,4 +74,15 @@ export const sensorDisplay = (
             }
         }
     }
+}
+
+const calcDefaultNumDecimals = (obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>) => {
+    let minDigitPosition = 0;
+    for (let imesh = 0; imesh < obj.children.length; imesh++) {
+        if (obj.children[imesh].userData.displayType === "digit") {
+            const digitPosition = obj.children[imesh].userData.digitPosition;
+            if (digitPosition < minDigitPosition) minDigitPosition = digitPosition;
+        }
+    }
+    return Math.abs(minDigitPosition);
 }
