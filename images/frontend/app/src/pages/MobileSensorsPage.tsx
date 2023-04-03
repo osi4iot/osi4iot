@@ -13,6 +13,7 @@ import { IMobileTopic } from '../components/PlatformAssistant/TableColumns/topic
 import { useLoggedUserLogin } from '../contexts/authContext/authContext';
 import { getAxiosInstance } from '../tools/axiosIntance';
 import axiosErrorHandler from '../tools/axiosErrorHandler';
+import MobileOrientationForm from '../components/Tools/MobileOrientationForm';
 
 export interface InitialMobileSensorData {
     orgAcronym: string;
@@ -46,12 +47,14 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 				const mobileTopics: IMobileTopic[] = response.data;
 				setMobileTopicsManaged(mobileTopics);
 				setMobileTopicSelected(mobileTopics[0]);
-				let mobileSensor = "none";
-				if (mobileTopics[0].payloadFormat["mobile_accelerations"] !== undefined) {
-					mobileSensor = "accelerations";
-				} else if (mobileTopics[0].payloadFormat["mobile_photo"] !== undefined) {
+				let mobileSensor = "none";;
+				if (mobileTopics[0].payloadFormat["mobile_photo"] !== undefined) {
 					mobileSensor = "photo";
-				}
+				} else if (mobileTopics[0].payloadFormat["mobile_accelerations"] !== undefined) {
+					mobileSensor = "accelerations";
+				} else if (mobileTopics[0].payloadFormat["mobile_quaternion"] !== undefined) {
+					mobileSensor = "mobile_orientation";
+				}			
 				const initialMobileSensorData = {
 					orgAcronym: mobileTopics[0].orgAcronym,
 					groupAcronym: mobileTopics[0].groupAcronym,
@@ -100,6 +103,15 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 							mobileTopicSelected={mobileTopicSelected as IMobileTopic}
 						/>
 					}
+					{
+						mobileSensorSelected === "mobile_orientation" &&
+						<MobileOrientationForm
+							mqttClient={mqttClient as Paho.Client}
+							isMqttConnected={isMqttConnected}
+							setMobileSensorSelected={setMobileSensorSelected}
+							mobileTopicSelected={mobileTopicSelected as IMobileTopic}
+						/>
+					}					
 					{
 						mobileSensorSelected === "photo" &&
 						<MobilePhotoForm

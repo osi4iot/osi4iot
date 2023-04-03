@@ -143,8 +143,9 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									WHERE grafanadb.topic.payload_format::jsonb ? 'mobile_accelerations'
-									OR grafanadb.topic.payload_format::jsonb ? 'mobile_photo'
+									WHERE grafanadb.topic.payload_format::jsonb ? 'mobile_accelerations' OR
+									grafanadb.topic.payload_format::jsonb ? 'mobile_quaternion' OR
+									grafanadb.topic.payload_format::jsonb ? 'mobile_photo'
 									ORDER BY grafanadb.org.acronym ASC,
 									        grafanadb.group.acronym ASC,
 											grafanadb.device.name ASC,
@@ -212,7 +213,9 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
 									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
 									WHERE (grafanadb.device.group_id = ANY($1::bigint[])) AND
-									(grafanadb.topic.payload_format::jsonb ? 'mobile_accelerations' OR grafanadb.topic.payload_format::jsonb ? 'mobile_photo')
+									(grafanadb.topic.payload_format::jsonb ? 'mobile_accelerations' OR
+									grafanadb.topic.payload_format::jsonb ? 'mobile_quaternion' OR
+									grafanadb.topic.payload_format::jsonb ? 'mobile_photo')
 									ORDER BY grafanadb.device.org_id ASC,
 											grafanadb.device.group_id ASC,
 											grafanadb.topic.id  ASC`, [groupsIdArray]);

@@ -623,6 +623,13 @@ export const dataBaseInitialization = async () => {
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
+							topicType: "dev2pdb_wt",
+							topicName: demoTopicName(group, device, "Mobile_Orientation"),
+							description: `Mobile orientation for ${defaultGroupDeviceName(group)} device`,
+							payloadFormat: '{"mobile_quaternion":{"type":"array","items":{"q0":{"type":"number","units":"None"},"q1":{"type":"number","units":"None"},"q2":{"type":"number","units":"None"},"q3":{"type":"number","units":"None"}}}}',
+							mqttAccessControl: "Pub & Sub"
+						},
+						{
 							topicType: "dev2dtm",
 							topicName: demoTopicName(group, device, "Photo"),
 							description: `Mobile photo for default for ${defaultGroupDeviceName(group)} device`,
@@ -633,6 +640,7 @@ export const dataBaseInitialization = async () => {
 					topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
 					topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
 					await createTopic(device.id, defaultDeviceTopicsData[2]);
+					await createTopic(device.id, defaultDeviceTopicsData[3]);
 
 					logger.log("info", `Default device topics has been created sucessfully`);
 				} catch (err) {

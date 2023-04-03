@@ -390,6 +390,13 @@ class OrganizationController implements IController {
 						mqttAccessControl: "Pub & Sub"
 					},
 					{
+						topicType: "dev2pdb_wt",
+						topicName: demoTopicName(group, device, "Mobile_Orientation"),
+						description: `Mobile orientation for default device of group ${group.acronym}`,
+						payloadFormat: '{"mobile_quaternion":{"type":"array","items":{"q0":{"type":"number","units":"None"},"q1":{"type":"number","units":"None"},"q2":{"type":"number","units":"None"},"q3":{"type":"number","units":"None"}}}}',
+						mqttAccessControl: "Pub & Sub"
+					},
+					{
 						topicType: "dev2dtm",
 						topicName: demoTopicName(group, device, "Photo"),
 						description: `Mobile photo for default device of group ${group.acronym}`,
@@ -400,6 +407,7 @@ class OrganizationController implements IController {
 				const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
 				const topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
 				await createTopic(device.id, defaultDeviceTopicsData[2]);
+				await createTopic(device.id, defaultDeviceTopicsData[3]);
 
 				const dashboardsId: number[] = [];
 

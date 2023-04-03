@@ -109,6 +109,10 @@ const mobileSensorOptions = [
         value: "accelerations"
     },
     {
+        label: "Mobile orientation",
+        value: "mobile_orientation"
+    },    
+    {
         label: "Photo",
         value: "photo"
     }
@@ -162,10 +166,17 @@ const findDeviceArray = (mobileTopicsManaged: IMobileTopic[]): Record<string, st
     return deviceArray;
 }
 
-const findTopicArray = (mobileSensor: string, mobileTopicsManaged: IMobileTopic[]): Record<string, string[]> => {
+const findTopicArrayForMobileSensors = (mobileSensors: string[], mobileTopicsManaged: IMobileTopic[]): Record<string, string[]> => {
     const topicArray: Record<string, string[]> = {}
     for (const mobileTopic of mobileTopicsManaged) {
-        if (mobileTopic.payloadFormat[mobileSensor] !== undefined) {
+        let areThereAllMobileSensorsFields = true;
+        for (const sensorField of mobileSensors) {
+            if (mobileTopic.payloadFormat[sensorField] === undefined) {
+                areThereAllMobileSensorsFields = false;
+                break;
+            }
+        }
+        if (areThereAllMobileSensorsFields) {
             if (topicArray[mobileTopic.deviceName] === undefined) {
                 topicArray[mobileTopic.deviceName] = [];
             }
@@ -188,10 +199,12 @@ const findMobileTopicSelected = (
 ): IMobileTopic => {
     const mobileTopicSelected = mobileTopicsManaged.filter(mobileTopic => {
         let mobileSensorType = "none";
-        if (mobileTopic.payloadFormat["mobile_accelerations"] !== undefined) {
-            mobileSensorType = "accelerations"
-        } else if (mobileTopic.payloadFormat["mobile_photo"] !== undefined) {
-            mobileSensorType = "photo"
+        if (mobileTopic.payloadFormat["mobile_photo"] !== undefined) {
+            mobileSensorType = "photo";
+        } else if (mobileTopic.payloadFormat["mobile_accelerations"] !== undefined) {
+            mobileSensorType = "accelerations";
+        } else if (mobileTopic.payloadFormat["mobile_quaternion"] !== undefined) {
+            mobileSensorType = "mobile_orientation";
         }
 
         if (mobileTopic.orgAcronym === orgAcronym &&
@@ -221,6 +234,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
     const [deviceOptions, setDeviceOptions] = useState<IOption[]>([]);
     const [deviceArray, setDeviceArray] = useState<Record<string, string[]>>({});
     const [topicAccelerationArray, setTopicAccelerationArray] = useState<Record<string, string[]>>({});
+    const [topicMobileOrientationArray, setTopicMobileOrientationArray] = useState<Record<string, string[]>>({});
     const [topicPhotoArray, setTopicPhotoArray] = useState<Record<string, string[]>>({});
     const [topicOptions, seTopicOptions] = useState<IOption[]>([]);
 
@@ -239,14 +253,20 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             const devicesForGroupSelected = deviceArray[groupAcronym];
             setDeviceOptions(convertArrayToOptions(devicesForGroupSelected));
             const deviceName = initialMobileSensorData.deviceName;
-            const topicAccelerationArray = findTopicArray("mobile_accelerations", mobileTopicsManaged);
+            const topicAccelerationArray = findTopicArrayForMobileSensors(["mobile_accelerations"], mobileTopicsManaged);
             setTopicAccelerationArray(topicAccelerationArray);
-            const topicPhotoArray = findTopicArray("mobile_photo", mobileTopicsManaged);
+            const topicMobileOrientationArray = findTopicArrayForMobileSensors(["mobile_quaternion"], mobileTopicsManaged);
+            setTopicMobileOrientationArray(topicMobileOrientationArray);
+            const topicPhotoArray = findTopicArrayForMobileSensors(["mobile_photo"], mobileTopicsManaged);
             setTopicPhotoArray(topicPhotoArray);
             if (initialMobileSensorData.mobileSensor === "accelerations") {
                 const topicsAccelerationForDeviceSelected = topicAccelerationArray[deviceName];
                 const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
                 seTopicOptions(topicAccelerationOptions);
+            } else if (initialMobileSensorData.mobileSensor === "mobile_orientation") {
+                const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[deviceName];
+                const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
+                seTopicOptions(topicMobileOrientationOptions);
             } else if (initialMobileSensorData.mobileSensor === "photo") {
                 const topicsPhotoForDeviceSelected = topicPhotoArray[deviceName];
                 const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
@@ -280,6 +300,12 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
             seTopicOptions(topicAccelerationOptions);
             topicName = topicsAccelerationForDeviceSelected[0]
+            formik.setFieldValue("topicName", topicName);
+        } else if (mobileSensor === "mobile_orientation") {
+            const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[devicesForGroupSelected[0]];
+            const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
+            seTopicOptions(topicMobileOrientationOptions);
+            topicName = topicsMobileOrientationForDeviceSelected[0];
             formik.setFieldValue("topicName", topicName);
         } else if (mobileSensor === "photo") {
             const topicsPhotoForDeviceSelected = topicPhotoArray[devicesForGroupSelected[0]];
@@ -315,6 +341,12 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             seTopicOptions(topicAccelerationOptions);
             topicName = topicsAccelerationForDeviceSelected[0];
             formik.setFieldValue("topicName", topicName);
+        } else if (mobileSensor === "mobile_orientation") {
+            const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[devicesForGroupSelected[0]];
+            const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
+            seTopicOptions(topicMobileOrientationOptions);
+            topicName = topicsMobileOrientationForDeviceSelected[0];
+            formik.setFieldValue("topicName", topicName);
         } else if (mobileSensor === "photo") {
             const topicsPhotoForDeviceSelected = topicPhotoArray[devicesForGroupSelected[0]];
             const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
@@ -346,6 +378,12 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             seTopicOptions(topicAccelerationOptions);
             topicName = topicsAccelerationForDeviceSelected[0];
             formik.setFieldValue("topicName", topicName);
+        } else if (mobileSensor === "mobile_orientation") {
+            const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[deviceName];
+            const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
+            seTopicOptions(topicMobileOrientationOptions);
+            topicName = topicsMobileOrientationForDeviceSelected[0];
+            formik.setFieldValue("topicName", topicName);
         } else if (mobileSensor === "photo") {
             const topicsPhotoForDeviceSelected = topicPhotoArray[deviceName];
             const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
@@ -376,14 +414,19 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
             seTopicOptions(topicAccelerationOptions);
             topicName = topicAccelerationArray[deviceName][0];
-            formik.setFieldValue("topicName", topicName);
+        } else if (mobileSensor === "mobile_orientation") {
+            const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[deviceName];
+            const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
+            seTopicOptions(topicMobileOrientationOptions);
+            topicName = topicMobileOrientationArray[deviceName][0];
         } else if (mobileSensor === "photo") {
             const topicsPhotoForDeviceSelected = topicPhotoArray[deviceName];
             const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
             seTopicOptions(topicPhotoOptions);
             topicName = topicPhotoArray[deviceName][0];
-            formik.setFieldValue("topicName", topicName);
         }
+        formik.setFieldValue("topicName", topicName);
+
         const mobileTopicSelected = findMobileTopicSelected(
             mobileTopicsManaged,
             orgAcronym,

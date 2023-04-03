@@ -22,7 +22,7 @@ export interface IDevice {
 	updated: string;
 }
 
-export interface AccelerometerOptions {
+export interface SensorOptions {
 	frequency: number;
 	referenceFrame: string;
 }
@@ -32,7 +32,35 @@ declare global {
 		x: number;
 		y: number;
 		z: number;
-		constructor(options: AccelerometerOptions);
+		constructor(options: SensorOptions);
+		start(): void;
+		onreading: () => void;
+		stop(): void;
+	}
+
+	class LinearAccelerationSensor {
+		x: number;
+		y: number;
+		z: number;
+		constructor(options: SensorOptions);
+		start(): void;
+		onreading: () => void;
+		stop(): void;
+	}
+
+	class AbsoluteOrientationSensor {
+		quaternion: number[];
+		constructor(options: SensorOptions);
+		start(): void;
+		onreading: () => void;
+		stop(): void;
+	}
+
+	class GravitySensor {
+		x: number;
+		y: number;
+		z: number;
+		constructor(options: SensorOptions);
 		start(): void;
 		onreading: () => void;
 		stop(): void;
