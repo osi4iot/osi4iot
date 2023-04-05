@@ -109,7 +109,6 @@ const TableStyles = styled.div<TableStylesProps>`
             max-width: ${(props) => props.columnsMaxWidth[7]};
             word-wrap: break-word;
         }         
-
   }
 `
 

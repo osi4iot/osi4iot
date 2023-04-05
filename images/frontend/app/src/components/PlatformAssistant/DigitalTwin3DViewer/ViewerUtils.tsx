@@ -1,4 +1,4 @@
-import * as THREE from 'three'
+import * as THREE from 'three';
 import { Camera } from '@react-three/fiber';
 import {
 	ISensorObject,
@@ -884,7 +884,7 @@ export const onMouseDown = (event: MouseEvent) => {
 
 export const onMouseClick = (event: any) => {
 	processMouseEvent("mesh_mouse_down", event);
-	if (mouse.type !== "" && mouse.objName !== "" && mouse.objSelectable) {
+	if (mouse.type === "sensor" && mouse.objName !== "" && mouse.objSelectable) {
 		if (dashboardUrl.slice(0, 7) === "Warning") {
 			toast.warning(dashboardUrl);
 		} else window.open(dashboardUrl, '_blank');

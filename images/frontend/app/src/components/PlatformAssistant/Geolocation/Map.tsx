@@ -20,6 +20,7 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoGroups from './GeoGroups';
 import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
+import { useWindowWidth } from '@react-hook/window-size';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -178,13 +179,17 @@ const ZoomControls: FC<ZoomFrameControlProps> = ({ initialOuterBounds, resetBuil
     )
 }
 
+interface ComponentsControlContainerProps {
+    isMobile: boolean;
+}
 
-const ComponentsControlContainer = styled.div`
+
+const ComponentsControlContainer = styled.div<ComponentsControlContainerProps>`
     position: absolute;
     z-index: 1000;
     right: 0;
     top: 0;
-    width: 350px;
+    width: ${(props) => props.isMobile ? "260px" : "350px"};
     margin: 15px;
     padding: 10px;
     border: 2px solid #3274d9;
@@ -437,6 +442,8 @@ const Map: FC<MapProps> = (
         openDigitalTwin3DViewer,
         setGlftDataLoading
     }) => {
+    const windowWidth = useWindowWidth();
+    const isMobile = windowWidth < 768;
 
     const refreshAll = useCallback(() => {
         refreshBuildings();
@@ -503,7 +510,7 @@ const Map: FC<MapProps> = (
                     refreshAll={refreshAll}
                     resetBuildingSelection={resetBuildingSelection}
                 />
-                <ComponentsControlContainer>
+                <ComponentsControlContainer isMobile={isMobile}>
                     <OrgsControl
                         orgSelected={orgSelected}
                         selectOrgOption={selectOrgOption}

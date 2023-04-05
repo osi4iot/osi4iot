@@ -29,7 +29,7 @@ const SimulationLegendDiv = styled.div`
 
 const SimulationLegend: FC<SimulationLegendProps> = ({
     resultRenderInfo,
-    canvasContainerRef
+    canvasContainerRef,
 }) => {
     const mountRef = useRef(null);
 
@@ -38,7 +38,9 @@ const SimulationLegend: FC<SimulationLegendProps> = ({
         const legendRenderer = resultRenderInfo.legendRenderer;
         const legendCamera = resultRenderInfo.legendCamera;
         const legendScene = resultRenderInfo.legendScene;
-        if (currentRef) currentRef.appendChild(legendRenderer.domElement);
+        if (currentRef) {
+            currentRef.appendChild(legendRenderer.domElement);
+        }
 
         const animate = function () {
             requestAnimationFrame(animate);

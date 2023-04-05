@@ -1,7 +1,7 @@
 import { FC, useEffect, useRef, useState } from 'react'
 import styled from "styled-components";
 import { nanoid } from "nanoid";
-import { FaShareSquare, FaFolderOpen, FaFolderMinus } from "react-icons/fa";
+import { FaShareSquare, FaFolderOpen, FaFolderMinus, FaChartLine } from "react-icons/fa";
 import { RiWifiLine, RiWifiOffLine } from "react-icons/ri";
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three'
@@ -304,15 +304,27 @@ const MqttConnectionDiv = styled.div`
 
 
 const ExitIcon = styled(FaShareSquare)`
-  background-color: #141619;
+  	background-color: #141619;
 	font-size: 30px;
 	color: #3274d9;
-  margin: 10px;
+  	margin: 10px;
 
   &:hover {
     color: white;
     cursor: pointer;
   }
+`;
+
+const DashboardIcon = styled(FaChartLine)`
+  	background-color: #141619;
+	font-size: 30px;
+	color: #3274d9;
+  	margin: 10px;
+
+	&:hover {
+		color: white;
+		cursor: pointer;
+	}
 `;
 
 const OpenFolderIcon = styled(FaFolderOpen)`
@@ -505,6 +517,15 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		else {
 			handleGetLastMeasurementsButton();
 			setIsControlPanelOpen(true);
+		}
+	}
+
+	const handleOpenGrafanaDashboard = () => {
+		if (digitalTwinSelected) {
+			const dashboardUrl = digitalTwinSelected.dashboardUrl;
+			if (dashboardUrl.slice(0, 7) === "Warning") {
+				toast.warning(dashboardUrl);
+			} else window.open(dashboardUrl, '_blank');
 		}
 	}
 
@@ -907,6 +928,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							MQTT
 							{isMqttConnected ? <WifiIcon /> : <NoWifiIcon />}
 						</MqttConnectionDiv>
+						<DashboardIcon onClick={(e) => handleOpenGrafanaDashboard()} />
 						<ExitIcon onClick={(e) => close3DViewer()} />
 					</HeaderOptionsContainer>
 				</HeaderContainer>

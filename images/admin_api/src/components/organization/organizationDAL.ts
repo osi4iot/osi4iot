@@ -164,7 +164,7 @@ export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser
 }
 
 export const getOrganizationsManagedByUserId = async (userId: number): Promise<IOrganization[]> => {
-	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, role, address1 as address, city,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, grafanadb.org.role, address1 as address, city,
 	                grafanadb.org.zip_code as "zipCode", state, country, building_id AS "buildingId",
 					org_hash AS "orgHash",  mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
@@ -177,7 +177,7 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 
 
 export const organizationsWhichTheLoggedUserIsUser = async (userId: number): Promise<IOrganizationWichTheLoggedUserIsUser[]> => {
-	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, role, address1 as address, city,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym, grafanadb.org.role, address1 as address, city,
 					grafanadb.org.zip_code as "zipCode", state, country,
 					grafanadb.org.building_id AS "buildingId",
 					grafanadb.org_user.role AS "roleInOrg"
