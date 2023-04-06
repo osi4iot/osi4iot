@@ -169,6 +169,14 @@ export const generateInitialSensorsState = (
 					}
 					sensorsState.sensorValue = value;
 				}
+			} else {
+				if (obj.node.userData.timeoutAction === "defaultValue") {
+					let value = 0.0;
+					if (obj.node.userData.displayDefaultValue !== undefined) {
+						value = parseFloat(obj.node.userData.displayDefaultValue);
+					}
+					sensorsState.sensorValue = value;
+				}
 			}
 		}
 

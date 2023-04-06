@@ -116,6 +116,7 @@ const updateObjectsState = (
 ) => {
     const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
     const sim2dtmTopicId = mqttTopicsData.filter(topic => topic.topicType === "sim2dtm")[0].topicId;
+    const dev2simTopicId = mqttTopicsData.filter(topic => topic.topicType === "dev2sim")[0].topicId;
     const mqttTopicIndex = mqttTopics.findIndex(topic => topic === recievedMessage.topic);
     const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
     const messageTopicType = mqttTopicsData[mqttTopicIndex].topicType;
@@ -139,7 +140,11 @@ const updateObjectsState = (
                 sensorObjects.forEach((obj) => {
                     const objName = obj.node.name;
                     const sensorTopicId = obj.node.userData.sensorTopicId;
-                    if (sensorTopicId === messageTopicId || sim2dtmTopicId === messageTopicId) {
+                    if (
+                        sensorTopicId === messageTopicId ||
+                        sim2dtmTopicId === messageTopicId ||
+                        dev2simTopicId === messageTopicId
+                    ) {
                         const fieldName = obj.node.userData.fieldName;
                         if (messagePayloadKeys.indexOf(fieldName) !== -1) {
                             const value = mqttMessage[fieldName];
