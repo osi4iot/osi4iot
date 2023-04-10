@@ -1,4 +1,3 @@
-import { boolean } from "yup/lib/locale";
 import { IBuilding } from "../../components/PlatformAssistant/TableColumns/buildingsColumns";
 import { IDashboard } from "../../components/PlatformAssistant/TableColumns/dashboardsColumns";
 import { IDevice } from "../../components/PlatformAssistant/TableColumns/devicesColumns";
@@ -19,6 +18,7 @@ import { IRefreshToken } from "../../components/PlatformAssistant/TableColumns/r
 import { ISelectOrgUser } from "../../components/PlatformAssistant/TableColumns/selectOrgUsersColumns";
 import { ITopic } from "../../components/PlatformAssistant/TableColumns/topicsColumns";
 import { IUserProfile } from "../../components/PlatformAssistant/UserOptions/UserProfile";
+import { IMlModel } from "../../components/PlatformAssistant/TableColumns/mlModelsColumns";
 
 export interface PlatformAssistantDispatch {
 	(arg0: { type: string; payload?: any; error?: any }): void;
@@ -62,6 +62,8 @@ export interface PlatformAssistantContextProps {
 	reloadDashboardsTable: boolean;
 	digitalTwins: IDigitalTwin[];
 	reloadDigitalTwinsTable: boolean;
+	mlModels: IMlModel[];
+	reloadMlModelsTable: boolean;
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
 	reloadOrgsMembershipTable: boolean;
@@ -107,6 +109,8 @@ export interface PlatformAssistantActionPayload {
 	reloadDashboardsTable: boolean;
 	digitalTwins: IDigitalTwin[];
 	reloadDigitalTwinsTable: boolean;
+	mlModels: IMlModel[];
+	reloadMlModelsTable: boolean;
 	userProfile: IUserProfile;
 	orgsMembership: IMembershipInOrgs[];
 	reloadOrgsMembershipTable: boolean;
@@ -278,6 +282,14 @@ export interface IDigitalTwinsTable {
 
 export interface IReloadDigitalTwinsTable {
 	reloadDigitalTwinsTable: boolean;
+}
+
+export interface IMlModelsTable {
+	mlModels: IMlModel[];
+}
+
+export interface IReloadMlModelsTable {
+	reloadMlModelsTable: boolean;
 }
 
 

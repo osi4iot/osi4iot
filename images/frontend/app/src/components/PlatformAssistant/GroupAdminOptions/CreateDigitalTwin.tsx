@@ -403,7 +403,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
         deviceId: Yup.number().required('Required'),
-        digitalTwinUid: Yup.string().max(23, "The maximum number of characters allowed is 23").required('Required'),
+        digitalTwinUid: Yup.string().matches(/^DT.{21}$/, "String must be 23 characters long and start with 'DT'").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
         gltfFileName: Yup.string().when("type", {

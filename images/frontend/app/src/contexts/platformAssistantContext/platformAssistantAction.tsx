@@ -38,7 +38,9 @@ import {
 	IReloadBuildingsTable,
 	IReloadFloorsTable,
 	INodeRedInstancesTable,
-	IReloadNodeRedInstancesTable
+	IReloadNodeRedInstancesTable,
+	IMlModelsTable,
+	IReloadMlModelsTable
 
 } from "./interfaces";
 
@@ -184,6 +186,14 @@ export function setDigitalTwinsTable(plaformAssistantDispatch: PlatformAssistant
 
 export function setReloadDigitalTwinsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadDigitalTwinsTable) {
 	plaformAssistantDispatch({ type: 'RELOAD_DIGITAL_TWIN_TABLE', payload: data });
+}
+
+export function setMlModelsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IMlModelsTable) {
+	plaformAssistantDispatch({ type: 'ML_MODEL_TABLE', payload: data });
+}
+
+export function setReloadMlModelsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadMlModelsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_ML_MODEL_TABLE', payload: data });
 }
 
 export function setUserProfileTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IUserProfileTable) {

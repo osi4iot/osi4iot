@@ -50,6 +50,8 @@ export const initialState = {
     reloadDashboardsTable: true,
     digitalTwins: [],
     reloadDigitalTwinsTable: true,
+    mlModels: [],
+    reloadMlModelsTable: true,
     userProfile: initialUserProfile,
     orgsMembership: [],
     reloadOrgsMembershipTable: true,
@@ -266,6 +268,18 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadDigitalTwinsTable: action.payload.reloadDigitalTwinsTable
             };
 
+        case "ML_MODEL_TABLE":
+            return {
+                ...initialState,
+                mlModels: action.payload.mlModels
+            };
+
+        case "RELOAD_ML_MODEL_TABLE":
+            return {
+                ...initialState,
+                reloadMlModelsTable: action.payload.reloadMlModelsTable
+            };
+        
         case "USER_PROFILE_TABLE":
             return {
                 ...initialState,
@@ -335,6 +349,8 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadDashboardsTable: true,
                 digitalTwins: [],
                 reloadDigitalTwinsTable: true,
+                mlModels: [],
+                reloadMlModelsTable: true,
                 userProfile: initialUserProfile,
                 orgsMembership: [],
                 reloadOrgsMembershipTable: true,

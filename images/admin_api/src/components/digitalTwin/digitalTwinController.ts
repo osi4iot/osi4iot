@@ -50,9 +50,9 @@ import IRequestWithUserAndDeviceAndGroup from "../group/interfaces/requestWithUs
 import s3Client from "../../config/s3Config";
 import process_env from "../../config/api_config";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import digitalTwinDeviceGroupAndExist from "../../middleware/digitalTwinDeviceGroupAndExist.middleware";
 import IRequestWithDigitalTwinDeviceAndGroup from "../group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
 import UpdateDigitalTwinDto from "./digitalTwinUpdate.dto";
+import digitalTwinDeviceAndGroupExist from "../../middleware/digitalTwinDeviceAndGroupExist.middleware";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -149,26 +149,26 @@ class DigitalTwinController implements IController {
 			)
 			.post(
 				`${this.path}_upload_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
-				digitalTwinDeviceGroupAndExist,
+				digitalTwinDeviceAndGroupExist,
 				groupAdminAuth,
 				uploadDigitalTwinFile.single('file'),
 				this.uploadDigitalTwinFile
 			)
 			.get(
 				`${this.path}_download_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
-				digitalTwinDeviceGroupAndExist,
+				digitalTwinDeviceAndGroupExist,
 				groupAdminAuth,
 				this.downloadDigitalTwinFile
 			)
 			.get(
 				`${this.path}_file_list/:groupId/:deviceId/:digitalTwinId/:folder`,
-				digitalTwinDeviceGroupAndExist,
+				digitalTwinDeviceAndGroupExist,
 				groupAdminAuth,
 				this.getDigitalTwinFileInfoList
 			)
 			.delete(
 				`${this.path}_delete_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
-				digitalTwinDeviceGroupAndExist,
+				digitalTwinDeviceAndGroupExist,
 				groupAdminAuth,
 				this.deleteDigitalTwinFile
 			)

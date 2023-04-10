@@ -24,4 +24,15 @@ CREATE INDEX IF NOT EXISTS IDX_thingdata_timestamp_topic ON iot_data.thingData(t
 SELECT create_hypertable('iot_data.thingData', 'timestamp', chunk_time_interval => 86400000000, if_not_exists => TRUE);
 SELECT add_retention_policy('iot_data.thingData', INTERVAL '${DATA_RETENTION_INTERVAL}');
 
+CREATE TABLE IF NOT EXISTS iot_data.assetsState(
+  group_uid varchar(42) NOT NULL,
+  device_uid varchar(42) NOT NULL,
+  asset_uid varchar(42) NOT NULL,
+  state_json json NOT NULL,
+  last_updated TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS IDX_assets_state_group_asset ON iot_data.assetsState(group_uid, asset_uid);
+
+
 

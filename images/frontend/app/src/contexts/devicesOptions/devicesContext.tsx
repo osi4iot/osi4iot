@@ -27,7 +27,6 @@ export const DevicesProvider: FC<ChildrenProp> = ({ children }) => {
 	);
 };
 
-
 export const useDevicesOptionToShow = (): string => {
 	const context = useContext(DevicesStateContext);
 	if (context === undefined) {

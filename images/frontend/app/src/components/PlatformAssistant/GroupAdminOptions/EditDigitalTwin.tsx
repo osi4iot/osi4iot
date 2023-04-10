@@ -288,7 +288,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 try {
                     const response = await getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadFemResFile, femResData, configMultipart)
-                    if (response) {
+                    if (response.data) {
                         toast.success(response.data.message);
                     }
                 } catch (error: any) {
@@ -309,7 +309,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 try {
                     const response = await getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadGltfFile, gltfData, configMultipart);
-                    if (response) {
+                    if (response.data) {
                         toast.success(response.data.message);
                     }
                 } catch (error: any) {
@@ -319,7 +319,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             }
 
         }
-
 
         const digitalTwinData = {
             digitalTwinUid: values.digitalTwinUid,
@@ -344,6 +343,9 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+                if (response.data) {
+                    toast.success(response.data.message);
+                }
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
@@ -364,7 +366,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     }
 
     const validationSchema = Yup.object().shape({
-        digitalTwinUid: Yup.string().max(25, "The maximum number of characters allowed is 25").required('Required'),
+        digitalTwinUid: Yup.string().matches(/^DT.{21}$/, "String must be 23 characters long and start with 'DT'").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
         gltfFileName: Yup.string().when("type", {

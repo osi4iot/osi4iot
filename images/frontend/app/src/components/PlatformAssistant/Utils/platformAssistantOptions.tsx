@@ -102,7 +102,8 @@ export const GROUP_ADMIN_OPTIONS = {
     TOPICS: "Topics",
     DASHBOARDS: "Dashboards",
     MEASUREMENTS: "Measurements",
-    DIGITAL_TWINS: "Digital twins"
+    DIGITAL_TWINS: "Digital twins",
+    ML_MODELS: "ML models"
 }
 
 export const GROUPS_MANAGED_OPTIONS = {
@@ -142,6 +143,12 @@ export const DIGITAL_TWINS_OPTIONS = {
     TABLE: "Table",
     CREATE_DIGITAL_TWIN: "Create digital twin",
     EDIT_DIGITAL_TWIN: "Edit digital twin",
+}
+
+export const ML_MODELS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_ML_MODEL: "Create ml model",
+    EDIT_ML_MODEL: "Edit ml model"
 }
 
 export const GROUP_MEMBERS_OPTIONS = {

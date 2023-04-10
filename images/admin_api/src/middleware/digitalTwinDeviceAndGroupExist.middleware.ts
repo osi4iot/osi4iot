@@ -8,7 +8,7 @@ import DigitalTwinNotFoundException from "../exceptions/DigitalTwinNotFoundExcep
 import IRequestWithDigitalTwinDeviceAndGroup from "../components/group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
 
 
-const digitalTwinDeviceGroupAndExist = async (
+const digitalTwinDeviceAndGroupExist = async (
 	request: IRequestWithDigitalTwinDeviceAndGroup,
 	response: Response,
 	next: NextFunction
@@ -28,4 +28,4 @@ const digitalTwinDeviceGroupAndExist = async (
 	}
 }
 
-export default digitalTwinDeviceGroupAndExist;
+export default digitalTwinDeviceAndGroupExist;

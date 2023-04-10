@@ -22,6 +22,7 @@ import { IUserProfile } from '../../components/PlatformAssistant/UserOptions/Use
 import { ChildrenProp } from '../../interfaces/interfaces'
 import { PlatformAssistantContextProps } from './interfaces'
 import { initialState, PlatformAssitantReducer } from './platformAssistantReducer';
+import { IMlModel } from '../../components/PlatformAssistant/TableColumns/mlModelsColumns';
 
 
 const PlatformAssitantStateContext = createContext<PlatformAssistantContextProps>(initialState);
@@ -312,7 +313,7 @@ export const useReloadDashboardsTable = (): boolean => {
 export const useDigitalTwinsTable = (): IDigitalTwin[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {
-		throw new Error('useTopicsTable must be used within a PlatformAssitantProvider');
+		throw new Error('uuseDigitalTwinsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.digitalTwins;
 }
@@ -323,6 +324,22 @@ export const useReloadDigitalTwinsTable = (): boolean => {
 		throw new Error('useReloadDigitalTwinsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.reloadDigitalTwinsTable;
+}
+
+export const useMlModelsTable = (): IMlModel[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useMlModelsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.mlModels;
+}
+
+export const useReloadMlModelsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadMlModelsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadMlModelsTable;
 }
 
 export const useUserProfileTable = (): IUserProfile => {

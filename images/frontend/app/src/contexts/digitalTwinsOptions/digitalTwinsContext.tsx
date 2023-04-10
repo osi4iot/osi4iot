@@ -29,7 +29,6 @@ export const DigitalTwinsProvider: FC<ChildrenProp> = ({ children }) => {
 	);
 };
 
-
 export const useDigitalTwinsOptionToShow = (): string => {
 	const context = useContext(DigitalTwinsStateContext);
 	if (context === undefined) {

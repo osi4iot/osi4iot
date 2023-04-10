@@ -11,7 +11,7 @@ interface DigitalTwinsContainerProps {
     refreshDigitalTwins: () => void;
 }
 
-const DigitalTwinsContaine: FC<DigitalTwinsContainerProps> = ({ digitalTwins, refreshDigitalTwins }) => {
+const DigitalTwinsContainer: FC<DigitalTwinsContainerProps> = ({ digitalTwins, refreshDigitalTwins }) => {
     const digitalTwinsDispatch = useDigitalTwinsDispatch();
     const digitalTwinsOptionToShow = useDigitalTwinsOptionToShow();
 
@@ -36,4 +36,4 @@ const DigitalTwinsContaine: FC<DigitalTwinsContainerProps> = ({ digitalTwins, re
     )
 }
 
-export default DigitalTwinsContaine;
+export default DigitalTwinsContainer;

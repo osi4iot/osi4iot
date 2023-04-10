@@ -62,6 +62,13 @@ import { DASHBOARD_COLUMNS } from '../TableColumns/dashboardsColumns';
 import TableWithPagination from '../Utils/TableWithPagination';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { MlModelsProvider } from '../../../contexts/mlModelsOptions';
+import { setMlModelsTable, setReloadMlModelsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
+import MlModelsContainer from './MlModelsContainer';
+import {
+    useMlModelsTable,
+    useReloadMlModelsTable
+} from '../../../contexts/platformAssistantContext/platformAssistantContext';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -151,6 +158,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const topicsTable = useTopicsTable();
     const dashboardsTable = useDashboardsTable();
     const digitalTwinsTable = useDigitalTwinsTable();
+    const mlModelsTable = useMlModelsTable();
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
@@ -159,6 +167,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [topicsLoading, setTopicsLoading] = useState(true);
     const [dashboardsLoading, setDashboardsLoading] = useState(true);
     const [digitalTwinsLoading, setDigitalTwinsLoading] = useState(true);
+    const [mlModelsLoading, setMlModelsLoading] = useState(true);
     const [groupMembersLoading, setGroupMembersLoading] = useState(true);
     const [selectOrgUsersLoading, setSelectOrgUsersLoading] = useState(true);
 
@@ -170,6 +179,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const reloadTopicsTable = useReloadTopicsTable();
     const reloadDashboardsTable = useReloadDashboardsTable();
     const reloadDigitalTwinsTable = useReloadDigitalTwinsTable();
+    const reloadMlModelsTable = useReloadMlModelsTable();
     const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
     const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
     const reloadSelectOrgUsersTable = useReloadSelectOrgUsersTable();
@@ -209,6 +219,12 @@ const GroupAdminOptions: FC<{}> = () => {
         setDigitalTwinsLoading(true);
         const reloadDigitalTwinsTable = true;
         setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+    }, [plaformAssistantDispatch])
+
+    const refreshMlModels = useCallback(() => {
+        setMlModelsLoading(true);
+        const reloadMlModelsTable = true;
+        setReloadMlModelsTable(plaformAssistantDispatch, { reloadMlModelsTable });
     }, [plaformAssistantDispatch])
 
     const refreshBuildings = useCallback(() => {
@@ -515,6 +531,38 @@ const GroupAdminOptions: FC<{}> = () => {
         digitalTwinsTable.length
     ]);
 
+    useEffect(() => {
+        if (mlModelsTable.length === 0 || reloadMlModelsTable) {
+            const config = axiosAuth(accessToken);
+            const urlMlModels = `${protocol}://${domainName}/admin_api/ml_models/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlMlModels, config)
+                .then((response) => {
+                    const mlModels = response.data;
+                    setMlModelsTable(plaformAssistantDispatch, { mlModels });
+                    setMlModelsLoading(false);
+                    const reloadMlModelsTable = false;
+                    setReloadMlModelsTable(plaformAssistantDispatch, { reloadMlModelsTable });
+                })
+                .catch((error) => {
+                    const mlModels: never[] = [];
+                    setMlModelsTable(plaformAssistantDispatch, { mlModels });
+                    setMlModelsLoading(false);
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setDigitalTwinsLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadMlModelsTable,
+        mlModelsTable.length
+    ]);
+
+
 
 
     const clickHandler = (optionToShow: string) => {
@@ -545,10 +593,14 @@ const GroupAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DIGITAL_TWINS)}>
                     Digital twins
                 </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.ML_MODELS)}>
+                    ML models
+                </OptionContainer>
             </GroupAdminOptionsContainer>
             <ContentContainer>
                 {
-                    (buildingsLoading ||
+                    (
+                        buildingsLoading ||
                         floorsLoading ||
                         orgsOfGroupsManagedLoading ||
                         groupsManagedLoading ||
@@ -557,7 +609,8 @@ const GroupAdminOptions: FC<{}> = () => {
                         selectOrgUsersLoading ||
                         topicsLoading ||
                         dashboardsLoading ||
-                        digitalTwinsLoading
+                        digitalTwinsLoading ||
+                        mlModelsLoading
                     ) ?
                         <Loader />
                         :
@@ -621,6 +674,11 @@ const GroupAdminOptions: FC<{}> = () => {
                                 <DigitalTwinsProvider>
                                     <DigitalTwinsContainer digitalTwins={digitalTwinsTable} refreshDigitalTwins={refreshDigitalTwins} />
                                 </DigitalTwinsProvider>
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS &&
+                                <MlModelsProvider>
+                                    <MlModelsContainer mlModels={mlModelsTable} refreshMlModels={refreshMlModels} />
+                                </MlModelsProvider>
                             }
                         </>
                 }

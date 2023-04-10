@@ -15,6 +15,7 @@ import BuildingController from "./components/building/building.controller";
 import MeasurementController from "./components/mesurement/measurement.controller";
 import DashboardController from "./components/dashboard/dashboardController";
 import NodeRedInstanceController from "./components/nodeRedInstance/nodeRedInstance.controller";
+import MLModelController from "./components/ml_model/ml_modelController";
 
 
 const main= async (): Promise<void> => {
@@ -34,6 +35,7 @@ const main= async (): Promise<void> => {
 			new TopicController(),
 			new MeasurementController(),
 			new DigitalTwinController(),
+			new MLModelController(),
 			new DashboardController(),
 		]);
 		app.listen();
