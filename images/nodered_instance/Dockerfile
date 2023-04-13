@@ -5,6 +5,7 @@ ARG TARGETARCH
 
 COPY --chown=node-red:node-red flows.json /tmp
 COPY --chown=node-red:node-red settings.js /tmp
+COPY --chown=node-red:node-red ml_models.js /tmp
 COPY entry_script.sh /src/scripts/entry_script.sh
 USER root
 RUN chmod +x /src/scripts/entry_script.sh

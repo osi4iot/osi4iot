@@ -551,7 +551,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
-            setDigitalTwinsLoading(false);
+            setMlModelsLoading(false);
         }
     }, [
         accessToken,
