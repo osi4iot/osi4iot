@@ -1,7 +1,7 @@
 import React, { useState, useLayoutEffect, useRef } from 'react'
 import * as THREE from 'three'
 import { useThree } from '@react-three/fiber'
-import { useHelper } from '@react-three/drei';
+import { useHelper, Environment } from '@react-three/drei';
 
 const dirX = new THREE.Vector3(1, 0, 0);
 const redColor = new THREE.Color("#FF0000");
@@ -15,6 +15,7 @@ const origin = new THREE.Vector3(0, 0, 0);
 type ControlsProto = { update(): void; target: THREE.Vector3 }
 
 type Props = JSX.IntrinsicElements['group'] & {
+    environment?: string
     shadows?: boolean
     ambientLight?: boolean
     ambientLightIntensity?: number
@@ -34,14 +35,15 @@ type Props = JSX.IntrinsicElements['group'] & {
 export function Stage({
     children,
     controls,
+    environment = "sunset",
     shadows = true,
     ambientLight = true,
     ambientLightIntensity = 1.0,
     spotLight = true,
-    spotLightPower = 100.0,
+    spotLightPower = 5.0,
     showSpotLightHelper = false,
     pointLight = true,
-    pointLightPower = 100.0,
+    pointLightPower = 5.0,
     showPointLightHelper = false,
     showAxes = false,
     shadowBias = 0,
@@ -112,6 +114,8 @@ export function Stage({
     return (
         <group {...props}>
             <group ref={childrenGroup}>{children}</group>
+            {environment !== "none" && <Environment preset={environment as any}/>}
+            <Environment preset="sunset" />
             {ambientLight && <ambientLight intensity={ambientLightIntensity} />}
             {spotLight &&
                 <>

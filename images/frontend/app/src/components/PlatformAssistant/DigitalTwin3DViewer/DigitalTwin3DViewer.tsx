@@ -367,6 +367,20 @@ const NoWifiIcon = styled(RiWifiOffLine)`
   transform: rotate(90deg);
 `;
 
+const environmentOptions = [
+	"none",
+	"sunset",
+	"dawn",
+	"night",
+	"warehouse",
+	"forest",
+	"apartment",
+	"studio",
+	"city",
+	"park",
+	"lobby"
+]
+
 const domainName = getDomainName();
 const protocol = getProtocol();
 
@@ -530,13 +544,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	}
 
 	const [opts, setOpts] = useState({
+		environment: "sunset",
 		ambientLight: true,
 		ambientLightIntensity: 1,
 		spotLight: true,
-		spotLightPower: 100,
+		spotLightPower: 5,
 		showSpotLightHelper: false,
 		pointLight: true,
-		pointLightPower: 100,
+		pointLightPower: 5,
 		showPointLightHelper: false,
 		showAxes: false,
 		showShadows: true,
@@ -831,6 +846,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				>
 					<Stage
 						controls={controlsRef}
+						environment={opts.environment}
 						ambientLight={opts.ambientLight}
 						ambientLightIntensity={opts.ambientLightIntensity}
 						spotLight={opts.spotLight}
@@ -935,6 +951,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				{isControlPanelOpen &&
 					<StyledDataGui data={opts} onUpdate={setOpts} style={datGuiStyle} >
 						<DatFolder title='Lights' closed={true}>
+							<DatFolder title='Environment' closed={true}>
+								<StyledDatSelect
+									path='environment'
+									label='Select: '
+									options={environmentOptions}
+								/>
+							</DatFolder>
 							<DatFolder title='Ambient light' closed={true}>
 								<StyledDatNumber label="Intensity" path="ambientLightIntensity" min={0} max={10} step={0.05} />
 								<StyledDatBoolean label="Switch on/off" path="ambientLigth" />
