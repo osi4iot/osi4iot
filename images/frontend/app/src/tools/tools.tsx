@@ -19,8 +19,8 @@ export const getDomainName = () => {
     const location = window.location.href;
     let domainName = location.split("/")[2];
     // if (domainName === "localhost:3000") domainName = "localhost";  //Development case
-    if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
-    // if (domainName === "localhost:3000") domainName = "dicapuaiot.com";
+    // if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
+    if (domainName === "localhost:3000") domainName = "dicapuaiot.com";
     //if (domainName === "localhost:3000") domainName = "osi4iot.com";
     // if (domainName === "localhost:3000") domainName = "dev.iot-rafa.tk";
     return domainName;
@@ -383,11 +383,15 @@ export const changeMaterialPropRecursively = (
     if ((obj.material as THREE.Material) && (obj.material as any)[prop] !== undefined) {
         (obj.material as any)[prop] = propValue;
     }
+    let newPropValue = propValue;
+    if (prop === 'transparent') {
+        newPropValue = true;
+    }
     for (let node of obj.children) {
         changeMaterialPropRecursively(
             node as THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>,
             prop,
-            propValue
+            newPropValue
         );
     }
 }

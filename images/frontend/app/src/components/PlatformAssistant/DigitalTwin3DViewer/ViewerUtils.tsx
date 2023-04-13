@@ -577,14 +577,6 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 				objMaterial.opacity = 1;
 				objMaterial.side = 2;
 				if (objMaterial.name === "") {
-					const materialColor = giveDefaultObjectMaterialColor(obj);
-					objMaterial = new THREE.MeshLambertMaterial({
-						color: materialColor,
-						emissive: noEmitColor,
-						transparent: true,
-						opacity: 1,
-						side: 2
-					});
 					objMaterial.name = `${obj.name}_material`;
 				}
 				break;
@@ -641,7 +633,6 @@ export const sortObjects: (
 		}
 	}
 	const objectList = nodes[sceneName].children;
-
 	for (let imesh = 0; imesh < objectList.length; imesh++) {
 		const obj = objectList[imesh];
 		obj.material = findMaterial(obj, materials);

@@ -940,7 +940,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								<StyledDatBoolean label="Switch on/off" path="ambientLigth" />
 							</DatFolder>
 							<DatFolder title='Spot light' closed={true}>
-								<StyledDatNumber label="Power (lm)" path="spotLightPower" min={0} max={5000} step={10} />
+								<StyledDatNumber label="Power (lm)" path="spotLightPower" min={0} max={5000} step={5} />
 								<StyledDatBoolean label="Switch on/off" path="spotLight" />
 								<StyledDatBoolean label="Show helper" path="showSpotLightHelper" />
 							</DatFolder>

@@ -28,11 +28,8 @@ CREATE TABLE IF NOT EXISTS iot_data.assetsState(
   group_uid varchar(42) NOT NULL,
   device_uid varchar(42) NOT NULL,
   asset_uid varchar(42) NOT NULL,
-  state_json json NOT NULL,
+  payload json NOT NULL,
   last_updated TIMESTAMPTZ
 );
 
 CREATE INDEX IF NOT EXISTS IDX_assets_state_group_asset ON iot_data.assetsState(group_uid, asset_uid);
-
-
-
