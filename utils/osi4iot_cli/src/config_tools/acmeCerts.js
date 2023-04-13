@@ -15,7 +15,9 @@ export default async function (osi4iotState) {
     }
 
     const acmeDomainDir = `${homedir}/.acme.sh/${domainName}`;
-    if (!fs.existsSync(acmeDomainDir)) {
+    const acmeDomainDirEcc = `${homedir}/.acme.sh/${domainName}_ecc`;
+    let extension = "";
+    if (!(fs.existsSync(acmeDomainDir) || fs.existsSync(acmeDomainDirEcc))) {
         console.log(clc.green(`\nGenerating acme ssl certificates...`));
         try {
             execSync(`~/.acme.sh/acme.sh --issue --dns dns_aws -d ${domainName} --server letsencrypt --force`, { stdio: 'inherit', env });
@@ -39,7 +41,8 @@ export default async function (osi4iotState) {
         }
     }
 
-    const privateKeyFile = `${homedir}/.acme.sh/${domainName}/${domainName}.key`;
+    if (fs.existsSync(acmeDomainDirEcc)) extension = "_ecc";
+    const privateKeyFile = `${homedir}/.acme.sh/${domainName}${extension}/${domainName}.key`;
     if (fs.existsSync(privateKeyFile)) {
         if (osi4iotState.certs.domain_certs.private_key === "") {
             const privateKeyFileText = fs.readFileSync(privateKeyFile, 'UTF-8');
@@ -49,7 +52,7 @@ export default async function (osi4iotState) {
         throw new Error(`The file ${privateKeyFile} not exist`)
     }
 
-    const caCertFile = `${homedir}/.acme.sh/${domainName}/ca.cer`;
+    const caCertFile = `${homedir}/.acme.sh/${domainName}${extension}/ca.cer`;
     if (fs.existsSync(caCertFile)) {
         if (osi4iotState.certs.domain_certs.ssl_ca_pem === "") {
             const caCertFileText = fs.readFileSync(caCertFile, 'UTF-8');
@@ -59,7 +62,7 @@ export default async function (osi4iotState) {
         throw new Error(`The file ${caCertFile} not exist`)
     }
 
-    const sslCertFile = `${homedir}/.acme.sh/${domainName}/${domainName}.cer`;
+    const sslCertFile = `${homedir}/.acme.sh/${domainName}${extension}/${domainName}.cer`;
     if (fs.existsSync(sslCertFile)) {
         if (osi4iotState.certs.domain_certs.ssl_cert_crt === "") {
             const sslCertFileText = fs.readFileSync(sslCertFile, 'UTF-8');
