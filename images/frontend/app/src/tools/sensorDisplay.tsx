@@ -67,7 +67,10 @@ export const sensorDisplay = (
                         (obj.children[imesh].children[jmesh] as any).material.emissive = noEmitColor;
                     }
                 }
-            } else {
+            } else if (
+                obj.children[imesh].userData.displayType !== undefined &&
+                obj.children[imesh].userData.displayType === "letterOrSymbol"
+            ) {
                 if ((obj.children[imesh] as any).material !== undefined) {
                     (obj.children[imesh] as any).material.emissive = emitColor;
                 }

@@ -113,9 +113,8 @@ export function Stage({
 
     return (
         <group {...props}>
-            <group ref={childrenGroup}>{children}</group>
             {environment !== "none" && <Environment preset={environment as any}/>}
-            <Environment preset="sunset" />
+            <group ref={childrenGroup}>{children}</group>
             {ambientLight && <ambientLight intensity={ambientLightIntensity} />}
             {spotLight &&
                 <>

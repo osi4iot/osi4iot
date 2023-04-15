@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS iot_data.assetsState(
   group_uid varchar(42) NOT NULL,
   device_uid varchar(42) NOT NULL,
   asset_uid varchar(42) NOT NULL,
-  payload json NOT NULL,
+  current_state json NOT NULL,
   last_updated TIMESTAMPTZ
 );
 

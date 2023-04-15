@@ -3,29 +3,29 @@ package main
 import (
 	"bufio"
 	"context"
-	"fmt"
 	"github.com/buger/jsonparser"
+	"fmt"
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"io"
 	"log"
-	"net/http"
 	"os"
 	"strings"
 	"time"
+	"net/http"
+	"io"
 )
 
 type config struct {
-	mqttClientId          string
-	mqttPort              int
-	mqttBrokerUrl         string
-	dev2pdbUsername       string
-	dev2pdbPassword       string
+	mqttClientId       string
+	mqttPort           int
+	mqttBrokerUrl      string
+	dev2pdbUsername    string
+	dev2pdbPassword    string
 	timescaledbUser       string
 	timescaledbPassword   string
 	timescaledbServiceUrl string
-	databaseName          string
+	databaseName       string
 }
 
 func connectToMqttBroker(configData config) mqtt.Client {
@@ -45,7 +45,7 @@ func connectToMqttBroker(configData config) mqtt.Client {
 }
 
 var connectLostHandler mqtt.ConnectionLostHandler = func(client mqtt.Client, err error) {
-	fmt.Printf("Connection lost: %v", err)
+    fmt.Printf("Connection lost: %v", err)
 	os.Exit(1)
 }
 
@@ -59,13 +59,10 @@ func createClientOptions(configData config) *mqtt.ClientOptions {
 	return opts
 }
 
-func sendRowToChannelHandler(
-	dbPool *pgxpool.Pool,
-	msg mqtt.Message,
-	rowChannel200ms chan []interface{},
-	rowChannel1000ms chan []interface{}) {
-
+func sendRowToChannelHandler1000ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel1000ms chan []interface{}) {
+	timestamp := time.Now()
 	payload := msg.Payload()
+
 	topicsSlice := strings.Split(msg.Topic(), "/")
 	group_uid := topicsSlice[1][6:]
 	device_uid := topicsSlice[2][7:]
@@ -73,11 +70,21 @@ func sendRowToChannelHandler(
 	topic := fmt.Sprintf("%s/%s", topicsSlice[2], topicsSlice[3])
 	deleted := 0
 
-	timestampString, err := jsonparser.GetString(payload, "timestamp")
+	item := []interface{}{group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted}
+	rowChannel1000ms <- item
+}
+
+func sendRowToChannelHandler200ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel200ms chan []interface{}) {
+	topicsSlice := strings.Split(msg.Topic(), "/")
+	group_uid := topicsSlice[1][6:]
+	device_uid := topicsSlice[2][7:]
+	topic_uid := topicsSlice[3][6:]
+	topic := fmt.Sprintf("%s/%s", topicsSlice[2], topicsSlice[3])
+	deleted := 0
+
+	timestampString, err := jsonparser.GetString(msg.Payload(), "timestamp");
 	if err != nil {
-		timestamp := time.Now()
-		item := []interface{}{group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted}
-		rowChannel1000ms <- item
+		fmt.Println("Timestamp field not defined")
 		return
 	} else {
 		timestamp, error := time.Parse(time.RFC3339, timestampString)
@@ -91,22 +98,7 @@ func sendRowToChannelHandler(
 	}
 }
 
-func sendRowToAssetsStateChannelHandler(
-	dbPool *pgxpool.Pool,
-	msg mqtt.Message,
-	assetsStateChannel1000ms chan []interface{}) {
-
-	payload := msg.Payload()
-	topicsSlice := strings.Split(msg.Topic(), "/")
-	group_uid := topicsSlice[1][6:]
-	device_uid := topicsSlice[2][7:]
-	asset_uid := topicsSlice[3][6:]
-
-	item := []interface{}{group_uid, device_uid, asset_uid, payload}
-	assetsStateChannel1000ms <- item
-}
-
-func sendRowToChannelHandlerBatch(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel1000ms chan []interface{}) {
+func sendRowToChannelHandlerMessagedArray(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel1000ms chan []interface{}) {
 	messagesArray := msg.Payload()
 	topicsSlice := strings.Split(msg.Topic(), "/")
 	group_uid := topicsSlice[1][6:]
@@ -116,7 +108,7 @@ func sendRowToChannelHandlerBatch(dbPool *pgxpool.Pool, msg mqtt.Message, rowCha
 	deleted := 0
 
 	jsonparser.ArrayEach(messagesArray, func(message []byte, dataType jsonparser.ValueType, offset int, err error) {
-		timestampString, err := jsonparser.GetString(message, "timestamp")
+		timestampString, err := jsonparser.GetString(message, "timestamp");
 		if err != nil {
 			fmt.Println("Timestamp field not defined")
 			return
@@ -135,16 +127,6 @@ func sendRowToChannelHandlerBatch(dbPool *pgxpool.Pool, msg mqtt.Message, rowCha
 
 func saveRowsInDatabaseHandler(dbPool *pgxpool.Pool, rowsSlice [][]interface{}) {
 	columnsNames := []string{"group_uid", "device_uid", "topic_uid", "topic", "payload", "timestamp", "deleted"}
-	_, err := dbPool.CopyFrom(context.Background(), pgx.Identifier{"iot_data", "thingdata"}, columnsNames, pgx.CopyFromRows(rowsSlice))
-	if err != nil {
-		// Handling error, if occur
-		fmt.Println("Unable to insert rows in database due to: ", err)
-		return
-	}
-}
-
-func saveAssetsStateInDatabaseHandler(dbPool *pgxpool.Pool, rowsSlice [][]interface{}) {
-	columnsNames := []string{"group_uid", "device_uid", "asset_uid", "payload"}
 	_, err := dbPool.CopyFrom(context.Background(), pgx.Identifier{"iot_data", "thingdata"}, columnsNames, pgx.CopyFromRows(rowsSlice))
 	if err != nil {
 		// Handling error, if occur
@@ -191,51 +173,21 @@ func appendRowInSlice1000ms(dbPool *pgxpool.Pool, tickerStorage1000ms *time.Tick
 	}
 }
 
-func appendAssetsStateInSlice1000ms(dbPool *pgxpool.Pool,
-	tickerAssetsStateStorage *time.Ticker,
-	assetsStateChannel chan []interface{}) {
-	rowsSlice := [][]interface{}{}
-	for {
-		select {
-		case row := <-assetsStateChannel:
-			rowsSlice = append(rowsSlice, row)
-			if len(rowsSlice) == 1000 {
-				go saveRowsInDatabaseHandler(dbPool, rowsSlice)
-				rowsSlice = nil
-			}
-		case <-tickerAssetsStateStorage.C:
-			if len(rowsSlice) != 0 {
-				go saveRowsInDatabaseHandler(dbPool, rowsSlice)
-				rowsSlice = nil
-			}
-		}
-	}
-}
-
-func listenSensorMetrics(
-	subcribedTopic string,
-	client mqtt.Client,
-	dbPool *pgxpool.Pool,
-	rowChannel200ms chan []interface{},
-	rowChannel1000ms chan []interface{}) {
+func listen(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel1000ms chan []interface{}) {
 	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		go sendRowToChannelHandler(dbPool, msg, rowChannel200ms, rowChannel1000ms)
+		go sendRowToChannelHandler1000ms(dbPool, msg, rowChannel1000ms)
 	})
 }
 
-func listenAssetsState(
-	subcribedTopic string,
-	client mqtt.Client,
-	dbPool *pgxpool.Pool,
-	assetsStateChannel chan []interface{}) {
+func listenMessagesArray(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel1000ms chan []interface{}) {
 	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		go sendRowToAssetsStateChannelHandler(dbPool, msg, assetsStateChannel)
+		go sendRowToChannelHandlerMessagedArray(dbPool, msg, rowChannel1000ms)
 	})
 }
 
-func listenSensorMetricsInBatch(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel1000ms chan []interface{}) {
+func listenWithTimestamp(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel200ms chan []interface{}) {
 	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		go sendRowToChannelHandlerBatch(dbPool, msg, rowChannel1000ms)
+		go sendRowToChannelHandler200ms(dbPool, msg, rowChannel200ms)
 	})
 }
 
@@ -250,16 +202,17 @@ func getConfigData() config {
 	timescaledbServiceUrl := getEnv("TIMESCALE_SERVICE_URL", "timescaledb")
 	databaseName := getEnv("DATABASE_NAME", "iot_data_db")
 	return config{
-		mqttClientId,
-		mqttPort,
+		mqttClientId, 
+		mqttPort, 
 		mqttBrokerServiceUrl,
 		dev2pdbUsername,
 		dev2pdbPassword,
 		timescaledbUser,
-		timescaledbPassword,
-		timescaledbServiceUrl,
-		databaseName}
+		timescaledbPassword, 
+		timescaledbServiceUrl, 
+		databaseName }
 }
+
 
 func getDatabaseUrl(configData config) string {
 	user := configData.timescaledbUser
@@ -317,16 +270,15 @@ func main() {
 	client := connectToMqttBroker(configData)
 	rowChannel1000ms := make(chan []interface{})
 	tickerStorage1000ms := time.NewTicker(1 * time.Second)
+	go appendRowInSlice1000ms(dbPool, tickerStorage1000ms, rowChannel1000ms)
+	go listen("dev2pdb/#", client, dbPool, rowChannel1000ms)
+	go listenMessagesArray("dev2pdb_ma/#", client, dbPool, rowChannel1000ms)
+	go listen("dtm2pdb/#", client, dbPool, rowChannel1000ms)
+
 	rowChannel200ms := make(chan []interface{})
 	tickerStorage200ms := time.NewTicker(200 * time.Millisecond)
-	assetsStateChannel := make(chan []interface{})
-	tickerAssetsStateStorage := time.NewTicker(1 * time.Second)
 	go appendRowInSlice200ms(dbPool, tickerStorage200ms, rowChannel200ms)
-	go appendRowInSlice1000ms(dbPool, tickerStorage1000ms, rowChannel1000ms)
-	go appendAssetsStateInSlice1000ms(dbPool, tickerAssetsStateStorage, assetsStateChannel)
-	go listenSensorMetrics("dev2pdb/#", client, dbPool, rowChannel200ms, rowChannel1000ms)
-	go listenSensorMetricsInBatch("dev2pdb_batch/#", client, dbPool, rowChannel1000ms)
-	go listenAssetsState("dtm2pdb/#", client, dbPool, assetsStateChannel)
+	go listenWithTimestamp("dev2pdb_wt/#", client, dbPool, rowChannel200ms)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(rw http.ResponseWriter, r *http.Request) { io.WriteString(rw, "Healthy") })
@@ -335,4 +287,5 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Error listenging on port 3300: %v", err)
 		os.Exit(1)
 	}
+	  
 }

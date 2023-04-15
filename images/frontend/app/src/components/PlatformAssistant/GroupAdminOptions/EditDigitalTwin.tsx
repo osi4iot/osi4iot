@@ -332,8 +332,9 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, digitalTwinData, config)
             .then((response) => {
-                const data = response.data;
-                toast.success(data.message);
+                if (response.data) {
+                    toast.success(response.data.message);
+                }
                 const digitalTwinsOptionToShow = { digitalTwinsOptionToShow: DIGITAL_TWINS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setDigitalTwinsOptionToShow(digitalTwinsDispatch, digitalTwinsOptionToShow);
@@ -343,9 +344,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-                if (response.data) {
-                    toast.success(response.data.message);
-                }
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
