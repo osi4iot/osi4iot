@@ -380,6 +380,10 @@ export const changeMaterialPropRecursively = (
     prop: string,
     propValue: string | number | boolean | THREE.Color
 ) => {
+    if (prop === "emissive" &&
+        (obj.userData.displayType === "digit" || obj.userData.displayType === "letterOrSymbol")) {
+        return;
+    }
     if ((obj.material as THREE.Material) && (obj.material as any)[prop] !== undefined) {
         (obj.material as any)[prop] = propValue;
     }

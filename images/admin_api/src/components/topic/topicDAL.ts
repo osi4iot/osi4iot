@@ -57,7 +57,7 @@ export const updateTopicById = async (topicId: number, topic: ITopic): Promise<v
 
 export const changeTopicUidByUid = async (topic: ITopic): Promise<string> => {
 	const oldTopicUid = topic.topicUid;
-	const newTopicUid = nanoid(20).replace(/-/g, "x");
+	const newTopicUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	await pool.query('UPDATE grafanadb.topic SET topic_uid = $1 WHERE topic_uid = $2',
 		[newTopicUid, oldTopicUid]);
 	return newTopicUid;
@@ -72,7 +72,7 @@ export const deleteTopicByIdsArray = async (topicIdsArray: number[]): Promise<vo
 };
 
 export const createTopic = async (deviceId: number, topicInput: CreateTopicDto): Promise<ITopic> => {
-	const topicUid = nanoid(20).replace(/-/g, "x");
+	const topicUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	const topicUpdated: Partial<ITopic> = { ...topicInput, topicUid, deviceId };
 	const topic = await insertTopic(topicUpdated);
 	return topic;

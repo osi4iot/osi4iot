@@ -41,6 +41,8 @@ const ReadMobileOrientation = (
 		}
 	};
 
+	return quaternionSensor;
+
 };
 
 export default ReadMobileOrientation;

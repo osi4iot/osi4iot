@@ -52,6 +52,8 @@ const ReadAccelerations = (
 			setIsSensorReadings(false);
 		}
 	};
+
+	return [gravitySensor, sensor];
 };
 
 export default ReadAccelerations;

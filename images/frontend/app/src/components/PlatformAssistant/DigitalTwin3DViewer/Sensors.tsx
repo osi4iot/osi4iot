@@ -93,48 +93,43 @@ const SensorBase: FC<SensorProps> = ({
             mixer?.update(newDelta);
         }
         if (visible) {
-            if (
-                obj.userData.sensorObjectType === undefined ||
-                (obj.userData.sensorObjectType !== undefined && obj.userData.sensorObjectType === "general")
-            ) {
-                if (blinking) {
-                    if (lastIntervalTime === 0) {
-                        lastIntervalTime = clock.elapsedTime;
+            if (blinking) {
+                if (lastIntervalTime === 0) {
+                    lastIntervalTime = clock.elapsedTime;
+                }
+                const deltaInterval = clock.elapsedTime - lastIntervalTime;
+                if (deltaInterval <= 0.30) {
+                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
+                } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
+                    if (meshRef.current) meshRef.current.visible = true;
+                    changeMaterialPropRecursively(obj, 'opacity', 1.0);
+                    if (sensorState?.stateString === "on") {
+                        changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
+                    } else {
+                        changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
                     }
-                    const deltaInterval = clock.elapsedTime - lastIntervalTime;
-                    if (deltaInterval <= 0.30) {
-                        if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                        changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
-                        changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
-                    } else if (deltaInterval > 0.30 && deltaInterval <= 0.60) {
-                        if (meshRef.current) meshRef.current.visible = true;
-                        changeMaterialPropRecursively(obj, 'opacity', 1.0);
-                        if (sensorState?.stateString === "on") {
-                            changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
-                        } else {
-                            changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
-                        }
-                    } else if (deltaInterval > 0.60) {
-                        lastIntervalTime = clock.elapsedTime;
+                } else if (deltaInterval > 0.60) {
+                    lastIntervalTime = clock.elapsedTime;
+                }
+            } else {
+                if (sensorState.highlight) {
+                    if (meshRef.current) meshRef.current.visible = true;
+                    material.opacity = 1;
+                    if (sensorState?.stateString === "on") {
+                        changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
+                    } else {
+                        changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
                     }
                 } else {
-                    if (sensorState.highlight) {
-                        if (meshRef.current) meshRef.current.visible = true;
-                        material.opacity = 1;
-                        if (sensorState?.stateString === "on") {
-                            changeMaterialPropRecursively(obj, 'emissive', sensorOnColor);
-                        } else {
-                            changeMaterialPropRecursively(obj, 'emissive', sensorOffColor);
-                        }
-                    } else {
-                        if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
-                        changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
-                        changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
-                    }
+                    if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
+                    changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
+                    changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
                 }
             }
         } else {
-            if (meshRef.current) meshRef.current.visible = visible;
+            if (meshRef.current) meshRef.current.visible = false;
         }
         if (lastTimestamp) {
             const newDate = new Date();

@@ -336,7 +336,10 @@ class BuildingController implements IController {
 			if (!existBuilding) {
 				throw new ItemNotFoundException("The building", "id", buildingId);
 			}
-			if (buildingData.longitude === 0 && buildingData.latitude === 0) {
+
+			if ((buildingData.longitude === 0 && buildingData.latitude === 0) ||
+				buildingData.geoJsonData !== existBuilding.geoJsonData
+			) {
 				const geojsonObj = JSON.parse(buildingData.geoJsonData);
 				let geoPolygon;
 				if (geojsonObj.features[0].geometry.type === "Polygon") {

@@ -73,7 +73,7 @@ export const updateMqttPasswordOfDeviceById = async (device: IDevice, newMqttPas
 
 export const changeDeviceUidByUid = async (device: IDevice): Promise<string> => {
 	const oldDeviceUid = device.deviceUid;
-	const newDeviceUid = nanoid(20).replace(/-/g, "x");
+	const newDeviceUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	await pool.query('UPDATE grafanadb.device SET device_uid = $1 WHERE device_uid = $2',
 		[newDeviceUid, oldDeviceUid]);
 	return newDeviceUid;
@@ -84,7 +84,7 @@ export const deleteDeviceByProp = async (propName: string, propValue: (string | 
 };
 
 export const createDevice = async (group: IGroup, deviceInput: CreateDeviceDto): Promise<IDevice> => {
-	const deviceUid = nanoid(20).replace(/-/g, "x");
+	const deviceUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	const orgId = group.orgId;
 	const groupId = group.id;
 

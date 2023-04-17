@@ -1,4 +1,4 @@
-import { FC, useState, SyntheticEvent } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import Paho from "paho-mqtt";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
@@ -111,7 +111,6 @@ const initialMobileAccelerationFormValues = {
     samplingFrequency: 25,
 };
 
-
 const MobileAccelerationForm: FC<MobileSensorSelectFormProps> = (
     {
         mqttClient,
@@ -121,6 +120,17 @@ const MobileAccelerationForm: FC<MobileSensorSelectFormProps> = (
     }) => {
     const [readingProgress, setReadingProgress] = useState(0);
     const [isSensorReading, setIsSensorReadings] = useState(false);
+    const [gravitySensor, setGravitySensor] = useState<GravitySensor | null>(null);
+    const [accelerationSensor, setAccelerationSensor] = useState<Accelerometer | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (isSensorReading) {
+                if (gravitySensor) gravitySensor.stop();
+                if (accelerationSensor) accelerationSensor.stop();
+            }
+        }
+    }, [isSensorReading, gravitySensor, accelerationSensor]);
 
     const validationSchema = Yup.object().shape({
         totalReadingTime: Yup.number().min(20, "The minimum reading time is 20 seconds").max(60, "The maximum reading time is 60 seconds").required('Required'),
@@ -129,7 +139,9 @@ const MobileAccelerationForm: FC<MobileSensorSelectFormProps> = (
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setMobileSensorSelected("none")
+        setMobileSensorSelected("none");
+        if (gravitySensor) gravitySensor.stop();
+        if (accelerationSensor) accelerationSensor.stop();
     };
 
     const handleSubmit = async (values: any, actions: any) => {
@@ -140,7 +152,7 @@ const MobileAccelerationForm: FC<MobileSensorSelectFormProps> = (
             const deviceHash = mobileTopicSelected.deviceUid;
             const topicHash = mobileTopicSelected.topicUid;
             const mqttTopic = `dev2pdb_wt/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
-            ReadAccelerations(
+            const [gravitySensor, accelerationSensor] = ReadAccelerations(
                 mqttClient as Paho.Client,
                 mqttTopic,
                 totalReadingTime,
@@ -148,6 +160,8 @@ const MobileAccelerationForm: FC<MobileSensorSelectFormProps> = (
                 setIsSensorReadings,
                 setReadingProgress
             );
+            setGravitySensor(gravitySensor);
+            setAccelerationSensor(accelerationSensor);
         }
     };
 

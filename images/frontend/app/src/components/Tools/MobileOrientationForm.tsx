@@ -1,4 +1,4 @@
-import { FC, useState, SyntheticEvent } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import Paho from "paho-mqtt";
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
@@ -121,6 +121,13 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
     }) => {
     const [readingProgress, setReadingProgress] = useState(0);
     const [isSensorReading, setIsSensorReadings] = useState(false);
+    const [quaternionSensor, setQuaternionSensor] = useState<AbsoluteOrientationSensor | null>(null);
+
+    useEffect(() => {
+        return () => {
+            if (quaternionSensor) quaternionSensor.stop();
+        }
+    }, [quaternionSensor])
 
     const validationSchema = Yup.object().shape({
         totalReadingTime: Yup.number().min(20, "The minimum reading time is 20 seconds").max(120, "The maximum reading time is 60 seconds").required('Required'),
@@ -129,7 +136,8 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setMobileSensorSelected("none")
+        setMobileSensorSelected("none");
+        if (quaternionSensor) quaternionSensor.stop();
     };
 
     const handleSubmit = async (values: any, actions: any) => {
@@ -140,14 +148,15 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
             const deviceHash = mobileTopicSelected.deviceUid;
             const topicHash = mobileTopicSelected.topicUid;
             const mqttTopic = `dev2pdb_wt/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
-            ReadMobileOrientation(
+            const quaternionSensor = ReadMobileOrientation(
                 mqttClient as Paho.Client,
                 mqttTopic,
                 totalReadingTime,
                 samplingFrequency,
                 setIsSensorReadings,
-                setReadingProgress
+                setReadingProgress,
             );
+            setQuaternionSensor(quaternionSensor);
         }
     };
 
