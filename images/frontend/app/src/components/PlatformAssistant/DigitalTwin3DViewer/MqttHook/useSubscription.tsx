@@ -92,7 +92,13 @@ const useSubscription = (
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [client, femSimulationObjectsState, digitalTwinSimulatorSendData]);
+    }, [client,
+        sensorsState,
+        assetsState,
+        genericObjectsState,
+        femSimulationObjectsState,
+        digitalTwinSimulatorSendData
+    ]);
 }
 
 const updateObjectsState = (

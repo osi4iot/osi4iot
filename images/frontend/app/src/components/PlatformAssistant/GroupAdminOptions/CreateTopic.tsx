@@ -151,6 +151,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
             topicName: values.topicName,
             description: values.description,
             payloadFormat: values.payloadFormat,
+            mqttAccessControl: values.mqttAccessControl
         }
 
         setIsSubmitting(true);

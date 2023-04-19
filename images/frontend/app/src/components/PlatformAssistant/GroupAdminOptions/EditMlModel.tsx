@@ -205,7 +205,6 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
             .get(urlMlModelFileList, config)
             .then((response) => {
                 const mlModelFilesInfo = response.data;
-                console.log("mlModelFilesInfo=", mlModelFilesInfo)
                 if (mlModelFilesInfo.length !== 0) {
                     const modelBinFileNames: string[] = [];
                     for (const fileInfo of mlModelFilesInfo) {
