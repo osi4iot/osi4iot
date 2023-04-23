@@ -36,11 +36,15 @@ export const deleteMeasurementsBeforeDate = async (
 	topic: string,
 	deleteDate: string,
 ): Promise<IMeasurement> => {
-	const result = await timescaledb_pool.query(`DELETE FROM iot_data.thingData
-                    WHERE timestamp <= $1 AND
-                    group_uid = $2 AND
-                    topic = $3
-					RETURNING *;`, [deleteDate, groupUid, topic]);
+	const result = await timescaledb_pool.query(`WITH deleted as (
+					DELETE FROM iot_data.thingData
+					WHERE timestamp <= $1 AND
+					group_uid = $2 AND
+					topic = $3
+					RETURNING timestamp
+				)
+				select count(*)
+				from deleted;`, [deleteDate, groupUid, topic]);
 	return result.rows[0] as IMeasurement;
 };
 
