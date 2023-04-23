@@ -21,6 +21,7 @@ export default function () {
         const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
         const osi4iotState = JSON.parse(osi4iotStateText);
         const currentNodesData = osi4iotState.platformInfo.NODES_DATA;
+        const organizations = osi4iotState.certs.mqtt_certs.organizations;
         const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
         if (currentNodesData && currentNodesData.length !== 0) {
             let defaultUserName = currentNodesData[currentNodesData.length - 1].nodeUserName;
@@ -60,7 +61,7 @@ export default function () {
                     if (warnings.length === 0) {
                         try {
                             console.log(clc.green('\nConfigurating new nodes...'));
-                            nodesConfiguration(newNodes);
+                            nodesConfiguration(newNodes, organizations, deploymentLocation);
 
                             console.log(clc.green('\nJoining nodes to swarm cluster:'));
                             await joinNodesToSwarm(newNodes, osi4iotState.platformInfo.DEPLOYMENT_LOCATION, dockerHost);
