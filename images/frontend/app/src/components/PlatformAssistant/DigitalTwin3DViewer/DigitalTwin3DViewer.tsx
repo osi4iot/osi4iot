@@ -449,6 +449,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [getLastMeasurementsButtomLabel, setGetLastMeasurementsButtomLabel] = useState("GET LAST MEASUREMENTS");
 	const [femResultDates, setFemResultDates] = useState<string[]>([]);
 	const [femResultFileNames, setFemResultFileNames] = useState<string[]>([]);
+	const [femResultNames, setFemResultNames] = useState<string[]>([]);
 	const [femResultData, setFemResultData] = useState<null | any>(null);
 	const [femResFilesLastUpdate, setFemResFilesLastUpdate] = useState<Date>(new Date());
 
@@ -459,13 +460,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		username: `jwt_${userName}`,
 		accessToken
 	};
-
-	let femResultNames: string[] = [];
-	if (femSimulationObjects.length !== 0 && femResultData && Object.keys(femResultData).length !== 0) {
-		femResultNames = femResultData.metadata.resultFields.map(
-			(resultField: { resultName: string; }) => resultField.resultName
-		);
-	}
 
 	const handleGetLastMeasurementsButton = () => {
 		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
@@ -626,6 +620,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	}, [initialFemSimObjectsVisibilityState])
 
 	useEffect(() => {
+		if (femSimulationObjects.length !== 0 && femResultData && Object.keys(femResultData).length !== 0) {
+			const femResultNames = femResultData.metadata.resultFields.map(
+				(resultField: { resultName: string; }) => resultField.resultName
+			);
+			setFemResultNames(femResultNames);
+		}
+
 		return () => {
 			if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
 				for (let resulName of femResultNames) {

@@ -681,6 +681,9 @@ export const sortObjects: (
 					});
 					const wireframeGeometry = new THREE.WireframeGeometry(obj.geometry);
 					const wireFrameMesh = new THREE.LineSegments(wireframeGeometry, wireFrameMaterial);
+					wireFrameMesh.scale.set(obj.scale.x, obj.scale.y, obj.scale.z);
+					wireFrameMesh.rotation.set(obj.rotation.x, obj.rotation.y, obj.rotation.z);
+					wireFrameMesh.position.set(obj.position.x, obj.position.y, obj.position.z);
 					const materialColor = new THREE.Color("#F5F5F5");
 					const femResultMaterial = new THREE.MeshLambertMaterial({
 						side: THREE.DoubleSide,

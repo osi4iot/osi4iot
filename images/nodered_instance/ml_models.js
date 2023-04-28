@@ -128,14 +128,18 @@ class MLModels {
         }
     }
 
-    mlModelPredict(MLM_Ref, data) {
+    mlModelPredict(MLM_Ref, data, shape) {
         let output = null;
         let errorMessage = null;
         if (this.mlModels[MLM_Ref] !== undefined) {
             const mlModel = this.mlModels[MLM_Ref];
             try {
-                const nInput = parseInt(mlModel.signature.inputs[mlModel.inputNodes[0]].tensorShape.dim[1].size)
-                const testTensor = tf.tensor(data, [data.length / nInput, nInput])
+                let testTensor;
+                if (shape !== undefined && Array.isArray(shape) && shape.length !== 0) {
+                    testTensor = tf.tensor(data, shape)
+                } else {
+                    testTensor = tf.tensor(data);
+                }
                 const prediction = mlModel.predict(testTensor);
                 output = prediction.dataSync();
                 tf.dispose(testTensor)
