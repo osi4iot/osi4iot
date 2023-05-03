@@ -16,6 +16,7 @@ import {
     GenericObjectState,
     SensorState
 } from '../ViewerUtils';
+import { IThreeMesh } from '../threeInterfaces';
 
 const useSubscription = (
     mqttTopics: string | string[],
@@ -257,91 +258,62 @@ const updateObjectsState = (
             if (messageTopicType === "dtm2sim") {
                 sensorObjects.forEach((obj) => {
                     const objName = obj.node.name;
-                    const animationType = obj.node.userData.animationType;
-                    if (animationType !== undefined) {
-                        if (animationType === "custom") {
-                            isSensorStateChanged = updateCustomAnimationState(
-                                obj.node,
-                                sensorsNewState,
-                                messageTopicId,
-                                mqttMessage,
-                                isSensorStateChanged
-                            )
-                        } else if (
-                            animationType === "blenderEndless"
-                        ) {
-                            let clipValue = sensorsNewState[objName].clipValue;
-                            const fieldName = "endlessTimeFactor";
-                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                const value = mqttMessage[fieldName][objName];
-                                if (typeof value === 'number') {
-                                    clipValue = value;
-                                    isSensorStateChanged = true;
-                                }
+                    if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
+                        let clipValue = genericObjectNewState[objName].clipValue;
+                        const fieldName = "endlessTimeFactor";
+                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                            const value = mqttMessage[fieldName][objName];
+                            if (typeof value === 'number') {
+                                clipValue = value;
+                                isSensorStateChanged = true;
                             }
-                            sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
+                        }
+                        sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
+                    }
+
+                    if (obj.node.customAnimationObjectNames.length !== 0) {
+                        const fieldName = "customAnimation";
+                        if (messagePayloadKeys.includes(fieldName)) {
+                            updateCustomAnimationState(obj.node, mqttMessage)
                         }
                     }
 
-                    const objectOnOff = obj.node.userData.objectOnOff;
-                    if (objectOnOff === "yes") {
-                        let onOff = sensorsNewState[objName].onOff;
+                    if (obj.node.onOffObjectNames.length !== 0) {
                         const fieldName = "objectOnOff";
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            if (mqttMessage[fieldName][objName] === "on") {
-                                onOff = "on";
-                                isSensorStateChanged = true;
-                            } else if (mqttMessage[fieldName][objName] === "off") {
-                                onOff = "off";
-                                isSensorStateChanged = true;
-                            }
+                        if (messagePayloadKeys.includes(fieldName)) {
+                            setObjectsOnOff(obj.node, mqttMessage[fieldName]);
                         }
-                        sensorsNewState[objName] = { ...sensorsNewState[objName], onOff };
                     }
+
                 });
 
                 assetObjects.forEach((obj) => {
                     const objName = obj.node.name;
-                    const animationType = obj.node.userData.animationType;
-                    if (animationType !== undefined) {
-                        if (animationType === "custom") {
-                            isAssetStateChanged = updateCustomAnimationState(
-                                obj.node,
-                                assestsNewState,
-                                messageTopicId,
-                                mqttMessage,
-                                isAssetStateChanged
-                            )
-                        } else if (
-                            animationType === "blenderEndless"
-                        ) {
-                            let clipValue = assestsNewState[objName].clipValue;
-                            const fieldName = "endlessTimeFactor";
-                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                const value = mqttMessage[fieldName][objName];
-                                if (typeof value === 'number') {
-                                    clipValue = value;
-                                    isAssetStateChanged = true;
-                                }
+                    if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
+                        let clipValue = genericObjectNewState[objName].clipValue;
+                        const fieldName = "endlessTimeFactor";
+                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                            const value = mqttMessage[fieldName][objName];
+                            if (typeof value === 'number') {
+                                clipValue = value;
+                                isAssetStateChanged = true;
                             }
-                            assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
+                        }
+                        assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
+                    }
+
+                    if (obj.node.customAnimationObjectNames.length !== 0) {
+                        const fieldName = "customAnimation";
+                        if (messagePayloadKeys.includes(fieldName)) {
+                            updateCustomAnimationState(obj.node, mqttMessage)
                         }
                     }
 
-                    const objectOnOff = obj.node.userData.objectOnOff;
-                    if (objectOnOff !== "yes") {
-                        let onOff = assestsNewState[objName].onOff;
+                    if (obj.node.onOffObjectNames.length !== 0) {
                         const fieldName = "objectOnOff";
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            if (mqttMessage[fieldName][objName] === "on") {
-                                onOff = "on";
-                                isAssetStateChanged = true;
-                            } else if (mqttMessage[fieldName][objName] === "off") {
-                                onOff = "off";
-                                isAssetStateChanged = true;
-                            }
+                        if (messagePayloadKeys.includes(fieldName)) {
+                            setObjectsOnOff(obj.node, mqttMessage[fieldName]);
                         }
-                        assestsNewState[objName] = { ...assestsNewState[objName], onOff };
                     }
 
                     if (mqttMessage.assetPartsState !== undefined) {
@@ -358,91 +330,61 @@ const updateObjectsState = (
 
                 genericObjects.forEach((obj) => {
                     const objName = obj.node.name;
-                    const animationType = obj.node.userData.animationType;
-                    if (animationType !== undefined) {
-                        if (animationType === "custom") {
-                            isGenericObjectsStateChanged = updateCustomAnimationState(
-                                obj.node,
-                                genericObjectNewState,
-                                messageTopicId,
-                                mqttMessage,
-                                isGenericObjectsStateChanged
-                            )
-                        } else if (
-                            animationType === "blenderEndless"
-                        ) {
-                            let clipValue = genericObjectNewState[objName].clipValue;
-                            const fieldName = "endlessTimeFactor";
-                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                const value = mqttMessage[fieldName][objName];
-                                if (typeof value === 'number') {
-                                    clipValue = value;
-                                    isGenericObjectsStateChanged = true;
-                                }
-                            }
-                            genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
-                        }
-                    }
-
-                    const objectOnOff = obj.node.userData.objectOnOff;
-                    if (objectOnOff === "yes") {
-                        let onOff = genericObjectNewState[objName].onOff;
-                        const fieldName = "objectOnOff";
+                    if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
+                        let clipValue = genericObjectNewState[objName].clipValue;
+                        const fieldName = "endlessTimeFactor";
                         if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            if (mqttMessage[fieldName][objName] === "on") {
-                                onOff = "on";
-                                isGenericObjectsStateChanged = true;
-                            } else if (mqttMessage[fieldName][objName] === "off") {
-                                onOff = "off";
+                            const value = mqttMessage[fieldName][objName];
+                            if (typeof value === 'number') {
+                                clipValue = value;
                                 isGenericObjectsStateChanged = true;
                             }
                         }
-                        genericObjectNewState[objName] = { ...genericObjectNewState[objName], onOff };
+                        genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
                     }
 
+                    if (obj.node.customAnimationObjectNames.length !== 0) {
+                        const fieldName = "customAnimation";
+                        if (messagePayloadKeys.includes(fieldName)) {
+                            updateCustomAnimationState(obj.node, mqttMessage)
+                        }
+                    }
+
+                    if (obj.node.onOffObjectNames.length !== 0) {
+                        const fieldName = "objectOnOff";
+                        if (messagePayloadKeys.includes(fieldName)) {
+                            setObjectsOnOff(obj.node, mqttMessage[fieldName]);
+                        }
+                    }
                 });
 
                 femSimulationObjects.forEach((obj, index) => {
                     const objName = obj.node.name;
-                    const animationType = obj.node.userData.animationType;
-                    if (animationType !== undefined) {
-                        if (animationType === "custom") {
-                            isfemSimulationObjectsStateChanged = updateCustomAnimationState(
-                                obj.node,
-                                genericObjectNewState,
-                                messageTopicId,
-                                mqttMessage,
-                                isfemSimulationObjectsStateChanged
-                            )
-                        } else if (
-                            animationType === "blenderEndless"
-                        ) {
-                            let clipValue = femSimulationObjectsNewState[index].clipValue;
-                            const fieldName = "endlessTimeFactor";
-                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                                const value = mqttMessage[fieldName][objName];
-                                if (typeof value === 'number') {
-                                    clipValue = value;
-                                    isGenericObjectsStateChanged = true;
-                                }
+                    if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
+                        let clipValue = genericObjectNewState[objName].clipValue;
+                        const fieldName = "endlessTimeFactor";
+                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                            const value = mqttMessage[fieldName][objName];
+                            if (typeof value === 'number') {
+                                clipValue = value;
+                                isfemSimulationObjectsStateChanged = true;
                             }
-                            femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValue }
+                        }
+                        femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValue };
+                    }
+
+                    if (obj.node.customAnimationObjectNames.length !== 0) {
+                        const fieldName = "customAnimation";
+                        if (messagePayloadKeys.includes(fieldName)) {
+                            updateCustomAnimationState(obj.node, mqttMessage)
                         }
                     }
 
-                    const objectOnOff = obj.node.userData.objectOnOff;
-                    if (objectOnOff === "yes") {
-                        let onOff = femSimulationObjectsNewState[index].onOff;
+                    if (obj.node.onOffObjectNames.length !== 0) {
                         const fieldName = "objectOnOff";
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            if (mqttMessage[fieldName][objName] === "on") {
-                                onOff = "on";
-                                isfemSimulationObjectsStateChanged = true;
-                            } else if (mqttMessage[fieldName][objName] === "off") {
-                                isfemSimulationObjectsStateChanged = true;
-                            }
+                        if (messagePayloadKeys.includes(fieldName)) {
+                            setObjectsOnOff(obj.node, mqttMessage[fieldName]);
                         }
-                        femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], onOff };
                     }
 
                     if (mqttMessage.femResultsModalValues !== undefined) {
@@ -475,51 +417,85 @@ const updateObjectsState = (
     }
 }
 
+
 const updateCustomAnimationState = (
-    node: THREE.Mesh,
-    newObjectState: Record<string, SensorState> | Record<string, AssetState> | Record<string, GenericObjectState>,
-    messageTopicId: number,
+    node: IThreeMesh,
     mqttMessage: any,
-    hasStateChangeIni: boolean
 ) => {
-    const objName = node.name;
-    let isCustomStateChanged = false;
-    const position = newObjectState[objName].position.clone();
-    const scale = newObjectState[objName].scale.clone();
-    const quaternion = newObjectState[objName].quaternion.clone();
-    if (mqttMessage.customAnimation !== undefined &&
-        mqttMessage.customAnimation[objName] !== undefined
-    ) {
-        const messagePayloadKeys = Object.keys(mqttMessage.customAnimation[objName]);
+
+    if (mqttMessage.customAnimation !== undefined) {
+        const msgObjNames = Object.keys(mqttMessage.customAnimation);
+        const objNamesFiltered = node.customAnimationObjectNames.filter(objName => msgObjNames.includes(objName));
+        for (const objName of objNamesFiltered) {
+            const messagePayloadKeys = Object.keys(mqttMessage.customAnimation[objName]);
+            const msgData = mqttMessage.customAnimation[objName];
+            findObjectAndSetCustomProperties(node, objName, messagePayloadKeys, msgData);
+        }
+    }
+}
+
+const findObjectAndSetCustomProperties = (
+    node: IThreeMesh,
+    objName: string,
+    messagePayloadKeys: string[],
+    msgData: any
+) => {
+    if (node.name === objName) {
         if (messagePayloadKeys.indexOf("position") !== -1) {
-            const values = mqttMessage.customAnimation[objName]["position"];
+            const values = msgData["position"];
             if (Array.isArray(values) && values.length === 3) {
-                position.set(values[0], values[1], values[2]);
-                isCustomStateChanged = true;
+                node.position.set(values[0], values[1], values[2]);
             }
         }
         if (messagePayloadKeys.indexOf("scale") !== -1) {
-            const values = mqttMessage.customAnimation[objName]["scale"];
+            const values = msgData["scale"];
             if (Array.isArray(values) && values.length === 3) {
-                scale.set(values[0], values[1], values[2]);
-                isCustomStateChanged = true;
+                node.scale.set(values[0], values[1], values[2]);
             }
         }
         if (messagePayloadKeys.indexOf("quaternion") !== -1) {
-            const values = mqttMessage.customAnimation[objName]["quaternion"];
+            const values = msgData["quaternion"];
             if (Array.isArray(values) && values.length === 4) {
-                quaternion.set(values[0], values[1], values[2], values[3]);
-                isCustomStateChanged = true;
+                node.quaternion.set(values[0], values[1], values[2], values[3]);
             }
         }
+        return;
+    } else {
+        for (const childNode of node.children) {
+            findObjectAndSetCustomProperties(childNode as IThreeMesh, objName, messagePayloadKeys, msgData);
+        }
     }
-    newObjectState[objName] = {
-        ...newObjectState[objName],
-        position,
-        scale,
-        quaternion
-    };
-    return (hasStateChangeIni || isCustomStateChanged);
+}
+
+const setObjectsOnOff = (
+    node: IThreeMesh,
+    mqttMessage: any,
+) => {
+    const msgObjNames = Object.keys(mqttMessage);
+    const objNamesFiltered = node.onOffObjectNames.filter(objName => msgObjNames.includes(objName));
+    for (const objName of objNamesFiltered) {
+        const onOff = mqttMessage[objName];
+        findOnOffObjectAndSetProperty(node, objName, onOff);
+    }
+}
+
+const findOnOffObjectAndSetProperty = (
+    node: IThreeMesh,
+    objName: string,
+    onOff: string
+) => {
+    if (node.name === objName) {
+        if (onOff === "on") {
+            node.visible = true;
+        } else if (onOff === "off") {
+            node.visible = false;
+        }
+        return;
+    } else {
+        for (const childNode of node.children) {
+            findOnOffObjectAndSetProperty(childNode as IThreeMesh, objName, onOff);
+        }
+    }
 }
 
 export default useSubscription;

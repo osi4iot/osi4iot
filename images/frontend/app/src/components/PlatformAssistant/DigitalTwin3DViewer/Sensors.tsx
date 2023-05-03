@@ -5,9 +5,10 @@ import { ISensorObject } from './Model';
 import { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState } from './ViewerUtils';
 import { changeMaterialPropRecursively } from '../../../tools/tools';
 import { sensorDisplay } from '../../../tools/sensorDisplay';
+import { IThreeMesh } from './threeInterfaces';
 
 interface SensorProps {
-    obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>;
+    obj: IThreeMesh;
     blinking: boolean;
     opacity: number;
     sensorState: SensorState;
@@ -31,10 +32,13 @@ const SensorBase: FC<SensorProps> = ({
 }) => {
     const camera = useThree((state) => state.camera);
     const [lastTimestamp, setLastTimestamp] = useState<Date | null>(null);
-    const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
+    const meshRef = useRef<IThreeMesh>(null);
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
-    changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    const recursiveTransparency = obj.userData.recursiveTransparency;
+    if (recursiveTransparency === undefined || recursiveTransparency === "true") {
+        changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    }
     const timeout = obj.userData.timeout as number || 60;
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
@@ -160,13 +164,10 @@ const SensorBase: FC<SensorProps> = ({
     return (
         (obj.type === "Group" || obj.animations.length !== 0 || obj.children.length !== 0) ?
             <mesh
-                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 material={material}
-                position={sensorState.position}
-                scale={sensorState.scale}
-                quaternion={sensorState.quaternion}
             >
                 <primitive
                     object={obj}
@@ -174,14 +175,14 @@ const SensorBase: FC<SensorProps> = ({
             </mesh>
             :
             <mesh
-                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 geometry={obj.geometry}
                 material={material}
-                position={sensorState.position}
-                scale={sensorState.scale}
-                quaternion={sensorState.quaternion}
+                position={obj.position}
+                scale={obj.scale}
+                quaternion={obj.quaternion}
             />
     )
 }
@@ -219,12 +220,11 @@ const Sensors: FC<SensorsProps> = ({
     updateSensorStateString,
 }) => {
     const sensorsStateString = Object.values(sensorsState).map(state => state.stateString === "off" ? "1" : "0").join("");
-    const sensorObjectsFiltered = sensorObjects.filter(obj => sensorsState[obj.node.name].onOff === "on");
     
     return (
         <>
             {
-                sensorObjectsFiltered.map((obj, index) => {
+                sensorObjects.map((obj, index) => {
                     return <Sensor
                         key={obj.node.uuid}
                         obj={obj.node}

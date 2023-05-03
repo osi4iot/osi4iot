@@ -27,20 +27,21 @@ import FemSimulationObjects from './FemSimulationObjects';
 import { toast } from 'react-toastify';
 import useMqttState from './MqttHook/useMqttState';
 import useSubscription from './MqttHook/useSubscription';
+import { IThreeMesh } from './threeInterfaces';
 
 
 export interface ISensorObject {
-	node: THREE.Mesh;
+	node: IThreeMesh;
 	collectionName: string;
 }
 
 export interface IAssetObject {
-	node: THREE.Mesh;
+	node: IThreeMesh;
 	collectionName: string;
 }
 
 export interface IGenericObject {
-	node: THREE.Mesh;
+	node: IThreeMesh;
 	collectionName: string;
 }
 
@@ -53,7 +54,7 @@ export interface IResultRenderInfo {
 
 
 export interface IFemSimulationObject {
-	node: THREE.Mesh;
+	node: IThreeMesh;
 	originalGeometry: Float32Array;
 	wireFrameMesh: THREE.LineSegments;
 	collectionName: string;

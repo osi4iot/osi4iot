@@ -4,9 +4,11 @@ import { useFrame } from '@react-three/fiber';
 import { defaultOpacity, defaultVisibility, GenericObjectState, ObjectVisibilityState } from './ViewerUtils';
 import { IGenericObject } from './Model';
 import { changeMaterialPropRecursively } from '../../../tools/tools';
+import { IThreeMesh } from './threeInterfaces';
+
 
 interface GenericObjectProps {
-    obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>;
+    obj: IThreeMesh;
     blinking: boolean;
     opacity: number;
     visible: boolean;
@@ -28,23 +30,23 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>(null);
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
-    changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    const recursiveTransparency = obj.userData.recursiveTransparency;
+    if (recursiveTransparency === undefined || recursiveTransparency === "true") {
+        changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    }
 
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
 
+
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
-            if (obj.userData.clipName) {
-                const mixer = new THREE.AnimationMixer(meshRef.current as any);
-                const clip = obj.animations[0];
-                const action = mixer.clipAction(clip);
-                action.play();
-                const clipsDuration = obj.animations[0].duration - 0.00001;
-                setClipsDuration(clipsDuration);
-                setMixer(mixer);
-            }
+            const mixer = new THREE.AnimationMixer(meshRef.current as any);
+            obj.animations.forEach(clip => mixer.clipAction(clip).play());
+            const clipsDuration = obj.animations[0].duration - 0.00001;
+            setClipsDuration(clipsDuration);
+            setMixer(mixer);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [obj.animations, meshRef]);
@@ -67,9 +69,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 
 
     useFrame(({ clock }, delta) => {
-        if (obj.userData.animationType &&
-            obj.userData.animationType === "blenderEndless"
-        ) {
+        if (obj.blenderAnimationTypes.includes("blenderEndless")) {
             let newDelta = delta;
             if (genericObjectState.clipValue !== null) {
                 newDelta = delta * genericObjectState.clipValue;
@@ -110,13 +110,10 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     return (
         (obj.type === "Group" || obj.animations.length !== 0 || obj.children.length !== 0) ?
             <mesh
-                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 material={material}
-                position={genericObjectState.position}
-                scale={genericObjectState.scale}
-                quaternion={genericObjectState.quaternion}
             >
                 <primitive
                     material={material}
@@ -125,14 +122,14 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
             </mesh>
             :
             <mesh
-                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 geometry={obj.geometry}
                 material={material}
-                position={genericObjectState.position}
-                scale={genericObjectState.scale}
-                quaternion={genericObjectState.quaternion}
+                position={obj.position}
+                scale={obj.scale}
+                quaternion={obj.quaternion}
             />
 
     )
@@ -166,12 +163,11 @@ const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjectsState,
     genericObjectsVisibilityState,
 }) => {
-    const genericObjectsFiltered = genericObjects.filter(obj => genericObjectsState[obj.node.name].onOff === "on");
 
     return (
         <>
             {
-                genericObjectsFiltered.map((obj, index) => {
+                genericObjects.map((obj, index) => {
                     return <GenericObject
                         key={obj.node.uuid}
                         obj={obj.node}

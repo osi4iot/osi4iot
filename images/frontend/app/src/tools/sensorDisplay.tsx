@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { IThreeMesh } from '../components/PlatformAssistant/DigitalTwin3DViewer/threeInterfaces';
 
 const digitMesh = [
     [1, 0, 1, 1, 1, 1, 1], // Value 0
@@ -17,7 +18,7 @@ const defaulEmitColor = new THREE.Color(0x00ff00);
 const noEmitColor = new THREE.Color(0, 0, 0);
 
 export const sensorDisplay = (
-    obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>,
+    obj: IThreeMesh,
     sensorValue: number | number[]
 ) => {
 
@@ -79,7 +80,7 @@ export const sensorDisplay = (
     }
 }
 
-const calcDefaultNumDecimals = (obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>) => {
+const calcDefaultNumDecimals = (obj: IThreeMesh) => {
     let minDigitPosition = 0;
     for (let imesh = 0; imesh < obj.children.length; imesh++) {
         if (obj.children[imesh].userData.displayType === "digit") {

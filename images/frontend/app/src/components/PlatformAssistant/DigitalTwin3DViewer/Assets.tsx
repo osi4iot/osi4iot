@@ -4,13 +4,14 @@ import { useFrame, useThree } from '@react-three/fiber';
 import { IAssetObject } from './Model';
 import { AssetState, defaultOpacity, defaultVisibility, ObjectVisibilityState } from './ViewerUtils';
 import { changeMaterialPropRecursively } from '../../../tools/tools';
+import { IThreeMesh } from './threeInterfaces';
 
 const assetOkColor = new THREE.Color(0x00ff00);
 const assetAlertingColor = new THREE.Color(0xff0000);
 const noEmitColor = new THREE.Color(0, 0, 0);
 
 interface AssetProps {
-    obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>;
+    obj: IThreeMesh;
     blinking: boolean;
     opacity: number;
     assetState: AssetState;
@@ -30,7 +31,10 @@ const AssetBase: FC<AssetProps> = ({
     const meshRef = useRef<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.MeshLambertMaterial | THREE.Material[]>>();
     const material = Object.assign(obj.material);
     const defOpacity = defaultOpacity(obj);
-    changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    const recursiveTransparency = obj.userData.recursiveTransparency;
+    if (recursiveTransparency === undefined || recursiveTransparency === "true") {
+        changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+    }
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
@@ -132,7 +136,7 @@ const AssetBase: FC<AssetProps> = ({
     return (
         (obj.type === "Group" || obj.animations.length !== 0  || obj.children.length !== 0) ?
             <mesh
-                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 material={material}
@@ -143,14 +147,14 @@ const AssetBase: FC<AssetProps> = ({
             </mesh>
             :
             <mesh
-                ref={meshRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
+                ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow
                 receiveShadow
                 geometry={obj.geometry}
                 material={material}
-                position={[obj.position.x, obj.position.y, obj.position.z]}
-                rotation={[obj.rotation.x, obj.rotation.y, obj.rotation.z]}
-                scale={[obj.scale.x, obj.scale.y, obj.scale.z]}
+                position={obj.position}
+                scale={obj.scale}
+                quaternion={obj.quaternion}
             />
 
     )
@@ -186,12 +190,11 @@ const Assets: FC<AssetsProps> = ({
     assetsVisibilityState
 }) => {
     const assetsStateString = Object.values(assetsState).map(state => state.stateString === "alerting" ? "1" : "0").join("");
-    const assetObjectsFiltered = assetObjects.filter(obj => assetsState[obj.node.name].onOff === "on");
 
     return (
         <>
             {
-                assetObjectsFiltered.map((obj, index) => {
+                assetObjects.map((obj, index) => {
                     return <Asset
                         key={obj.node.uuid}
                         obj={obj.node}

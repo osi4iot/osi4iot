@@ -1,3 +1,4 @@
+import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/threeInterfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 
 
@@ -20,8 +21,8 @@ export const getDomainName = () => {
     let domainName = location.split("/")[2];
     // if (domainName === "localhost:3000") domainName = "localhost";  //Development case
     // if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
-    // if (domainName === "localhost:3000") domainName = "dicapuaiot.com";
-    if (domainName === "localhost:3000") domainName = "osi4iot.com";
+    if (domainName === "localhost:3000") domainName = "dicapuaiot.com";
+    // if (domainName === "localhost:3000") domainName = "osi4iot.com";
     // if (domainName === "localhost:3000") domainName = "dev.iot-rafa.tk";
     return domainName;
 }
@@ -376,7 +377,7 @@ export const checkGltfFile_Old = (gltfFileData: any): string => {
 
 
 export const changeMaterialPropRecursively = (
-    obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>,
+    obj: IThreeMesh,
     prop: string,
     propValue: string | number | boolean | THREE.Color
 ) => {
@@ -393,7 +394,7 @@ export const changeMaterialPropRecursively = (
     }
     for (let node of obj.children) {
         changeMaterialPropRecursively(
-            node as THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>,
+            node as IThreeMesh,
             prop,
             newPropValue
         );

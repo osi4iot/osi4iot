@@ -11,35 +11,24 @@ import {
 import { toast } from "react-toastify";
 import { IMeasurement } from "../TableColumns/measurementsColumns";
 import Lut, { ILegendLabels } from "./Lut";
+import { IThreeMesh } from './threeInterfaces';
 
 export interface SensorState {
 	stateString: string;
 	highlight: boolean;
-	onOff: string;
 	sensorValue: (number | number[] | null);
 	clipValue: (number | null);
-	position: THREE.Vector3;
-	scale: THREE.Vector3;
-	quaternion: THREE.Quaternion;
 }
 
 export interface AssetState {
 	stateString: string;
-	onOff: string;
 	highlight: boolean;
 	clipValue: (number | null);
-	position: THREE.Vector3;
-	scale: THREE.Vector3;
-	quaternion: THREE.Quaternion;
 }
 
 export interface GenericObjectState {
 	highlight: boolean;
-	onOff: string;
 	clipValue: (number | null);
-	position: THREE.Vector3;
-	scale: THREE.Vector3;
-	quaternion: THREE.Quaternion;
 }
 
 export interface ObjectVisibilityState {
@@ -60,7 +49,6 @@ export interface FemSimObjectVisibilityState {
 export interface FemSimulationObjectState {
 	resultFieldModalValues: Record<string, number[]>;
 	highlight: boolean;
-	onOff: string;
 	clipValue: (number | null);
 }
 
@@ -124,15 +112,10 @@ export const generateInitialSensorsState = (
 		const sensorTopicId = obj.node.userData.sensorTopicId;
 		const sensorsState: SensorState = {
 			stateString: "off",
-			onOff: "on",
 			highlight: false,
 			sensorValue: null,
-			clipValue: null,
-			position: new THREE.Vector3(0.0, 0.0, 0.0),
-			scale: new THREE.Vector3(1.0, 1.0, 1.0),
-			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
+			clipValue: null
 		};
-		generateInitialCustomAnimationObjectState(obj.node, sensorsState, digitalTwinGltfData);
 		if (sensorTopicId !== undefined) {
 			const lastMeasurement = findLastMeasurement(sensorTopicId, digitalTwinGltfData);
 			if (lastMeasurement) {
@@ -219,14 +202,9 @@ export const generateInitialAssetsState = (
 		const objName = obj.node.name;
 		const assetState: AssetState = {
 			stateString: "ok",
-			onOff: "on",
 			highlight: false,
-			clipValue: null,
-			position: new THREE.Vector3(0.0, 0.0, 0.0),
-			scale: new THREE.Vector3(1.0, 1.0, 1.0),
-			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
+			clipValue: null
 		};
-		generateInitialCustomAnimationObjectState(obj.node, assetState, digitalTwinGltfData);
 		const lastMeasurement = findLastMeasurement(assetStateTopicId, digitalTwinGltfData);
 		if (lastMeasurement) {
 			const assetPartIndex = obj.node.userData.assetPartIndex;
@@ -282,14 +260,9 @@ export const generateInitialGenericObjectsState = (
 	genericObjects.forEach(obj => {
 		const objName = obj.node.name;
 		const genericObjectState: GenericObjectState = {
-			onOff: "on",
 			highlight: false,
 			clipValue: null,
-			position: new THREE.Vector3(0.0, 0.0, 0.0),
-			scale: new THREE.Vector3(1.0, 1.0, 1.0),
-			quaternion: new THREE.Quaternion(0.0, 0.0, 0.0, 1.0)
 		};
-		generateInitialCustomAnimationObjectState(obj.node, genericObjectState, digitalTwinGltfData);
 
 		let clipValue: (number | null) = null;
 		const clipTopicId = obj.node.userData.clipTopicId;
@@ -306,7 +279,7 @@ export const generateInitialGenericObjectsState = (
 						if (typeof value === 'number') {
 							clipValue = value;
 						}
-					} 
+					}
 				} else {
 					if (obj.node.userData.clipMinValue !== undefined) {
 						clipValue = obj.node.userData.clipMinValue;
@@ -319,59 +292,6 @@ export const generateInitialGenericObjectsState = (
 		initialGenericObjectsState[objName] = genericObjectState;
 	})
 	return initialGenericObjectsState;
-}
-
-export const generateInitialCustomAnimationObjectState = (
-	node: THREE.Mesh,
-	objectState: GenericObjectState | AssetState | SensorState,
-	digitalTwinGltfData: IDigitalTwinGltfData,
-) => {
-	if (node.type === "Mesh" && node.animations.length === 0 && node.children.length === 0) {
-		objectState.position.set(node.position.x, node.position.y, node.position.z);
-		objectState.scale.set(node.scale.x, node.scale.y, node.scale.z);
-		const euler = new THREE.Euler(node.rotation.x, node.rotation.y, node.rotation.z);
-		const quaternion = new THREE.Quaternion().setFromEuler(euler);
-		objectState.quaternion.copy(quaternion);
-	}
-
-	if (
-		node.userData.animationType !== undefined &&
-		node.userData.animationType === "custom" &&
-		node.userData.customTopicId !== undefined
-	) {
-		const customTopicId = node.userData.customTopicId;
-		const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === customTopicId);
-		if (mqttTopicsDataFiltered.length !== 0) {
-			const lastMeasurement = mqttTopicsDataFiltered[0].lastMeasurement;
-			if (lastMeasurement) {
-				const objName = node.name;
-				const payloadObject = lastMeasurement.payload as any;
-				if (payloadObject.customAnimation !== undefined &&
-					payloadObject.customAnimation[objName] !== undefined
-				) {
-					const payloadKeys = Object.keys(payloadObject.customAnimation[objName]);
-					if (payloadKeys.indexOf("position") !== -1) {
-						const values = payloadObject.customAnimation[objName]["position"];
-						if (Array.isArray(values) && values.length === 3) {
-							objectState.position.set(values[0], values[1], values[2]);
-						}
-					}
-					if (payloadKeys.indexOf("scale") !== -1) {
-						const values = payloadObject.customAnimation[objName]["scale"];
-						if (Array.isArray(values) && values.length === 3) {
-							objectState.scale.set(values[0], values[1], values[2]);
-						}
-					}
-					if (payloadKeys.indexOf("quaternion") !== -1) {
-						const values = payloadObject.customAnimation[objName]["quaternion"];
-						if (Array.isArray(values) && values.length === 4) {
-							objectState.quaternion.set(values[0], values[1], values[2], values[3]);
-						}
-					}
-				}
-			}
-		}
-	}
 }
 
 export const generateInitialFemSimObjectsState = (
@@ -425,9 +345,8 @@ export const generateInitialFemSimObjectsState = (
 				}
 			}
 		}
-		const onOff = "on";
 
-		initialFemSimObjectsState[imesh] = { onOff, highlight, clipValue, resultFieldModalValues };
+		initialFemSimObjectsState[imesh] = { highlight, clipValue, resultFieldModalValues };
 	}
 	return initialFemSimObjectsState;
 }
@@ -475,7 +394,7 @@ export const setMeshList = (nodes: any) => {
 const getSceneBox = (
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
-	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[],
+	genericObjects: IThreeMesh[],
 	femSimulationObject: IFemSimulationObject | null
 ) => {
 	let first = true;
@@ -499,7 +418,7 @@ const getSceneBox = (
 		}
 	})
 
-	genericObjects.forEach((obj: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>) => {
+	genericObjects.forEach((obj: IThreeMesh) => {
 		if (first) {
 			box = new THREE.Box3().setFromObject(obj);
 			first = false;
@@ -524,7 +443,7 @@ const getSceneBox = (
 export const giveSceneCenter = (
 	sensorObjects: ISensorObject[],
 	assetObjects: IAssetObject[],
-	genericObjects: THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>[],
+	genericObjects: IThreeMesh[],
 	femSimulationObject: IFemSimulationObject | null
 ) => {
 	var box = getSceneBox(sensorObjects, assetObjects, genericObjects, femSimulationObject);
@@ -722,12 +641,7 @@ export const sortObjects: (
 		if (sensorsCollectionNames.findIndex(name => name === collectionName) === -1) {
 			sensorsCollectionNames.push(collectionName);
 		}
-		if (obj.node.userData.clipName !== undefined) {
-			const objAnimations: THREE.AnimationClip[] = [];
-			const objAnimation = animations.filter(clip => clip.name === obj.node.userData.clipName)[0];
-			if (objAnimations) objAnimations.push(objAnimation);
-			obj.node.animations = objAnimations;
-		}
+		nodeAnimations(obj.node, animations);
 	})
 
 	assetObjects.forEach((obj: IAssetObject) => {
@@ -735,12 +649,7 @@ export const sortObjects: (
 		if (assetsCollectionNames.findIndex(name => name === collectionName) === -1) {
 			assetsCollectionNames.push(collectionName);
 		}
-		if (obj.node.userData.clipName !== undefined) {
-			const objAnimations: THREE.AnimationClip[] = [];
-			const objAnimation = animations.filter(clip => clip.name === obj.node.userData.clipName)[0];
-			if (objAnimations) objAnimations.push(objAnimation);
-			obj.node.animations = objAnimations;
-		}
+		nodeAnimations(obj.node, animations);
 	})
 
 	genericObjects.forEach((obj: IGenericObject) => {
@@ -748,13 +657,7 @@ export const sortObjects: (
 		if (genericObjectsCollectionNames.findIndex(name => name === collectionName) === -1) {
 			genericObjectsCollectionNames.push(collectionName);
 		}
-
-		if (obj.node.userData.clipName !== undefined) {
-			const objAnimations: THREE.AnimationClip[] = [];
-			const objAnimation = animations.filter(clip => clip.name === obj.node.userData.clipName)[0];
-			if (objAnimations) objAnimations.push(objAnimation);
-			obj.node.animations = objAnimations;
-		}
+		nodeAnimations(obj.node, animations);
 	})
 
 	femSimulationObjects.forEach((obj: IFemSimulationObject) => {
@@ -762,12 +665,7 @@ export const sortObjects: (
 		if (femSimObjectCollectionNames.findIndex(name => name === collectionName) === -1) {
 			femSimObjectCollectionNames.push(collectionName);
 		}
-		if (obj.node.userData.clipName !== undefined) {
-			const objAnimations: THREE.AnimationClip[] = [];
-			const objAnimation = animations.filter(clip => clip.name === obj.node.userData.clipName)[0];
-			if (objAnimations) objAnimations.push(objAnimation);
-			obj.node.animations = objAnimations;
-		}
+		nodeAnimations(obj.node, animations);
 	})
 
 	return {
@@ -779,6 +677,72 @@ export const sortObjects: (
 		assetsCollectionNames,
 		genericObjectsCollectionNames,
 		femSimObjectCollectionNames
+	}
+}
+
+const nodeAnimations = (node: any, animations: THREE.AnimationClip[]) => {
+	const nodeAnimations: THREE.AnimationClip[] = [];
+	const blenderAnimationTypes: string[] = [];
+	const customAnimationObjectNames: string[] = [];
+	const onOffObjectNames: string[] = [];
+	setNodeAnimationRecursively(
+		node,
+		0, //Level
+		nodeAnimations,
+		blenderAnimationTypes,
+		customAnimationObjectNames,
+		onOffObjectNames,
+		animations
+	);
+	node.animations = nodeAnimations;
+	node.blenderAnimationTypes = blenderAnimationTypes;
+	node.customAnimationObjectNames = customAnimationObjectNames;
+	node.onOffObjectNames = onOffObjectNames;
+}
+
+const setNodeAnimationRecursively = (
+	node: any,
+	level: number,
+	nodeAnimations: THREE.AnimationClip[],
+	blenderAnimationTypes: string[],
+	customAnimationObjectNames: string[],
+	onOffObjectNames: string[],
+	animations: THREE.AnimationClip[]
+) => {
+	if (node.userData !== undefined) {
+		if (node.userData.animationType !== undefined) {
+			if (node.userData.clipName !== undefined) {
+				const objAnimation = animations.filter(clip => clip.name === node.userData.clipName)[0];
+				if (objAnimation) {
+					nodeAnimations.push(objAnimation);
+					if (node.userData.animationType === "blenderTemporary") {
+						if(level === 0) blenderAnimationTypes.push("blenderTemporary")
+					} else if (node.userData.animationType === "blenderEndless") {
+						if (!blenderAnimationTypes.includes("blenderEndless")) {
+							blenderAnimationTypes.push("blenderEndless");
+						}
+					}
+				}
+			}
+			if (node.userData.animationType === "custom") {
+				customAnimationObjectNames.push(node.name);
+			}
+		}
+		if (node.userData.objectOnOff === "yes") {
+			onOffObjectNames.push(node.name);
+		}
+	}
+	
+	for (const node_child of node.children) {
+		setNodeAnimationRecursively(
+			node_child,
+			level+1,
+			nodeAnimations,
+			blenderAnimationTypes,
+			customAnimationObjectNames,
+			onOffObjectNames,
+			animations
+		);
 	}
 }
 
@@ -1005,5 +969,31 @@ export const readFemSimulationInfo = (
 	setFemSimulationGeneralInfo(femSimulationGeneralInfo);
 }
 
+
+export const setAnimationMixerRecursively = (
+	obj: IThreeMesh,
+	meshRef: any,
+	mixer: THREE.AnimationMixer | null = null,
+	setMixer: (value: React.SetStateAction<THREE.AnimationMixer | null>) => void,
+	clipsDuration: number | null = null,
+	setClipsDuration: (value: React.SetStateAction<number>) => void
+) => {
+	if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined)) {
+		if (obj.userData.clipName) {
+			const clip = obj.animations[0];
+			if (!mixer) mixer = new THREE.AnimationMixer(meshRef);
+			const action = mixer.clipAction(clip);
+			action.play();
+			if (!clipsDuration) {
+				clipsDuration = obj.animations[0].duration - 0.00001;
+				setClipsDuration(clipsDuration);
+			}
+			setMixer(mixer);
+		}
+	}
+	for (const node_child of obj.children) {
+		setAnimationMixerRecursively(node_child as any, meshRef, mixer, setMixer, clipsDuration, setClipsDuration)
+	}
+}
 
 
