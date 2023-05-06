@@ -31,7 +31,6 @@ const MqttConnector = ({
             const clientId = "clientId_" + Math.floor(Math.random() * 1000);
             const mqttClient = new Paho.Client(hostname, port, clientId);
 
-
             const onConnect = () => {
                 setStatus('Connected');
                 // For some reason setting the client as soon as we get it from connect breaks things

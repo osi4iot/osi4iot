@@ -256,153 +256,165 @@ const updateObjectsState = (
             }
 
             if (messageTopicType === "dtm2sim") {
-                sensorObjects.forEach((obj) => {
-                    const objName = obj.node.name;
-                    if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
-                        let clipValue = genericObjectNewState[objName].clipValue;
-                        const fieldName = "endlessTimeFactor";
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            const value = mqttMessage[fieldName][objName];
-                            if (typeof value === 'number') {
-                                clipValue = value;
-                                isSensorStateChanged = true;
+                let eventTriggerTopicType = "dev2pdb";
+                if (messagePayloadKeys.includes("eventTriggerTopicType")) {
+                    eventTriggerTopicType = mqttMessage["eventTriggerTopicType"];
+                }
+                if (
+                    (digitalTwinSimulatorSendData && eventTriggerTopicType === "sim2dtm") ||
+                    (!digitalTwinSimulatorSendData &&
+                        (eventTriggerTopicType === "dev2pdb" || eventTriggerTopicType === "dev2sim")
+                    )
+                ) {
+                    console.log("mqttMessage=", mqttMessage);
+                    sensorObjects.forEach((obj) => {
+                        const objName = obj.node.name;
+                        if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
+                            let clipValue = genericObjectNewState[objName].clipValue;
+                            const fieldName = "endlessTimeFactor";
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                const value = mqttMessage[fieldName][objName];
+                                if (typeof value === 'number') {
+                                    clipValue = value;
+                                    isSensorStateChanged = true;
+                                }
+                            }
+                            sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
+                        }
+
+                        if (obj.node.customAnimationObjectNames.length !== 0) {
+                            const fieldName = "customAnimation";
+                            if (messagePayloadKeys.includes(fieldName)) {
+                                updateCustomAnimationState(obj.node, mqttMessage)
                             }
                         }
-                        sensorsNewState[objName] = { ...sensorsNewState[objName], clipValue };
-                    }
 
-                    if (obj.node.customAnimationObjectNames.length !== 0) {
-                        const fieldName = "customAnimation";
-                        if (messagePayloadKeys.includes(fieldName)) {
-                            updateCustomAnimationState(obj.node, mqttMessage)
-                        }
-                    }
-
-                    if (obj.node.onOffObjectNames.length !== 0) {
-                        const fieldName = "objectOnOff";
-                        if (messagePayloadKeys.includes(fieldName)) {
-                            setObjectsOnOff(obj.node, mqttMessage[fieldName]);
-                        }
-                    }
-
-                });
-
-                assetObjects.forEach((obj) => {
-                    const objName = obj.node.name;
-                    if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
-                        let clipValue = genericObjectNewState[objName].clipValue;
-                        const fieldName = "endlessTimeFactor";
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            const value = mqttMessage[fieldName][objName];
-                            if (typeof value === 'number') {
-                                clipValue = value;
-                                isAssetStateChanged = true;
+                        if (obj.node.onOffObjectNames.length !== 0) {
+                            const fieldName = "objectOnOff";
+                            if (messagePayloadKeys.includes(fieldName)) {
+                                setObjectsOnOff(obj.node, mqttMessage[fieldName]);
                             }
                         }
-                        assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
-                    }
 
-                    if (obj.node.customAnimationObjectNames.length !== 0) {
-                        const fieldName = "customAnimation";
-                        if (messagePayloadKeys.includes(fieldName)) {
-                            updateCustomAnimationState(obj.node, mqttMessage)
+                    });
+
+                    assetObjects.forEach((obj) => {
+                        const objName = obj.node.name;
+                        if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
+                            let clipValue = genericObjectNewState[objName].clipValue;
+                            const fieldName = "endlessTimeFactor";
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                const value = mqttMessage[fieldName][objName];
+                                if (typeof value === 'number') {
+                                    clipValue = value;
+                                    isAssetStateChanged = true;
+                                }
+                            }
+                            assestsNewState[objName] = { ...assestsNewState[objName], clipValue };
                         }
-                    }
 
-                    if (obj.node.onOffObjectNames.length !== 0) {
-                        const fieldName = "objectOnOff";
-                        if (messagePayloadKeys.includes(fieldName)) {
-                            setObjectsOnOff(obj.node, mqttMessage[fieldName]);
-                        }
-                    }
-
-                    if (mqttMessage.assetPartsState !== undefined) {
-                        const assetPartIndex = obj.node.userData.assetPartIndex;
-                        const stateNumber = parseInt(mqttMessage.assetPartsState[assetPartIndex - 1], 10);
-                        if (stateNumber === 1) {
-                            assestsNewState[objName] = { ...assestsNewState[objName], stateString: "alerting" };
-                        } else if (stateNumber === 0) {
-                            assestsNewState[objName] = { ...assestsNewState[objName], stateString: "ok" };
-                        }
-                        isAssetStateChanged = true;
-                    }
-                });
-
-                genericObjects.forEach((obj) => {
-                    const objName = obj.node.name;
-                    if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
-                        let clipValue = genericObjectNewState[objName].clipValue;
-                        const fieldName = "endlessTimeFactor";
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            const value = mqttMessage[fieldName][objName];
-                            if (typeof value === 'number') {
-                                clipValue = value;
-                                isGenericObjectsStateChanged = true;
+                        if (obj.node.customAnimationObjectNames.length !== 0) {
+                            const fieldName = "customAnimation";
+                            if (messagePayloadKeys.includes(fieldName)) {
+                                updateCustomAnimationState(obj.node, mqttMessage)
                             }
                         }
-                        genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
-                    }
 
-                    if (obj.node.customAnimationObjectNames.length !== 0) {
-                        const fieldName = "customAnimation";
-                        if (messagePayloadKeys.includes(fieldName)) {
-                            updateCustomAnimationState(obj.node, mqttMessage)
-                        }
-                    }
-
-                    if (obj.node.onOffObjectNames.length !== 0) {
-                        const fieldName = "objectOnOff";
-                        if (messagePayloadKeys.includes(fieldName)) {
-                            setObjectsOnOff(obj.node, mqttMessage[fieldName]);
-                        }
-                    }
-                });
-
-                femSimulationObjects.forEach((obj, index) => {
-                    const objName = obj.node.name;
-                    if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
-                        let clipValue = genericObjectNewState[objName].clipValue;
-                        const fieldName = "endlessTimeFactor";
-                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
-                            const value = mqttMessage[fieldName][objName];
-                            if (typeof value === 'number') {
-                                clipValue = value;
-                                isfemSimulationObjectsStateChanged = true;
+                        if (obj.node.onOffObjectNames.length !== 0) {
+                            const fieldName = "objectOnOff";
+                            if (messagePayloadKeys.includes(fieldName)) {
+                                setObjectsOnOff(obj.node, mqttMessage[fieldName]);
                             }
                         }
-                        femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValue };
-                    }
 
-                    if (obj.node.customAnimationObjectNames.length !== 0) {
-                        const fieldName = "customAnimation";
-                        if (messagePayloadKeys.includes(fieldName)) {
-                            updateCustomAnimationState(obj.node, mqttMessage)
+                        if (mqttMessage.assetPartsState !== undefined) {
+                            const assetPartIndex = obj.node.userData.assetPartIndex;
+                            const stateNumber = parseInt(mqttMessage.assetPartsState[assetPartIndex - 1], 10);
+                            if (stateNumber === 1) {
+                                assestsNewState[objName] = { ...assestsNewState[objName], stateString: "alerting" };
+                            } else if (stateNumber === 0) {
+                                assestsNewState[objName] = { ...assestsNewState[objName], stateString: "ok" };
+                            }
+                            isAssetStateChanged = true;
                         }
-                    }
+                    });
 
-                    if (obj.node.onOffObjectNames.length !== 0) {
-                        const fieldName = "objectOnOff";
-                        if (messagePayloadKeys.includes(fieldName)) {
-                            setObjectsOnOff(obj.node, mqttMessage[fieldName]);
+                    genericObjects.forEach((obj) => {
+                        const objName = obj.node.name;
+                        if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
+                            let clipValue = genericObjectNewState[objName].clipValue;
+                            const fieldName = "endlessTimeFactor";
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                const value = mqttMessage[fieldName][objName];
+                                if (typeof value === 'number') {
+                                    clipValue = value;
+                                    isGenericObjectsStateChanged = true;
+                                }
+                            }
+                            genericObjectNewState[objName] = { ...genericObjectNewState[objName], clipValue };
                         }
-                    }
 
-                    if (mqttMessage.femResultsModalValues !== undefined) {
-                        for (let imesh = 0; imesh < femSimulationObjectsState.length; imesh++) {
-                            for (let ires = 0; ires < femResultNames.length; ires++) {
-                                const resultName = femResultNames[ires];
-                                const femResultsModalValue = mqttMessage.femResultsModalValues[imesh][ires];
-                                femSimulationObjectsNewState[imesh].resultFieldModalValues[resultName] = femResultsModalValue;
-                                isfemSimulationObjectsStateChanged = true
+                        if (obj.node.customAnimationObjectNames.length !== 0) {
+                            const fieldName = "customAnimation";
+                            if (messagePayloadKeys.includes(fieldName)) {
+                                updateCustomAnimationState(obj.node, mqttMessage)
                             }
                         }
+
+                        if (obj.node.onOffObjectNames.length !== 0) {
+                            const fieldName = "objectOnOff";
+                            if (messagePayloadKeys.includes(fieldName)) {
+                                setObjectsOnOff(obj.node, mqttMessage[fieldName]);
+                            }
+                        }
+                    });
+
+                    femSimulationObjects.forEach((obj, index) => {
+                        const objName = obj.node.name;
+                        if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
+                            let clipValue = genericObjectNewState[objName].clipValue;
+                            const fieldName = "endlessTimeFactor";
+                            if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                                const value = mqttMessage[fieldName][objName];
+                                if (typeof value === 'number') {
+                                    clipValue = value;
+                                    isfemSimulationObjectsStateChanged = true;
+                                }
+                            }
+                            femSimulationObjectsNewState[index] = { ...femSimulationObjectsNewState[index], clipValue };
+                        }
+
+                        if (obj.node.customAnimationObjectNames.length !== 0) {
+                            const fieldName = "customAnimation";
+                            if (messagePayloadKeys.includes(fieldName)) {
+                                updateCustomAnimationState(obj.node, mqttMessage)
+                            }
+                        }
+
+                        if (obj.node.onOffObjectNames.length !== 0) {
+                            const fieldName = "objectOnOff";
+                            if (messagePayloadKeys.includes(fieldName)) {
+                                setObjectsOnOff(obj.node, mqttMessage[fieldName]);
+                            }
+                        }
+
+                        if (mqttMessage.femResultsModalValues !== undefined) {
+                            for (let imesh = 0; imesh < femSimulationObjectsState.length; imesh++) {
+                                for (let ires = 0; ires < femResultNames.length; ires++) {
+                                    const resultName = femResultNames[ires];
+                                    const femResultsModalValue = mqttMessage.femResultsModalValues[imesh][ires];
+                                    femSimulationObjectsNewState[imesh].resultFieldModalValues[resultName] = femResultsModalValue;
+                                    isfemSimulationObjectsStateChanged = true
+                                }
+                            }
+                        }
+
+                    });
+
+                    if (mqttMessage.newFemResFile !== undefined) {
+                        const femResFilesLastUpdate = new Date();
+                        setFemResFilesLastUpdate(femResFilesLastUpdate);
                     }
-
-                });
-
-                if (mqttMessage.newFemResFile !== undefined) {
-                    const femResFilesLastUpdate = new Date();
-                    setFemResFilesLastUpdate(femResFilesLastUpdate);
                 }
             }
 
