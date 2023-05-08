@@ -6,6 +6,116 @@ import fs from 'fs';
 // import process from 'process';
 
 
+// print process.argv
+const args = process.argv;
+args.forEach(function (val, index, array) {
+    console.log(index + ': ' + val);
+});
+
+let arg2 = args[2];
+
+if (arg2 == undefined) {
+    console.log('You need to specify a folder.gid where the .post.msh and .post.res are located.')
+    throw new Error('You need to specify a folder.gid where the .post.msh and .post.res are located.');
+}
+
+if (arg2.includes('/')){
+
+}
+else{if(arg2.includes('\\')){
+    arg2=arg2.replace(/\\/g,'/')
+}
+else{
+    console.log(`introduce the path using '/' instead of '\\'`)
+}}
+
+
+const inputMeshPath = `${arg2}/${arg2.split('/')[arg2.split('/').length-1].replace('.gid','')}.post.msh`
+const inputResultsPath = `${arg2}/${arg2.split('/')[arg2.split('/').length-1].replace('.gid','')}.post.res`
+const inputDataPathArray = inputMeshPath.split('/');
+const directory = inputDataPathArray.slice(0, -1).join('/');
+const fileName = inputDataPathArray[inputDataPathArray.length - 1].split('.')[0];
+
+
+let resultsOfInterest = undefined;
+let reverseField = undefined;
+
+let skipArg=0; // how many arguments to skip, by default no-skip = 0
+    let lastArg=undefined;
+    for (let argidx = 3; argidx < args.length; argidx++) {
+        let argi=args[argidx];
+        if (skipArg==0){
+            switch (argi) {
+                case '--reverse-field':
+                    skipArg=1;
+                    lastArg=argi
+                    break;
+                case '--results-of-interest':
+                        skipArg=1;
+                        lastArg=argi
+                        break;
+                default:
+                    break;
+            }
+        } else {
+            switch (lastArg) {
+                case '--reverse-field':
+                    try {
+                        reverseField=argi.replace('[','').replace(']','').split(/[ ,]+/);
+                    } catch (error) {
+                        console.log('No reverse field specified, using the defaults.')
+                        reverseField = undefined
+                    }
+                    break;
+                case '--results-of-interest':
+                    try {
+                        resultsOfInterest = argi.replace('[','').replace(']','').split(/[ ,]+/);
+                    } catch (error) {
+                        console.log('Error parsing the result inserted')
+                        throw new Error(error)
+                    }
+                    break;
+                default:
+                    // switch (skipArg) {
+                        // case 1: 
+                        //      break;
+                        // case 2:
+                        //      break;
+                        // ...
+                        // case 3:
+                        //      break;
+                    // }
+                    break;
+            }
+            skipArg--;
+        }
+    }
+
+const dictCompOfInterest = {
+    'Displacements':3,
+    'Shells//Stresses_Top':1,
+    'Shells//Stresses_Bottom':1,
+    'Shells//Equivalent_stresses//Von_Mises//Top':1,
+    'Shells//Equivalent_stresses//Von_Mises//Bottom':1,
+    'Shells//Main_stresses//Top//Si':1,
+    'Shells//Main_stresses//Top//Sii':1,
+    'Shells//Main_stresses//Top//Siii':1,
+    'Shells//Main_stresses//Bottom//Si':1,
+    'Shells//Main_stresses//Bottom//Sii':1,
+    'Shells//Main_stresses//Bottom//Siii':1,
+    'Stresses_Top (Pa)//Sx':6,
+    'Stresses_Bottom':6,
+    'Axial_Force':4,
+    // Please if you ask for something different, complete this dictionary.
+}
+
+if (resultsOfInterest == undefined) {
+    console.log('No result specified, using the defaults.');
+    resultsOfInterest = ["Displacements", "Shells//Stresses_Top", "Shells//Stresses_Bottom"];
+    // resultsOfInterest = ["Displacements","Stresses_Top (Pa)","Stresses_Bottom (Pa)","Axial_Force"];
+}
+
+
 const Ninv = [[1.0, -1.0, 1], [1.0, 1.0, -1.0], [-1.0, 1.0, 1.0]];
 
 const lineClasifier = (lineString) => {
@@ -50,21 +160,6 @@ const readGaussPoints = (liner) => {
     return;
 }
 
-let resultsOfInterest
-try {
-    resultsOfInterest = process.argv[3].replace('[','').replace(']','').split(/[ ,]+/);
-} catch (error) {
-    console.log('No result specified, using the defaults.')
-    resultsOfInterest = ["Displacements", "Shells//Stresses_Top", "Shells//Stresses_Bottom"]
-}
-
-const dictCompOfInterest = {
-    'Displacements':3,
-    'Shells//Stresses_Top':1,
-    'Shells//Stresses_Bottom':1,
-    // Please if you ask for something different, complete this dictionary.
-}
-
 
 var numCompOfInterest = new Array(resultsOfInterest.length).fill(0);
 
@@ -80,14 +175,17 @@ const isResultOfInterest = (resultName) => {
 const readResults = (header, liner, elements, nodalResults, elemResults, maxValues, minValues, units) => {
     const headerStringArray = header.split(" ").filter(word => word !== "");
     let mode = parseInt(headerStringArray[3]);
+    let ishift = 0;
+    if (isNaN(mode)) ishift=+1
+    mode = parseInt(headerStringArray[3+ishift])
     // const modeAux = headerStringArray[2].slice(1, -1);
     // let mode = null;
     // if (modeAux !== "") mode = parseInt(modeAux.slice(5), 10);
     if (mode > numberOfModes) numberOfModes = mode;
 
-    const resultName = headerStringArray[1].slice(1, -1);
+    const resultName = headerStringArray[1].slice(1,); // RP: before was 1,-1 but then it was Displacement instead of Displacements
 
-    const resultTypeAux = headerStringArray[5];
+    const resultTypeAux = headerStringArray[5+ishift];
     let resultType;
     if (resultTypeAux.slice(0, 7) === "OnNodes") resultType = "OnNodes";
     else if (resultTypeAux.slice(0, 13) === "OnGaussPoints") resultType = "OnGaussPoints";
@@ -122,30 +220,40 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
         }
     }
 
-    liner.next(); //Values flag
+    // liner.next(); //Values flag // RP: It was skipping first node
     let line;
     while (line = liner.next()) {
+        let boolMixMaxSave = true;
+        let valueSign = 1
         let lineString = line.toString('ascii');
         if (lineString.slice(0, 10) === "End Values") break;
 
         if (componentNamesArray) {
             if (resultType === "OnNodes") {
                 const valuesArray = lineString.split(" ").filter(word => word !== "").slice(1);
+                let idx_elm=parseInt(lineString.split(" ").filter(word => word !== "").slice(0,1));
+                if (elements[0][idx_elm]==undefined) boolMixMaxSave = false;
                 for (let icomp = 0; icomp < componentNamesArray.length; icomp++) {
-                    const fieldName = `${componentNamesArray[icomp]}__${mode}`;
-                    let value = parseFloat(valuesArray[icomp]);
+                    const fieldNameParent =componentNamesArray[icomp]
+                    if (reverseField && reverseField.indexOf(fieldNameParent)>-1){
+                        valueSign=-1;
+                    } else { valueSign=1}
+                    const fieldName = `${fieldNameParent}__${mode}`;
+                    let value = valueSign * parseFloat(valuesArray[icomp]);
                     if (!value || Math.abs(value) < 1.0e-30) value = 0.0;
-                    nodalResults[fieldName].push(value);
-
-                    if (maxValues[componentNamesArray[icomp]] === undefined) maxValues[componentNamesArray[icomp]] = value;
-                    if (minValues[componentNamesArray[icomp]] === undefined) minValues[componentNamesArray[icomp]] = value;
-                    if (value > maxValues[componentNamesArray[icomp]]) maxValues[componentNamesArray[icomp]] = value;
-                    if (value < minValues[componentNamesArray[icomp]]) minValues[componentNamesArray[icomp]] = value;
+                        nodalResults[fieldName].push(value);
+                    if (boolMixMaxSave){
+                        if (maxValues[fieldNameParent] === undefined) maxValues[fieldNameParent] = value;
+                        if (minValues[fieldNameParent] === undefined) minValues[fieldNameParent] = value;
+                        if (value > maxValues[fieldNameParent]) maxValues[fieldNameParent] = value;
+                        if (value < minValues[fieldNameParent]) minValues[fieldNameParent] = value;
+                    }
                 }
             } else if (resultType === "OnGaussPoints") {
                 const gpValuesMatrix = [];
                 gpValuesMatrix[0] = lineString.split(" ").filter(word => word !== "").slice(1);
-
+                let idx_elm=parseInt(lineString.split(" ").filter(word => word !== "").slice(0,1));
+                if (elements[0][idx_elm]==undefined) boolMixMaxSave = false;
                 line = liner.next()
                 lineString = line.toString('ascii');
                 gpValuesMatrix[1] = lineString.split(" ").filter(word => word !== "");
@@ -155,20 +263,25 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
                 gpValuesMatrix[2] = lineString.split(" ").filter(word => word !== "");
 
                 for (let icomp = 0; icomp < componentNamesArray.length; icomp++) {
-                    const fieldName = `${componentNamesArray[icomp]}__${mode}`;
+                    const fieldNameParent =componentNamesArray[icomp]
+                    if (reverseField && reverseField.indexOf(fieldNameParent)>-1){
+                        valueSign=-1;
+                    } else {valueSign=1}
+                    const fieldName = `${fieldNameParent}__${mode}`;
                     const nodalValues = [];
                     for (let inode = 0; inode < 3; inode++) {
                         nodalValues[inode] = 0.0;
                         for (let igauss = 0; igauss < 3; igauss++) {
-                            let value = parseFloat(gpValuesMatrix[igauss][icomp]);
+                            let value = valueSign * parseFloat(gpValuesMatrix[igauss][icomp]);
                             if (!value || Math.abs(value) < 1.0e-30) value = 0.0;
                             nodalValues[inode] += Ninv[inode][igauss] * value;
                         }
-                        if (maxValues[componentNamesArray[icomp]] === undefined) maxValues[componentNamesArray[icomp]] = nodalValues[inode];
-                        if (minValues[componentNamesArray[icomp]] === undefined) minValues[componentNamesArray[icomp]] = nodalValues[inode];
-                        if (nodalValues[inode] > maxValues[componentNamesArray[icomp]]) maxValues[componentNamesArray[icomp]] = nodalValues[inode];
-                        if (nodalValues[inode] < minValues[componentNamesArray[icomp]]) minValues[componentNamesArray[icomp]] = nodalValues[inode];
-
+                        if (boolMixMaxSave){
+                            if (maxValues[fieldNameParent] === undefined) maxValues[fieldNameParent] = nodalValues[inode];
+                            if (minValues[fieldNameParent] === undefined) minValues[fieldNameParent] = nodalValues[inode];
+                            if (nodalValues[inode] > maxValues[fieldNameParent]) maxValues[fieldNameParent] = nodalValues[inode];
+                            if (nodalValues[inode] < minValues[fieldNameParent]) minValues[componentNamesArray[icomp]] = nodalValues[inode];
+                        }
                     }
                     for (let inode = 0; inode < 3; inode++) {
                         elemResults[fieldName].push(nodalValues[inode]);
@@ -182,41 +295,6 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
 }
 
 const gid2json = () => {
-    // console.log(process.cwd());
-    // process.chdir('D:/documents/software/dropbox/Dropbox/Work/Project/Fibre4Yards/GIT/osi4iot/osi4iot-master/utils/gid2json/projects/galga_montaje_simple.gid'); // Only if debug
-    // console.log(process.cwd());
-    // const inputMeshPath = './projects/montaje_galgas/montaje_galgas.post.msh'
-    // const inputResultsPath = './projects/montaje_galgas/montaje_galgas.post.res'
-
-    // print process.argv
-    const args = process.argv;
-    args.forEach(function (val, index, array) {
-        console.log(index + ': ' + val);
-    });
-    
-    // const rootFolder = 'D:/documents/software/dropbox/Dropbox/GIT/UPC/CIMNE/osi4iot/utils/gid2json/'
-
-    // const inputMeshPath = rootFolder+'projects/model1.gid/model1.post.msh'
-    // const inputResultsPath = rootFolder+'projects/model1.gid/model1.post.res'
-
-    let arg2 = args[2];
-    
-    if (arg2.includes('/')){
-
-    }
-    else{if(arg2.includes('\\')){
-        arg2=arg2.replace(/\\/g,'/')
-    }
-    else{
-        console.log(`introduce the path using '/' instead of '\\'`)
-    }}
-
-
-    const inputMeshPath = `${arg2}/${arg2.split('/')[arg2.split('/').length-1].replace('.gid','')}.post.msh`
-    const inputResultsPath = `${arg2}/${arg2.split('/')[arg2.split('/').length-1].replace('.gid','')}.post.res`
-    const inputDataPathArray = inputMeshPath.split('/');
-    const directory = inputDataPathArray.slice(0, -1).join('/');
-    const fileName = inputDataPathArray[inputDataPathArray.length - 1].split('.')[0];
 
     const linerMesh = new nReadlines(inputMeshPath);
     let line;
