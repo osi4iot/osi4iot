@@ -263,10 +263,13 @@ const updateObjectsState = (
                 if (
                     (digitalTwinSimulatorSendData && eventTriggerTopicType === "sim2dtm") ||
                     (!digitalTwinSimulatorSendData &&
-                        (eventTriggerTopicType === "dev2pdb" || eventTriggerTopicType === "dev2sim")
+                        (
+                            eventTriggerTopicType === "dev2pdb" ||
+                            eventTriggerTopicType === "dev2pdb_wt" ||
+                            eventTriggerTopicType === "dev2sim"
+                        )
                     )
                 ) {
-                    console.log("mqttMessage=", mqttMessage);
                     sensorObjects.forEach((obj) => {
                         const objName = obj.node.name;
                         if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {

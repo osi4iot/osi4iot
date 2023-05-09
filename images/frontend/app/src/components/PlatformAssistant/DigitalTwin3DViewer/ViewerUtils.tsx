@@ -188,6 +188,10 @@ export const generateInitialSensorsState = (
 			sensorsState.clipValue = clipValue;
 		}
 		initialSensorsState[objName] = sensorsState;
+
+		if (obj.node.onOffObjectNames.length !== 0) {
+			setDefaultOnOffObjectProperty(obj.node);
+		}
 	})
 	return initialSensorsState;
 }
@@ -248,6 +252,10 @@ export const generateInitialAssetsState = (
 		}
 
 		initialAssetsState[objName] = assetState;
+
+		if (obj.node.onOffObjectNames.length !== 0) {
+			setDefaultOnOffObjectProperty(obj.node);
+		}
 	})
 	return initialAssetsState;
 }
@@ -290,6 +298,10 @@ export const generateInitialGenericObjectsState = (
 		}
 
 		initialGenericObjectsState[objName] = genericObjectState;
+
+		if (obj.node.onOffObjectNames.length !== 0) {
+			setDefaultOnOffObjectProperty(obj.node);
+		}
 	})
 	return initialGenericObjectsState;
 }
@@ -347,8 +359,33 @@ export const generateInitialFemSimObjectsState = (
 		}
 
 		initialFemSimObjectsState[imesh] = { highlight, clipValue, resultFieldModalValues };
+
+		if (obj.node.onOffObjectNames.length !== 0) {
+			setDefaultOnOffObjectProperty(obj.node);
+		}
 	}
 	return initialFemSimObjectsState;
+}
+
+const setDefaultOnOffObjectProperty = (
+    node: IThreeMesh
+) => {
+	if (node.userData.objectOnOff === "yes") {
+		let onOff = "on";
+		if (node.userData.defaultObjectOnOff === "off") {
+			onOff = "off";
+		}
+        if (onOff === "on") {
+            node.visible = true;
+        } else if (onOff === "off") {
+            node.visible = false;
+        }
+        return;
+    } else {
+        for (const childNode of node.children) {
+            setDefaultOnOffObjectProperty(childNode as IThreeMesh);
+        }
+    }
 }
 
 var camera: Camera;

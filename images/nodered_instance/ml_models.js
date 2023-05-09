@@ -117,7 +117,14 @@ class MLModels {
         const modelJsonPath = `${folder}/${modelJsonFileName}`;
         const url = encodeURI('file://' + modelJsonPath);
         try {
-            const mlModel = await tf.loadGraphModel(url);
+            const modelJsondata = fs.readFileSync(modelJsonPath);
+            const modelJsonObj = JSON.parse(modelJsondata);
+            let mlModel = null;
+            if (modelJsonObj.format === "graph-model") {
+                mlModel = await tf.loadGraphModel(url);
+            } else if(modelJsonObj.format === "layers-model") {
+                mlModel = await tf.loadLayersModel(url);
+            }
             if (mlModel) {
                 this.mlModels[MLM_Ref] = mlModel;
             } else {
@@ -186,7 +193,14 @@ class MLModels {
             const modelJsonPath = `${folder}/${modelJsonFileName}`;
             const url = encodeURI('file://' + modelJsonPath);
             try {
-                const mlModel = await tf.loadGraphModel(url);
+                const modelJsondata = fs.readFileSync(modelJsonPath);
+                const modelJsonObj = JSON.parse(modelJsondata);
+                let mlModel = null;
+                if (modelJsonObj.format === "graph-model") {
+                    mlModel = await tf.loadGraphModel(url);
+                } else if(modelJsonObj.format === "layers-model") {
+                    mlModel = await tf.loadLayersModel(url);
+                }
                 if (mlModel) {
                     this.mlModels[MLM_Ref] = mlModel;
                 } else {
