@@ -19,7 +19,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 export interface IMeasurement {
     timestamp: number;
     topic: string;
-    payload: string;
+    payload: any;
 }
 
 interface IMeasurementColumn extends IMeasurement {

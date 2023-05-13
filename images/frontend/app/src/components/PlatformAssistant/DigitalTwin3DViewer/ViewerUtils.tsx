@@ -95,6 +95,41 @@ const findLastMeasurement = (topicId: number, digitalTwinGltfData: IDigitalTwinG
 	return lastMeasurement;
 }
 
+const findLastDtm2pdbMessage = (digitalTwinGltfData: IDigitalTwinGltfData): (IMeasurement | null) => {
+	let lastMeasurement = null;
+	const mqttTopicDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicType === "dtm2pdb");
+	if (mqttTopicDataFiltered.length !== 0) {
+		const mqttTopicData = mqttTopicDataFiltered[0];
+		const mqttTopic = mqttTopicData.mqttTopic;
+		if (mqttTopic && mqttTopic.slice(0, 7) !== "Warning") {
+			lastMeasurement = mqttTopicData.lastMeasurement;
+		}
+	}
+	return lastMeasurement;
+}
+
+const getCustomAnimationObjNames = (lastDtm2pdbMessage: IMeasurement | null) => {
+	let custonAnimationObjNames: string[] = [];
+	if (lastDtm2pdbMessage) {
+		const payload = lastDtm2pdbMessage.payload;
+		if (payload.customAnimation) {
+			custonAnimationObjNames = Object.keys(payload.customAnimation);
+		}
+	}
+	return custonAnimationObjNames;
+}
+
+const getObjectOnOffObjNames = (lastDtm2pdbMessage: IMeasurement | null) => {
+	let objectOnOffObjNames: string[] = [];
+	if (lastDtm2pdbMessage) {
+		const payload = lastDtm2pdbMessage.payload;
+		if (payload.objectOnOff) {
+			objectOnOffObjNames = Object.keys(payload.objectOnOff);
+		}
+	}
+	return objectOnOffObjNames;
+}
+
 const getElapsedTimeInSeconds = (timestamp: number) => {
 	const datetime = new Date(timestamp).getTime();
 	const now = new Date().getTime();
@@ -106,7 +141,10 @@ export const generateInitialSensorsState = (
 	sensorObjects: ISensorObject[],
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
-	const initialSensorsState: Record<string, SensorState> = {}
+	const initialSensorsState: Record<string, SensorState> = {};
+	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
+	const customAnimationObjNamesDtm2pdb = getCustomAnimationObjNames(lastDtm2pdbMessage);
+	const objectOnOffObjNamesDtm2pdb = getObjectOnOffObjNames(lastDtm2pdbMessage);
 	sensorObjects.forEach(obj => {
 		const objName = obj.node.name;
 		const sensorTopicId = obj.node.userData.sensorTopicId;
@@ -190,7 +228,17 @@ export const generateInitialSensorsState = (
 		initialSensorsState[objName] = sensorsState;
 
 		if (obj.node.onOffObjectNames.length !== 0) {
-			setDefaultOnOffObjectProperty(obj.node);
+			const objNames = obj.node.onOffObjectNames;
+			const objNamesDtm2pdb = objNames.filter(objName => objectOnOffObjNamesDtm2pdb.includes(objName));
+			setDefaultOnOffObjectProperty(obj.node, objNamesDtm2pdb, lastDtm2pdbMessage as IMeasurement);
+		}
+
+		if (obj.node.customAnimationObjectNames.length !== 0 && lastDtm2pdbMessage) {
+			const objNames = obj.node.customAnimationObjectNames;
+			const objNamesFiltered = objNames.filter(objName => customAnimationObjNamesDtm2pdb.includes(objName));
+			if (objNamesFiltered.length !== 0) {
+				setCustomAnimationObjectProperty(obj.node, objNamesFiltered, lastDtm2pdbMessage);
+			}
 		}
 	})
 	return initialSensorsState;
@@ -202,6 +250,9 @@ export const generateInitialAssetsState = (
 ) => {
 	const initialAssetsState: Record<string, AssetState> = {};
 	const assetStateTopicId = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm2sim")[0].topicId;
+	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
+	const customAnimationObjNamesDtm2pdb = getCustomAnimationObjNames(lastDtm2pdbMessage);
+	const objectOnOffObjNamesDtm2pdb = getObjectOnOffObjNames(lastDtm2pdbMessage);
 	assetObjects.forEach(obj => {
 		const objName = obj.node.name;
 		const assetState: AssetState = {
@@ -254,7 +305,17 @@ export const generateInitialAssetsState = (
 		initialAssetsState[objName] = assetState;
 
 		if (obj.node.onOffObjectNames.length !== 0) {
-			setDefaultOnOffObjectProperty(obj.node);
+			const objNames = obj.node.onOffObjectNames;
+			const objNamesDtm2pdb = objNames.filter(objName => objectOnOffObjNamesDtm2pdb.includes(objName));
+			setDefaultOnOffObjectProperty(obj.node, objNamesDtm2pdb, lastDtm2pdbMessage as IMeasurement);
+		}
+
+		if (obj.node.customAnimationObjectNames.length !== 0 && lastDtm2pdbMessage) {
+			const objNames = obj.node.customAnimationObjectNames;
+			const objNamesFiltered = objNames.filter(objName => customAnimationObjNamesDtm2pdb.includes(objName));
+			if (objNamesFiltered.length !== 0) {
+				setCustomAnimationObjectProperty(obj.node, objNamesFiltered, lastDtm2pdbMessage);
+			}
 		}
 	})
 	return initialAssetsState;
@@ -265,6 +326,9 @@ export const generateInitialGenericObjectsState = (
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
 	const initialGenericObjectsState: Record<string, GenericObjectState> = {};
+	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
+	const customAnimationObjNamesDtm2pdb = getCustomAnimationObjNames(lastDtm2pdbMessage);
+	const objectOnOffObjNamesDtm2pdb = getObjectOnOffObjNames(lastDtm2pdbMessage);
 	genericObjects.forEach(obj => {
 		const objName = obj.node.name;
 		const genericObjectState: GenericObjectState = {
@@ -300,7 +364,17 @@ export const generateInitialGenericObjectsState = (
 		initialGenericObjectsState[objName] = genericObjectState;
 
 		if (obj.node.onOffObjectNames.length !== 0) {
-			setDefaultOnOffObjectProperty(obj.node);
+			const objNames = obj.node.onOffObjectNames;
+			const objNamesDtm2pdb = objNames.filter(objName => objectOnOffObjNamesDtm2pdb.includes(objName));
+			setDefaultOnOffObjectProperty(obj.node, objNamesDtm2pdb, lastDtm2pdbMessage as IMeasurement);
+		}
+
+		if (obj.node.customAnimationObjectNames.length !== 0 && lastDtm2pdbMessage) {
+			const objNames = obj.node.customAnimationObjectNames;
+			const objNamesFiltered = objNames.filter(objName => customAnimationObjNamesDtm2pdb.includes(objName));
+			if (objNamesFiltered.length !== 0) {
+				setCustomAnimationObjectProperty(obj.node, objNamesFiltered, lastDtm2pdbMessage);
+			}
 		}
 	})
 	return initialGenericObjectsState;
@@ -315,6 +389,9 @@ export const generateInitialFemSimObjectsState = (
 	const initialFemSimObjectsState: FemSimulationObjectState[] = [];
 	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm2sim")[0].topicId;
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
+	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
+	const customAnimationObjNamesDtm2pdb = getCustomAnimationObjNames(lastDtm2pdbMessage);
+	const objectOnOffObjNamesDtm2pdb = getObjectOnOffObjNames(lastDtm2pdbMessage);
 	const payloadObject = lastMeasurement?.payload as any;
 	let resultFields = [];
 	if (femResultData && Object.keys(femResultData).length !== 0) {
@@ -361,31 +438,87 @@ export const generateInitialFemSimObjectsState = (
 		initialFemSimObjectsState[imesh] = { highlight, clipValue, resultFieldModalValues };
 
 		if (obj.node.onOffObjectNames.length !== 0) {
-			setDefaultOnOffObjectProperty(obj.node);
+			const objNames = obj.node.onOffObjectNames;
+			const objNamesDtm2pdb = objNames.filter(objName => objectOnOffObjNamesDtm2pdb.includes(objName));
+			setDefaultOnOffObjectProperty(obj.node, objNamesDtm2pdb, lastDtm2pdbMessage as IMeasurement);
+		}
+
+		if (obj.node.customAnimationObjectNames.length !== 0 && lastDtm2pdbMessage) {
+			const objNames = obj.node.customAnimationObjectNames;
+			const objNamesFiltered = objNames.filter(objName => customAnimationObjNamesDtm2pdb.includes(objName));
+			if (objNamesFiltered.length !== 0) {
+				setCustomAnimationObjectProperty(obj.node, objNamesFiltered, lastDtm2pdbMessage);
+			}
 		}
 	}
 	return initialFemSimObjectsState;
 }
 
 const setDefaultOnOffObjectProperty = (
-    node: IThreeMesh
+	node: IThreeMesh,
+	objNamesDtm2pdb: string[],
+	lastDtm2pdbMessage: IMeasurement
 ) => {
 	if (node.userData.objectOnOff === "yes") {
 		let onOff = "on";
-		if (node.userData.defaultObjectOnOff === "off") {
-			onOff = "off";
+		const objName = node.name;
+		if (objNamesDtm2pdb.includes(objName)) {
+			const payload = lastDtm2pdbMessage.payload;
+			if (payload.objectOnOff[objName]) {
+				onOff =payload.objectOnOff[objName]
+			}
+		} else {
+			if (node.userData.defaultObjectOnOff === "off") {
+				onOff = "off";
+			}
 		}
-        if (onOff === "on") {
-            node.visible = true;
-        } else if (onOff === "off") {
-            node.visible = false;
-        }
-        return;
-    } else {
-        for (const childNode of node.children) {
-            setDefaultOnOffObjectProperty(childNode as IThreeMesh);
-        }
-    }
+		if (onOff === "on") {
+			node.visible = true;
+		} else if (onOff === "off") {
+			node.visible = false;
+		}
+		return;
+	} else {
+		for (const childNode of node.children) {
+			setDefaultOnOffObjectProperty(childNode as IThreeMesh, objNamesDtm2pdb, lastDtm2pdbMessage);
+		}
+	}
+}
+
+const setCustomAnimationObjectProperty = (
+	node: IThreeMesh,
+	objNamesFiltered: string[],
+	lastDtm2pdbMessage: IMeasurement
+) => {
+	const objName = node.name;
+	if (objNamesFiltered.includes(objName)) {
+		const payload = lastDtm2pdbMessage.payload;
+		if (payload.customAnimation[objName]) {
+			const msgData =payload.customAnimation[objName]
+			if (msgData["position"]) {
+				const values = msgData["position"];
+				if (Array.isArray(values) && values.length === 3) {
+					node.position.set(values[0], values[1], values[2]);
+				}
+			}
+			if (msgData["scale"]) {
+				const values = msgData["scale"];
+				if (Array.isArray(values) && values.length === 3) {
+					node.scale.set(values[0], values[1], values[2]);
+				}
+			}
+			if (msgData["quaternion"]) {
+				const values = msgData["quaternion"];
+				if (Array.isArray(values) && values.length === 4) {
+					node.quaternion.set(values[0], values[1], values[2], values[3]);
+				}
+			}
+		}
+	} else {
+		for (const childNode of node.children) {
+			setCustomAnimationObjectProperty(childNode as IThreeMesh, objNamesFiltered, lastDtm2pdbMessage);
+		}
+	}
 }
 
 var camera: Camera;
@@ -753,7 +886,7 @@ const setNodeAnimationRecursively = (
 				if (objAnimation) {
 					nodeAnimations.push(objAnimation);
 					if (node.userData.animationType === "blenderTemporary") {
-						if(level === 0) blenderAnimationTypes.push("blenderTemporary")
+						if (level === 0) blenderAnimationTypes.push("blenderTemporary")
 					} else if (node.userData.animationType === "blenderEndless") {
 						if (!blenderAnimationTypes.includes("blenderEndless")) {
 							blenderAnimationTypes.push("blenderEndless");
@@ -769,11 +902,11 @@ const setNodeAnimationRecursively = (
 			onOffObjectNames.push(node.name);
 		}
 	}
-	
+
 	for (const node_child of node.children) {
 		setNodeAnimationRecursively(
 			node_child,
-			level+1,
+			level + 1,
 			nodeAnimations,
 			blenderAnimationTypes,
 			customAnimationObjectNames,
