@@ -30,7 +30,7 @@ import {
 	setReloadOrgsOfGroupsManagedTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
-import GeolocationContainer from '../Geolocation/GeolocationContainer';
+import GeolocationContainer, { IDigitalTwinState } from '../Geolocation/GeolocationContainer';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
@@ -195,6 +195,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
 	const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
+	const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
 
 	const refreshBuildings = useCallback(() => {
 		setBuildingsLoading(true);
@@ -551,10 +552,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									resetBuildingSelection={resetBuildingSelection}
 									openDigitalTwin3DViewer={openDigitalTwin3DViewer}
 									setGlftDataLoading={(glftDataLoading) => setGlftDataLoading(glftDataLoading)}
+									digitalTwinsState={digitalTwinsState}
+									setDigitalTwinsState={setDigitalTwinsState}
 								/>
 							}
 							{(optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData) &&
-								<Suspense fallback={<SceneLoader/>}>
+								<Suspense fallback={<SceneLoader />}>
 									<DigitalTwin3DViewer
 										digitalTwinSelected={digitalTwinSelected}
 										digitalTwinGltfData={digitalTwinGltfData}

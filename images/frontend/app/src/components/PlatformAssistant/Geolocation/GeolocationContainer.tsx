@@ -81,6 +81,8 @@ interface GeolocationContainerProps {
     resetBuildingSelection: () => void;
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
+    digitalTwinsState: IDigitalTwinState[];
+    setDigitalTwinsState: (digitalTwinsState: IDigitalTwinState[]) => void,
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
@@ -114,12 +116,13 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setNewOuterBounds,
         resetBuildingSelection,
         openDigitalTwin3DViewer,
-        setGlftDataLoading
+        setGlftDataLoading,
+        digitalTwinsState,
+        setDigitalTwinsState
     }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const [geolocationOptionToShow, setGeolocationOptionToShow] = useState(GEOLOCATION_OPTIONS.MAP);
-    const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
 
     useEffect(() => {
         const config = axiosAuth(accessToken);
@@ -132,7 +135,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
             });
-    }, [accessToken, refreshToken, authDispatch]);
+    }, [accessToken, refreshToken, authDispatch, setDigitalTwinsState]);
 
     useInterval(() => {
         const config = axiosAuth(accessToken);
@@ -152,7 +155,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
     useCallback(() => {
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
     }, []);
-
 
     const backToMap = useCallback(() => {
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.MAP);

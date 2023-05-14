@@ -1,4 +1,4 @@
-import { FC, useMemo } from "react";
+import { FC, useEffect, useMemo, useState } from "react";
 import { SVGOverlay, Circle } from 'react-leaflet';
 import rhumbDestination from '@turf/rhumb-destination';
 import { point } from '@turf/helpers';
@@ -129,9 +129,17 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     const angle = 360 * digitalTwinIndex / 12;
     const positionRadius = 0.00076 * deviceData.iconRadio;
     const [centerLongitude, centerLatitude] = calcGeoPointPosition(deviceData.longitude, deviceData.latitude, positionRadius, angle);
+    const [status, setStatus] = useState("unknown");
+    const [fillColor, setFillColor] = useState("unknown");
 
-    const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.digitalTwinId === digitalTwinData.id);
-    const state = findOutStatus(digitalTwinsStateFiltered);
+    useEffect(() => {
+        const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.digitalTwinId === digitalTwinData.id);
+        const status = findOutStatus(digitalTwinsStateFiltered);
+        setStatus(status);
+        if (status === "ok") setFillColor(STATUS_OK)
+        else if (status === "pending") setFillColor(STATUS_PENDING)
+        else if (status === "alerting") setFillColor(STATUS_ALERTING);
+    }, [digitalTwinData, digitalTwinsState]);
 
     const digitalTwinGrafanaRadio = 0.00008 * deviceData.iconRadio;
     const boundsGrafana = useMemo(() =>
@@ -206,89 +214,43 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     }
 
     return (
-        <Circle
-            center={[centerLatitude, centerLongitude]}
-            pathOptions={{ stroke: false, fillOpacity: 0 }}
+        <>
+            {
+                (status !== "unknown" && fillColor !== "unknown") &&
+                <Circle
+                    center={[centerLatitude, centerLongitude]}
+                    pathOptions={{ stroke: false, fillOpacity: 0 }}
+                    radius={0.1666 * deviceData.iconRadio}
+                    eventHandlers={{ click: clickHandler }}
+                >
+                    {digitalTwinData.type === "Grafana dashboard" &&
 
-            radius={0.1666 * deviceData.iconRadio}
-            eventHandlers={{ click: clickHandler }}
-        >
-            {digitalTwinData.type === "Grafana dashboard" &&
-                <>
-                    {
-                        state === "ok" &&
                         <DigitanTwinGrafanaSvgImage
                             digitalTwinId={digitalTwinData.id}
                             digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
-                            fillColor={STATUS_OK}
+                            fillColor={fillColor}
                             bounds={boundsGrafana as LatLngTuple[]}
                             outerBounds={outerBoundsGrafana as LatLngTuple[]}
                         />
                     }
-                    {
-                        state === "pending" &&
-                        <DigitanTwinGrafanaSvgImage
+                    {digitalTwinData.type === "Gltf 3D model" &&
+                        <DigitanTwin3DModelSvgImage
                             digitalTwinId={digitalTwinData.id}
                             digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
-                            fillColor={STATUS_PENDING}
-                            bounds={boundsGrafana as LatLngTuple[]}
-                            outerBounds={outerBoundsGrafana as LatLngTuple[]}
+                            fillColor={fillColor}
+                            bounds={bounds3DModel as LatLngTuple[]}
+                            outerBounds={outerBounds3DModel as LatLngTuple[]}
                         />
                     }
-                    {
-                        state === "alerting" &&
-                        <DigitanTwinGrafanaSvgImage
-                            digitalTwinId={digitalTwinData.id}
-                            digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
-                            fillColor={STATUS_ALERTING}
-                            bounds={boundsGrafana as LatLngTuple[]}
-                            outerBounds={outerBoundsGrafana as LatLngTuple[]}
-                        />
-                    }
-                </>
+                    <Tooltip sticky>
+                        <span style={{ fontWeight: 'bold' }}>Digital twin</span><br />
+                        Description: {digitalTwinData.description}<br />
+                        Ref: {digitalTwinData.digitalTwinUid}<br />
+                        Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                    </Tooltip>
+                </Circle >
             }
-            {digitalTwinData.type === "Gltf 3D model" &&
-                <>
-                    {
-                        state === "ok" &&
-                        <DigitanTwin3DModelSvgImage
-                            digitalTwinId={digitalTwinData.id}
-                            digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
-                            fillColor={STATUS_OK}
-                            bounds={bounds3DModel as LatLngTuple[]}
-                            outerBounds={outerBounds3DModel as LatLngTuple[]}
-                        />
-                    }
-                    {
-                        state === "pending" &&
-                        <DigitanTwin3DModelSvgImage
-                            digitalTwinId={digitalTwinData.id}
-                            digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
-                            fillColor={STATUS_PENDING}
-                            bounds={bounds3DModel as LatLngTuple[]}
-                            outerBounds={outerBounds3DModel as LatLngTuple[]}
-                        />
-                    }
-                    {
-                        state === "alerting" &&
-                        <DigitanTwin3DModelSvgImage
-                            digitalTwinId={digitalTwinData.id}
-                            digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
-                            fillColor={STATUS_ALERTING}
-                            bounds={bounds3DModel as LatLngTuple[]}
-                            outerBounds={outerBounds3DModel as LatLngTuple[]}
-                        />
-                    }
-                </>
-            }
-
-            <Tooltip sticky>
-                <span style={{ fontWeight: 'bold' }}>Digital twin</span><br />
-                Description: {digitalTwinData.description}<br />
-                Ref: {digitalTwinData.digitalTwinUid}<br />
-                Status: <span style={{ fontWeight: 'bold' }}>{state.charAt(0).toUpperCase() + state.slice(1)}</span>
-            </Tooltip>
-        </Circle >
+        </>
     )
 }
 

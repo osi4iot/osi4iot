@@ -249,7 +249,6 @@ export const generateInitialAssetsState = (
 	digitalTwinGltfData: IDigitalTwinGltfData,
 ) => {
 	const initialAssetsState: Record<string, AssetState> = {};
-	const assetStateTopicId = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm2sim")[0].topicId;
 	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
 	const customAnimationObjNamesDtm2pdb = getCustomAnimationObjNames(lastDtm2pdbMessage);
 	const objectOnOffObjNamesDtm2pdb = getObjectOnOffObjNames(lastDtm2pdbMessage);
@@ -260,10 +259,9 @@ export const generateInitialAssetsState = (
 			highlight: false,
 			clipValue: null
 		};
-		const lastMeasurement = findLastMeasurement(assetStateTopicId, digitalTwinGltfData);
-		if (lastMeasurement) {
+		if (lastDtm2pdbMessage) {
 			const assetPartIndex = obj.node.userData.assetPartIndex;
-			const payloadObject = lastMeasurement.payload as any;
+			const payloadObject = lastDtm2pdbMessage.payload as any;
 			let stateNumber = 0;
 			if (payloadObject.assetPartsState && payloadObject.assetPartsState[assetPartIndex - 1]) {
 				stateNumber = parseInt(payloadObject.assetPartsState[assetPartIndex - 1], 10);

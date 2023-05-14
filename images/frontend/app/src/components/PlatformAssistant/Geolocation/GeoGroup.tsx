@@ -7,7 +7,6 @@ import { StyledTooltip as Tooltip } from './Tooltip';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
-import GeoDigitalTwins from "./GeoDigitalTwins";
 import { IDigitalTwinState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
@@ -89,7 +88,6 @@ const GeoGroup: FC<GeoGroupProps> = (
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
     const groupGeoJsonData = useState(findGroupGeojsonData(floorData, groupData.featureIndex))[0];
 
-
     const styleGeoGroupJson = (geoJsonFeature: any) => {
         const groupsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.groupId === groupData.id);
         const status = findOutStatus(groupsStateFiltered);
@@ -99,7 +97,6 @@ const GeoGroup: FC<GeoGroupProps> = (
     useEffect(() => {
         if (groupSelected && !deviceSelected) map.fitBounds(groupSelected.outerBounds as LatLngTuple[]);
     }, [groupSelected, deviceSelected, map]);
-
 
     const clickHandler = () => {
         selectGroup(groupData);
@@ -137,7 +134,12 @@ const GeoGroup: FC<GeoGroupProps> = (
                                         deviceData={deviceData}
                                         deviceSelected={deviceSelected}
                                         selectDevice={selectDevice}
+                                        digitalTwins={digitalTwinsFiltered}
+                                        digitalTwinSelected={digitalTwinSelected}
+                                        selectDigitalTwin={selectDigitalTwin}
                                         digitalTwinsState={digitalTwinsState}
+                                        openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+                                        setGlftDataLoading={setGlftDataLoading}
                                     />
                                     :
                                     <GeoMasterDevice
@@ -148,18 +150,6 @@ const GeoGroup: FC<GeoGroupProps> = (
                                         digitalTwinsState={digitalTwinsState}
                                     />
                             })
-                        }
-                        {
-                            deviceSelected &&
-                            <GeoDigitalTwins
-                                deviceSelected={deviceSelected}
-                                digitalTwins={digitalTwinsFiltered}
-                                digitalTwinSelected={digitalTwinSelected}
-                                selectDigitalTwin={selectDigitalTwin}
-                                digitalTwinsState={digitalTwinsState}
-                                openDigitalTwin3DViewer={openDigitalTwin3DViewer}
-                                setGlftDataLoading={setGlftDataLoading}
-                            />
                         }
                     </LayerGroup >
                     :
