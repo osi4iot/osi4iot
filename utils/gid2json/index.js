@@ -39,6 +39,16 @@ const fileName = inputDataPathArray[inputDataPathArray.length - 1].split('.')[0]
 
 let resultsOfInterest = undefined;
 let reverseField = undefined;
+let thresholdLimits = {
+    'min': {
+        'field': undefined,
+        'value': undefined,
+    },
+    'max': {
+        'field': undefined,
+        'value': undefined,
+    },
+}
 
 let skipArg=0; // how many arguments to skip, by default no-skip = 0
     let lastArg=undefined;
@@ -51,9 +61,17 @@ let skipArg=0; // how many arguments to skip, by default no-skip = 0
                     lastArg=argi
                     break;
                 case '--results-of-interest':
-                        skipArg=1;
-                        lastArg=argi
-                        break;
+                    skipArg=1;
+                    lastArg=argi
+                    break;
+                case '--min-threshold-field':
+                    skipArg=2;
+                    lastArg=argi
+                    break;
+                case '--max-threshold-field':
+                    skipArg=2;
+                    lastArg=argi
+                    break;
                 default:
                     break;
             }
@@ -71,8 +89,60 @@ let skipArg=0; // how many arguments to skip, by default no-skip = 0
                     try {
                         resultsOfInterest = argi.replace('[','').replace(']','').split(/[ ,]+/);
                     } catch (error) {
-                        console.log('Error parsing the result inserted')
+                        console.log('Error parsing the result inserted.')
                         throw new Error(error)
+                    }
+                    break;
+                case '--min-threshold-field':
+                    switch (skipArg) {
+                        case 2:
+                            try {
+                                thresholdLimits.min.field = argi.replace('[','').replace(']','').split(/[ ,]+/);
+                            } catch (error) {
+                                console.log('Error parsing the min field inserted.')
+                                throw new Error(error)
+                            }
+                            break;
+                        case 1:
+                            try {
+                                thresholdLimits.min.value = argi.replace('[','').replace(']','').split(/[ ,]+/);
+                                for (let idx = 0; idx < thresholdLimits.min.value.length; idx++) {
+                                    thresholdLimits.min.value[idx] = parseFloat(thresholdLimits.min.value[idx]);
+                                    
+                                }
+                            } catch (error) {
+                                console.log('Error parsing the min value inserted.')
+                                throw new Error(error)
+                            }
+                            break;
+                        default:
+                            break;
+                    }
+                    break;
+                case '--max-threshold-field':
+                    switch (skipArg) {
+                        case 2:
+                            try {
+                                thresholdLimits.max.field = argi.replace('[','').replace(']','').split(/[ ,]+/);
+                            } catch (error) {
+                                console.log('Error parsing the max field inserted.')
+                                throw new Error(error)
+                            }
+                            break;
+                        case 1:
+                            try {
+                                thresholdLimits.max.value = argi.replace('[','').replace(']','').split(/[ ,]+/);
+                                for (let idx = 0; idx < thresholdLimits.max.value.length; idx++) {
+                                    thresholdLimits.max.value[idx] = parseFloat(thresholdLimits.max.value[idx]);
+                                    
+                                }
+                            } catch (error) {
+                                console.log('Error parsing the max value inserted.')
+                                throw new Error(error)
+                            }
+                            break;
+                        default:
+                            break;
                     }
                     break;
                 default:
@@ -106,6 +176,7 @@ const dictCompOfInterest = {
     'Stresses_Top (Pa)//Sx':6,
     'Stresses_Bottom':6,
     'Axial_Force':4,
+    'Temperature': 1,
     // Please if you ask for something different, complete this dictionary.
 }
 
@@ -183,7 +254,8 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
     // if (modeAux !== "") mode = parseInt(modeAux.slice(5), 10);
     if (mode > numberOfModes) numberOfModes = mode;
 
-    const resultName = headerStringArray[1].slice(1,); // RP: before was 1,-1 but then it was Displacement instead of Displacements
+    const resultName = headerStringArray[1].slice(1,).replace("\"","") // RP: before was 1,-1 but then it was Displacement instead of Displacements
+
 
     const resultTypeAux = headerStringArray[5+ishift];
     let resultType;
@@ -239,9 +311,13 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
                         valueSign=-1;
                     } else { valueSign=1}
                     const fieldName = `${fieldNameParent}__${mode}`;
+                    
                     let value = valueSign * parseFloat(valuesArray[icomp]);
                     if (!value || Math.abs(value) < 1.0e-30) value = 0.0;
-                        nodalResults[fieldName].push(value);
+                    if (thresholdLimits.min.field && thresholdLimits.min.value && thresholdLimits.min.field.indexOf(fieldNameParent)>-1 && value < thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)];
+                    if (thresholdLimits.max.field && thresholdLimits.max.value && thresholdLimits.max.field.indexOf(fieldNameParent)>-1 && value > thresholdLimits.max.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.max.value[thresholdLimits.max.field.indexOf(fieldNameParent)];
+                    nodalResults[fieldName].push(value);
+
                     if (boolMixMaxSave){
                         if (maxValues[fieldNameParent] === undefined) maxValues[fieldNameParent] = value;
                         if (minValues[fieldNameParent] === undefined) minValues[fieldNameParent] = value;
@@ -274,6 +350,8 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
                         for (let igauss = 0; igauss < 3; igauss++) {
                             let value = valueSign * parseFloat(gpValuesMatrix[igauss][icomp]);
                             if (!value || Math.abs(value) < 1.0e-30) value = 0.0;
+                            if (thresholdLimits.min.field && thresholdLimits.min.value && thresholdLimits.min.field.indexOf(fieldNameParent)>-1 && value < thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.min.value[thresholdLimits.min.field.indexOf(fieldNameParent)];
+                    if (thresholdLimits.max.field && thresholdLimits.max.value && thresholdLimits.max.field.indexOf(fieldNameParent)>-1 && value > thresholdLimits.max.value[thresholdLimits.min.field.indexOf(fieldNameParent)]) value = thresholdLimits.max.value[thresholdLimits.max.field.indexOf(fieldNameParent)];
                             nodalValues[inode] += Ninv[inode][igauss] * value;
                         }
                         if (boolMixMaxSave){
