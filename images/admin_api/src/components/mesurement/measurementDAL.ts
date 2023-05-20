@@ -77,7 +77,6 @@ export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topic
 	return lastMeasurements;
 };
 
-
 export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
 	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
 									FROM iot_data.thingData
