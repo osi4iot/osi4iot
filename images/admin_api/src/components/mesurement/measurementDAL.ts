@@ -68,15 +68,15 @@ export const getLastMeasurements = async (groupUid: string, topic: string, count
 };
 
 export const getLastMeasurementsFromTopicsArray = async (groupUid: string, topicsArray: string[]): Promise<IMeasurement[]> => {
-	const response = await timescaledb_pool.query(`SELECT DISTINCT ON (topic) ${timestampAsString}, topic, payload
-									FROM iot_data.thingData
-									WHERE group_uid = $1 AND
-									topic = ANY($2::text[])
-									ORDER BY topic DESC,
-											timestamp DESC
-									LIMIT $3;`, [groupUid, topicsArray, topicsArray.length]);
-	return response.rows as IMeasurement[];
+	const lastMeasurementQueries = [];
+	for (const topic of topicsArray) {
+		const query = getLastMeasurement(groupUid, topic);
+		lastMeasurementQueries.push(query);
+	}
+	const lastMeasurements = await Promise.all(lastMeasurementQueries);
+	return lastMeasurements;
 };
+
 
 export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
 	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload
