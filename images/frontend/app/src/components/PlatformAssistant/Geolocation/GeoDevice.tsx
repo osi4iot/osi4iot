@@ -12,7 +12,6 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 
 
-
 interface GeoDeviceProps {
     deviceData: IDevice;
     deviceSelected: IDevice | null;
@@ -37,7 +36,7 @@ const GeoDevice: FC<GeoDeviceProps> = ({
     setGlftDataLoading
 }) => {
     const [status, setStatus] = useState("unknown");
-    const [fillColor, setFillColor] = useState("unknown");
+    const [fillColor, setFillColor] = useState(STATUS_OK);
     const map = useMap();
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
 
@@ -63,43 +62,40 @@ const GeoDevice: FC<GeoDeviceProps> = ({
     }, [deviceSelected, deviceData, outerBounds, map]);
 
     return (
-        <>
-            { 
-                (status !== "unknown" && fillColor !== "unknown" ) &&
-                <Circle
-                    center={[deviceData.latitude, deviceData.longitude]}
-                    pathOptions={{ stroke: false, fillOpacity: 0 }}
-                    radius={deviceData.iconRadio}
-                    eventHandlers={{ click: clickHandler }}
-                >
-                    <DeviceSvgImage
-                        deviceId={deviceData.id}
-                        deviceSelected={deviceSelected as IDevice}
-                        fillColor={fillColor}
-                        bounds={bounds as LatLngTuple[]}
-                        outerBounds={outerBounds as LatLngTuple[]}
-                    />
-                    <Tooltip sticky>
-                        <span style={{ fontWeight: 'bold' }}>Device</span><br />
-                        Name: {deviceData.name}<br />
-                        Type: {deviceData.type}<br />
-                        Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
-                    </Tooltip>
-                    {
-                        deviceSelected &&
-                        <GeoDigitalTwins
-                            deviceSelected={deviceSelected}
-                            digitalTwins={digitalTwinsFiltered}
-                            digitalTwinSelected={digitalTwinSelected}
-                            selectDigitalTwin={selectDigitalTwin}
-                            digitalTwinsState={digitalTwinsState}
-                            openDigitalTwin3DViewer={openDigitalTwin3DViewer}
-                            setGlftDataLoading={setGlftDataLoading}
-                        />
-                    }
-                </Circle >
+        <Circle
+            center={[deviceData.latitude, deviceData.longitude]}
+            pathOptions={{ stroke: false, fillOpacity: 0 }}
+            radius={deviceData.iconRadio}
+            eventHandlers={{ click: clickHandler }}
+        >
+            <DeviceSvgImage
+                key={status}
+                deviceId={deviceData.id}
+                deviceSelected={deviceSelected as IDevice}
+                fillColor={fillColor}
+                bounds={bounds as LatLngTuple[]}
+                outerBounds={outerBounds as LatLngTuple[]}
+            />
+            <Tooltip sticky>
+                <span style={{ fontWeight: 'bold' }}>Device</span><br />
+                Name: {deviceData.name}<br />
+                Type: {deviceData.type}<br />
+                Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+            </Tooltip>
+            {
+                deviceSelected &&
+                <GeoDigitalTwins
+                    key={status}
+                    deviceSelected={deviceSelected}
+                    digitalTwins={digitalTwinsFiltered}
+                    digitalTwinSelected={digitalTwinSelected}
+                    selectDigitalTwin={selectDigitalTwin}
+                    digitalTwinsState={digitalTwinsState}
+                    openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+                    setGlftDataLoading={setGlftDataLoading}
+                />
             }
-        </>
+        </Circle >
     )
 }
 

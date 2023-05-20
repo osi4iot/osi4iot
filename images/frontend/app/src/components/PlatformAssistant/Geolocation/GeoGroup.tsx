@@ -2,7 +2,6 @@ import { FC, useEffect, useRef, useState } from "react";
 import { GeoJSON, LayerGroup, useMap } from 'react-leaflet';
 import { FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 import { LatLngTuple } from 'leaflet';
-import GeoDevice from './GeoDevice';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IDevice } from "../TableColumns/devicesColumns";
@@ -12,8 +11,8 @@ import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
-import GeoMasterDevice from "./GeoMasterDevice";
 import GeoNodeRedInstance from "./GeoNodeRedInstance";
+import GeoDevices from "./GeoDevices";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";
@@ -126,31 +125,17 @@ const GeoGroup: FC<GeoGroupProps> = (
                                 iconRadio={groupData.nriInGroupIconRadio}
                                 nriHash={groupData.nriInGroupHash}
                         />
-                        {
-                            deviceDataArrayFiltered.map(deviceData => {
-                                return deviceData.type === "Generic" ?
-                                    <GeoDevice
-                                        key={deviceData.id}
-                                        deviceData={deviceData}
-                                        deviceSelected={deviceSelected}
-                                        selectDevice={selectDevice}
-                                        digitalTwins={digitalTwinsFiltered}
-                                        digitalTwinSelected={digitalTwinSelected}
-                                        selectDigitalTwin={selectDigitalTwin}
-                                        digitalTwinsState={digitalTwinsState}
-                                        openDigitalTwin3DViewer={openDigitalTwin3DViewer}
-                                        setGlftDataLoading={setGlftDataLoading}
-                                    />
-                                    :
-                                    <GeoMasterDevice
-                                        key={deviceData.id}
-                                        deviceData={deviceData}
-                                        deviceSelected={deviceSelected}
-                                        selectDevice={selectDevice}
-                                        digitalTwinsState={digitalTwinsState}
-                                    />
-                            })
-                        }
+                        <GeoDevices
+                            deviceDataArray={deviceDataArrayFiltered}
+                            deviceSelected={deviceSelected}
+                            selectDevice={selectDevice}
+                            digitalTwins={digitalTwinsFiltered}
+                            digitalTwinSelected={digitalTwinSelected}
+                            selectDigitalTwin={selectDigitalTwin}
+                            digitalTwinsState={digitalTwinsState}
+                            openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+                            setGlftDataLoading={setGlftDataLoading}
+                        />
                     </LayerGroup >
                     :
                     null
