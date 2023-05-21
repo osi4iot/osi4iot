@@ -159,8 +159,8 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 
 			const deploymentLocation = osi4iotState.platformInfo.DEPLOYMENT_LOCATION;
 			if (deploymentLocation === "AWS cluster deployment") {
-				const org_acronym = newOrg.org_acronym;
-				const nri_hashes_array = newOrg.nodered_instances.map(nri => nri.nri_hash).join(",");
+				const org_acronym = orgToRemove.org_acronym;
+				const nri_hashes_array = orgToRemove.nodered_instances.map(nri => nri.nri_hash).join(",");
 				removeEFSFolders(nodesData[0], org_acronym, nri_hashes_array);
 			}
 
