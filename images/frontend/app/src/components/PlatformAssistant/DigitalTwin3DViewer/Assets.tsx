@@ -77,7 +77,8 @@ const AssetBase: FC<AssetProps> = ({
         ) {
             let newDelta = delta;
             if (assetState.clipValue !== null) {
-                newDelta = assetState.clipValue;
+                //newDelta = assetState.clipValue;
+                newDelta = delta * assetState.clipValue;
             }
             mixer?.update(newDelta);
         }

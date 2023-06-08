@@ -272,6 +272,16 @@ const updateObjectsState = (
                 ) {
                     sensorObjects.forEach((obj) => {
                         const objName = obj.node.name;
+                        const fieldName = obj.node.userData.fieldName;
+                        if (messagePayloadKeys.indexOf(fieldName) !== -1) {
+                            const value = mqttMessage[fieldName];
+                            if (typeof value === 'number' ||
+                                (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)
+                            ) {
+                                sensorsNewState[objName] = { ...sensorsNewState[objName], sensorValue: value };
+                                isSensorStateChanged = true;
+                            }
+                        }
                         if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
                             let clipValue = genericObjectNewState[objName].clipValue;
                             const fieldName = "endlessTimeFactor";
@@ -304,7 +314,7 @@ const updateObjectsState = (
                     assetObjects.forEach((obj) => {
                         const objName = obj.node.name;
                         if (obj.node.blenderAnimationTypes.includes("blenderEndless")) {
-                            let clipValue = genericObjectNewState[objName].clipValue;
+                            let clipValue = assestsNewState[objName].clipValue;
                             const fieldName = "endlessTimeFactor";
                             if (messagePayloadKeys.indexOf(fieldName) !== -1) {
                                 const value = mqttMessage[fieldName][objName];
