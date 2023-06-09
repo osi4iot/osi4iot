@@ -4,6 +4,7 @@ import styled from "styled-components";
 import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
 import { getDomainName, getProtocol } from "../tools/tools";
+import { FaGithub } from "react-icons/fa";
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -63,11 +64,6 @@ const MenuBorder = styled.div`
 	@media screen and (min-width: 768px) {
 		width: 400px;
 	}
-
-	@media screen and (min-height: 750px) {
-		justify-content: flex-start;
-	}
-
 `;
 
 
@@ -91,12 +87,21 @@ const ButtonLink = styled.button`
 		box-shadow: 0 2px #173b70;
 		transform: translateY(4px);
 	}
-
-
-	@media screen and (min-height: 750px) {
-		margin: 50px 0;
-	}
 `;
+
+const FaGithubStyled = styled(FaGithub)`
+    font-size: 50px;
+    color: white;
+    background-color: #0c0d0f;
+	cursor: pointer;
+	margin: 2px;
+
+	&:hover {
+		background-color: #0c0d0f;
+		color: #d2d5d9;
+	}
+ `;
+
 
 const StyledNavLink = styled(NavLink)`
 	background-color: #3274d9;
@@ -134,9 +139,9 @@ const StyledNavLink = styled(NavLink)`
 		background-color: #2461c0;
 	}
 
-	@media screen and (min-height: 750px) {
-		margin: 50px 0;
-	}
+	// @media screen and (min-height: 750px) {
+	// 	margin: 50px 0;
+	// }
 `;
 
 const Footer = styled.p`
@@ -168,6 +173,9 @@ const HomePage: FC<{}> = () => {
 					<MenuContainer>
 						<Title>Platform options</Title>
 						<MenuBorder>
+							{/* <ButtonLinkGitHub onClick={() => window.open("https://github.com/osi4iot/osi4iot", "_blank")}>
+								<FaGithubStyled />
+							</ButtonLinkGitHub> */}
 							<StyledNavLink exact to="/platform_assistant" >
 								Platform assistant
 							</StyledNavLink>
@@ -187,6 +195,7 @@ const HomePage: FC<{}> = () => {
 									</StyledNavLink>
 								</>
 							}
+							<FaGithubStyled onClick={() => window.open("https://github.com/osi4iot/osi4iot", "_blank")} />
 							<Footer>Power by Aula CIMNE-EEBE - dicapua@cimne.upc.edu</Footer>
 						</MenuBorder>
 					</MenuContainer>
