@@ -534,12 +534,12 @@ Note: videos may take a few seconds to be loaded.
 
 ## Status
 
-- [x] Mqqt protocol (Mosquitto).
+- [x] MQTT protocol (Mosquitto).
 - [x] Time series database (Timescale).
 - [x] Dashboards Customization (Grafana).
 - [x] Digital Twin Model Core (Node-Red).
 - [x] Digital Twin Model 3D Viewer (React).
 - [x] S3 bucket storage (Minio - AWS S3).
-- [ ] Machine Learning.
-- [ ] Improve database data retention policies.
+- [x] Machine Learning.
+- [x] Improve database data retention policies.
 - [ ] Org2Org & Group2Group message system.   
