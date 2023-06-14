@@ -77,7 +77,7 @@ export default interface IDashboardApi {
 		orgKey: string
 	): Promise<IMessage>;
 
-	updateDataSourceimescaledb(
+	updateDataSourceTimescaledb(
 		oldDataSource: IDataSource,
 		newPassword: string,
 		orgKey: string

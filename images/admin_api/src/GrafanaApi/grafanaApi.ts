@@ -523,7 +523,7 @@ export default class GrafanaApi implements IDashboardApi {
 		return message;
 	}
 
-	async updateDataSourceimescaledb(
+	async updateDataSourceTimescaledb(
 		oldDataSource: IDataSource,
 		newPassword: string,
 		orgKey: string

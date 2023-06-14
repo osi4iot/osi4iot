@@ -21,7 +21,6 @@ const exitUserInTimescaledb = async (userName: string): Promise<boolean> => {
 	return result.rows.length !== 0;
 }
 
-
 export const createTimescaledbOrgDataSource = async (orgId: number, orgKey?: string): Promise<void> => {
 	if (orgKey === undefined) {
 		orgKey = await getOrganizationKey(orgId);
@@ -50,7 +49,7 @@ export const createTimescaledbOrgDataSource = async (orgId: number, orgKey?: str
 	} else {
 		const dataSource = response as IDataSource;
 		await pool.query('UPDATE grafanadb.data_source SET read_only= $1 WHERE id = $2', [false, dataSource.id]);
-		await grafanaApi.updateDataSourceimescaledb(dataSource, password, orgKey);
+		await grafanaApi.updateDataSourceTimescaledb(dataSource, password, orgKey);
 		await pool.query('UPDATE grafanadb.data_source SET read_only= $1 WHERE id = $2', [true, dataSource.id]);
 	}
 }
