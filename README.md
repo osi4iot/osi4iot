@@ -1,7 +1,5 @@
 # OSI4IOT - Open Source Integration for Internet Of Things 
 
-<meta name="google-site-verification" content="IcPAnKi94qnfojoCvFv_8RSdiEsFu9cwKGPgrzU7Yc4" />
-
 [![Link:Docker](https://img.shields.io/badge/Docker-gray?style=flat&logo=docker&link=https://www.docker.com/)](https://www.docker.com/)
 [![Link:Telegram](https://img.shields.io/badge/Telegram-gray?style=flat&logo=telegram&link=https://web.telegram.org/k/)](https://web.telegram.org/k/)
 [![Link:Mosquitto](https://img.shields.io/badge/Mosquitto-gray?style=flat-square&logo=Mosquitto&logoColor=blue&link=https://github.com/eclipse/mosquitto)](https://github.com/eclipse/mosquitto)
