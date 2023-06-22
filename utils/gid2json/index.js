@@ -167,13 +167,17 @@ const dictCompOfInterest = {
     'Shells//Stresses_Bottom':1,
     'Shells//Equivalent_stresses//Von_Mises//Top':1,
     'Shells//Equivalent_stresses//Von_Mises//Bottom':1,
+    'Shells//Stresses_Top//Von_mises':6,
     'Shells//Main_stresses//Top//Si':1,
     'Shells//Main_stresses//Top//Sii':1,
     'Shells//Main_stresses//Top//Siii':1,
     'Shells//Main_stresses//Bottom//Si':1,
     'Shells//Main_stresses//Bottom//Sii':1,
     'Shells//Main_stresses//Bottom//Siii':1,
-    'Stresses_Top (Pa)//Sx':6,
+    'Shells//Stresses_Top//SI':1,
+    'Shells//Stresses_Top//SII':1,
+    'Shells//Stresses_Top//SIII':1,
+    'Stresses_Top (Pa)':6,
     'Stresses_Bottom':6,
     'Axial_Force':4,
     'Temperature': 1,
@@ -182,7 +186,7 @@ const dictCompOfInterest = {
 
 if (resultsOfInterest == undefined) {
     console.log('No result specified, using the defaults.');
-    resultsOfInterest = ["Displacements", "Shells//Stresses_Top", "Shells//Stresses_Bottom"];
+    resultsOfInterest = ["Displacements", "Shells//Stresses_Top", "Shells//Stresses_Bottom, Von_mises"];
     // resultsOfInterest = ["Displacements","Stresses_Top (Pa)","Stresses_Bottom (Pa)","Axial_Force"];
 }
 
