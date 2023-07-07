@@ -134,7 +134,12 @@ const AssetBase: FC<AssetProps> = ({
 
 
     return (
-        (obj.type === "Group" || obj.animations.length !== 0  || obj.children.length !== 0) ?
+        (
+            obj.type === "Group" ||
+            obj.animations.length !== 0 ||
+            obj.customAnimationObjectNames.length !== 0 ||
+            obj.children.length !== 0
+        ) ?
             <mesh
                 ref={meshRef as React.MutableRefObject<IThreeMesh>}
                 castShadow

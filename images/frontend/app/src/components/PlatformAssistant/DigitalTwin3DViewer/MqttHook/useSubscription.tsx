@@ -1,5 +1,6 @@
 import { useContext, useEffect } from 'react';
 import { SubscribeOptions } from "paho-mqtt";
+import * as THREE from 'three';
 import MqttContext from './MqttContext';
 import { IMqttContext as Context, IMessage } from './interfaces';
 import matches from './matches';
@@ -400,7 +401,20 @@ const updateObjectsState = (
                         if (obj.node.customAnimationObjectNames.length !== 0) {
                             const fieldName = "customAnimation";
                             if (messagePayloadKeys.includes(fieldName)) {
-                                updateCustomAnimationState(obj.node, mqttMessage)
+                                updateCustomAnimationState(obj.node, mqttMessage);
+                                const customAnimationPayloadKeys = Object.keys(mqttMessage.customAnimation[objName]);
+                                if (customAnimationPayloadKeys.indexOf("position") !== -1) {
+                                    const wirePos = obj.node.scale;
+                                    obj.wireFrameMesh.position.set(wirePos.x, wirePos.y, wirePos.z);
+                                }
+                                if (customAnimationPayloadKeys.indexOf("scale") !== -1) {
+                                    const wireScale = obj.node.scale;
+                                    obj.wireFrameMesh.scale.set(wireScale.x, wireScale.y, wireScale.z);
+                                }
+                                if (customAnimationPayloadKeys.indexOf("quaternion") !== -1) {
+                                    const qres = obj.node.quaternion;
+                                    obj.wireFrameMesh.quaternion.set(qres.x, qres.y, qres.z, qres.w);
+                                }
                             }
                         }
 
@@ -481,7 +495,9 @@ const findObjectAndSetCustomProperties = (
         if (messagePayloadKeys.indexOf("quaternion") !== -1) {
             const values = msgData["quaternion"];
             if (Array.isArray(values) && values.length === 4) {
-                node.quaternion.set(values[0], values[1], values[2], values[3]);
+                const qr = new THREE.Quaternion(values[0], values[1], values[2], values[3]);
+                const qres = new THREE.Quaternion().multiplyQuaternions(qr, node.quaternionIni);
+                node.quaternion.set(qres.x, qres.y, qres.z, qres.w);
             }
         }
         return;

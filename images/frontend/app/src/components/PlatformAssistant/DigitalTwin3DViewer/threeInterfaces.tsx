@@ -2,4 +2,5 @@ export interface IThreeMesh extends THREE.Mesh<THREE.BufferGeometry, THREE.Mater
     blenderAnimationTypes: string[];
     customAnimationObjectNames: string[];
     onOffObjectNames: string[];
+    quaternionIni: THREE.Quaternion;
 }

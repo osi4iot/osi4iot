@@ -463,7 +463,7 @@ const setDefaultOnOffObjectProperty = (
 		if (objNamesDtm2pdb.includes(objName)) {
 			const payload = lastDtm2pdbMessage.payload;
 			if (payload.objectOnOff[objName]) {
-				onOff =payload.objectOnOff[objName]
+				onOff = payload.objectOnOff[objName]
 			}
 		} else {
 			if (node.userData.defaultObjectOnOff === "off") {
@@ -492,7 +492,7 @@ const setCustomAnimationObjectProperty = (
 	if (objNamesFiltered.includes(objName)) {
 		const payload = lastDtm2pdbMessage.payload;
 		if (payload.customAnimation[objName]) {
-			const msgData =payload.customAnimation[objName]
+			const msgData = payload.customAnimation[objName]
 			if (msgData["position"]) {
 				const values = msgData["position"];
 				if (Array.isArray(values) && values.length === 3) {
@@ -508,7 +508,9 @@ const setCustomAnimationObjectProperty = (
 			if (msgData["quaternion"]) {
 				const values = msgData["quaternion"];
 				if (Array.isArray(values) && values.length === 4) {
-					node.quaternion.set(values[0], values[1], values[2], values[3]);
+					const qr = new THREE.Quaternion(values[0], values[1], values[2], values[3]);
+					const qres = new THREE.Quaternion().multiplyQuaternions(qr, node.quaternionIni);
+					node.quaternion.set(qres.x, qres.y, qres.z, qres.w);
 				}
 			}
 		}
@@ -685,6 +687,14 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 	return objMaterial;
 }
 
+const setQuaternionIniRecursively = (obj: IThreeMesh) => {
+	obj.quaternionIni = new THREE.Quaternion().copy(obj.quaternion);
+	for (let node of obj.children) {
+		if(node.userData.animationType === "custom")
+        setQuaternionIniRecursively(node as IThreeMesh)
+    }
+}
+
 
 export const sortObjects: (
 	nodes: any,
@@ -723,6 +733,7 @@ export const sortObjects: (
 	for (let imesh = 0; imesh < objectList.length; imesh++) {
 		const obj = objectList[imesh];
 		obj.material = findMaterial(obj, materials);
+		setQuaternionIniRecursively(obj);
 		switch (obj.userData.type) {
 			case "sensor":
 				{

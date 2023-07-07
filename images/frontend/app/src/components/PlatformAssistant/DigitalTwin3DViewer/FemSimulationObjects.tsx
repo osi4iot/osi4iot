@@ -147,7 +147,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
             let lutColors = [];
             let femMinValue: any;
             let femMaxValue: any;
-            
+
             for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
                 let totalcolorValue = 0;
                 for (let imode = 1; imode <= numberOfModes; imode++) {
@@ -267,46 +267,14 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 ref={geometryRef}
                 castShadow
                 receiveShadow
-                geometry={femSimulationObject.node.geometry}
                 material={material}
-                position={[
-                    femSimulationObject.node.position.x,
-                    femSimulationObject.node.position.y,
-                    femSimulationObject.node.position.z
-                ]}
-                rotation={[
-                    femSimulationObject.node.rotation.x,
-                    femSimulationObject.node.rotation.y,
-                    femSimulationObject.node.rotation.z]}
-                scale={[
-                    femSimulationObject.node.scale.x,
-                    femSimulationObject.node.scale.y,
-                    femSimulationObject.node.scale.z
-                ]}
-            />
-            {/* <primitive ref={meshRef} object={femSimulationObject.wireFrameMesh} /> */}
-            <lineSegments
-                ref={meshRef}
-                castShadow
-                receiveShadow
-                geometry={femSimulationObject.wireFrameMesh.geometry}
-                material={femSimulationObject.wireFrameMesh.material}
-                position={[
-                    femSimulationObject.wireFrameMesh.position.x,
-                    femSimulationObject.wireFrameMesh.position.y,
-                    femSimulationObject.wireFrameMesh.position.z
-                ]}
-                rotation={[
-                    femSimulationObject.wireFrameMesh.rotation.x,
-                    femSimulationObject.wireFrameMesh.rotation.y,
-                    femSimulationObject.wireFrameMesh.rotation.z
-                ]}
-                scale={[
-                    femSimulationObject.wireFrameMesh.scale.x,
-                    femSimulationObject.wireFrameMesh.scale.y,
-                    femSimulationObject.wireFrameMesh.scale.z
-                ]}
-            />
+            >
+                <primitive
+                    material={material}
+                    object={femSimulationObject.node}
+                />
+            </mesh>
+            <primitive ref={meshRef} object={femSimulationObject.wireFrameMesh} />
         </group>
     )
 }

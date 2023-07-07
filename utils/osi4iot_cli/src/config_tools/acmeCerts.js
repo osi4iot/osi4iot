@@ -5,7 +5,7 @@ import os from 'os';
 
 export default async function (osi4iotState) {
     const currentTimestamp = Math.floor(Date.now() / 1000);
-    const limitTimestamp = currentTimestamp - 3600 * 24 * 15; //15 days of margin
+    const limitTimestamp = currentTimestamp + 3600 * 24 * 15; //15 days in sec of margin
     const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
     const homedir = os.homedir();
     const env = {

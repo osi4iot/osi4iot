@@ -7,7 +7,7 @@ import acmeCerts from './acmeCerts.js';
 
 export default async function (osi4iotState) {
 	const currentTimestamp = Math.floor(Date.now() / 1000);
-	const limitTimestamp = currentTimestamp - 3600 * 24 * 15; //15 days of margin
+	const limitTimestamp = currentTimestamp + 3600 * 24 * 15; //15 days in sec of margin
 	const defaultValidityDays = osi4iotState.platformInfo.MQTT_SSL_CERTS_VALIDITY_DAYS;
 	const defaultExpirationTimestamp = currentTimestamp + 3600 * 24 * defaultValidityDays;
 
@@ -44,25 +44,25 @@ export default async function (osi4iotState) {
 			fs.writeFileSync('./certs/domain_certs/iot_platform.key', osi4iotState.certs.domain_certs.private_key);
 			osi4iotState.certs.domain_certs.iot_platform_key_name = iot_platform_key_name;
 		}
-	
+
 		const iot_platform_ca_name = `iot_platform_ca_${md5(osi4iotState.certs.domain_certs.ssl_ca_pem)}`;
 		const current_iot_platform_ca_name = osi4iotState.certs.domain_certs.iot_platform_ca_name;
 		if (!fs.existsSync('./certs/domain_certs/iot_platform_ca.pem') || current_iot_platform_ca_name !== iot_platform_ca_name) {
 			fs.writeFileSync('./certs/domain_certs/iot_platform_ca.pem', osi4iotState.certs.domain_certs.ssl_ca_pem);
 			const iotPlatformCa = execSync('openssl x509 -enddate -noout -in ./certs/domain_certs/iot_platform_ca.pem');
 			const iotPlatformCaExpDate = iotPlatformCa.toString().split("=")[1];
-			const iotPlatformCaExpTimestamp = Date.parse(iotPlatformCaExpDate);
+			const iotPlatformCaExpTimestamp = Date.parse(iotPlatformCaExpDate) / 1000;
 			osi4iotState.certs.domain_certs.ca_pem_expiration_timestamp = iotPlatformCaExpTimestamp;
 			osi4iotState.certs.domain_certs.iot_platform_ca_name = iot_platform_ca_name;
 		}
-	
+
 		const iot_platform_cert_name = `iot_platform_cert_${md5(osi4iotState.certs.domain_certs.ssl_cert_crt)}`;
 		const current_iot_platform_cert_name = osi4iotState.certs.domain_certs.iot_platform_cert_name;
 		if (!fs.existsSync('./certs/domain_certs/iot_platform_cert.cer') || current_iot_platform_cert_name !== iot_platform_cert_name) {
 			fs.writeFileSync('./certs/domain_certs/iot_platform_cert.cer', osi4iotState.certs.domain_certs.ssl_cert_crt);
-			const iotPlatformCert = execSync('openssl x509 -enddate -noout -in ./certs/domain_certs/iot_platform_ca.pem');
+			const iotPlatformCert = execSync('openssl x509 -enddate -noout -in ./certs/domain_certs/iot_platform_cert.cer');
 			const iotPlatformCertExpDate = iotPlatformCert.toString().split("=")[1];
-			const iotPlatformCertExpTimestamp = Date.parse(iotPlatformCertExpDate);
+			const iotPlatformCertExpTimestamp = Date.parse(iotPlatformCertExpDate) / 1000;
 			osi4iotState.certs.domain_certs.cert_crt_expiration_timestamp = iotPlatformCertExpTimestamp;
 			osi4iotState.certs.domain_certs.iot_platform_cert_name = iot_platform_cert_name;
 		}
@@ -82,7 +82,7 @@ export default async function (osi4iotState) {
 			locality: osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY,
 			validityDays: 3650
 		});
-		const expiration_timestamp = currentTimestamp + 3600 * 24 * 3650;
+		const expiration_timestamp = currentTimestamp + 3600 * 24 * 3650; //10 years in sec of margin
 		osi4iotState.certs.mqtt_certs.ca_certs.ca_key = mqttCa.key;
 		osi4iotState.certs.mqtt_certs.ca_certs.mqtt_certs_ca_cert_name = `mqtt_certs_ca_cert_${md5(mqttCa.key)}`;
 		osi4iotState.certs.mqtt_certs.ca_certs.ca_crt = mqttCa.cert;
