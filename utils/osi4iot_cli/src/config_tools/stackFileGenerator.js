@@ -162,7 +162,7 @@ export default function (osi4iotState) {
 						order: "stop-first"
 					},
 					placement: {
-						max_replicas_per_node: 1,
+						max_replicas_per_node: 2,
 						constraints: ["node.role==manager"]
 					}
 				},
@@ -435,7 +435,7 @@ export default function (osi4iotState) {
 						order: "stop-first"
 					},
 					placement: {
-						max_replicas_per_node: 1,
+						max_replicas_per_node: 2,
 						constraints: ["node.role==manager"]
 					},
 					labels: [
@@ -512,7 +512,7 @@ export default function (osi4iotState) {
 						order: "stop-first"
 					},
 					placement: {
-						max_replicas_per_node: 1,
+						max_replicas_per_node: 2,
 						constraints: workerConstraintsArray
 					},
 					labels: [
@@ -564,7 +564,7 @@ export default function (osi4iotState) {
 						order: "stop-first"
 					},
 					placement: {
-						max_replicas_per_node: 1,
+						max_replicas_per_node: 2,
 						constraints: workerConstraintsArray
 					},
 					labels: [

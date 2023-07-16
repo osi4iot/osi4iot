@@ -54,7 +54,7 @@ const installNFS = (nodeData, ips_array) => {
 	}
 }
 
-const installAcme_sh = (nodeData, awsData) => {
+const installAcme_sh = (deploymentLocation, nodeData, awsData) => {
 	const nodeHostName = nodeData.nodeHostName;
 	console.log(clc.green(`\nInstalling acme.js in node ${nodeHostName}...`));
 	if (!fs.existsSync('./installation_scripts')) {
@@ -68,7 +68,10 @@ const installAcme_sh = (nodeData, awsData) => {
 		const pwd = execSync("pwd").toString().split('\n').join('');
 		execSync(`bash ./installation_scripts/acme_installation.sh "${awsData.email}"`, { stdio: 'inherit' });
 		execSync('crontab -l > crontab_new');
-		const commandLine = `0 23 * * * cd ${pwd} && eval \`ssh-agent -s\` && ssh-add ./.osi4iot_keys/osi4iot_key  && osi4iot run\n`;
+		let commandLine = `0 23 * * * cd ${pwd} && eval \`ssh-agent -s\` && ssh-add ./.osi4iot_keys/osi4iot_key  && osi4iot run\n`;
+		if (deploymentLocation === "Local deployment") {
+			commandLine = `0 23 * * * cd ${pwd} && osi4iot run\n`;
+		}
 		fs.appendFileSync(`${pwd}/crontab_new`, commandLine);
 		execSync('crontab crontab_new && rm crontab_new');
 		return "OK";
@@ -117,7 +120,7 @@ export default async function (nodesData, organizations, deploymentLocation = nu
 			isLocahostNode(nodeIP) &&
 			awsData && awsData.domainCertsType === "Let's encrypt certs and AWS Route 53"
 		) {
-			const ouputAcme_sh = installAcme_sh(nodesData[inode], awsData);
+			const ouputAcme_sh = installAcme_sh(deploymentLocation, nodesData[inode], awsData);
 			if (ouputAcme_sh !== "OK") outputResults = "Failed";
 			isAcmeInstalled = true;
 		}
