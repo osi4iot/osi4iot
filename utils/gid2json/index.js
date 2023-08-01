@@ -303,12 +303,16 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
         let valueSign = 1
         let lineString = line.toString('ascii');
         if (lineString.slice(0, 10) === "End Values") break;
+        else if (lineString.includes('Values\r')) {
+            line = liner.next();
+            lineString = line.toString('ascii');
+        }
 
         if (componentNamesArray) {
             if (resultType === "OnNodes") {
                 const valuesArray = lineString.split(" ").filter(word => word !== "").slice(1);
                 let idx_elm=parseInt(lineString.split(" ").filter(word => word !== "").slice(0,1));
-                if (elements[0][idx_elm]==undefined) boolMixMaxSave = false;
+                if (elements[0] == undefined ||elements[0][idx_elm]==undefined) boolMixMaxSave = false;
                 for (let icomp = 0; icomp < componentNamesArray.length; icomp++) {
                     const fieldNameParent =componentNamesArray[icomp]
                     if (reverseField && reverseField.indexOf(fieldNameParent)>-1){
@@ -333,7 +337,7 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
                 const gpValuesMatrix = [];
                 gpValuesMatrix[0] = lineString.split(" ").filter(word => word !== "").slice(1);
                 let idx_elm=parseInt(lineString.split(" ").filter(word => word !== "").slice(0,1));
-                if (elements[0][idx_elm]==undefined) boolMixMaxSave = false;
+                if (elements[0] == undefined ||elements[0][idx_elm]==undefined) boolMixMaxSave = false;
                 line = liner.next()
                 lineString = line.toString('ascii');
                 gpValuesMatrix[1] = lineString.split(" ").filter(word => word !== "");
