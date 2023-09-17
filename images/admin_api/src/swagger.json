@@ -73,6 +73,10 @@
 		{
 			"name": "Node-RED instances",
 			"description": "List of Node-RED instances of the IOT Platform - Default role required: Group_Admin"
+		},
+		{
+			"name": "Machine learning models",
+			"description": "List of machine learning models of the IOT Platform - Default role required: Group_Admin"
 		}
 	],
 	"consumes": [
@@ -5538,7 +5542,626 @@
 					}
 				}
 			}
-		}
+		},
+		"/ml_models/user_managed": {
+			"get": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Get all ML models managed by the logged user",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/MLModels"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_models_in_org/{orgId}": {
+			"parameters": [
+				{
+					"name": "orgId",
+					"in": "path",
+					"required": true,
+					"description": "Organization id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Get all machine learning models in the organization - Role required: Organization_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/MLModels"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Organization not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/OrganizationNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_models_in_group/{groupId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],
+			"get": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Get all machine learning modelss in a group of the platform - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/MLModles"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_model/{groupId}/{propName}/{propValue}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "propName",
+					"in": "path",
+					"required": true,
+					"description": "id or ml_model_uid of the ML model",
+					"type": "string"
+				},
+				{
+					"name": "propValue",
+					"in": "path",
+					"required": true,
+					"description": "ML model property value",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Get ML model by propName: id or ml_model_uid  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/MLModelOutput"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			},
+			"patch": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Update ML model by propName: id or ml_model_uid  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/MLModelUpdate"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_model/{mlModelId}": {
+			"parameters": [
+				{
+					"name": "mlModelId",
+					"in": "path",
+					"required": true,
+					"description": "ML model id",
+					"type": "number"
+				}
+			],
+			"delete": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Delete ML model by id",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_model/{groupId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				}
+			],
+			"post": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Create ml model in a group  - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"application/json": {
+							"schema": {
+								"$ref": "#/definitions/MLModelInput"
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_model_file_list/{groupId}/{mlModelId}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "mlModelId",
+					"in": "path",
+					"required": true,
+					"description": "id or ml_model_uid of the ML model",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Get ML model file list by groupId and mlModelId  - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/BucketFileInfoList"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_model_upload_file/{groupId}/{mlModelId}/{fileName}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "mlModelId",
+					"in": "path",
+					"required": true,
+					"description": "ml_model_uid of the ML model",
+					"type": "string"
+				},
+				{
+					"name": "fileName",
+					"in": "path",
+					"required": true,
+					"description": "File name of the ML model",
+					"type": "string"
+				}
+			],
+			"post": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Upload ml model file   - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object"
+							},
+							"properties": {
+								"file": {
+									"type": "string",
+									"format": "binary"
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_model_download_file/{groupId}/{mlModelId}/{fileName}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "mlModelId",
+					"in": "path",
+					"required": true,
+					"description": "ml_model_uid of the ML model",
+					"type": "string"
+				},
+				{
+					"name": "fileName",
+					"in": "path",
+					"required": true,
+					"description": "File name of the ML model",
+					"type": "string"
+				}
+			],
+			"get": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Download ml model file   - Role required: Group_Admin",
+				"requestBody": {
+					"description": "Member data",
+					"required": false,
+					"content": {
+						"multipart/form-data": {
+							"schema": {
+								"type": "object"
+							},
+							"properties": {
+								"file": {
+									"type": "string",
+									"format": "binary"
+								}
+							}
+						}
+					}
+				},
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/bin": {
+								"schema": {
+									"type": "string",
+									"format": "binary"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+		"/ml_model_delete_file/{groupId}/{mlModelId}/{fileName}": {
+			"parameters": [
+				{
+					"name": "groupId",
+					"in": "path",
+					"required": true,
+					"description": "Group id",
+					"type": "number"
+				},
+				{
+					"name": "mlModelId",
+					"in": "path",
+					"required": true,
+					"description": "ml_model_uid of the ML model",
+					"type": "string"
+				},
+				{
+					"name": "fileName",
+					"in": "path",
+					"required": true,
+					"description": "File name of the ML model",
+					"type": "string"
+				}
+			],
+			"delete": {
+				"tags": [
+					"Machine learning models"
+				],
+				"summary": "Delete ml model file by groupId, mlModelId and fileName twin by id - Role required: Group_Admin",
+				"responses": {
+					"200": {
+						"description": "OK",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Message"
+								}
+							}
+						}
+					},
+					"401": {
+						"description": "No auth token or invalid token",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/Credentials_rejected"
+								}
+							}
+						}
+					},
+					"404": {
+						"description": "Group not found",
+						"content": {
+							"application/json": {
+								"schema": {
+									"$ref": "#/definitions/GroupNotFoundMessage"
+								}
+							}
+						}
+					}
+				}
+			}
+		}		
 	},
 	"definitions": {
 		"UserRegister": {
@@ -7227,6 +7850,57 @@
 					"type": "number"
 				}
 			}			
-		}
+		},
+		"MLModels": {
+			"type": "array",
+			"items": {
+				"$ref": "#/definitions/MLModelOutput"
+			}
+		},		
+		"MLModelInput": {
+			"properties": {
+				"mlModelUid": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				}
+			}			
+		},
+		"MLModelUpdate": {
+			"properties": {
+				"description": {
+					"type": "string"
+				},
+				"areMlModelFilesModified": {
+					"type": "boolean"
+				}
+			}			
+		},		
+		"MLModelOutput": {
+			"properties": {
+				"id": {
+					"type": "number"
+				},
+				"orgId": {
+					"type": "number"
+				},
+				"groupId": {
+					"type": "number"
+				},
+				"mlModelUid": {
+					"type": "string"
+				},
+				"description": {
+					"type": "string"
+				},							
+				"created": {
+					"type": "string"
+				},
+				"updated": {
+					"type": "string"
+				}				
+			}			
+		}		
 	}
 }

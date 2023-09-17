@@ -442,7 +442,10 @@ export const dataBaseInitialization = async () => {
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_device_name
-				ON grafanadb.device(name);`;
+				ON grafanadb.device(name);
+				
+				CREATE INDEX IF NOT EXISTS idx_device_uid
+				ON grafanadb.device(device_uid);`;
 
 				try {
 					await postgresClient.query(queryStringDevice);
@@ -455,58 +458,32 @@ export const dataBaseInitialization = async () => {
 				const queryStringAsset = `
 				CREATE TABLE IF NOT EXISTS ${tableAsset}(
 					id serial PRIMARY KEY,
-					device_id bigint,
+					group_id bigint,
 					asset_uid VARCHAR(40) UNIQUE,
 					name VARCHAR(190) UNIQUE,
 					description VARCHAR(190),
 					geolocation POINT,
 					type VARCHAR(40),
 					icon_radio real NOT NULL DEFAULT 1.0,
-					mqtt_password VARCHAR(255),
-					mqtt_salt VARCHAR(40),
-					mqtt_access_control VARCHAR(10),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
-					CONSTRAINT fk_device_id
-						FOREIGN KEY(device_id)
-							REFERENCES grafanadb.device(id)
-								ON DELETE CASCADE
+					CONSTRAINT fk_group_id
+						FOREIGN KEY(group_id)
+							REFERENCES grafanadb.group(id)
+							ON DELETE CASCADE			
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_asset_name
-				ON grafanadb.asset(name);`;
+				ON grafanadb.asset(name);
+
+				CREATE INDEX IF NOT EXISTS idx_asset_uid
+				ON grafanadb.asset(asset_uid);`;
 
 				try {
 					await postgresClient.query(queryStringAsset);
 					logger.log("info", `Table ${tableAsset} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
-				}
-
-				const tableSensor = "grafanadb.sensor";
-				const queryStringSensor = `
-				CREATE TABLE IF NOT EXISTS ${tableSensor}(
-					id serial PRIMARY KEY,
-					asset_id bigint,
-					sensor_uid VARCHAR(40) UNIQUE,
-					description VARCHAR(190),
-					topicType VARCHAR(40),
-					created TIMESTAMPTZ,
-					updated TIMESTAMPTZ,
-					CONSTRAINT fk_asset_id
-						FOREIGN KEY(asset_id)
-							REFERENCES grafanadb.asset(id)
-								ON DELETE CASCADE								
-				);
-
-				CREATE INDEX IF NOT EXISTS idx_sensor_uid
-				ON grafanadb.sensor(sensor_uid);`;
-
-				try {
-					await postgresClient.query(queryStringSensor);
-					logger.log("info", `Table ${tableSensor} has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Table ${tableSensor} can not be created: %s`, err.message);
 				}
 
 
@@ -540,6 +517,47 @@ export const dataBaseInitialization = async () => {
 					logger.log("info", `Table ${tableTopic} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableTopic} can not be created: %s`, err.message);
+				}
+
+				const tableSensor = "grafanadb.sensor";
+				const queryStringSensor = `
+				CREATE TABLE IF NOT EXISTS ${tableSensor}(
+					id serial PRIMARY KEY,
+					asset_id bigint,
+					sensor_uid VARCHAR(40) UNIQUE,
+					name VARCHAR(190) UNIQUE,
+					description VARCHAR(190),
+					dashboard_id bigint,
+					topic_id VARCHAR(40),
+					topic_field VARCHAR(40),
+					value_type VARCHAR(10),
+					units VARCHAR(10),
+					created TIMESTAMPTZ,
+					updated TIMESTAMPTZ,
+					UNIQUE (topic_id, topic_field),
+					CONSTRAINT fk_asset_id
+						FOREIGN KEY(asset_id)
+							REFERENCES grafanadb.asset(id)
+								ON DELETE CASCADE,
+					CONSTRAINT fk_dashboard_id
+						FOREIGN KEY(dashboard_id
+							REFERENCES grafanadb.dashboard(id),
+					CONSTRAINT fk_topic_id
+						FOREIGN KEY(topic_id)
+							REFERENCES grafanadb.topic(id)
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_sensor_uid
+				ON grafanadb.sensor(sensor_uid);
+				
+				CREATE INDEX IF NOT EXISTS idx_sensor_name
+				ON grafanadb.sensor(name);`;
+
+				try {
+					await postgresClient.query(queryStringSensor);
+					logger.log("info", `Table ${tableSensor} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableSensor} can not be created: %s`, err.message);
 				}
 
 				const tableDigitalTwin = "grafanadb.digital_twin";
