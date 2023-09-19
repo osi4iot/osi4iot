@@ -43,12 +43,16 @@ import UpdateGroupDto from "./interfaces/group_update.dto";
 import UpdateGroupMemberDto from "./interfaces/groupMemberUpdate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IGroup from "./interfaces/Group.interface";
-import { createDemoDashboards, getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfGroup } from "./dashboardDAL";
-import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
+import {
+	createSensorDashboard,
+	getDashboardsDataWithRawSqlOfGroup,
+	updateDashboardsDataRawSqlOfGroup
+} from "./dashboardDAL";
+import { createDevice } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
-import { createTopic, demoTopicName } from "../topic/topicDAL";
-import { createDigitalTwin, demoDigitalTwinDescription, generateDigitalTwinUid, removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
+import { createTopic } from "../topic/topicDAL";
+import { removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import {
@@ -61,6 +65,10 @@ import {
 import UpdateGroupManagedDto from "./interfaces/groupManagedUpdate.dto";
 import rhumbDestination from "@turf/rhumb-destination";
 import { updateMeasurementsGroupUid } from "../mesurement/measurementDAL";
+import { createNewAsset } from "../asset/assetDAL";
+import { createNewSensor } from "../sensor/sensorDAL";
+import CreateSensorDto from "../sensor/sensor.dto";
+import { nanoid } from "nanoid";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -279,8 +287,8 @@ class GroupController implements IController {
 			const geojsonObj = JSON.parse(geoJsonDataString);
 			let centerGroupAreaLongitude = 0.0;
 			let centerGroupAreaLatitude = 0.0;
-			let deviceLongitude = 0.0;
-			let deviceLatitude = 0.0;
+			let assetLongitude = 0.0;
+			let assetLatitude = 0.0;
 			let nriLongitude = 0.0;
 			let nriLatitude = 0.0;
 			if (geojsonObj.features) {
@@ -290,91 +298,126 @@ class GroupController implements IController {
 				centerGroupAreaLatitude = center.geometry.coordinates[1];
 				const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
 				const ptDevice = rhumbDestination(ptCenterGroupArea, 0.001, 180);
-				deviceLongitude = ptDevice.geometry.coordinates[0];
-				deviceLatitude = ptDevice.geometry.coordinates[1];
+				assetLongitude = ptDevice.geometry.coordinates[0];
+				assetLatitude = ptDevice.geometry.coordinates[1];
 				const ptNri = rhumbDestination(ptCenterGroupArea, 0.002, 0.0);
 				nriLongitude = ptNri.geometry.coordinates[0];
 				nriLatitude = ptNri.geometry.coordinates[1];
 			}
 
-			const defaultGroupDeviceData =
-			{
-				name: defaultGroupDeviceName(groupCreated),
-				description: `Default device of group ${groupCreated.name}`,
-				latitude: deviceLatitude,
-				longitude: deviceLongitude,
+			nodeRedInstancesUnlinkedInOrg[0].longitude = nriLongitude;
+			nodeRedInstancesUnlinkedInOrg[0].latitude = nriLatitude;
+			await assignNodeRedInstanceToGroup(nodeRedInstancesUnlinkedInOrg[0], groupCreated.id);
+
+			const defaultAssetData = {
+				description: `Mobile for group ${groupCreated.acronym}`,
+				type: "mobile",
+				iconRadio: 1.0,
+				longitude: assetLongitude,
+				latitude: assetLatitude,
+			}
+			const asset = await createNewAsset(groupCreated, defaultAssetData);
+
+			const defaultGroupDeviceData = {
+				latitude: 0.0,
+				longitude: 0.0,
 				type: "Generic",
 				iconRadio: 1.0,
 				mqttAccessControl: "Pub & Sub"
 			};
 			const device = await createDevice(groupCreated, defaultGroupDeviceData);
 
-			nodeRedInstancesUnlinkedInOrg[0].longitude = nriLongitude;
-			nodeRedInstancesUnlinkedInOrg[0].latitude = nriLatitude;
-			await assignNodeRedInstanceToGroup(nodeRedInstancesUnlinkedInOrg[0], groupCreated.id);
-
 			const defaultDeviceTopicsData = [
 				{
 					topicType: "dev2pdb",
-					topicName: demoTopicName(groupCreated, device, "Temperature"),
-					description: `Temperature sensor for ${defaultGroupDeviceName(groupCreated)} device`,
+					description: `Mobile temperature topic`,
 					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 					mqttAccessControl: "Pub & Sub"
 				},
 				{
 					topicType: "dev2pdb_wt",
-					topicName: demoTopicName(groupCreated, device, "Accelerometer"),
-					description: `Mobile accelerations for ${defaultGroupDeviceName(groupCreated)} device`,
+					description: `Mobile accelerations topic`,
 					payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 					mqttAccessControl: "Pub & Sub"
 				},
 				{
 					topicType: "dev2pdb_wt",
-					topicName: demoTopicName(groupCreated, device, "Mobile_Orientation"),
-					description: `Mobile orientation for ${defaultGroupDeviceName(groupCreated)} device`,
+					description: `Mobile orientation topic`,
 					payloadFormat: '{"mobile_quaternion":{"type":"array","items":{"q0":{"type":"number","units":"None"},"q1":{"type":"number","units":"None"},"q2":{"type":"number","units":"None"},"q3":{"type":"number","units":"None"}}}}',
 					mqttAccessControl: "Pub & Sub"
 				},
 				{
 					topicType: "dev2dtm",
-					topicName: demoTopicName(groupCreated, device, "Photo"),
-					description: `Mobile photo for ${defaultGroupDeviceName(groupCreated)} device`,
+					description: `Mobile photo topic`,
 					payloadFormat: '{"mobile_photo": {"type": "string"}}',
 					mqttAccessControl: "Pub & Sub"
 				},
 			];
 			const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
 			const topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
-			await createTopic(device.id, defaultDeviceTopicsData[2]);
-			await createTopic(device.id, defaultDeviceTopicsData[3]);
+			const topic3 = await createTopic(device.id, defaultDeviceTopicsData[2]);
+			const topic4 = await createTopic(device.id, defaultDeviceTopicsData[3]);
 
-			const dashboardsId: number[] = [];
+			const sensorsData: CreateSensorDto[] = [];
+			const dashboarsId: number[] = [];
+			const sensorsUid: string[] = [];
+			sensorsData[0] =
+			{
+				assetId: asset.id,
+				description: `Temperature sensor`,
+				topicId: topic1.id,
+				payloadKey: "temperature",
+				paramLabel: "Temperature",
+				valueType: "number",
+				units: "°C",
+			};
+			sensorsUid[0] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-			[dashboardsId[0], dashboardsId[1]] =
-				await createDemoDashboards(groupCreated, device, [topic1, topic2]);
+			sensorsData[1] =
+			{
+				assetId: asset.id,
+				description: `Mobile accelerations`,
+				topicId: topic2.id,
+				payloadKey: "mobile_accelerations",
+				paramLabel: "ax,ay,az",
+				valueType: "number(3)",
+				units: "m/s^2",
+			};
+			sensorsUid[1] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
+			sensorsData[2] =
+			{
+				assetId: asset.id,
+				description: `Mobile quaternions`,
+				topicId: topic3.id,
+				payloadKey: "mobile_quaternion",
+				paramLabel: "q0,q1,q2",
+				valueType: "number(4)",
+				units: "-",
+			};
+			sensorsUid[2] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-			const defaultDeviceDigitalTwinsData = [
-				{
-					digitalTwinUid: generateDigitalTwinUid(),
-					description: demoDigitalTwinDescription(groupCreated, "Temperature"),
-					type: "Grafana dashboard",
-					topicSensorTypes: ['dev2pdb_1'] as string[],
-					maxNumResFemFiles: 0,
-					digitalTwinSimulationFormat: "{}"
-				},
-				{
-					digitalTwinUid: generateDigitalTwinUid(),
-					description: demoDigitalTwinDescription(groupCreated, "Accelerations"),
-					type: "Grafana dashboard",
-					topicSensorTypes: ['dev2pdb_1'] as string[],
-					maxNumResFemFiles: 0,
-					digitalTwinSimulationFormat: "{}"
-				},
-			];
+			sensorsData[3] =
+			{
+				assetId: asset.id,
+				description: `Mobile photo`,
+				topicId: topic4.id,
+				payloadKey: "mobile_photo",
+				paramLabel: "mobile_photo",
+				valueType: "string",
+				units: "-",
+			};
+			sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-			await createDigitalTwin(groupCreated, device, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
-			await createDigitalTwin(groupCreated, device, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
+			dashboarsId[0] = await createSensorDashboard(groupCreated, sensorsData[0], sensorsUid[0]);
+			dashboarsId[1] = await createSensorDashboard(groupCreated, sensorsData[1], sensorsUid[1]);
+			dashboarsId[2] = await createSensorDashboard(groupCreated, sensorsData[2], sensorsUid[2]);
+			dashboarsId[3] = await createSensorDashboard(groupCreated, sensorsData[3], sensorsUid[3]);
+
+			await createNewSensor(sensorsData[0], dashboarsId[0], sensorsUid[0]);
+			await createNewSensor(sensorsData[1], dashboarsId[1], sensorsUid[1]);
+			await createNewSensor(sensorsData[2], dashboarsId[2], sensorsUid[2]);
+			await createNewSensor(sensorsData[3], dashboarsId[3], sensorsUid[3]);
 
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;

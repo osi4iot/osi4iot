@@ -32,7 +32,7 @@ const NonDraggableDeviceCircle: FC<NonDraggableDeviceCircleProps> = ({ device })
             >
                 <Tooltip sticky>
                     <span style={{ fontWeight: 'bold' }}>Device</span><br />
-                    Name: {device.name}<br />
+                    Name: {`Device_${device.deviceUid}`}<br />
                 </Tooltip>
             </Circle>
             {

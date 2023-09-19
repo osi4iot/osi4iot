@@ -61,18 +61,15 @@ import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeceptio
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
 import CreateGroupAdminDto from "../group/interfaces/groupAdmin.dto";
 import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
-import { createDemoDashboards, createHomeDashboard } from "../group/dashboardDAL";
+import { createHomeDashboard, createSensorDashboard } from "../group/dashboardDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IOrganization from "./interfaces/organization.interface";
-import { createDevice, defaultGroupDeviceName } from "../device/deviceDAL";
+import { createDevice } from "../device/deviceDAL";
 import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
-import { createTopic, demoTopicName } from "../topic/topicDAL";
+import { createTopic } from "../topic/topicDAL";
 import {
-	createDigitalTwin,
-	demoDigitalTwinDescription,
-	generateDigitalTwinUid,
 	removeFilesFromBucketFolder
 } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
@@ -83,6 +80,10 @@ import {
 	getNodeRedInstancesByOrgsIdArray
 } from "../nodeRedInstance/nodeRedInstanceDAL";
 import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
+import { createNewAsset } from "../asset/assetDAL";
+import { createNewSensor } from "../sensor/sensorDAL";
+import CreateSensorDto from "../sensor/sensor.dto";
+import { nanoid } from "nanoid";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -362,79 +363,115 @@ class OrganizationController implements IController {
 				const noredInstances = await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId);
 				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);
 
+				const defaultAssetData = {
+					description: `Mobile for group ${group.acronym}`,
+					type: "mobile",
+					iconRadio: 1.0,
+					longitude: 0.0,
+					latitude: 0.0,
+				}
+				const asset = await createNewAsset(group, defaultAssetData);
+
 				const defaultGroupDeviceData = {
-					name: defaultGroupDeviceName(group),
-					description: `Default device of group ${defaultOrgGroupAcronym}`,
-					latitude: 0,
-					longitude: 0,
+					latitude: 0.0,
+					longitude: 0.0,
 					type: "Generic",
 					iconRadio: 1.0,
 					mqttAccessControl: "Pub & Sub"
 				};
-
 				const device = await createDevice(group, defaultGroupDeviceData);
 
 				const defaultDeviceTopicsData = [
 					{
 						topicType: "dev2pdb",
-						topicName: demoTopicName(group, device, "Temperature"),
-						description: `Temperature sensor for default device of group ${group.acronym}`,
+						description: `Mobile temperature topic`,
 						payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 						mqttAccessControl: "Pub & Sub"
 					},
 					{
 						topicType: "dev2pdb_wt",
-						topicName: demoTopicName(group, device, "Accelerometer"),
-						description: `Mobile accelerations for default device of group ${group.acronym}`,
+						description: `Mobile accelerations topic`,
 						payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 						mqttAccessControl: "Pub & Sub"
 					},
 					{
 						topicType: "dev2pdb_wt",
-						topicName: demoTopicName(group, device, "Mobile_Orientation"),
-						description: `Mobile orientation for default device of group ${group.acronym}`,
+						description: `Mobile orientation topic`,
 						payloadFormat: '{"mobile_quaternion":{"type":"array","items":{"q0":{"type":"number","units":"None"},"q1":{"type":"number","units":"None"},"q2":{"type":"number","units":"None"},"q3":{"type":"number","units":"None"}}}}',
 						mqttAccessControl: "Pub & Sub"
 					},
 					{
 						topicType: "dev2dtm",
-						topicName: demoTopicName(group, device, "Photo"),
-						description: `Mobile photo for default device of group ${group.acronym}`,
+						description: `Mobile photo topic`,
 						payloadFormat: '{"mobile_photo": {"type": "string"}}',
 						mqttAccessControl: "Pub & Sub"
 					},
 				];
 				const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
 				const topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
-				await createTopic(device.id, defaultDeviceTopicsData[2]);
-				await createTopic(device.id, defaultDeviceTopicsData[3]);
+				const topic3 = await createTopic(device.id, defaultDeviceTopicsData[2]);
+				const topic4 = await createTopic(device.id, defaultDeviceTopicsData[3]);
 
-				const dashboardsId: number[] = [];
+				const sensorsData: CreateSensorDto[] = [];
+				const dashboarsId: number[] = [];
+				const sensorsUid: string[] = [];
+				sensorsData[0] =
+				{
+					assetId: asset.id,
+					description: `Temperature sensor`,
+					topicId: topic1.id,
+					payloadKey: "temperature",
+					paramLabel: "Temperature",
+					valueType: "number",
+					units: "°C",
+				};
+				sensorsUid[0] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-				[dashboardsId[0], dashboardsId[1]] =
-					await createDemoDashboards(group, device, [topic1, topic2]);
+				sensorsData[1] =
+				{
+					assetId: asset.id,
+					description: `Mobile accelerations`,
+					topicId: topic2.id,
+					payloadKey: "mobile_accelerations",
+					paramLabel: "ax,ay,az",
+					valueType: "number(3)",
+					units: "m/s^2",
+				};
+				sensorsUid[1] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-				const defaultDeviceDigitalTwinsData = [
-					{
-						digitalTwinUid: generateDigitalTwinUid(),
-						description: demoDigitalTwinDescription(group, "Temperature"),
-						type: "Grafana dashboard",
-						topicSensorTypes: ['dev2pdb_1'] as string[],
-						maxNumResFemFiles: 0,
-						digitalTwinSimulationFormat: "{}"
-					},
-					{
-						digitalTwinUid: generateDigitalTwinUid(),
-						description: demoDigitalTwinDescription(group, "Accelerations"),
-						type: "Grafana dashboard",
-						topicSensorTypes: ['dev2pdb_1'] as string[],
-						maxNumResFemFiles: 0,
-						digitalTwinSimulationFormat: "{}"
-					},
-				];
+				sensorsData[2] =
+				{
+					assetId: asset.id,
+					description: `Mobile quaternions`,
+					topicId: topic3.id,
+					payloadKey: "mobile_quaternion",
+					paramLabel: "q0,q1,q2",
+					valueType: "number(4)",
+					units: "-",
+				};
+				sensorsUid[2] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-				await createDigitalTwin(group, device, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
-				await createDigitalTwin(group, device, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
+				sensorsData[3] =
+				{
+					assetId: asset.id,
+					description: `Mobile photo`,
+					topicId: topic4.id,
+					payloadKey: "mobile_photo",
+					paramLabel: "mobile_photo",
+					valueType: "string",
+					units: "-",
+				};
+				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+
+				dashboarsId[0] = await createSensorDashboard(group, sensorsData[0], sensorsUid[0]);
+				dashboarsId[1] = await createSensorDashboard(group, sensorsData[1], sensorsUid[1]);
+				dashboarsId[2] = await createSensorDashboard(group, sensorsData[2], sensorsUid[2]);
+				dashboarsId[3] = await createSensorDashboard(group, sensorsData[3], sensorsUid[3]);
+
+				await createNewSensor(sensorsData[0], dashboarsId[0], sensorsUid[0]);
+				await createNewSensor(sensorsData[1], dashboarsId[1], sensorsUid[1]);
+				await createNewSensor(sensorsData[2], dashboarsId[2], sensorsUid[2]);
+				await createNewSensor(sensorsData[3], dashboarsId[3], sensorsUid[3]);
 			}
 			const message = { message: "Organization created successfully" }
 			res.status(201).send(message);

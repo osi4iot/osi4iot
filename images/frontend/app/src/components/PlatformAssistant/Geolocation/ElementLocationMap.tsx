@@ -378,7 +378,7 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                         return (
                             <DraggableDeviceCircle
                                 key={device.id}
-                                deviceName={device.name}
+                                deviceName={`Device_${device.deviceUid}`}
                                 deviceRadio={deviceInputData.iconRadio}
                                 deviceType={device.type}
                                 devicePosition={devicePosition}

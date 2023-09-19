@@ -248,7 +248,11 @@ export const createDashboard = async (group: IGroup, deviceUid: string, topicUid
 	return dashboardCreated.id as number;
 };
 
-export const createSensorDashboard = async (group: IGroup, sensorData: CreateSensorDto): Promise<number> => {
+export const createSensorDashboard = async (
+	group: IGroup,
+	sensorData: CreateSensorDto,
+	sensorsUid: string
+): Promise<number> => {
 	const topic = await getTopicByProp("id", sensorData.topicId);
 	const device = await getDeviceByProp("id", topic.deviceId)
 
@@ -257,7 +261,7 @@ export const createSensorDashboard = async (group: IGroup, sensorData: CreateSen
 	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;;
 	const dashboard = JSON.parse(defaultDashboard);
 	dashboard.uid = uuidv4();
-	dashboard.title = sensorData.description;
+	dashboard.title = `Sensor_${sensorsUid} - ${sensorData.description}`;
 	const tableHash = `Table_${group.groupUid}`;
 	const deviceHash = `Device_${device.deviceUid}`;
 	const topicHash = `Topic_${topic.topicUid}`;

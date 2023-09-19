@@ -5,9 +5,6 @@ class CreateTopicDto {
 	public topicType: string;
 
 	@IsString()
-	public topicName: string;
-
-	@IsString()
 	public description: string;
 
 	@IsString()

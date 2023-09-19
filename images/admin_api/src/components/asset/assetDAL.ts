@@ -7,26 +7,23 @@ import IGroup from "../group/interfaces/Group.interface";
 import CreateAssetDto from "./asset.dto";
 import IAsset from "./asset.interface";
 
-export const defaultGroupAssetName = (group: IGroup): string => {
-	const assetName = `${group.acronym.replace(/ /g, "_")}_default_mobile`;
-	return assetName;
-}
 
 export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 	const queryString = `INSERT INTO grafanadb.asset (group_id, asset_uid,
-		name, description, geolocation, type, icon_radio,
+		description, geolocation, type, icon_radio,
 		created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
-		RETURNING  id, group_id AS "groupId", asset_uid AS "assetUid",
-		name, description, icon_radio AS "iconRadio",
-		geolocation[0] AS longitude, geolocation[1] AS latitude, 
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		RETURNING  id, group_id AS "groupId",
+		asset_uid AS "assetUid",
+		description, icon_radio AS "iconRadio",
+		geolocation[0] AS longitude,
+		geolocation[1] AS latitude,
 		created, updated`;
 
 	const result = await pool.query(queryString,
 		[
 			assetData.groupId,
 			assetData.assetUid,
-			assetData.name,
 			assetData.description,
 			`(${assetData.longitude},${assetData.latitude})`,
 			assetData.type,
@@ -36,12 +33,11 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 };
 
 export const updateAssetByPropName = async (propName: string, propValue: (string | number), asset: IAsset): Promise<void> => {
-	const query = `UPDATE grafanadb.asset SET name = $1, description = $2,
-				geolocation = $4, type = $5, icon_radio = $6,
+	const query = `UPDATE grafanadb.asset SET description = $1,
+				geolocation = $2, type = $3, icon_radio = $4,
 				updated = NOW()
-				WHERE grafanadb.asset.${propName} = $7;`;
+				WHERE grafanadb.asset.${propName} = $5;`;
 	await pool.query(query, [
-		asset.name,
 		asset.description,
 		`(${asset.longitude},${asset.latitude})`,
 		asset.type,
@@ -66,7 +62,7 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): 
 export const getAssetByPropName = async (propName: string, propValue: (string | number)): Promise<IAsset> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 	                                grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.asset.name, grafanadb.asset.description, grafanadb.asset.type,
+									grafanadb.asset.description, grafanadb.asset.type,
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
@@ -80,7 +76,7 @@ export const getAssetByPropName = async (propName: string, propValue: (string | 
 export const getAllAssets = async (): Promise<IAsset[]> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.asset.name, grafanadb.asset.description, grafanadb.asset.type,
+									grafanadb.asset.description, grafanadb.asset.type,
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
@@ -100,7 +96,7 @@ export const getNumAssets = async (): Promise<number> => {
 export const getAssetsByGroupId = async (groupId: number): Promise<IAsset[]> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.asset.name, grafanadb.asset.description, grafanadb.asset.type,
+									grafanadb.asset.description, grafanadb.asset.type,
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
@@ -115,7 +111,7 @@ export const getAssetsByGroupId = async (groupId: number): Promise<IAsset[]> => 
 export const getAssetsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IAsset[]> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.asset.name, grafanadb.asset.description, grafanadb.asset.type,
+									grafanadb.asset.description, grafanadb.asset.type,
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
@@ -137,7 +133,7 @@ export const getNumAssetsByGroupsIdArray = async (groupsIdArray: number[]): Prom
 export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.asset.name, grafanadb.asset.description, grafanadb.asset.type,
+									grafanadb.asset.description, grafanadb.asset.type,
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 

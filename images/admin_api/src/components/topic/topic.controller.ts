@@ -282,14 +282,8 @@ class TopicController implements IController {
 		try {
 			const topicData: CreateTopicDto = req.body;
 			const deviceId = parseInt(req.params.deviceId, 10);
-			let message: { message: string };
-			const existTopic = await getTopicByProp("topic_name", topicData.topicName)
-			if (!existTopic) {
-				await createTopic(deviceId, topicData);
-				message = { message: `A new topic has been created` };
-			} else {
-				message = { message: `The topic with name: ${topicData.topicName} already exist` };
-			}
+			await createTopic(deviceId, topicData);
+			const message = { message: `A new topic has been created` };
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -297,7 +291,7 @@ class TopicController implements IController {
 	};
 
 	private isValidTopicPropName = (propName: string) => {
-		const validPropName = ["id", "sensorName", "topicUid"];
+		const validPropName = ["id",  "topicUid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
 

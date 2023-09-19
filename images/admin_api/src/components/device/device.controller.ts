@@ -267,14 +267,8 @@ class DeviceController implements IController {
 	): Promise<void> => {
 		try {
 			const deviceData: CreateDeviceDto = req.body;
-			let message: { message: string };
-			const existDevice = await getDeviceByProp("name", deviceData.name)
-			if (!existDevice) {
-				await createDevice(req.group, deviceData);
-				message = { message: `A new device has been created` };
-			} else {
-				throw new HttpException(400, `The device with name: ${deviceData.name} already exist`);
-			}
+			await createDevice(req.group, deviceData);
+			const  message =  { message: "Device created successfully" };
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -294,7 +288,7 @@ class DeviceController implements IController {
 	};
 
 	private isValidDevicePropName = (propName: string) => {
-		const validPropName = ["id", "name", "deviceUid"];
+		const validPropName = ["id", "deviceUid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
 

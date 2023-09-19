@@ -5,9 +5,6 @@ class CreateSensorDto {
 	public assetId: number;
 
 	@IsString()
-	public name: string;
-
-	@IsString()
 	public description: string;
 
 	@IsNumber()

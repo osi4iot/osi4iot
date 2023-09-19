@@ -2,9 +2,6 @@ import { IsNumber, IsString } from "class-validator";
 
 class CreateAssetDto {
 	@IsString()
-	public name: string;
-
-	@IsString()
 	public description: string;
 
 	@IsString()

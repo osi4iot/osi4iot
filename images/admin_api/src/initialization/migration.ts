@@ -10,16 +10,11 @@ import {
 	getAllGroups
 } from "../components/group/groupDAL";
 import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
-import { createDemoDashboards, createHomeDashboard } from "../components/group/dashboardDAL";
-import { createDevice, defaultGroupDeviceName } from "../components/device/deviceDAL";
+import { createHomeDashboard, createSensorDashboard } from "../components/group/dashboardDAL";
+import { createDevice } from "../components/device/deviceDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
-import { createTopic, demoTopicName } from "../components/topic/topicDAL";
-import {
-	createDigitalTwin,
-	demoDigitalTwinDescription,
-	generateDigitalTwinUid
-} from "../components/digitalTwin/digitalTwinDAL";
+import { createTopic } from "../components/topic/topicDAL";
 import process_env from "../config/api_config";
 import IDevice from "../components/device/device.interface";
 import needle from "needle";
@@ -36,6 +31,11 @@ import {
 	getOrganizations
 } from "../components/organization/organizationDAL";
 import { createTimescaledbOrgDataSource } from "../components/group/datasourceDAL";
+import IAsset from "../components/asset/asset.interface";
+import { createNewAsset } from "../components/asset/assetDAL";
+import { createNewSensor } from "../components/sensor/sensorDAL";
+import CreateSensorDto from "../components/sensor/sensor.dto";
+import { nanoid } from "nanoid";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -85,7 +85,7 @@ export const dataBaseInitialization = async () => {
 		existPlatformS3Bucket = listBucketsResult.Buckets.filter(bucket => bucket.Name === bucketName).length !== 0;
 		if (!existPlatformS3Bucket) {
 			await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
-			logger.log("info", `The S3 bucket for the platform has been created succefully`)
+			logger.log("info", `The S3 bucket for the platform has been created successfully`)
 		} else {
 			logger.log("info", `An S3 bucket with the name ${bucketName} already has been created`)
 		}
@@ -419,8 +419,6 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					org_id bigint,
 					group_id bigint,
-					name VARCHAR(190) UNIQUE,
-					description VARCHAR(190),
 					device_uid VARCHAR(40) UNIQUE,
 					geolocation POINT,
 					type VARCHAR(40),
@@ -440,9 +438,6 @@ export const dataBaseInitialization = async () => {
 							REFERENCES grafanadb.group(id)
 							ON DELETE CASCADE
 				);
-
-				CREATE INDEX IF NOT EXISTS idx_device_name
-				ON grafanadb.device(name);
 				
 				CREATE INDEX IF NOT EXISTS idx_device_uid
 				ON grafanadb.device(device_uid);`;
@@ -460,7 +455,6 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					group_id bigint,
 					asset_uid VARCHAR(40) UNIQUE,
-					name VARCHAR(190) UNIQUE,
 					description VARCHAR(190),
 					geolocation POINT,
 					type VARCHAR(40),
@@ -473,9 +467,6 @@ export const dataBaseInitialization = async () => {
 							ON DELETE CASCADE			
 				);
 
-				CREATE INDEX IF NOT EXISTS idx_asset_name
-				ON grafanadb.asset(name);
-
 				CREATE INDEX IF NOT EXISTS idx_asset_uid
 				ON grafanadb.asset(asset_uid);`;
 
@@ -486,6 +477,20 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
 				}
 
+				let asset: IAsset;
+				try {
+					const defaultAssetData = {
+						description: `Mobile for group ${group.acronym}`,
+						type: "mobile",
+						iconRadio: 1.0,
+						longitude: 0.0,
+						latitude: 0.0,
+					}
+					asset = await createNewAsset(group, defaultAssetData);
+					logger.log("info", `Default asset for main group has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
+				}
 
 				const tableTopic = "grafanadb.topic";
 				const queryStringTopic = `
@@ -493,7 +498,6 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					device_id bigint,
 					topic_type VARCHAR(40),
-					topic_name VARCHAR(190) UNIQUE,
 					description VARCHAR(190),
 					payload_format jsonb,
 					topic_uid VARCHAR(40) UNIQUE,
@@ -505,9 +509,6 @@ export const dataBaseInitialization = async () => {
 							REFERENCES grafanadb.device(id)
 							ON DELETE CASCADE
 				);
-
-				CREATE INDEX IF NOT EXISTS idx_topic_name
-				ON grafanadb.topic(topic_name);
 
 				CREATE INDEX IF NOT EXISTS idx_topic_uid
 				ON grafanadb.topic(topic_uid);`;
@@ -525,9 +526,8 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					asset_id bigint,
 					sensor_uid VARCHAR(40) UNIQUE,
-					name VARCHAR(190) UNIQUE,
 					description VARCHAR(190),
-					topic_id VARCHAR(40),
+					topic_id bigint,
 					payload_key VARCHAR(40),
 					param_label VARCHAR(40),
 					value_type VARCHAR(10),
@@ -535,24 +535,21 @@ export const dataBaseInitialization = async () => {
 					dashboard_id bigint,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
-					UNIQUE (topic_id, topic_field),
+					UNIQUE (topic_id, payload_key),
 					CONSTRAINT fk_asset_id
 						FOREIGN KEY(asset_id)
 							REFERENCES grafanadb.asset(id)
 								ON DELETE CASCADE,
 					CONSTRAINT fk_dashboard_id
-						FOREIGN KEY(dashboard_id
+						FOREIGN KEY(dashboard_id)
 							REFERENCES grafanadb.dashboard(id),
-					CONSTRAINT fk_topic_id
+					CONSTRAINT fk_sensor_topic_id
 						FOREIGN KEY(topic_id)
 							REFERENCES grafanadb.topic(id)
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_sensor_uid
-				ON grafanadb.sensor(sensor_uid);
-				
-				CREATE INDEX IF NOT EXISTS idx_sensor_name
-				ON grafanadb.sensor(name);`;
+				ON grafanadb.sensor(sensor_uid);`;
 
 				try {
 					await postgresClient.query(queryStringSensor);
@@ -686,10 +683,8 @@ export const dataBaseInitialization = async () => {
 				try {
 					const defaultGroupDeviceData =
 					{
-						name: defaultGroupDeviceName(group),
-						description: `Default device of group ${mainOrgGroupAcronym}`,
-						latitude: 0,
-						longitude: 0,
+						latitude: 0.0,
+						longitude: 0.0,
 						type: "Generic",
 						iconRadio: 1.0,
 						mqttAccessControl: "Pub & Sub"
@@ -704,78 +699,113 @@ export const dataBaseInitialization = async () => {
 
 				let topic1: ITopic;
 				let topic2: ITopic;
+				let topic3: ITopic;
+				let topic4: ITopic;
 				try {
 					const defaultDeviceTopicsData = [
 						{
 							topicType: "dev2pdb",
-							topicName: demoTopicName(group, device, "Temperature"),
-							description: `Temperature sensor for ${defaultGroupDeviceName(group)} device`,
+							description: `Mobile temperature topic`,
 							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
 							topicType: "dev2pdb_wt",
-							topicName: demoTopicName(group, device, "Accelerometer"),
-							description: `Mobile accelerations for ${defaultGroupDeviceName(group)} device`,
+							description: `Mobile accelerations topic`,
 							payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
 							topicType: "dev2pdb_wt",
-							topicName: demoTopicName(group, device, "Mobile_Orientation"),
-							description: `Mobile orientation for ${defaultGroupDeviceName(group)} device`,
+							description: `Mobile orientation topic`,
 							payloadFormat: '{"mobile_quaternion":{"type":"array","items":{"q0":{"type":"number","units":"None"},"q1":{"type":"number","units":"None"},"q2":{"type":"number","units":"None"},"q3":{"type":"number","units":"None"}}}}',
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
 							topicType: "dev2dtm",
-							topicName: demoTopicName(group, device, "Photo"),
-							description: `Mobile photo for default for ${defaultGroupDeviceName(group)} device`,
+							description: `Mobile photo topic`,
 							payloadFormat: '{"mobile_photo": {"type": "string"}}',
 							mqttAccessControl: "Pub & Sub"
 						},
 					];
 					topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
 					topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
-					await createTopic(device.id, defaultDeviceTopicsData[2]);
-					await createTopic(device.id, defaultDeviceTopicsData[3]);
+					topic3 = await createTopic(device.id, defaultDeviceTopicsData[2]);
+					topic4 = await createTopic(device.id, defaultDeviceTopicsData[3]);
 
 					logger.log("info", `Default device topics has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Default device topics could not be created: %s`, err.message);
 				}
 
+				const sensorsData: CreateSensorDto[] = [];
+				const dashboarsId: number[] = [];
+				const sensorsUid: string[] = [];
+				sensorsData[0] =
+				{
+					assetId: asset.id,
+					description: `Temperature sensor`,
+					topicId: topic1.id,
+					payloadKey: "temperature",
+					paramLabel: "Temperature",
+					valueType: "number",
+					units: "°C",
+				};
+				sensorsUid[0] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+
+				sensorsData[1] =
+				{
+					assetId: asset.id,
+					description: `Mobile accelerations`,
+					topicId: topic2.id,
+					payloadKey: "mobile_accelerations",
+					paramLabel: "ax,ay,az",
+					valueType: "number(3)",
+					units: "m/s^2",
+				};
+				sensorsUid[1] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+
+				sensorsData[2] =
+				{
+					assetId: asset.id,
+					description: `Mobile quaternions`,
+					topicId: topic3.id,
+					payloadKey: "mobile_quaternion",
+					paramLabel: "q0,q1,q2",
+					valueType: "number(4)",
+					units: "-",
+				};
+				sensorsUid[2] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+
+				sensorsData[3] =
+				{
+					assetId: asset.id,
+					description: `Mobile photo`,
+					topicId: topic4.id,
+					payloadKey: "mobile_photo",
+					paramLabel: "mobile_photo",
+					valueType: "string",
+					units: "-",
+				};
+				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+
 				try {
-					const dashboardsId: number[] = [];
-
-					[dashboardsId[0], dashboardsId[1]] =
-						await createDemoDashboards(group, device, [topic1, topic2]);
-
-					const defaultDeviceDigitalTwinsData = [
-						{
-							digitalTwinUid: generateDigitalTwinUid(),
-							description: demoDigitalTwinDescription(group, "Temperature"),
-							type: "Grafana dashboard",
-							topicSensorTypes: ['dev2pdb_1'] as string[],
-							maxNumResFemFiles: 0,
-							digitalTwinSimulationFormat: "{}"
-						},
-						{
-							digitalTwinUid: generateDigitalTwinUid(),
-							description: demoDigitalTwinDescription(group, "Accelerations"),
-							type: "Grafana dashboard",
-							topicSensorTypes: ['dev2pdb_1'] as string[],
-							maxNumResFemFiles: 0,
-							digitalTwinSimulationFormat: "{}"
-						},
-					];
-
-					await createDigitalTwin(group, device, defaultDeviceDigitalTwinsData[0], dashboardsId[0], topic1);
-					await createDigitalTwin(group, device, defaultDeviceDigitalTwinsData[1], dashboardsId[1], topic2);
-
-					logger.log("info", `Default device digital twins has been created sucessfully`);
+					dashboarsId[0] = await createSensorDashboard(group, sensorsData[0], sensorsUid[0]);
+					dashboarsId[1] = await createSensorDashboard(group, sensorsData[1], sensorsUid[1]);
+					dashboarsId[2] = await createSensorDashboard(group, sensorsData[2], sensorsUid[2]);
+					dashboarsId[3] = await createSensorDashboard(group, sensorsData[3], sensorsUid[3]);
 				} catch (err) {
-					logger.log("error", `Default device digital twins could not be created: %s`, err.message);
+					logger.log("error", `Default sensors dashboards could not be created: %s`, err.message);
+				}
+
+				try {
+					await createNewSensor(sensorsData[0], dashboarsId[0], sensorsUid[0]);
+					await createNewSensor(sensorsData[1], dashboarsId[1], sensorsUid[1]);
+					await createNewSensor(sensorsData[2], dashboarsId[2], sensorsUid[2]);
+					await createNewSensor(sensorsData[3], dashboarsId[3], sensorsUid[3]);
+					logger.log("info", `Default sensors for main group has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Default sensors for main group can not be created: %s`, err.message);
 				}
 
 				const tableRefreshToken = "grafanadb.refresh_token";

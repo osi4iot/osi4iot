@@ -2,8 +2,6 @@ export default interface IDevice {
 	id?: number;
 	orgId: number;
 	groupId: number;
-	name: string;
-	description: string;
 	type: string;
 	mqttPassword?: string;
 	mqttSalt?: string;

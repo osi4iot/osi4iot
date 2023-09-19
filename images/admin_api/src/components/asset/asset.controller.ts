@@ -202,14 +202,8 @@ class AssetController implements IController {
 	): Promise<void> => {
 		try {
 			const assetData: CreateAssetDto = req.body;
-			let message: { message: string };
-			const existAsset = await getAssetByPropName("name", assetData.name)
-			if (!existAsset) {
-				await createNewAsset(req.group, assetData);
-				message = { message: `A new asset has been created` };
-			} else {
-				throw new HttpException(400, `The asset with name: ${assetData.name} already exist`);
-			}
+			await createNewAsset(req.group, assetData);
+			const message = { message: `A new asset has been created` };
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -217,7 +211,7 @@ class AssetController implements IController {
 	};
 
 	private isValidAssetPropName = (propName: string) => {
-		const validPropName = ["id", "name", "assetUid"];
+		const validPropName = ["id", "assetUid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
 

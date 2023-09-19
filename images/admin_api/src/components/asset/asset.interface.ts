@@ -3,7 +3,6 @@ export default interface IAsset {
 	orgId?: number;
 	groupId: number;
 	assetUid: string;
-	name: string;
 	description: string;
 	type: string;
 	iconRadio: number;

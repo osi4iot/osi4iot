@@ -16,7 +16,6 @@ import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
-import HttpException from "../../exceptions/HttpException";
 import ISensor from "./sensor.interface";
 import {
 	createNewSensor,
@@ -28,6 +27,8 @@ import {
 	getSensorsByOrgId,
 	updateSensorByPropName
 } from "./sensorDAL";
+import { nanoid } from "nanoid";
+import { createSensorDashboard } from "../group/dashboardDAL";
 
 class SensorController implements IController {
 	public path = "/sensor";
@@ -224,14 +225,10 @@ class SensorController implements IController {
 	): Promise<void> => {
 		try {
 			const sensorData: CreateSensorDto = req.body;
-			let message: { message: string };
-			const existSensor = await getSensorByPropName("name", sensorData.name)
-			if (!existSensor) {
-				await createNewSensor(req.group, sensorData);
-				message = { message: `A new sensor has been created` };
-			} else {
-				throw new HttpException(400, `The sensor with name: ${sensorData.name} already exist`);
-			}
+			const sensorUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+			const dashboarId = await createSensorDashboard(req.group, sensorData, sensorUid);
+			await createNewSensor(sensorData, dashboarId, sensorUid);
+			const message= { message: `A new sensor has been created` };
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -239,7 +236,7 @@ class SensorController implements IController {
 	};
 
 	private isValidSensorPropName = (propName: string) => {
-		const validPropName = ["id", "name", "sensorUid"];
+		const validPropName = ["id", "sensorUid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
 

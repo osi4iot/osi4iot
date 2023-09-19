@@ -9,16 +9,11 @@ import CreateDeviceDto from "./device.dto";
 import IDevice from "./device.interface";
 import { passwordGenerator } from "../../utils/passwordGenerator";
 
-export const defaultGroupDeviceName = (group: IGroup): string => {
-	const deviceName = `${group.acronym.replace(/ /g, "_")}_default`;
-	return deviceName;
-}
-
 export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
-	const result = await pool.query(`INSERT INTO grafanadb.device (org_id, group_id, name,
-		            description, device_uid, geolocation, type, icon_radio, mqtt_password,
+	const result = await pool.query(`INSERT INTO grafanadb.device (org_id, group_id,
+		            device_uid, geolocation, type, icon_radio, mqtt_password,
 					mqtt_salt,  mqtt_access_control,	created, updated)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 					RETURNING  id, org_id AS "orgId",  group_id AS "groupId",
 					device_uid AS "deviceUid", geolocation[0] AS longitude,
 					geolocation[0] AS latitude, type, icon_radio AS "iconRadio",
@@ -29,8 +24,6 @@ export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 	[
 		deviceData.orgId,
 		deviceData.groupId,
-		deviceData.name,
-		deviceData.description,
 		deviceData.deviceUid,
 		`(${deviceData.longitude},${deviceData.latitude})`,
 		deviceData.type,
@@ -43,13 +36,10 @@ export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 };
 
 export const updateDeviceByProp = async (propName: string, propValue: (string | number), device: IDevice): Promise<void> => {
-	const query = `UPDATE grafanadb.device SET name = $1, description = $2,
-				geolocation = $3, type = $4, icon_radio = $5,
-				 mqtt_access_control = $6, updated = NOW()
-				WHERE grafanadb.device.${propName} = $7;`;
+	const query = `UPDATE grafanadb.device SET geolocation = $1, type = $3, 
+	            icon_radio = $3, mqtt_access_control = $4, updated = NOW()
+				WHERE grafanadb.device.${propName} = $5;`;
 	await pool.query(query, [
-		device.name,
-		device.description,
 		`(${device.longitude},${device.latitude})`,
 		device.type,
 		device.iconRadio,
@@ -103,7 +93,6 @@ export const createDevice = async (group: IGroup, deviceInput: CreateDeviceDto):
 
 export const getDeviceByProp = async (propName: string, propValue: (string | number)): Promise<IDevice> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
@@ -118,7 +107,6 @@ export const getDeviceByProp = async (propName: string, propValue: (string | num
 
 export const getFullDeviceDataById = async (id: number): Promise<IDevice> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
@@ -134,7 +122,6 @@ export const getFullDeviceDataById = async (id: number): Promise<IDevice> => {
 
 export const getAllDevices = async (): Promise<IDevice[]> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
-	                                grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
@@ -156,7 +143,6 @@ export const getNumDevices = async (): Promise<number> => {
 
 export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
@@ -172,7 +158,6 @@ export const getDevicesByGroupId = async (groupId: number): Promise<IDevice[]> =
 
 export const getDevicesByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDevice[]> => {
 	const response = await pool.query(`SELECT grafanadb.device.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.name, grafanadb.device.description,
 									grafanadb.device.group_id AS "groupId", grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid", grafanadb.device.geolocation[0] AS longitude,
 									grafanadb.device.geolocation[1] AS latitude, grafanadb.device.type,
