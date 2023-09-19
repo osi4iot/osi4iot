@@ -554,7 +554,10 @@ export const createDigitalTwin = async (
 
 	let digitalTwinDashboardId = dashboardId;
 	if (!dashboardId) {
-		digitalTwinDashboardId = await createDashboard(group, device, topicSensors[0], digitalTwinUid);
+		const dashboardTitle = `${digitalTwinUid} dashboard`;
+		const deviceUid = device.deviceUid;
+		const topicUid = topicSensors[0]?.topicUid;
+		digitalTwinDashboardId = await createDashboard(group, deviceUid, topicUid, dashboardTitle);
 	}
 
 	const digitalTwinUpdated: Partial<IDigitalTwin> = { ...digitalTwinInput, deviceId, dashboardId: digitalTwinDashboardId };

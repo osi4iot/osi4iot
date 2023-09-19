@@ -37,7 +37,7 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 
 export const updateAssetByPropName = async (propName: string, propValue: (string | number), asset: IAsset): Promise<void> => {
 	const query = `UPDATE grafanadb.asset SET name = $1, description = $2,
-				device_id = $3, geolocation = $4, type = $5, icon_radio = $6,
+				geolocation = $4, type = $5, icon_radio = $6,
 				updated = NOW()
 				WHERE grafanadb.asset.${propName} = $7;`;
 	await pool.query(query, [
@@ -184,7 +184,3 @@ export const updateGroupAssetsLocation = async (geoJsonDataString: string, group
 		await Promise.all(assetsLocationQueries)
 	}
 }
-
-
-
-

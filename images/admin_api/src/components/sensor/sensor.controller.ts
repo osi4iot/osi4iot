@@ -10,26 +10,27 @@ import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import groupExists from "../../middleware/groupExists.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
-import CreateAssetDto from "./asset.dto";
+import CreateSensorDto from "./sensor.dto";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
-import {
-	createNewAsset,
-	deleteAssetByPropName,
-	getAllAssets,
-	getAssetByPropName,
-	getAssetsByGroupsIdArray,
-	getAssetsByOrgId,
-	updateAssetByPropName,
-} from "./assetDAL";
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
-import IAsset from "./asset.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import HttpException from "../../exceptions/HttpException";
+import ISensor from "./sensor.interface";
+import {
+	createNewSensor,
+	deleteSensorByPropName,
+	getAllSensors, getSensorByPropName,
+	getSensorsByAssetId,
+	getSensorsByGroupId,
+	getSensorsByGroupsIdArray,
+	getSensorsByOrgId,
+	updateSensorByPropName
+} from "./sensorDAL";
 
-class AssetController implements IController {
-	public path = "/asset";
+class SensorController implements IController {
+	public path = "/sensor";
 
 	public router = Router();
 
@@ -42,57 +43,63 @@ class AssetController implements IController {
 			.get(
 				`${this.path}s/user_managed/`,
 				userAuth,
-				this.getAssetsManagedByUser
+				this.getSensorsManagedByUser
 			)
 			.get(
 				`${this.path}s_in_org/:orgId/`,
 				organizationAdminAuth,
 				organizationExists,
-				this.getAssetsInOrg
+				this.getSensorsInOrg
 			)
 			.get(
 				`${this.path}s_in_group/:groupId`,
 				groupExists,
 				groupAdminAuth,
-				this.getAssetsInGroup
+				this.getSensorsInGroup
+			)
+			.get(
+				`${this.path}s_in_group/:groupId/:assetId`,
+				groupExists,
+				groupAdminAuth,
+				this.getSensorsInAsset
 			)
 			.get(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
 				groupAdminAuth,
-				this.getAssetByProp
+				this.getSensorByProp
 			)
 			.delete(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
 				groupAdminAuth,
-				this.deleteAssetByProp
+				this.deleteSensorByProp
 			)
 			.patch(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
 				groupAdminAuth,
-				validationMiddleware<CreateAssetDto>(CreateAssetDto, true),
-				this.updateAssetByProp
+				validationMiddleware<CreateSensorDto>(CreateSensorDto, true),
+				this.updateSensorByProp
 			)
 			.post(
 				`${this.path}/:groupId`,
 				groupExists,
 				groupAdminAuth,
-				validationMiddleware<CreateAssetDto>(CreateAssetDto),
-				this.createAsset
+				validationMiddleware<CreateSensorDto>(CreateSensorDto),
+				this.createSensor
 			)
 	}
 
-	private getAssetsManagedByUser = async (
+	private getSensorsManagedByUser = async (
 		req: IRequestWithUser,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			let assets: IAsset[] = [];
+			let sensors: ISensor[] = [];
 			if (req.user.isGrafanaAdmin) {
-				assets = await getAllAssets();
+				sensors = await getAllSensors();
 			} else {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
@@ -106,109 +113,124 @@ class AssetController implements IController {
 				}
 				if (groups.length !== 0) {
 					const groupsIdArray = groups.map(group => group.id);
-					assets = await getAssetsByGroupsIdArray(groupsIdArray);
+					sensors = await getSensorsByGroupsIdArray(groupsIdArray);
 				}
 			}
-			res.status(200).send(assets);
+			res.status(200).send(sensors);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private getAssetsInOrg = async (
+	private getSensorsInOrg = async (
 		req: IRequestWithOrganization,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			const assets = await getAssetsByOrgId(req.organization.id);
-			res.status(200).send(assets);
+			const sensors = await getSensorsByOrgId(req.organization.id);
+			res.status(200).send(sensors);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private getAssetsInGroup = async (
+	private getSensorsInGroup = async (
 		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			const assets = await getAssetsByOrgId(req.group.id);
-			res.status(200).send(assets);
+			const sensors = await getSensorsByGroupId(req.group.id);
+			res.status(200).send(sensors);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private getAssetByProp = async (
+	private getSensorsInAsset = async (
+		req: IRequestWithGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const assetId = parseInt(req.params.assetId, 10);
+			const sensors = await getSensorsByAssetId(assetId);
+			res.status(200).send(sensors);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+
+	private getSensorByProp = async (
 		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(propName);
-			const asset = await getAssetByPropName(propName, propValue);
-			if (!asset) throw new ItemNotFoundException("The asset", propName, propValue);
-			res.status(200).json(asset);
+			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(propName);
+			const sensor = await getSensorByPropName(propName, propValue);
+			if (!sensor) throw new ItemNotFoundException("The sensor", propName, propValue);
+			res.status(200).json(sensor);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private deleteAssetByProp = async (
+	private deleteSensorByProp = async (
 		req: Request,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(propName);
-			const asset = await getAssetByPropName(propName, propValue);
-			if (!asset) throw new ItemNotFoundException("The asset", propName, propValue);
-			await deleteAssetByPropName(propName, propValue);
-			const message = { message: "Asset deleted successfully" }
+			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(propName);
+			const sensor = await getSensorByPropName(propName, propValue);
+			if (!sensor) throw new ItemNotFoundException("The sensor", propName, propValue);
+			await deleteSensorByPropName(propName, propValue);
+			const message = { message: "Sensor deleted successfully" }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private updateAssetByProp = async (
+	private updateSensorByProp = async (
 		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			const assetData = req.body;
-			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(propName);
-			let asset = await getAssetByPropName(propName, propValue);
-			if (!asset) throw new ItemNotFoundException("The asset", propName, propValue);
-			asset = { ...asset, ...assetData };
-			await updateAssetByPropName(propName, propValue, asset);
-			const message = { message: "Asset updated successfully" }
+			const sensorData = req.body;
+			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(propName);
+			let sensor = await getSensorByPropName(propName, propValue);
+			if (!sensor) throw new ItemNotFoundException("The sensor", propName, propValue);
+			sensor = { ...sensor, ...sensorData };
+			await updateSensorByPropName(propName, propValue, sensor);
+			const message = { message: "Sensor updated successfully" }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private createAsset = async (
+	private createSensor = async (
 		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			const assetData: CreateAssetDto = req.body;
+			const sensorData: CreateSensorDto = req.body;
 			let message: { message: string };
-			const existAsset = await getAssetByPropName("name", assetData.name)
-			if (!existAsset) {
-				await createNewAsset(req.group, assetData);
-				message = { message: `A new asset has been created` };
+			const existSensor = await getSensorByPropName("name", sensorData.name)
+			if (!existSensor) {
+				await createNewSensor(req.group, sensorData);
+				message = { message: `A new sensor has been created` };
 			} else {
-				throw new HttpException(400, `The asset with name: ${assetData.name} already exist`);
+				throw new HttpException(400, `The sensor with name: ${sensorData.name} already exist`);
 			}
 			res.status(200).send(message);
 		} catch (error) {
@@ -216,11 +238,11 @@ class AssetController implements IController {
 		}
 	};
 
-	private isValidAssetPropName = (propName: string) => {
-		const validPropName = ["id", "name", "assetUid"];
+	private isValidSensorPropName = (propName: string) => {
+		const validPropName = ["id", "name", "sensorUid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
 
 }
 
-export default AssetController;
+export default SensorController;

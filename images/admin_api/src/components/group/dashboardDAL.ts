@@ -18,17 +18,23 @@ import { generateGrafanaDataSourceName } from "./datasourceDAL";
 import grafanaApi from "../../GrafanaApi";
 import { getOrganizationKey } from "../organization/organizationDAL";
 import IDataSource from "./interfaces/DataSource.interface";
+import CreateSensorDto from "../sensor/sensor.dto";
+import { getTopicByProp } from "../topic/topicDAL";
+import { getDeviceByProp } from "../device/deviceDAL";
 
 export const insertDashboard = async (orgId: number, folderId: number, title: string, data: any): Promise<any> => {
 	const now = new Date();
 	const slug = title.replace(/ /g, "_").toLocaleLowerCase();
 	const uuid = uuidv4();
-	const response = await pool.query(`INSERT INTO grafanadb.dashboard (version, slug, title,
-					data, org_id, created, updated,created_by, updated_by, gnet_id,
-					plugin_id, folder_id, is_folder, has_acl, uid)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-					RETURNING *`,
-	[1, slug, title, data, orgId, now, now, -1, -1, 0, '', folderId, false, false, uuid]
+	const queryString = `INSERT INTO grafanadb.dashboard (version, slug, title,
+		data, org_id, created, updated,created_by, updated_by, gnet_id,
+		plugin_id, folder_id, is_folder, has_acl, uid)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+		RETURNING *`;
+
+	const response = await pool.query(
+		queryString,
+		[1, slug, title, data, orgId, now, now, -1, -1, 0, '', folderId, false, false, uuid]
 	);
 	// eslint-disable-next-line @typescript-eslint/no-unsafe-return
 	return response.rows[0];
@@ -135,10 +141,12 @@ export const updateDashboardData = async (dashboardId: number, data: any): Promi
 
 export const insertPreference = async (orgId: number, homeDashboardId: number): Promise<void> => {
 	const now = new Date();
-	await pool.query(`INSERT INTO grafanadb.preferences (org_id, user_id, version,
-					home_dashboard_id, timezone, theme, created, updated, team_id)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-	[orgId, 0, 0, homeDashboardId, '', '', now, now, 0]
+	const queryString = `INSERT INTO grafanadb.preferences (org_id, user_id, version,
+		home_dashboard_id, timezone, theme, created, updated, team_id)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
+	await pool.query(
+		queryString,
+		[orgId, 0, 0, homeDashboardId, '', '', now, now, 0]
 	);
 };
 
@@ -216,27 +224,61 @@ export const createDemoDashboards = async (group: IGroup, device: IDevice, topic
 	const accelAlert = createAccelDemoAlert(group.orgId, accelDashboardCreated.id, 2, accelAlertData);
 	await createAlert(accelAlert);
 
-	return [tempDashboardCreated.id as number, accelDashboardCreated.id  as number];
+	return [tempDashboardCreated.id as number, accelDashboardCreated.id as number];
 };
 
-export const createDashboard = async (group: IGroup, device: IDevice, topic: Partial<ITopic>, digitalTwinUid: string): Promise<number> => {
+export const createDashboard = async (group: IGroup, deviceUid: string, topicUid: string, dashboardTitle: string): Promise<number> => {
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);
 	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;;
 	const dashboard = JSON.parse(defaultDashboard);
-	const dashboardTitle = `${digitalTwinUid} dashboard`;
 	dashboard.uid = uuidv4();
 	dashboard.title = dashboardTitle;
 	const tableHash = `Table_${group.groupUid}`;
-	const deviceHash = `Device_${device.deviceUid}`;
+	const deviceHash = `Device_${deviceUid}`;
 	let rawSql = "";
-	if (topic !== undefined) {
-		const topicHash = `Topic_${topic.topicUid}`;
+	if (topicUid !== undefined) {
+		const topicHash = `Topic_${topicUid}`;
 		rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'parameter' AS DOUBLE PRECISION) AS \"Parameter\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topicHash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	}
 	dashboard.panels[0].targets[0].rawSql = rawSql;
 	dashboard.panels[0].targets[0].datasource.uid = dataSource.uid;
 	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboardTitle, dashboard);
+
+	return dashboardCreated.id as number;
+};
+
+export const createSensorDashboard = async (group: IGroup, sensorData: CreateSensorDto): Promise<number> => {
+	const topic = await getTopicByProp("id", sensorData.topicId);
+	const device = await getDeviceByProp("id", topic.deviceId)
+
+	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
+	const orgKey = await getOrganizationKey(group.orgId);
+	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;;
+	const dashboard = JSON.parse(defaultDashboard);
+	dashboard.uid = uuidv4();
+	dashboard.title = sensorData.description;
+	const tableHash = `Table_${group.groupUid}`;
+	const deviceHash = `Device_${device.deviceUid}`;
+	const topicHash = `Topic_${topic.topicUid}`;
+	const topicString = `${deviceHash}/${topicHash}`;
+	let rawSql = "";
+	const numComponent = Number(sensorData.valueType.slice(6, -1));
+	const payloadKey = sensorData.payloadKey;
+	if (numComponent === undefined) {
+		const paramLabel = sensorData.paramLabel;
+		rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS \"${paramLabel}\" FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	} else {
+		const paramsLabel = sensorData.paramLabel.split(",");
+		rawSql = `SELECT timestamp AS \"time\",`;
+		for (let i = 0; i < numComponent; i++) {
+			rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${paramsLabel[i]}",`
+		}
+		rawSql = `${rawSql} FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	}
+	dashboard.panels[0].targets[0].rawSql = rawSql;
+	dashboard.panels[0].targets[0].datasource.uid = dataSource.uid;
+	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboard.title, dashboard);
 
 	return dashboardCreated.id as number;
 };
