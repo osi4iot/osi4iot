@@ -21,6 +21,12 @@ class CreateSensorDto {
 
 	@IsString()
 	public units: string;
+
+	@IsString()
+	public dashboardRefresh: string;
+
+	@IsString()
+	public dashboardTimeWindow: string;
 }
 
 export default CreateSensorDto;

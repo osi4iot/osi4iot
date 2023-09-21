@@ -424,6 +424,8 @@ class OrganizationController implements IController {
 					paramLabel: "Temperature",
 					valueType: "number",
 					units: "°C",
+					dashboardRefresh: "1s",
+					dashboardTimeWindow: "5m"
 				};
 				sensorsUid[0] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
@@ -436,6 +438,8 @@ class OrganizationController implements IController {
 					paramLabel: "ax,ay,az",
 					valueType: "number(3)",
 					units: "m/s^2",
+					dashboardRefresh: "200ms",
+					dashboardTimeWindow: "25s"
 				};
 				sensorsUid[1] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
@@ -445,9 +449,11 @@ class OrganizationController implements IController {
 					description: `Mobile quaternions`,
 					topicId: topic3.id,
 					payloadKey: "mobile_quaternion",
-					paramLabel: "q0,q1,q2",
+					paramLabel: "q0,q1,q2,q3",
 					valueType: "number(4)",
 					units: "-",
+					dashboardRefresh: "200ms",
+					dashboardTimeWindow: "25s"
 				};
 				sensorsUid[2] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
@@ -460,6 +466,8 @@ class OrganizationController implements IController {
 					paramLabel: "mobile_photo",
 					valueType: "string",
 					units: "-",
+					dashboardRefresh: "1s",
+					dashboardTimeWindow: "5m"
 				};
 				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 

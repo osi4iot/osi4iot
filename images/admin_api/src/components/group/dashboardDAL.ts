@@ -267,21 +267,27 @@ export const createSensorDashboard = async (
 	const topicHash = `Topic_${topic.topicUid}`;
 	const topicString = `${deviceHash}/${topicHash}`;
 	let rawSql = "";
-	const numComponent = Number(sensorData.valueType.slice(6, -1));
+	const numComponent = Number(sensorData.valueType.slice(7, -1));
 	const payloadKey = sensorData.payloadKey;
-	if (numComponent === undefined) {
+	if (numComponent === 0) {
 		const paramLabel = sensorData.paramLabel;
 		rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS \"${paramLabel}\" FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	} else {
 		const paramsLabel = sensorData.paramLabel.split(",");
 		rawSql = `SELECT timestamp AS \"time\",`;
 		for (let i = 0; i < numComponent; i++) {
-			rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${paramsLabel[i]}",`
+			rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${paramsLabel[i]}"`
+			if (i < (numComponent - 1)) {
+				rawSql = `${rawSql},`;
+			}
 		}
 		rawSql = `${rawSql} FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	}
+	dashboard.panels[0].title = `${sensorData.description} (${sensorData.units})`;
 	dashboard.panels[0].targets[0].rawSql = rawSql;
 	dashboard.panels[0].targets[0].datasource.uid = dataSource.uid;
+	dashboard.refresh = sensorData.dashboardRefresh;
+	dashboard.time.from = `now-${sensorData.dashboardTimeWindow}`;
 	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboard.title, dashboard);
 
 	return dashboardCreated.id as number;
