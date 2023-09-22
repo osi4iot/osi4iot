@@ -335,7 +335,7 @@ const DevicesControl: FC<DevicesControlProps> = ({ deviceSelected, selectDeviceO
             <ComponentLabel>Device:</ComponentLabel>
             <ComponentSelection>
                 <ComponentName>
-                    {deviceSelected ? deviceSelected.name : ""}
+                    {deviceSelected ? `Device_${deviceSelected.deviceUid}` : ""}
                 </ComponentName>
                 <SelectionButton onClick={clickHandler} >Select</SelectionButton>
             </ComponentSelection>

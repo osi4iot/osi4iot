@@ -140,7 +140,6 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
 
     const initialTopicData = {
         topicType: topics[topicRowIndex].topicType,
-        topicName: topics[topicRowIndex].topicName,
         description: topics[topicRowIndex].description,
         mqttAccessControl: topics[topicRowIndex].mqttAccessControl,
         payloadFormat: JSON.stringify(JSON.parse(topics[topicRowIndex].payloadFormat), null, 4)
@@ -148,7 +147,6 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
 
     const validationSchema = Yup.object().shape({
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
-        topicName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         payloadFormat: Yup.string().required('Required'),
     });
@@ -172,12 +170,6 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                                         label='Topic type'
                                         name='topicType'
                                         options={topicTypeOptions}
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Topic name'
-                                        name='topicName'
                                         type='text'
                                     />
                                     <FormikControl

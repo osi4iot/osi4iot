@@ -21,8 +21,10 @@ import { IFeatureCollection, spacesDivider } from '../../../tools/spacesDivider'
 import { IDevice } from '../TableColumns/devicesColumns';
 import { useDeviceIdToEdit, useDeviceInputData, useDevicesPreviousOption } from '../../../contexts/devicesOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { DEVICES_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';import DraggableNriCircle from './DraggableNriCircle';
+import { ASSETS_PREVIOUS_OPTIONS, DEVICES_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';import DraggableNriCircle from './DraggableNriCircle';
 import { useGroupManagedInputFormData } from '../../../contexts/groupsManagedOptions';
+import { IAsset } from '../TableColumns/assetsColumns';
+import { useAssetIdToEdit, useAssetsPreviousOption } from '../../../contexts/assetsOptions';
 
 
 const MapContainerStyled = styled(MapContainer)`
@@ -296,6 +298,9 @@ interface GeoGroupSpaceMapProps {
     devicesInGroup: IDevice[];
     devicePosition: LatLngExpression;
     setDevicePosition: (devicePosition: LatLngExpression) => void;
+    assetsInGroup: IAsset[];
+    assetPosition: LatLngExpression;
+    setAssetPosition: (assetPosition: LatLngExpression) => void;
     nriPosition: LatLngExpression;
     setNriPosition: (nriPosition: LatLngExpression) => void;
 }
@@ -309,6 +314,9 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
     devicesInGroup,
     devicePosition,
     setDevicePosition,
+    assetsInGroup,
+    assetPosition,
+    setAssetPosition,
     nriPosition,
     setNriPosition
 }) => {
@@ -400,7 +408,8 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
             {
                 (elementToDrag === "device" && devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.CREATE_DEVICE) &&
                 <DraggableDeviceCircle
-                    deviceName={deviceInputData.name === "" ? `New device for group ${groupManaged.acronym}` : deviceInputData.name}
+                    deviceName={
+                        deviceInputData.deviceUid === "" ? `New device for group ${groupManaged.acronym}` : `Device_${deviceInputData.deviceUid}`}
                     deviceRadio={deviceInputData.iconRadio}
                     deviceType={"Generic"}
                     devicePosition={devicePosition}
@@ -436,18 +445,42 @@ const calcInitialDevicePosition = (
     return devicePosition;
 }
 
+
+const calcInitialAssetPosition = (
+    floorSpaces: IFeatureCollection[] | null,
+    featureIndex: number,
+    assetsPreviousOption: string,
+    assetIdToEdit: number,
+    assetsInGroup: IAsset[]) => {
+    let assetPosition = [assetsInGroup[0].latitude, assetsInGroup[0].longitude]
+    if (floorSpaces) {
+        const floorSpace = floorSpaces.filter(space => space.features[0].properties.index === featureIndex)[0];
+        if (assetsPreviousOption === ASSETS_PREVIOUS_OPTIONS.CREATE_ASSET) {
+            const geoPolygon = polygon(floorSpace.features[0].geometry.coordinates);
+            const center = centerOfMass(geoPolygon);
+            assetPosition = [center.geometry.coordinates[1], center.geometry.coordinates[0]]
+        } else if (assetsPreviousOption === ASSETS_PREVIOUS_OPTIONS.EDIT_ASSET) {
+            const assetToEdit = assetsInGroup.filter(asset => asset.id === assetIdToEdit)[0];
+            assetPosition = [assetToEdit.latitude, assetToEdit.longitude]
+        }
+    }
+    return assetPosition;
+}
+
 interface ElementLocationMapProps {
     elementToDrag: string;
     outerBounds: number[][];
     building: IBuilding;
     floorData: IFloor;
     groupManaged: IGroupManaged;
+    assetsInGroup: IAsset[];
     devicesInGroup: IDevice[];
     featureIndex: number;
     setNewOuterBounds: (outerBounds: number[][]) => void;
     refreshBuildings: () => void;
     refreshFloors: () => void;
     refreshGroups: () => void;
+    refreshAssets: () => void;
     refreshDevices: () => void;
     backToOption: () => void;
     setElementLocationData: (deviceLong: number, deviceLat: number) => void;
@@ -461,12 +494,14 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
         building,
         floorData,
         groupManaged,
+        assetsInGroup,
         devicesInGroup,
         featureIndex,
         setNewOuterBounds,
         refreshBuildings,
         refreshFloors,
         refreshGroups,
+        refreshAssets,
         refreshDevices,
         backToOption,
         setElementLocationData,
@@ -485,6 +520,18 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
         ) as LatLngExpression
     );
 
+    const assetsPreviousOption = useAssetsPreviousOption();
+    const assetIdToEdit = useAssetIdToEdit();
+    const [assetPosition, setAssetPosition] = useState<LatLngExpression>(
+        calcInitialAssetPosition(
+            floorSpaces,
+            featureIndex,
+            assetsPreviousOption,
+            assetIdToEdit,
+            assetsInGroup
+        ) as LatLngExpression
+    );
+
     const groupManagedData = useGroupManagedInputFormData();
     const [nriPosition, setNriPosition] = useState<LatLngExpression>([
         groupManagedData.nriInGroupIconLatitude,
@@ -500,11 +547,13 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
         refreshBuildings();
         refreshFloors();
         refreshGroups();
+        refreshAssets();
         refreshDevices();
     }, [
         refreshBuildings,
         refreshFloors,
         refreshGroups,
+        refreshAssets,
         refreshDevices
     ])
 
@@ -532,6 +581,9 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
                             devicesInGroup={devicesInGroup}
                             devicePosition={devicePosition}
                             setDevicePosition={(devicePosition: LatLngExpression) => setDevicePosition(devicePosition)}
+                            assetsInGroup={assetsInGroup}
+                            assetPosition={assetPosition}
+                            setAssetPosition={(assetPosition: LatLngExpression) => setAssetPosition(assetPosition)}
                             nriPosition={nriPosition}
                             setNriPosition={(nriPosition: LatLngExpression) => setNriPosition(nriPosition)}
                         />

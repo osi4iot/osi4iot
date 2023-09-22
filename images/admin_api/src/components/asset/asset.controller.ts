@@ -26,7 +26,7 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IAsset from "./asset.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
-import HttpException from "../../exceptions/HttpException";
+
 
 class AssetController implements IController {
 	public path = "/asset";

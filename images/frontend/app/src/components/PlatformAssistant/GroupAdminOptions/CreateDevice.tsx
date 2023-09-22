@@ -190,8 +190,6 @@ const CreateDevice: FC<CreateDeviceProps> = ({
         }
 
         const deviceData = {
-            name: values.name,
-            description: values.description,
             longitude: values.longitude,
             latitude: values.latitude,
             type: values.type,
@@ -218,8 +216,6 @@ const CreateDevice: FC<CreateDeviceProps> = ({
 
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
-        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         type: Yup.string().required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
@@ -263,18 +259,6 @@ const CreateDevice: FC<CreateDeviceProps> = ({
                                         control='input'
                                         label='GroupId'
                                         name='groupId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Device name'
-                                        name='name'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Description'
-                                        name='description'
                                         type='text'
                                     />
                                     <FormikControl

@@ -25,7 +25,6 @@ export interface ITopic {
     groupId: number;
     deviceId: number;
     topicType: string;
-    topicName: string;
     description: string;
     payloadFormat: string;
     topicUid: string;
@@ -216,11 +215,6 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
         {
             Header: "Type",
             accessor: "topicType"
-        },        
-        {
-            Header: "Topic name",
-            accessor: "topicName",
-            filter: 'equals'
         },
         {
             Header: "Description",

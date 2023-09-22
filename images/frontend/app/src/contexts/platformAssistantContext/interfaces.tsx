@@ -19,6 +19,8 @@ import { ISelectOrgUser } from "../../components/PlatformAssistant/TableColumns/
 import { ITopic } from "../../components/PlatformAssistant/TableColumns/topicsColumns";
 import { IUserProfile } from "../../components/PlatformAssistant/UserOptions/UserProfile";
 import { IMlModel } from "../../components/PlatformAssistant/TableColumns/mlModelsColumns";
+import { IAsset } from "../../components/PlatformAssistant/TableColumns/assetsColumns";
+import { ISensor } from "../../components/PlatformAssistant/TableColumns/sensorsColumns";
 
 export interface PlatformAssistantDispatch {
 	(arg0: { type: string; payload?: any; error?: any }): void;
@@ -54,6 +56,10 @@ export interface PlatformAssistantContextProps {
 	reloadGroupsManagedTable: boolean;
 	groupMembers: IGroupMember[];
 	reloadGroupMembersTable: boolean;
+	assets: IAsset[];
+	reloadAssetsTable: boolean;
+	sensors: ISensor[];
+	reloadSensorsTable: boolean;
 	devices: IDevice[];
 	reloadDevicesTable: boolean;
 	topics: ITopic[];
@@ -101,6 +107,10 @@ export interface PlatformAssistantActionPayload {
 	reloadGroupsManagedTable: boolean;
 	groupMembers: IGroupMember[];
 	reloadGroupMembersTable: boolean;
+	assets: IAsset[];
+	reloadAssetsTable: boolean;
+	sensors: ISensor[];
+	reloadSensorsTable: boolean;
 	devices: IDevice[];
 	reloadDevicesTable: boolean;
 	topics: ITopic[];
@@ -229,6 +239,22 @@ export interface IGroupMembersTable {
 
 export interface IReloadGroupMembersTable {
 	reloadGroupMembersTable: boolean;
+}
+
+export interface IAssetsTable {
+	assets: IAsset[];
+}
+
+export interface IReloadAssetsTable {
+	reloadAssetsTable: boolean;
+}
+
+export interface ISensorsTable {
+	sensors: ISensor[];
+}
+
+export interface IReloadSensorsTable {
+	reloadSensorsTable: boolean;
 }
 
 export interface IDevicesTable {

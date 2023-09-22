@@ -40,7 +40,11 @@ import {
 	INodeRedInstancesTable,
 	IReloadNodeRedInstancesTable,
 	IMlModelsTable,
-	IReloadMlModelsTable
+	IReloadMlModelsTable,
+	IAssetsTable,
+	IReloadAssetsTable,
+	ISensorsTable,
+	IReloadSensorsTable
 
 } from "./interfaces";
 
@@ -154,6 +158,22 @@ export function setGroupMembersTable(plaformAssistantDispatch: PlatformAssistant
 
 export function setReloadGroupMembersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadGroupMembersTable) {
 	plaformAssistantDispatch({ type: 'RELOAD_GROUPS_MEMBERS_TABLE', payload: data });
+}
+
+export function setAssetsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IAssetsTable) {
+	plaformAssistantDispatch({ type: 'ASSETS_TABLE', payload: data });
+}
+
+export function setReloadAssetsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadAssetsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_ASSETS_TABLE', payload: data });
+}
+
+export function setSensorsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: ISensorsTable) {
+	plaformAssistantDispatch({ type: 'SENSORS_TABLE', payload: data });
+}
+
+export function setReloadSensorsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadSensorsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_SENSORS_TABLE', payload: data });
 }
 
 export function setDevicesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IDevicesTable) {

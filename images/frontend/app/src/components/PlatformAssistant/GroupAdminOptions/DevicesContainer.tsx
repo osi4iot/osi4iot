@@ -23,13 +23,16 @@ import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns'
 import { setDeviceInputData } from '../../../contexts/devicesOptions/devicesAction';
 import { useDeviceInputData } from '../../../contexts/devicesOptions/devicesContext';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { IAsset } from '../TableColumns/assetsColumns';
 
 interface DevicesContainerProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
     buildingsFiltered: IBuilding[];
     floorsFiltered: IFloor[];
+    assets: IAsset[];
     devices: IDevice[];
+    refreshAssets: () => void;
     refreshDevices: () => void;
     refreshGroups: () => void;
     refreshBuildings: () => void;
@@ -41,7 +44,9 @@ const DevicesContainer: FC<DevicesContainerProps> = ({
     groupsManaged,
     buildingsFiltered,
     floorsFiltered,
+    assets,
     devices,
+    refreshAssets,
     refreshDevices,
     refreshGroups,
     refreshBuildings,
@@ -120,10 +125,12 @@ const DevicesContainer: FC<DevicesContainerProps> = ({
                     buildings={buildingsTable}
                     floors={floorsTable}
                     groupsManaged={groupsManagedTable}
+                    assets={assets}
                     devices={devices}
                     refreshBuildings={refreshBuildings}
                     refreshFloors={refreshFloors}
                     refreshGroups={refreshGroups}
+                    refreshAssets={refreshAssets}
                     refreshDevices={refreshDevices}
                     backToOption={backToOption}
                     setDeviceLocationData={setDeviceLocationData}

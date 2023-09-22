@@ -42,6 +42,10 @@ export const initialState = {
     reloadGroupsManagedTable: true,
     groupMembers: [],
     reloadGroupMembersTable: true,
+    assets: [],
+    reloadAssetsTable: true,
+    sensors: [],
+    reloadSensorsTable: true,
     devices: [],
     reloadDevicesTable: true,
     topics: [],
@@ -220,6 +224,30 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadGroupMembersTable: action.payload.reloadGroupMembersTable
             };
 
+        case "ASSETS_TABLE":
+            return {
+                ...initialState,
+                assets: action.payload.assets
+            };
+
+        case "RELOAD_ASSETS_TABLE":
+            return {
+                ...initialState,
+                reloadAssetsTable: action.payload.reloadAssetsTable
+            };
+
+        case "SENSORS_TABLE":
+            return {
+                ...initialState,
+                sensors: action.payload.sensors
+            };
+
+        case "RELOAD_SENSORS_TABLE":
+            return {
+                ...initialState,
+                reloadSensorsTable: action.payload.reloadSensorsTable
+            };
+
         case "DEVICES_TABLE":
             return {
                 ...initialState,
@@ -279,7 +307,7 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 ...initialState,
                 reloadMlModelsTable: action.payload.reloadMlModelsTable
             };
-        
+
         case "USER_PROFILE_TABLE":
             return {
                 ...initialState,
@@ -341,6 +369,10 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadGroupsManagedTable: true,
                 groupMembers: [],
                 reloadGroupMembersTable: true,
+                assets: [],
+                reloadAssetsTable: true,
+                sensors: [],
+                reloadSensorsTable: true,
                 devices: [],
                 reloadDevicesTable: true,
                 topics: [],

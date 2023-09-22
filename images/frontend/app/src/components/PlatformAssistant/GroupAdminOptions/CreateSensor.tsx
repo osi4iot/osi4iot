@@ -8,8 +8,8 @@ import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
-import { TOPICS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { setTopicsOptionToShow, useTopicsDispatch } from '../../../contexts/topicsOptions';
+import { SENSORS_OPTIONS } from '../Utils/platformAssistantOptions';
+import { setSensorsOptionToShow, useSensorsDispatch } from '../../../contexts/sensorsOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
@@ -63,106 +63,48 @@ const ControlsContainer = styled.div`
     }
 `;
 
-const topicTypeOptions = [
-    {
-        label: "Device to platform DB",
-        value: "dev2pdb"
-    },
-    {
-        label: "Device to platform DB message array",
-        value: "dev2pdb_ma"
-    },    
-    {
-        label: "Device to platform DB with timestamp",
-        value: "dev2pdb_wt"
-    },
-    {
-        label: "Device to DTM",
-        value: "dev2dtm"
-    },
-    {
-        label: "DTM to device",
-        value: "dtm2dev"
-    },
-    {
-        label: "Device to simulator",
-        value: "dev2sim"
-    },    
-    {
-        label: "DTM to simulator",
-        value: "dtm2sim"
-    },
-    {
-        label: "Simulator to DTM",
-        value: "sim2dtm"
-    },
-    {
-        label: "DTM to platform database",
-        value: "dtm2pdb"
-    },
-    {
-        label: "Test topic",
-        value: "test"
-    }
-];
-
-const mqttAccessControlOptions = [
-    {
-        label: "Subscribe & Publish",
-        value: "Pub & Sub"
-    },
-    {
-        label: "Subscribe",
-        value: "Sub"
-    },
-    {
-        label: "Publish",
-        value: "Pub"
-    },
-    {
-        label: "None",
-        value: "None"
-    }
-];
-
 
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-interface CreateTopicProps {
+interface CreateSensorProps {
     backToTable: () => void;
-    refreshTopics: () => void;
+    refreshSensors: () => void;
 }
 
-const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
+const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const topicsDispatch = useTopicsDispatch();
+    const sensorsDispatch = useSensorsDispatch();
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
-        const deviceId = values.deviceId;
-        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${deviceId}`;
+        const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}`;
         const config = axiosAuth(accessToken);
 
-        const topicData = {
-            topicType: values.topicType,
+        const sensorData = {
+            assetId: values.assetId,
             description: values.description,
-            payloadFormat: values.payloadFormat,
-            mqttAccessControl: values.mqttAccessControl
+            topicId: values.topicId,
+            payloadKey: values.payloadKey,
+            paramLabel: values.paramLabel,
+            valueType: values.valueType,
+            units: values.units,
+            dashboardRefresh: values.dashboardRefresh,
+            dashboardTimeWindow: values.dashboardTimeWindow,
         }
 
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
-            .post(url, topicData, config)
+            .post(url, sensorData, config)
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);
-                const topicsOptionToShow = { topicsOptionToShow: TOPICS_OPTIONS.TABLE };
+                const sensorsOptionToShow = { sensorsOptionToShow: SENSORS_OPTIONS.TABLE };
                 setIsSubmitting(false);
-                setTopicsOptionToShow(topicsDispatch, topicsOptionToShow);
-                refreshTopics();
+                setSensorsOptionToShow(sensorsDispatch, sensorsOptionToShow);
+                refreshSensors();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
@@ -171,22 +113,30 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
     }
 
 
-    const initialTopicData = {
+    const initialSensorData = {
         groupId: "",
-        deviceId: "",
-        topicType: "dev2pdb",
+        assetId: "",
         description: "",
-        mqttAccessControl: "Pub & Sub",
-        payloadFormat: "{}"
+        topicId: "",
+        payloadKey: "",
+        paramLabel: "",
+        valueType: "",
+        units: "",
+        dashboardRefresh: "",
+        dashboardTimeWindow:""
     }
 
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
-        deviceId: Yup.number().required('Required'),
-        topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
-        topicName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        assetId: Yup.number().required('Required'),
+        topicId: Yup.number().required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        payloadFormat: Yup.string().required('Required'),
+        payloadKey: Yup.string().required('Required'),
+        paramLabel: Yup.string().required('Required'),
+        valueType: Yup.string().required('Required'),
+        units: Yup.string().required('Required'),
+        dashboardRefresh: Yup.string().required('Required'),
+        dashboardTimeWindow: Yup.string().required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -196,9 +146,9 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting}>Create topic</FormTitle>
+            <FormTitle isSubmitting={isSubmitting}>Create sensor</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialTopicData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik initialValues={initialSensorData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
                             <Form>
@@ -211,15 +161,8 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                     />
                                     <FormikControl
                                         control='input'
-                                        label='DeviceId'
-                                        name='deviceId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='select'
-                                        label='Topic type'
-                                        name='topicType'
-                                        options={topicTypeOptions}
+                                        label='AssetId'
+                                        name='assetId'
                                         type='text'
                                     />
                                     <FormikControl
@@ -229,17 +172,47 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                         type='text'
                                     />
                                     <FormikControl
-                                        control='select'
-                                        label='Mqtt access control'
-                                        name="mqttAccessControl"
-                                        options={mqttAccessControlOptions}
+                                        control='input'
+                                        label='TopicId'
+                                        name='topicId'
                                         type='text'
                                     />
                                     <FormikControl
-                                        control='textarea'
-                                        label='Payload format'
-                                        name='payloadFormat'
+                                        control='input'
+                                        label='Payload key'
+                                        name='payloadKey'
+                                        type='text'
                                     />
+                                    <FormikControl
+                                        control='input'
+                                        label='Key label'
+                                        name='paramLabel'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Value type'
+                                        name='valueType'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Units'
+                                        name='units'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Dashboard refresh time'
+                                        name='dashboardRefresh'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Dashboard time window'
+                                        name='dashboardTimeWindow'
+                                        type='text'
+                                    />                                     
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>
@@ -251,4 +224,4 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
     )
 }
 
-export default CreateTopic;
+export default CreateSensor;

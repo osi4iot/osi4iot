@@ -13,8 +13,7 @@ export const initialState = {
     deviceGroupId: 0,
     deviceInputFormData: {
         groupId: 0,
-        name: "",
-        description: "",
+        deviceUid: "",
         type: "Generic",
         iconRadio: 1.0,
         longitude: 0,

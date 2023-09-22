@@ -23,7 +23,8 @@ import { ChildrenProp } from '../../interfaces/interfaces'
 import { PlatformAssistantContextProps } from './interfaces'
 import { initialState, PlatformAssitantReducer } from './platformAssistantReducer';
 import { IMlModel } from '../../components/PlatformAssistant/TableColumns/mlModelsColumns';
-
+import { IAsset } from '../../components/PlatformAssistant/TableColumns/assetsColumns';
+import { ISensor } from '../../components/PlatformAssistant/TableColumns/sensorsColumns';
 
 const PlatformAssitantStateContext = createContext<PlatformAssistantContextProps>(initialState);
 const PlatformAssitantDispatchContext = createContext<any>({});
@@ -260,6 +261,38 @@ export const useReloadGroupMembersTable = (): boolean => {
 		throw new Error('useReloadGroupMembersTable must be used within a PlatformAssitantProvider');
 	}
 	return context.reloadGroupMembersTable;
+}
+
+export const useAssetsTable = (): IAsset[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useAssetsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.assets;
+}
+
+export const useReloadAssetsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadAssetsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadAssetsTable;
+}
+
+export const useSensorsTable = (): ISensor[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useSensorsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.sensors;
+}
+
+export const useReloadSensorsTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadSensorsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadSensorsTable;
 }
 
 export const useDevicesTable = (): IDevice[] => {

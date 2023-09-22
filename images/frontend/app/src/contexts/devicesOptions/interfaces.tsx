@@ -5,8 +5,7 @@ export interface DevicesDispatch {
 
 export interface IDeviceInputData {
 	groupId: number | string;
-	name: string;
-	description: string;
+	deviceUid: string;
 	type: string;
 	iconRadio: number;
 	longitude: number;

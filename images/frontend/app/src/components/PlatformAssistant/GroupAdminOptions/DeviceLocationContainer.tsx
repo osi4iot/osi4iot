@@ -5,17 +5,19 @@ import { IDevice } from '../TableColumns/devicesColumns';
 import { useDeviceBuildingId, useDeviceGroupId } from '../../../contexts/devicesOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import ElementLocationMap from '../Geolocation/ElementLocationMap';
-
+import { IAsset } from '../TableColumns/assetsColumns';
 
 
 interface DeviceLocationContainerProps {
     buildings: IBuilding[];
     floors: IFloor[];
     groupsManaged: IGroupManaged[];
+    assets: IAsset[];
     devices: IDevice[];
     refreshBuildings: () => void;
     refreshFloors: () => void;
     refreshGroups: () => void;
+    refreshAssets: () => void;
     refreshDevices: () => void;
     backToOption: () => void;
     setDeviceLocationData: (deviceLong: number, deviceLat: number) => void;
@@ -26,10 +28,12 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
         buildings,
         floors,
         groupsManaged,
+        assets,
         devices,
         refreshBuildings,
         refreshFloors,
         refreshGroups,
+        refreshAssets,
         refreshDevices,
         backToOption,
         setDeviceLocationData
@@ -38,6 +42,7 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
     const building = buildings.filter(building => building.id === deviceBuildingId)[0];
     const deviceGroupId = useDeviceGroupId();
     const groupManaged = groupsManaged.filter(group => group.id === deviceGroupId)[0];
+    const assetsInGroup = useState(assets.filter(asset => asset.groupId === deviceGroupId))[0];
     const devicesInGroup = useState(devices.filter(device => device.groupId === deviceGroupId))[0];
     const groupFloor = useState(floors.filter(floor =>
         floor.buildingId === deviceBuildingId &&
@@ -57,11 +62,13 @@ const DeviceLocationContainer: FC<DeviceLocationContainerProps> = (
             building={building}
             floorData={groupFloor}
             groupManaged={groupManaged}
+            assetsInGroup={assetsInGroup}
             devicesInGroup={devicesInGroup}
             featureIndex={featureIndex}
             refreshBuildings={refreshBuildings}
             refreshFloors={refreshFloors}
             refreshGroups={refreshGroups}
+            refreshAssets={refreshAssets}
             refreshDevices={refreshDevices}
             setNewOuterBounds={setNewOuterBounds}
             backToOption={backToOption}

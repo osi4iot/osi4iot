@@ -22,8 +22,6 @@ export interface IDevice {
     id: number;
     orgId: number;
     groupId: number;
-    name: string;
-    description: string;
     type: string;
     latitude: number;
     longitude: number;
@@ -247,14 +245,6 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             filter: 'equals'
         },
         {
-            Header: "Name",
-            accessor: "name"
-        },
-        {
-            Header: "Description",
-            accessor: "description"
-        },
-        {
             Header: "Type",
             accessor: "type",
             disableFilters: true
@@ -333,14 +323,21 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const deviceId = row?.cells[0]?.value;
                 const groupId = row?.cells[2]?.value;
-                const name = row?.cells[3]?.value;
-                const description = row?.cells[4]?.value;
-                const type = row?.cells[5]?.value;
-                const iconRadio = row?.cells[6]?.value;
-                const longitude = row?.cells[7]?.value;
-                const latitude = row?.cells[8]?.value;
-                const mqttAccessControl = row?.cells[9]?.value;
-                const deviceInputData = { groupId, name, description, type,iconRadio, longitude, latitude, mqttAccessControl }
+                const type = row?.cells[3]?.value;
+                const iconRadio = row?.cells[4]?.value;
+                const longitude = row?.cells[5]?.value;
+                const latitude = row?.cells[6]?.value;
+                const mqttAccessControl = row?.cells[7]?.value;
+                const deviceUid = row?.cells[8]?.value;
+                const deviceInputData = {
+                    groupId,
+                    type,
+                    iconRadio,
+                    longitude,
+                    latitude,
+                    mqttAccessControl,
+                    deviceUid
+                }
                 return <EditDevice deviceId={deviceId} rowIndex={rowIndex} deviceInputData={deviceInputData} />
             }
         },

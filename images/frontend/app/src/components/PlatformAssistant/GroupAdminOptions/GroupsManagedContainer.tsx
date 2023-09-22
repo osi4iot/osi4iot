@@ -18,6 +18,7 @@ import { IFloor } from '../TableColumns/floorsColumns';
 import { IDevice } from '../TableColumns/devicesColumns';
 import { useBuildingsTable, useFloorsTable } from '../../../contexts/platformAssistantContext';
 import NriLocationContainer from './NriLocationContainer';
+import { IAsset } from '../TableColumns/assetsColumns';
 
 
 export interface IGroupMemberInput {
@@ -49,7 +50,9 @@ interface GroupsManagedContainerProps {
     floorsFiltered: IFloor[];
     refreshGroupsManaged: () => void;
     refreshGroupMembers: () => void;
+    assets: IAsset[];
     devices: IDevice[];
+    refreshAssets: () => void;
     refreshDevices: () => void;
     refreshGroups: () => void;
     refreshBuildings: () => void;
@@ -63,7 +66,9 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
     floorsFiltered,
     refreshGroupsManaged,
     refreshGroupMembers,
+    assets,
     devices,
+    refreshAssets,
     refreshDevices,
     refreshGroups,
     refreshBuildings,
@@ -135,10 +140,12 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
                     buildings={buildingsTable}
                     floors={floorsTable}
                     groupsManaged={groupsManaged}
+                    assets={assets}
                     devices={devices}
                     refreshBuildings={refreshBuildings}
                     refreshFloors={refreshFloors}
                     refreshGroups={refreshGroups}
+                    refreshAssets={refreshAssets}
                     refreshDevices={refreshDevices}
                     backToOption={showEditGroupsManagedOption}
                     setNodeRedIconLocationData={setNodeRedIconLocationData}

@@ -63,12 +63,20 @@ import TableWithPagination from '../Utils/TableWithPagination';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { MlModelsProvider } from '../../../contexts/mlModelsOptions';
-import { setMlModelsTable, setReloadMlModelsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
+import { setAssetsTable, setMlModelsTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorsTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
 import MlModelsContainer from './MlModelsContainer';
 import {
+    useAssetsTable,
     useMlModelsTable,
-    useReloadMlModelsTable
+    useReloadAssetsTable,
+    useReloadMlModelsTable,
+    useReloadSensorsTable,
+    useSensorsTable
 } from '../../../contexts/platformAssistantContext/platformAssistantContext';
+import { AssetsProvider } from '../../../contexts/assetsOptions';
+import AssetsContainer from './AssetsContainer';
+import { SensorsProvider } from '../../../contexts/sensorsOptions';
+import SensorsContainer from './SensorsContainer';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -152,6 +160,8 @@ const GroupAdminOptions: FC<{}> = () => {
     const floorsTable = useFloorsTable();
     const orgsOfGroupManagedTable = useOrgsOfGroupsManagedTable();
     const groupsManagedTable = useGroupsManagedTable();
+    const assetsTable = useAssetsTable();
+    const sensorsTable = useSensorsTable();
     const devicesTable = useDevicesTable();
     const groupMembersTable = useGroupMembersTable();
     const selectOrgUsersTable = useSelectOrgUsersTable();
@@ -163,6 +173,8 @@ const GroupAdminOptions: FC<{}> = () => {
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
+    const [assetsLoading, setAssetsLoading] = useState(true);
+    const [sensorsLoading, setSensorsLoading] = useState(true);
     const [devicesLoading, setDevicesLoading] = useState(true);
     const [topicsLoading, setTopicsLoading] = useState(true);
     const [dashboardsLoading, setDashboardsLoading] = useState(true);
@@ -175,6 +187,8 @@ const GroupAdminOptions: FC<{}> = () => {
     const [reloadFloors, setReloadloors] = useState(false);
     const reloadGroupsManagedTable = useReloadGroupsManagedTable();
     const reloadGroupMembersTable = useReloadGroupMembersTable();
+    const reloadAssetsTable = useReloadAssetsTable();
+    const reloadSensorsTable = useReloadSensorsTable();
     const reloadDevicesTable = useReloadDevicesTable();
     const reloadTopicsTable = useReloadTopicsTable();
     const reloadDashboardsTable = useReloadDashboardsTable();
@@ -190,12 +204,23 @@ const GroupAdminOptions: FC<{}> = () => {
         setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
     }, [plaformAssistantDispatch]);
 
+    const refreshAssets = useCallback(() => {
+        setAssetsLoading(true);
+        const reloadAssetsTable = true;
+        setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+    }, [plaformAssistantDispatch])
+
+    const refreshSensors = useCallback(() => {
+        setSensorsLoading(true);
+        const reloadSensorsTable = true;
+        setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+    }, [plaformAssistantDispatch])
+
     const refreshDevices = useCallback(() => {
         setDevicesLoading(true);
         const reloadDevicesTable = true;
         setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
     }, [plaformAssistantDispatch])
-
 
     const refreshGroupMembers = useCallback(() => {
         setGroupMembersLoading(true);
@@ -408,7 +433,70 @@ const GroupAdminOptions: FC<{}> = () => {
         } else {
             setSelectOrgUsersLoading(false);
         }
-    }, [accessToken, refreshToken, authDispatch, plaformAssistantDispatch, reloadSelectOrgUsersTable, selectOrgUsersTable.length]);
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadSelectOrgUsersTable,
+        selectOrgUsersTable.length
+    ]);
+
+    useEffect(() => {
+        if (assetsTable.length === 0 || reloadAssetsTable) {
+            const config = axiosAuth(accessToken);
+            const urlAssets = `${protocol}://${domainName}/admin_api/assets/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlAssets, config)
+                .then((response) => {
+                    const assets = response.data;
+                    setAssetsTable(plaformAssistantDispatch, { assets });
+                    setAssetsLoading(false);
+                    const reloadAssetsTable = false;
+                    setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetsLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadAssetsTable,
+        assetsTable.length
+    ]);
+
+    useEffect(() => {
+        if (sensorsTable.length === 0 || reloadSensorsTable) {
+            const config = axiosAuth(accessToken);
+            const urlSensors = `${protocol}://${domainName}/admin_api/sensors/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlSensors, config)
+                .then((response) => {
+                    const sensors = response.data;
+                    setSensorsTable(plaformAssistantDispatch, { sensors });
+                    setSensorsLoading(false);
+                    const reloadSensorsTable = false;
+                    setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setSensorsLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadSensorsTable,
+        sensorsTable.length
+    ]);
 
     useEffect(() => {
         if (devicesTable.length === 0 || reloadDevicesTable) {
@@ -562,9 +650,6 @@ const GroupAdminOptions: FC<{}> = () => {
         mlModelsTable.length
     ]);
 
-
-
-
     const clickHandler = (optionToShow: string) => {
         setOptionToShow(optionToShow);
     }
@@ -577,6 +662,12 @@ const GroupAdminOptions: FC<{}> = () => {
                 </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.GROUP_MEMBERS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.GROUP_MEMBERS)}>
                     Group members
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.ASSETS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.ASSETS)}>
+                    Assets
+                </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.SENSORS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.SENSORS)}>
+                    Sensors
                 </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DEVICES} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DEVICES)}>
                     Devices
@@ -604,6 +695,8 @@ const GroupAdminOptions: FC<{}> = () => {
                         floorsLoading ||
                         orgsOfGroupsManagedLoading ||
                         groupsManagedLoading ||
+                        assetsLoading ||
+                        sensorsLoading ||
                         devicesLoading ||
                         groupMembersLoading ||
                         selectOrgUsersLoading ||
@@ -624,7 +717,9 @@ const GroupAdminOptions: FC<{}> = () => {
                                         floorsFiltered={floorsFiltered}
                                         refreshGroupsManaged={refreshGroupsManaged}
                                         refreshGroupMembers={refreshGroupMembers}
+                                        assets={assetsTable}
                                         devices={devicesTable}
+                                        refreshAssets={refreshAssets}
                                         refreshDevices={refreshDevices}
                                         refreshGroups={refreshGroupsManaged}
                                         refreshBuildings={refreshBuildings}
@@ -637,6 +732,29 @@ const GroupAdminOptions: FC<{}> = () => {
                                     <GroupMembersContainer groupMembers={groupMembersTable} refreshGroupMembers={refreshGroupMembers} />
                                 </GroupMembersProvider>
                             }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.ASSETS &&
+                                <AssetsProvider>
+                                    <AssetsContainer
+                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
+                                        groupsManaged={groupsManagedTable}
+                                        buildingsFiltered={buildingsFiltered}
+                                        floorsFiltered={floorsFiltered}
+                                        assets={assetsTable}
+                                        devices={devicesTable}
+                                        refreshAssets={refreshAssets}
+                                        refreshDevices={refreshDevices}
+                                        refreshGroups={refreshGroupsManaged}
+                                        refreshBuildings={refreshBuildings}
+                                        refreshFloors={refreshFloors}
+                                    />
+                                </AssetsProvider>
+
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.SENSORS &&
+                                <SensorsProvider>
+                                    <SensorsContainer sensors={sensorsTable} refreshSensors={refreshSensors} />
+                                </SensorsProvider>
+                            }
                             {optionToShow === GROUP_ADMIN_OPTIONS.DEVICES &&
                                 <DevicesProvider>
                                     <DevicesContainer
@@ -644,7 +762,9 @@ const GroupAdminOptions: FC<{}> = () => {
                                         groupsManaged={groupsManagedTable}
                                         buildingsFiltered={buildingsFiltered}
                                         floorsFiltered={floorsFiltered}
+                                        assets={assetsTable}
                                         devices={devicesTable}
+                                        refreshAssets={refreshAssets}
                                         refreshDevices={refreshDevices}
                                         refreshGroups={refreshGroupsManaged}
                                         refreshBuildings={refreshBuildings}

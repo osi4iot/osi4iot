@@ -97,7 +97,9 @@ export const GROUPS_PREVIOUS_OPTIONS = {
 
 export const GROUP_ADMIN_OPTIONS = {
     GROUPS_MANAGED: "Groups Managed",
-    DEVICES: "Orgs users",
+    ASSETS: "Assets",
+    SENSORS: "Sensors",
+    DEVICES: "Devices",
     GROUP_MEMBERS: "Group members",
     TOPICS: "Topics",
     DASHBOARDS: "Dashboards",
@@ -112,6 +114,25 @@ export const GROUPS_MANAGED_OPTIONS = {
     CREATE_GROUP_MEMBERS: "Create group members",
     REMOVE_ALL_GROUP_MEMBERS: "Remove all group members",
     SELECT_NRI_ICON_LOCATION: "Select location"
+}
+
+export const ASSETS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_ASSET: "Create asset",
+    EDIT_ASSET: "Edit asset",
+    SELECT_LOCATION: "Select location"
+}
+
+export const ASSETS_PREVIOUS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_ASSET: "Create asset",
+    EDIT_ASSET: "Edit asset"
+}
+
+export const SENSORS_OPTIONS = {
+    TABLE: "Table",
+    CREATE_SENSOR: "Create sensor",
+    EDIT_SENSOR: "Edit sensor",
 }
 
 export const DEVICES_OPTIONS = {

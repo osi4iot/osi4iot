@@ -1,15 +1,14 @@
 import { FC, useState } from 'react'
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
-import { IDevice } from '../TableColumns/devicesColumns';
-import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { useGroupManagedBuildingId, useGroupManagedIdToEdit } from '../../../contexts/groupsManagedOptions';
-import ElementLocationMap from '../Geolocation/ElementLocationMap';
 import { IAsset } from '../TableColumns/assetsColumns';
+import { useAssetBuildingId, useAssetGroupId } from '../../../contexts/assetsOptions';
+import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import ElementLocationMap from '../Geolocation/ElementLocationMap';
+import { IDevice } from '../TableColumns/devicesColumns';
 
 
-
-interface NriLocationContainerProps {
+interface AssetLocationContainerProps {
     buildings: IBuilding[];
     floors: IFloor[];
     groupsManaged: IGroupManaged[];
@@ -21,10 +20,10 @@ interface NriLocationContainerProps {
     refreshAssets: () => void;
     refreshDevices: () => void;
     backToOption: () => void;
-    setNodeRedIconLocationData: (nriLong: number, nriLat: number) => void;
+    setAssetLocationData: (assetLong: number, assetLat: number) => void;
 }
 
-const NriLocationContainer: FC<NriLocationContainerProps> = (
+const AssetLocationContainer: FC<AssetLocationContainerProps> = (
     {
         buildings,
         floors,
@@ -37,18 +36,18 @@ const NriLocationContainer: FC<NriLocationContainerProps> = (
         refreshAssets,
         refreshDevices,
         backToOption,
-        setNodeRedIconLocationData
+        setAssetLocationData
     }) => {
-    const groupManagedBuildingId = useGroupManagedBuildingId();
-    const building = buildings.filter(building => building.id === groupManagedBuildingId)[0];
-    const groupManagedId = useGroupManagedIdToEdit();
-    const groupManaged = groupsManaged.filter(group => group.id === groupManagedId)[0];
-    const devicesInGroup = useState(devices.filter(device => device.groupId === groupManagedId))[0];
-    const assetsInGroup = useState(assets.filter(asset => asset.groupId === groupManagedId))[0];
+    const assetBuildingId = useAssetBuildingId();
+    const building = buildings.filter(building => building.id === assetBuildingId)[0];
+    const assetGroupId = useAssetGroupId();
+    const groupManaged = groupsManaged.filter(group => group.id === assetGroupId)[0];
+    const assetsInGroup = useState(assets.filter(asset => asset.groupId === assetGroupId))[0];
+    const devicesInGroup = useState(devices.filter(devices => devices.groupId === assetGroupId))[0];
     const groupFloor = useState(floors.filter(floor =>
-        floor.buildingId === groupManagedBuildingId &&
-        floor.floorNumber === groupManaged.floorNumber)[0]
-    )[0];
+        floor.buildingId === assetBuildingId &&
+        floor.floorNumber === groupManaged.floorNumber
+    )[0])[0];
     const featureIndex = useState(groupManaged.featureIndex)[0];
     const [outerBounds, setOuterBounds] = useState(building.outerBounds);
 
@@ -58,7 +57,7 @@ const NriLocationContainer: FC<NriLocationContainerProps> = (
 
     return (
         <ElementLocationMap
-            elementToDrag={"nri"}
+            elementToDrag={"asset"}
             outerBounds={outerBounds}
             building={building}
             floorData={groupFloor}
@@ -73,9 +72,9 @@ const NriLocationContainer: FC<NriLocationContainerProps> = (
             refreshDevices={refreshDevices}
             setNewOuterBounds={setNewOuterBounds}
             backToOption={backToOption}
-            setElementLocationData={setNodeRedIconLocationData}
+            setElementLocationData={setAssetLocationData}
         />
     )
 }
 
-export default NriLocationContainer;
+export default AssetLocationContainer;

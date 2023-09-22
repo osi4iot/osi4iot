@@ -29,7 +29,7 @@ const FormContainer = styled.div`
     border: 3px solid #3274d9;
     border-radius: 20px;
     width: 400px;
-    height: calc(100vh - 290px);
+    height: calc(100vh - 350px);
 
     form > div:nth-child(2) {
         margin-right: 10px;
@@ -37,7 +37,7 @@ const FormContainer = styled.div`
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
+    height: calc(100vh - 480px);
     width: 100%;
     padding: 0px 5px;
     overflow-y: auto;
@@ -133,8 +133,7 @@ const deviceTypeOptions = [
 
 const deviceInitInputFormData = {
     groupId: 0,
-    name: "",
-    description: "",
+    deviceUid: "",
     type: "Generic",
     iconRadio: 1.0,
     longitude: 0,
@@ -210,8 +209,6 @@ const EditDevice: FC<EditDeviceProps> = ({
         }
 
         const deviceEditData = {
-            name: values.name,
-            description: values.description,
             iconRadio: values.iconRadio,
             longitude: values.longitude,
             latitude: values.latitude,
@@ -238,8 +235,6 @@ const EditDevice: FC<EditDeviceProps> = ({
     }
 
     const validationSchema = Yup.object().shape({
-        name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         type: Yup.string().required('Required'),
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
@@ -276,18 +271,6 @@ const EditDevice: FC<EditDeviceProps> = ({
                         formik => (
                             <Form>
                                 <ControlsContainer>
-                                    <FormikControl
-                                        control='input'
-                                        label='Device name'
-                                        name='name'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Description'
-                                        name='description'
-                                        type='text'
-                                    />
                                     <FormikControl
                                         control='select'
                                         label='Type'

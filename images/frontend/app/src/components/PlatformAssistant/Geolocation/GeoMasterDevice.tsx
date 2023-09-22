@@ -72,7 +72,7 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
                         />
                         <Tooltip sticky>
                             <span style={{ fontWeight: 'bold' }}>Device</span><br />
-                            Name: {deviceData.name}<br />
+                            Name: {`Device_${deviceData.deviceUid}`}<br />
                             Type: {deviceData.type}<br />
                             Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
                         </Tooltip>
@@ -87,7 +87,7 @@ const GeoMasterDevice: FC<GeoMasterDeviceProps> = ({
                         >
                             <Tooltip sticky>
                                 <span style={{ fontWeight: 'bold' }}>Device</span><br />
-                                Name: {deviceData.name}<br />
+                                Name: {`Device_${deviceData.deviceUid}`}<br />
                                 Type: {deviceData.type}<br />
                                 Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
                             </Tooltip>
