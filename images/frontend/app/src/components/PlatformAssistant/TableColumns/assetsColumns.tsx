@@ -33,7 +33,7 @@ export interface IAsset {
     assetUid: string;
     description: string;
     type: string;
-    iconRadio: string;
+    iconRadio: number;
     latitude: number;
     longitude: number;
 }

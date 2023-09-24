@@ -274,7 +274,7 @@ export const Create_DEVICES_COLUMNS = (refreshDevices: () => void): Column<IDevi
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttAccessControl = row?.cells[9]?.value;
+                const mqttAccessControl = row?.cells[7]?.value;
                 const style: React.CSSProperties = {
                     color: mqttAccessControl === "None" ? 'red' : 'white'
                 };

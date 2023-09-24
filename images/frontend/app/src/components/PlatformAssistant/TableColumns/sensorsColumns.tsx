@@ -37,6 +37,7 @@ export interface ISensor {
     valueType: string;
     units: string;
     dashboardId: string;
+    dashboardUrl: string;
 }
 
 
@@ -200,7 +201,11 @@ export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISens
             accessor: "dashboardId",
             disableFilters: true,
             disableSortBy: true,
-        },         
+        }, 
+        {
+            Header: "dashboardUrl",
+            accessor: "dashboardUrl",
+        },            
         {
             Header: "",
             accessor: "edit",

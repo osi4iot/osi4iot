@@ -9,12 +9,13 @@ export const sensorName = (assetName: string, sensorType: string): string => {
 export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
 	const queryString = `INSERT INTO grafanadb.sensor (asset_id,
 		sensor_uid, description, topic_id, payload_key, 
-		param_label, value_type, units, dashboard_id, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
+		param_label, value_type, units, dashboard_id, dashboard_url,
+		created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 		RETURNING  id, sensor_uid AS "sensorUid",
 		description, topic_id AS "topicId", payload_key AS "payloadKey",
 		param_label AS "paramLabel", value_type AS "valueType", units,
-		dashboard_id AS "dashboardId",
+		dashboard_id AS "dashboardId", dashboard_url AS "dashboardUrl",
 		created, updated`;
 
 	const result = await pool.query(queryString,
@@ -28,6 +29,7 @@ export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
 			sensorData.valueType,
 			sensorData.units,
 			sensorData.dashboardId,
+			sensorData.dashboardUrl,
 		]);
 	return result.rows[0] as ISensor;
 };
@@ -56,9 +58,10 @@ export const deleteSensorByPropName = async (propName: string, propValue: (strin
 export const createNewSensor = async (
 	sensorData: CreateSensorDto,
 	dashboardId: number,
+	dashboardUrl: string,
 	sensorUid: string
 ): Promise<ISensor> => {
-	const sensorInput: ISensor = { ...sensorData, sensorUid, dashboardId };
+	const sensorInput: ISensor = { ...sensorData, sensorUid, dashboardId, dashboardUrl };
 	const newSensor = await insertSensor(sensorInput);
 	return newSensor;
 };
@@ -73,6 +76,8 @@ export const getSensorByPropName = async (propName: string, propValue: (string |
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
 									grafanadb.sensor.units,
+									grafanadb.sensor.dashboard_id AS "dashboardId",
+									grafanadb.sensor.dashboard_url AS "dashboardUrl",
 									grafanadb.sensor.created, grafanadb.sensor.updated
 									FROM grafanadb.sensor
 									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
@@ -91,6 +96,8 @@ export const getAllSensors = async (): Promise<ISensor[]> => {
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
 									grafanadb.sensor.units,
+									grafanadb.sensor.dashboard_id AS "dashboardId",
+									grafanadb.sensor.dashboard_url AS "dashboardUrl",
 									grafanadb.sensor.created, grafanadb.sensor.updated
 									FROM grafanadb.sensor
 									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
@@ -114,6 +121,8 @@ export const getSensorsByGroupId = async (groupId: number): Promise<ISensor[]> =
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
 									grafanadb.sensor.units,
+									grafanadb.sensor.dashboard_id AS "dashboardId",
+									grafanadb.sensor.dashboard_url AS "dashboardUrl",
 									grafanadb.sensor.created, grafanadb.sensor.updated
 									FROM grafanadb.sensor
 									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
@@ -133,6 +142,8 @@ export const getSensorsByAssetId = async (assetId: number): Promise<ISensor[]> =
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
 									grafanadb.sensor.units,
+									grafanadb.sensor.dashboard_id AS "dashboardId",
+									grafanadb.sensor.dashboard_url AS "dashboardUrl",
 									grafanadb.sensor.created, grafanadb.sensor.updated
 									FROM grafanadb.sensor
 									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
@@ -152,6 +163,8 @@ export const getSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promis
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
 									grafanadb.sensor.units,
+									grafanadb.sensor.dashboard_id AS "dashboardId",
+									grafanadb.sensor.dashboard_url AS "dashboardUrl",
 									grafanadb.sensor.created, grafanadb.sensor.updated
 									FROM grafanadb.sensor
 									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
@@ -179,6 +192,8 @@ export const getSensorsByOrgId = async (orgId: number): Promise<ISensor[]> => {
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
 									grafanadb.sensor.units,
+									grafanadb.sensor.dashboard_id AS "dashboardId",
+									grafanadb.sensor.dashboard_url AS "dashboardUrl",
 									grafanadb.sensor.created, grafanadb.sensor.updated
 									FROM grafanadb.sensor
 									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id

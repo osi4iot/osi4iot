@@ -28,6 +28,10 @@ import {
 	setReloadFloorsTable,
 	useReloadOrgsOfGroupsManagedTable,
 	setReloadOrgsOfGroupsManagedTable,
+	setReloadAssetsTable,
+	setReloadSensorsTable,
+	setAssetsTable,
+	setSensorsTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import GeolocationContainer, { IDigitalTwinState } from '../Geolocation/GeolocationContainer';
@@ -46,6 +50,9 @@ import SceneLoader from '../../Tools/SceneLoader';
 import { useHistory } from 'react-router-dom';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { useAssetsTable, useReloadAssetsTable, useReloadSensorsTable, useSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantContext';
+import { IAsset } from '../TableColumns/assetsColumns';
+import { ISensor } from '../TableColumns/sensorsColumns';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -168,13 +175,17 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const floorsTable = useFloorsTable();
 	const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
 	const groupsManagedTable = useGroupsManagedTable();
+	const assetsTable = useAssetsTable();
+	const sensorsTable = useSensorsTable();
 	const devicesTable = useDevicesTable();
 	const digitalTwinsTable = useDigitalTwinsTable();
 	const [buildingsLoading, setBuildingsLoading] = useState(true);
 	const [floorsLoading, setFloorsLoading] = useState(true);
 	const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
 	const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
-	const [deviceLoading, setDevicesLoading] = useState(true);
+	const [assetsLoading, setAssetsLoading] = useState(true);
+	const [sensorsLoading, setSensorsLoading] = useState(true);
+	const [devicesLoading, setDevicesLoading] = useState(true);
 	const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
 	const [digitalTwinGltfData, setDigitalTwinGltfData] = useState<IDigitalTwinGltfData | null>(null);
 	const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);;
@@ -182,6 +193,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const reloadFloorsTable = useReloadFloorsTable();
 	const reloadOrgsOfGroupsManagedTable = useReloadOrgsOfGroupsManagedTable();
 	const reloadGroupsManagedTable = useReloadGroupsManagedTable();
+	const reloadAssetsTable = useReloadAssetsTable();
+	const reloadSensorsTable = useReloadSensorsTable();
 	const reloadDevicesTable = useReloadDevicesTable();
 	const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
 	const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
@@ -192,6 +205,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [floorSelected, setFloorSelected] = useState<IFloor | null>(null);
 	const [orgSelected, setOrgSelected] = useState<IOrgOfGroupsManaged | null>(null);
 	const [groupSelected, setGroupSelected] = useState<IGroupManaged | null>(null);
+	const [assetSelected, setAssetSelected] = useState<IAsset | null>(null);
+	const [sensorSelected, setSensorSelected] = useState<ISensor | null>(null);
 	const [deviceSelected, setDeviceSelected] = useState<IDevice | null>(null);
 	const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
@@ -222,6 +237,17 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
 	}, [plaformAssistantDispatch]);
 
+	const refreshAssets = useCallback(() => {
+		setAssetsLoading(true);
+		const reloadAssetsTable = true;
+		setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+	}, [plaformAssistantDispatch])
+
+	const refreshSensors = useCallback(() => {
+		setSensorsLoading(true);
+		const reloadSensorsTable = true;
+		setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+	}, [plaformAssistantDispatch])
 
 	const refreshDevices = useCallback(() => {
 		setDevicesLoading(true);
@@ -258,11 +284,21 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setOrgSelected(org);
 		setGroupSelected(null);
 		setDeviceSelected(null);
+		setAssetSelected(null);
 	}
 
 	const selectGroup = (group: IGroupManaged) => {
 		setGroupSelected(group);
 		setDeviceSelected(null);
+		setAssetSelected(null);
+	}
+
+	const selectAsset = (asset: IAsset) => {
+		setAssetSelected(asset);
+	}
+
+	const selectSensor = (sensor: ISensor) => {
+		setSensorSelected(sensor);
 	}
 
 	const selectDevice = (device: IDevice) => {
@@ -426,6 +462,62 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 
 	useEffect(() => {
+		if (assetsTable.length === 0 || reloadAssetsTable) {
+			const config = axiosAuth(accessToken);
+			const urlAssets = `${protocol}://${domainName}/admin_api/assets/user_managed`;
+			getAxiosInstance(refreshToken, authDispatch)
+				.get(urlAssets, config)
+				.then((response) => {
+					const assets = response.data;
+					setAssetsTable(plaformAssistantDispatch, { assets });
+					setAssetsLoading(false);
+					const reloadAssetsTable = false;
+					setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+				})
+				.catch((error) => {
+					axiosErrorHandler(error, authDispatch);
+				});
+		} else {
+			setAssetsLoading(false);
+		}
+	}, [
+		refreshToken,
+		accessToken,
+		authDispatch,
+		plaformAssistantDispatch,
+		assetsTable.length,
+		reloadAssetsTable
+	]);
+
+	useEffect(() => {
+		if (sensorsTable.length === 0 || reloadSensorsTable) {
+			const config = axiosAuth(accessToken);
+			const urlSensors = `${protocol}://${domainName}/admin_api/sensors/user_managed`;
+			getAxiosInstance(refreshToken, authDispatch)
+				.get(urlSensors, config)
+				.then((response) => {
+					const sensors = response.data;
+					setSensorsTable(plaformAssistantDispatch, { sensors });
+					setSensorsLoading(false);
+					const reloadSensorsTable = false;
+					setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+				})
+				.catch((error) => {
+					axiosErrorHandler(error, authDispatch);
+				});
+		} else {
+			setSensorsLoading(false);
+		}
+	}, [
+		refreshToken,
+		accessToken,
+		authDispatch,
+		plaformAssistantDispatch,
+		sensorsTable.length,
+		reloadSensorsTable
+	]);
+
+	useEffect(() => {
 		if (devicesTable.length === 0 || reloadDevicesTable) {
 			const config = axiosAuth(accessToken);
 			const urlDevices = `${protocol}://${domainName}/admin_api/devices/user_managed`;
@@ -497,7 +589,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		return title;
 	}
 
-
 	return (
 		<>
 			<PlatformAssistantHomeOptionsContainer>
@@ -516,7 +607,17 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			</PlatformAssistantHomeOptionsContainer>
 			<ContentContainer >
 				<>
-					{(buildingsLoading || floorsLoading || orgsOfGroupsManagedLoading || groupsManagedLoading || deviceLoading || digitalTwinLoading || glftDataLoading) ?
+					{(
+						buildingsLoading ||
+						floorsLoading ||
+						orgsOfGroupsManagedLoading ||
+						groupsManagedLoading ||
+						assetsLoading ||
+						sensorsLoading ||
+						devicesLoading ||
+						digitalTwinLoading ||
+						glftDataLoading
+					) ?
 						<Loader />
 						:
 						<>
@@ -526,6 +627,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									floors={floorsFiltered}
 									orgsOfGroupsManaged={orgsOfGroupsManagedTable}
 									groupsManaged={groupsManagedTable}
+									assets={assetsTable}
+									sensors={sensorsTable}
 									devices={devicesTable}
 									digitalTwins={digitalTwinsTable}
 									buildingSelected={buildingSelected}
@@ -536,6 +639,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									selectOrg={selectOrg}
 									groupSelected={groupSelected}
 									selectGroup={selectGroup}
+									assetSelected={assetSelected}
+									selectAsset={selectAsset}
+									sensorSelected={sensorSelected}
+									selectSensor={selectSensor}
 									deviceSelected={deviceSelected}
 									selectDevice={selectDevice}
 									digitalTwinSelected={digitalTwinSelected}
@@ -544,6 +651,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									refreshFloors={refreshFloors}
 									refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
 									refreshGroupsManaged={refreshGroupsManaged}
+									refreshAssets={refreshAssets}
+									refreshSensors={refreshSensors}
 									refreshDevices={refreshDevices}
 									refreshDigitalTwins={refreshDigitalTwins}
 									initialOuterBounds={initialOuterBounds}

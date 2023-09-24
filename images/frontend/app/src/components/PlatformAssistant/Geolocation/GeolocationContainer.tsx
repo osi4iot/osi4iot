@@ -16,6 +16,8 @@ import SelectFloorWithState from './SelectFloorWithState';
 import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { IAsset } from '../TableColumns/assetsColumns';
+import { ISensor } from '../TableColumns/sensorsColumns';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -34,6 +36,8 @@ export const GEOLOCATION_OPTIONS = {
     SELECT_ORG: "Select org",
     SELECT_FLOOR: "Select floor",
     SELECT_GROUP: "Select group",
+    SELECT_ASSET: "Select asset",
+    SELECT_SENSOR: "Select sensor",
     SELECT_DEVICE: "Select device",
     SELECT_DIGITAL_TWIN: "Select digital twin",
 }
@@ -55,6 +59,8 @@ interface GeolocationContainerProps {
     floors: IFloor[];
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
+    assets: IAsset[];
+    sensors: ISensor[];
     devices: IDevice[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
@@ -65,6 +71,10 @@ interface GeolocationContainerProps {
     selectOrg: (orgSelected: IOrgOfGroupsManaged) => void;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
+    assetSelected: IAsset | null;
+    selectAsset: (assetSelected: IAsset) => void;
+    sensorSelected: ISensor | null;
+    selectSensor: (sensorSelected: ISensor) => void;
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
     digitalTwinSelected: IDigitalTwin | null;
@@ -73,6 +83,8 @@ interface GeolocationContainerProps {
     refreshFloors: () => void;
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
+    refreshAssets: () => void;
+    refreshSensors: () => void;
     refreshDevices: () => void;
     refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
@@ -91,6 +103,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         floors,
         orgsOfGroupsManaged,
         groupsManaged,
+        assets,
+        sensors,
         devices,
         digitalTwins,
         buildingSelected,
@@ -101,6 +115,10 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         selectOrg,
         groupSelected,
         selectGroup,
+        assetSelected,
+        selectAsset,
+        sensorSelected,
+        selectSensor,
         deviceSelected,
         selectDevice,
         selectDigitalTwin,
@@ -109,6 +127,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         refreshFloors,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
+        refreshAssets,
+        refreshSensors,
         refreshDevices,
         refreshDigitalTwins,
         initialOuterBounds,
@@ -208,6 +228,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     floors={floors}
                     orgsOfGroupsManaged={orgsOfGroupsManaged}
                     groupsManaged={groupsManaged}
+                    assets={assets}
+                    sensors={sensors}
                     devices={devices}
                     digitalTwins={digitalTwins}
                     buildingSelected={buildingSelected}
@@ -218,6 +240,10 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectOrg={selectOrg}
                     groupSelected={groupSelected}
                     selectGroup={selectGroup}
+                    assetSelected={assetSelected}
+                    selectAsset={selectAsset}
+                    sensorSelected={sensorSelected}
+                    selectSensor={selectSensor}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}
                     selectDigitalTwin={selectDigitalTwin}
@@ -226,6 +252,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     refreshFloors={refreshFloors}
                     refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
                     refreshGroupsManaged={refreshGroupsManaged}
+                    refreshAssets={refreshAssets}
+                    refreshSensors={refreshSensors}
                     refreshDevices={refreshDevices}
                     refreshDigitalTwins={refreshDigitalTwins}
                     initialOuterBounds={initialOuterBounds}

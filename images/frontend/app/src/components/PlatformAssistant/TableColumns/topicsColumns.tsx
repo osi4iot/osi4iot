@@ -227,7 +227,7 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttAccessControl = row?.cells[7]?.value;
+                const mqttAccessControl = row?.cells[6]?.value;
                 const style: React.CSSProperties = {
                     color: mqttAccessControl === "None" ? 'red' : 'white'
                 };

@@ -383,7 +383,8 @@ const hiddenColumnCondition = (col: any) => {
         col.Header === "nriInGroupHash" ||
         col.Header === "nriInGroupIconLongitude" ||
         col.Header === "nriInGroupIconLatitude" ||
-        col.Header === "nriInGroupIconRadio"
+        col.Header === "nriInGroupIconRadio" ||
+        col.Header === "dashboardUrl"
 
     return condition;
 }

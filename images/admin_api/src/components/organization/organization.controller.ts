@@ -70,6 +70,7 @@ import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic } from "../topic/topicDAL";
 import {
+	generateDashboardsUrl,
 	removeFilesFromBucketFolder
 } from "../digitalTwin/digitalTwinDAL";
 import { existsBuildingWithId } from "../building/buildingDAL";
@@ -84,6 +85,7 @@ import { createNewAsset } from "../asset/assetDAL";
 import { createNewSensor } from "../sensor/sensorDAL";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { nanoid } from "nanoid";
+import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -476,10 +478,12 @@ class OrganizationController implements IController {
 				dashboarsId[2] = await createSensorDashboard(group, sensorsData[2], sensorsUid[2]);
 				dashboarsId[3] = await createSensorDashboard(group, sensorsData[3], sensorsUid[3]);
 
-				await createNewSensor(sensorsData[0], dashboarsId[0], sensorsUid[0]);
-				await createNewSensor(sensorsData[1], dashboarsId[1], sensorsUid[1]);
-				await createNewSensor(sensorsData[2], dashboarsId[2], sensorsUid[2]);
-				await createNewSensor(sensorsData[3], dashboarsId[3], sensorsUid[3]);
+				const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
+				const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
+				await createNewSensor(sensorsData[0], dashboarsId[0], dashboardsUrl[0], sensorsUid[0]);
+				await createNewSensor(sensorsData[1], dashboarsId[1], dashboardsUrl[1], sensorsUid[1]);
+				await createNewSensor(sensorsData[2], dashboarsId[2], dashboardsUrl[2], sensorsUid[2]);
+				await createNewSensor(sensorsData[3], dashboarsId[3], dashboardsUrl[3], sensorsUid[3]);
 			}
 			const message = { message: "Organization created successfully" }
 			res.status(201).send(message);

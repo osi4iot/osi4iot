@@ -32,6 +32,7 @@ import process_env from "../../config/api_config";
 import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
 import timescaledb_pool from "../../config/timescaledb_config";
 import { generateGrafanaDataSourceUser } from "./datasourceDAL";
+import { updateGroupAssetsLocation } from "../asset/assetDAL";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName = `${orgName} general`;
@@ -167,6 +168,7 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 		groupData.outerBounds = findGroupBounds(geoJsonDataString, floorData);
 		await updateGroupById(groupData);
 		if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
+			await updateGroupAssetsLocation(geoJsonDataString, groupData);
 			await updateGroupDevicesLocation(geoJsonDataString, groupData);
 			await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData)
 		}

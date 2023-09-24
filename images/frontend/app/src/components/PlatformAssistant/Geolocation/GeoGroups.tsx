@@ -10,6 +10,8 @@ import GeoGroup from "./GeoGroup";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { isGeoJSONObject } from "../../../tools/geojsonValidation";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IAsset } from "../TableColumns/assetsColumns";
+import { ISensor } from "../TableColumns/sensorsColumns";
 
 
 const STATUS_OK = "#3e3f3b";
@@ -34,6 +36,12 @@ interface GeoGroupsProps {
     groupsInSelectedOrg: IGroupManaged[];
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
+    assetDataArray: IAsset[];
+    assetSelected: IAsset | null;
+    selectAsset: (assetSelected: IAsset) => void;
+    sensorDataArray: ISensor[];
+    sensorSelected: ISensor | null;
+    selectSensor: (sensorSelected: ISensor) => void;
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
@@ -54,6 +62,12 @@ const GeoGroups: FC<GeoGroupsProps> = (
         selectOrg,
         groupSelected,
         selectGroup,
+        assetDataArray,
+        assetSelected,
+        selectAsset,
+        sensorDataArray,
+        sensorSelected,
+        selectSensor,
         deviceDataArray,
         deviceSelected,
         selectDevice,
@@ -91,6 +105,12 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         groupData={group}
                         groupSelected={groupSelected}
                         selectGroup={selectGroup}
+                        assetDataArray={assetDataArray}
+                        assetSelected={assetSelected}
+                        selectAsset={selectAsset}
+                        sensorDataArray={sensorDataArray}
+                        sensorSelected={sensorSelected}
+                        selectSensor={selectSensor}
                         deviceDataArray={deviceDataArray}
                         deviceSelected={deviceSelected}
                         selectDevice={selectDevice}

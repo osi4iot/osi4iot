@@ -193,7 +193,7 @@ const EditAsset: FC<EditAssetProps> = ({
 
         const assetEditData = {
             description: values.description,
-            assetType: values.assetType,
+            type: values.assetType,
             iconRadio: values.iconRadio,
             longitude: values.longitude,
             latitude: values.latitude,

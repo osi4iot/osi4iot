@@ -21,6 +21,8 @@ import { IFloor } from '../TableColumns/floorsColumns';
 import GeoGroups from './GeoGroups';
 import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
 import { useWindowWidth } from '@react-hook/window-size';
+import { IAsset } from '../TableColumns/assetsColumns';
+import { ISensor } from '../TableColumns/sensorsColumns';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -368,6 +370,8 @@ interface MapProps {
     floors: IFloor[];
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
+    assets: IAsset[];
+    sensors: ISensor[];
     devices: IDevice[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
@@ -378,6 +382,10 @@ interface MapProps {
     selectOrg: (orgSelected: IOrgOfGroupsManaged) => void;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
+    assetSelected: IAsset | null;
+    selectAsset: (assetSelected: IAsset) => void;
+    sensorSelected: ISensor | null;
+    selectSensor: (sensorSelected: ISensor) => void;    
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
     digitalTwinSelected: IDigitalTwin | null;
@@ -386,6 +394,8 @@ interface MapProps {
     refreshFloors: () => void;
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
+    refreshAssets: () => void;
+    refreshSensors: () => void;
     refreshDevices: () => void;
     refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
@@ -409,6 +419,8 @@ const Map: FC<MapProps> = (
         floors,
         orgsOfGroupsManaged,
         groupsManaged,
+        assets,
+        sensors,
         devices,
         digitalTwins,
         buildingSelected,
@@ -419,6 +431,10 @@ const Map: FC<MapProps> = (
         selectOrg,
         groupSelected,
         selectGroup,
+        assetSelected,
+        selectAsset,
+        sensorSelected,
+        selectSensor,        
         deviceSelected,
         selectDevice,
         digitalTwinSelected,
@@ -427,6 +443,8 @@ const Map: FC<MapProps> = (
         refreshFloors,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
+        refreshAssets,
+        refreshSensors,
         refreshDevices,
         refreshDigitalTwins,
         initialOuterBounds,
@@ -450,6 +468,8 @@ const Map: FC<MapProps> = (
         refreshFloors();
         refreshOrgsOfGroupsManaged();
         refreshGroupsManaged();
+        refreshAssets();
+        refreshSensors();
         refreshDevices();
         refreshDigitalTwins();
     }, [
@@ -457,6 +477,8 @@ const Map: FC<MapProps> = (
         refreshFloors,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
+        refreshAssets,
+        refreshSensors,
         refreshDevices,
         refreshDigitalTwins
     ])
@@ -493,6 +515,12 @@ const Map: FC<MapProps> = (
                     groupsInSelectedOrg={groupsManaged.filter(group => group.orgId === orgSelected.id && group.floorNumber === floorSelected.floorNumber)}
                     groupSelected={groupSelected}
                     selectGroup={selectGroup}
+                    assetDataArray={assets}
+                    assetSelected={assetSelected}
+                    selectAsset={selectAsset}
+                    sensorDataArray={sensors}
+                    sensorSelected={sensorSelected}
+                    selectSensor={selectSensor}
                     deviceDataArray={devices}
                     deviceSelected={deviceSelected}
                     selectDevice={selectDevice}

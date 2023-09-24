@@ -36,7 +36,7 @@ export const insertDevice = async (deviceData: IDevice): Promise<IDevice> => {
 };
 
 export const updateDeviceByProp = async (propName: string, propValue: (string | number), device: IDevice): Promise<void> => {
-	const query = `UPDATE grafanadb.device SET geolocation = $1, type = $3, 
+	const query = `UPDATE grafanadb.device SET geolocation = $1, type = $2, 
 	            icon_radio = $3, mqtt_access_control = $4, updated = NOW()
 				WHERE grafanadb.device.${propName} = $5;`;
 	await pool.query(query, [

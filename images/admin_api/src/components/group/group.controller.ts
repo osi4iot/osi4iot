@@ -52,7 +52,7 @@ import { createDevice } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic } from "../topic/topicDAL";
-import { removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
+import { generateDashboardsUrl, removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import {
@@ -69,6 +69,7 @@ import { createNewAsset } from "../asset/assetDAL";
 import { createNewSensor } from "../sensor/sensorDAL";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { nanoid } from "nanoid";
+import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -422,10 +423,12 @@ class GroupController implements IController {
 			dashboarsId[2] = await createSensorDashboard(groupCreated, sensorsData[2], sensorsUid[2]);
 			dashboarsId[3] = await createSensorDashboard(groupCreated, sensorsData[3], sensorsUid[3]);
 
-			await createNewSensor(sensorsData[0], dashboarsId[0], sensorsUid[0]);
-			await createNewSensor(sensorsData[1], dashboarsId[1], sensorsUid[1]);
-			await createNewSensor(sensorsData[2], dashboarsId[2], sensorsUid[2]);
-			await createNewSensor(sensorsData[3], dashboarsId[3], sensorsUid[3]);
+			const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
+			const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
+			await createNewSensor(sensorsData[0], dashboarsId[0], dashboardsUrl[0], sensorsUid[0]);
+			await createNewSensor(sensorsData[1], dashboarsId[1], dashboardsUrl[1], sensorsUid[1]);
+			await createNewSensor(sensorsData[2], dashboarsId[2], dashboardsUrl[2], sensorsUid[2]);
+			await createNewSensor(sensorsData[3], dashboarsId[3], dashboardsUrl[3], sensorsUid[3]);
 
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;

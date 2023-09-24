@@ -11,6 +11,7 @@ export default interface ISensor {
 	valueType: string;
 	units: string;
 	dashboardId: number;
+	dashboardUrl: string;
 	created?: string;
 	updated?: string;
 }

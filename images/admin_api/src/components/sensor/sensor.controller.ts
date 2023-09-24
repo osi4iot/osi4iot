@@ -29,6 +29,8 @@ import {
 } from "./sensorDAL";
 import { nanoid } from "nanoid";
 import { createSensorDashboard } from "../group/dashboardDAL";
+import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
+import { generateDashboardUrl } from "../digitalTwin/digitalTwinDAL";
 
 class SensorController implements IController {
 	public path = "/sensor";
@@ -227,7 +229,9 @@ class SensorController implements IController {
 			const sensorData: CreateSensorDto = req.body;
 			const sensorUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 			const dashboarId = await createSensorDashboard(req.group, sensorData, sensorUid);
-			await createNewSensor(sensorData, dashboarId, sensorUid);
+			const dashboardsInfo = await getDashboardsInfoFromIdArray([dashboarId]);
+			const dashboardUrl = generateDashboardUrl(dashboardsInfo[0])
+			await createNewSensor(sensorData, dashboarId, dashboardUrl, sensorUid);
 			const message= { message: `A new sensor has been created` };
 			res.status(200).send(message);
 		} catch (error) {

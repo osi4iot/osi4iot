@@ -13,6 +13,9 @@ import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import GeoNodeRedInstance from "./GeoNodeRedInstance";
 import GeoDevices from "./GeoDevices";
+import { IAsset } from "../TableColumns/assetsColumns";
+import { ISensor } from "../TableColumns/sensorsColumns";
+import GeoAssets from "./GeoAssets";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";
@@ -53,6 +56,12 @@ interface GeoGroupProps {
     groupData: IGroupManaged;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
+    assetDataArray: IAsset[];
+    assetSelected: IAsset | null;
+    selectAsset: (assetSelected: IAsset) => void;
+    sensorDataArray: ISensor[];
+    sensorSelected: ISensor | null;
+    selectSensor: (sensorSelected: ISensor) => void;
     deviceDataArray: IDevice[];
     deviceSelected: IDevice | null;
     selectDevice: (deviceSelected: IDevice) => void;
@@ -70,6 +79,12 @@ const GeoGroup: FC<GeoGroupProps> = (
         groupData,
         groupSelected,
         selectGroup,
+        assetDataArray,
+        assetSelected,
+        selectAsset,
+        sensorDataArray,
+        sensorSelected,
+        selectSensor,        
         deviceDataArray,
         deviceSelected,
         selectDevice,
@@ -84,6 +99,8 @@ const GeoGroup: FC<GeoGroupProps> = (
     const geoJsonLayerGroupRef = useRef(null);
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
     const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
+    const assetDataArrayFiltered = assetDataArray.filter(asset => asset.groupId === groupData.id);
+    const sensorDataArrayFiltered = sensorDataArray.filter(sensor => sensor.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
     const groupGeoJsonData = useState(findGroupGeojsonData(floorData, groupData.featureIndex))[0];
 
@@ -129,6 +146,20 @@ const GeoGroup: FC<GeoGroupProps> = (
                             deviceDataArray={deviceDataArrayFiltered}
                             deviceSelected={deviceSelected}
                             selectDevice={selectDevice}
+                            digitalTwins={digitalTwinsFiltered}
+                            digitalTwinSelected={digitalTwinSelected}
+                            selectDigitalTwin={selectDigitalTwin}
+                            digitalTwinsState={digitalTwinsState}
+                            openDigitalTwin3DViewer={openDigitalTwin3DViewer}
+                            setGlftDataLoading={setGlftDataLoading}
+                        />
+                        <GeoAssets
+                            assetDataArray={assetDataArrayFiltered}
+                            assetSelected={assetSelected}
+                            selectAsset={selectAsset}
+                            sensorDataArray={sensorDataArrayFiltered}
+                            sensorSelected={sensorSelected}
+                            selectSensor={selectSensor}
                             digitalTwins={digitalTwinsFiltered}
                             digitalTwinSelected={digitalTwinSelected}
                             selectDigitalTwin={selectDigitalTwin}

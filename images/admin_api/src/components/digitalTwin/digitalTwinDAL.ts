@@ -943,7 +943,7 @@ export const generateSqlTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
 	return sqlTopic;
 }
 
-const generateDashboardUrl = (dashboardInfo: IDashboardInfo): string => {
+export const generateDashboardUrl = (dashboardInfo: IDashboardInfo): string => {
 	const domainNameUrl = getDomainUrl();
 	let dashboardUrl: string;
 	if (dashboardInfo.slug === "Inexistent") {
@@ -952,6 +952,21 @@ const generateDashboardUrl = (dashboardInfo: IDashboardInfo): string => {
 		dashboardUrl = `${domainNameUrl}/grafana/d/${dashboardInfo.uid}/${dashboardInfo.slug}`;
 	}
 	return dashboardUrl;
+}
+
+export const generateDashboardsUrl = (dashboardsInfo: IDashboardInfo[]): string[] => {
+	const domainNameUrl = getDomainUrl();
+	const dashboarsdUrl: string[] = [];
+	for (const dashboardInfo of dashboardsInfo) {
+		if (dashboardInfo.slug === "Inexistent") {
+			const dashboardUrl = `Warning: Dashboard with id: ${dashboardInfo.dashboardId} not exists any more`;
+			dashboarsdUrl.push(dashboardUrl);
+		} else {
+			const dashboardUrl = `${domainNameUrl}/grafana/d/${dashboardInfo.uid}/${dashboardInfo.slug}`;
+			dashboarsdUrl.push(dashboardUrl);
+		}
+	}
+	return dashboarsdUrl;
 }
 
 const getBucketFolderFileList = async (folderPath: string): Promise<string[]> => {

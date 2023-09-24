@@ -36,6 +36,8 @@ import { createNewAsset } from "../components/asset/assetDAL";
 import { createNewSensor } from "../components/sensor/sensorDAL";
 import CreateSensorDto from "../components/sensor/sensor.dto";
 import { nanoid } from "nanoid";
+import { getDashboardsInfoFromIdArray } from "../components/dashboard/dashboardDAL";
+import { generateDashboardsUrl } from "../components/digitalTwin/digitalTwinDAL";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -533,6 +535,7 @@ export const dataBaseInitialization = async () => {
 					value_type VARCHAR(10),
 					units VARCHAR(10),
 					dashboard_id bigint,
+					dashboard_url VARCHAR(255),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (topic_id, payload_key),
@@ -807,10 +810,12 @@ export const dataBaseInitialization = async () => {
 				}
 
 				try {
-					await createNewSensor(sensorsData[0], dashboarsId[0], sensorsUid[0]);
-					await createNewSensor(sensorsData[1], dashboarsId[1], sensorsUid[1]);
-					await createNewSensor(sensorsData[2], dashboarsId[2], sensorsUid[2]);
-					await createNewSensor(sensorsData[3], dashboarsId[3], sensorsUid[3]);
+					const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
+					const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
+					await createNewSensor(sensorsData[0], dashboarsId[0], dashboardsUrl[0], sensorsUid[0]);
+					await createNewSensor(sensorsData[1], dashboarsId[1], dashboardsUrl[1], sensorsUid[1]);
+					await createNewSensor(sensorsData[2], dashboarsId[2], dashboardsUrl[2], sensorsUid[2]);
+					await createNewSensor(sensorsData[3], dashboarsId[3], dashboardsUrl[3], sensorsUid[3]);
 					logger.log("info", `Default sensors for main group has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Default sensors for main group can not be created: %s`, err.message);
