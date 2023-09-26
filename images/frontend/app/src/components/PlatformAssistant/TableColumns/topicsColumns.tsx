@@ -26,7 +26,6 @@ export interface ITopic {
     deviceId: number;
     topicType: string;
     description: string;
-    payloadFormat: string;
     topicUid: string;
     mqttAccessControl: string;
 }
@@ -233,12 +232,6 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
                 };
                 return <span style={style}>{mqttAccessControl}</span>;
             }             
-        },        
-        {
-            Header: "Payload format",
-            accessor: "payloadFormat",
-            disableFilters: true,
-            disableSortBy: true
         },
         {
             Header: "Topic hash",

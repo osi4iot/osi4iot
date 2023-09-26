@@ -332,25 +332,21 @@ class GroupController implements IController {
 				{
 					topicType: "dev2pdb",
 					description: `Mobile temperature topic`,
-					payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 					mqttAccessControl: "Pub & Sub"
 				},
 				{
 					topicType: "dev2pdb_wt",
 					description: `Mobile accelerations topic`,
-					payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 					mqttAccessControl: "Pub & Sub"
 				},
 				{
 					topicType: "dev2pdb_wt",
 					description: `Mobile orientation topic`,
-					payloadFormat: '{"mobile_quaternion":{"type":"array","items":{"q0":{"type":"number","units":"None"},"q1":{"type":"number","units":"None"},"q2":{"type":"number","units":"None"},"q3":{"type":"number","units":"None"}}}}',
 					mqttAccessControl: "Pub & Sub"
 				},
 				{
 					topicType: "dev2dtm",
 					description: `Mobile photo topic`,
-					payloadFormat: '{"mobile_photo": {"type": "string"}}',
 					mqttAccessControl: "Pub & Sub"
 				},
 			];

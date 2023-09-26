@@ -28,7 +28,6 @@ import IDevice from "./device.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByDevice } from "../mesurement/measurementDAL";
-import HttpException from "../../exceptions/HttpException";
 import sslDeviceCerticatesGenerator from "./sslDeviceCerticatesGenerator";
 import { removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
 
@@ -205,9 +204,6 @@ class DeviceController implements IController {
 			if (!this.isValidDevicePropName(propName)) throw new InvalidPropNameExeception(propName);
 			const device = await getDeviceByProp(propName, propValue);
 			if (!device) throw new ItemNotFoundException("The device", propName, propValue);
-			if (device.type === "Master") {
-				throw new HttpException(400, `The main maser device can not be deleted`)
-			}
 			await deleteDeviceByProp(propName, propValue);
 			const bucketFolder = `org_${device.orgId}/group_${device.groupId}/device_${device.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);

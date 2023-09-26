@@ -13,7 +13,6 @@ import IRequestWithOrganization from "../organization/interfaces/requestWithOrga
 import IRequestWithGroup from "../group/interfaces/requestWithGroup.interface";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
-import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import {
 	addDashboardUrls,
@@ -24,7 +23,6 @@ import {
 	getDigitalTwinsByGroupId,
 	getDigitalTwinsByGroupsIdArray,
 	getDigitalTwinsByOrgId,
-	getNumDigitalTwinsByDeviceId,
 	getStateOfAllDigitalTwins,
 	getStateOfDigitalTwinsByGroupsIdArray,
 	updateDigitalTwinById,
@@ -33,7 +31,7 @@ import {
 	addMqttTopicsToDigitalTwinSimulators,
 	getDigitalTwinMqttTopicsInfoFromByDTIdsArray,
 	generateDigitalTwinMqttTopics,
-	verifyAndCorrectDigitalTwinTopics,
+	verifyAndCorrectDigitalTwinReferences,
 	getDigitalTwinGltfData,
 	getBucketFolderInfoFileList,
 	deleteBucketFile,
@@ -46,13 +44,15 @@ import IDigitalTwinState from "./digitalTwinState.interface";
 import HttpException from "../../exceptions/HttpException";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
-import IRequestWithUserAndDeviceAndGroup from "../group/interfaces/requestWithUserAndDeviceAndGroup.interface";
 import s3Client from "../../config/s3Config";
 import process_env from "../../config/api_config";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import IRequestWithDigitalTwinDeviceAndGroup from "../group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
 import UpdateDigitalTwinDto from "./digitalTwinUpdate.dto";
-import digitalTwinDeviceAndGroupExist from "../../middleware/digitalTwinDeviceAndGroupExist.middleware";
+import { assetAndGroupExist } from "../../middleware/assetAndGroupExist.middleware";
+import digitalTwinAndGroupExist from "../../middleware/digitalTwinAndGroupExist.middleware";
+import IRequestWithAssetAndGroup from "../group/interfaces/requestWithAssetAndGroup.interface";
+import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigitalTwinAndGroup.interface";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -63,8 +63,8 @@ const uploadDigitalTwinFile = multer({
 		},
 		key: (req: IRequestWithDigitalTwinDeviceAndGroup, file, cb) => {
 			const group = req.group;
-			const { groupId, deviceId, digitalTwinId, folder, fileName } = req.params;
-			const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+			const { groupId, digitalTwinId, folder, fileName } = req.params;
+			const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 			const fileKey = `${keyBase}/${folder}/${fileName}`;
 			cb(null, fileKey)
 		}
@@ -122,53 +122,53 @@ class DigitalTwinController implements IController {
 				this.getDigitalTwinByProp
 			)
 			.get(
-				`${this.path}_gltfdata/:groupId/:deviceId/:digitalTwinId`,
-				deviceAndGroupExist,
+				`${this.path}_gltfdata/:groupId/:digitalTwinId`,
+				groupExists,
 				groupAdminAuth,
 				this.getDigitalTwinGltfData
 			)
 			.delete(
-				`${this.path}/:groupId/:deviceId/:digitalTwinId`,
-				deviceAndGroupExist,
+				`${this.path}/:groupId/:digitalTwinId`,
+				groupExists,
 				groupAdminAuth,
 				this.deleteDigitalTwinById
 			)
 			.patch(
-				`${this.path}/:groupId/:deviceId/:digitalTwinId`,
-				deviceAndGroupExist,
+				`${this.path}/:groupId/:digitalTwinId`,
+				groupExists,
 				groupAdminAuth,
 				validationMiddleware<UpdateDigitalTwinDto>(UpdateDigitalTwinDto),
 				this.updateDigitalTwinById
 			)
 			.post(
-				`${this.path}/:groupId/:deviceId`,
-				deviceAndGroupExist,
+				`${this.path}/:groupId/:assetId`,
+				assetAndGroupExist,
 				groupAdminAuth,
 				validationMiddleware<CreateDigitalTwinDto>(CreateDigitalTwinDto, true),
 				this.createDigitalTwin
 			)
 			.post(
-				`${this.path}_upload_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
-				digitalTwinDeviceAndGroupExist,
+				`${this.path}_upload_file/:groupId/:digitalTwinId/:folder/:fileName`,
+				digitalTwinAndGroupExist,
 				groupAdminAuth,
 				uploadDigitalTwinFile.single('file'),
 				this.uploadDigitalTwinFile
 			)
 			.get(
-				`${this.path}_download_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
-				digitalTwinDeviceAndGroupExist,
+				`${this.path}_download_file/:groupId/:digitalTwinId/:folder/:fileName`,
+				digitalTwinAndGroupExist,
 				groupAdminAuth,
 				this.downloadDigitalTwinFile
 			)
 			.get(
-				`${this.path}_file_list/:groupId/:deviceId/:digitalTwinId/:folder`,
-				digitalTwinDeviceAndGroupExist,
+				`${this.path}_file_list/:groupId/:digitalTwinId/:folder`,
+				digitalTwinAndGroupExist,
 				groupAdminAuth,
 				this.getDigitalTwinFileInfoList
 			)
 			.delete(
-				`${this.path}_delete_file/:groupId/:deviceId/:digitalTwinId/:folder/:fileName`,
-				digitalTwinDeviceAndGroupExist,
+				`${this.path}_delete_file/:groupId/:digitalTwinId/:folder/:fileName`,
+				digitalTwinAndGroupExist,
 				groupAdminAuth,
 				this.deleteDigitalTwinFile
 			)
@@ -355,8 +355,7 @@ class DigitalTwinController implements IController {
 			await deleteDigitalTwinById(digitalTwin);
 			const orgId = digitalTwin.orgId;
 			const groupId = digitalTwin.groupId;
-			const deviceId = digitalTwin.deviceId;
-			const bucketFolder = `org_${orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+			const bucketFolder = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 			await removeFilesFromBucketFolder(bucketFolder);
 			const message = { message: "Digital twin deleted successfully" }
 			res.status(200).json(message);
@@ -366,19 +365,19 @@ class DigitalTwinController implements IController {
 	};
 
 	private updateDigitalTwinById = async (
-		req: IRequestWithUserAndDeviceAndGroup,
+		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const digitalTwinData = req.body;
-			const device = req.device;
+			const group = req.group;
 			const { digitalTwinId } = req.params;
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!existentDigitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
-			let digitalTwinUpdated: IDigitalTwin = { ...existentDigitalTwin, ...digitalTwinData };
+			const digitalTwinUpdated: IDigitalTwin& UpdateDigitalTwinDto = { ...existentDigitalTwin, ...digitalTwinData };
 			if (digitalTwinData.isGltfFileModified) {
-				digitalTwinUpdated = await verifyAndCorrectDigitalTwinTopics(digitalTwinUpdated, device);
+				await verifyAndCorrectDigitalTwinReferences(group, digitalTwinUpdated);
 			}
 			await updateDigitalTwinById(parseInt(digitalTwinId, 10), digitalTwinUpdated);
 			const message = { message: "Digital twin updated successfully" }
@@ -389,23 +388,19 @@ class DigitalTwinController implements IController {
 	};
 
 	private createDigitalTwin = async (
-		req: IRequestWithUserAndDeviceAndGroup,
+		req: IRequestWithAssetAndGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const digitalTwinData: CreateDigitalTwinDto = req.body;
-			const device = req.device;
+			const asset = req.asset;
 			const group = req.group;
 
 			let response: { message: string, digitalTwinId: number, topicSensors: { id: number; topicName: string }[] };
 			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid)
 			if (!existDigitalTwin) {
-				const numDigitalTwinsInDevice = await getNumDigitalTwinsByDeviceId(device.id);
-				if (numDigitalTwinsInDevice === 12) {
-					throw new HttpException(400, "The maximun number of digital twins by device is 12.");
-				}
-				const { digitalTwin, topicSensors } = await createDigitalTwin(group, device, digitalTwinData);
+				const { digitalTwin, topicSensors } = await createDigitalTwin(group, asset, digitalTwinData);
 				if (digitalTwin) {
 					response = {
 						message: `A new digital twin has been created`,
@@ -425,7 +420,7 @@ class DigitalTwinController implements IController {
 	};
 
 	private uploadDigitalTwinFile = async (
-		req: IRequestWithDigitalTwinDeviceAndGroup,
+		req: IRequestWithDigitalTwinAndGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
@@ -446,13 +441,13 @@ class DigitalTwinController implements IController {
 	};
 
 	private downloadDigitalTwinFile = async (
-		req: IRequestWithDigitalTwinDeviceAndGroup,
+		req: IRequestWithDigitalTwinAndGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		const group = req.group;
-		const { groupId, deviceId, digitalTwinId, folder, fileName } = req.params;
-		const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+		const { groupId, digitalTwinId, folder, fileName } = req.params;
+		const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 		const fileKey = `${keyBase}/${folder}/${fileName}`;
 
 		const bucketParams = {
@@ -470,13 +465,13 @@ class DigitalTwinController implements IController {
 	};
 
 	private getDigitalTwinFileInfoList = async (
-		req: IRequestWithDigitalTwinDeviceAndGroup,
+		req: IRequestWithDigitalTwinAndGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		const group = req.group;
-		const { groupId, deviceId, digitalTwinId, folder } = req.params;
-		const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+		const { groupId, digitalTwinId, folder } = req.params;
+		const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 		const folderPath = `${keyBase}/${folder}`
 
 		try {
@@ -489,13 +484,13 @@ class DigitalTwinController implements IController {
 
 
 	private deleteDigitalTwinFile = async (
-		req: IRequestWithDigitalTwinDeviceAndGroup,
+		req: IRequestWithDigitalTwinAndGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		const group = req.group;
-		const { groupId, deviceId, digitalTwinId, folder, fileName } = req.params;
-		const keyBase = `org_${group.orgId}/group_${groupId}/device_${deviceId}/digitalTwin_${digitalTwinId}`;
+		const { groupId, digitalTwinId, folder, fileName } = req.params;
+		const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 		const fileKey = `${keyBase}/${folder}/${fileName}`;
 		try {
 			await deleteBucketFile(fileKey);

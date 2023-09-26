@@ -160,7 +160,7 @@ export const updateGroupAssetsLocation = async (geoJsonDataString: string, group
 				interAssetDistance = 0.002 * asset.iconRadio;
 			}
 		}
-		const pt = rhumbDestination(ptCenterGroupArea, 2 * interAssetDistance, 180);
+		const pt = rhumbDestination(ptCenterGroupArea, 0.5 * interAssetDistance, 180);
 		const totalLongitude = (groupAssets.length - 1) * interAssetDistance;
 		const assetsLocationQueries = [];
 

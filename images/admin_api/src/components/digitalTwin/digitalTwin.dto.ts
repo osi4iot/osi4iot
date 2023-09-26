@@ -1,4 +1,9 @@
-import { IsNumber, IsString } from "class-validator";
+import { IsNumber, IsString, ValidateNested } from "class-validator";
+import CreateDeviceRefDto from "./deviceRef.dto";
+import { Type } from "class-transformer";
+import CreateTopicRefDto from "./topicRef.dto";
+import CreateSensorRefDto from "./sensorRef.dto";
+
 
 class CreateDigitalTwinDto {
 	@IsString()
@@ -18,6 +23,18 @@ class CreateDigitalTwinDto {
 
 	@IsString()
 	public digitalTwinSimulationFormat: string;
+
+	@ValidateNested({ each: true })
+	@Type(() => CreateDeviceRefDto)
+	public devicesRef: CreateDeviceRefDto[];
+
+	@ValidateNested({ each: true })
+	@Type(() => CreateTopicRefDto)
+	public topicsRef: CreateTopicRefDto[];
+
+	@ValidateNested({ each: true })
+	@Type(() => CreateSensorRefDto)
+	public sensorsRef: CreateSensorRefDto[];
 }
 
 export default CreateDigitalTwinDto;

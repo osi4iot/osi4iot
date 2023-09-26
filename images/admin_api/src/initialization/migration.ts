@@ -422,9 +422,7 @@ export const dataBaseInitialization = async () => {
 					org_id bigint,
 					group_id bigint,
 					device_uid VARCHAR(40) UNIQUE,
-					geolocation POINT,
 					type VARCHAR(40),
-					icon_radio real NOT NULL DEFAULT 1.0,
 					mqtt_password VARCHAR(255),
 					mqtt_salt VARCHAR(40),
 					mqtt_access_control VARCHAR(10),
@@ -494,6 +492,7 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
 				}
 
+
 				const tableTopic = "grafanadb.topic";
 				const queryStringTopic = `
 				CREATE TABLE IF NOT EXISTS ${tableTopic}(
@@ -501,7 +500,6 @@ export const dataBaseInitialization = async () => {
 					device_id bigint,
 					topic_type VARCHAR(40),
 					description VARCHAR(190),
-					payload_format jsonb,
 					topic_uid VARCHAR(40) UNIQUE,
 					mqtt_access_control VARCHAR(10),
 					created TIMESTAMPTZ,
@@ -528,8 +526,8 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					asset_id bigint,
 					sensor_uid VARCHAR(40) UNIQUE,
-					description VARCHAR(190),
 					topic_id bigint,
+					description VARCHAR(190),
 					payload_key VARCHAR(40),
 					param_label VARCHAR(40),
 					value_type VARCHAR(10),
@@ -565,7 +563,9 @@ export const dataBaseInitialization = async () => {
 				const queryStringDigitalTwin = `
 				CREATE TABLE IF NOT EXISTS ${tableDigitalTwin}(
 					id serial PRIMARY KEY,
-					device_id bigint,
+					group_id bigint,
+					asset_id bigint,
+					scope VARCHAR(10) NOT NULL DEFAULT 'Asset',
 					digital_twin_uid VARCHAR(40) UNIQUE,
 					description VARCHAR(190),
 					type VARCHAR(40),
@@ -574,10 +574,15 @@ export const dataBaseInitialization = async () => {
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
-					CONSTRAINT fk_device_id
-						FOREIGN KEY(device_id)
-							REFERENCES grafanadb.device(id)
+					UNIQUE (group_id, asset_id, scope),
+					CONSTRAINT fk_group_id
+						FOREIGN KEY(group_id)
+							REFERENCES grafanadb.group(id)
 							ON DELETE CASCADE,
+					CONSTRAINT fk_asset_id
+						FOREIGN KEY(asset_id)
+							REFERENCES grafanadb.asset(id)
+							ON DELETE CASCADE,							
 					CONSTRAINT fk_dashboard_id
 						FOREIGN KEY(dashboard_id)
 							REFERENCES grafanadb.dashboard(id)
@@ -600,8 +605,6 @@ export const dataBaseInitialization = async () => {
 					digital_twin_id bigint,
 					topic_id bigint,
 					topic_type VARCHAR(40),
-					created TIMESTAMPTZ,
-					updated TIMESTAMPTZ,
 					CONSTRAINT fk_digital_twin_id
 						FOREIGN KEY(digital_twin_id)
 						REFERENCES grafanadb.digital_twin(id)
@@ -617,6 +620,86 @@ export const dataBaseInitialization = async () => {
 					logger.log("info", `Table ${tableDigitalTwinTopic} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
+				}
+
+				const tableDigitalTwinDevice = "grafanadb.digital_twin_device";
+				const queryStringDigitalTwinDevice = `
+				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinDevice}(
+					digital_twin_id bigint,
+					device_id bigint,
+					device_ref VARCHAR(40),
+					already_exists boolean NOT NULL DEFAULT FALSE,
+					CONSTRAINT fk_digital_twin_id
+						FOREIGN KEY(digital_twin_id)
+						REFERENCES grafanadb.digital_twin(id)
+						ON DELETE CASCADE,
+					CONSTRAINT fk_device_id
+						FOREIGN KEY(device_id)
+						REFERENCES grafanadb.device(id)
+						ON DELETE CASCADE
+				);`;
+
+				try {
+					await postgresClient.query(queryStringDigitalTwinDevice);
+					logger.log("info", `Table ${tableDigitalTwinDevice} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableDigitalTwinDevice} can not be created: %s`, err.message);
+				}
+
+				const tableDigitalTwinSensor = "grafanadb.digital_twin_sensor";
+				const queryStringDigitalTwinSensor = `
+				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinSensor}(
+					digital_twin_id bigint,
+					sensor_id bigint,
+					sensor_ref VARCHAR(40),
+					topic_id bigint,
+					already_exists boolean NOT NULL DEFAULT FALSE,
+					CONSTRAINT fk_digital_twin_id
+						FOREIGN KEY(digital_twin_id)
+						REFERENCES grafanadb.digital_twin(id)
+						ON DELETE CASCADE,
+					CONSTRAINT fk_sensor_id
+						FOREIGN KEY(sensor_id)
+						REFERENCES grafanadb.sensor(id)
+						ON DELETE CASCADE,
+					CONSTRAINT fk_topic_id
+						FOREIGN KEY(topic_id)
+						REFERENCES grafanadb.topic(id)
+						ON DELETE CASCADE						
+				);`;
+
+				try {
+					await postgresClient.query(queryStringDigitalTwinSensor);
+					logger.log("info", `Table ${tableDigitalTwinSensor} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableDigitalTwinSensor} can not be created: %s`, err.message);
+				}
+
+				const tableDigitalTwinSensorDashboard = "grafanadb.digital_twin_sensor_dashboard";
+				const queryStringDigitalTwinSensorDashboard = `
+				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinSensorDashboard}(
+					digital_twin_id bigint,
+					sensor_id bigint,
+					dashboard_id bigint,
+					CONSTRAINT fk_digital_twin_id
+						FOREIGN KEY(digital_twin_id)
+						REFERENCES grafanadb.digital_twin(id)
+						ON DELETE CASCADE,
+					CONSTRAINT fk_sensor_id
+						FOREIGN KEY(sensor_id)
+						REFERENCES grafanadb.sensor(id)
+						ON DELETE CASCADE,
+					CONSTRAINT fk_dashboard_id
+						FOREIGN KEY(dashboard_id)
+						REFERENCES grafanadb.dashboard(id)
+						ON DELETE CASCADE						
+				);`;
+
+				try {
+					await postgresClient.query(queryStringDigitalTwinSensorDashboard);
+					logger.log("info", `Table ${tableDigitalTwinSensorDashboard} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableDigitalTwinSensorDashboard} can not be created: %s`, err.message);
 				}
 
 				const tableMLModel = "grafanadb.ml_model";
@@ -684,15 +767,7 @@ export const dataBaseInitialization = async () => {
 
 				let device: IDevice;
 				try {
-					const defaultGroupDeviceData =
-					{
-						latitude: 0.0,
-						longitude: 0.0,
-						type: "Generic",
-						iconRadio: 1.0,
-						mqttAccessControl: "Pub & Sub"
-					};
-
+					const defaultGroupDeviceData = { mqttAccessControl: "Pub & Sub" };
 					device = await createDevice(group, defaultGroupDeviceData);
 					logger.log("info", `Default group device has been created sucessfully`);
 				} catch (err) {
@@ -709,25 +784,21 @@ export const dataBaseInitialization = async () => {
 						{
 							topicType: "dev2pdb",
 							description: `Mobile temperature topic`,
-							payloadFormat: '{"temp": {"type": "number", "unit":"°C"}}',
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
 							topicType: "dev2pdb_wt",
 							description: `Mobile accelerations topic`,
-							payloadFormat: '{"mobile_accelerations": {"type": "array", "items": { "ax": {"type": "number", "units": "m/s^2"}, "ay": {"type": "number", "units": "m/s^2"}, "az": {"type": "number","units": "m/s^2"}}}}',
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
 							topicType: "dev2pdb_wt",
 							description: `Mobile orientation topic`,
-							payloadFormat: '{"mobile_quaternion":{"type":"array","items":{"q0":{"type":"number","units":"None"},"q1":{"type":"number","units":"None"},"q2":{"type":"number","units":"None"},"q3":{"type":"number","units":"None"}}}}',
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
 							topicType: "dev2dtm",
 							description: `Mobile photo topic`,
-							payloadFormat: '{"mobile_photo": {"type": "string"}}',
 							mqttAccessControl: "Pub & Sub"
 						},
 					];

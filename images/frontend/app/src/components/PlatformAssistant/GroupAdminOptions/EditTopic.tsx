@@ -142,13 +142,11 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
         topicType: topics[topicRowIndex].topicType,
         description: topics[topicRowIndex].description,
         mqttAccessControl: topics[topicRowIndex].mqttAccessControl,
-        payloadFormat: JSON.stringify(JSON.parse(topics[topicRowIndex].payloadFormat), null, 4)
     }
 
     const validationSchema = Yup.object().shape({
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        payloadFormat: Yup.string().required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -184,11 +182,6 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                                         name="mqttAccessControl"
                                         options={mqttAccessControlOptions}
                                         type='text'
-                                    />
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Payload format'
-                                        name='payloadFormat'
                                     />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

@@ -2,7 +2,8 @@ export default interface IDigitalTwin {
 	id?: number;
 	orgId: number;
 	groupId: number;
-	deviceId: number;
+	assetId: number;
+	scope: string;
 	digitalTwinUid: string;
 	description: string;
 	type: string;

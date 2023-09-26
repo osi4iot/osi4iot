@@ -149,7 +149,6 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         const topicData = {
             topicType: values.topicType,
             description: values.description,
-            payloadFormat: values.payloadFormat,
             mqttAccessControl: values.mqttAccessControl
         }
 
@@ -176,8 +175,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         deviceId: "",
         topicType: "dev2pdb",
         description: "",
-        mqttAccessControl: "Pub & Sub",
-        payloadFormat: "{}"
+        mqttAccessControl: "Pub & Sub"
     }
 
     const validationSchema = Yup.object().shape({
@@ -186,7 +184,6 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         topicName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        payloadFormat: Yup.string().required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -234,11 +231,6 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                         name="mqttAccessControl"
                                         options={mqttAccessControlOptions}
                                         type='text'
-                                    />
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Payload format'
-                                        name='payloadFormat'
                                     />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

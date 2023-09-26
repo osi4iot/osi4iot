@@ -12,7 +12,6 @@ import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import GeoNodeRedInstance from "./GeoNodeRedInstance";
-import GeoDevices from "./GeoDevices";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import GeoAssets from "./GeoAssets";
@@ -98,7 +97,6 @@ const GeoGroup: FC<GeoGroupProps> = (
     const map = useMap();
     const geoJsonLayerGroupRef = useRef(null);
     const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
-    const deviceDataArrayFiltered = deviceDataArray.filter(device => device.groupId === groupData.id);
     const assetDataArrayFiltered = assetDataArray.filter(asset => asset.groupId === groupData.id);
     const sensorDataArrayFiltered = sensorDataArray.filter(sensor => sensor.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
@@ -141,17 +139,6 @@ const GeoGroup: FC<GeoGroupProps> = (
                                 latitude={groupData.nriInGroupIconLatitude}
                                 iconRadio={groupData.nriInGroupIconRadio}
                                 nriHash={groupData.nriInGroupHash}
-                        />
-                        <GeoDevices
-                            deviceDataArray={deviceDataArrayFiltered}
-                            deviceSelected={deviceSelected}
-                            selectDevice={selectDevice}
-                            digitalTwins={digitalTwinsFiltered}
-                            digitalTwinSelected={digitalTwinSelected}
-                            selectDigitalTwin={selectDigitalTwin}
-                            digitalTwinsState={digitalTwinsState}
-                            openDigitalTwin3DViewer={openDigitalTwin3DViewer}
-                            setGlftDataLoading={setGlftDataLoading}
                         />
                         <GeoAssets
                             assetDataArray={assetDataArrayFiltered}

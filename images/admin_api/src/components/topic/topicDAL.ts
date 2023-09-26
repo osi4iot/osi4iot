@@ -8,19 +8,19 @@ import ITopicInfoForMqttAcl from "./topicInfoForMqttAcl.interface";
 
 
 export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> => {
+	const deviceId = topicData.deviceId === 0 ? null : topicData.deviceId;
 	const result = await pool.query(`INSERT INTO grafanadb.topic (device_id, topic_type,
-					description, payload_format, topic_uid,  mqtt_access_control,
+					description, topic_uid,  mqtt_access_control,
 					created, updated)
-					VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+					VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
 					RETURNING  id, device_id AS "deviceId", topic_type AS "topicType",
-					description, payload_format AS "payloadFormat", topic_uid AS "topicUid",
+					description, topic_uid AS "topicUid",
 					mqtt_access_control AS "mqttAccessControl",
 					created, updated`,
 	[
-		topicData.deviceId,
+		deviceId,
 		topicData.topicType,
 		topicData.description,
-		topicData.payloadFormat,
 		topicData.topicUid,
 		topicData.mqttAccessControl
 	]);
@@ -34,7 +34,6 @@ export const updateTopicById = async (topicId: number, topic: ITopic): Promise<v
 	await pool.query(query, [
 		topic.topicType,
 		topic.description,
-		topic.payloadFormat,
 		topic.mqttAccessControl,
 		topicId
 	]);
@@ -69,7 +68,6 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -84,7 +82,6 @@ export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number):
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -100,7 +97,6 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -118,8 +114,7 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 									grafanadb.topic.description,
 									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat"
+									grafanadb.topic.topic_uid AS "topicUid"
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
@@ -146,7 +141,6 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -164,7 +158,6 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -183,8 +176,7 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 									grafanadb.topic.description,
 									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.device.device_uid AS "deviceUid",
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat"
+									grafanadb.topic.topic_uid AS "topicUid"
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
 									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
@@ -213,7 +205,6 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
@@ -231,7 +222,6 @@ export const getTopicsByDeviceId = async (deviceId: number): Promise<ITopic[]> =
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.payload_format AS "payloadFormat",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic

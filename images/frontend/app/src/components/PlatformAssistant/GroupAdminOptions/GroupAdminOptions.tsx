@@ -535,10 +535,6 @@ const GroupAdminOptions: FC<{}> = () => {
                 .get(urlTopics, config)
                 .then((response) => {
                     const topics = response.data;
-                    topics.map((topic: { payloadFormat: Object; }) => {
-                        topic.payloadFormat = JSON.stringify(topic.payloadFormat);
-                        return topic;
-                    })
                     setTopicsTable(plaformAssistantDispatch, { topics });
                     setTopicsLoading(false);
                     const reloadTopicsTable = false;

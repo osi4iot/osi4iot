@@ -364,7 +364,6 @@ const hiddenColumnCondition = (col: any) => {
         col.accessor === "outerBounds" ||
         col.accessor === "gltfData" ||
         col.accessor === "dashboardId" ||
-        col.accessor === "payloadFormat" ||
         col.Header === "Building_Id" ||
         col.Header === "featureIndex" ||
         col.Header === "gltfFileName" ||

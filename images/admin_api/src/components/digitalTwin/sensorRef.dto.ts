@@ -1,11 +1,15 @@
 import { IsNumber, IsString } from "class-validator";
 
-class CreateSensorDto {
-	@IsNumber()
-	public assetId: number;
+
+class CreateSensorRefDto {
+	@IsString()
+	public sensorRef: string;
 
 	@IsNumber()
-	public topicId: number;
+	public sensorId: number;
+
+	@IsString()
+	public topicRef: string;
 
 	@IsString()
 	public description: string;
@@ -29,4 +33,4 @@ class CreateSensorDto {
 	public dashboardTimeWindow: string;
 }
 
-export default CreateSensorDto;
+export default CreateSensorRefDto;

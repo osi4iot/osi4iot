@@ -8,9 +8,6 @@ class CreateTopicDto {
 	public description: string;
 
 	@IsString()
-	public payloadFormat: string;
-
-	@IsString()
 	public mqttAccessControl: string;
 }
 

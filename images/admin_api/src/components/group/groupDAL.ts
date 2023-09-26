@@ -27,7 +27,6 @@ import IMembershipInGroups from "./interfaces/MembershipInGroups.interface";
 import { findGroupBounds, findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { getBuildingByOrgId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import arrayCompare from "../../utils/helpers/arrayCompare";
-import { updateGroupDevicesLocation } from "../device/deviceDAL";
 import process_env from "../../config/api_config";
 import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
 import timescaledb_pool from "../../config/timescaledb_config";
@@ -169,7 +168,6 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 		await updateGroupById(groupData);
 		if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
 			await updateGroupAssetsLocation(geoJsonDataString, groupData);
-			await updateGroupDevicesLocation(geoJsonDataString, groupData);
 			await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData)
 		}
 	}

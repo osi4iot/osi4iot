@@ -1,12 +1,6 @@
-import { IsNumber, IsString, ValidateIf } from "class-validator";
+import { IsString, ValidateIf } from "class-validator";
 
 class CreateDeviceDto {
-	@IsString()
-	public type: string;
-
-	@IsNumber()
-	public iconRadio: number;
-
 	@ValidateIf((obj) => obj.mqttPassword !== undefined)
 	@IsString()
 	public mqttPassword?: string;
@@ -16,16 +10,6 @@ class CreateDeviceDto {
 	@ValidateIf((obj) => obj.mqttAccessControl !== undefined)
 	@IsString()
 	public mqttAccessControl?: string;
-
-	@ValidateIf((obj) => obj.masterDeviceUrl !== undefined)
-	@IsString()
-	public masterDeviceUrl?: string;
-
-	@IsNumber()
-	public longitude: number;
-
-	@IsNumber()
-	public latitude: number;
 }
 
 export default CreateDeviceDto;

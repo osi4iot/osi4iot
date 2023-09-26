@@ -1,7 +1,7 @@
 export default interface IDigitalTwinState {
 	orgId: number;
 	groupId: number;
-	deviceId: number;
+	assetId: number;
 	digitalTwinId: number;
 	state: string;
 }
