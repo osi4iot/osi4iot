@@ -60,7 +60,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
     // }, [deviceData, digitalTwinsState]);
 
     const outerBounds = useMemo(() => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.001), [assetData]);
-    const bounds = useMemo(() => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.0004), [assetData]);
+    const bounds = useMemo(() => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.00045), [assetData]);
 
     const clickHandler = () => {
         map.fitBounds(outerBounds as LatLngTuple[]);

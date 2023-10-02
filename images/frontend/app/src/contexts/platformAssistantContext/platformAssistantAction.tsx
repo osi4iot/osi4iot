@@ -12,7 +12,6 @@ import {
 	IOrgsOfGroupsManagedTable,
 	IGroupsTable,
 	IOrgUsersTable,
-	IDevicesTable,
 	IGroupMembersTable,
 	IGroupsManagedTable,
 	IGroupsMembershipTable,
@@ -22,7 +21,6 @@ import {
 	IDashboardsTable,
 	IDigitalTwinsTable,
 	IReloadGroupsManagedTable,
-	IReloadDevicesTable,
 	IReloadOrgsManagedTable,
 	IReloadSelectOrgUsersTable,
 	IReloadGroupMembersTable,
@@ -174,14 +172,6 @@ export function setSensorsTable(plaformAssistantDispatch: PlatformAssistantDispa
 
 export function setReloadSensorsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadSensorsTable) {
 	plaformAssistantDispatch({ type: 'RELOAD_SENSORS_TABLE', payload: data });
-}
-
-export function setDevicesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IDevicesTable) {
-	plaformAssistantDispatch({ type: 'DEVICES_TABLE', payload: data });
-}
-
-export function setReloadDevicesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadDevicesTable) {
-	plaformAssistantDispatch({ type: 'RELOAD_DEVICES_TABLE', payload: data });
 }
 
 export function setTopicsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: ITopicsTable) {

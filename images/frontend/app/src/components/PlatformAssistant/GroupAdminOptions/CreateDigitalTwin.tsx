@@ -20,7 +20,7 @@ import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
 import { useFilePicker } from 'use-file-picker';
 import formatDateString from '../../../tools/formatDate';
-import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { setReloadDashboardsTable, setReloadSensorsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
@@ -133,7 +133,7 @@ export const getTopicSensorTypesFromDigitalTwin = (type: string, gltfData: any):
             const meshNodes: IMeshNode[] = [];
             gltfData.nodes.forEach((node: IMeshNode) => {
                 //node.mesh are not included for taking into account root nodes
-                if (node.extras !== undefined) meshNodes.push(node); 
+                if (node.extras !== undefined) meshNodes.push(node);
             })
 
             meshNodes.forEach((node: IMeshNode) => {
@@ -211,7 +211,7 @@ export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
                         const topicType = node.extras?.clipTopicType;
                         const topicId = findTopicIdForSensor(topicType, topicSensors);
                         node.extras.clipTopicId = topicId;
-                    }                
+                    }
                 }
 
             })
@@ -225,7 +225,7 @@ const protocol = getProtocol();
 
 const initialDigitalTwinData = {
     groupId: "",
-    deviceId: "",
+    assetId: "",
     description: "",
     type: "Grafana dashboard",
     digitalTwinUid: "",
@@ -256,7 +256,7 @@ interface CreateDigitalTwinProps {
 
 type FormikType = FormikProps<{
     groupId: string;
-    deviceId: string;
+    assetId: string;
     digitalTwinUid: string;
     description: string;
     type: string;
@@ -312,8 +312,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
-        const deviceId = values.deviceId;
-        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}`;
+        const assetId = values.assetId;
+        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${assetId}`;
         const config = axiosAuth(accessToken);
 
         const gltfFileName = values.gltfFileName;
@@ -328,7 +328,23 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             digitalTwinUid: values.digitalTwinUid,
             topicSensorTypes,
             maxNumResFemFiles,
-            digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat))
+            digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
+            topicsRef: [
+                { topicRef: "dev2pdb_1", topicId: 0 }
+            ],
+            sensorsRef: [{
+                sensorRef: "sensor_1",
+                sensorId: 0,
+                topicRef: "dev2pdb_1-1",
+                description: "Sensor 1",
+                payloadKey: "temperature",
+                paramLabel: "Temperature",
+                valueType: "number",
+                units: "celsius",
+                dashboardRefresh: "1s",
+                dashboardTimeWindow: "5m"
+            }
+            ]
         }
 
         setIsSubmitting(true);
@@ -344,15 +360,17 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
                 const reloadTopicsTable = true;
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadSensorsTable = true;
+                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
 
                 const configMultipart = axiosAuth(accessToken, "multipart/form-data")
                 const urlUploadGltfBase0 = `${protocol}://${domainName}/admin_api/digital_twin_upload_file`;
-                const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${deviceId}/${data.digitalTwinId}`;
+                const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${data.digitalTwinId}`;
 
                 if (Object.keys(digitalTwinGltfData).length !== 0) {
-                    let file = gltfFile as File; 
+                    let file = gltfFile as File;
                     if (values.type === "Gltf 3D model") {
                         updatedTopicSensorIdsFromDigitalTwinGltfData(
                             digitalTwinGltfData,
@@ -402,7 +420,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
-        deviceId: Yup.number().required('Required'),
+        assetId: Yup.number().required('Required'),
         digitalTwinUid: Yup.string().matches(/^DT.{21}$/, "String must be 23 characters long and start with 'DT'").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
@@ -543,8 +561,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                         />
                                         <FormikControl
                                             control='input'
-                                            label='DeviceId'
-                                            name='deviceId'
+                                            label='AssetId'
+                                            name='assetId'
                                             type='text'
                                         />
                                         <FormikControl

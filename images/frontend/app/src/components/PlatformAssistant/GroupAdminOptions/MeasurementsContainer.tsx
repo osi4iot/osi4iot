@@ -13,16 +13,14 @@ import { Create_MEASUREMENTS_COLUMNS, IMeasurement } from '../TableColumns/measu
 import TableWithPaginationAsync from '../Utils/TableWithPaginationAsync';
 import { ISelectTopic } from '../TableColumns/selectTopicColumns';
 import EditMeasurement from './EditMeasurement';
-import { IDevice } from '../TableColumns/devicesColumns';
 import timeRangeCalculator from '../../../tools/timeRangeCalculator';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { ISensor } from '../TableColumns/sensorsColumns';
 
-const giveMeasurementTopic = (devices: IDevice[], selectedTopic: ITopic) => {
-    const deviceId = selectedTopic.deviceId;
-    const deviceUid = devices.filter(device => device.id === deviceId)[0].deviceUid;
+const giveMeasurementTopic = (sensors: ISensor[], selectedTopic: ITopic) => {
     const topicUid = selectedTopic.topicUid;
-    const topic = `Device_${deviceUid}/Topic_${topicUid}`;
+    const topic = `Topic_${topicUid}`;
     return topic;
 }
 
@@ -30,11 +28,11 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 interface MeasurementsContainerProps {
-    devices: IDevice[];
+    sensors: ISensor[];
     topics: ITopic[];
 }
 
-const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics }) => {
+const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const measurementsDispatch = useMeasurementsDispatch();
@@ -49,7 +47,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ devices, topics
     const [selectedTimeRange, setSelectedTimeRange] = useState("Last 15 minutes");
 
     const groupId = selectedTopic.groupId;
-    const measurementTopic = useMemo(() => giveMeasurementTopic(devices, selectedTopic), [devices, selectedTopic]);
+    const measurementTopic = useMemo(() => giveMeasurementTopic(sensors, selectedTopic), [sensors, selectedTopic]);
 
     const updateMeasurementsTable = (measurementsTable: IMeasurement[]) => {
         setMeasurementsTable(measurementsTable);

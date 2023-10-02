@@ -179,7 +179,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
             })
     }
 
-    const initialDeviceData = {
+    const initialFloorData = {
         buildingId: floors[floorRowIndex].buildingId,
         floorNumber: floors[floorRowIndex].floorNumber,
         geoJsonData: JSON.stringify(floors[floorRowIndex].geoJsonData, null, 4)
@@ -208,7 +208,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
         <>
             <FormTitle isSubmitting={isSubmitting} >Edit floor</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialDeviceData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik initialValues={initialFloorData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => {
                             const localFileButtonHandler = () => {

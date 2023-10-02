@@ -5,7 +5,6 @@ import { IAsset } from '../TableColumns/assetsColumns';
 import { useAssetBuildingId, useAssetGroupId } from '../../../contexts/assetsOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import ElementLocationMap from '../Geolocation/ElementLocationMap';
-import { IDevice } from '../TableColumns/devicesColumns';
 
 
 interface AssetLocationContainerProps {
@@ -13,12 +12,10 @@ interface AssetLocationContainerProps {
     floors: IFloor[];
     groupsManaged: IGroupManaged[];
     assets: IAsset[];
-    devices: IDevice[];
     refreshBuildings: () => void;
     refreshFloors: () => void;
     refreshGroups: () => void;
     refreshAssets: () => void;
-    refreshDevices: () => void;
     backToOption: () => void;
     setAssetLocationData: (assetLong: number, assetLat: number) => void;
 }
@@ -29,12 +26,10 @@ const AssetLocationContainer: FC<AssetLocationContainerProps> = (
         floors,
         groupsManaged,
         assets,
-        devices,
         refreshBuildings,
         refreshFloors,
         refreshGroups,
         refreshAssets,
-        refreshDevices,
         backToOption,
         setAssetLocationData
     }) => {
@@ -43,7 +38,6 @@ const AssetLocationContainer: FC<AssetLocationContainerProps> = (
     const assetGroupId = useAssetGroupId();
     const groupManaged = groupsManaged.filter(group => group.id === assetGroupId)[0];
     const assetsInGroup = useState(assets.filter(asset => asset.groupId === assetGroupId))[0];
-    const devicesInGroup = useState(devices.filter(devices => devices.groupId === assetGroupId))[0];
     const groupFloor = useState(floors.filter(floor =>
         floor.buildingId === assetBuildingId &&
         floor.floorNumber === groupManaged.floorNumber
@@ -63,13 +57,11 @@ const AssetLocationContainer: FC<AssetLocationContainerProps> = (
             floorData={groupFloor}
             groupManaged={groupManaged}
             assetsInGroup={assetsInGroup}
-            devicesInGroup={devicesInGroup}
             featureIndex={featureIndex}
             refreshBuildings={refreshBuildings}
             refreshFloors={refreshFloors}
             refreshGroups={refreshGroups}
             refreshAssets={refreshAssets}
-            refreshDevices={refreshDevices}
             setNewOuterBounds={setNewOuterBounds}
             backToOption={backToOption}
             setElementLocationData={setAssetLocationData}

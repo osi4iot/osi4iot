@@ -202,6 +202,7 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
                 const assetId = row?.cells[0]?.value;
                 const assetInputData = {
                     groupId: row?.cells[2]?.value,
+                    assetUid: row?.cells[3]?.value,
                     description: row?.cells[4]?.value,
                     assetType: row?.cells[5]?.value,
                     iconRadio: row?.cells[6]?.value,

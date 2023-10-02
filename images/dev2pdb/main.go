@@ -65,21 +65,19 @@ func sendRowToChannelHandler1000ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowCh
 
 	topicsSlice := strings.Split(msg.Topic(), "/")
 	group_uid := topicsSlice[1][6:]
-	device_uid := topicsSlice[2][7:]
-	topic_uid := topicsSlice[3][6:]
-	topic := fmt.Sprintf("%s/%s", topicsSlice[2], topicsSlice[3])
+	topic_uid := topicsSlice[2][6:]
+	topic := fmt.Sprintf("%s", topicsSlice[2])
 	deleted := 0
 
-	item := []interface{}{group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted}
+	item := []interface{}{group_uid, topic_uid, topic, payload, timestamp, deleted}
 	rowChannel1000ms <- item
 }
 
 func sendRowToChannelHandler200ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel200ms chan []interface{}) {
 	topicsSlice := strings.Split(msg.Topic(), "/")
 	group_uid := topicsSlice[1][6:]
-	device_uid := topicsSlice[2][7:]
-	topic_uid := topicsSlice[3][6:]
-	topic := fmt.Sprintf("%s/%s", topicsSlice[2], topicsSlice[3])
+	topic_uid := topicsSlice[2][6:]
+	topic := fmt.Sprintf("%s", topicsSlice[2])
 	deleted := 0
 
 	timestampString, err := jsonparser.GetString(msg.Payload(), "timestamp");
@@ -93,7 +91,7 @@ func sendRowToChannelHandler200ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowCha
 			return
 		}
 		payload := jsonparser.Delete(msg.Payload(), "timestamp")
-		item := []interface{}{group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted}
+		item := []interface{}{group_uid, topic_uid, topic, payload, timestamp, deleted}
 		rowChannel200ms <- item
 	}
 }
@@ -102,9 +100,8 @@ func sendRowToChannelHandlerMessagedArray(dbPool *pgxpool.Pool, msg mqtt.Message
 	messagesArray := msg.Payload()
 	topicsSlice := strings.Split(msg.Topic(), "/")
 	group_uid := topicsSlice[1][6:]
-	device_uid := topicsSlice[2][7:]
-	topic_uid := topicsSlice[3][6:]
-	topic := fmt.Sprintf("%s/%s", topicsSlice[2], topicsSlice[3])
+	topic_uid := topicsSlice[2][6:]
+	topic := fmt.Sprintf("%s", topicsSlice[2])
 	deleted := 0
 
 	jsonparser.ArrayEach(messagesArray, func(message []byte, dataType jsonparser.ValueType, offset int, err error) {
@@ -119,14 +116,14 @@ func sendRowToChannelHandlerMessagedArray(dbPool *pgxpool.Pool, msg mqtt.Message
 				return
 			}
 			payload := jsonparser.Delete(message, "timestamp")
-			item := []interface{}{group_uid, device_uid, topic_uid, topic, payload, timestamp, deleted}
+			item := []interface{}{group_uid, topic_uid, topic, payload, timestamp, deleted}
 			rowChannel1000ms <- item
 		}
 	})
 }
 
 func saveRowsInDatabaseHandler(dbPool *pgxpool.Pool, rowsSlice [][]interface{}) {
-	columnsNames := []string{"group_uid", "device_uid", "topic_uid", "topic", "payload", "timestamp", "deleted"}
+	columnsNames := []string{"group_uid", "topic_uid", "topic", "payload", "timestamp", "deleted"}
 	_, err := dbPool.CopyFrom(context.Background(), pgx.Identifier{"iot_data", "thingdata"}, columnsNames, pgx.CopyFromRows(rowsSlice))
 	if err != nil {
 		// Handling error, if occur

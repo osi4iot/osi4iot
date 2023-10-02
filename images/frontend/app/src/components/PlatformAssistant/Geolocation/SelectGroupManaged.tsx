@@ -6,8 +6,8 @@ import { useGroupsManagedTable } from '../../../contexts/platformAssistantContex
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { SELECT_GROUP_MANAGED_COLUMNS, ISelectGroupManaged } from '../TableColumns/selectGroupManagedColumns';
 import { IDigitalTwinState } from './GeolocationContainer';
-import { IDevice } from '../TableColumns/devicesColumns';
 import { findOutStatus } from './statusTools';
+import { IAsset } from '../TableColumns/assetsColumns';
 
 
 const FormContainer = styled.div`
@@ -100,10 +100,10 @@ const Button = styled.button`
     }
 `;
 
-const addStateToGroupManaged = (groupsManaged: IGroupManaged, devices: IDevice[], digitalTwinsState: IDigitalTwinState[]) => {
-    const devicesFiltered = devices.filter(device => device.groupId === groupsManaged.id);
-    const devicesIdArray = devicesFiltered.map(device => device.id);
-    const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwinState => devicesIdArray.indexOf(digitalTwinState.deviceId) !== -1);
+const addStateToGroupManaged = (groupsManaged: IGroupManaged, assets: IAsset[], digitalTwinsState: IDigitalTwinState[]) => {
+    const assetsFiltered = assets.filter(asset => asset.groupId === groupsManaged.id);
+    const assetsIdArray = assetsFiltered.map(asset => asset.id);
+    const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwinState => assetsIdArray.indexOf(digitalTwinState.assetId) !== -1);
     const state = findOutStatus(digitalTwinsStateFiltered);
     return { ...groupsManaged, state };
 }
@@ -114,7 +114,6 @@ interface SelectGroupManagedProps {
     backToMap: () => void;
     groupSelected: IGroupManaged | null;
     giveGroupManagedSelected: (groupManaged: IGroupManaged) => void;
-    devices: IDevice[];
     digitalTwinsState: IDigitalTwinState[];
 }
 
@@ -125,13 +124,14 @@ const SelectGroupManaged: FC<SelectGroupManagedProps> = (
         backToMap,
         groupSelected,
         giveGroupManagedSelected,
-        devices,
+
         digitalTwinsState
     }) => {
     const [selectedGroupManaged, setSelectedGroupManaged] = useState<ISelectGroupManaged | null>(null);
     const groupsManagedTable = useGroupsManagedTable();
     const groupsManagedFiltered = groupsManagedTable.filter(group => group.orgId === orgId && group.floorNumber === floorNumber);
-    const selectGroupsManaged = useState(groupsManagedFiltered.map(group => addStateToGroupManaged(group, devices, digitalTwinsState)))[0];
+    const assets: IAsset[] = []; 
+    const selectGroupsManaged = useState(groupsManagedFiltered.map(group => addStateToGroupManaged(group, assets,digitalTwinsState)))[0];
 
     const onSubmit = () => {
         if (selectedGroupManaged) {  

@@ -16,6 +16,8 @@ export default interface IGroup {
 	outerBounds: number[][];
 	floorNumber: number;
 	featureIndex: number;
+	mqttPassword?: string;
+	mqttSalt?: string;
 	mqttAccessControl: string;
 	nriInGroupId?: number;
 	nriInGroupHash?: string;

@@ -18,9 +18,9 @@ import MobileOrientationForm from '../components/Tools/MobileOrientationForm';
 export interface InitialMobileSensorData {
     orgAcronym: string;
     groupAcronym: string;
-    deviceName: string;
+	assetName: string;
+	assetDescription: string;
     mobileSensor: string;
-    topicName: string;
 }
 
 const domainName = getDomainName();
@@ -47,20 +47,22 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 				const mobileTopics: IMobileTopic[] = response.data;
 				setMobileTopicsManaged(mobileTopics);
 				setMobileTopicSelected(mobileTopics[0]);
-				let mobileSensor = "none";;
-				if (mobileTopics[0].payloadFormat["mobile_photo"] !== undefined) {
-					mobileSensor = "photo";
-				} else if (mobileTopics[0].payloadFormat["mobile_accelerations"] !== undefined) {
-					mobileSensor = "accelerations";
-				} else if (mobileTopics[0].payloadFormat["mobile_quaternion"] !== undefined) {
-					mobileSensor = "mobile_orientation";
+				let mobileSensor = "none";
+				if (mobileTopics[0].sensorDescription === "Mobile geolocation") {
+					mobileSensor = "Mobile geolocation";
+				} else if (mobileTopics[0].sensorDescription === "Mobile accelerations") {
+					mobileSensor = "Mobile accelerations";
+				} else if (mobileTopics[0].sensorDescription === "Mobile quaternions") {
+					mobileSensor = "Mobile quaternions";
+				} else if (mobileTopics[0].sensorDescription === "Mobile photo") {
+					mobileSensor = "Mobile photo";
 				}			
 				const initialMobileSensorData = {
 					orgAcronym: mobileTopics[0].orgAcronym,
 					groupAcronym: mobileTopics[0].groupAcronym,
-					deviceName: mobileTopics[0].deviceName,
+					assetName: `Asset_${mobileTopics[0].assetUid}`,
+					assetDescription: mobileTopics[0].assetDescription,
 					mobileSensor: mobileSensor,
-					topicName: mobileTopics[0].topicName
 				}
 				setInitialMobileSensorData(initialMobileSensorData);
 			})
@@ -95,7 +97,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 						/>
 					}
 					{
-						mobileSensorSelected === "accelerations" &&
+						mobileSensorSelected === "Mobile accelerations" &&
 						<MobileAccelerationForm
 							mqttClient={mqttClient as Paho.Client}
 							isMqttConnected={isMqttConnected}
@@ -104,7 +106,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 						/>
 					}
 					{
-						mobileSensorSelected === "mobile_orientation" &&
+						mobileSensorSelected === "Mobile orientation" &&
 						<MobileOrientationForm
 							mqttClient={mqttClient as Paho.Client}
 							isMqttConnected={isMqttConnected}
@@ -113,7 +115,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 						/>
 					}					
 					{
-						mobileSensorSelected === "photo" &&
+						mobileSensorSelected === "Mobile photo" &&
 						<MobilePhotoForm
 							mqttClient={mqttClient as Paho.Client}
 							isMqttConnected={isMqttConnected}

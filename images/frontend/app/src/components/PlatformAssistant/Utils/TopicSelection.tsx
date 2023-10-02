@@ -81,10 +81,6 @@ const TopicSelection: FC<TopicSelectionProps> = ({ selectedTopic, showMeasuremen
                 <div>{selectedTopic.groupId}</div>
             </ItemContainer>
             <ItemContainer>
-                <label>DeviceId</label>
-                <div>{selectedTopic.deviceId}</div>
-            </ItemContainer>
-            <ItemContainer>
                 <label>Type</label>
                 <div>{selectedTopic.topicType}</div>
             </ItemContainer>            

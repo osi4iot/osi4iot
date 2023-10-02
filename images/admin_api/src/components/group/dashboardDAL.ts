@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from "uuid";
 import pool from "../../config/dbconfig";
-import IDevice from "../device/device.interface";
 import ITopic from "../topic/topic.interface";
 import { createAlert } from "./alertDAL";
 import { accelDashboardJson } from "./defaultDashboards/accelDashboardJson";
@@ -20,7 +19,6 @@ import { getOrganizationKey } from "../organization/organizationDAL";
 import IDataSource from "./interfaces/DataSource.interface";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { getTopicByProp } from "../topic/topicDAL";
-import { getDeviceByProp } from "../device/deviceDAL";
 
 export const insertDashboard = async (orgId: number, folderId: number, title: string, data: any): Promise<any> => {
 	const now = new Date();
@@ -43,6 +41,11 @@ export const insertDashboard = async (orgId: number, folderId: number, title: st
 
 export const deleteDashboard = async (dashboardId: number): Promise<void> => {
 	await pool.query(`DELETE FROM grafanadb.dashboard WHERE grafanadb.dashboard.id = $1`, [dashboardId]);
+};
+
+export const deleteDashboardsByIdArray = async (idArray: number[]): Promise<void> => {
+	const queryString = `DELETE FROM grafanadb.dashboard WHERE grafanadb.dashboard.id = ANY($1::bigint[]);`;
+	await pool.query(queryString, [idArray]);
 };
 
 export const getDashboardsDataOfGroup = async (group: IGroup): Promise<IDashboardData[]> => {
@@ -81,27 +84,6 @@ export const updateDashboardsDataRawSqlOfGroup = async (group: IGroup, newGroupU
 				for (const target of targets) {
 					if (target.rawSql !== "") {
 						target.rawSql = target.rawSql.replace(group.groupUid, newGroupUid);
-					}
-				}
-			}
-		}
-		const now = new Date();
-		const query = pool.query('UPDATE grafanadb.dashboard SET updated = $1, data = $2 WHERE id = $3', [now, data, dashboard.id]);
-		updateRawSqlQueries.push(query);
-	});
-	await Promise.all(updateRawSqlQueries);
-};
-
-export const updateDashboardsDataRawSqlOfDevice = async (device: IDevice, newDeviceUid: string, dashboardsWithRawSql: IDashboardData[]): Promise<void> => {
-	const updateRawSqlQueries: any[] = [];
-	dashboardsWithRawSql.forEach(dashboard => {
-		const data = JSON.parse(dashboard.data);
-		for (const panel of data.panels) {
-			if (panel.datasource) {
-				const targets = panel.targets;
-				for (const target of targets) {
-					if (target.rawSql !== "" && target.rawSql.search(device.deviceUid) !== -1) {
-						target.rawSql = target.rawSql.replace(device.deviceUid, newDeviceUid);
 					}
 				}
 			}
@@ -173,7 +155,7 @@ export const createHomeDashboard = async (orgId: number, orgAcronym: string, org
 	await insertPreference(orgId, response.id);
 };
 
-export const createDemoDashboards = async (group: IGroup, device: IDevice, topics: Partial<ITopic>[]): Promise<number[]> => {
+export const createDemoDashboards = async (group: IGroup, topics: Partial<ITopic>[]): Promise<number[]> => {
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);
 	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;
@@ -183,9 +165,8 @@ export const createDemoDashboards = async (group: IGroup, device: IDevice, topic
 	tempDashboard.uid = uuidv4();
 	tempDashboard.title = titleTempDashboard;
 	const tableHash = `Table_${group.groupUid}`;
-	const deviceHash = `Device_${device.deviceUid}`;
 	const topic1Hash = `Topic_${topics[0].topicUid}`;
-	const rawSqlTemp = `SELECT timestamp AS \"time\", CAST(payload->>'temperature' AS DOUBLE PRECISION) AS \"Temperature\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topic1Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	const rawSqlTemp = `SELECT timestamp AS \"time\", CAST(payload->>'temperature' AS DOUBLE PRECISION) AS \"Temperature\" FROM  iot_datasource.${tableHash} WHERE topic = '${topic1Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	for (let i = 0; i < 3; i++) {
 		tempDashboard.panels[i].targets[0].rawSql = rawSqlTemp;
 		tempDashboard.panels[i].datasource = dataSourceName;
@@ -212,7 +193,7 @@ export const createDemoDashboards = async (group: IGroup, device: IDevice, topic
 	accelDashboard.panels[0].alert.notifications[0].uid = emailNotificationChannelUid;
 	accelDashboard.panels[0].alert.notifications[1].uid = telegramNotificationChannelUid;;
 	const topic2Hash = `Topic_${topics[1].topicUid}`;
-	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->'accelerations'->>0 AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->'accelerations'->>1 AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->'accelerations'->>2 AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	const rawSqlAccel = `SELECT timestamp AS \"time\", CAST(payload->'accelerations'->>0 AS DOUBLE PRECISION) AS \"Ax\", CAST(payload->'accelerations'->>1 AS DOUBLE PRECISION) AS \"Ay\", CAST(payload->'accelerations'->>2 AS DOUBLE PRECISION) AS \"Az\" FROM  iot_datasource.${tableHash} WHERE topic = '${topic2Hash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	accelDashboard.panels[0].targets[0].rawSql = rawSqlAccel;
 	const accelDashboardCreated = await insertDashboard(group.orgId, group.folderId, titleAccelDashboard, accelDashboard);
 
@@ -227,7 +208,7 @@ export const createDemoDashboards = async (group: IGroup, device: IDevice, topic
 	return [tempDashboardCreated.id as number, accelDashboardCreated.id as number];
 };
 
-export const createDashboard = async (group: IGroup, deviceUid: string, topicUid: string, dashboardTitle: string): Promise<number> => {
+export const createDashboard = async (group: IGroup, topicUid: string, dashboardTitle: string): Promise<number> => {
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);
 	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;;
@@ -235,11 +216,10 @@ export const createDashboard = async (group: IGroup, deviceUid: string, topicUid
 	dashboard.uid = uuidv4();
 	dashboard.title = dashboardTitle;
 	const tableHash = `Table_${group.groupUid}`;
-	const deviceHash = `Device_${deviceUid}`;
 	let rawSql = "";
 	if (topicUid !== undefined) {
 		const topicHash = `Topic_${topicUid}`;
-		rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'parameter' AS DOUBLE PRECISION) AS \"Parameter\" FROM  iot_datasource.${tableHash} WHERE topic = '${deviceHash}/${topicHash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+		rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'parameter' AS DOUBLE PRECISION) AS \"Parameter\" FROM  iot_datasource.${tableHash} WHERE topic = '${topicHash}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
 	}
 	dashboard.panels[0].targets[0].rawSql = rawSql;
 	dashboard.panels[0].targets[0].datasource.uid = dataSource.uid;
@@ -254,7 +234,6 @@ export const createSensorDashboard = async (
 	sensorsUid: string
 ): Promise<number> => {
 	const topic = await getTopicByProp("id", sensorData.topicId);
-	const device = await getDeviceByProp("id", topic.deviceId)
 
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);
@@ -263,9 +242,8 @@ export const createSensorDashboard = async (
 	dashboard.uid = uuidv4();
 	dashboard.title = `Sensor_${sensorsUid} - ${sensorData.description}`;
 	const tableHash = `Table_${group.groupUid}`;
-	const deviceHash = `Device_${device.deviceUid}`;
 	const topicHash = `Topic_${topic.topicUid}`;
-	const topicString = `${deviceHash}/${topicHash}`;
+	const topicString = `${topicHash}`;
 	let rawSql = "";
 	const numComponent = Number(sensorData.valueType.slice(7, -1));
 	const payloadKey = sensorData.payloadKey;
@@ -292,8 +270,6 @@ export const createSensorDashboard = async (
 
 	return dashboardCreated.id as number;
 };
-
-
 
 const createTempDemoAlert = (orgId: number, dashboardId: number, panelId: number, settings: any): Partial<IAlert> => {
 	const alert: Partial<IAlert> = {
@@ -324,7 +300,7 @@ const createAccelDemoAlert = (orgId: number, dashboardId: number, panelId: numbe
 		panelId,
 		orgId,
 		name: "Acceleration evolution alert",
-		message: "Acceleration of some axis of the mobile device has exceeded 40 m/s^2.",
+		message: "Acceleration of some axis of the mobile has exceeded 40 m/s^2.",
 		state: 'unknown',
 		settings,
 		frequency: 20,

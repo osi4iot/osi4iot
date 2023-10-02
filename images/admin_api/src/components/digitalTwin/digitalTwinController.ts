@@ -47,7 +47,6 @@ import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import s3Client from "../../config/s3Config";
 import process_env from "../../config/api_config";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
-import IRequestWithDigitalTwinDeviceAndGroup from "../group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
 import UpdateDigitalTwinDto from "./digitalTwinUpdate.dto";
 import { assetAndGroupExist } from "../../middleware/assetAndGroupExist.middleware";
 import digitalTwinAndGroupExist from "../../middleware/digitalTwinAndGroupExist.middleware";
@@ -61,7 +60,7 @@ const uploadDigitalTwinFile = multer({
 		metadata: (req, file, cb) => {
 			cb(null, { fieldName: file.fieldname });
 		},
-		key: (req: IRequestWithDigitalTwinDeviceAndGroup, file, cb) => {
+		key: (req: IRequestWithDigitalTwinAndGroup, file, cb) => {
 			const group = req.group;
 			const { groupId, digitalTwinId, folder, fileName } = req.params;
 			const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;

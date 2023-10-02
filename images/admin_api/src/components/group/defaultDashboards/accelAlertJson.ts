@@ -58,7 +58,7 @@ export const accelAlertJson =
         "for": "0m",
         "frequency": "10s",
         "handler": 1,
-        "message": "The acceleration of some axis of the mobile device has exceeded 40 m/s^2.",
+        "message": "The acceleration of some axis of the mobile has exceeded 40 m/s^2.",
         "name": "Acceleration evolution alert",
         "noDataState": "ok",
         "notifications": [

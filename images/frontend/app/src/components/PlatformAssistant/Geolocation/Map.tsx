@@ -11,7 +11,6 @@ import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { IDevice } from '../TableColumns/devicesColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { IDigitalTwinState } from './GeolocationContainer';
@@ -321,30 +320,6 @@ const GroupsControl: FC<GroupsControlProps> = ({ groupSelected, selectGroupOptio
     )
 }
 
-interface DevicesControlProps {
-    deviceSelected: IDevice | null;
-    selectDeviceOption: () => void;
-}
-
-const DevicesControl: FC<DevicesControlProps> = ({ deviceSelected, selectDeviceOption }) => {
-
-    const clickHandler = () => {
-        selectDeviceOption();
-    };
-
-    return (
-        <ComponentControlContainer>
-            <ComponentLabel>Device:</ComponentLabel>
-            <ComponentSelection>
-                <ComponentName>
-                    {deviceSelected ? `Device_${deviceSelected.deviceUid}` : ""}
-                </ComponentName>
-                <SelectionButton onClick={clickHandler} >Select</SelectionButton>
-            </ComponentSelection>
-        </ComponentControlContainer>
-    )
-}
-
 interface MapEventProps {
     setNewOuterBounds: (outerBounds: number[][]) => void;
 }
@@ -372,7 +347,6 @@ interface MapProps {
     groupsManaged: IGroupManaged[];
     assets: IAsset[];
     sensors: ISensor[];
-    devices: IDevice[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
     selectBuilding: (buildingSelected: IBuilding) => void;
@@ -386,8 +360,6 @@ interface MapProps {
     selectAsset: (assetSelected: IAsset) => void;
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor) => void;    
-    deviceSelected: IDevice | null;
-    selectDevice: (deviceSelected: IDevice) => void;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinsSelected: IDigitalTwin) => void;
     refreshBuildings: () => void;
@@ -396,7 +368,6 @@ interface MapProps {
     refreshGroupsManaged: () => void;
     refreshAssets: () => void;
     refreshSensors: () => void;
-    refreshDevices: () => void;
     refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
     outerBounds: number[][];
@@ -404,7 +375,6 @@ interface MapProps {
     selectOrgOption: () => void;
     selectFloorOption: () => void;
     selectGroupOption: () => void;
-    selectDeviceOption: () => void;
     selectDigitalTwinOption: () => void;
     resetBuildingSelection: () => void;
     digitalTwinsState: IDigitalTwinState[];
@@ -421,7 +391,6 @@ const Map: FC<MapProps> = (
         groupsManaged,
         assets,
         sensors,
-        devices,
         digitalTwins,
         buildingSelected,
         selectBuilding,
@@ -434,9 +403,7 @@ const Map: FC<MapProps> = (
         assetSelected,
         selectAsset,
         sensorSelected,
-        selectSensor,        
-        deviceSelected,
-        selectDevice,
+        selectSensor,
         digitalTwinSelected,
         selectDigitalTwin,
         refreshBuildings,
@@ -445,7 +412,6 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged,
         refreshAssets,
         refreshSensors,
-        refreshDevices,
         refreshDigitalTwins,
         initialOuterBounds,
         outerBounds,
@@ -453,7 +419,6 @@ const Map: FC<MapProps> = (
         selectOrgOption,
         selectFloorOption,
         selectGroupOption,
-        selectDeviceOption,
         selectDigitalTwinOption,
         resetBuildingSelection,
         digitalTwinsState,
@@ -470,7 +435,6 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged();
         refreshAssets();
         refreshSensors();
-        refreshDevices();
         refreshDigitalTwins();
     }, [
         refreshBuildings,
@@ -479,7 +443,6 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged,
         refreshAssets,
         refreshSensors,
-        refreshDevices,
         refreshDigitalTwins
     ])
 
@@ -521,9 +484,6 @@ const Map: FC<MapProps> = (
                     sensorDataArray={sensors}
                     sensorSelected={sensorSelected}
                     selectSensor={selectSensor}
-                    deviceDataArray={devices}
-                    deviceSelected={deviceSelected}
-                    selectDevice={selectDevice}
                     digitalTwins={digitalTwins}
                     digitalTwinSelected={digitalTwinSelected}
                     selectDigitalTwin={selectDigitalTwin}
@@ -555,13 +515,6 @@ const Map: FC<MapProps> = (
                         <GroupsControl
                             groupSelected={groupSelected}
                             selectGroupOption={selectGroupOption}
-                        />
-                    }
-                    {
-                        (orgSelected && floorSelected && groupSelected) &&
-                        <DevicesControl
-                            deviceSelected={deviceSelected}
-                            selectDeviceOption={selectDeviceOption}
                         />
                     }
                 </ComponentsControlContainer>

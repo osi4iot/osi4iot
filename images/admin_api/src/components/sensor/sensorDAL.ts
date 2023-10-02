@@ -56,7 +56,7 @@ export const deleteSensorByPropName = async (propName: string, propValue: (strin
 };
 
 export const deleteSensorsByIdArray = async (sensorsId: number[]): Promise<void> => {
-	await pool.query(`DELETE FROM grafanadb.sensor WHERE id = ANY($1::bigint[]`, [sensorsId]);
+	await pool.query(`DELETE FROM grafanadb.sensor WHERE id = ANY($1::bigint[]);`, [sensorsId]);
 };
 
 export const createNewSensor = async (

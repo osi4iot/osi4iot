@@ -11,12 +11,10 @@ import {
 } from "../components/group/groupDAL";
 import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
 import { createHomeDashboard, createSensorDashboard } from "../components/group/dashboardDAL";
-import { createDevice } from "../components/device/deviceDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import { createTopic } from "../components/topic/topicDAL";
 import process_env from "../config/api_config";
-import IDevice from "../components/device/device.interface";
 import needle from "needle";
 import ITopic from "../components/topic/topic.interface";
 import { createFictitiousUserForService } from "../components/user/userDAL";
@@ -354,7 +352,9 @@ export const dataBaseInitialization = async () => {
 					floor_number integer NOT NULL DEFAULT 0,
 					feature_index integer NOT NULL DEFAULT 0,
 					outer_bounds float8[2][2],
-					 mqtt_access_control VARCHAR(10),
+					mqtt_access_control VARCHAR(10),
+					mqtt_password VARCHAR(255),
+					mqtt_salt VARCHAR(40),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_org_id
@@ -415,40 +415,6 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);
 				}
 
-				const tableDevice = "grafanadb.device";
-				const queryStringDevice = `
-				CREATE TABLE IF NOT EXISTS ${tableDevice}(
-					id serial PRIMARY KEY,
-					org_id bigint,
-					group_id bigint,
-					device_uid VARCHAR(40) UNIQUE,
-					type VARCHAR(40),
-					mqtt_password VARCHAR(255),
-					mqtt_salt VARCHAR(40),
-					mqtt_access_control VARCHAR(10),
-					master_device_url VARCHAR(255),
-					created TIMESTAMPTZ,
-					updated TIMESTAMPTZ,
-					CONSTRAINT fk_org_id
-						FOREIGN KEY(org_id)
-							REFERENCES grafanadb.org(id)
-							ON DELETE CASCADE,
-					CONSTRAINT fk_group_id
-						FOREIGN KEY(group_id)
-							REFERENCES grafanadb.group(id)
-							ON DELETE CASCADE
-				);
-				
-				CREATE INDEX IF NOT EXISTS idx_device_uid
-				ON grafanadb.device(device_uid);`;
-
-				try {
-					await postgresClient.query(queryStringDevice);
-					logger.log("info", `Table ${tableDevice} has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Table ${tableDevice} can not be created: %s`, err.message);
-				}
-
 				const tableAsset = "grafanadb.asset";
 				const queryStringAsset = `
 				CREATE TABLE IF NOT EXISTS ${tableAsset}(
@@ -497,16 +463,16 @@ export const dataBaseInitialization = async () => {
 				const queryStringTopic = `
 				CREATE TABLE IF NOT EXISTS ${tableTopic}(
 					id serial PRIMARY KEY,
-					device_id bigint,
+					group_id bigint,
 					topic_type VARCHAR(40),
 					description VARCHAR(190),
 					topic_uid VARCHAR(40) UNIQUE,
 					mqtt_access_control VARCHAR(10),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
-					CONSTRAINT fk_device_id
-						FOREIGN KEY(device_id)
-							REFERENCES grafanadb.device(id)
+					CONSTRAINT fk_group_id
+						FOREIGN KEY(group_id)
+							REFERENCES grafanadb.group(id)
 							ON DELETE CASCADE
 				);
 
@@ -622,30 +588,6 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
 				}
 
-				const tableDigitalTwinDevice = "grafanadb.digital_twin_device";
-				const queryStringDigitalTwinDevice = `
-				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinDevice}(
-					digital_twin_id bigint,
-					device_id bigint,
-					device_ref VARCHAR(40),
-					already_exists boolean NOT NULL DEFAULT FALSE,
-					CONSTRAINT fk_digital_twin_id
-						FOREIGN KEY(digital_twin_id)
-						REFERENCES grafanadb.digital_twin(id)
-						ON DELETE CASCADE,
-					CONSTRAINT fk_device_id
-						FOREIGN KEY(device_id)
-						REFERENCES grafanadb.device(id)
-						ON DELETE CASCADE
-				);`;
-
-				try {
-					await postgresClient.query(queryStringDigitalTwinDevice);
-					logger.log("info", `Table ${tableDigitalTwinDevice} has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Table ${tableDigitalTwinDevice} can not be created: %s`, err.message);
-				}
-
 				const tableDigitalTwinSensor = "grafanadb.digital_twin_sensor";
 				const queryStringDigitalTwinSensor = `
 				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinSensor}(
@@ -653,7 +595,7 @@ export const dataBaseInitialization = async () => {
 					sensor_id bigint,
 					sensor_ref VARCHAR(40),
 					topic_id bigint,
-					already_exists boolean NOT NULL DEFAULT FALSE,
+					already_created boolean NOT NULL DEFAULT FALSE,
 					CONSTRAINT fk_digital_twin_id
 						FOREIGN KEY(digital_twin_id)
 						REFERENCES grafanadb.digital_twin(id)
@@ -765,25 +707,15 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `NodeRed instance can not be assigned to group with id: ${group.id}: %s`, err.message);
 				}
 
-				let device: IDevice;
-				try {
-					const defaultGroupDeviceData = { mqttAccessControl: "Pub & Sub" };
-					device = await createDevice(group, defaultGroupDeviceData);
-					logger.log("info", `Default group device has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Default group device could not be created: %s`, err.message);
-				}
-
-
 				let topic1: ITopic;
 				let topic2: ITopic;
 				let topic3: ITopic;
 				let topic4: ITopic;
 				try {
-					const defaultDeviceTopicsData = [
+					const topicsDataForMobileAsset = [
 						{
 							topicType: "dev2pdb",
-							description: `Mobile temperature topic`,
+							description: `Mobile geolocation topic`,
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
@@ -800,16 +732,16 @@ export const dataBaseInitialization = async () => {
 							topicType: "dev2dtm",
 							description: `Mobile photo topic`,
 							mqttAccessControl: "Pub & Sub"
-						},
+						}
 					];
-					topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
-					topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
-					topic3 = await createTopic(device.id, defaultDeviceTopicsData[2]);
-					topic4 = await createTopic(device.id, defaultDeviceTopicsData[3]);
+					topic1 = await createTopic(group.id, topicsDataForMobileAsset[0]);
+					topic2 = await createTopic(group.id, topicsDataForMobileAsset[1]);
+					topic3 = await createTopic(group.id, topicsDataForMobileAsset[2]);
+					topic4 = await createTopic(group.id, topicsDataForMobileAsset[3]);
 
-					logger.log("info", `Default device topics has been created sucessfully`);
+					logger.log("info", `Topics for mobile asset has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Default device topics could not be created: %s`, err.message);
+					logger.log("error", `Topics for mobile asset could not be created: %s`, err.message);
 				}
 
 				const sensorsData: CreateSensorDto[] = [];
@@ -818,12 +750,12 @@ export const dataBaseInitialization = async () => {
 				sensorsData[0] =
 				{
 					assetId: asset.id,
-					description: `Temperature sensor`,
+					description: `Mobile geolocation`,
 					topicId: topic1.id,
-					payloadKey: "temperature",
-					paramLabel: "Temperature",
-					valueType: "number",
-					units: "°C",
+					payloadKey: "mobile_geolocation",
+					paramLabel: "longitude,latitude",
+					valueType: "number(2)",
+					units: "-",
 					dashboardRefresh: "1s",
 					dashboardTimeWindow: "5m"
 				};

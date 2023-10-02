@@ -15,9 +15,8 @@ import { getUserdByEmailOrLogin, getUserLoginDatadByEmailOrLogin, isThisUserOrgA
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
 import { deleteRefreshToken, deleteRefreshTokenById, deleteUserRefreshTokens, exitsRefreshToken, getAllRefreshTokens, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
-import { getFullDeviceDataById, getNumDevices, getNumDevicesByGroupsIdArray } from "../device/deviceDAL";
 import { getNumOrganizations, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
-import { getAllGroupsInOrgArray, getGroupsManagedByUserId, getNumGroups, isThisUserGroupAdmin } from "../group/groupDAL";
+import { getAllGroupsInOrgArray, getFullGroupDataById, getGroupsManagedByUserId, getNumGroups, isThisUserGroupAdmin } from "../group/groupDAL";
 import IComponentsManagedByUser from "./ComponentsManagedByUser.interface";
 import generateLastSeenAtAgeString from "../../utils/helpers/generateLastSeenAtAgeString";
 import CreateUserDto from "../user/interfaces/User.dto";
@@ -27,6 +26,10 @@ import process_env from "../../config/api_config";
 import { getTopicInfoForMqttAclByTopicUid } from "../topic/topicDAL";
 import ITopicInfoForMqttAcl from "../topic/topicInfoForMqttAcl.interface";
 import { getNodeRedInstanceByProp } from "../nodeRedInstance/nodeRedInstanceDAL";
+import { getNumAssets, getNumAssetsByGroupsIdArray } from "../asset/assetDAL";
+import { getNumSensors, getNumSensorsByGroupsIdArray } from "../sensor/sensorDAL";
+import { getNumDigitalTwins, getNumDigitalTwinsByGroupsIdArray } from "../digitalTwin/digitalTwinDAL";
+import { getNumMLModelsByGroupsIdArray } from "../ml_model/ml_modelDAL";
 
 interface IJwtPayload {
 	id: string;
@@ -191,14 +194,14 @@ class AuthenticationController implements IController {
 					res.status(400).json({ Ok: false, Error: "Bad request" });
 					return;
 				}
-			} else if (usernameArray[0] === "device") {
-				const deviceId = parseInt(usernameArray[1], 10);
-				const device = await getFullDeviceDataById(deviceId);
-				if (!device) {
-					res.status(400).json({ Ok: false, Error: "Device not registered" });
+			} else if (usernameArray[0] === "group") {
+				const groupId = parseInt(usernameArray[1], 10);
+				const group = await getFullGroupDataById(groupId);
+				if (!group) {
+					res.status(400).json({ Ok: false, Error: "Group not registered" });
 					return
 				}
-				const match = verifiyPassword(password, device.mqttPassword, device.mqttSalt);
+				const match = verifiyPassword(password, group.mqttPassword, group.mqttSalt);
 				if (!match) {
 					res.status(400).json({ Ok: false, Error: "Password not correct" });
 					return
@@ -278,12 +281,6 @@ class AuthenticationController implements IController {
 					return
 				}
 
-				const deviceHash = topicArray[2].slice(7);
-				if (deviceHash !== topicData.deviceHash) {
-					res.status(400).json({ Ok: false, Error: "Incorrect device hash" });
-					return
-				};
-
 				const topicType = topicArray[0];
 				if (topicType !== topicData.topicType) {
 					res.status(400).json({ Ok: false, Error: "Incorrect topic type" });
@@ -292,11 +289,6 @@ class AuthenticationController implements IController {
 
 				if (topicData.topicAccessControl === "None") {
 					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the topic with id: ${topicData.topicId}` });
-					return
-				}
-
-				if (topicData.deviceAccessControl === "None") {
-					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the device with id: ${topicData.deviceId}` });
 					return
 				}
 
@@ -320,15 +312,6 @@ class AuthenticationController implements IController {
 					return
 				}
 
-				if ((acc === 1 || acc === 4) && !(topicData.deviceAccessControl === "Sub" || topicData.deviceAccessControl === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the device with id: ${topicData.deviceId}` });
-					return
-				}
-
-				if ((acc === 2 || acc === 3) && !(topicData.deviceAccessControl === "Pub" || topicData.deviceAccessControl === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the device with id: ${topicData.deviceId}` });
-					return
-				}
 
 				if ((acc === 1 || acc === 4) && !(topicData.groupAccessControl === "Sub" || topicData.groupAccessControl === "Pub & Sub")) {
 					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the group with id: ${topicData.groupId}` });
@@ -354,10 +337,10 @@ class AuthenticationController implements IController {
 			}
 
 			const usernameArray = username.split("_");
-			if (usernameArray[0] === "device") {
-				const deviceId = parseInt(usernameArray[1],10);
-				if (deviceId !== topicData.deviceId) {
-					res.status(400).json({ Ok: false, Error: "Device not registered" });
+			if (usernameArray[0] === "group") {
+				const groupId = parseInt(usernameArray[1],10);
+				if (groupId !== topicData.groupId) {
+					res.status(400).json({ Ok: false, Error: "Group not registered" });
 					return
 				}
 			} else if (usernameArray[0] === "nri") {
@@ -564,18 +547,24 @@ class AuthenticationController implements IController {
 				userRole: "User",
 				numOrganizationsManaged: 0,
 				numGroupsManaged: 0,
-				numDevicesManaged: 0
+				numAssetsManaged: 0,
+				numSensorsManaged: 0,
+				numDigitalTwinsManaged: 0,
+				numMLModelsManaged: 0,
 			};
 
 			if (req.user.isGrafanaAdmin) {
 				componentsManaged.userRole = "PlatformAdmin";
 				componentsManaged.numOrganizationsManaged = await getNumOrganizations();
 				componentsManaged.numGroupsManaged = await getNumGroups();
-				componentsManaged.numDevicesManaged = await getNumDevices();
+				componentsManaged.numAssetsManaged = await getNumAssets();
+				componentsManaged.numSensorsManaged = await getNumSensors();
+				componentsManaged.numDigitalTwinsManaged = await getNumDigitalTwins();
 			} else {
 				const organizationsManagedByUser = await getOrganizationsManagedByUserId(req.user.id);
 				const groupsManagedByUser = await getGroupsManagedByUserId(req.user.id);
 				const allGroupsManagedByUser = [...groupsManagedByUser];
+				const groupsIdArray = [];
 				if (organizationsManagedByUser.length) {
 					componentsManaged.userRole = "OrgAdmin";
 					componentsManaged.numOrganizationsManaged = organizationsManagedByUser.length;
@@ -586,17 +575,19 @@ class AuthenticationController implements IController {
 						if (groupsIdArrayManagedByUser.indexOf(groupInOrg.id) === -1) allGroupsManagedByUser.push(groupInOrg);
 					});
 					componentsManaged.numGroupsManaged = allGroupsManagedByUser.length;
-					const allGroupsIdArrayManagedByUser = allGroupsManagedByUser.map(group => group.id);
-					componentsManaged.numDevicesManaged = await getNumDevicesByGroupsIdArray(allGroupsIdArrayManagedByUser);
+					groupsIdArray.push(...allGroupsManagedByUser.map(group => group.id));
 				}
 				else {
 					if (groupsManagedByUser.length !== 0) {
 						componentsManaged.userRole = "GroupAdmin";
 						componentsManaged.numGroupsManaged = groupsManagedByUser.length;
-						const allGroupsIdArrayManagedByUser = allGroupsManagedByUser.map(group => group.id);
-						componentsManaged.numDevicesManaged = await getNumDevicesByGroupsIdArray(allGroupsIdArrayManagedByUser);
+						groupsIdArray.push(...allGroupsManagedByUser.map(group => group.id));
 					}
 				}
+				componentsManaged.numAssetsManaged = await getNumAssetsByGroupsIdArray(groupsIdArray);
+				componentsManaged.numSensorsManaged = await getNumSensorsByGroupsIdArray(groupsIdArray);
+				componentsManaged.numDigitalTwinsManaged = await getNumDigitalTwinsByGroupsIdArray(groupsIdArray);
+				componentsManaged.numMLModelsManaged = await getNumMLModelsByGroupsIdArray(groupsIdArray);
 			}
 			res.status(200).send(componentsManaged);
 		} catch (error) {

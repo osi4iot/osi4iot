@@ -15,7 +15,10 @@ export interface AuthContextProps {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
-	numDevicesManage: number;
+	numAssetsManaged: number;
+	numSensorsManaged: number;
+	numDigitalTwinsManaged: number;
+	numMLModelsManaged: number;
 	loading: boolean;
 	errorMessage: string | null;
 }
@@ -27,7 +30,10 @@ export interface AuthActionPayload {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
-	numDevicesManage: number;
+	numAssetsManaged: number;
+	numSensorsManaged: number;
+	numDigitalTwinsManaged: number;
+	numMLModelsManaged: number;
 }
 
 export interface AuthAction {

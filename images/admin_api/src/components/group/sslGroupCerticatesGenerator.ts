@@ -2,11 +2,10 @@ import fs from "fs";
 import mkcert from "mkcert";
 import { nanoid } from "nanoid";
 import process_env from "../../config/api_config";
-import IDevice from "./device.interface";
-import { updateMqttPasswordOfDeviceById } from "./deviceDAL";
 import ISSLCertificates from "./ISSLCertificates";
+import { updateMqttPasswordOfGroupById } from "./groupDAL";
 
-const sslDeviceCerticatesGenerator = async (device: IDevice): Promise<ISSLCertificates> => {
+const sslGroupCerticatesGenerator = async (groupId: number): Promise<ISSLCertificates> => {
 
 	const ca_crt = fs.readFileSync("/run/secrets/ca.crt");
 	const ca_key = fs.readFileSync("/run/secrets/ca.key");
@@ -17,9 +16,9 @@ const sslDeviceCerticatesGenerator = async (device: IDevice): Promise<ISSLCertif
 		cert: ca_crt.toString(),
 	};
 
-	const username = `device_${device.id}`;
+	const username = `group_${groupId}`;
 	const mqttPassword = nanoid(16).replace(/-/g, "x").replace(/_/g, "X");
-	await updateMqttPasswordOfDeviceById(device, mqttPassword);
+	await updateMqttPasswordOfGroupById(groupId, mqttPassword);
 
 	const clientCerts = await mkcert.createCert({
 		domains: [username],
@@ -40,4 +39,4 @@ const sslDeviceCerticatesGenerator = async (device: IDevice): Promise<ISSLCertif
 	return certs;
 }
 
-export default sslDeviceCerticatesGenerator;
+export default sslGroupCerticatesGenerator;

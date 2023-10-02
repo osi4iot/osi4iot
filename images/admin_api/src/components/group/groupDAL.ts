@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../../config/winston";
+import crypto from 'crypto';
 import pool from "../../config/dbconfig";
 import grafanaApi from "../../GrafanaApi";
 import IEmailNotificationChannelSettings from "../../GrafanaApi/interfaces/EmailNotificationChannelSettings";;
@@ -32,6 +33,8 @@ import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedIn
 import timescaledb_pool from "../../config/timescaledb_config";
 import { generateGrafanaDataSourceUser } from "./datasourceDAL";
 import { updateGroupAssetsLocation } from "../asset/assetDAL";
+import { nanoid } from "nanoid";
+import { passwordGenerator } from "../../utils/passwordGenerator";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName = `${orgName} general`;
@@ -125,6 +128,10 @@ export const createGroup = async (
 	const telegramNotificationChannel = await grafanaApi.createNotificationChannel(orgKey, telegramNotificationChannelData);
 	const telegramNotificationChannelId = telegramNotificationChannel.id;
 	const mqttAccessControl = "Pub & Sub";
+	const mqttSalt = nanoid(16).replace(/-/g, "x").replace(/_/g, "X");
+	const password = passwordGenerator(20);
+	const iterations = 10000;
+	const mqttPassword = crypto.pbkdf2Sync(password, mqttSalt, iterations, 50, 'sha256').toString('hex');
 
 	const group: IGroup = {
 		orgId,
@@ -142,7 +149,9 @@ export const createGroup = async (
 		floorNumber,
 		featureIndex,
 		outerBounds,
-		mqttAccessControl
+		mqttAccessControl,
+		mqttPassword,
+		mqttSalt
 	}
 
 	await createView(group);
@@ -516,6 +525,34 @@ export const getGroupByProp = async (propName: string, propValue: (string | numb
 	return result.rows[0] as IGroup;
 }
 
+export const getFullGroupDataById = async (groupId: number): Promise<IGroup> => {
+	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId", grafanadb.group.team_id AS "teamId",
+				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
+				name, acronym, group_uid AS  "groupUid",
+				telegram_invitation_link AS "telegramInvitationLink",
+				telegram_chatid AS "telegramChatId",
+				email_notification_channel_id AS "emailNotificationChannelId",
+				telegram_notification_channel_id AS "telegramNotificationChannelId",
+				is_org_default_group AS "isOrgDefaultGroup",
+				floor_number AS "floorNumber",
+				feature_index AS "featureIndex",
+				outer_bounds AS "outerBounds",
+				mqtt_access_control AS "mqttAccessControl",
+				mqtt_password AS "mqttPassword",
+				mqtt_salt AS "mqttSalt",
+				grafanadb.nodered_instance.id AS "nriInGroupId",
+				grafanadb.nodered_instance.nri_hash AS "nriInGroupHash",
+				grafanadb.nodered_instance.geolocation[0] AS "nriInGroupIconLongitude",
+				grafanadb.nodered_instance.geolocation[1] AS "nriInGroupIconLatitude",
+				grafanadb.nodered_instance.icon_radio AS "nriInGroupIconRadio",
+				grafanadb.group.created, grafanadb.group.updated
+				FROM grafanadb.group
+				INNER JOIN grafanadb.nodered_instance ON grafanadb.nodered_instance.group_id = grafanadb.group.id
+				WHERE grafanadb.group.id = $1;`;
+	const result = await pool.query(query, [groupId]);
+	return result.rows[0] as IGroup;
+}
+
 export const getDefaultOrgGroup = async (orgId: number): Promise<IGroup> => {
 	const query = `SELECT grafanadb.group.id, grafanadb.group.org_id AS "orgId", grafanadb.group.team_id AS "teamId",
 				grafanadb.group.folder_id AS  "folderId", folder_uid AS  "folderUid",
@@ -544,8 +581,10 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 					email_notification_channel_id,
 					telegram_notification_channel_id, is_org_default_group,
 					floor_number, feature_index, outer_bounds,  mqtt_access_control,
+					mqtt_password, mqtt_salt,
 					created, updated)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW(), NOW())
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
+						    $14, $15, $16, $17, $18, NOW(), NOW())
 					RETURNING *`,
 	[
 		group.orgId,
@@ -563,7 +602,9 @@ export const insertGroup = async (group: IGroup): Promise<IGroup> => {
 		group.floorNumber,
 		group.featureIndex,
 		group.outerBounds,
-		group.mqttAccessControl
+		group.mqttAccessControl,
+		group.mqttPassword,
+		group.mqttSalt
 	])
 	return response.rows[0] as IGroup;
 };
@@ -1018,4 +1059,17 @@ export const createAllViews = async (groups: IGroup[], viewsNames: string[]): Pr
 	}
 	await Promise.all(queriesArray);
 }
+
+export const updateMqttPasswordOfGroupById = async (groupId: number, newMqttPassword: string): Promise<void> => {
+	const iterations = 10000;
+
+	const response = await pool.query(`SELECT grafanadb.group.mqtt_salt AS "mqttSalt"
+	                                FROM grafanadb.group WHERE grafanadb.group.id = $1`, [groupId]);
+	const mqttSalt = response.rows[0].mqttSalt;
+	const mqttPasswordHashed = crypto.pbkdf2Sync(newMqttPassword, mqttSalt, iterations, 50, 'sha256').toString('hex');
+	const query = `UPDATE grafanadb.group SET mqtt_password = $1, updated = NOW()
+				WHERE grafanadb.group.id = $2;`;
+	await pool.query(query, [mqttPasswordHashed, groupId]);
+};
+
 

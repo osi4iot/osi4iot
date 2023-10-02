@@ -1,6 +1,5 @@
 import { IBuilding } from "../../components/PlatformAssistant/TableColumns/buildingsColumns";
 import { IDashboard } from "../../components/PlatformAssistant/TableColumns/dashboardsColumns";
-import { IDevice } from "../../components/PlatformAssistant/TableColumns/devicesColumns";
 import { IDigitalTwin } from "../../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
 import { IFloor } from "../../components/PlatformAssistant/TableColumns/floorsColumns";
 import { IGlobalUser } from "../../components/PlatformAssistant/TableColumns/globalUsersColumns";
@@ -30,7 +29,10 @@ export interface PlatformAssistantContextProps {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
-	numDevicesManage: number;
+	numAssetsManaged: number;
+	numSensorsManaged: number;
+	numDigitalTwinsManaged: number;
+	numMLModelsManaged: number;
 	platformAssitantOptionToShow: string;
 	selectOrgUsers: ISelectOrgUser[];
 	reloadSelectOrgUsersTable: boolean;
@@ -60,8 +62,6 @@ export interface PlatformAssistantContextProps {
 	reloadAssetsTable: boolean;
 	sensors: ISensor[];
 	reloadSensorsTable: boolean;
-	devices: IDevice[];
-	reloadDevicesTable: boolean;
 	topics: ITopic[];
 	reloadTopicsTable: boolean;
 	dashboards: IDashboard[];
@@ -81,7 +81,10 @@ export interface PlatformAssistantActionPayload {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
-	numDevicesManage: number;
+	numAssetsManaged: number;
+	numSensorsManaged: number;
+	numDigitalTwinsManaged: number;
+	numMLModelsManaged: number;
 	platformAssitantOptionToShow: string;
 	selectOrgUsers: ISelectOrgUser[];
 	reloadSelectOrgUsersTable: boolean;
@@ -111,8 +114,6 @@ export interface PlatformAssistantActionPayload {
 	reloadAssetsTable: boolean;
 	sensors: ISensor[];
 	reloadSensorsTable: boolean;
-	devices: IDevice[];
-	reloadDevicesTable: boolean;
 	topics: ITopic[];
 	reloadTopicsTable: boolean;
 	dashboards: IDashboard[];
@@ -138,7 +139,10 @@ export interface IUserRole {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number;
-	numDevicesManaged: number;
+	numAssetsManaged: number;
+	numSensorsManaged: number;
+	numDigitalTwinsManaged: number;
+	numMLModelsManaged: number;
 }
 
 export interface IPlatformAssistantOptionToShow {
@@ -255,14 +259,6 @@ export interface ISensorsTable {
 
 export interface IReloadSensorsTable {
 	reloadSensorsTable: boolean;
-}
-
-export interface IDevicesTable {
-	devices: IDevice[];
-}
-
-export interface IReloadDevicesTable {
-	reloadDevicesTable: boolean;
 }
 
 export interface IUserProfileTable {

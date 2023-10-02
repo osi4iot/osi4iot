@@ -4,7 +4,6 @@ import rhumbDestination from '@turf/rhumb-destination';
 import { point } from '@turf/helpers';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { LatLngTuple } from 'leaflet';
-import { IDevice } from '../TableColumns/devicesColumns';
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import { IDigitalTwinState } from "./GeolocationContainer";
@@ -16,6 +15,7 @@ import { toast } from "react-toastify";
 import { IMqttTopicData } from "../DigitalTwin3DViewer/Model";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { IAsset } from "../TableColumns/assetsColumns";
 
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
@@ -90,7 +90,7 @@ const DigitanTwin3DModelSvgImage: FC<DigitanTwinSvgImageProps> = ({
 
 
 interface GeoDigitalTwinProps {
-    deviceData: IDevice;
+    assetData: IAsset;
     digitalTwinIndex: number;
     digitalTwinData: IDigitalTwin;
     digitalTwinSelected: IDigitalTwin | null;
@@ -115,7 +115,7 @@ const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, dis
 }
 
 const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
-    deviceData,
+    assetData,
     digitalTwinIndex,
     digitalTwinData,
     digitalTwinSelected,
@@ -127,8 +127,8 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const angle = 360 * digitalTwinIndex / 12;
-    const positionRadius = 0.00076 * deviceData.iconRadio;
-    const [centerLongitude, centerLatitude] = calcGeoPointPosition(deviceData.longitude, deviceData.latitude, positionRadius, angle);
+    const positionRadius = 0.00076 * assetData.iconRadio;
+    const [centerLongitude, centerLatitude] = calcGeoPointPosition(assetData.longitude, assetData.latitude, positionRadius, angle);
     const [status, setStatus] = useState("unknown");
     const [fillColor, setFillColor] = useState("unknown");
 
@@ -141,7 +141,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
         else if (status === "alerting") setFillColor(STATUS_ALERTING);
     }, [digitalTwinData, digitalTwinsState]);
 
-    const digitalTwinGrafanaRadio = 0.00008 * deviceData.iconRadio;
+    const digitalTwinGrafanaRadio = 0.00008 * assetData.iconRadio;
     const boundsGrafana = useMemo(() =>
         calcGeoBounds(
             centerLongitude,
@@ -149,7 +149,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             digitalTwinGrafanaRadio
         ), [centerLongitude, centerLatitude, digitalTwinGrafanaRadio]);
 
-    const digitalTwinGrafanaOuterRadio = 0.00018 * deviceData.iconRadio;
+    const digitalTwinGrafanaOuterRadio = 0.00018 * assetData.iconRadio;
     const outerBoundsGrafana = useMemo(() =>
         calcGeoBounds(
             centerLongitude,
@@ -157,7 +157,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             digitalTwinGrafanaOuterRadio
         ), [centerLongitude, centerLatitude, digitalTwinGrafanaOuterRadio]);
 
-    const digitalTwin3DModelRadio = 0.0001 * deviceData.iconRadio;
+    const digitalTwin3DModelRadio = 0.0001 * assetData.iconRadio;
     const bounds3DModel = useMemo(() =>
         calcGeoBounds(
             centerLongitude,
@@ -165,7 +165,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             digitalTwin3DModelRadio
         ), [centerLongitude, centerLatitude, digitalTwin3DModelRadio]);
 
-    const digitalTwin3DModelOuterRadio = 0.00018 * deviceData.iconRadio;
+    const digitalTwin3DModelOuterRadio = 0.00018 * assetData.iconRadio;
     const outerBounds3DModel = useMemo(() =>
         calcGeoBounds(
             centerLongitude,
@@ -180,9 +180,8 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             setGlftDataLoading(true);
             const config = axiosAuth(accessToken);
             const groupId = digitalTwinData.groupId;
-            const deviceId = digitalTwinData.deviceId;
             let urlDigitalTwinGltfData = `${protocol}://${domainName}/admin_api/digital_twin_gltfdata`;
-            urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${deviceId}/${digitalTwinData.id}`;
+            urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${digitalTwinData.id}`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwinGltfData, config)
                 .then((response) => {
@@ -220,7 +219,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                 <Circle
                     center={[centerLatitude, centerLongitude]}
                     pathOptions={{ stroke: false, fillOpacity: 0 }}
-                    radius={0.1666 * deviceData.iconRadio}
+                    radius={0.1666 * assetData.iconRadio}
                     eventHandlers={{ click: clickHandler }}
                 >
                     {digitalTwinData.type === "Grafana dashboard" &&

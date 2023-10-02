@@ -15,7 +15,6 @@ import EditGroupManaged from './EditGroupManaged';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
-import { IDevice } from '../TableColumns/devicesColumns';
 import { useBuildingsTable, useFloorsTable } from '../../../contexts/platformAssistantContext';
 import NriLocationContainer from './NriLocationContainer';
 import { IAsset } from '../TableColumns/assetsColumns';
@@ -51,9 +50,7 @@ interface GroupsManagedContainerProps {
     refreshGroupsManaged: () => void;
     refreshGroupMembers: () => void;
     assets: IAsset[];
-    devices: IDevice[];
     refreshAssets: () => void;
-    refreshDevices: () => void;
     refreshGroups: () => void;
     refreshBuildings: () => void;
     refreshFloors: () => void;
@@ -67,9 +64,7 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
     refreshGroupsManaged,
     refreshGroupMembers,
     assets,
-    devices,
     refreshAssets,
-    refreshDevices,
     refreshGroups,
     refreshBuildings,
     refreshFloors,
@@ -94,7 +89,7 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
         if (buildingsFiltered.length !== 0 && floorsFiltered.length !== 0) {
             setGroupsManagedOptionToShow(groupsManagedDispatch, { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.SELECT_NRI_ICON_LOCATION });
         } else {
-            const warningMessage = "To select a location for the device, building and floor geodata must be already entered"
+            const warningMessage = "To select a location for the nodered instance, building and floor geodata must be already entered"
             toast.warning(warningMessage);
         }
     }, [groupsManagedDispatch, buildingsFiltered.length, floorsFiltered.length]);
@@ -141,12 +136,10 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
                     floors={floorsTable}
                     groupsManaged={groupsManaged}
                     assets={assets}
-                    devices={devices}
                     refreshBuildings={refreshBuildings}
                     refreshFloors={refreshFloors}
                     refreshGroups={refreshGroups}
                     refreshAssets={refreshAssets}
-                    refreshDevices={refreshDevices}
                     backToOption={showEditGroupsManagedOption}
                     setNodeRedIconLocationData={setNodeRedIconLocationData}
                 />

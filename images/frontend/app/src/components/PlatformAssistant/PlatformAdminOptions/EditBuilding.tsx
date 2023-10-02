@@ -187,7 +187,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
             })
     }
 
-    const initialDeviceData = {
+    const initialBuildingData = {
         name: buildings[buildingRowIndex].name,
         longitude: buildings[buildingRowIndex].longitude,
         latitude: buildings[buildingRowIndex].latitude,
@@ -210,7 +210,7 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
         <>
             <FormTitle isSubmitting={isSubmitting} >Edit building</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialDeviceData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik initialValues={initialBuildingData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => {
                             const localFileButtonHandler = () => {

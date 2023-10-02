@@ -24,7 +24,10 @@ export const initialState = {
 	userRole: "user",
 	numOrganizationManaged: 0,
 	numGroupsManaged: 0,
-	numDevicesManage: 0,
+	numAssetsManaged: 0,
+	numSensorsManaged: 0,
+	numDigitalTwinsManaged: 0,
+	numMLModelsManaged: 0,
 	loading: false,
 	errorMessage: null,
 };
@@ -70,7 +73,10 @@ export const AuthReducer = (initialState: AuthContextProps, action: AuthAction) 
 				userRole: action.payload.userRole,
 				numOrganizationManaged: action.payload.numOrganizationManaged,
 				numGroupsManaged: action.payload.numGroupsManaged,
-				numDevicesManage: action.payload.numDevicesManage
+				numAssetsManaged: action.payload.numAssetsManaged,
+				numSensorsManaged: action.payload.numSensorsManaged,
+				numDigitalTwinsManaged: action.payload.numDigitalTwinsManaged,
+				numMLModelsManaged: action.payload.numMLModelsManaged,
 			};
 
 		default:

@@ -2,9 +2,9 @@ export default interface IMobileTopic {
 	id: number;
 	orgAcronym: string;
 	groupAcronym: string;
-	description: string;
+	assetDescription: string;
+	sensorDescription: string;
 	groupUid: string;
-	deviceUid: string;
+	assetUid: string;
 	topicUid: string;
-	payloadFormat: string;
 }

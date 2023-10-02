@@ -2,13 +2,13 @@ import { FC } from "react";
 import { LayerGroup } from 'react-leaflet';
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { IDigitalTwinState } from "./GeolocationContainer";
-import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoDigitalTwin from "./GeoDigitalTwin";
+import { IAsset } from "../TableColumns/assetsColumns";
 
 
 interface GeoDigitalTwinsProps {
-    deviceSelected: IDevice;
+    assetSelected: IAsset;
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
@@ -18,7 +18,7 @@ interface GeoDigitalTwinsProps {
 }
 
 const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({
-    deviceSelected,
+    assetSelected,
     digitalTwins,
     digitalTwinSelected,
     selectDigitalTwin,
@@ -32,7 +32,7 @@ const GeoDigitalTwins: FC<GeoDigitalTwinsProps> = ({
                 digitalTwins.map((digitalTwin: IDigitalTwin, index: number) =>
                     <GeoDigitalTwin
                         key={digitalTwin.id}
-                        deviceData={deviceSelected}
+                        assetData={assetSelected}
                         digitalTwinIndex={index}
                         digitalTwinData={digitalTwin}
                         digitalTwinSelected={digitalTwinSelected}

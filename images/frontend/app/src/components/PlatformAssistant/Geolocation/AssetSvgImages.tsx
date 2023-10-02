@@ -3,6 +3,7 @@ import { LatLngTuple } from 'leaflet';
 import { IAsset } from "../TableColumns/assetsColumns";
 import { MobileAssetSvgImage } from "./MobileAssetImage";
 import { GenericAssetSvgImage } from "./GenericAssetSvgImage";
+import { WindTurbineAssetSvgImage } from "./WindTurbineAsset";
 
 
 
@@ -35,8 +36,8 @@ export const AssetSvgImages: FC<AssetSvgImagesProps> = ({
                 bounds={bounds as LatLngTuple[]}
                 outerBounds={outerBounds as LatLngTuple[]}
             />;
-        case 'generic':
-            return <GenericAssetSvgImage
+        case 'wind_turbine':
+            return <WindTurbineAssetSvgImage
                 key={status}
                 assetId={assetId}
                 assetSelected={assetSelected as IAsset}

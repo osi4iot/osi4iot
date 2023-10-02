@@ -62,19 +62,6 @@ export const updateGroupUidOfRawSqlAlertSettingOfGroup = async (group: IGroup, n
 	await Promise.all(updateRawSqlQueries);
 };
 
-export const updateDeviceUidRawSqlAlertSettingOfGroup = async (group: IGroup, oldDeviceUid: string, newDeviceUid: string): Promise<void> => {
-	const alerts = await getAlertsByFolderId(group.folderId);
-	const updateRawSqlQueries: any[] = [];
-	alerts.forEach( alert => {
-		const settings = JSON.parse(alert.settings);
-		for (const condition of settings.conditions) {
-			condition.query.model.rawSql = condition.query.model.rawSql.replace(oldDeviceUid, newDeviceUid);
-		}
-		const query = pool.query(`UPDATE grafanadb.alert SET settings = $1, updated = NOW() WHERE id = $2`, [settings, alert.id]);
-		updateRawSqlQueries.push(query);
-	});
-	await Promise.all(updateRawSqlQueries);
-};
 
 export const updateTopicUidRawSqlAlertSettingOfGroup = async (group: IGroup, oldTopicUid: string, newTopicUid: string): Promise<void> => {
 	const alerts = await getAlertsByFolderId(group.folderId);

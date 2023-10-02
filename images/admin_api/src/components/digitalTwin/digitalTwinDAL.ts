@@ -24,8 +24,7 @@ import { getLastMeasurement } from "../mesurement/measurementDAL";
 import IMeasurement from "../mesurement/measurement.interface";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
-import IDevice from "../device/device.interface";
-import { createDashboard, createSensorDashboard, deleteDashboard } from "../group/dashboardDAL";
+import { createDashboard, createSensorDashboard, deleteDashboard, deleteDashboardsByIdArray } from "../group/dashboardDAL";
 import IMqttDigitalTwinTopicInfo from "./mqttDigitalTwinTopicInfo.interface";
 import ITopic from "../topic/topic.interface";
 import process_env from "../../config/api_config";
@@ -38,27 +37,382 @@ import {
 	PutObjectCommand
 } from "@aws-sdk/client-s3";
 import IAsset from "../asset/asset.interface";
-import { createDevice, deleteDevicesByIdArray, getDeviceByProp } from "../device/deviceDAL";
 import ISensor from "../sensor/sensor.interface";
 import { createNewSensor, deleteSensorsByIdArray, getSensorByPropName } from "../sensor/sensorDAL";
-import IDigitalTwinDevice from "./digitalTwinDevice.interface";
 import IDigitalTwinSensor from "./digitalTwinSensor.interface";
 import IDigitalTwinSensorDashboard from "./digitalTwinSensorDashboard.interface";
 import UpdateDigitalTwinDto from "./digitalTwinUpdate.dto";
 import CreateSensorRefDto from "./sensorRef.dto";
 
-// const generateSensorSimulationTopicPayload = (digitalTwinSimulationFormat: string): string => {
-// 	const digitalTwinSimulationFormatObj = JSON.parse(digitalTwinSimulationFormat);
-// 	const keys = Object.keys(digitalTwinSimulationFormatObj);
-// 	const payloadObj: Record<string, { type: string, units: string }> = {};
-// 	keys.forEach(key => {
-// 		payloadObj[key] = {} as any;
-// 		payloadObj[key].type = "number";
-// 		payloadObj[key].units = digitalTwinSimulationFormatObj[key].units;
-// 	});
-// 	const payload = JSON.stringify(payloadObj);
-// 	return payload;
-// }
+export const insertDigitalTwin = async (
+	digitalTwinData: Partial<IDigitalTwin>
+): Promise<IDigitalTwin> => {
+	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
+		digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
+		digital_twin_simulation_format, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
+		scope, digital_twin_uid AS "digitalTwinUid", description,
+		type, dashboard_id AS "dashboardId",
+		digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+		created, updated`;
+
+	const result = await pool.query(
+		queryString,
+		[
+			digitalTwinData.groupId,
+			digitalTwinData.assetId,
+			digitalTwinData.digitalTwinUid,
+			digitalTwinData.description,
+			digitalTwinData.type,
+			digitalTwinData.dashboardId,
+			digitalTwinData.maxNumResFemFiles,
+			digitalTwinData.digitalTwinSimulationFormat
+		]);
+	return result.rows[0] as IDigitalTwin;
+};
+
+export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
+										grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+										grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+										grafanadb.digital_twin.dashboard_id AS "dashboardId",
+										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+										FROM grafanadb.digital_twin
+										INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+										ORDER BY grafanadb.digital_twin.id ASC,
+											grafanadb.group.org_id ASC,
+											grafanadb.digital_twin.group_id ASC,
+											grafanadb.digital_twin.asset_id ASC;`);
+	return response.rows as IDigitalTwin[];
+}
+
+export const getNumDigitalTwins = async (): Promise<number> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.digital_twin;`);
+	return parseInt(result.rows[0].count, 10);
+}
+
+export const getNumDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<number> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.digital_twin
+									WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])`, [groupsIdArray]);
+	return parseInt(result.rows[0].count, 10);
+}
+
+export const getNumDigitalTwinsByAssetId = async (assetId: number): Promise<number> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.digital_twin
+									WHERE grafanadb.digital_twin.assetId = $1`, [assetId]);
+	return parseInt(result.rows[0].count, 10);
+}
+
+export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwin[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
+									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+									FROM grafanadb.digital_twin
+									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+									WHERE grafanadb.group.org_id = $1
+									ORDER BY grafanadb.digital_twin.id ASC,
+										grafanadb.group.org_id ASC,
+										grafanadb.digital_twin.group_id ASC,
+										grafanadb.digital_twin.asset_id ASC;`, [orgId]);
+	return response.rows as IDigitalTwin[];
+};
+
+export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigitalTwin[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
+										grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+										grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+										grafanadb.digital_twin.dashboard_id AS "dashboardId",
+										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+										FROM grafanadb.digital_twin
+										INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+										WHERE grafanadb.digital_twin.group_id = $1
+										ORDER BY grafanadb.digital_twin.id ASC,
+										grafanadb.group.org_id ASC,
+										grafanadb.digital_twin.group_id ASC,
+										grafanadb.digital_twin.asset_id ASC;`, [groupId]);
+	return response.rows as IDigitalTwin[];
+};
+
+export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwin[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
+									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+									FROM grafanadb.digital_twin
+									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+									WHERE grafanadb.asset.group_id = ANY($1::bigint[])
+									ORDER BY grafanadb.digital_twin.id ASC,
+										grafanadb.group.org_id ASC,
+										grafanadb.digital_twin.group_id ASC,
+										grafanadb.digital_twin.asset_id ASC;`, [groupsIdArray]);
+	return response.rows as IDigitalTwin[];
+};
+
+export const getDigitalTwinByProp = async (propName: string, propValue: (string | number)): Promise<IDigitalTwin> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
+									grafanadb.digital_twin.group_id AS "groupId", 
+									grafanadb.digital_twin.asset_id AS "assetId",
+									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
+									grafanadb.digital_twin.type, 
+									grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
+									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
+									FROM grafanadb.digital_twin
+									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+									WHERE grafanadb.digital_twin.${propName} = $1`, [propValue]);
+	return response.rows[0] as IDigitalTwin;
+}
+
+export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinData: Partial<IDigitalTwin>): Promise<void> => {
+	const query = `UPDATE grafanadb.digital_twin SET digital_twin_uid = $1, description = $2, type = $3, max_num_resfem_files = $4,
+					digital_twin_simulation_format = $5, updated = NOW() WHERE grafanadb.digital_twin.id = $6;`;
+	await pool.query(query, [
+		digitalTwinData.digitalTwinUid,
+		digitalTwinData.description,
+		digitalTwinData.type,
+		digitalTwinData.maxNumResFemFiles,
+		digitalTwinData.digitalTwinSimulationFormat,
+		digitalTwinId
+	]);
+};
+
+export const deleteDigitalTwin = async (digitalTwinId: number): Promise<void> => {
+	await pool.query(`DELETE FROM grafanadb.digital_twin WHERE grafanadb.digital_twin.id = $1`, [digitalTwinId]);
+};
+
+/// Luego completar borrando las componentes creadas
+export const deleteDigitalTwinById = async (digitalTwin: IDigitalTwin): Promise<void> => {
+	const sensorDashboards = await getSensorDashboardByDigitalTwinId(digitalTwin.id);
+	const dashboardIdAarray = sensorDashboards.map(dashboard => dashboard.dashboardId);
+
+	await deleteSensorsOfDT(digitalTwin.id);
+	await deleteTopicsOfDT(digitalTwin.id);
+	await deleteDigitalTwin(digitalTwin.id);
+
+	await deleteDashboardsByIdArray(dashboardIdAarray);
+	await deleteDashboard(digitalTwin.dashboardId);
+};
+
+export const deleteTopicsOfDT = async (digitalTwinId: number): Promise<void> => {
+	const queryString = `DELETE FROM grafanadb.topic USING grafanadb.digital_twin_topic
+						WHERE grafanadb.topic.id = grafanadb.digital_twin_topic.topic_id AND
+						grafanadb.digital_twin_topic.digital_twin_id = $1;`;
+	await pool.query(queryString, [digitalTwinId]);
+};
+
+
+export const deleteSensorsOfDT = async (digitalTwinId: number): Promise<void> => {
+	const queryString = `DELETE FROM grafanadb.sensor USING grafanadb.digital_twin_sensor
+						WHERE grafanadb.sensor.id = grafanadb.digital_twin_sensor.sensor_id AND
+						grafanadb.digital_twin_sensor.digital_twin_id = $1;`;
+	await pool.query(queryString, [digitalTwinId]);
+};
+
+export const deleteSensorDashboardsOfDT = async (digitalTwinId: number): Promise<void> => {
+	const queryString = `DELETE FROM grafanadb.dashboard USING grafanadb.digital_twin_sensor_dashboard
+						WHERE grafanadb.dashboard.id = grafanadb.digital_twin_sensor_dashboard.dashboard_id AND
+						grafanadb.digital_twin_sensor_dashboard.digital_twin_id = $1;`;
+	await pool.query(queryString, [digitalTwinId]);
+};
+
+export const getAllDigitalTwinSimulators = async (): Promise<IDigitalTwinSimulator[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
+						grafanadb.group.id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
+						grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+						grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
+						FROM grafanadb.digital_twin
+						INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+						INNER JOIN grafanadb.digital_twin_topic ON
+							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
+						WHERE  grafanadb.digital_twin.type = $1 AND
+						grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
+						grafanadb.digital_twin_topic.topic_type = $2
+						ORDER BY grafanadb.group.org_id ASC,
+							grafanadb.digital_twin.group_id ASC,
+							grafanadb.digital_twin.asset_id ASC,
+							grafanadb.digital_twin.id ASC;`, ["Gltf 3D model", "sim2dtm"]);
+	return response.rows as IDigitalTwinSimulator[];
+}
+
+export const getDigitalTwinSimulatorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwinSimulator[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
+						grafanadb.group.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
+						grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
+						grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
+						FROM grafanadb.digital_twin
+						INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+						INNER JOIN grafanadb.digital_twin_topic ON
+							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
+						WHERE grafanadb.group.group_id = ANY($1::bigint[]) AND
+						grafanadb.digital_twin.type = $2 AND
+						grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
+						grafanadb.digital_twin_topic.topic_type = $3
+						ORDER BY grafanadb.group.org_id ASC,
+							grafanadb.group.id ASC,
+							grafanadb.digital_twin.id ASC;`, [groupsIdArray, "Gltf 3D model", "sim2dtm"]);
+	return response.rows as IDigitalTwinSimulator[];
+}
+
+export const getStateOfAllDigitalTwins = async (): Promise<IDigitalTwinState[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.group.org_id AS "orgId",
+									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+									grafanadb.alert.state
+									FROM grafanadb.digital_twin
+									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_id
+									ORDER BY grafanadb.group.org_id ASC,
+											grafanadb.digital_twin.group_id ASC,
+											grafanadb.digital_twin.id ASC;`);
+	return response.rows as IDigitalTwinState[];
+}
+
+export const getStateOfDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwinState[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.group.org_id AS "orgId",
+									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
+									grafanadb.alert.state
+									FROM grafanadb.digital_twin
+									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_idd
+									WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])
+									ORDER BY grafanadb.group.org_id ASC,
+											grafanadb.digital_twin.group_id ASC,
+											grafanadb.digital_twin.id ASC;`, [groupsIdArray]);
+	return response.rows as IDigitalTwinState[];
+};
+
+export const createDigitalTwinTopic = async (
+	digitalTwinId: number,
+	topicId: number,
+	topicType: string
+): Promise<IDigitalTwinTopic> => {
+	const queryString = `INSERT INTO grafanadb.digital_twin_topic (
+		digital_twin_id, topic_id, topic_type)
+		VALUES ($1, $2, $3)
+	    RETURNING  digital_twin_id AS "digitalTwinId", topic_id AS "topicId", 
+		topic_type AS "topicType"`
+	const result = await pool.query(
+		queryString,
+		[digitalTwinId, topicId, topicType]);
+	return result.rows[0] as IDigitalTwinTopic;
+};
+
+export const getDTTopicsByDigitalTwinId = async (digitalTwinId: number): Promise<IDigitalTwinTopic[]> => {
+	const queryString = `SELECT digital_twin_id AS "digitalTwinId",
+						topic_id AS "topicId", topic_type AS "topicType"
+						FROM grafanadb.digital_twin_topic
+						WHERE grafanadb.digital_twin_topic.digital_twin_id = $1
+						ORDER BY grafanadb.digital_twin_topic.digital_twin_id ASC,
+						         grafanadb.digital_twin_topic.topic_id ASC;`;
+	const response = await pool.query(queryString, [digitalTwinId]);
+	return response.rows as IDigitalTwinTopic[];
+};
+
+export const deleteDigitalTwinTopics = async (
+	digitalTwinId: number,
+	topicsId: number[]
+): Promise<void> => {
+	const queryString = `DELETE FROM grafanadb.digital_twin_topic
+						WHERE grafanadb.digital_twin_topic.digital_twin_id = $1
+						AND grafanadb.digital_twin_topic.topic_id = ANY($2::bigint[]);`;
+	await pool.query(queryString, [digitalTwinId, topicsId]);
+};
+
+
+export const createDigitalTwinSensor = async (
+	digitalTwinId: number,
+	sensorId: number,
+	sensorRef: string,
+	topicId: number,
+	alreadyCreated: boolean
+): Promise<IDigitalTwinSensor> => {
+	const queryString = `INSERT INTO grafanadb.digital_twin_sensor (
+		digital_twin_id, sensor_id, sensor_ref, topic_id, already_created)
+		VALUES ($1, $2, $3, $4, $5)
+	    RETURNING  digital_twin_id AS "digitalTwinId", sensor_id AS "sensorId",
+		sensor_ref AS "sensorRef", topic_id AS "topicId"`
+	const result = await pool.query(
+		queryString,
+		[digitalTwinId, sensorId, sensorRef, topicId, alreadyCreated]);
+	return result.rows[0] as IDigitalTwinSensor;
+};
+
+export const getDigitalTwinSensors = async (digitalTwinId: number): Promise<IDigitalTwinSensor[]> => {
+	const queryString = `SELECT digital_twin_id AS "digitalTwinId",
+						sensor_id AS "sensorId", sensor_ref AS "sensorRef",
+						topic_id AS "topicId", already_created AS "alreadyCreated"
+						FROM grafanadb.digital_twin_sensor
+						WHERE grafanadb.digital_twin_sensor.digital_twin_id = $1
+						ORDER BY grafanadb.digital_twin_sensor.digital_twin_id ASC,
+						         grafanadb.digital_twin_sensor.sensor_id ASC;`;
+	const response = await pool.query(queryString, [digitalTwinId]);
+	console.log("response.rows=", response.rows)
+	return response.rows as IDigitalTwinSensor[];
+};
+
+export const createDigitalTwinSensorDashboard = async (
+	digitalTwinId: number,
+	sensorId: number,
+	dashboardId: number
+): Promise<IDigitalTwinSensorDashboard> => {
+	const queryString = `INSERT INTO grafanadb.digital_twin_sensor_dashboard (
+		digital_twin_id, sensor_id, dashboard_id)
+		VALUES ($1, $2, $3)
+	    RETURNING  digital_twin_id AS "digitalTwinId", sensor_id AS "sensorId",
+		dashboard_id AS "dashboardId"`
+	const result = await pool.query(
+		queryString,
+		[digitalTwinId, sensorId, dashboardId]);
+	return result.rows[0] as IDigitalTwinSensorDashboard;
+};
+
+export const getSensorDashboardByDigitalTwinId = async (
+	digitalTwinId: number
+): Promise<IDigitalTwinSensorDashboard[]> => {
+	const queryString = `SELECT digital_twin_id AS "digitalTwinId",
+	        sensor_id AS "sensorId", dashboard_id AS "dashboardId" 
+			FROM grafanadb.digital_twin_sensor_dashboard
+			WHERE grafanadb.digital_twin_sensor_dashboard.digital_twin_id = $1;`
+	const result = await pool.query(
+		queryString,
+		[digitalTwinId]);
+	return result.rows as IDigitalTwinSensorDashboard[];
+}
+
+export const getDigitalTwinMqttTopicsInfoFromByDTIdsArray = async (digitalTwinIdsArray: number[]): Promise<IMqttDigitalTwinTopicInfo[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+	                                grafanadb.topic.id AS "topicId", grafanadb.digital_twin_topic.topic_type AS "topicType",
+									grafanadb.group.group_uid AS "groupHash",
+									grafanadb.topic.topic_uid AS "topicHash"
+									FROM grafanadb.topic
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.topic_id = grafanadb.topic.id
+									INNER JOIN grafanadb.digital_twin ON
+										grafanadb.digital_twin.id = grafanadb.digital_twin_topic.digital_twin_id
+									WHERE grafanadb.digital_twin_topic.digital_twin_id = ANY($1::bigint[])
+									ORDER BY grafanadb.topic.id ASC;`, [digitalTwinIdsArray]);
+
+	return response.rows as IMqttDigitalTwinTopicInfo[];
+}
 
 export interface IMeshNode {
 	name?: string;
@@ -80,127 +434,7 @@ export interface IMeshNode {
 	};
 }
 
-// const getTopicSensorTypesFromDigitalTwin = (type: string, gltfFileData: any): string[] => {
-// 	const topicTypes: string[] = [];
-// 	if (type === "Gltf 3D model") {
-// 		if (typeof gltfFileData === "string") gltfFileData = JSON.parse(gltfFileData);
-// 		if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
-// 			const meshNodes: IMeshNode[] = [];
-// 			gltfFileData.nodes.forEach((node: IMeshNode) => {
-// 				// node.mesh are not included for taking into account root nodes
-// 				if (node.extras !== undefined) meshNodes.push(node);
-// 			})
-
-// 			meshNodes.forEach((node: IMeshNode) => {
-// 				if (node.extras?.type !== undefined && node.extras?.type === "sensor") {
-// 					const topicType = node.extras?.topicType;
-// 					if (topicType && topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
-// 						topicTypes.push(topicType)
-// 					}
-// 				}
-// 				if (node.extras?.clipTopicType !== undefined) {
-// 					const topicType = node.extras?.clipTopicType;
-// 					if (topicTypes.findIndex(topicTypei => topicTypei === topicType) === -1) {
-// 						topicTypes.push(topicType);
-// 					}
-// 				}
-// 			})
-// 		}
-
-// 	} else if (type === "Grafana dashboard") {
-// 		topicTypes.push("dev2pdb_1");
-// 	}
-
-// 	return topicTypes;
-// }
-
-
-// interface ISensorRef {
-// 	sensorRef: string;
-// 	topicRef: string;
-// 	description: string;
-// 	payloadKey: string;
-// 	paramLabel: string;
-// 	valueType: string;
-// 	units: string;
-// 	dashboardRefresh: string;
-// 	dashboardTimeWindow: string;
-// }
-
-// interface IDigitalTwinReferences {
-// 	devicesRef: string[],
-// 	topicsRef: string[],
-// 	sensorsRef: ISensorRef[],
-// }
-
-// const getDigitalTwinRefFromGltfFile = (type: string, gltfFileData: any): IDigitalTwinReferences => {
-// 	const digitalTwinReferences: IDigitalTwinReferences = {
-// 		devicesRef: [],
-// 		topicsRef: [],
-// 		sensorsRef: [],
-// 	};
-
-// 	const devicesRef: string[] = [];
-// 	const topicsRef: string[] = [];
-// 	const sensorsRef: { sensorRef: string, topicRef: string }[] = [];
-
-// 	if (type === "Gltf 3D model") {
-// 		if (typeof gltfFileData === "string") gltfFileData = JSON.parse(gltfFileData);
-// 		if (Object.keys(gltfFileData).length && gltfFileData.nodes?.length !== 0) {
-// 			const meshNodes: IMeshNode[] = [];
-// 			gltfFileData.nodes.forEach((node: IMeshNode) => {
-// 				// node.mesh are not included for taking into account root nodes
-// 				if (node.extras !== undefined) meshNodes.push(node);
-// 			})
-
-// 			meshNodes.forEach((node: IMeshNode) => {
-// 				if (node.extras?.type !== undefined && node.extras?.type === "sensor") {
-// 					const topicRef = node.extras?.topicRef;
-// 					if (topicRef && topicsRef.findIndex(topicRefi => topicRefi === topicRef) === -1) {
-// 						topicsRef.push(topicRef);
-// 						const deviceRef = `device_${topicRef.slice(8).split("-")[0]}`;
-// 						if (devicesRef.findIndex(deviceRefi => deviceRefi === deviceRef) === -1) {
-// 							devicesRef.push(deviceRef);
-// 						}
-// 					}
-// 					const sensorRef = node.extras?.sensorRef;
-// 					if (sensorRef && topicRef) {
-// 						if (sensorsRef.findIndex(sensorsRefi => sensorsRefi.sensorRef === sensorRef) === -1) {
-// 							const newSensorRef = {
-// 								sensorRef,
-// 								topicRef,
-// 								description: node.extras?.description,
-// 								payloadKey: node.extras?.payloadKey,
-// 								paramLabel: node.extras?.paramLabel,
-// 								valueType: node.extras?.valueType,
-// 								units: node.extras?.units,
-// 								dashboardRefresh: node.extras?.dashboardRefresh,
-// 								dashboardTimeWindow: node.extras?.dashboardTimeWindow
-// 							}
-// 							digitalTwinReferences.sensorsRef.push(newSensorRef);
-// 						}
-// 					}
-// 				}
-// 			})
-// 		}
-// 	} else {
-// 		digitalTwinReferences.topicsRef.push("dev2pdb_1-1");
-// 		const newSensorRef = {
-// 			sensorRef: "device_1",
-// 			topicRef: "dev2pdb_1-1",
-// 			description: "Sensor for device_1",
-// 			payloadKey: "paramter",
-// 			paramLabel: "Parameter",
-// 			valueType: "number",
-// 			units: "-",
-// 			dashboardRefresh: "1s",
-// 			dashboardTimeWindow: "5m"
-// 		}
-// 		digitalTwinReferences.sensorsRef.push(newSensorRef);
-// 	}
-// 	return digitalTwinReferences;
-// }
-
+/// Luego revisar
 const findTopicIdForSensor = (topicName: string, topicSensors: ITopic[]) => {
 	let sensorTopicId = -1;
 	for (const topicSensor of topicSensors) {
@@ -212,6 +446,7 @@ const findTopicIdForSensor = (topicName: string, topicSensors: ITopic[]) => {
 	return sensorTopicId;
 }
 
+/// Luego revisar
 export const updatedTopicSensorIdsFromDigitalTwinGltfData = async (
 	gltfFileName: string,
 	gltfFileData: any,
@@ -269,43 +504,16 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 	group: IGroup,
 	digitalTwinUpdate: IDigitalTwin & UpdateDigitalTwinDto
 ): Promise<void> => {
+	const groupId = group.id;
 	const digitalTwinId = digitalTwinUpdate.id;
-	const { topicsRef, devicesRef, sensorsRef } = digitalTwinUpdate;
-	const storedTopicsRef = await getDigitalTwinTopics(digitalTwinId);
-	const storedDevicesRef = await getDigitalTwinDevices(digitalTwinId);
+	const { topicsRef,  sensorsRef } = digitalTwinUpdate;
+	const storedTopicsRef = await getDTTopicsByDigitalTwinId(digitalTwinId);
 	const storedSensorsRef = await getDigitalTwinSensors(digitalTwinId);
-	const newDevicesRef = [...devicesRef];
 	const newSensorTopicsRef = [...topicsRef];
 
-	const devicesIdToRemove: number[] = [];
-	const devicesRefToAdd: string[] = [];
-	devicesRef.forEach(deviceRef => {
-		const deviceMap = storedDevicesRef.filter(device => device.deviceRef === deviceRef.deviceRef)[0];
-		if (!deviceMap) devicesRefToAdd.push(deviceMap.deviceRef);
-	});
-	storedDevicesRef.forEach(deviceRef => {
-		const deviceMap = devicesRef.filter(device => {
-			return device.deviceRef === deviceRef.deviceRef && !deviceRef.alreadyCreated
-		})[0];
-		if (!deviceMap) devicesIdToRemove.push(deviceRef.deviceId);
-	});
-	if (devicesIdToRemove.length !== 0) {
-		await deleteDevicesByIdArray(devicesIdToRemove);
-	}
-	for (const deviceRef of devicesRefToAdd) {
-		const deviceData = { mqttAccessControl: "Pub & Sub" };
-		const device = await createDevice(group, deviceData);
-		await createDigitalTwinDevice(digitalTwinId, device.id, deviceRef, true);
-		newDevicesRef.push({ deviceId: device.id, deviceRef });
-	}
-
 	const newTopicsRef = topicsRef.map(topic => topic.topicRef);
-	newTopicsRef.push("dtm2sim", "sim2dtm", "dtm2pdb");
-	for (let devIndex = 1; devIndex <= sensorsRef.length; devIndex++) {
-		newTopicsRef.push(`dev2dtm_${devIndex}`);
-		newTopicsRef.push(`dtm2dev_${devIndex}`);
-		newTopicsRef.push(`dev2sim_${devIndex}`);
-	}
+	newTopicsRef.push("dtm2sim", "sim2dtm", "dtm2pdb", "dev2dtm", "dtm2dev", "dev2sim");
+
 	const topicTypesToAdd: string[] = [];
 	const topicIdsToRemove: number[] = [];
 	newTopicsRef.forEach(topicType => {
@@ -325,56 +533,48 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 		if (topicSensorTypesToAdd.length !== 0) {
 			for (let i = 1; i <= topicSensorTypesToAdd.length; i++) {
 				const topicType = topicSensorTypesToAdd[i];
-				const devIndexString = topicType[i].slice(8).split("-")[0];
-				const devIndex = parseInt(devIndexString, 10) - 1;
-				const deviceRef = `device_${devIndex}`;
-				const deviceId = newDevicesRef.filter(device => device.deviceRef === deviceRef)[0].deviceId;
 				const topicData = {
 					topicType,
 					description: `${topicType} for DT_${digitalTwinUid}`,
 					mqttAccessControl: "Pub & Sub"
 				}
-				const topic = await createTopic(deviceId, topicData);
+				const topic = await createTopic(groupId, topicData);
 				await createDigitalTwinTopic(digitalTwinId, topic.id, topicType);
-				newSensorTopicsRef.push({topicRef: topicType, topicId: topic.id})
+				newSensorTopicsRef.push({ topicRef: topicType, topicId: topic.id })
 			}
 		}
 
-		for (let devIndex = 1; devIndex <= devicesRef.length; devIndex++) {
-			const deviceRef = `device_${devIndex}`;
-			const deviceId = newDevicesRef.filter(device => device.deviceRef === deviceRef)[0].deviceId;
-			if (topicTypesToAdd.indexOf(`dev2dtm_${devIndex}`) !== -1) {
-				const dev2dtmTopicData =
-				{
-					topicType: `dev2dtm_${devIndex}`,
-					description: `dev2dtm_${devIndex} for DT_${digitalTwinUid}`,
-					mqttAccessControl: "Pub & Sub"
-				};
-				const dev2dtmTopic = await createTopic(deviceId, dev2dtmTopicData);
-				await createDigitalTwinTopic(digitalTwinId, dev2dtmTopic.id, `dev2dtm_${devIndex}`);
-			}
+		if (topicTypesToAdd.indexOf("dev2dtm") !== -1) {
+			const dev2dtmTopicData =
+			{
+				topicType: "dev2dtm",
+				description: `dev2dtm for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub"
+			};
+			const dev2dtmTopic = await createTopic(groupId, dev2dtmTopicData);
+			await createDigitalTwinTopic(digitalTwinId, dev2dtmTopic.id, "dev2dtm");
+		}
 
-			if (topicTypesToAdd.indexOf(`dtm2dev_${devIndex}`) !== -1) {
-				const dtm2devTopicData =
-				{
-					topicType: `dtm2dev_${devIndex}`,
-					description: `dtm2dev_${devIndex} for DT_${digitalTwinUid}`,
-					mqttAccessControl: "Pub & Sub"
-				};
-				const dtm2devTopic = await createTopic(deviceId, dtm2devTopicData);
-				await createDigitalTwinTopic(digitalTwinId, dtm2devTopic.id, `dtm2dev_${devIndex}`);
-			}
+		if (topicTypesToAdd.indexOf("dtm2dev") !== -1) {
+			const dtm2devTopicData =
+			{
+				topicType: "dtm2dev",
+				description: `dtm2dev for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub"
+			};
+			const dtm2devTopic = await createTopic(groupId, dtm2devTopicData);
+			await createDigitalTwinTopic(digitalTwinId, dtm2devTopic.id, "dtm2dev");
+		}
 
-			if (topicTypesToAdd.indexOf(`dev2sim_${devIndex}`) !== -1) {
-				const dev2simTopicData =
-				{
-					topicType: `dev2sim_${devIndex}`,
-					description: `dev2sim_${devIndex} for DT_${digitalTwinUid}`,
-					mqttAccessControl: "Pub & Sub"
-				};
-				const dev2simTopic = await createTopic(deviceId, dev2simTopicData);
-				await createDigitalTwinTopic(digitalTwinId, dev2simTopic.id, `dev2sim_${devIndex}`);
-			}
+		if (topicTypesToAdd.indexOf("dev2sim") !== -1) {
+			const dev2simTopicData =
+			{
+				topicType: "dev2sim",
+				description: `dev2sim for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub"
+			};
+			const dev2simTopic = await createTopic(groupId, dev2simTopicData);
+			await createDigitalTwinTopic(digitalTwinId, dev2simTopic.id, "dev2sim");
 		}
 
 		if (topicTypesToAdd.indexOf("dtm2sim") !== -1) {
@@ -430,7 +630,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 	}
 	for (const sensorRef of sensorsRefToAdd) {
 		const topicRef = topicsRef.filter(topicMap => topicMap.topicRef === sensorRef.topicRef)[0].topicRef;
-		const topicId = newSensorTopicsRef.filter(topic => topic.topicRef === topicRef )[0].topicId;
+		const topicId = newSensorTopicsRef.filter(topic => topic.topicRef === topicRef)[0].topicId;
 		const sensorData = {
 			assetId: digitalTwinUpdate.assetId,
 			description: sensorRef.description,
@@ -532,191 +732,6 @@ export const generateDigitalTwinUid = (): string => {
 	return digitalTwinUid;
 }
 
-/// Marker
-
-export const insertDigitalTwin = async (
-	digitalTwinData: Partial<IDigitalTwin>
-): Promise<IDigitalTwin> => {
-	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
-		digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
-		digital_twin_simulation_format, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
-		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
-		scope, digital_twin_uid AS "digitalTwinUid", description,
-		type, dashboard_id AS "dashboardId",
-		digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-		created, updated`;
-
-	const result = await pool.query(
-		queryString,
-		[
-			digitalTwinData.groupId,
-			digitalTwinData.assetId,
-			digitalTwinData.digitalTwinUid,
-			digitalTwinData.description,
-			digitalTwinData.type,
-			digitalTwinData.dashboardId,
-			digitalTwinData.maxNumResFemFiles,
-			digitalTwinData.digitalTwinSimulationFormat
-		]);
-	return result.rows[0] as IDigitalTwin;
-};
-
-export const createDigitalTwinTopic = async (
-	digitalTwinId: number,
-	topicId: number,
-	topicType: string
-): Promise<IDigitalTwinTopic> => {
-	const queryString = `INSERT INTO grafanadb.digital_twin_topic (
-		digital_twin_id, topic_id, topic_type)
-		VALUES ($1, $2, $3)
-	    RETURNING  digital_twin_id AS "digitalTwinId", topic_id AS "topicId", 
-		topic_type AS "topicType"`
-	const result = await pool.query(
-		queryString,
-		[digitalTwinId, topicId, topicType]);
-	return result.rows[0] as IDigitalTwinTopic;
-};
-
-export const getDigitalTwinTopics = async (digitalTwinId: number): Promise<IDigitalTwinTopic[]> => {
-	const queryString = `SELECT digital_twin_id AS "digitalTwinId",
-						topic_id AS "topicId", topic_type AS "topicType"
-						FROM grafanadb.digital_twin_topic
-						WHERE grafanadb.digital_twin_topic.digital_twin_id = $1
-						ORDER BY grafanadb.digital_twin_topic.digital_twin_id ASC,
-						         grafanadb.digital_twin_topic.topic_id ASC;`;
-	const response = await pool.query(queryString, [digitalTwinId]);
-	return response.rows as IDigitalTwinTopic[];
-};
-
-export const deleteDigitalTwinTopics = async (
-	digitalTwinId: number,
-	topicsId: number[]
-): Promise<void> => {
-	const queryString = `DELETE FROM grafanadb.digital_twin_topic
-						WHERE grafanadb.digital_twin_topic.digital_twin_id = $1
-						AND grafanadb.digital_twin_topic.topic_id = ANY($2::bigint[]);`;
-	await pool.query(queryString, [digitalTwinId, topicsId]);
-};
-
-export const createDigitalTwinDevice = async (
-	digitalTwinId: number,
-	deviceId: number,
-	deviceRef: string,
-	alreadyCreated: boolean
-): Promise<IDigitalTwinDevice> => {
-	const queryString = `INSERT INTO grafanadb.digital_twin_device (
-		digital_twin_id, device_id, device_ref, already_created)
-		VALUES ($1, $2, $3, $4)
-	    RETURNING  digital_twin_id AS "digitalTwinId", device_id AS "devicId", 
-		device_ref AS "deviceRef", already_created AS "alreadyCreated"`
-	const result = await pool.query(
-		queryString,
-		[digitalTwinId, deviceId, deviceRef, alreadyCreated]);
-	return result.rows[0] as IDigitalTwinDevice;
-};
-
-export const getDigitalTwinDevices = async (digitalTwinId: number): Promise<IDigitalTwinDevice[]> => {
-	const queryString = `SELECT digital_twin_id AS "digitalTwinId",
-						device_id AS "deviceId", device_ref AS "devideRef",
-						already_created AS "alreadyCreated"
-						FROM grafanadb.digital_twin_device
-						WHERE grafanadb.digital_twin_device.digital_twin_id = $1
-						ORDER BY grafanadb.digital_twin_device.digital_twin_id ASC,
-						         grafanadb.digital_twin_device.device_id ASC;`;
-	const response = await pool.query(queryString, [digitalTwinId]);
-	return response.rows as IDigitalTwinDevice[];
-};
-
-export const createDigitalTwinSensor = async (
-	digitalTwinId: number,
-	sensorId: number,
-	sensorRef: string,
-	topicId: number,
-	alreadyCreated: boolean
-): Promise<IDigitalTwinSensor> => {
-	const queryString = `INSERT INTO grafanadb.digital_twin_sensor (
-		digital_twin_id, sensor_id, sensor_ref, topic_id, already_created)
-		VALUES ($1, $2, $3, $4, $5)
-	    RETURNING  digital_twin_id AS "digitalTwinId", sensor_id AS "sensorId",
-		sensor_ref AS "sensorRef", topic_id AS "topicId"`
-	const result = await pool.query(
-		queryString,
-		[digitalTwinId, sensorId, sensorRef, topicId, alreadyCreated]);
-	return result.rows[0] as IDigitalTwinSensor;
-};
-
-export const getDigitalTwinSensors = async (digitalTwinId: number): Promise<IDigitalTwinSensor[]> => {
-	const queryString = `SELECT digital_twin_id AS "digitalTwinId",
-	                    sensor_id AS "sensorId", sensor_ref AS "sensorRef·
-						grafanadb.digital_twin_topic.topic_type AS "topicType",
-						already_created AS "alreadyCreated"
-						FROM grafanadb.digital_twin_sensor
-						WHERE grafanadb.digital_twin_sensor.digital_twin_id = $1
-						ORDER BY grafanadb.digital_twin_sensor.digital_twin_id ASC,
-						         grafanadb.digital_twin_sensor.sensor_id ASC;`;
-	const response = await pool.query(queryString, [digitalTwinId]);
-	return response.rows as IDigitalTwinSensor[];
-};
-
-export const createDigitalTwinSensorDashboard = async (
-	digitalTwinId: number,
-	sensorId: number,
-	dashboardId: number
-): Promise<IDigitalTwinSensorDashboard> => {
-	const queryString = `INSERT INTO grafanadb.digital_twin_sensor_dashboard (
-		digital_twin_id, sensor_id, dashboard_id)
-		VALUES ($1, $2, $3)
-	    RETURNING  digital_twin_id AS "digitalTwinId", sensor_id AS "sensorId",
-		dashboard_id AS "dashboardId"`
-	const result = await pool.query(
-		queryString,
-		[digitalTwinId, sensorId, dashboardId]);
-	return result.rows[0] as IDigitalTwinSensorDashboard;
-};
-
-/// Fin marker
-
-export const getDTTopicsByDigitalTwinId = async (digitalTwinId: number): Promise<IDigitalTwinTopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin_topic.digital_twin_id AS "digitalTwinId",
-	                                grafanadb.digital_twin_topic.topic_id AS "topicId",
-									grafanadb.digital_twin_topic.topic_type AS "topicType"
-									FROM grafanadb.digital_twin_topic
-									WHERE grafanadb.digital_twin_topic.digital_twin_id = $1
-									ORDER BY grafanadb.digital_twin_topic.digital_twin_id ASC,
-											grafanadb.digital_twin_topic.topic_id ASC;`, [digitalTwinId]);
-	return response.rows as IDigitalTwinTopic[];
-};
-
-export const getDTSensorTopicsByDigitalTwinId = async (digitalTwinId: number): Promise<IDigitalTwinTopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin_topic.digital_twin_id AS "digitalTwinId",
-	                                grafanadb.digital_twin_topic.topic_id AS "topicId",
-									grafanadb.digital_twin_topic.topic_type AS "topicType"
-									FROM grafanadb.digital_twin_topic
-									WHERE grafanadb.digital_twin_topic.digital_twin_id = $1
-									ORDER BY grafanadb.digital_twin_topic.digital_twin_id ASC,
-											grafanadb.digital_twin_topic.topic_id ASC;`, [digitalTwinId]);
-	return response.rows as IDigitalTwinTopic[];
-};
-
-
-export const getDigitalTwinMqttTopicsInfoFromByDTIdsArray = async (digitalTwinIdsArray: number[]): Promise<IMqttDigitalTwinTopicInfo[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-	                                grafanadb.topic.id AS "topicId", grafanadb.digital_twin_topic.topic_type AS "topicType",
-									grafanadb.group.group_uid AS "groupHash", grafanadb.device.device_uid AS "deviceHash",
-									grafanadb.topic.topic_uid AS "topicHash"
-									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.topic_id = grafanadb.topic.id
-									INNER JOIN grafanadb.digital_twin ON
-										grafanadb.digital_twin.id = grafanadb.digital_twin_topic.digital_twin_id
-									WHERE grafanadb.digital_twin_topic.digital_twin_id = ANY($1::bigint[])
-									ORDER BY grafanadb.topic.id ASC;`, [digitalTwinIdsArray]);
-
-	return response.rows as IMqttDigitalTwinTopicInfo[];
-}
-
 export const generateDigitalTwinMqttTopics = (digitalTwinMqttTopicsInfo: IMqttDigitalTwinTopicInfo[]): Record<string, Record<string, string>> => {
 	const digitalTwinMqttTopics: Record<string, Record<string, string>> = {};
 	for (const topicInfo of digitalTwinMqttTopicsInfo) {
@@ -742,31 +757,6 @@ export const generateDigitalTwinMqttTopics = (digitalTwinMqttTopicsInfo: IMqttDi
 }
 
 
-export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinData: Partial<IDigitalTwin>): Promise<void> => {
-	const query = `UPDATE grafanadb.digital_twin SET digital_twin_uid = $1, description = $2, type = $3, max_num_resfem_files = $4,
-					digital_twin_simulation_format = $5, updated = NOW() WHERE grafanadb.digital_twin.id = $6;`;
-	await pool.query(query, [
-		digitalTwinData.digitalTwinUid,
-		digitalTwinData.description,
-		digitalTwinData.type,
-		digitalTwinData.maxNumResFemFiles,
-		digitalTwinData.digitalTwinSimulationFormat,
-		digitalTwinId
-	]);
-};
-
-export const deleteDigitalTwin = async (digitalTwinId: number): Promise<void> => {
-	await pool.query(`DELETE FROM grafanadb.digital_twin WHERE grafanadb.digital_twin.id = $1`, [digitalTwinId]);
-};
-
-export const deleteDigitalTwinById = async (digitalTwin: IDigitalTwin): Promise<void> => {
-	const digitalTwinTopicsList = await getDTTopicsByDigitalTwinId(digitalTwin.id);
-	const topicIdsArray = digitalTwinTopicsList.map(topic => topic.topicId);
-	await deleteTopicByIdsArray(topicIdsArray);
-	await deleteDashboard(digitalTwin.dashboardId);
-	await deleteDigitalTwin(digitalTwin.id);
-};
-
 interface ICreateDigitalTwin {
 	digitalTwin: IDigitalTwin | null;
 	topicSensors: ITopic[];
@@ -778,41 +768,25 @@ export const createDigitalTwin = async (
 	digitalTwinInput: CreateDigitalTwinDto,
 	dashboardId: number | null = null,
 ): Promise<ICreateDigitalTwin> => {
+	const groupId = group.id;
 	const assetId = asset.id;
 	const digitalTwinUid = digitalTwinInput.digitalTwinUid;
 
-	const devices: IDevice[] = [];
-	if (digitalTwinInput.devicesRef.length !== 0) {
-		for (const deviceMap of digitalTwinInput.devicesRef) {
-			if (deviceMap.deviceId !== 0) {
-				const device = await getDeviceByProp("id", deviceMap.deviceId)
-				if (!device) throw new Error(`The device with id: ${deviceMap.deviceId} not exists`);
-				devices.push(device);
-			} else {
-				const deviceData = { mqttAccessControl: "Pub & Sub" };
-				const device = await createDevice(group, deviceData);
-				devices.push(device);
-			}
-		}
-	}
-
 	const topicSensors: ITopic[] = [];
-	if (digitalTwinInput.topicsRef.length !== 0) {
+	if (digitalTwinInput.topicsRef?.length !== 0) {
 		for (const topicMap of digitalTwinInput.topicsRef) {
-			const topicSensorType = topicMap.topicRef; /// Format dev2pdb_1-1
+			const topicSensorType = topicMap.topicRef; /// Format dev2pdb_i
 			if (topicMap.topicId !== 0) {
 				const topic = await getTopicByProp("id", topicMap.topicId)
 				if (!topic) throw new Error(`The topic with id: ${topicMap.topicId} not exists`);
 				topicSensors.push(topic);
 			} else {
-				const devIndexString = topicSensorType.slice(8).split("-")[0];
-				const devIndex = parseInt(devIndexString, 10) - 1;
 				const topicData = {
 					topicType: topicSensorType,
 					description: `${topicSensorType} for DT_${digitalTwinUid}`,
 					mqttAccessControl: "Pub & Sub"
 				}
-				const topic = await createTopic(devices[devIndex].id, topicData);
+				const topic = await createTopic(groupId, topicData);
 				topicSensors.push(topic);
 			}
 		}
@@ -820,7 +794,7 @@ export const createDigitalTwin = async (
 
 	const sensors: ISensor[] = [];
 	const sensorDashboarsId: number[] = [];
-	if (digitalTwinInput.sensorsRef.length !== 0) {
+	if (digitalTwinInput.sensorsRef?.length !== 0) {
 		for (const sensorMap of digitalTwinInput.sensorsRef) {
 			if (sensorMap.sensorId !== 0) {
 				const sensor = await getSensorByPropName("id", sensorMap.sensorId)
@@ -853,13 +827,14 @@ export const createDigitalTwin = async (
 	let digitalTwinDashboardId = dashboardId;
 	if (!dashboardId) {
 		const dashboardTitle = `DT_${digitalTwinUid} dashboard`;
-		const deviceUid = devices[0].deviceUid;
-		const topicUid = topicSensors[0]?.topicUid;
-		digitalTwinDashboardId = await createDashboard(group, deviceUid, topicUid, dashboardTitle);
+		const topicIndex = digitalTwinInput.topicsRef.findIndex(topicMap => topicMap.topicRef === "dev2pdb_1");
+		const topicUid = topicSensors[topicIndex].topicUid;
+		digitalTwinDashboardId = await createDashboard(group, topicUid, dashboardTitle);
 	}
 
 	const digitalTwinUpdated: Partial<IDigitalTwin> = {
 		...digitalTwinInput,
+		groupId,
 		assetId,
 		dashboardId: digitalTwinDashboardId
 	};
@@ -873,22 +848,10 @@ export const createDigitalTwin = async (
 	}
 	await Promise.all(digitalTwinTopicSensorQueries);
 
-	const digitalTwinDeviceQueries: any[] = [];
-	for (const device of devices) {
-		const deviceId = device.id;
-		const deviceIndex = digitalTwinInput.devicesRef.findIndex(deviceMap => deviceMap.deviceId === deviceId);
-		const deviceRef = digitalTwinInput.devicesRef[deviceIndex].deviceRef;
-		const alreadyCreated = digitalTwinInput.devicesRef[deviceIndex].deviceId !== 0;
-		const digitalTwinDeviceQuery = createDigitalTwinDevice(digitalTwin.id, deviceId, deviceRef, alreadyCreated)
-		digitalTwinDeviceQueries.push(digitalTwinDeviceQuery);
-	}
-	await Promise.all(digitalTwinDeviceQueries);
-
 	const digitalTwinSensorQueries: any[] = [];
-	for (const sensor of sensors) {
-		const sensorId = sensor.id;
-		const topicId = sensor.topicId;
-		const sensorIndex = digitalTwinInput.sensorsRef.findIndex(sensorMap => sensorMap.sensorId === sensorId);
+	for (let sensorIndex = 0; sensorIndex < sensors.length; sensorIndex++) {
+		const sensorId = sensors[sensorIndex].id;
+		const topicId = sensors[sensorIndex].topicId;
 		const sensorRef = digitalTwinInput.sensorsRef[sensorIndex].sensorRef;
 		const alreadyCreated = digitalTwinInput.sensorsRef[sensorIndex].sensorId !== 0;
 		const digitalTwinSensorQuery = createDigitalTwinSensor(digitalTwin.id, sensorId, sensorRef, topicId, alreadyCreated)
@@ -939,54 +902,36 @@ export const createDigitalTwin = async (
 		const dtm2pdbTopic = await createTopic(0, dtm2pdbTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, dtm2pdbTopic.id, "dtm2pdb");
 
-		let devIndex = 0;
-		for (const device of devices) {
-			devIndex++;
-			const dev2dtmTopicData =
-			{
-				topicType: `dev2dtm_${devIndex}`,
-				description: `dev2dtm_${devIndex} for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub"
-			};
-			const dev2dtmTopic = await createTopic(device.id, dev2dtmTopicData);
-			await createDigitalTwinTopic(digitalTwin.id, dev2dtmTopic.id, `dev2dtm_${devIndex}`);
+		const dev2dtmTopicData =
+		{
+			topicType: "dev2dtm",
+			description: `dev2dtm for DT_${digitalTwinUid}`,
+			mqttAccessControl: "Pub & Sub"
+		};
+		const dev2dtmTopic = await createTopic(groupId, dev2dtmTopicData);
+		await createDigitalTwinTopic(digitalTwin.id, dev2dtmTopic.id, "dev2dtm");
 
-			const dtm2devTopicData =
-			{
-				topicType: `dtm2dev_${devIndex}`,
-				description: `dtm2dev_${devIndex} for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub"
-			};
-			const dtm2devTopic = await createTopic(device.id, dtm2devTopicData);
-			await createDigitalTwinTopic(digitalTwin.id, dtm2devTopic.id, `dtm2dev_${devIndex}`);
+		const dtm2devTopicData =
+		{
+			topicType: "dtm2dev",
+			description: `dtm2dev for DT_${digitalTwinUid}`,
+			mqttAccessControl: "Pub & Sub"
+		};
+		const dtm2devTopic = await createTopic(groupId, dtm2devTopicData);
+		await createDigitalTwinTopic(digitalTwin.id, dtm2devTopic.id, "dtm2dev");
 
-			const dev2simTopicData =
-			{
-				topicType: `dev2sim_${devIndex}`,
-				description: `dev2sim_${devIndex} for DT_${digitalTwinUid}`,
-				mqttAccessControl: "Pub & Sub"
-			};
-			const dev2simTopic = await createTopic(device.id, dev2simTopicData);
-			await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, `dev2sim_${devIndex}`);
-		}
+		const dev2simTopicData =
+		{
+			topicType: "dev2sim",
+			description: `dev2sim for DT_${digitalTwinUid}`,
+			mqttAccessControl: "Pub & Sub"
+		};
+		const dev2simTopic = await createTopic(groupId, dev2simTopicData);
+		await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, "dev2sim");
 	}
 
 	return { digitalTwin, topicSensors };
 };
-
-export const getDigitalTwinByProp = async (propName: string, propValue: (string | number)): Promise<IDigitalTwin> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
-									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-									grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
-									WHERE grafanadb.digital_twin.${propName} = $1`, [propValue]);
-	return response.rows[0] as IDigitalTwin;
-}
 
 export const getGltfFileData = async (digitalTwin: IDigitalTwin): Promise<IGltfFileData> => {
 	const orgId = digitalTwin.orgId;
@@ -1040,171 +985,6 @@ export const getDigitalTwinGltfData = async (digitalTwin: IDigitalTwin): Promise
 
 	return gltfData;
 }
-
-export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-										grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-										grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-										grafanadb.digital_twin.dashboard_id AS "dashboardId",
-										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-										FROM grafanadb.digital_twin
-										INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-										ORDER BY grafanadb.digital_twin.id ASC,
-											grafanadb.group.org_id ASC,
-											grafanadb.digital_twin.group_id ASC,
-											grafanadb.digital_twin.asset_id ASC;`);
-	return response.rows as IDigitalTwin[];
-}
-
-export const getAllDigitalTwinSimulators = async (): Promise<IDigitalTwinSimulator[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-						grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
-						grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-						grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
-						FROM grafanadb.digital_twin
-						INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-						INNER JOIN grafanadb.digital_twin_topic ON
-							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
-						WHERE  grafanadb.digital_twin.type = $1 AND
-						grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
-						grafanadb.digital_twin_topic.topic_type = $2
-						ORDER BY grafanadb.group.org_id ASC,
-							grafanadb.digital_twin.group_id ASC,
-							grafanadb.digital_twin.asset_id ASC,
-							grafanadb.digital_twin.id ASC;`, ["Gltf 3D model", "sim2dtm"]);
-	return response.rows as IDigitalTwinSimulator[];
-}
-
-export const getStateOfAllDigitalTwins = async (): Promise<IDigitalTwinState[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.alert.state
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_id
-									ORDER BY grafanadb.group.org_id ASC,
-											grafanadb.digital_twin.group_id ASC,
-											grafanadb.digital_twin.asset_id ASC,
-											grafanadb.digital_twin.id ASC;`);
-	return response.rows as IDigitalTwinState[];
-}
-
-export const getNumDigitalTwins = async (): Promise<number> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.digital_twin;`);
-	return parseInt(result.rows[0].count, 10);
-}
-
-export const getNumDigitalTwinsByAssetId = async (assetId: number): Promise<number> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.digital_twin
-									WHERE grafanadb.digital_twin.assetId = $1`, [assetId]);
-	return parseInt(result.rows[0].count, 10);
-}
-
-
-export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-										grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-										grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-										grafanadb.digital_twin.dashboard_id AS "dashboardId",
-										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-										FROM grafanadb.digital_twin
-										INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-										WHERE grafanadb.digital_twin.group_id = $1
-										ORDER BY grafanadb.digital_twin.id ASC,
-										grafanadb.group.org_id ASC,
-										grafanadb.digital_twin.group_id ASC,
-										grafanadb.digital_twin.asset_id ASC;`, [groupId]);
-	return response.rows as IDigitalTwin[];
-};
-
-export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-									grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									WHERE grafanadb.asset.group_id = ANY($1::bigint[])
-									ORDER BY grafanadb.digital_twin.id ASC,
-										grafanadb.group.org_id ASC,
-										grafanadb.digital_twin.group_id ASC,
-										grafanadb.digital_twin.asset_id ASC;`, [groupsIdArray]);
-	return response.rows as IDigitalTwin[];
-};
-
-export const getDigitalTwinSimulatorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwinSimulator[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.device.org_id AS "orgId",
-						grafanadb.device.group_id AS "groupId", grafanadb.digital_twin.device_id AS "deviceId",
-						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
-						grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-						grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
-						FROM grafanadb.digital_twin
-						INNER JOIN grafanadb.device ON grafanadb.digital_twin.device_id = grafanadb.device.id
-						INNER JOIN grafanadb.digital_twin_topic ON
-							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
-						WHERE grafanadb.device.group_id = ANY($1::bigint[]) AND
-						grafanadb.digital_twin.type = $2 AND
-						grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
-						grafanadb.digital_twin_topic.topic_type = $3
-						ORDER BY grafanadb.device.org_id ASC,
-							grafanadb.device.group_id ASC,
-							grafanadb.digital_twin.device_id ASC,
-							grafanadb.digital_twin.id ASC;`, [groupsIdArray, "Gltf 3D model", "sim2dtm"]);
-	return response.rows as IDigitalTwinSimulator[];
-}
-
-export const getStateOfDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwinState[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id AS "digitalTwinId", grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.alert.state
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.alert ON grafanadb.digital_twin.dashboard_id = grafanadb.alert.dashboard_idd
-									WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])
-									ORDER BY grafanadb.group.org_id ASC,
-											grafanadb.digital_twin.group_id ASC,
-											grafanadb.digital_twin.asset_id ASC,
-											grafanadb.digital_twin.id ASC;`, [groupsIdArray]);
-	return response.rows as IDigitalTwinState[];
-};
-
-
-
-export const getNumDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): Promise<number> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.digital_twin
-									WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])`, [groupsIdArray]);
-	return parseInt(result.rows[0].count, 10);
-}
-
-export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwin[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-									grafanadb.digital_twin.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-									grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
-									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
-									grafanadb.digital_twin.dashboard_id AS "dashboardId",
-									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
-									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
-									FROM grafanadb.digital_twin
-									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									WHERE grafanadb.group.org_id = $1
-									ORDER BY grafanadb.digital_twin.id ASC,
-										grafanadb.group.org_id ASC,
-										grafanadb.digital_twin.group_id ASC,
-										grafanadb.digital_twin.asset_id ASC;`, [orgId]);
-	return response.rows as IDigitalTwin[];
-};
 
 export const getMqttTopicsData = async (digitalTwinId: number): Promise<IMqttTopicDataShort[]> => {
 	const topicsData = await getMqttTopicsDataFromDigitalTwinData(digitalTwinId);
@@ -1264,12 +1044,12 @@ const generateMqttTopic = (mqttTopicInfo: IMqttTopicInfo | IMqttDigitalTwinTopic
 	if (mqttTopicInfo.topicType.slice(0, 7) === "dev2pdb") {
 		topicType = "dev2pdb";
 	}
-	const mqttTopic = `${topicType}/Group_${mqttTopicInfo.groupHash}/Device_${mqttTopicInfo.deviceHash}/Topic_${mqttTopicInfo.topicHash}`;
+	const mqttTopic = `${topicType}/Group_${mqttTopicInfo.groupHash}/Topic_${mqttTopicInfo.topicHash}`;
 	return mqttTopic;
 }
 
 export const generateSqlTopic = (mqttTopicInfo: IMqttTopicInfo): string => {
-	const sqlTopic = `Device_${mqttTopicInfo.deviceHash}/Topic_${mqttTopicInfo.topicHash}`;
+	const sqlTopic = `Topic_${mqttTopicInfo.topicHash}`;
 	return sqlTopic;
 }
 

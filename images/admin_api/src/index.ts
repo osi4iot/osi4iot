@@ -8,7 +8,6 @@ import { dataBaseInitialization } from "./initialization/migration";
 import OrganizationController from "./components/organization/organization.controller";
 import ApplicationController from "./components/application/application.controller";
 import GroupController from "./components/group/group.controller";
-import DeviceController from "./components/device/device.controller";
 import TopicController from "./components/topic/topic.controller";
 import DigitalTwinController from "./components/digitalTwin/digitalTwinController";
 import BuildingController from "./components/building/building.controller";
@@ -32,7 +31,6 @@ const main= async (): Promise<void> => {
 			new OrganizationController(),
 			new BuildingController(),
 			new GroupController(),
-			new DeviceController(),
 			new AssetController(),
 			new SensorController(),
 			new NodeRedInstanceController(),

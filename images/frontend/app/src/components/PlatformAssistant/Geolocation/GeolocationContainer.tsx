@@ -1,11 +1,9 @@
 import React, { FC, useCallback, useEffect, useState } from 'react'
 import Map from './Map'
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { IDevice } from '../TableColumns/devicesColumns';
 import SelectGroupManaged from './SelectGroupManaged';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import SelectOrgOfGroupsManaged from './SelectOrgOfGroupsManaged';
-import SelectDevice from './SelectDevice';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
@@ -38,7 +36,6 @@ export const GEOLOCATION_OPTIONS = {
     SELECT_GROUP: "Select group",
     SELECT_ASSET: "Select asset",
     SELECT_SENSOR: "Select sensor",
-    SELECT_DEVICE: "Select device",
     SELECT_DIGITAL_TWIN: "Select digital twin",
 }
 
@@ -49,7 +46,7 @@ const urlDigitalTwinsState = `${protocol}://${domainName}/admin_api/digital_twin
 export interface IDigitalTwinState {
     orgId: number;
     groupId: number;
-    deviceId: number;
+    assetId: number;
     digitalTwinId: number;
     state: string;
 }
@@ -61,7 +58,6 @@ interface GeolocationContainerProps {
     groupsManaged: IGroupManaged[];
     assets: IAsset[];
     sensors: ISensor[];
-    devices: IDevice[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
     selectBuilding: (buildingSelected: IBuilding) => void;
@@ -75,8 +71,6 @@ interface GeolocationContainerProps {
     selectAsset: (assetSelected: IAsset) => void;
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor) => void;
-    deviceSelected: IDevice | null;
-    selectDevice: (deviceSelected: IDevice) => void;
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
     refreshBuildings: () => void;
@@ -85,7 +79,6 @@ interface GeolocationContainerProps {
     refreshGroupsManaged: () => void;
     refreshAssets: () => void;
     refreshSensors: () => void;
-    refreshDevices: () => void;
     refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
     outerBounds: number[][];
@@ -105,7 +98,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         groupsManaged,
         assets,
         sensors,
-        devices,
         digitalTwins,
         buildingSelected,
         selectBuilding,
@@ -119,8 +111,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         selectAsset,
         sensorSelected,
         selectSensor,
-        deviceSelected,
-        selectDevice,
         selectDigitalTwin,
         digitalTwinSelected,
         refreshBuildings,
@@ -129,7 +119,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         refreshGroupsManaged,
         refreshAssets,
         refreshSensors,
-        refreshDevices,
         refreshDigitalTwins,
         initialOuterBounds,
         outerBounds,
@@ -192,10 +181,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_GROUP);
     }, []);
 
-    const selectDeviceOption = useCallback(() => {
-        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DEVICE);
-    }, []);
-
     const selectDigitalTwinOption = useCallback(() => {
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
     }, []);
@@ -216,9 +201,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         selectGroup(groupSelected);
     }, [selectGroup]);
 
-    const giveDeviceSelected = useCallback((deviceSelected: IDevice) => {
-        selectDevice(deviceSelected);
-    }, [selectDevice]);
 
     return (
         <>
@@ -230,7 +212,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     groupsManaged={groupsManaged}
                     assets={assets}
                     sensors={sensors}
-                    devices={devices}
                     digitalTwins={digitalTwins}
                     buildingSelected={buildingSelected}
                     selectBuilding={selectBuilding}
@@ -244,8 +225,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectAsset={selectAsset}
                     sensorSelected={sensorSelected}
                     selectSensor={selectSensor}
-                    deviceSelected={deviceSelected}
-                    selectDevice={selectDevice}
                     selectDigitalTwin={selectDigitalTwin}
                     digitalTwinSelected={digitalTwinSelected}
                     refreshBuildings={refreshBuildings}
@@ -254,7 +233,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     refreshGroupsManaged={refreshGroupsManaged}
                     refreshAssets={refreshAssets}
                     refreshSensors={refreshSensors}
-                    refreshDevices={refreshDevices}
                     refreshDigitalTwins={refreshDigitalTwins}
                     initialOuterBounds={initialOuterBounds}
                     outerBounds={outerBounds}
@@ -262,7 +240,6 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectFloorOption={selectFloorOption}
                     selectOrgOption={selectOrgOption}
                     selectGroupOption={selectGroupOption}
-                    selectDeviceOption={selectDeviceOption}
                     selectDigitalTwinOption={selectDigitalTwinOption}
                     resetBuildingSelection={resetBuildingSelection}
                     digitalTwinsState={digitalTwinsState}
@@ -302,18 +279,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     backToMap={backToMap}
                     groupSelected={groupSelected}
                     giveGroupManagedSelected={giveGroupManagedSelected}
-                    devices={devices.filter(device => device.orgId === orgSelected.id)}
                     digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
-                />
-            }
-            {(geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_DEVICE && groupSelected) &&
-                <SelectDevice
-                    groupId={(groupSelected as IGroupManaged).id}
-                    backToMap={backToMap}
-                    deviceSelected={deviceSelected}
-                    giveDeviceSelected={giveDeviceSelected}
-                    digitalTwins={digitalTwins.filter(digitalTwin => (digitalTwin.groupId === groupSelected.id))}
-                    digitalTwinsState={digitalTwinsState.filter(digitalTwinState => (digitalTwinState.groupId === groupSelected.id))}
                 />
             }
         </>

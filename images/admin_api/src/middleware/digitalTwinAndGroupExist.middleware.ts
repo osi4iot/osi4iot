@@ -3,11 +3,11 @@ import { getGroupByProp } from "../components/group/groupDAL";
 import GroupNotFoundException from "../exceptions/GroupNotFoundException";
 import { getDigitalTwinByProp } from "../components/digitalTwin/digitalTwinDAL";
 import DigitalTwinNotFoundException from "../exceptions/DigitalTwinNotFoundException";
-import IRequestWithDigitalTwinDeviceAndGroup from "../components/group/interfaces/requestWithDigitalTwinDeviceAndGroup.interface";
+import IRequestWithDigitalTwinAndGroup from "../components/group/interfaces/requestWithDigitalTwinAndGroup.interface";
 
 
 const digitalTwinAndGroupExist = async (
-	request: IRequestWithDigitalTwinDeviceAndGroup,
+	request: IRequestWithDigitalTwinAndGroup,
 	response: Response,
 	next: NextFunction
 ): Promise<void> => {

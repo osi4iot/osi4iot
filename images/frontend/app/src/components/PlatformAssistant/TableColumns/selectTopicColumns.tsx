@@ -4,8 +4,8 @@ export interface ISelectTopic {
     id: number;
     orgId: number;
     groupId: number;
-    deviceId: number;
-    topicName: string;
+    topicType: number,
+    description: string;
 }
 
 export const SELECT_TOPIC_COLUMNS: Column<ISelectTopic>[] = [
@@ -25,13 +25,13 @@ export const SELECT_TOPIC_COLUMNS: Column<ISelectTopic>[] = [
         filter: 'equals'
     },
     {
-        Header: "DeviceId",
-        accessor: "deviceId",
+        Header: "Topic type",
+        accessor: "topicType",
         filter: 'equals'
     },
     {
-        Header: "Topic name",
-        accessor: "topicName",
+        Header: "Description",
+        accessor: "description",
         filter: 'equals'
     }
 ]

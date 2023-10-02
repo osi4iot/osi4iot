@@ -18,7 +18,6 @@ import {
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
 import {
     setReloadDashboardsTable,
-    setReloadDevicesTable,
     setReloadDigitalTwinsTable,
     setReloadGroupMembersTable,
     setReloadGroupsManagedTable,
@@ -70,7 +69,7 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE GROUP";
     const question = "Are you sure to delete this group?";
-    const consequences = "All teams, folders, devices and sensor measurements belonging to this group are going to be lost.";
+    const consequences = "All teams, folders, assets, sensors, and sensor measurements belonging to this group are going to be lost.";
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
 
@@ -105,8 +104,6 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
                 const reloadGroupMembersTable = true;
                 setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadDevicesTable = true;
-                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
                 const reloadTopicsTable = true;
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 const reloadDigitalTwinsTable = true;

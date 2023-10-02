@@ -241,7 +241,7 @@ class MLModelController implements IController {
 				const bucketFolder = `org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
 				await removeFilesFromBucketFolder(bucketFolder);
 			}
-			const message = { message: "Device updated successfully" }
+			const message = { message: "ML model updated successfully" }
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -257,7 +257,7 @@ class MLModelController implements IController {
 			const mlModelData: CreateMLModelDto = req.body;
 			const newMlModel = await createMLModel(req.group, mlModelData);
 			const message = {
-				message: `A new device has been created`,
+				message: `A new ML model has been created`,
 				mlModelId: newMlModel.id
 			};
 			res.status(200).send(message);

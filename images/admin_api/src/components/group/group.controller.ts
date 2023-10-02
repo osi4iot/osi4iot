@@ -48,7 +48,6 @@ import {
 	getDashboardsDataWithRawSqlOfGroup,
 	updateDashboardsDataRawSqlOfGroup
 } from "./dashboardDAL";
-import { createDevice } from "../device/deviceDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic } from "../topic/topicDAL";
@@ -70,6 +69,7 @@ import { createNewSensor } from "../sensor/sensorDAL";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { nanoid } from "nanoid";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
+import sslGroupCerticatesGenerator from "./sslGroupCerticatesGenerator";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -210,6 +210,14 @@ class GroupController implements IController {
 				organizationExists,
 				this.deleteGroupByProp
 			);
+
+		this.router
+			.get(
+				`${this.path}_ssl_certs/:groupId`,
+				groupExists,
+				groupAdminAuth,
+				this.getSslCertsByGroupId
+			);
 	}
 
 	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> => {
@@ -298,9 +306,9 @@ class GroupController implements IController {
 				centerGroupAreaLongitude = center.geometry.coordinates[0];
 				centerGroupAreaLatitude = center.geometry.coordinates[1];
 				const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
-				const ptDevice = rhumbDestination(ptCenterGroupArea, 0.001, 180);
-				assetLongitude = ptDevice.geometry.coordinates[0];
-				assetLatitude = ptDevice.geometry.coordinates[1];
+				const ptAsset = rhumbDestination(ptCenterGroupArea, 0.001, 180);
+				assetLongitude = ptAsset.geometry.coordinates[0];
+				assetLatitude = ptAsset.geometry.coordinates[1];
 				const ptNri = rhumbDestination(ptCenterGroupArea, 0.002, 0.0);
 				nriLongitude = ptNri.geometry.coordinates[0];
 				nriLatitude = ptNri.geometry.coordinates[1];
@@ -319,19 +327,10 @@ class GroupController implements IController {
 			}
 			const asset = await createNewAsset(groupCreated, defaultAssetData);
 
-			const defaultGroupDeviceData = {
-				latitude: 0.0,
-				longitude: 0.0,
-				type: "Generic",
-				iconRadio: 1.0,
-				mqttAccessControl: "Pub & Sub"
-			};
-			const device = await createDevice(groupCreated, defaultGroupDeviceData);
-
-			const defaultDeviceTopicsData = [
+			const topicsDataForMobileAsset = [
 				{
 					topicType: "dev2pdb",
-					description: `Mobile temperature topic`,
+					description: `Mobile geolocation topic`,
 					mqttAccessControl: "Pub & Sub"
 				},
 				{
@@ -348,12 +347,13 @@ class GroupController implements IController {
 					topicType: "dev2dtm",
 					description: `Mobile photo topic`,
 					mqttAccessControl: "Pub & Sub"
-				},
+				}
 			];
-			const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
-			const topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
-			const topic3 = await createTopic(device.id, defaultDeviceTopicsData[2]);
-			const topic4 = await createTopic(device.id, defaultDeviceTopicsData[3]);
+			const topic1 = await createTopic(groupCreated.id, topicsDataForMobileAsset[0]);
+			const topic2 = await createTopic(groupCreated.id, topicsDataForMobileAsset[1]);
+			const topic3 = await createTopic(groupCreated.id, topicsDataForMobileAsset[2]);
+			const topic4 = await createTopic(groupCreated.id, topicsDataForMobileAsset[3]);
+
 
 			const sensorsData: CreateSensorDto[] = [];
 			const dashboarsId: number[] = [];
@@ -361,12 +361,12 @@ class GroupController implements IController {
 			sensorsData[0] =
 			{
 				assetId: asset.id,
-				description: `Temperature sensor`,
+				description: `Mobile geolocation`,
 				topicId: topic1.id,
-				payloadKey: "temperature",
-				paramLabel: "Temperature",
-				valueType: "number",
-				units: "°C",
+				payloadKey: "mobile_geolocation",
+				paramLabel: "longitude,latitude",
+				valueType: "number(2)",
+				units: "-",
 				dashboardRefresh: "1s",
 				dashboardTimeWindow: "5m"
 			};
@@ -733,6 +733,17 @@ class GroupController implements IController {
 			next(error);
 		}
 	};
+
+	private getSslCertsByGroupId = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+		try {
+			const groupId = req.group.id;
+			const certs = await sslGroupCerticatesGenerator(groupId);
+			res.status(200).send(certs);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 
 }
 

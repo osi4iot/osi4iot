@@ -77,7 +77,7 @@ const DeleteSensorModal: FC<DeleteSensorModalProps> = ({ rowIndex, groupId, sens
     }, [isSensorDeleted, refreshSensors]);
 
     const action = (hideModal: () => void) => {
-        const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}/${sensorId}`;
+        const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}/id/${sensorId}`;
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)

@@ -23,7 +23,6 @@ export interface ITopic {
     id: number;
     orgId: number;
     groupId: number;
-    deviceId: number;
     topicType: string;
     description: string;
     topicUid: string;
@@ -34,13 +33,11 @@ export interface IMobileTopic {
 	id: number;
 	orgAcronym: string;
 	groupAcronym: string;
-	deviceName: string;
-	topicName: string;
-	description: string;
+	assetDescription: string;
+	sensorDescription: string;
 	groupUid: string;
-	deviceUid: string;
+	assetUid: string;
 	topicUid: string;
-	payloadFormat:  Record<string, any>;
 }
 
 
@@ -53,7 +50,6 @@ interface ITopicColumn extends ITopic {
 interface DeleteTopicModalProps {
     rowIndex: number;
     groupId: number;
-    deviceId: number;
     topicId: number;
     refreshTopics: () => void;
 }
@@ -61,7 +57,7 @@ interface DeleteTopicModalProps {
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, deviceId, topicId, refreshTopics }) => {
+const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, topicId, refreshTopics }) => {
     const [isTopicDeleted, setIsTopicDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE TOPIC";
@@ -81,7 +77,7 @@ const DeleteTopicModal: FC<DeleteTopicModalProps> = ({ rowIndex, groupId, device
     }, [isTopicDeleted, refreshTopics]);
 
     const action = (hideModal: () => void) => {
-        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${deviceId}/${topicId}`;
+        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${topicId}`;
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
@@ -207,11 +203,6 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
             filter: 'equals'
         },
         {
-            Header: "DeviceId",
-            accessor: "deviceId",
-            filter: 'equals'
-        },
-        {
             Header: "Type",
             accessor: "topicType"
         },
@@ -274,8 +265,7 @@ export const Create_TOPICS_COLUMNS = (refreshTopics: () => void): Column<ITopicC
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const topicId = row?.cells[0]?.value;
                 const groupId = row?.cells[2]?.value;
-                const deviceId = row?.cells[3]?.value;
-                return <DeleteTopicModal topicId={topicId} groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} refreshTopics={refreshTopics} />
+                return <DeleteTopicModal topicId={topicId} groupId={groupId} rowIndex={rowIndex} refreshTopics={refreshTopics} />
             }
         }
     ]

@@ -17,7 +17,6 @@ import {
     setReloadOrgUsersTable,
     setReloadGroupsManagedTable,
     setReloadGroupMembersTable,
-    setReloadDevicesTable,
     setReloadDigitalTwinsTable,
     setReloadDashboardsTable,
     setReloadOrgsOfGroupsManagedTable,
@@ -62,7 +61,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE ORGANIZATION";
     const question = "Are you sure to delete this organization?";
-    const consequences = "All groups, devices and sensor measurements belonging to this org are going to be lost.";
+    const consequences = "All groups, assets, sensors, and sensor measurements belonging to this org are going to be lost.";
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
 
@@ -102,8 +101,6 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
                 const reloadGroupMembersTable = true;
                 setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadDevicesTable = true;
-                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
                 const reloadTopicsTable = true;
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 const reloadDigitalTwinsTable = true;

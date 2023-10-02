@@ -10,11 +10,21 @@ import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
 import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { setDigitalTwinsOptionToShow, useDigitalTwinIdToEdit, useDigitalTwinRowIndexToEdit, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
+import {
+    setDigitalTwinsOptionToShow,
+    useDigitalTwinIdToEdit,
+    useDigitalTwinRowIndexToEdit,
+    useDigitalTwinsDispatch
+} from '../../../contexts/digitalTwinsOptions';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import Loader from '../../Tools/Loader';
 import formatDateString from '../../../tools/formatDate';
-import { setReloadDashboardsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadDashboardsTable,
+    setReloadSensorsTable,
+    setReloadTopicsTable,
+    usePlatformAssitantDispatch
+} from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
@@ -160,7 +170,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const digitalTwinRowIndex = useDigitalTwinRowIndexToEdit();
     const digitalTwinId = useDigitalTwinIdToEdit();
     const groupId = digitalTwins[digitalTwinRowIndex].groupId;
-    const deviceId = digitalTwins[digitalTwinRowIndex].deviceId;
     const storedDigitalTwinType = digitalTwins[digitalTwinRowIndex].type;
     const [digitalTwinGltfDataLoading, setDigitalTwinGltfDataLoading] = useState(true);
     const [localGltfFileLoaded, setLocalGltfFileLoaded] = useState(false);
@@ -193,7 +202,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         if (storedDigitalTwinType === "Gltf 3D model") {
             const config = axiosAuth(accessToken);
             const urlDigitalTwinFileListBase0 = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
-            const urlDigitalTwinFileListBase = `${urlDigitalTwinFileListBase0}/${groupId}/${deviceId}/${digitalTwinId}`;
+            const urlDigitalTwinFileListBase = `${urlDigitalTwinFileListBase0}/${groupId}/${digitalTwinId}`;
             const urlGltfFileList = `${urlDigitalTwinFileListBase}/gltfFile`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGltfFileList, config)
@@ -238,8 +247,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         backToTable,
         storedDigitalTwinType,
         digitalTwinId,
-        groupId,
-        deviceId
+        groupId
     ])
 
     useEffect(() => {
@@ -259,14 +267,13 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
     const onSubmit = async (values: any, actions: any) => {
         const groupId = digitalTwins[digitalTwinRowIndex].groupId;
-        const deviceId = digitalTwins[digitalTwinRowIndex].deviceId;
-        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
+        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${digitalTwinId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
 
         const configMultipart = axiosAuth(accessToken, "multipart/form-data")
         const urlUploadGltfBase0 = `${protocol}://${domainName}/admin_api/digital_twin_upload_file`;
-        const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${deviceId}/${digitalTwinId}`;
+        const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${digitalTwinId}`;
         let isGltfFileModified = false;
         const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
 
@@ -342,6 +349,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
                 const reloadTopicsTable = true;
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadSensorsTable = true;
+                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
             })

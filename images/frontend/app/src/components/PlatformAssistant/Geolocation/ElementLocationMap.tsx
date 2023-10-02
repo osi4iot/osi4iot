@@ -11,20 +11,17 @@ import { FaRedo, FaRegTimesCircle, FaRegCheckCircle } from "react-icons/fa";
 import { LatLngTuple } from 'leaflet';
 import icon from 'leaflet/dist/images/marker-icon.png';
 import iconShadow from 'leaflet/dist/images/marker-shadow.png';
-import NonDraggableDeviceCircle from './NonDraggableDeviceCircle';
-import DraggableDeviceCircle from './DraggableDeviceCircle';
 import GeoNodeRedInstance from './GeoNodeRedInstance';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoBuilding from './GeoBuilding';
 import { IFeatureCollection, spacesDivider } from '../../../tools/spacesDivider';
-import { IDevice } from '../TableColumns/devicesColumns';
-import { useDeviceIdToEdit, useDeviceInputData, useDevicesPreviousOption } from '../../../contexts/devicesOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { ASSETS_PREVIOUS_OPTIONS, DEVICES_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';import DraggableNriCircle from './DraggableNriCircle';
+import { ASSETS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions'; import DraggableNriCircle from './DraggableNriCircle';
 import { useGroupManagedInputFormData } from '../../../contexts/groupsManagedOptions';
 import { IAsset } from '../TableColumns/assetsColumns';
-import { useAssetIdToEdit, useAssetsPreviousOption } from '../../../contexts/assetsOptions';
+import { useAssetIdToEdit, useAssetInputData, useAssetsPreviousOption } from '../../../contexts/assetsOptions';
+import DraggableAssetCircle from './DraggableAssetCircle';
 
 
 const MapContainerStyled = styled(MapContainer)`
@@ -154,7 +151,7 @@ interface ControlProps {
     initialOuterBounds: number[][];
     refreshAll: () => void;
     backToOption: () => void;
-    devicePosition: LatLngExpression;
+    assetPosition: LatLngExpression;
     nriPosition: LatLngExpression;
     setElementLocationData: (elementLong: number, elementLat: number) => void;
 }
@@ -165,7 +162,7 @@ const Controls: FC<ControlProps> = ({
     initialOuterBounds,
     refreshAll,
     backToOption,
-    devicePosition,
+    assetPosition,
     nriPosition,
     setElementLocationData
 }) => {
@@ -192,8 +189,8 @@ const Controls: FC<ControlProps> = ({
     }
 
     const clickAccepHandler = () => {
-        if (elementToDrag === "device") {
-            setElementLocationData((devicePosition as number[])[1], (devicePosition as number[])[0]);
+        if (elementToDrag === "asset") {
+            setElementLocationData((assetPosition as number[])[1], (assetPosition as number[])[0]);
         } else if (elementToDrag === "nri") {
             setElementLocationData((nriPosition as number[])[1], (nriPosition as number[])[0]);
         }
@@ -295,9 +292,6 @@ interface GeoGroupSpaceMapProps {
     floorSpace: IFeatureCollection
     floorData: IFloor;
     groupManaged: IGroupManaged;
-    devicesInGroup: IDevice[];
-    devicePosition: LatLngExpression;
-    setDevicePosition: (devicePosition: LatLngExpression) => void;
     assetsInGroup: IAsset[];
     assetPosition: LatLngExpression;
     setAssetPosition: (assetPosition: LatLngExpression) => void;
@@ -311,9 +305,6 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
     floorSpace,
     floorData,
     groupManaged,
-    devicesInGroup,
-    devicePosition,
-    setDevicePosition,
     assetsInGroup,
     assetPosition,
     setAssetPosition,
@@ -321,11 +312,11 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
     setNriPosition
 }) => {
     const map = useMap();
-    const devicesPreviousOption = useDevicesPreviousOption();
-    const deviceIdToEdit = useDeviceIdToEdit();
-    const deviceInputData = useDeviceInputData();
+    const assetsPreviousOption = useAssetsPreviousOption();
+    const assetIdToEdit = useAssetIdToEdit();
+    const assetInputData = useAssetInputData();
     const groupManagedData = useGroupManagedInputFormData();
-    const [deviceDragging, setDeviceDragging] = useState(false);
+    const [assetDragging, setAssetDragging] = useState(false);
     const [nriDragging, setNriDragging] = useState(false);
 
     useEffect(() => {
@@ -377,74 +368,51 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                     />
             }
             {
-                devicesInGroup.map(device => {
+                assetsInGroup.map(asset => {
                     if (
-                        elementToDrag === "device" &&
-                        device.id === deviceIdToEdit &&
-                        devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE
+                        elementToDrag === "asset" &&
+                        asset.id === assetIdToEdit &&
+                        assetsPreviousOption === ASSETS_PREVIOUS_OPTIONS.EDIT_ASSET
                     ) {
                         return (
-                            <DraggableDeviceCircle
-                                key={device.id}
-                                deviceName={`Device_${device.deviceUid}`}
-                                deviceRadio={deviceInputData.iconRadio}
-                                deviceType={device.type}
-                                devicePosition={devicePosition}
-                                setDevicePosition={(devicePosition: LatLngExpression) => setDevicePosition(devicePosition)}
-                                deviceDragging={deviceDragging}
-                                setDeviceDragging={(deviceDragging: boolean) => setDeviceDragging(deviceDragging)}
-                            />
-                        )
-                    } else {
-                        return (
-                            <NonDraggableDeviceCircle
-                                key={device.id}
-                                device={device}
+                            <DraggableAssetCircle
+                                key={asset.id}
+                                assetName={`Asset_${asset.assetUid}`}
+                                assetRadio={assetInputData.iconRadio}
+                                assetType={asset.type}
+                                assetPosition={assetPosition}
+                                setAssetPosition={(assetPosition: LatLngExpression) => setAssetPosition(assetPosition)}
+                                assetDragging={assetDragging}
+                                setAssetDragging={(assetDragging: boolean) => setAssetDragging(assetDragging)}
                             />
                         )
                     }
+                    // else {
+                    //     return (
+                    //         <NonDraggableDeviceCircle
+                    //             key={asset.id}
+                    //             device={asset}
+                    //         />
+                    //     )
+                    // }
                 })
             }
             {
-                (elementToDrag === "device" && devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.CREATE_DEVICE) &&
-                <DraggableDeviceCircle
-                    deviceName={
-                        deviceInputData.deviceUid === "" ? `New device for group ${groupManaged.acronym}` : `Device_${deviceInputData.deviceUid}`}
-                    deviceRadio={deviceInputData.iconRadio}
-                    deviceType={"Generic"}
-                    devicePosition={devicePosition}
-                    setDevicePosition={(devicePosition: LatLngExpression) => setDevicePosition(devicePosition)}
-                    deviceDragging={deviceDragging}
-                    setDeviceDragging={(deviceDragging: boolean) => setDeviceDragging(deviceDragging)}
+                (elementToDrag === "asset" && assetsPreviousOption === ASSETS_PREVIOUS_OPTIONS.CREATE_ASSET) &&
+                <DraggableAssetCircle
+                    assetName={`Asset_${assetInputData.assetUid}`}
+                    assetRadio={assetInputData.iconRadio}
+                    assetType={assetInputData.assetType}
+                    assetPosition={assetPosition}
+                    setAssetPosition={(assetPosition: LatLngExpression) => setAssetPosition(assetPosition)}
+                    assetDragging={assetDragging}
+                    setAssetDragging={(assetDragging: boolean) => setAssetDragging(assetDragging)}
                 />
             }
 
         </LayerGroup>
     )
 };
-
-
-const calcInitialDevicePosition = (
-    floorSpaces: IFeatureCollection[] | null,
-    featureIndex: number,
-    devicesPreviousOption: string,
-    deviceIdToEdit: number,
-    devicesInGroup: IDevice[]) => {
-    let devicePosition = [devicesInGroup[0].latitude, devicesInGroup[0].longitude]
-    if (floorSpaces) {
-        const floorSpace = floorSpaces.filter(space => space.features[0].properties.index === featureIndex)[0];
-        if (devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.CREATE_DEVICE) {
-            const geoPolygon = polygon(floorSpace.features[0].geometry.coordinates);
-            const center = centerOfMass(geoPolygon);
-            devicePosition = [center.geometry.coordinates[1], center.geometry.coordinates[0]]
-        } else if (devicesPreviousOption === DEVICES_PREVIOUS_OPTIONS.EDIT_DEVICE) {
-            const deviceToEdit = devicesInGroup.filter(device => device.id === deviceIdToEdit)[0];
-            devicePosition = [deviceToEdit.latitude, deviceToEdit.longitude]
-        }
-    }
-    return devicePosition;
-}
-
 
 const calcInitialAssetPosition = (
     floorSpaces: IFeatureCollection[] | null,
@@ -474,16 +442,14 @@ interface ElementLocationMapProps {
     floorData: IFloor;
     groupManaged: IGroupManaged;
     assetsInGroup: IAsset[];
-    devicesInGroup: IDevice[];
     featureIndex: number;
     setNewOuterBounds: (outerBounds: number[][]) => void;
     refreshBuildings: () => void;
     refreshFloors: () => void;
     refreshGroups: () => void;
     refreshAssets: () => void;
-    refreshDevices: () => void;
     backToOption: () => void;
-    setElementLocationData: (deviceLong: number, deviceLat: number) => void;
+    setElementLocationData: (assetLong: number, assetLat: number) => void;
 }
 
 
@@ -495,31 +461,17 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
         floorData,
         groupManaged,
         assetsInGroup,
-        devicesInGroup,
         featureIndex,
         setNewOuterBounds,
         refreshBuildings,
         refreshFloors,
         refreshGroups,
         refreshAssets,
-        refreshDevices,
         backToOption,
         setElementLocationData,
     }) => {
     const { floorOutline, floorSpaces } = useMemo(() => spacesDivider(floorData), [floorData]);
     const floorOutlineData = useState<IFeatureCollection | null>(floorOutline)[0];
-    const devicesPreviousOption = useDevicesPreviousOption();
-    const deviceIdToEdit = useDeviceIdToEdit();
-    const [devicePosition, setDevicePosition] = useState<LatLngExpression>(
-        calcInitialDevicePosition(
-            floorSpaces,
-            featureIndex,
-            devicesPreviousOption,
-            deviceIdToEdit,
-            devicesInGroup
-        ) as LatLngExpression
-    );
-
     const assetsPreviousOption = useAssetsPreviousOption();
     const assetIdToEdit = useAssetIdToEdit();
     const [assetPosition, setAssetPosition] = useState<LatLngExpression>(
@@ -548,13 +500,11 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
         refreshFloors();
         refreshGroups();
         refreshAssets();
-        refreshDevices();
     }, [
         refreshBuildings,
         refreshFloors,
         refreshGroups,
         refreshAssets,
-        refreshDevices
     ])
 
     return (
@@ -578,9 +528,6 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
                             floorSpace={floorSpace}
                             floorData={floorData}
                             groupManaged={groupManaged}
-                            devicesInGroup={devicesInGroup}
-                            devicePosition={devicePosition}
-                            setDevicePosition={(devicePosition: LatLngExpression) => setDevicePosition(devicePosition)}
                             assetsInGroup={assetsInGroup}
                             assetPosition={assetPosition}
                             setAssetPosition={(assetPosition: LatLngExpression) => setAssetPosition(assetPosition)}
@@ -600,7 +547,7 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
                     initialOuterBounds={building.outerBounds}
                     refreshAll={refreshAll}
                     backToOption={backToOption}
-                    devicePosition={devicePosition}
+                    assetPosition={assetPosition}
                     nriPosition={nriPosition}
                     setElementLocationData={setElementLocationData}
                 />

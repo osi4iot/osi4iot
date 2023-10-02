@@ -239,7 +239,7 @@ This type of structure could be useful in the case of a `single organization` th
 
 The most complex infrastructure that can be deployed and integrated in the `OSI4IOT` platform would be the case of different organizations working together (`cluster`) and wanting to digitalize and interconnect their processes and information generated. In this case the stakeholder level would be the `cluster` and the `group` level would be comprised from `organization's departments` to `partners`.
 
-Inside the platform, the `organizations` or `stakeholders` are geolocated and displayed in the map with all their content information (`groups`, `devices` and `assets`).
+Inside the platform, the `organizations` or `stakeholders` are geolocated and displayed in the map with all their content information (`groups`, `assets` and `sensors`).
 
 In the map, first you can see a general view with all the `organizations` included in the platform.
 
@@ -269,21 +269,6 @@ Inside the platform, the `groups` are geolocated and displayed in the map inside
 
 ![img:glossary:groups:map](./docs/img/web_group.png)
 
-</p>
-</details>
-
-
-<details>
-<summary> Devices </summary>  
-<p>
-The type of information stored inside a `group` are `devices`. These are the next hierarchy level. Each `group` within an `organization` can have several `devices` connected to internet to send data. These `devices` can be PLCs, microcontrollers, microcomputers (like Raspberry Pi), IOT gateways (like SIMATIC IOT2050 of Siemens), etc. 
-<br/><br/>
-
-![img:glossary:devices](./docs/img/devices.svg)
-
-In the platform, the `devices` are geolocated inside their corresponding `group` and displayed with a bubble. Each `device` contains `assets`.
-<br/><br/>
-![img:glossary:devices:map](./docs/img/web_dev.png)
 </p>
 </details>
 

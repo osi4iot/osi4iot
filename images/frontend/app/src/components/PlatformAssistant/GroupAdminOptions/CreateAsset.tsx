@@ -191,6 +191,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
     const initialAssetData = {
         groupId: "",
         assetType: "generic",
+        assetUid: "",
         description: "",
         iconRadio: 1.0,
         longitude: 0.0,
@@ -221,8 +222,8 @@ const CreateAsset: FC<CreateAssetProps> = ({
         } else {
             const assetInputFormData = { assetInputFormData: assetInputData };
             setAssetInputData(assetsDispatch, assetInputFormData);
-            const deviceGroupId = { assetGroupId: groupId };
-            setAssetGroupId(assetsDispatch, deviceGroupId);
+            const assetGroupId = { assetGroupId: groupId };
+            setAssetGroupId(assetsDispatch, assetGroupId);
             const buildingId = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0].buildingId;
             const assetBuildingId = { assetBuildingId: buildingId };
             setAssetBuildingId(assetsDispatch, assetBuildingId);
@@ -258,7 +259,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                         name='description'
                                         type='text'
                                     />
-                                    <AssetLocationTitle>Device location and icon size</AssetLocationTitle>
+                                    <AssetLocationTitle>Asset location and icon size</AssetLocationTitle>
                                     <AssetLocationContainerDiv>
                                         <FormikControl
                                             control='input'

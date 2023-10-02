@@ -15,7 +15,19 @@ import SelectOrgUsersOfOrgManaged from './SelectOrgUsersOfOrgManaged';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
-import { setReloadDashboardsTable, setReloadDevicesTable, setReloadDigitalTwinsTable, setReloadGroupMembersTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadNodeRedInstancesTable, setReloadOrgsOfGroupsManagedTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadAssetsTable,
+    setReloadDashboardsTable,
+    setReloadDigitalTwinsTable,
+    setReloadGroupMembersTable,
+    setReloadGroupsManagedTable,
+    setReloadGroupsMembershipTable,
+    setReloadNodeRedInstancesTable,
+    setReloadOrgsOfGroupsManagedTable,
+    setReloadSensorsTable,
+    setReloadTopicsTable,
+    usePlatformAssitantDispatch
+} from '../../../contexts/platformAssistantContext';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
@@ -266,8 +278,10 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
                 const reloadGroupMembersTable = true;
                 setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadDevicesTable = true;
-                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadAssetsTable = true;
+                setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+                const reloadSensorsTable = true;
+                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
                 const reloadTopicsTable = true;
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 const reloadDigitalTwinsTable = true;

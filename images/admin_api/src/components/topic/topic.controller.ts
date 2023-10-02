@@ -16,10 +16,8 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import ITopic from "./topic.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { changeTopicUidByUid, createTopic, deleteTopicById, getAllMobileTopics, getAllTopics, getMobileTopicsByGroupsIdArray, getTopicByProp, getTopicsByGroupId, getTopicsByGroupsIdArray, getTopicsByOrgId, updateTopicById } from "./topicDAL";
-import deviceAndGroupExist from "../../middleware/deviceAndGroupExist.middleware";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByTopic } from "../mesurement/measurementDAL";
-import { getDeviceByProp } from "../device/deviceDAL";
 import IMobileTopic from "./mobileTopic.interface";
 
 class TopicController implements IController {
@@ -75,21 +73,21 @@ class TopicController implements IController {
 				this.getTopicInformationById
 			)
 			.delete(
-				`${this.path}/:groupId/:deviceId/:topicId`,
-				deviceAndGroupExist,
+				`${this.path}/:groupId/:topicId`,
+				groupExists,
 				groupAdminAuth,
 				this.deleteTopicById
 			)
 			.patch(
-				`${this.path}/:groupId/:deviceId/:topicId`,
-				deviceAndGroupExist,
+				`${this.path}/:groupId/:topicId`,
+				groupExists,
 				groupAdminAuth,
 				validationMiddleware<CreateTopicDto>(CreateTopicDto, true),
 				this.updateTopicById
 			)
 			.post(
-				`${this.path}/:groupId/:deviceId`,
-				deviceAndGroupExist,
+				`${this.path}/:groupId`,
+				groupExists,
 				groupAdminAuth,
 				validationMiddleware<CreateTopicDto>(CreateTopicDto, true),
 				this.createTopic
@@ -264,8 +262,7 @@ class TopicController implements IController {
 			const newTopicUid = await changeTopicUidByUid(topic);
 			await updateDashboardsDataRawSqlOfTopic(topic, newTopicUid, dashboards);
 			await updateTopicUidRawSqlAlertSettingOfGroup(req.group, topic.topicUid, newTopicUid);
-			const device = await getDeviceByProp("id", topic.deviceId);
-			await updateMeasurementsTopicByTopic(device, topic, newTopicUid)
+			await updateMeasurementsTopicByTopic(topic, newTopicUid)
 			const message = { newTopicUid };
 			res.status(200).json(message);
 		} catch (error) {
@@ -281,8 +278,8 @@ class TopicController implements IController {
 	): Promise<void> => {
 		try {
 			const topicData: CreateTopicDto = req.body;
-			const deviceId = parseInt(req.params.deviceId, 10);
-			await createTopic(deviceId, topicData);
+			const groupId =req.group.id;
+			await createTopic(groupId, topicData);
 			const message = { message: `A new topic has been created` };
 			res.status(200).send(message);
 		} catch (error) {

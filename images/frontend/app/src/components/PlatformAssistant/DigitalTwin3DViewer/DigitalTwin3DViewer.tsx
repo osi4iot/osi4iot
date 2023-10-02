@@ -658,10 +658,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		if (digitalTwinSelected) {
 			const config = axiosAuth(accessToken);
 			const groupId = digitalTwinSelected.groupId;
-			const deviceId = digitalTwinSelected.deviceId;
+			const assetId = digitalTwinSelected.assetId;
 			const digitalTwinId = digitalTwinSelected.id;
 			let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
-			const urlFemResFolderBase = `${urlBase}/${groupId}/${deviceId}/${digitalTwinId}`;
+			const urlFemResFolderBase = `${urlBase}/${groupId}/${assetId}/${digitalTwinId}`;
 			const urlFemResFolder = `${urlFemResFolderBase}/femResFiles`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlFemResFolder, config)
@@ -692,10 +692,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				const femResultFileName = femResultFileNames[fileDateIndex];
 				const config = axiosAuth(accessToken);
 				const groupId = digitalTwinSelected.groupId;
-				const deviceId = digitalTwinSelected.deviceId;
 				const digitalTwinId = digitalTwinSelected.id;
 				let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_download_file`;
-				const urlFemResFileBase = `${urlBase}/${groupId}/${deviceId}/${digitalTwinId}`;
+				const urlFemResFileBase = `${urlBase}/${groupId}/${digitalTwinId}`;
 				const urlFemResFile = `${urlFemResFileBase}/femResFiles/${femResultFileName}`;
 				getAxiosInstance(refreshToken, authDispatch)
 					.get(urlFemResFile, config)

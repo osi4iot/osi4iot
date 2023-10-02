@@ -101,9 +101,8 @@ const MobilePhotoForm: FC<MobileSensorSelectFormProps> = (
             const bufferData = await image.getBufferAsync(Jimp.MIME_JPEG)
             const data2Send = bufferData.toString('base64');
             const groupHash = mobileTopicSelected.groupUid;
-            const deviceHash = mobileTopicSelected.deviceUid;
             const topicHash = mobileTopicSelected.topicUid;
-            const mqttTopic = `dev2dtm/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
+            const mqttTopic = `dev2dtm/Group_${groupHash}/Topic_${topicHash}`;
             const message = new Paho.Message(JSON.stringify(data2Send));
             message.destinationName = mqttTopic;
             mqttClient?.send(message);

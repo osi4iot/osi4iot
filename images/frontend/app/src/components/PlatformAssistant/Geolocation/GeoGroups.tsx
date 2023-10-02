@@ -4,7 +4,6 @@ import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IDigitalTwinState } from "./GeolocationContainer";
 import { IFloor } from "../TableColumns/floorsColumns";
-import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoGroup from "./GeoGroup";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
@@ -42,9 +41,6 @@ interface GeoGroupsProps {
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor) => void;
-    deviceDataArray: IDevice[];
-    deviceSelected: IDevice | null;
-    selectDevice: (deviceSelected: IDevice) => void;
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
@@ -68,9 +64,6 @@ const GeoGroups: FC<GeoGroupsProps> = (
         sensorDataArray,
         sensorSelected,
         selectSensor,
-        deviceDataArray,
-        deviceSelected,
-        selectDevice,
         digitalTwins,
         digitalTwinSelected,
         selectDigitalTwin,
@@ -111,9 +104,6 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         sensorDataArray={sensorDataArray}
                         sensorSelected={sensorSelected}
                         selectSensor={selectSensor}
-                        deviceDataArray={deviceDataArray}
-                        deviceSelected={deviceSelected}
-                        selectDevice={selectDevice}
                         digitalTwins={digitalTwins}
                         digitalTwinSelected={digitalTwinSelected}
                         selectDigitalTwin={selectDigitalTwin}

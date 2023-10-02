@@ -1,7 +1,6 @@
 import React, { createContext, FC, useContext, useReducer } from 'react';
 import { IBuilding } from '../../components/PlatformAssistant/TableColumns/buildingsColumns';
 import { IDashboard } from '../../components/PlatformAssistant/TableColumns/dashboardsColumns';
-import { IDevice } from '../../components/PlatformAssistant/TableColumns/devicesColumns';
 import { IDigitalTwin } from '../../components/PlatformAssistant/TableColumns/digitalTwinsColumns';
 import { IFloor } from '../../components/PlatformAssistant/TableColumns/floorsColumns';
 import { IGlobalUser } from '../../components/PlatformAssistant/TableColumns/globalUsersColumns';
@@ -293,22 +292,6 @@ export const useReloadSensorsTable = (): boolean => {
 		throw new Error('useReloadSensorsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.reloadSensorsTable;
-}
-
-export const useDevicesTable = (): IDevice[] => {
-	const context = useContext(PlatformAssitantStateContext);
-	if (context === undefined) {
-		throw new Error('useDevicesTable must be used within a PlatformAssitantProvider');
-	}
-	return context.devices;
-}
-
-export const useReloadDevicesTable = (): boolean => {
-	const context = useContext(PlatformAssitantStateContext);
-	if (context === undefined) {
-		throw new Error('useReloadDevicesTable must be used within a PlatformAssitantProvider');
-	}
-	return context.reloadDevicesTable;
 }
 
 export const useTopicsTable = (): ITopic[] => {

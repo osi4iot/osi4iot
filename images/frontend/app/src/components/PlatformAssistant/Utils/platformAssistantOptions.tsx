@@ -99,7 +99,6 @@ export const GROUP_ADMIN_OPTIONS = {
     GROUPS_MANAGED: "Groups Managed",
     ASSETS: "Assets",
     SENSORS: "Sensors",
-    DEVICES: "Devices",
     GROUP_MEMBERS: "Group members",
     TOPICS: "Topics",
     DASHBOARDS: "Dashboards",
@@ -133,19 +132,6 @@ export const SENSORS_OPTIONS = {
     TABLE: "Table",
     CREATE_SENSOR: "Create sensor",
     EDIT_SENSOR: "Edit sensor",
-}
-
-export const DEVICES_OPTIONS = {
-    TABLE: "Table",
-    CREATE_DEVICE: "Create device",
-    EDIT_DEVICE: "Edit device",
-    SELECT_LOCATION: "Select location"
-}
-
-export const DEVICES_PREVIOUS_OPTIONS = {
-    TABLE: "Table",
-    CREATE_DEVICE: "Create device",
-    EDIT_DEVICE: "Edit device",
 }
 
 export const TOPICS_OPTIONS = {

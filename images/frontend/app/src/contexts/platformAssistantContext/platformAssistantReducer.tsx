@@ -16,7 +16,10 @@ export const initialState = {
     userRole: "unknown",
     numOrganizationManaged: 0,
     numGroupsManaged: 0,
-    numDevicesManage: 0,
+    numAssetsManaged: 0,
+    numSensorsManaged: 0,
+    numDigitalTwinsManaged: 0,
+    numMLModelsManaged: 0,
     platformAssitantOptionToShow: PLATFORM_ASSISTANT_OPTION.HOME,
     selectOrgUsers: [],
     reloadSelectOrgUsersTable: true,
@@ -46,8 +49,6 @@ export const initialState = {
     reloadAssetsTable: true,
     sensors: [],
     reloadSensorsTable: true,
-    devices: [],
-    reloadDevicesTable: true,
     topics: [],
     reloadTopicsTable: true,
     dashboards: [],
@@ -71,7 +72,10 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 userRole: action.payload.userRole,
                 numOrganizationManaged: action.payload.numOrganizationManaged,
                 numGroupsManaged: action.payload.numGroupsManaged,
-                numDevicesManage: action.payload.numDevicesManage
+                numAssetsManaged: action.payload.numAssetsManaged,
+                numSensorsManaged: action.payload.numSensorsManaged,
+                numDigitalTwinsManaged: action.payload.numDigitalTwinsManaged,
+                numMLModelsManaged: action.payload.numMLModelsManaged,
             };
 
         case "PLATFORM_ASSISTANT_OPTION_TO_SHOW":
@@ -248,18 +252,6 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadSensorsTable: action.payload.reloadSensorsTable
             };
 
-        case "DEVICES_TABLE":
-            return {
-                ...initialState,
-                devices: action.payload.devices
-            };
-
-        case "RELOAD_DEVICES_TABLE":
-            return {
-                ...initialState,
-                reloadDevicesTable: action.payload.reloadDevicesTable
-            };
-
         case "TOPICS_TABLE":
             return {
                 ...initialState,
@@ -343,7 +335,10 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 userRole: "unknown",
                 numOrganizationManaged: 0,
                 numGroupsManaged: 0,
-                numDevicesManage: 0,
+                numAssetsManaged: 0,
+                numSensorsManaged: 0,
+                numDigitalTwinsManaged: 0,
+                numMLModelsManaged: 0,
                 platformAssitantOptionToShow: PLATFORM_ASSISTANT_OPTION.HOME,
                 selectOrgUsers: [],
                 reloadSelectOrgUsersTable: true,
@@ -373,8 +368,6 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadAssetsTable: true,
                 sensors: [],
                 reloadSensorsTable: true,
-                devices: [],
-                reloadDevicesTable: true,
                 topics: [],
                 reloadTopicsTable: true,
                 dashboards: [],

@@ -1,8 +1,6 @@
 import timescaledb_pool from "../../config/timescaledb_config";
-import IDevice from "../device/device.interface";
 import IGroup from "../group/interfaces/Group.interface";
-import ITopic from "../topic/topic.interface";
-import { getTopicsByDeviceId } from "../topic/topicDAL";
+import ITopic from "../topic/topic.interface";;
 import IMeasurement from "./measurement.interface";
 
 const timestampAsString = 'to_char(timestamp, \'YYYY-MM-DD HH24:MI:SS.USOF\') AS "timestamp"';
@@ -136,24 +134,9 @@ export const getTotalRowsDuringMeasurements = async (
 	return response.rows[0].count as number;
 };
 
-export const updateMeasurementsTopicByDevice = async (device: IDevice, newDeviceUid: string): Promise<void> => {
-	const measurementUpdateQueries: any[] = [];
-	const topics = await getTopicsByDeviceId(device.id);
-
-	topics.forEach(topic => {
-		const oldTopic = `Device_${device.deviceUid}/Topic_${topic.topicUid}`;
-		const newTopic = `Device_${newDeviceUid}/Topic_${topic.topicUid}`;
-		const query = timescaledb_pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`,
-			[newTopic, oldTopic]);
-		measurementUpdateQueries.push(query);
-	});
-
-	await Promise.all(measurementUpdateQueries)
-}
-
-export const updateMeasurementsTopicByTopic = async (device: IDevice, topic: ITopic, newTopicUid: string): Promise<void> => {
-	const oldTopic = `Device_${device.deviceUid}/Topic_${topic.topicUid}`;
-	const newTopic = `Device_${device.deviceUid}/Topic_${newTopicUid}`;
+export const updateMeasurementsTopicByTopic = async (topic: ITopic, newTopicUid: string): Promise<void> => {
+	const oldTopic = `Topic_${topic.topicUid}`;
+	const newTopic = `Topic_${newTopicUid}`;
 	await timescaledb_pool.query(`UPDATE iot_data.thingData SET topic = $1 WHERE topic = $2;`, [newTopic, oldTopic]);
 }
 

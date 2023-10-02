@@ -145,9 +145,8 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
             const totalReadingTime = values.totalReadingTime;
             const samplingFrequency = values.samplingFrequency;
             const groupHash = mobileTopicSelected.groupUid;
-            const deviceHash = mobileTopicSelected.deviceUid;
             const topicHash = mobileTopicSelected.topicUid;
-            const mqttTopic = `dev2pdb_wt/Group_${groupHash}/Device_${deviceHash}/Topic_${topicHash}`;
+            const mqttTopic = `dev2pdb_wt/Group_${groupHash}/Topic_${topicHash}`;
             const quaternionSensor = ReadMobileOrientation(
                 mqttClient as Paho.Client,
                 mqttTopic,

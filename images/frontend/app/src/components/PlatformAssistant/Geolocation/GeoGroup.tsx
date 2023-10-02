@@ -4,7 +4,6 @@ import { FeatureCollection, Geometry, GeoJsonProperties } from 'geojson';
 import { LatLngTuple } from 'leaflet';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
-import { IDevice } from "../TableColumns/devicesColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { IDigitalTwinState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
@@ -61,9 +60,6 @@ interface GeoGroupProps {
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor) => void;
-    deviceDataArray: IDevice[];
-    deviceSelected: IDevice | null;
-    selectDevice: (deviceSelected: IDevice) => void;
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
@@ -83,10 +79,7 @@ const GeoGroup: FC<GeoGroupProps> = (
         selectAsset,
         sensorDataArray,
         sensorSelected,
-        selectSensor,        
-        deviceDataArray,
-        deviceSelected,
-        selectDevice,
+        selectSensor,
         digitalTwins,
         digitalTwinSelected,
         selectDigitalTwin,
@@ -96,7 +89,8 @@ const GeoGroup: FC<GeoGroupProps> = (
     }) => {
     const map = useMap();
     const geoJsonLayerGroupRef = useRef(null);
-    const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
+    // const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
+    const digitalTwinsFiltered:IDigitalTwin[] = [];
     const assetDataArrayFiltered = assetDataArray.filter(asset => asset.groupId === groupData.id);
     const sensorDataArrayFiltered = sensorDataArray.filter(sensor => sensor.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
@@ -109,8 +103,8 @@ const GeoGroup: FC<GeoGroupProps> = (
     }
     
     useEffect(() => {
-        if (groupSelected && !deviceSelected) map.fitBounds(groupSelected.outerBounds as LatLngTuple[]);
-    }, [groupSelected, deviceSelected, map]);
+        if (groupSelected && groupSelected.outerBounds) map.fitBounds(groupSelected.outerBounds as LatLngTuple[]);
+    }, [groupSelected, map]);
 
     const clickHandler = () => {
         selectGroup(groupData);

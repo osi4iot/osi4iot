@@ -64,7 +64,6 @@ import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
 import { createHomeDashboard, createSensorDashboard } from "../group/dashboardDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IOrganization from "./interfaces/organization.interface";
-import { createDevice } from "../device/deviceDAL";
 import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
@@ -374,19 +373,10 @@ class OrganizationController implements IController {
 				}
 				const asset = await createNewAsset(group, defaultAssetData);
 
-				const defaultGroupDeviceData = {
-					latitude: 0.0,
-					longitude: 0.0,
-					type: "Generic",
-					iconRadio: 1.0,
-					mqttAccessControl: "Pub & Sub"
-				};
-				const device = await createDevice(group, defaultGroupDeviceData);
-
-				const defaultDeviceTopicsData = [
+				const topicsDataForMobileAsset = [
 					{
 						topicType: "dev2pdb",
-						description: `Mobile temperature topic`,
+						description: `Mobile geolocation topic`,
 						mqttAccessControl: "Pub & Sub"
 					},
 					{
@@ -403,12 +393,13 @@ class OrganizationController implements IController {
 						topicType: "dev2dtm",
 						description: `Mobile photo topic`,
 						mqttAccessControl: "Pub & Sub"
-					},
+					}
 				];
-				const topic1 = await createTopic(device.id, defaultDeviceTopicsData[0]);
-				const topic2 = await createTopic(device.id, defaultDeviceTopicsData[1]);
-				const topic3 = await createTopic(device.id, defaultDeviceTopicsData[2]);
-				const topic4 = await createTopic(device.id, defaultDeviceTopicsData[3]);
+				const topic1 = await createTopic(group.id, topicsDataForMobileAsset[0]);
+				const topic2 = await createTopic(group.id, topicsDataForMobileAsset[1]);
+				const topic3 = await createTopic(group.id, topicsDataForMobileAsset[2]);
+				const topic4 = await createTopic(group.id, topicsDataForMobileAsset[3]);
+
 
 				const sensorsData: CreateSensorDto[] = [];
 				const dashboarsId: number[] = [];
@@ -416,12 +407,12 @@ class OrganizationController implements IController {
 				sensorsData[0] =
 				{
 					assetId: asset.id,
-					description: `Temperature sensor`,
+					description: `Mobile geolocation`,
 					topicId: topic1.id,
-					payloadKey: "temperature",
-					paramLabel: "Temperature",
-					valueType: "number",
-					units: "°C",
+					payloadKey: "mobile_geolocation",
+					paramLabel: "longitude,latitude",
+					valueType: "number(2)",
+					units: "-",
 					dashboardRefresh: "1s",
 					dashboardTimeWindow: "5m"
 				};

@@ -8,17 +8,16 @@ import ITopicInfoForMqttAcl from "./topicInfoForMqttAcl.interface";
 
 
 export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> => {
-	const deviceId = topicData.deviceId === 0 ? null : topicData.deviceId;
-	const result = await pool.query(`INSERT INTO grafanadb.topic (device_id, topic_type,
+	const result = await pool.query(`INSERT INTO grafanadb.topic (group_id, topic_type,
 					description, topic_uid,  mqtt_access_control,
 					created, updated)
 					VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
-					RETURNING  id, device_id AS "deviceId", topic_type AS "topicType",
+					RETURNING  id, group_id AS "groupId", topic_type AS "topicType",
 					description, topic_uid AS "topicUid",
 					mqtt_access_control AS "mqttAccessControl",
 					created, updated`,
 	[
-		deviceId,
+		topicData.groupId,
 		topicData.topicType,
 		topicData.description,
 		topicData.topicUid,
@@ -55,54 +54,54 @@ export const deleteTopicByIdsArray = async (topicIdsArray: number[]): Promise<vo
 	await pool.query(`DELETE FROM grafanadb.topic WHERE grafanadb.topic.id = ANY($1::bigint[]);`, [topicIdsArray]);
 };
 
-export const createTopic = async (deviceId: number, topicInput: CreateTopicDto): Promise<ITopic> => {
+export const createTopic = async (groupId: number, topicInput: CreateTopicDto): Promise<ITopic> => {
 	const topicUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-	const topicUpdated: Partial<ITopic> = { ...topicInput, topicUid, deviceId };
+	const topicUpdated: Partial<ITopic> = { ...topicInput, topicUid, groupId };
 	const topic = await insertTopic(topicUpdated);
 	return topic;
 };
 
 export const getTopicByProp = async (propName: string, propValue: (string | number)): Promise<ITopic> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
-                                    grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
+                                    grafanadb.topic.group_id AS "groupId",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									WHERE grafanadb.topic.${propName} = $1`, [propValue]);
 	return response.rows[0] as ITopic;
 }
 
 export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number): Promise<ITopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
-                                    grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
+									grafanadb.topic.group_id AS "groupId",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.topic_id = grafanadb.topic.id
 									WHERE grafanadb.digital_twin_topic.digital_twin_id = $1`, [digitalTwinId]);
 	return response.rows as ITopic[];
 }
 
 export const getAllTopics = async (): Promise<ITopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
+									grafanadb.topic.group_id AS "groupId",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									ORDER BY grafanadb.device.org_id ASC,
-											grafanadb.device.group_id ASC,
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+									ORDER BY grafanadb.group.org_id ASC,
+											grafanadb.topic.group_id ASC,
 											grafanadb.topic.id  ASC;`);
 	return response.rows as ITopic[];
 }
@@ -111,19 +110,21 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.org.acronym AS "orgAcronym",
 									grafanadb.group.acronym AS "groupAcronym",
 									grafanadb.topic.topic_type AS "topicType",
-									grafanadb.topic.description,
+									grafanadb.sensor.description AS "sensorDescription",
+									grafanadb.asset.description AS "assetDescription",
 									grafanadb.group.group_uid AS "groupUid",
-									grafanadb.device.device_uid AS "deviceUid",
+									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.topic.topic_uid AS "topicUid"
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
-									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									WHERE grafanadb.topic.payload_format::jsonb ? 'mobile_accelerations' OR
-									grafanadb.topic.payload_format::jsonb ? 'mobile_quaternion' OR
-									grafanadb.topic.payload_format::jsonb ? 'mobile_photo'
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
+									INNER JOIN grafanadb.asset ON grafanadb.topic.group_id = grafanadb.asset.group_id
+									INNER JOIN grafanadb.sensor ON grafanadb.sensor.asset_id = grafanadb.asset.id
+									WHERE ((grafanadb.asset.type = 'mobile' OR grafanadb.asset.type = 'assembly with mobile') AND
+									(grafanadb.sensor.topic_id = grafanadb.topic.id))
 									ORDER BY grafanadb.org.acronym ASC,
-									        grafanadb.group.acronym ASC;`);
+									        grafanadb.group.acronym ASC,
+											grafanadb.topic.id  ASC;`);
 	return response.rows as IMobileTopic[];
 }
 
@@ -135,103 +136,87 @@ export const getNumTopics = async (): Promise<number> => {
 
 
 export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.group_id AS "groupId", 
-									grafanadb.topic.device_id AS "deviceId",
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
+									grafanadb.topic.group_id AS "groupId",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									WHERE grafanadb.device.group_id = $1
-									ORDER BY grafanadb.device.org_id ASC,
-											grafanadb.device.group_id ASC,
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+									WHERE grafanadb.topic.group_id = $1
+									ORDER BY grafanadb.group.org_id ASC,
+											grafanadb.topic.group_id ASC,
 											grafanadb.topic.id  ASC`, [groupId]);
 	return response.rows as ITopic[];
 };
 
+
 export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ITopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
+									grafanadb.topic.group_id AS "groupId",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									WHERE grafanadb.device.group_id = ANY($1::bigint[])
-									ORDER BY grafanadb.device.org_id ASC,
-											grafanadb.device.group_id ASC,
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+									WHERE grafanadb.topic.group_id = ANY($1::bigint[])
+									ORDER BY grafanadb.group.org_id ASC,
+											grafanadb.topic.group_id ASC,
 											grafanadb.topic.id  ASC`, [groupsIdArray]);
 	return response.rows as ITopic[];
 };
+
 
 export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IMobileTopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.org.acronym AS "orgAcronym",
 									grafanadb.group.acronym AS "groupAcronym",
 									grafanadb.topic.topic_type AS "topicType",
-									grafanadb.topic.description,
+									grafanadb.sensor.description AS "description",
 									grafanadb.group.group_uid AS "groupUid",
-									grafanadb.device.device_uid AS "deviceUid",
+									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.topic.topic_uid AS "topicUid"
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
-									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									WHERE (grafanadb.device.group_id = ANY($1::bigint[])) AND
-									(grafanadb.topic.payload_format::jsonb ? 'mobile_accelerations' OR
-									grafanadb.topic.payload_format::jsonb ? 'mobile_quaternion' OR
-									grafanadb.topic.payload_format::jsonb ? 'mobile_photo')
-									ORDER BY grafanadb.device.org_id ASC,
-											grafanadb.device.group_id ASC,
-											grafanadb.topic.id  ASC`, [groupsIdArray]);
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
+									INNER JOIN grafanadb.asset ON grafanadb.topic.group_id = grafanadb.asset.group_id
+									INNER JOIN grafanadb.sensor ON grafanadb.sensor.asset_id = grafanadb.asset.id
+									WHERE ((grafanadb.topic.group_id = ANY($1::bigint[])) AND
+										(grafanadb.asset.type = 'mobile' OR grafanadb.asset.type = 'assembly with mobile') AND
+										(grafanadb.sensor.topic_id = grafanadb.topic.id))
+									ORDER BY grafanadb.org.acronym ASC,
+										grafanadb.group.acronym ASC
+										grafanadb.topic.id  ASC;`, [groupsIdArray]);
 	return response.rows as IMobileTopic[];
 };
 
 
 export const getNumTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<number> => {
 	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									WHERE grafanadb.device.group_id = ANY($1::bigint[])`, [groupsIdArray]);
+									WHERE grafanadb.topic.group_id = ANY($1::bigint[])`, [groupsIdArray]);
 	return parseInt(result.rows[0].count as string, 10);
 }
 
 export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
+	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
+									grafanadb.topic.group_id AS "groupId",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									WHERE grafanadb.device.org_id = $1
-									ORDER BY grafanadb.device.org_id ASC,
-											grafanadb.device.group_id ASC,
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+									WHERE grafanadb.group.org_id = $1
+									ORDER BY grafanadb.group.org_id ASC,
+											grafanadb.topic.group_id ASC,
 											grafanadb.topic.id  ASC`, [orgId]);
 	return response.rows as ITopic[];
 };
 
-export const getTopicsByDeviceId = async (deviceId: number): Promise<ITopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.device.org_id AS "orgId",
-									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
-									grafanadb.topic.topic_type AS "topicType",
-									grafanadb.topic.description,
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
-									grafanadb.topic.created, grafanadb.topic.updated
-									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									WHERE grafanadb.topic.device_id = $1
-									ORDER BY grafanadb.device.org_id ASC,
-											grafanadb.device.group_id ASC,
-											grafanadb.topic.id  ASC`, [deviceId]);
-	return response.rows as ITopic[];
-};
 
 export const checkIfExistTopics = async (topicsIdArray: number[]): Promise<string> => {
 	let message = "OK";
@@ -262,11 +247,9 @@ export const getMqttTopicsInfoFromIdArray = async (topicsIdArray: number[]): Pro
 	if (topicsIdArray.length === 0) return [];
 	const filteredTopicsIdArray = topicsIdArray.filter(id => id > 0);
 	const response = await pool.query(`SELECT grafanadb.topic.id AS "topicId", grafanadb.topic.topic_type AS "topicType",
-									grafanadb.group.group_uid AS "groupHash", grafanadb.device.device_uid AS "deviceHash",
-									grafanadb.topic.topic_uid AS "topicHash"
+									grafanadb.group.group_uid AS "groupHash", grafanadb.topic.topic_uid AS "topicHash"
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									WHERE grafanadb.topic.id = ANY($1::bigint[])
 									ORDER BY grafanadb.topic.id ASC;`, [filteredTopicsIdArray]);
 
@@ -274,18 +257,19 @@ export const getMqttTopicsInfoFromIdArray = async (topicsIdArray: number[]): Pro
 }
 
 export const getTopicInfoForMqttAclByTopicUid = async (topicUid: string): Promise<ITopicInfoForMqttAcl> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id AS "topicId", grafanadb.device.org_id AS "orgId",
-									grafanadb.device.group_id AS "groupId", grafanadb.topic.device_id AS "deviceId",
-									grafanadb.topic.topic_type AS "topicType", grafanadb.topic.mqtt_access_control AS "topicAccessControl",
-									grafanadb.device.mqtt_access_control AS "deviceAccessControl",
+	const response = await pool.query(`SELECT grafanadb.topic.id AS "topicId", 
+									grafanadb.group.org_id AS "orgId",
+									grafanadb.topic.group_id AS "groupId",
+									grafanadb.topic.topic_type AS "topicType", 
+									grafanadb.topic.mqtt_access_control AS "topicAccessControl",,
 									grafanadb.group.mqtt_access_control AS "groupAccessControl",
 									grafanadb.org.mqtt_access_control AS "orgAccessControl",
-									grafanadb.group.group_uid AS "groupHash", grafanadb.device.device_uid AS "deviceHash",
-									grafanadb.topic.topic_uid AS "topicHash", grafanadb.group.team_id AS "teamId"
+									grafanadb.group.group_uid AS "groupHash",
+									grafanadb.topic.topic_uid AS "topicHash", 
+									grafanadb.group.team_id AS "teamId"
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.device ON grafanadb.topic.device_id = grafanadb.device.id
-									INNER JOIN grafanadb.group ON grafanadb.device.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.org ON grafanadb.device.org_id = grafanadb.org.id
+									INNER JOIN grafanadb.group ON grafanadb.topioc.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 									WHERE grafanadb.topic.topic_uid = $1`, [topicUid]);
 	return response.rows[0] as ITopicInfoForMqttAcl;
 };

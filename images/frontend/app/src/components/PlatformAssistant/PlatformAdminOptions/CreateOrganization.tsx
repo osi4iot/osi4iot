@@ -21,7 +21,6 @@ import {
     usePlatformAssitantDispatch,
     setReloadGroupsManagedTable,
     setReloadGroupMembersTable,
-    setReloadDevicesTable,
     setReloadDigitalTwinsTable,
     setReloadDashboardsTable,
     setReloadOrgsOfGroupsManagedTable,
@@ -206,8 +205,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
                 const reloadGroupMembersTable = true;
                 setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadDevicesTable = true;
-                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
                 const reloadTopicsTable = true;
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 const reloadDigitalTwinsTable = true;

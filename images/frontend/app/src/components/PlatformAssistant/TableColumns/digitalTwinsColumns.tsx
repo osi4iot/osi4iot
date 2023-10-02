@@ -16,6 +16,7 @@ import {
 import { DigitalTwinSimulationParameter } from '../DigitalTwin3DViewer/ViewerUtils';
 import {
     setReloadDashboardsTable,
+    setReloadSensorsTable,
     setReloadTopicsTable,
     usePlatformAssitantDispatch
 } from '../../../contexts/platformAssistantContext';
@@ -26,7 +27,7 @@ export interface IDigitalTwin {
     id: number;
     orgId: number;
     groupId: number;
-    deviceId: number;
+    assetId: number;
     digitalTwinUid: string;
     description: string;
     type: string;
@@ -44,7 +45,7 @@ export interface IDigitalTwinSimulator {
     id: number;
     orgId: number;
     groupId: number;
-    deviceId: number;
+    assetId: number;
     digitalTwinUid: string;
     description: string;
     digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
@@ -60,7 +61,6 @@ interface IDigitalTwinColumn extends IDigitalTwin {
 interface DeleteDigitalTwinModalProps {
     rowIndex: number;
     groupId: number;
-    deviceId: number;
     digitalTwinId: number;
     refreshDigitalTwins: () => void;
 }
@@ -68,7 +68,7 @@ interface DeleteDigitalTwinModalProps {
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, groupId, deviceId, digitalTwinId, refreshDigitalTwins }) => {
+const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, groupId, digitalTwinId, refreshDigitalTwins }) => {
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isDigitalTwinDeleted, setIsDigitalTwinDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -89,7 +89,7 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
     }, [isDigitalTwinDeleted, refreshDigitalTwins]);
 
     const action = (hideModal: () => void) => {
-        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${deviceId}/${digitalTwinId}`;
+        const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${digitalTwinId}`;
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
@@ -99,6 +99,8 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
 
                 const reloadTopicsTable = true;
                 setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadSensorsTable = true;
+                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
 
@@ -167,8 +169,8 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             filter: 'equals'
         },
         {
-            Header: "DeviceId",
-            accessor: "deviceId",
+            Header: "AssetId",
+            accessor: "assetId",
             filter: 'equals'
         },
         {
@@ -242,8 +244,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const digitalTwinId = row?.cells[0]?.value;
                 const groupId = row?.cells[2]?.value;
-                const deviceId = row?.cells[3]?.value;
-                return <DeleteDigitalTwinModal digitalTwinId={digitalTwinId} groupId={groupId} deviceId={deviceId} rowIndex={rowIndex} refreshDigitalTwins={refreshDigitalTwins} />
+                return <DeleteDigitalTwinModal digitalTwinId={digitalTwinId} groupId={groupId} rowIndex={rowIndex} refreshDigitalTwins={refreshDigitalTwins} />
             }
         }
     ]

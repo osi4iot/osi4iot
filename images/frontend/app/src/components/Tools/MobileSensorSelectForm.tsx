@@ -86,6 +86,32 @@ const ControlsContainer = styled.div`
     }
 `;
 
+const FieldContainer = styled.div`
+    margin: 20px 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
+
+    & label {
+        font-size: 12px;
+        margin: 0 0 5px 3px;
+        width: 100%;
+    }
+
+    & div {
+        font-size: 14px;
+        background-color: #0c0d0f;
+        border: 2px solid #2c3235;
+        padding: 5px;
+        margin-left: 2px;
+        color: white;
+        width: 100%;
+    }
+`;
+
 interface IOption {
     value: string;
     label: string;
@@ -102,21 +128,6 @@ interface MobileSensorSelectFormProps {
     setInitialMobileSensorData: React.Dispatch<React.SetStateAction<InitialMobileSensorData | null>>;
     setMobileTopicSelected: React.Dispatch<React.SetStateAction<IMobileTopic | null>>;
 }
-
-const mobileSensorOptions = [
-    {
-        label: "Accelerations",
-        value: "accelerations"
-    },
-    {
-        label: "Mobile orientation",
-        value: "mobile_orientation"
-    },    
-    {
-        label: "Photo",
-        value: "photo"
-    }
-];
 
 const convertArrayToOptions = (vector: string[]): IOption[] => {
     const options: IOption[] = [];
@@ -153,68 +164,52 @@ const findGroupArray = (mobileTopicsManaged: IMobileTopic[]): Record<string, str
     return groupArray;
 }
 
-const findDeviceArray = (mobileTopicsManaged: IMobileTopic[]): Record<string, string[]> => {
-    const deviceArray: Record<string, string[]> = {}
+const findAssetNameArray = (mobileTopicsManaged: IMobileTopic[]): Record<string, string[]> => {
+    const assetArray: Record<string, string[]> = {}
     for (const mobileTopic of mobileTopicsManaged) {
-        if (deviceArray[mobileTopic.groupAcronym] === undefined) {
-            deviceArray[mobileTopic.groupAcronym] = [];
+        if (assetArray[mobileTopic.groupAcronym] === undefined) {
+            assetArray[mobileTopic.groupAcronym] = [];
         }
-        if (deviceArray[mobileTopic.groupAcronym].indexOf(mobileTopic.deviceName) === -1) {
-            deviceArray[mobileTopic.groupAcronym].push(mobileTopic.deviceName);
+        const assetName = `Asset_${mobileTopic.assetUid}`;
+        if (assetArray[mobileTopic.groupAcronym].indexOf(assetName) === -1) {
+            assetArray[mobileTopic.groupAcronym].push(assetName);
         }
     }
-    return deviceArray;
+    return assetArray;
 }
 
-const findTopicArrayForMobileSensors = (mobileSensors: string[], mobileTopicsManaged: IMobileTopic[]): Record<string, string[]> => {
-    const topicArray: Record<string, string[]> = {}
+const findAssetDescription = (mobileTopicsManaged: IMobileTopic[], assetName: string): string => {
+    const mobileTopic = mobileTopicsManaged.filter(topic => `Asset_${topic.assetUid}` === assetName)[0];
+    return mobileTopic.assetDescription;
+}
+
+const findMobileSensorArray = (mobileTopicsManaged: IMobileTopic[]): Record<string, string[]> => {
+    const mobileSensorArray: Record<string, string[]> = {}
     for (const mobileTopic of mobileTopicsManaged) {
-        let areThereAllMobileSensorsFields = true;
-        for (const sensorField of mobileSensors) {
-            if (mobileTopic.payloadFormat[sensorField] === undefined) {
-                areThereAllMobileSensorsFields = false;
-                break;
-            }
+        const assetName = `Asset_${mobileTopic.assetUid}`;
+        if (mobileSensorArray[assetName] === undefined) {
+            mobileSensorArray[assetName] = [];
         }
-        if (areThereAllMobileSensorsFields) {
-            if (topicArray[mobileTopic.deviceName] === undefined) {
-                topicArray[mobileTopic.deviceName] = [];
-            }
-            if (topicArray[mobileTopic.deviceName].indexOf(mobileTopic.topicName) === -1) {
-                topicArray[mobileTopic.deviceName].push(mobileTopic.topicName);
-            }
+        if (mobileSensorArray[assetName].indexOf(mobileTopic.sensorDescription) === -1) {
+            mobileSensorArray[assetName].push(mobileTopic.sensorDescription);
         }
     }
-    return topicArray;
+    return mobileSensorArray;
 }
-
 
 const findMobileTopicSelected = (
     mobileTopicsManaged: IMobileTopic[],
     orgAcronym: string,
     groupAcronym: string,
-    deviceName: string,
+    assetName: string,
     mobileSensor: string,
-    topicName: string,
 ): IMobileTopic => {
-    const mobileTopicSelected = mobileTopicsManaged.filter(mobileTopic => {
-        let mobileSensorType = "none";
-        if (mobileTopic.payloadFormat["mobile_photo"] !== undefined) {
-            mobileSensorType = "photo";
-        } else if (mobileTopic.payloadFormat["mobile_accelerations"] !== undefined) {
-            mobileSensorType = "accelerations";
-        } else if (mobileTopic.payloadFormat["mobile_quaternion"] !== undefined) {
-            mobileSensorType = "mobile_orientation";
-        }
-
-        if (mobileTopic.orgAcronym === orgAcronym &&
-            mobileTopic.groupAcronym === groupAcronym &&
-            mobileTopic.deviceName === deviceName &&
-            mobileSensorType === mobileSensor &&
-            mobileTopic.topicName === topicName) {
-            return true
-        } else return false
-    })[0];
+    const mobileTopicSelected = mobileTopicsManaged.filter(mobileTopic =>
+        mobileTopic.orgAcronym === orgAcronym &&
+        mobileTopic.groupAcronym === groupAcronym &&
+        `Asset_${mobileTopic.assetUid}` === assetName &&
+        mobileTopic.sensorDescription === mobileSensor
+    )[0];
     return mobileTopicSelected;
 }
 
@@ -231,12 +226,12 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
     const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
     const [groupArray, setGroupArray] = useState<Record<string, string[]>>({});
     const [groupOptions, setGroupOptions] = useState<IOption[]>([]);
-    const [deviceOptions, setDeviceOptions] = useState<IOption[]>([]);
-    const [deviceArray, setDeviceArray] = useState<Record<string, string[]>>({});
-    const [topicAccelerationArray, setTopicAccelerationArray] = useState<Record<string, string[]>>({});
-    const [topicMobileOrientationArray, setTopicMobileOrientationArray] = useState<Record<string, string[]>>({});
-    const [topicPhotoArray, setTopicPhotoArray] = useState<Record<string, string[]>>({});
-    const [topicOptions, seTopicOptions] = useState<IOption[]>([]);
+    const [assetNameOptions, setAssetNameOptions] = useState<IOption[]>([]);
+    const [assetNameArray, setAssetNameArray] = useState<Record<string, string[]>>({});
+    const [assetDescription, setAssetDescription] = useState<string>(initialMobileSensorData.assetDescription);
+    const [mobileSensorArray, setMobileSensorAarray] = useState<Record<string, string[]>>({});
+    const [mobileSensorOptions, setMobileSensorOptions] = useState<IOption[]>([]);
+
 
     useEffect(() => {
         if (mobileTopicsManaged.length !== 0) {
@@ -247,32 +242,18 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             const orgAcronym = initialMobileSensorData.orgAcronym;
             const groupsForOrgSelected = groupArray[orgAcronym];
             setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
-            const deviceArray = findDeviceArray(mobileTopicsManaged);
-            setDeviceArray(deviceArray);
+            const assetNameArray = findAssetNameArray(mobileTopicsManaged);
+            setAssetNameArray(assetNameArray);
             const groupAcronym = initialMobileSensorData.groupAcronym
-            const devicesForGroupSelected = deviceArray[groupAcronym];
-            setDeviceOptions(convertArrayToOptions(devicesForGroupSelected));
-            const deviceName = initialMobileSensorData.deviceName;
-            const topicAccelerationArray = findTopicArrayForMobileSensors(["mobile_accelerations"], mobileTopicsManaged);
-            setTopicAccelerationArray(topicAccelerationArray);
-            const topicMobileOrientationArray = findTopicArrayForMobileSensors(["mobile_quaternion"], mobileTopicsManaged);
-            setTopicMobileOrientationArray(topicMobileOrientationArray);
-            const topicPhotoArray = findTopicArrayForMobileSensors(["mobile_photo"], mobileTopicsManaged);
-            setTopicPhotoArray(topicPhotoArray);
-            if (initialMobileSensorData.mobileSensor === "accelerations") {
-                const topicsAccelerationForDeviceSelected = topicAccelerationArray[deviceName];
-                const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
-                seTopicOptions(topicAccelerationOptions);
-            } else if (initialMobileSensorData.mobileSensor === "mobile_orientation") {
-                const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[deviceName];
-                const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
-                seTopicOptions(topicMobileOrientationOptions);
-            } else if (initialMobileSensorData.mobileSensor === "photo") {
-                const topicsPhotoForDeviceSelected = topicPhotoArray[deviceName];
-                const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
-                seTopicOptions(topicPhotoOptions);
-            }
-
+            const assetsForGroupSelected = assetNameArray[groupAcronym];
+            setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+            const assetName = initialMobileSensorData.assetName;
+            const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
+            setAssetDescription(assetDescription);
+            const mobileSensorArray = findMobileSensorArray(mobileTopicsManaged);
+            setMobileSensorAarray(mobileSensorArray);
+            const mobileSensorsForAssetSelected = mobileSensorArray[assetName];
+            setMobileSensorOptions(convertArrayToOptions(mobileSensorsForAssetSelected));
         }
     }, [mobileTopicsManaged, initialMobileSensorData]);
 
@@ -289,38 +270,21 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
         const groupAcronym = groupsForOrgSelected[0];
         formik.setFieldValue("groupAcronym", groupsForOrgSelected[0]);
-        const devicesForGroupSelected = deviceArray[groupAcronym];
-        setDeviceOptions(convertArrayToOptions(devicesForGroupSelected));
-        const deviceName = devicesForGroupSelected[0];
-        formik.setFieldValue("deviceName", deviceName);
-        const mobileSensor = formik.values.mobileSensor;
-        let topicName = "";
-        if (mobileSensor === "accelerations") {
-            const topicsAccelerationForDeviceSelected = topicAccelerationArray[devicesForGroupSelected[0]];
-            const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
-            seTopicOptions(topicAccelerationOptions);
-            topicName = topicsAccelerationForDeviceSelected[0]
-            formik.setFieldValue("topicName", topicName);
-        } else if (mobileSensor === "mobile_orientation") {
-            const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[devicesForGroupSelected[0]];
-            const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
-            seTopicOptions(topicMobileOrientationOptions);
-            topicName = topicsMobileOrientationForDeviceSelected[0];
-            formik.setFieldValue("topicName", topicName);
-        } else if (mobileSensor === "photo") {
-            const topicsPhotoForDeviceSelected = topicPhotoArray[devicesForGroupSelected[0]];
-            const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
-            seTopicOptions(topicPhotoOptions);
-            topicName = topicsPhotoForDeviceSelected[0];
-            formik.setFieldValue("topicName", topicName);
-        }
+        const assetsForGroupSelected = assetNameArray[groupAcronym];
+        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        const assetName = assetsForGroupSelected[0];
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
+        setAssetDescription(assetDescription);
+        const mobileSensorsForAssetSelected = mobileSensorArray[assetName];
+        const mobileSensor = mobileSensorsForAssetSelected[0];
+        formik.setFieldValue("mobileSensor", mobileSensor);
         const mobileTopicSelected = findMobileTopicSelected(
             mobileTopicsManaged,
             orgAcronym,
             groupAcronym,
-            deviceName,
-            mobileSensor,
-            topicName
+            assetName,
+            mobileSensor
         );
         setMobileTopicSelected(mobileTopicSelected);
     }
@@ -329,75 +293,41 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         const orgAcronym = formik.values.orgAcronym;
         const groupAcronym = e.value;
         formik.setFieldValue("groupAcronym", groupAcronym);
-        const devicesForGroupSelected = deviceArray[groupAcronym];
-        setDeviceOptions(convertArrayToOptions(devicesForGroupSelected));
-        const deviceName = devicesForGroupSelected[0];
-        formik.setFieldValue("deviceName", deviceName);
-        const mobileSensor = formik.values.mobileSensor;
-        let topicName = "";
-        if (mobileSensor === "accelerations") {
-            const topicsAccelerationForDeviceSelected = topicAccelerationArray[devicesForGroupSelected[0]];
-            const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
-            seTopicOptions(topicAccelerationOptions);
-            topicName = topicsAccelerationForDeviceSelected[0];
-            formik.setFieldValue("topicName", topicName);
-        } else if (mobileSensor === "mobile_orientation") {
-            const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[devicesForGroupSelected[0]];
-            const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
-            seTopicOptions(topicMobileOrientationOptions);
-            topicName = topicsMobileOrientationForDeviceSelected[0];
-            formik.setFieldValue("topicName", topicName);
-        } else if (mobileSensor === "photo") {
-            const topicsPhotoForDeviceSelected = topicPhotoArray[devicesForGroupSelected[0]];
-            const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
-            seTopicOptions(topicPhotoOptions);
-            topicName = topicsPhotoForDeviceSelected[0];
-            formik.setFieldValue("topicName", topicName);
-        }
+        const assetsForGroupSelected = assetNameArray[groupAcronym];
+        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        const assetName = assetsForGroupSelected[0];
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
+        setAssetDescription(assetDescription);
+        const mobileSensorsForAssetSelected = mobileSensorArray[assetName];
+        const mobileSensor = mobileSensorsForAssetSelected[0];
+        formik.setFieldValue("mobileSensor", mobileSensor);
         const mobileTopicSelected = findMobileTopicSelected(
             mobileTopicsManaged,
             orgAcronym,
             groupAcronym,
-            deviceName,
-            mobileSensor,
-            topicName
+            assetName,
+            mobileSensor
         );
         setMobileTopicSelected(mobileTopicSelected);
     }
 
-    const handleChangeDevice = (e: { value: string }, formik: FormikType) => {
+    const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
         const orgAcronym = formik.values.orgAcronym;
         const groupAcronym = formik.values.groupAcronym;
-        const deviceName = e.value;
-        formik.setFieldValue("deviceName", deviceName);
-        const mobileSensor = formik.values.mobileSensor;
-        let topicName = "";
-        if (mobileSensor === "accelerations") {
-            const topicsAccelerationForDeviceSelected = topicAccelerationArray[deviceName];
-            const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
-            seTopicOptions(topicAccelerationOptions);
-            topicName = topicsAccelerationForDeviceSelected[0];
-            formik.setFieldValue("topicName", topicName);
-        } else if (mobileSensor === "mobile_orientation") {
-            const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[deviceName];
-            const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
-            seTopicOptions(topicMobileOrientationOptions);
-            topicName = topicsMobileOrientationForDeviceSelected[0];
-            formik.setFieldValue("topicName", topicName);
-        } else if (mobileSensor === "photo") {
-            const topicsPhotoForDeviceSelected = topicPhotoArray[deviceName];
-            const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
-            seTopicOptions(topicPhotoOptions);
-            topicName = topicsPhotoForDeviceSelected[0];
-            formik.setFieldValue("topicName", topicName);
-        }
+        const assetName = e.value;
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
+        setAssetDescription(assetDescription);
+        const mobileSensorsForAssetSelected = mobileSensorArray[assetName];
+        const mobileSensor = mobileSensorsForAssetSelected[0];
+        formik.setFieldValue("mobileSensor", mobileSensor);
         const mobileTopicSelected = findMobileTopicSelected(
             mobileTopicsManaged,
             orgAcronym,
             groupAcronym,
-            deviceName,
-            mobileSensor,
-            topicName
+            assetName,
+            mobileSensor
         );
         setMobileTopicSelected(mobileTopicSelected);
     }
@@ -407,54 +337,24 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         formik.setFieldValue("mobileSensor", mobileSensor);
         const orgAcronym = formik.values.orgAcronym;
         const groupAcronym = formik.values.groupAcronym;
-        const deviceName = formik.values.deviceName;
-        let topicName = "";
-        if (mobileSensor === "accelerations") {
-            const topicsAccelerationForDeviceSelected = topicAccelerationArray[deviceName];
-            const topicAccelerationOptions = convertArrayToOptions(topicsAccelerationForDeviceSelected);
-            seTopicOptions(topicAccelerationOptions);
-            topicName = topicAccelerationArray[deviceName][0];
-        } else if (mobileSensor === "mobile_orientation") {
-            const topicsMobileOrientationForDeviceSelected = topicMobileOrientationArray[deviceName];
-            const topicMobileOrientationOptions = convertArrayToOptions(topicsMobileOrientationForDeviceSelected);
-            seTopicOptions(topicMobileOrientationOptions);
-            topicName = topicMobileOrientationArray[deviceName][0];
-        } else if (mobileSensor === "photo") {
-            const topicsPhotoForDeviceSelected = topicPhotoArray[deviceName];
-            const topicPhotoOptions = convertArrayToOptions(topicsPhotoForDeviceSelected);
-            seTopicOptions(topicPhotoOptions);
-            topicName = topicPhotoArray[deviceName][0];
-        }
-        formik.setFieldValue("topicName", topicName);
-
+        const assetName = formik.values.assetName;
+        const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
+        setAssetDescription(assetDescription);
         const mobileTopicSelected = findMobileTopicSelected(
             mobileTopicsManaged,
             orgAcronym,
             groupAcronym,
-            deviceName,
-            mobileSensor,
-            topicName
+            assetName,
+            mobileSensor
         );
         setMobileTopicSelected(mobileTopicSelected);
-        setInitialMobileSensorData({ orgAcronym, groupAcronym, deviceName, mobileSensor, topicName });
-    }
-
-    const handleChangeTopic = (e: { value: string }, formik: FormikType) => {
-        const topicName = e.value;
-        formik.setFieldValue("topicName", topicName);
-        const orgAcronym = formik.values.orgAcronym;
-        const groupAcronym = formik.values.groupAcronym;
-        const deviceName = formik.values.deviceName;
-        const mobileSensor = formik.values.mobileSensor;
-        const mobileTopicSelected = findMobileTopicSelected(
-            mobileTopicsManaged,
+        setInitialMobileSensorData({
             orgAcronym,
             groupAcronym,
-            deviceName,
-            mobileSensor,
-            topicName
-        );
-        setMobileTopicSelected(mobileTopicSelected);
+            assetName,
+            assetDescription,
+            mobileSensor
+        });
     }
 
     return (
@@ -486,11 +386,23 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
                                     />
                                     <FormikControl
                                         control='select'
-                                        label='Select device'
-                                        name='deviceName'
+                                        label='Select asset'
+                                        name='assetName'
                                         type='text'
-                                        options={deviceOptions}
-                                        onChange={(e) => handleChangeDevice(e, formik)}
+                                        options={assetNameOptions}
+                                        onChange={(e) => handleChangeAsset(e, formik)}
+                                    />
+                                    <FieldContainer>
+                                        <label>Asset description</label>
+                                        <div>{assetDescription}</div>
+                                    </FieldContainer>
+                                    <FormikControl
+                                        control='select'
+                                        label='Select asset'
+                                        name='assetName'
+                                        type='text'
+                                        options={assetNameOptions}
+                                        onChange={(e) => handleChangeAsset(e, formik)}
                                     />
                                     <FormikControl
                                         control='select'
@@ -499,14 +411,6 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
                                         type='text'
                                         options={mobileSensorOptions}
                                         onChange={(e) => handleChangeMobileSensor(e, formik)}
-                                    />
-                                    <FormikControl
-                                        control='select'
-                                        label='Topic name'
-                                        name='topicName'
-                                        type='text'
-                                        options={topicOptions}
-                                        onChange={(e) => handleChangeTopic(e, formik)}
                                     />
                                 </ControlsContainer>
                                 <MobileSensorSelectFormButtons onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

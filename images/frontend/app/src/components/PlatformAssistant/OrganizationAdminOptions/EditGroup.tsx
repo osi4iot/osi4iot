@@ -22,7 +22,14 @@ import { GROUPS_OPTIONS, GROUPS_PREVIOUS_OPTIONS } from '../Utils/platformAssist
 import { IGroup } from '../TableColumns/groupsColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
-import { setReloadDevicesTable, setReloadGroupsManagedTable, setReloadGroupsMembershipTable, setReloadNodeRedInstancesTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadAssetsTable,
+    setReloadGroupsManagedTable,
+    setReloadGroupsMembershipTable,
+    setReloadNodeRedInstancesTable,
+    setReloadSensorsTable,
+    usePlatformAssitantDispatch
+} from '../../../contexts/platformAssistantContext';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
@@ -208,8 +215,10 @@ const EditGroup: FC<EditGroupProps> = ({
 
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-                const reloadDevicesTable = true;
-                setReloadDevicesTable(plaformAssistantDispatch, { reloadDevicesTable });
+                const reloadAssetsTable = true;
+                setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+                const reloadSensorsTable = true;
+                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });;
                 const reloadNodeRedInstancesTable = true;
                 setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
                 const reloadGroupsMembershipTable = true;
