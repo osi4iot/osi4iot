@@ -52,8 +52,8 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 					mobileSensor = "Mobile geolocation";
 				} else if (mobileTopics[0].sensorDescription === "Mobile accelerations") {
 					mobileSensor = "Mobile accelerations";
-				} else if (mobileTopics[0].sensorDescription === "Mobile quaternions") {
-					mobileSensor = "Mobile quaternions";
+				} else if (mobileTopics[0].sensorDescription === "Mobile orientation") {
+					mobileSensor = "Mobile orientation";
 				} else if (mobileTopics[0].sensorDescription === "Mobile photo") {
 					mobileSensor = "Mobile photo";
 				}			

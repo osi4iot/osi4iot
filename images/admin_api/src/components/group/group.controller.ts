@@ -51,7 +51,7 @@ import {
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
 import { createTopic } from "../topic/topicDAL";
-import { generateDashboardsUrl, removeFilesFromBucketFolder } from "../digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, generateDashboardsUrl, removeFilesFromBucketFolder, uploadMobilePhoneGltfFile } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import {
@@ -70,6 +70,9 @@ import CreateSensorDto from "../sensor/sensor.dto";
 import { nanoid } from "nanoid";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import sslGroupCerticatesGenerator from "./sslGroupCerticatesGenerator";
+import ISensor from "../sensor/sensor.interface";
+import CreateSensorRefDto from "../digitalTwin/sensorRef.dto";
+import ITopic from "../topic/topic.interface";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -349,20 +352,21 @@ class GroupController implements IController {
 					mqttAccessControl: "Pub & Sub"
 				}
 			];
-			const topic1 = await createTopic(groupCreated.id, topicsDataForMobileAsset[0]);
-			const topic2 = await createTopic(groupCreated.id, topicsDataForMobileAsset[1]);
-			const topic3 = await createTopic(groupCreated.id, topicsDataForMobileAsset[2]);
-			const topic4 = await createTopic(groupCreated.id, topicsDataForMobileAsset[3]);
 
+			const topics: ITopic[] = [];
+			for (let i = 0; i < topicsDataForMobileAsset.length; i++) {
+				topics[i] = await createTopic(groupCreated.id, topicsDataForMobileAsset[i]);
+			}
 
 			const sensorsData: CreateSensorDto[] = [];
+			const sensors: ISensor[] = [];
 			const dashboarsId: number[] = [];
 			const sensorsUid: string[] = [];
 			sensorsData[0] =
 			{
 				assetId: asset.id,
 				description: `Mobile geolocation`,
-				topicId: topic1.id,
+				topicId: topics[0].id,
 				payloadKey: "mobile_geolocation",
 				paramLabel: "longitude,latitude",
 				valueType: "number(2)",
@@ -376,7 +380,7 @@ class GroupController implements IController {
 			{
 				assetId: asset.id,
 				description: `Mobile accelerations`,
-				topicId: topic2.id,
+				topicId: topics[1].id,
 				payloadKey: "mobile_accelerations",
 				paramLabel: "ax,ay,az",
 				valueType: "number(3)",
@@ -389,8 +393,8 @@ class GroupController implements IController {
 			sensorsData[2] =
 			{
 				assetId: asset.id,
-				description: `Mobile quaternions`,
-				topicId: topic3.id,
+				description: `Mobile orientation`,
+				topicId: topics[2].id,
 				payloadKey: "mobile_quaternion",
 				paramLabel: "q0,q1,q2,q3",
 				valueType: "number(4)",
@@ -404,7 +408,7 @@ class GroupController implements IController {
 			{
 				assetId: asset.id,
 				description: `Mobile photo`,
-				topicId: topic4.id,
+				topicId: topics[3].id,
 				payloadKey: "mobile_photo",
 				paramLabel: "mobile_photo",
 				valueType: "string",
@@ -414,17 +418,36 @@ class GroupController implements IController {
 			};
 			sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-			dashboarsId[0] = await createSensorDashboard(groupCreated, sensorsData[0], sensorsUid[0]);
-			dashboarsId[1] = await createSensorDashboard(groupCreated, sensorsData[1], sensorsUid[1]);
-			dashboarsId[2] = await createSensorDashboard(groupCreated, sensorsData[2], sensorsUid[2]);
-			dashboarsId[3] = await createSensorDashboard(groupCreated, sensorsData[3], sensorsUid[3]);
+			for (let i = 0; i < 4; i++) {
+				dashboarsId[i] = await createSensorDashboard(groupCreated, sensorsData[i], sensorsUid[i]);
+			}
 
 			const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
 			const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
-			await createNewSensor(sensorsData[0], dashboarsId[0], dashboardsUrl[0], sensorsUid[0]);
-			await createNewSensor(sensorsData[1], dashboarsId[1], dashboardsUrl[1], sensorsUid[1]);
-			await createNewSensor(sensorsData[2], dashboarsId[2], dashboardsUrl[2], sensorsUid[2]);
-			await createNewSensor(sensorsData[3], dashboarsId[3], dashboardsUrl[3], sensorsUid[3]);
+			for (let i = 0; i < 4; i++) {
+				sensors[i] = await createNewSensor(sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
+			}
+
+			const digitalTwinData = {
+				description: "Mobile phone default DT",
+				type: "Gltf 3D model",
+				digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+				topicSensorTypes: ["dev2pdb_wt"],
+				maxNumResFemFiles: 1,
+				digitalTwinSimulationFormat: "{}",
+				topicsRef: [
+					{
+						topicRef: "dev2pdb_wt_1",
+						topicId: topics[2].id
+					}
+				],
+				sensorsRef: [] as CreateSensorRefDto[]
+			}
+
+			const { digitalTwin } = await createDigitalTwin(groupCreated, asset, digitalTwinData);
+			const keyBase = `org_1/group_${groupCreated.id}/digitalTwin_${digitalTwin.id}`;
+			const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
+			await uploadMobilePhoneGltfFile(gltfFileName);
 
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;

@@ -2,7 +2,7 @@ import { FC, useEffect } from "react";
 import { useMap, LayerGroup } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
-import { IDigitalTwinState } from "./GeolocationContainer";
+import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import { IFloor } from "../TableColumns/floorsColumns";
 import GeoBuildingWithState from "./GeoBuildingWithState";
@@ -24,6 +24,7 @@ interface GeoBuildingsProps {
     groupsManaged: IGroupManaged[];
     selectGroup: (groupSelected: IGroupManaged) => void;
     digitalTwinsState: IDigitalTwinState[];
+    sensorsState: ISensorState[];
 }
 
 const GeoBuildings: FC<GeoBuildingsProps> = ({
@@ -40,7 +41,8 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
     groupSelected,
     groupsManaged,
     selectGroup,
-    digitalTwinsState
+    digitalTwinsState,
+    sensorsState
 }) => {
     const map = useMap();
 
@@ -69,6 +71,7 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
                         groupSelected={groupSelected}
                         selectGroup={selectGroup}
                         digitalTwinsState={digitalTwinsState}
+                        sensorsState={sensorsState}
                     />
                 )
             }

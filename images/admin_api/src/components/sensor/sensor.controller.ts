@@ -25,12 +25,15 @@ import {
 	getSensorsByGroupId,
 	getSensorsByGroupsIdArray,
 	getSensorsByOrgId,
+	getStateOfAllSensors,
+	getStateOfSensorsByGroupsIdArray,
 	updateSensorByPropName
 } from "./sensorDAL";
 import { nanoid } from "nanoid";
 import { createSensorDashboard } from "../group/dashboardDAL";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import { generateDashboardsUrl } from "../digitalTwin/digitalTwinDAL";
+import ISensorState from "./sensorState.interface";
 
 class SensorController implements IController {
 	public path = "/sensor";
@@ -47,6 +50,11 @@ class SensorController implements IController {
 				`${this.path}s/user_managed/`,
 				userAuth,
 				this.getSensorsManagedByUser
+			)
+			.get(
+				`${this.path}s_state/user_managed/`,
+				userAuth,
+				this.getStateOfSensorsManagedByUser
 			)
 			.get(
 				`${this.path}s_in_org/:orgId/`,
@@ -120,6 +128,37 @@ class SensorController implements IController {
 				}
 			}
 			res.status(200).send(sensors);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getStateOfSensorsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let sensorsState: ISensorState[] = [];
+			if (req.user.isGrafanaAdmin) {
+				sensorsState = await getStateOfAllSensors();
+			} else {
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					sensorsState = await getStateOfSensorsByGroupsIdArray(groupsIdArray);
+				}
+			}
+			res.status(200).send(sensorsState);
 		} catch (error) {
 			next(error);
 		}
@@ -232,7 +271,7 @@ class SensorController implements IController {
 			const dashboardsInfo = await getDashboardsInfoFromIdArray([dashboarId]);
 			const dashboardsUrl = generateDashboardsUrl(dashboardsInfo)
 			await createNewSensor(sensorData, dashboarId, dashboardsUrl[0], sensorUid);
-			const message= { message: `A new sensor has been created` };
+			const message = { message: `A new sensor has been created` };
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

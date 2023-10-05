@@ -658,10 +658,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		if (digitalTwinSelected) {
 			const config = axiosAuth(accessToken);
 			const groupId = digitalTwinSelected.groupId;
-			const assetId = digitalTwinSelected.assetId;
 			const digitalTwinId = digitalTwinSelected.id;
 			let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
-			const urlFemResFolderBase = `${urlBase}/${groupId}/${assetId}/${digitalTwinId}`;
+			const urlFemResFolderBase = `${urlBase}/${groupId}/${digitalTwinId}`;
 			const urlFemResFolder = `${urlFemResFolderBase}/femResFiles`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlFemResFolder, config)

@@ -13,7 +13,7 @@ import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { IDigitalTwinState } from './GeolocationContainer';
+import { IDigitalTwinState, ISensorState } from './GeolocationContainer';
 import GeoBuildings from './GeoBuildings';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
@@ -357,11 +357,11 @@ interface MapProps {
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     assetSelected: IAsset | null;
-    selectAsset: (assetSelected: IAsset) => void;
+    selectAsset: (assetSelected: IAsset | null) => void;
     sensorSelected: ISensor | null;
-    selectSensor: (sensorSelected: ISensor) => void;    
+    selectSensor: (sensorSelected: ISensor | null) => void;    
     digitalTwinSelected: IDigitalTwin | null;
-    selectDigitalTwin: (digitalTwinsSelected: IDigitalTwin) => void;
+    selectDigitalTwin: (digitalTwinsSelected: IDigitalTwin | null) => void;
     refreshBuildings: () => void;
     refreshFloors: () => void;
     refreshOrgsOfGroupsManaged: () => void;
@@ -378,6 +378,7 @@ interface MapProps {
     selectDigitalTwinOption: () => void;
     resetBuildingSelection: () => void;
     digitalTwinsState: IDigitalTwinState[];
+    sensorsState: ISensorState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
@@ -422,6 +423,7 @@ const Map: FC<MapProps> = (
         selectDigitalTwinOption,
         resetBuildingSelection,
         digitalTwinsState,
+        sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading
     }) => {
@@ -468,6 +470,7 @@ const Map: FC<MapProps> = (
                 groupsManaged={groupsManaged}
                 selectGroup={selectGroup}
                 digitalTwinsState={digitalTwinsState}
+                sensorsState={sensorsState}
             />
             {
                 (buildingSelected && orgSelected && floorSelected) &&
@@ -488,6 +491,7 @@ const Map: FC<MapProps> = (
                     digitalTwinSelected={digitalTwinSelected}
                     selectDigitalTwin={selectDigitalTwin}
                     digitalTwinsState={digitalTwinsState}
+                    sensorsState={sensorsState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
                 />

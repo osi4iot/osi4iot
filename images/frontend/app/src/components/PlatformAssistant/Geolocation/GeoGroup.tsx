@@ -5,7 +5,7 @@ import { LatLngTuple } from 'leaflet';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
-import { IDigitalTwinState } from "./GeolocationContainer";
+import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
@@ -56,14 +56,15 @@ interface GeoGroupProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
-    selectAsset: (assetSelected: IAsset) => void;
+    selectAsset: (assetSelected: IAsset | null) => void;
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
-    selectSensor: (sensorSelected: ISensor) => void;
+    selectSensor: (sensorSelected: ISensor | null) => void;
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
-    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
+    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     digitalTwinsState: IDigitalTwinState[];
+    sensorsState: ISensorState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
@@ -84,27 +85,28 @@ const GeoGroup: FC<GeoGroupProps> = (
         digitalTwinSelected,
         selectDigitalTwin,
         digitalTwinsState,
+        sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading
     }) => {
     const map = useMap();
     const geoJsonLayerGroupRef = useRef(null);
-    // const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
-    const digitalTwinsFiltered:IDigitalTwin[] = [];
+    const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.groupId === groupData.id);
     const assetDataArrayFiltered = assetDataArray.filter(asset => asset.groupId === groupData.id);
     const sensorDataArrayFiltered = sensorDataArray.filter(sensor => sensor.groupId === groupData.id);
     const isGroupSelected = findOutIfGroupIsSelected(groupData, groupSelected);
     const groupGeoJsonData = useState(findGroupGeojsonData(floorData, groupData.featureIndex))[0];
 
     const styleGeoGroupJson = (geoJsonFeature: any) => {
-        const groupsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.groupId === groupData.id);
-        const status = findOutStatus(groupsStateFiltered);
+        const groupDigitalTwinsState = digitalTwinsState.filter(digitalTwin => digitalTwin.groupId === groupData.id);
+        const groupSensorsState = sensorsState.filter(sensor => sensor.groupId === groupData.id);
+        const status = findOutStatus(groupDigitalTwinsState, groupSensorsState);
         return setGroupStyle(status, isGroupSelected);
     }
-    
+
     useEffect(() => {
         if (groupSelected && groupSelected.outerBounds) map.fitBounds(groupSelected.outerBounds as LatLngTuple[]);
-    }, [groupSelected, map]);
+    }, [assetSelected, groupSelected, map]);
 
     const clickHandler = () => {
         selectGroup(groupData);
@@ -129,10 +131,10 @@ const GeoGroup: FC<GeoGroupProps> = (
                             <Tooltip sticky>Group: {groupData.acronym}</Tooltip>
                         </GeoJSON>
                         <GeoNodeRedInstance
-                                longitude={groupData.nriInGroupIconLongitude}
-                                latitude={groupData.nriInGroupIconLatitude}
-                                iconRadio={groupData.nriInGroupIconRadio}
-                                nriHash={groupData.nriInGroupHash}
+                            longitude={groupData.nriInGroupIconLongitude}
+                            latitude={groupData.nriInGroupIconLatitude}
+                            iconRadio={groupData.nriInGroupIconRadio}
+                            nriHash={groupData.nriInGroupHash}
                         />
                         <GeoAssets
                             assetDataArray={assetDataArrayFiltered}
@@ -145,6 +147,7 @@ const GeoGroup: FC<GeoGroupProps> = (
                             digitalTwinSelected={digitalTwinSelected}
                             selectDigitalTwin={selectDigitalTwin}
                             digitalTwinsState={digitalTwinsState}
+                            sensorsState={sensorsState}
                             openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                             setGlftDataLoading={setGlftDataLoading}
                         />

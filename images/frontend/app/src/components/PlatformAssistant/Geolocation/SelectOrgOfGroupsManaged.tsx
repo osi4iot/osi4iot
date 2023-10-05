@@ -7,7 +7,7 @@ import { ISelectOrgOfGroupsManaged, SELECT_ORG_OF_GROUPS_MANAGED_COLUMNS } from 
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import { IBuilding } from '../TableColumns/buildingsColumns';
-import { IDigitalTwinState } from './GeolocationContainer';
+import { IDigitalTwinState, ISensorState } from './GeolocationContainer';
 import { findOutStatus } from './statusTools';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 
@@ -114,6 +114,7 @@ interface SelectOrgOfGroupsManagedProps {
     groupsManaged: IGroupManaged[];
     giveGroupManagedSelected: (groupSelected: IGroupManaged) => void;
     digitalTwinsState: IDigitalTwinState[];
+    sensorsState: ISensorState[];
 }
 
 const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
@@ -127,15 +128,17 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
         groupsManaged,
         orgSelected,
         giveGroupManagedSelected,
-        digitalTwinsState
+        digitalTwinsState,
+        sensorsState
     }
 ) => {
     const [selectedOrgOfGroupsManaged, setSelectedOrgOfGroupsManaged] = useState<ISelectOrgOfGroupsManaged | null>(null);
     const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
     const orgsOfGroupsManagedTableWithStatus = orgsOfGroupsManagedTable.map(org => {
         const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === org.id);
-        const status = findOutStatus(digitalTwinsStateFiltered);
-        return { ...org, status }; 
+        const sensorsStateFiltered = sensorsState.filter(sensorState => sensorState.orgId === org.id);
+        const status = findOutStatus(digitalTwinsStateFiltered, sensorsStateFiltered);
+        return { ...org, status };
     });
     const selectOrgsTable = useState(orgsOfGroupsManagedTableWithStatus)[0];
 
@@ -150,7 +153,7 @@ const SelectOrgOfGroupsManaged: FC<SelectOrgOfGroupsManagedProps> = (
             const groupsFiltered = groupsManaged.filter(group => group.orgId === selectedOrgOfGroupsManaged.id);
             const floorNumbersArray = Array.from(new Set(groupsFiltered.map(group => group.floorNumber)));
             if (floorNumbersArray.length === 1) {
-                const floorsFiltered = floors.filter(floor => floor.buildingId === buildingId && floor.floorNumber ===  floorNumbersArray[0])
+                const floorsFiltered = floors.filter(floor => floor.buildingId === buildingId && floor.floorNumber === floorNumbersArray[0])
                 giveFloorSelected(floorsFiltered[0]);
                 if (groupsFiltered.length === 1) {
                     giveGroupManagedSelected(groupsFiltered[0]);

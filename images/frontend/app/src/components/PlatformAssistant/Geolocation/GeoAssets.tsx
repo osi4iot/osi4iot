@@ -1,6 +1,6 @@
 import { FC } from "react";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
-import { IDigitalTwinState } from "./GeolocationContainer";
+import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import GeoAsset from "./GeoAsset";
 import { IAsset } from "../TableColumns/assetsColumns";
@@ -9,14 +9,15 @@ import { ISensor } from "../TableColumns/sensorsColumns";
 interface GeoAssetsProps {
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
-    selectAsset: (assetSelected: IAsset) => void;
+    selectAsset: (assetSelected: IAsset | null) => void;
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
-    selectSensor: (sensorSelected: ISensor) => void;
+    selectSensor: (sensorSelected: ISensor | null) => void;
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
-    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
+    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     digitalTwinsState: IDigitalTwinState[];
+    sensorsState: ISensorState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
@@ -34,11 +35,10 @@ const GeoAssets: FC<GeoAssetsProps> = (
         digitalTwinSelected,
         selectDigitalTwin,
         digitalTwinsState,
+        sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading
     }) => {
-
-    //const digitalTwinsFiltered = digitalTwins.filter(digitalTwin => digitalTwin.deviceId === deviceSelected?.id);
 
     return (
         <>
@@ -56,6 +56,7 @@ const GeoAssets: FC<GeoAssetsProps> = (
                         digitalTwinSelected={digitalTwinSelected}
                         selectDigitalTwin={selectDigitalTwin}
                         digitalTwinsState={digitalTwinsState}
+                        sensorsState={sensorsState}
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                         setGlftDataLoading={setGlftDataLoading}
                     />

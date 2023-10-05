@@ -230,7 +230,7 @@ export const Create_GROUPS_COLUMNS = (refreshGroups: () => void): Column<IGroupC
             Header: "outerBounds",
             accessor: "outerBounds",
             disableFilters: true
-        },
+        },      
         {
             Header: "",
             accessor: "edit",

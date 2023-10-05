@@ -30,7 +30,7 @@ import {
 	setSensorsTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
-import GeolocationContainer, { IDigitalTwinState } from '../Geolocation/GeolocationContainer';
+import GeolocationContainer, { IDigitalTwinState, ISensorState } from '../Geolocation/GeolocationContainer';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import { IBuilding } from '../TableColumns/buildingsColumns';
@@ -202,6 +202,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
 	const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
+	const [sensorsState, setSensorsState] = useState<ISensorState[]>([]);
 
 	const refreshBuildings = useCallback(() => {
 		setBuildingsLoading(true);
@@ -276,15 +277,15 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setAssetSelected(null);
 	}
 
-	const selectAsset = (asset: IAsset) => {
+	const selectAsset = (asset: IAsset | null) => {
 		setAssetSelected(asset);
 	}
 
-	const selectSensor = (sensor: ISensor) => {
+	const selectSensor = (sensor: ISensor | null) => {
 		setSensorSelected(sensor);
 	}
 
-	const selectDigitalTwin = (digitalTwin: IDigitalTwin) => {
+	const selectDigitalTwin = (digitalTwin: IDigitalTwin | null) => {
 		setDigitalTwinSelected(digitalTwin);
 	}
 
@@ -293,6 +294,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setFloorSelected(null);
 		setOrgSelected(null);;
 		setGroupSelected(null);
+	}
+
+	const handleCloseViewer = () => {
+		selectAsset(null);
+		setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
 	}
 
 
@@ -502,7 +508,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlDigitalTwins, config)
 				.then((response) => {
-					const digitalTwins = response.data;
+					const digitalTwins = response.data as IDigitalTwin[];
+					digitalTwins.forEach(dt => dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`);
 					setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
 					setDigitalTwinsLoading(false);
 					const inexistentDashboards = digitalTwins.filter((dt: IDigitalTwin) => dt.dashboardUrl.slice(0, 7) === "Warning");
@@ -608,6 +615,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									setGlftDataLoading={(glftDataLoading) => setGlftDataLoading(glftDataLoading)}
 									digitalTwinsState={digitalTwinsState}
 									setDigitalTwinsState={setDigitalTwinsState}
+									sensorsState={sensorsState}
+									setSensorsState={setSensorsState}
 								/>
 							}
 							{(optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData) &&
@@ -615,7 +624,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									<DigitalTwin3DViewer
 										digitalTwinSelected={digitalTwinSelected}
 										digitalTwinGltfData={digitalTwinGltfData}
-										close3DViewer={() => setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION)}
+										close3DViewer={handleCloseViewer}
 									/>
 								</Suspense>
 							}

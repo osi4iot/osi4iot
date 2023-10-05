@@ -1,4 +1,4 @@
-import { FC, useMemo, useState } from "react";
+import { FC, useEffect, useMemo, useState } from "react";
 import { Circle } from 'react-leaflet';
 import rhumbDestination from '@turf/rhumb-destination';
 import { point } from '@turf/helpers';
@@ -9,7 +9,9 @@ import { toast } from "react-toastify";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { SensorSvgImage } from "./SensorSvgImage";
-import { STATUS_OK } from "./statusTools";
+import { STATUS_ALERTING, STATUS_OK, STATUS_PENDING, findOutSensorStatus } from "./statusTools";
+import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
+import { ISensorState } from "./GeolocationContainer";
 
 
 interface GeoSensorProps {
@@ -18,7 +20,9 @@ interface GeoSensorProps {
     sensorData: ISensor;
     sensorIndex: number;
     sensorSelected: ISensor | null;
-    selectSensor: (sensorSelected: ISensor) => void;
+    selectSensor: (sensorSelected: ISensor | null) => void;
+    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
+    sensorsState: ISensorState[];
 }
 
 const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, distance: number, angle: number): number[] => {
@@ -37,13 +41,24 @@ const GeoSensor: FC<GeoSensorProps> = ({
     sensorData,
     sensorIndex,
     sensorSelected,
-    selectSensor
+    selectSensor,
+    selectDigitalTwin,
+    sensorsState
 }) => {
-    const angle = 360 * sensorIndex / 12;
+    const angle = 360 * (sensorIndex + 1) / 12;
     const positionRadius = 0.00076 * assetData.iconRadio;
     const [centerLongitude, centerLatitude] = calcGeoPointPosition(assetData.longitude, assetData.latitude, positionRadius, angle);
     const [status, setStatus] = useState("unknown");
     const [fillColor, setFillColor] = useState(STATUS_OK);
+    const sensorState = sensorsState.filter(sensor => sensor.sensorId === sensorData.id)[0];
+
+    useEffect(() => {
+        const status = findOutSensorStatus(sensorState);
+        setStatus(status);
+        if (status === "ok") setFillColor(STATUS_OK)
+        else if (status === "pending") setFillColor(STATUS_PENDING)
+        else if (status === "alerting") setFillColor(STATUS_ALERTING);
+    }, [sensorState]);
 
     const sensorRadio = 0.00010 * assetData.iconRadio;
     const boundsSensor = useMemo(() =>
@@ -64,6 +79,7 @@ const GeoSensor: FC<GeoSensorProps> = ({
 
     const clickHandler = () => {
         selectSensor(sensorData);
+        selectDigitalTwin(null);
         const url = (sensorData.dashboardUrl as string);
         if (url.slice(0, 7) === "Warning") {
             toast.warning(url);
@@ -78,6 +94,7 @@ const GeoSensor: FC<GeoSensorProps> = ({
             eventHandlers={{ click: clickHandler }}
         >
             <SensorSvgImage
+                key={status}
                 sensorLabel={sensorLabel}
                 sensorId={sensorData.id}
                 sensorSelected={sensorSelected as ISensor}

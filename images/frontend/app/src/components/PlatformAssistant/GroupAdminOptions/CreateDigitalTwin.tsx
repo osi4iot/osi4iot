@@ -269,7 +269,7 @@ type FormikType = FormikProps<{
 }>
 
 const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDigitalTwins }) => {
-    initialDigitalTwinData.digitalTwinUid = `DT_${nanoid(20).replace(/-/g, "x").replace(/_/g, "X")}`
+    initialDigitalTwinData.digitalTwinUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
@@ -330,20 +330,24 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             maxNumResFemFiles,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             topicsRef: [
-                { topicRef: "dev2pdb_1", topicId: 0 }
+                {
+                    topicRef: "dev2pdb_1",
+                    topicId: 0
+                }
             ],
-            sensorsRef: [{
-                sensorRef: "sensor_1",
-                sensorId: 0,
-                topicRef: "dev2pdb_1-1",
-                description: "Sensor 1",
-                payloadKey: "temperature",
-                paramLabel: "Temperature",
-                valueType: "number",
-                units: "celsius",
-                dashboardRefresh: "1s",
-                dashboardTimeWindow: "5m"
-            }
+            sensorsRef: [
+                {
+                    sensorRef: "sensor_1",
+                    sensorId: 0,
+                    topicRef: "dev2pdb_1",
+                    description: "Sensor 1",
+                    payloadKey: "temperature",
+                    paramLabel: "Temperature",
+                    valueType: "number",
+                    units: "celsius",
+                    dashboardRefresh: "1s",
+                    dashboardTimeWindow: "5m"
+                }
             ]
         }
 
@@ -421,7 +425,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
         assetId: Yup.number().required('Required'),
-        digitalTwinUid: Yup.string().matches(/^DT.{21}$/, "String must be 23 characters long and start with 'DT'").required('Required'),
+        digitalTwinUid: Yup.string().length(20, "String must be 20 characters long").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
         gltfFileName: Yup.string().when("type", {

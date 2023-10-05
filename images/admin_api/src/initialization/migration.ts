@@ -35,7 +35,9 @@ import { createNewSensor } from "../components/sensor/sensorDAL";
 import CreateSensorDto from "../components/sensor/sensor.dto";
 import { nanoid } from "nanoid";
 import { getDashboardsInfoFromIdArray } from "../components/dashboard/dashboardDAL";
-import { generateDashboardsUrl } from "../components/digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, generateDashboardsUrl, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
+import ISensor from "../components/sensor/sensor.interface";
+import CreateSensorRefDto from "../components/digitalTwin/sensorRef.dto";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -571,6 +573,7 @@ export const dataBaseInitialization = async () => {
 					digital_twin_id bigint,
 					topic_id bigint,
 					topic_type VARCHAR(40),
+					already_created boolean NOT NULL DEFAULT FALSE,
 					CONSTRAINT fk_digital_twin_id
 						FOREIGN KEY(digital_twin_id)
 						REFERENCES grafanadb.digital_twin(id)
@@ -707,10 +710,7 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `NodeRed instance can not be assigned to group with id: ${group.id}: %s`, err.message);
 				}
 
-				let topic1: ITopic;
-				let topic2: ITopic;
-				let topic3: ITopic;
-				let topic4: ITopic;
+				const topics: ITopic[] = [];
 				try {
 					const topicsDataForMobileAsset = [
 						{
@@ -734,10 +734,9 @@ export const dataBaseInitialization = async () => {
 							mqttAccessControl: "Pub & Sub"
 						}
 					];
-					topic1 = await createTopic(group.id, topicsDataForMobileAsset[0]);
-					topic2 = await createTopic(group.id, topicsDataForMobileAsset[1]);
-					topic3 = await createTopic(group.id, topicsDataForMobileAsset[2]);
-					topic4 = await createTopic(group.id, topicsDataForMobileAsset[3]);
+					for (let i = 0; i < topicsDataForMobileAsset.length; i++) {
+						topics[i] = await createTopic(group.id, topicsDataForMobileAsset[i]);
+					}
 
 					logger.log("info", `Topics for mobile asset has been created sucessfully`);
 				} catch (err) {
@@ -745,13 +744,14 @@ export const dataBaseInitialization = async () => {
 				}
 
 				const sensorsData: CreateSensorDto[] = [];
+				const sensors: ISensor[] = [];
 				const dashboarsId: number[] = [];
 				const sensorsUid: string[] = [];
 				sensorsData[0] =
 				{
 					assetId: asset.id,
 					description: `Mobile geolocation`,
-					topicId: topic1.id,
+					topicId: topics[0].id,
 					payloadKey: "mobile_geolocation",
 					paramLabel: "longitude,latitude",
 					valueType: "number(2)",
@@ -765,7 +765,7 @@ export const dataBaseInitialization = async () => {
 				{
 					assetId: asset.id,
 					description: `Mobile accelerations`,
-					topicId: topic2.id,
+					topicId: topics[1].id,
 					payloadKey: "mobile_accelerations",
 					paramLabel: "ax,ay,az",
 					valueType: "number(3)",
@@ -778,8 +778,8 @@ export const dataBaseInitialization = async () => {
 				sensorsData[2] =
 				{
 					assetId: asset.id,
-					description: `Mobile quaternions`,
-					topicId: topic3.id,
+					description: `Mobile orientation`,
+					topicId: topics[2].id,
 					payloadKey: "mobile_quaternion",
 					paramLabel: "q0,q1,q2,q3",
 					valueType: "number(4)",
@@ -793,7 +793,7 @@ export const dataBaseInitialization = async () => {
 				{
 					assetId: asset.id,
 					description: `Mobile photo`,
-					topicId: topic4.id,
+					topicId: topics[3].id,
 					payloadKey: "mobile_photo",
 					paramLabel: "mobile_photo",
 					valueType: "string",
@@ -804,10 +804,9 @@ export const dataBaseInitialization = async () => {
 				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
 				try {
-					dashboarsId[0] = await createSensorDashboard(group, sensorsData[0], sensorsUid[0]);
-					dashboarsId[1] = await createSensorDashboard(group, sensorsData[1], sensorsUid[1]);
-					dashboarsId[2] = await createSensorDashboard(group, sensorsData[2], sensorsUid[2]);
-					dashboarsId[3] = await createSensorDashboard(group, sensorsData[3], sensorsUid[3]);
+					for (let i = 0; i < 4; i++) {
+						dashboarsId[i] = await createSensorDashboard(group, sensorsData[i], sensorsUid[i]);
+					}
 				} catch (err) {
 					logger.log("error", `Default sensors dashboards could not be created: %s`, err.message);
 				}
@@ -815,13 +814,38 @@ export const dataBaseInitialization = async () => {
 				try {
 					const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
 					const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
-					await createNewSensor(sensorsData[0], dashboarsId[0], dashboardsUrl[0], sensorsUid[0]);
-					await createNewSensor(sensorsData[1], dashboarsId[1], dashboardsUrl[1], sensorsUid[1]);
-					await createNewSensor(sensorsData[2], dashboarsId[2], dashboardsUrl[2], sensorsUid[2]);
-					await createNewSensor(sensorsData[3], dashboarsId[3], dashboardsUrl[3], sensorsUid[3]);
+					for (let i = 0; i < 4; i++) {
+						sensors[i] = await createNewSensor(sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
+					}
 					logger.log("info", `Default sensors for main group has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Default sensors for main group can not be created: %s`, err.message);
+				}
+
+				const digitalTwinData = {
+					description: "Mobile phone default DT",
+					type: "Gltf 3D model",
+					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
+					topicSensorTypes: ["dev2pdb_wt"],
+					maxNumResFemFiles: 1,
+					digitalTwinSimulationFormat: "{}",
+					topicsRef: [
+						{
+							topicRef: "dev2pdb_wt_1",
+							topicId: topics[2].id
+						}
+					],
+					sensorsRef: [] as CreateSensorRefDto[]
+				}
+
+				try {
+					const { digitalTwin } = await createDigitalTwin(group, asset, digitalTwinData);
+					const keyBase = `org_1/group_${group.id}/digitalTwin_${digitalTwin.id}`;
+					const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
+					await uploadMobilePhoneGltfFile(gltfFileName);
+					logger.log("info", `Default mobile phone digital twin has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Default mobile phone digital twin can not be created: %s`, err.message);
 				}
 
 				const tableRefreshToken = "grafanadb.refresh_token";

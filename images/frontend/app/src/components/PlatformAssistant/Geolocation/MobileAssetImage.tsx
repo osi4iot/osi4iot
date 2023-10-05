@@ -36,7 +36,7 @@ export const MobileAssetSvgImage: FC<MobileAssetSvgImageProps> = ({
                 <circle
                     fill="#555555"
                     stroke={setAssetCircleColor(assetId, assetSelected)}
-                    stroke-width="5"
+                    strokeWidth="5"
                     cx="300"
                     cy="300"
                     r="290"

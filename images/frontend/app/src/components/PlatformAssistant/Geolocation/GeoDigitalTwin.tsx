@@ -5,7 +5,7 @@ import { point } from '@turf/helpers';
 import { StyledTooltip as Tooltip } from './Tooltip';
 import { LatLngTuple } from 'leaflet';
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
-import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
+import { findOuDigitalTwinStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import { IDigitalTwinState } from "./GeolocationContainer";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
@@ -16,6 +16,7 @@ import { IMqttTopicData } from "../DigitalTwin3DViewer/Model";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IAsset } from "../TableColumns/assetsColumns";
+import { ISensor } from "../TableColumns/sensorsColumns";
 
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
@@ -36,7 +37,7 @@ interface DigitanTwinSvgImageProps {
     outerBounds: LatLngTuple[];
 }
 
-const DigitanTwinGrafanaSvgImage: FC<DigitanTwinSvgImageProps> = ({
+const DigitanTwinSvgImage: FC<DigitanTwinSvgImageProps> = ({
     digitalTwinId,
     digitalTwinSelected,
     fillColor,
@@ -46,13 +47,64 @@ const DigitanTwinGrafanaSvgImage: FC<DigitanTwinSvgImageProps> = ({
     return (
         <>
             <SVGOverlay attributes={{ viewBox: "0 0 512 512", fill: fillColor }} bounds={bounds as LatLngTuple[]}>
-                <path d="M496 384H64V80c0-8.84-7.16-16-16-16H16C7.16 64 0 71.16 0 80v336c0 17.67 14.33 32 32 32h464c8.84 0 16-7.16 16-16v-32c0-8.84-7.16-16-16-16zM464 96H345.94c-21.38 0-32.09 25.85-16.97 40.97l32.4 32.4L288 242.75l-73.37-73.37c-12.5-12.5-32.76-12.5-45.25 0l-68.69 68.69c-6.25 6.25-6.25 16.38 0 22.63l22.62 22.62c6.25 6.25 16.38 6.25 22.63 0L192 237.25l73.37 73.37c12.5 12.5 32.76 12.5 45.25 0l96-96 32.4 32.4c15.12 15.12 40.97 4.41 40.97-16.97V112c.01-8.84-7.15-16-15.99-16z" />
+                <path d="M258.7,113.7c0.5,7.9-4.5,11.7-8.4,15.9c-3.3,3.5-4.7,6.7-4.1,11.8c0.9,7.7,1.1,15.7,0.1,23.4c-0.8,6.3,1.2,10.4,5.2,14.7
+	c9.5,10.3,9.6,13,2.7,25c-4.6,8-9.3,15.9-13.8,23.9c-3.9,7.1-9.4,10.1-17.3,7.4c-8.2-2.8-15.6-2.3-22,4.5c-1.5,1.6-3.6,2.7-5.6,3.6
+	c-11.2,4.7-21,10.4-23,24.3c-0.7,4.8-5.8,7.4-11,7.4c-12,0.1-24,0.1-36,0c-6.7,0-11.4-3.6-12.7-10c-1.9-10.1-7.4-16.2-17.1-18.9
+	c-2.1-0.6-4.1-1.8-5.8-3.3c-8.9-7.6-18.2-11.7-30.2-6.9c-4.9,2-9.8-1.4-12.6-6.2c-6.1-10.3-12.1-20.7-18-31.2
+	c-3.4-5.9-2.4-11.7,2.5-16c7.4-6.5,10.2-13.7,7.8-23.6c-1.1-4.5-1.1-9.8,0.2-14.1c2.4-8.3-0.8-13.9-6.5-19.1
+	c-6.8-6.2-7.4-13-2.4-20.9c5.4-8.5,10.2-17.3,15.1-26.1c3.9-7,9.4-10.2,17.3-7.6c8.1,2.7,15.6,2.6,22-4.3c2-2.2,4.9-3.8,7.8-4.8
+	c10.5-4.1,18.7-9.6,20.6-22.2c0.8-5.5,6.1-8.4,12.1-8.4c11.7,0,23.4,0,35.1,0c8.2,0,12.1,5.2,13.7,12.2c1.7,8,5.5,13.6,13.8,15.6
+	c2.4,0.6,4.7,2,6.6,3.5c9.7,7.6,19.5,13.2,32.5,7.7c3.9-1.6,8.5,1,10.8,4.8c6.8,11.2,13.3,22.6,19.8,34
+	C258.7,111.3,258.6,113.2,258.7,113.7z"/>
+                <path d="M375.6,160c0-24.9-0.2-49.8,0.1-74.7c0.1-5.4-1.6-6.3-6.6-6.3c-25.9,0.2-51.9,0.1-77.8,0.1c-10.3,0-16.3-4.7-16.2-12.7
+	c0.1-7.9,5.9-12.5,16.4-12.5c28.5,0,56.9,0,85.4,0c15.5,0,23.8,8.2,23.8,23.7c0.1,24.9,0,49.8,0,74.7c0,2.7,0,5.3,0,8
+	c0.6,0.3,1.2,0.7,1.8,1c3.5-3.8,6.7-8,10.5-11.5c5.5-5,12.4-4.7,17.3,0c4.9,4.8,5.5,12,0.4,17.3c-11.2,11.7-22.6,23.2-34.3,34.4
+	c-5.5,5.2-11.9,4.8-17.2-0.4c-11.2-10.9-22.3-22-33.1-33.2c-5.5-5.7-5.3-13-0.2-18c5-5,12.2-5.1,17.9,0.4c3.6,3.4,6.6,7.4,9.8,11.1
+	C374.3,161,374.9,160.5,375.6,160z"/>
+                <path d="M107.7,334.1c0,25.4,0.2,50.8-0.1,76.2c-0.1,5.4,2.9,4.8,6.3,4.8c26.8,0,53.6-0.1,80.3,0c8.4,0,13.9,5.1,14,12.4
+	c0.1,7.2-5.4,12.4-13.6,12.8c-0.6,0-1.1,0-1.7,0c-29.3,0-58.6,0.1-87.9,0c-13.9-0.1-22.3-8.6-22.4-22.6c-0.1-25.2,0-50.4,0-75.6
+	c0-2.7,0-5.4,0-10.7c-5,5.3-8.3,9.3-12.1,12.7c-5.8,5.2-13,4.9-17.9-0.3c-4.6-5-4.8-12,0.3-17.4c11-11.5,22.3-22.8,33.7-33.8
+	c5.4-5.2,11.8-5.1,17.2,0.1c11.4,11.1,22.7,22.3,33.7,33.8c5.1,5.3,4.8,12.4,0.1,17.3c-5,5.1-12.1,5.3-17.9,0
+	c-3.7-3.4-6.8-7.3-10.2-10.9C108.9,333.4,108.3,333.8,107.7,334.1z"/>
+                <path d="M207.3,207.1c-4.3,0.2-7.6,2.1-10.5,4.9c-7.8,7.3-16.7,13.3-27,16.3c-8.5,2.4-13.8,7-15.2,15.6
+	c-1,6.2-4.6,7.2-10,6.7c-5.1-0.5-11.4,2.1-12.7-6.5c-1.3-8.5-6.4-13.5-15-15.8c-8.6-2.3-16.8-6.7-23.1-13c-7.1-7.1-14.7-10-24-6.3
+	c-6,2.4-7.3-1.9-9-5.5c-2-4.2-8.1-8.1-1.6-13.5c7.5-6.2,9.3-13.9,6.6-23.3c-2.5-8.7-2.3-17.9,0.2-26.6c2.5-8.9,0.7-16.1-6.3-21.7
+	c-6.3-5.1-1.6-9.1,0.7-13.5c2.2-4.2,3.8-8.5,10.4-5.9c8.3,3.2,15.4,1.2,21.9-5.4c6.7-6.8,15.2-11.5,24.4-14.1
+	c8.2-2.3,13.5-6.7,14.7-15.1c1.2-8.8,7.6-6.7,13.1-7.2c5.4-0.5,8.9,0.7,9.9,6.8c1.3,8.7,6.7,13.2,15.3,15.6
+	c8.9,2.4,17.2,7.1,23.7,13.6c6.7,6.7,13.9,9.1,22.6,5.7c8.6-3.3,8.3,4.8,11.4,8.5c2.9,3.5,4,7-0.5,10.6c-7.3,5.9-8.6,13.3-6.4,22.5
+	c2.2,8.9,2,18.5-0.2,27.5c-2,8.1-1.1,15,5.5,20.4c4.4,3.6,5.2,7.2,1.6,12c-3.4,4.6-4.8,11.9-13.3,8.1
+	C212.2,207.6,209.5,207.6,207.3,207.1z"/>
+                <path d="M97.3,154.1c-0.1-25.8,20.5-46.5,46.1-46.4c25.1,0.1,45.8,20.8,45.9,46c0.2,25.4-20.9,46.5-46.3,46.4
+	C117.8,200,97.4,179.5,97.3,154.1z"/>
+                <path d="M143.2,174.9c-11.4,0-20.6-9.1-20.7-20.6c-0.2-11.9,9.1-21.4,20.8-21.4c11.3,0,20.7,9.3,21,20.6
+	C164.5,165,154.7,174.9,143.2,174.9z"/>
+                <path d="M448,317.3c0.5,7.9-4.5,11.7-8.4,15.9c-3.3,3.5-4.7,6.7-4.1,11.8c0.9,7.7,1.1,15.7,0.1,23.4c-0.8,6.3,1.2,10.4,5.2,14.7
+	c9.5,10.3,9.6,13,2.7,25c-4.6,8-9.3,15.9-13.8,23.9c-3.9,7.1-9.4,10.1-17.3,7.4c-8.2-2.8-15.6-2.3-22,4.5c-1.5,1.6-3.6,2.7-5.6,3.6
+	c-11.2,4.7-21,10.4-23,24.3c-0.7,4.8-5.8,7.4-11,7.4c-12,0.1-24,0.1-36,0c-6.7,0-11.4-3.6-12.7-10c-1.9-10.1-7.4-16.2-17.1-18.9
+	c-2.1-0.6-4.1-1.8-5.8-3.3c-8.9-7.6-18.2-11.7-30.2-6.9c-4.9,2-9.8-1.4-12.6-6.2c-6.1-10.3-12.1-20.7-18-31.2
+	c-3.4-5.9-2.4-11.7,2.5-16c7.4-6.5,10.2-13.7,7.8-23.6c-1.1-4.5-1.1-9.8,0.2-14.1c2.4-8.3-0.8-13.9-6.5-19.1
+	c-6.8-6.2-7.4-13-2.4-20.9c5.4-8.5,10.2-17.3,15.1-26.1c3.9-7,9.4-10.2,17.3-7.6c8.1,2.7,15.6,2.6,22-4.3c2-2.2,4.9-3.8,7.8-4.8
+	c10.5-4.1,18.7-9.6,20.6-22.2c0.8-5.5,6.1-8.4,12.1-8.4c11.7,0,23.4,0,35.1,0c8.2,0,12.1,5.2,13.7,12.2c1.7,8,5.5,13.6,13.8,15.6
+	c2.4,0.6,4.7,2,6.6,3.5c9.7,7.6,19.5,13.2,32.5,7.7c3.9-1.6,8.5,1,10.8,4.8c6.8,11.2,13.3,22.6,19.8,34
+	C448,314.9,447.9,316.8,448,317.3z"/>
+                <path d="M396.9,406.5c-4.3,0.2-7.6,2.1-10.5,4.9c-7.8,7.3-16.7,13.3-27,16.3c-8.5,2.4-13.8,7-15.2,15.6
+	c-1,6.2-4.6,7.2-10,6.7c-5.1-0.5-11.4,2.1-12.7-6.5c-1.3-8.5-6.4-13.5-15-15.8c-8.6-2.3-16.8-6.7-23.1-13c-7.1-7.1-14.7-10-24-6.3
+	c-6,2.4-7.3-1.9-9-5.5c-2-4.2-8.1-8.1-1.6-13.5c7.5-6.2,9.3-13.9,6.6-23.3c-2.5-8.7-2.3-17.9,0.2-26.6c2.5-8.9,0.7-16.1-6.3-21.7
+	c-6.3-5.1-1.6-9.1,0.7-13.5c2.2-4.2,3.8-8.5,10.4-5.9c8.3,3.2,15.4,1.2,21.9-5.4c6.7-6.8,15.2-11.5,24.4-14.1
+	c8.2-2.3,13.5-6.7,14.7-15.1c1.2-8.8,7.6-6.7,13.1-7.2c5.4-0.5,8.9,0.7,9.9,6.8c1.3,8.7,6.7,13.2,15.3,15.6
+	c8.9,2.4,17.2,7.1,23.7,13.6c6.7,6.7,13.9,9.1,22.6,5.7c8.6-3.3,8.3,4.8,11.4,8.5c2.9,3.5,4,7-0.5,10.6c-7.3,5.9-8.6,13.3-6.4,22.5
+	c2.2,8.9,2,18.5-0.2,27.5c-2,8.1-1.1,15,5.5,20.4c4.4,3.6,5.2,7.2,1.6,12c-3.4,4.6-4.8,11.9-13.3,8.1
+	C401.8,407,399.2,406.9,396.9,406.5z"/>
+                <path d="M286.6,353.7c-0.1-25.8,20.5-46.5,46.1-46.4c25.1,0.1,45.8,20.8,45.9,46c0.2,25.4-20.9,46.5-46.3,46.4
+	C307.1,399.6,286.7,379.1,286.6,353.7z"/>
+                <path d="M332.5,374.5c-11.4,0-20.6-9.1-20.7-20.6c-0.2-11.9,9.1-21.4,20.8-21.4c11.3,0,20.7,9.3,21,20.6
+	C353.8,364.6,344.1,374.5,332.5,374.5z"/>
             </SVGOverlay >
             <SVGOverlay attributes={{ viewBox: "0 0 512 512", fill: fillColor }} bounds={outerBounds as LatLngTuple[]}>
                 <circle
                     fill="none"
                     stroke={setDigitalTwinCircleColor(digitalTwinId, digitalTwinSelected)}
-                    stroke-width="15"
+                    strokeWidth="15"
                     cx="256"
                     cy="256"
                     r="240"
@@ -61,41 +113,14 @@ const DigitanTwinGrafanaSvgImage: FC<DigitanTwinSvgImageProps> = ({
         </>
     )
 };
-
-const DigitanTwin3DModelSvgImage: FC<DigitanTwinSvgImageProps> = ({
-    digitalTwinId,
-    digitalTwinSelected,
-    fillColor,
-    bounds,
-    outerBounds
-}) => {
-    return (
-        <>
-            <SVGOverlay attributes={{ viewBox: "0 0 512 512", fill: fillColor }} bounds={bounds as LatLngTuple[]}>
-                <path d="M488.6 250.2L392 214V105.5c0-15-9.3-28.4-23.4-33.7l-100-37.5c-8.1-3.1-17.1-3.1-25.3 0l-100 37.5c-14.1 5.3-23.4 18.7-23.4 33.7V214l-96.6 36.2C9.3 255.5 0 268.9 0 283.9V394c0 13.6 7.7 26.1 19.9 32.2l100 50c10.1 5.1 22.1 5.1 32.2 0l103.9-52 103.9 52c10.1 5.1 22.1 5.1 32.2 0l100-50c12.2-6.1 19.9-18.6 19.9-32.2V283.9c0-15-9.3-28.4-23.4-33.7zM358 214.8l-85 31.9v-68.2l85-37v73.3zM154 104.1l102-38.2 102 38.2v.6l-102 41.4-102-41.4v-.6zm84 291.1l-85 42.5v-79.1l85-38.8v75.4zm0-112l-102 41.4-102-41.4v-.6l102-38.2 102 38.2v.6zm240 112l-85 42.5v-79.1l85-38.8v75.4zm0-112l-102 41.4-102-41.4v-.6l102-38.2 102 38.2v.6z" />
-            </SVGOverlay >
-            <SVGOverlay attributes={{ viewBox: "0 0 512 512", fill: fillColor }} bounds={outerBounds as LatLngTuple[]}>
-                <circle
-                    fill="none"
-                    stroke={setDigitalTwinCircleColor(digitalTwinId, digitalTwinSelected)}
-                    stroke-width="15"
-                    cx="256"
-                    cy="256"
-                    r="240"
-                />
-            </SVGOverlay >
-        </>
-    )
-};
-
 
 interface GeoDigitalTwinProps {
     assetData: IAsset;
-    digitalTwinIndex: number;
     digitalTwinData: IDigitalTwin;
     digitalTwinSelected: IDigitalTwin | null;
-    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
-    digitalTwinsState: IDigitalTwinState[];
+    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
+    selectSensor: (sensorSelected: ISensor | null) => void;
+    digitalTwinState: IDigitalTwinState  | null;
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
@@ -107,75 +132,55 @@ const protocol = getProtocol();
 const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, distance: number, angle: number): number[] => {
     const pt = point([pointLongitude, pointLatitude]);
     let bearing: number = angle;
-    if (angle > 180) {
-        bearing = angle - 360;
-    }
     const position = rhumbDestination(pt, distance, bearing);
     return [position.geometry.coordinates[0], position.geometry.coordinates[1]];
 }
 
 const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     assetData,
-    digitalTwinIndex,
     digitalTwinData,
     digitalTwinSelected,
     selectDigitalTwin,
-    digitalTwinsState,
+    selectSensor,
+    digitalTwinState,
     openDigitalTwin3DViewer,
     setGlftDataLoading
 }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const angle = 360 * digitalTwinIndex / 12;
-    const positionRadius = 0.00076 * assetData.iconRadio;
+    const angle = 0.0;
+    const positionRadius = 0.00074 * assetData.iconRadio;
     const [centerLongitude, centerLatitude] = calcGeoPointPosition(assetData.longitude, assetData.latitude, positionRadius, angle);
     const [status, setStatus] = useState("unknown");
     const [fillColor, setFillColor] = useState("unknown");
 
     useEffect(() => {
-        const digitalTwinsStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.digitalTwinId === digitalTwinData.id);
-        const status = findOutStatus(digitalTwinsStateFiltered);
+        const status = findOuDigitalTwinStatus(digitalTwinState as IDigitalTwinState);
         setStatus(status);
         if (status === "ok") setFillColor(STATUS_OK)
         else if (status === "pending") setFillColor(STATUS_PENDING)
         else if (status === "alerting") setFillColor(STATUS_ALERTING);
-    }, [digitalTwinData, digitalTwinsState]);
+    }, [digitalTwinData, digitalTwinState]);
 
-    const digitalTwinGrafanaRadio = 0.00008 * assetData.iconRadio;
-    const boundsGrafana = useMemo(() =>
+    const digitalTwinRadio = 0.00012 * assetData.iconRadio;
+    const bounds = useMemo(() =>
         calcGeoBounds(
             centerLongitude,
             centerLatitude,
-            digitalTwinGrafanaRadio
-        ), [centerLongitude, centerLatitude, digitalTwinGrafanaRadio]);
+            digitalTwinRadio
+        ), [centerLongitude, centerLatitude, digitalTwinRadio]);
 
-    const digitalTwinGrafanaOuterRadio = 0.00018 * assetData.iconRadio;
-    const outerBoundsGrafana = useMemo(() =>
+    const digitalTwinOuterRadio = 0.00020 * assetData.iconRadio;
+    const outerBounds = useMemo(() =>
         calcGeoBounds(
             centerLongitude,
             centerLatitude,
-            digitalTwinGrafanaOuterRadio
-        ), [centerLongitude, centerLatitude, digitalTwinGrafanaOuterRadio]);
-
-    const digitalTwin3DModelRadio = 0.0001 * assetData.iconRadio;
-    const bounds3DModel = useMemo(() =>
-        calcGeoBounds(
-            centerLongitude,
-            centerLatitude,
-            digitalTwin3DModelRadio
-        ), [centerLongitude, centerLatitude, digitalTwin3DModelRadio]);
-
-    const digitalTwin3DModelOuterRadio = 0.00018 * assetData.iconRadio;
-    const outerBounds3DModel = useMemo(() =>
-        calcGeoBounds(
-            centerLongitude,
-            centerLatitude,
-            digitalTwin3DModelOuterRadio
-        ), [centerLongitude, centerLatitude, digitalTwin3DModelOuterRadio]);
-
+            digitalTwinOuterRadio
+        ), [centerLongitude, centerLatitude, digitalTwinOuterRadio]);
 
     const clickHandler = () => {
         selectDigitalTwin(digitalTwinData);
+        selectSensor(null);
         if (digitalTwinData.type === "Gltf 3D model") {
             setGlftDataLoading(true);
             const config = axiosAuth(accessToken);
@@ -222,25 +227,13 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                     radius={0.1666 * assetData.iconRadio}
                     eventHandlers={{ click: clickHandler }}
                 >
-                    {digitalTwinData.type === "Grafana dashboard" &&
-
-                        <DigitanTwinGrafanaSvgImage
-                            digitalTwinId={digitalTwinData.id}
-                            digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
-                            fillColor={fillColor}
-                            bounds={boundsGrafana as LatLngTuple[]}
-                            outerBounds={outerBoundsGrafana as LatLngTuple[]}
-                        />
-                    }
-                    {digitalTwinData.type === "Gltf 3D model" &&
-                        <DigitanTwin3DModelSvgImage
-                            digitalTwinId={digitalTwinData.id}
-                            digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
-                            fillColor={fillColor}
-                            bounds={bounds3DModel as LatLngTuple[]}
-                            outerBounds={outerBounds3DModel as LatLngTuple[]}
-                        />
-                    }
+                    <DigitanTwinSvgImage
+                        digitalTwinId={digitalTwinData.id}
+                        digitalTwinSelected={digitalTwinSelected as IDigitalTwin}
+                        fillColor={fillColor}
+                        bounds={bounds as LatLngTuple[]}
+                        outerBounds={outerBounds as LatLngTuple[]}
+                    />
                     <Tooltip sticky>
                         <span style={{ fontWeight: 'bold' }}>Digital twin</span><br />
                         Description: {digitalTwinData.description}<br />

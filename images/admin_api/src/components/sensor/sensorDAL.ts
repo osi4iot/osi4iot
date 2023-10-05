@@ -1,6 +1,7 @@
 import pool from "../../config/dbconfig";
 import CreateSensorDto from "./sensor.dto";
 import ISensor from "./sensor.interface";
+import ISensorState from "./sensorState.interface";
 
 export const sensorName = (assetName: string, sensorType: string): string => {
 	return  `${assetName.replace(/ /g, "_")}_${sensorType.replace(/ /g, "_")}`;
@@ -205,4 +206,33 @@ export const getSensorsByOrgId = async (orgId: number): Promise<ISensor[]> => {
 									WHERE grafanadb.group.org_id = $1
 									ORDER BY grafanadb.sensor.id  ASC`, [orgId]);
 	return response.rows as ISensor[];
+};
+
+export const getStateOfAllSensors = async (): Promise<ISensorState[]> => {
+	const response = await pool.query(`SELECT grafanadb.sensor.id AS "sensorId", grafanadb.group.org_id AS "orgId",
+									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.alert.state
+									FROM grafanadb.sensor
+									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									LEFT JOIN grafanadb.alert ON grafanadb.sensor.dashboard_id = grafanadb.alert.dashboard_id
+									ORDER BY grafanadb.group.org_id ASC,
+											grafanadb.asset.group_id ASC,
+											grafanadb.sensor.id ASC;`);
+	return response.rows as ISensorState[];
+}
+
+export const getStateOfSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ISensorState[]> => {
+	const response = await pool.query(`SELECT grafanadb.sensor.id AS "sensorId", grafanadb.group.org_id AS "orgId",
+									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.alert.state
+									FROM grafanadb.sensor
+									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									LEFT JOIN grafanadb.alert ON grafanadb.sensor.dashboard_id = grafanadb.alert.dashboard_id
+									WHERE grafanadb.asset.group_id = ANY($1::bigint[])
+									ORDER BY grafanadb.group.org_id ASC,
+									grafanadb.asset.group_id ASC,
+									grafanadb.sensor.id ASC;`, [groupsIdArray]);
+	return response.rows as ISensorState[];
 };

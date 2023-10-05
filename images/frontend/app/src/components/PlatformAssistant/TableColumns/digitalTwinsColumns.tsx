@@ -39,6 +39,7 @@ export interface IDigitalTwin {
     maxNumResFemFiles: number;
     digitalTwinSimulationFormat: string;
     dashboardUrl: string;
+    digitalTwinRef: string;
 }
 
 export interface IDigitalTwinSimulator {
@@ -175,7 +176,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
         },
         {
             Header: "Reference",
-            accessor: "digitalTwinUid"
+            accessor: "digitalTwinRef"
         },
         {
             Header: "Description",

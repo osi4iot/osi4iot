@@ -71,6 +71,7 @@ import { AssetsProvider } from '../../../contexts/assetsOptions';
 import AssetsContainer from './AssetsContainer';
 import { SensorsProvider } from '../../../contexts/sensorsOptions';
 import SensorsContainer from './SensorsContainer';
+import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -547,7 +548,8 @@ const GroupAdminOptions: FC<{}> = () => {
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwins, config)
                 .then((response) => {
-                    const digitalTwins = response.data;
+                    const digitalTwins = response.data as IDigitalTwin[];
+                    digitalTwins.forEach(dt => dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`);
                     setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
                     setDigitalTwinsLoading(false);
                     const reloadDigitalTwinsTable = false;

@@ -19,6 +19,7 @@ import { ISensor } from '../TableColumns/sensorsColumns';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
+    if (o1 === null && o2 === null) return true;
     return typeof o1 === 'object' && Object.keys(o1).length > 0
         ? Object.keys(o1).length === Object.keys(o2).length
         && Object.keys(o1).every(p => objectsEqual(o1[p], o2[p]))
@@ -42,12 +43,21 @@ export const GEOLOCATION_OPTIONS = {
 const domainName = getDomainName();
 const protocol = getProtocol();
 const urlDigitalTwinsState = `${protocol}://${domainName}/admin_api/digital_twins_state/user_managed`;
+const urlSensorsState = `${protocol}://${domainName}/admin_api/sensors_state/user_managed`;
 
 export interface IDigitalTwinState {
     orgId: number;
     groupId: number;
     assetId: number;
     digitalTwinId: number;
+    state: string;
+}
+
+export interface ISensorState {
+    orgId: number;
+    groupId: number;
+    assetId: number;
+    sensorId: number;
     state: string;
 }
 
@@ -68,11 +78,11 @@ interface GeolocationContainerProps {
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     assetSelected: IAsset | null;
-    selectAsset: (assetSelected: IAsset) => void;
+    selectAsset: (assetSelected: IAsset | null) => void;
     sensorSelected: ISensor | null;
-    selectSensor: (sensorSelected: ISensor) => void;
+    selectSensor: (sensorSelected: ISensor | null) => void;
     digitalTwinSelected: IDigitalTwin | null;
-    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
+    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     refreshBuildings: () => void;
     refreshFloors: () => void;
     refreshOrgsOfGroupsManaged: () => void;
@@ -87,7 +97,9 @@ interface GeolocationContainerProps {
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     digitalTwinsState: IDigitalTwinState[];
-    setDigitalTwinsState: (digitalTwinsState: IDigitalTwinState[]) => void,
+    setDigitalTwinsState: (digitalTwinsState: IDigitalTwinState[]) => void;
+    sensorsState: ISensorState[];
+    setSensorsState: (sensorsState: ISensorState[]) => void;
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
@@ -127,7 +139,9 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         openDigitalTwin3DViewer,
         setGlftDataLoading,
         digitalTwinsState,
-        setDigitalTwinsState
+        setDigitalTwinsState,
+        sensorsState,
+        setSensorsState
     }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -144,7 +158,24 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
             });
-    }, [accessToken, refreshToken, authDispatch, setDigitalTwinsState]);
+
+        getAxiosInstance(refreshToken, authDispatch)
+            .get(urlSensorsState, config)
+            .then((response) => {
+                const sensorsState = response.data;
+                setSensorsState(sensorsState);
+            })
+            .catch((error) => {
+                axiosErrorHandler(error, authDispatch);
+            });
+    },
+        [
+            accessToken,
+            refreshToken,
+            authDispatch,
+            setDigitalTwinsState,
+            setSensorsState
+        ]);
 
     useInterval(() => {
         const config = axiosAuth(accessToken);
@@ -159,6 +190,19 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
             });
+
+        getAxiosInstance(refreshToken, authDispatch)
+            .get(urlSensorsState, config)
+            .then((response) => {
+                const newSensorsState = response.data;
+                if (!arraysEqual(newSensorsState, sensorsState)) {
+                    setSensorsState(newSensorsState);
+                }
+            })
+            .catch((error) => {
+                axiosErrorHandler(error, authDispatch);
+            });
+
     }, 10000);
 
     useCallback(() => {
@@ -243,6 +287,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectDigitalTwinOption={selectDigitalTwinOption}
                     resetBuildingSelection={resetBuildingSelection}
                     digitalTwinsState={digitalTwinsState}
+                    sensorsState={sensorsState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
                 />
@@ -259,6 +304,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     orgSelected={orgSelected}
                     giveGroupManagedSelected={giveGroupManagedSelected}
                     digitalTwinsState={digitalTwinsState}
+                    sensorsState={sensorsState}
                 />
             }
             {(geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_FLOOR && orgSelected) &&
@@ -268,6 +314,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     floorSelected={floorSelected}
                     giveFloorSelected={giveFloorSelected}
                     digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
+                    sensorsState={sensorsState.filter(sensor => sensor.orgId === orgSelected.id)}
                     groupsData={groupsManaged.filter(group => group.orgId === orgSelected.id)}
                     giveGroupManagedSelected={giveGroupManagedSelected}
                 />
@@ -279,7 +326,9 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     backToMap={backToMap}
                     groupSelected={groupSelected}
                     giveGroupManagedSelected={giveGroupManagedSelected}
+                    assets={assets}
                     digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
+                    sensorsState={sensorsState.filter(sensorState => sensorState.orgId === orgSelected.id)}
                 />
             }
         </>

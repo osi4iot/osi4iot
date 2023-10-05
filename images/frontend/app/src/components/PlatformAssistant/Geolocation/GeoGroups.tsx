@@ -2,7 +2,7 @@ import { FC, useState } from "react";
 import { GeoJSON, LayerGroup, useMap } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
-import { IDigitalTwinState } from "./GeolocationContainer";
+import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoGroup from "./GeoGroup";
@@ -37,14 +37,15 @@ interface GeoGroupsProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
-    selectAsset: (assetSelected: IAsset) => void;
+    selectAsset: (assetSelected: IAsset | null) => void;
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
-    selectSensor: (sensorSelected: ISensor) => void;
+    selectSensor: (sensorSelected: ISensor | null) => void;
     digitalTwins: IDigitalTwin[];
     digitalTwinSelected: IDigitalTwin | null;
-    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin) => void;
+    selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     digitalTwinsState: IDigitalTwinState[];
+    sensorsState: ISensorState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
@@ -68,6 +69,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
         digitalTwinSelected,
         selectDigitalTwin,
         digitalTwinsState,
+        sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading
     }
@@ -108,6 +110,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         digitalTwinSelected={digitalTwinSelected}
                         selectDigitalTwin={selectDigitalTwin}
                         digitalTwinsState={digitalTwinsState}
+                        sensorsState={sensorsState}
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                         setGlftDataLoading={setGlftDataLoading}
                     />

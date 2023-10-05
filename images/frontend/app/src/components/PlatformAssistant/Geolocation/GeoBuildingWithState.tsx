@@ -3,7 +3,7 @@ import { GeoJSON, Marker, useMap } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
 import { IconAlertingMarker, IconMarker, IconPendingMarker } from "./IconMarker";
-import { IDigitalTwinState } from "./GeolocationContainer";
+import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import BuildingTooltip, { IOrgManagedWithStatus } from "./BuildingTooltip";
@@ -41,6 +41,7 @@ interface GeoBuildingWithStateProps {
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     digitalTwinsState: IDigitalTwinState[];
+    sensorsState: ISensorState[];
 }
 
 const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
@@ -57,12 +58,14 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
         groupsManaged,
         groupSelected,
         selectGroup,
-        digitalTwinsState
+        digitalTwinsState,
+        sensorsState
     }) => {
     const geoJsonLayer = useRef(null);
     const map = useMap();
     const digitalTwinsStateFiltered = digitalTwinsState.filter(item => orgsInBuilding.findIndex(org => org.id === item.orgId) !== -1);
-    const buildingStatus = findOutStatus(digitalTwinsStateFiltered);
+    const sensorsStateFiltered = sensorsState.filter(item => orgsInBuilding.findIndex(org => org.id === item.orgId) !== -1);
+    const buildingStatus = findOutStatus(digitalTwinsStateFiltered, sensorsStateFiltered);
     const orgsInBuildingWithStatus: IOrgManagedWithStatus[] = orgsInBuilding.map(org => {
         let orgStatus = "ok";
         const orgWithNotOkStatus = digitalTwinsStateFiltered.filter(item => item.orgId === org.id && item.state !== "ok").length !== 0;

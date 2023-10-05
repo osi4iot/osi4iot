@@ -386,7 +386,7 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                                 setAssetDragging={(assetDragging: boolean) => setAssetDragging(assetDragging)}
                             />
                         )
-                    }
+                    } else return null
                     // else {
                     //     return (
                     //         <NonDraggableDeviceCircle
