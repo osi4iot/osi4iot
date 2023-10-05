@@ -19,6 +19,7 @@ import { changeTopicUidByUid, createTopic, deleteTopicById, getAllMobileTopics, 
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByTopic } from "../mesurement/measurementDAL";
 import IMobileTopic from "./mobileTopic.interface";
+import infoLogger from "../../utils/logger/infoLogger";
 
 class TopicController implements IController {
 	public path = "/topic";
@@ -189,9 +190,9 @@ class TopicController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidTopicPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidTopicPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const topic = await getTopicByProp(propName, propValue);
-			if (!topic) throw new ItemNotFoundException("The topic", propName, propValue);
+			if (!topic) throw new ItemNotFoundException(req, res, "The topic", propName, propValue);
 			res.status(200).json(topic);
 		} catch (error) {
 			next(error);
@@ -206,7 +207,7 @@ class TopicController implements IController {
 		try {
 			const { topicId } = req.params;
 			const topic = await getTopicByProp("id", topicId);
-			if (!topic) throw new ItemNotFoundException("The topic", "id", topicId);
+			if (!topic) throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
 			res.status(200).json(topic);
 		} catch (error) {
 			next(error);
@@ -221,7 +222,7 @@ class TopicController implements IController {
 		try {
 			const { topicId } = req.params;
 			const topic = await getTopicByProp("id", topicId);
-			if (!topic) throw new ItemNotFoundException("The topic", "id", topicId);
+			if (!topic) throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
 			await deleteTopicById(parseInt(topicId, 10));
 			const message = { message: "Topic deleted successfully" }
 			res.status(200).json(message);
@@ -239,7 +240,7 @@ class TopicController implements IController {
 			const topicData = req.body;
 			const { topicId } = req.params;
 			const topic = await getTopicByProp("id", topicId);
-			if (!topic) throw new ItemNotFoundException("The topic", "id", topicId);
+			if (!topic) throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
 			const topicUpdate = { ...topic, ...topicData };
 			await updateTopicById(parseInt(topicId, 10), topicUpdate);
 			const message = { message: "Topic updated successfully" }
@@ -257,7 +258,7 @@ class TopicController implements IController {
 		try {
 			const { topicId } = req.params;
 			const topic = await getTopicByProp("id", topicId);
-			if (!topic) throw new ItemNotFoundException("The topic", "id", topicId);
+			if (!topic) throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
 			const dashboards = await getDashboardsDataWithRawSqlOfGroup(req.group);
 			const newTopicUid = await changeTopicUidByUid(topic);
 			await updateDashboardsDataRawSqlOfTopic(topic, newTopicUid, dashboards);
@@ -281,6 +282,7 @@ class TopicController implements IController {
 			const groupId =req.group.id;
 			await createTopic(groupId, topicData);
 			const message = { message: `A new topic has been created` };
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

@@ -43,7 +43,7 @@ const validationMiddleware = <T>(type: any, skipMissingProperties = false): expr
 			next();
 		} catch (err) {
 			const message = Array.isArray(err[0]) ? err.reduce(reducerCallback, []) : errorMessageItem(err);
-			next(new HttpException(400, message));
+			next(new HttpException(req, res, 400, message));
 		}
 	};
 }

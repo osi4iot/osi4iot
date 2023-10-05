@@ -14,8 +14,8 @@ export const assetAndGroupExist = async (
 	const { groupId, assetId } = request.params;
 	const existingGroup = await getGroupByProp("id", groupId);
 	const existingAssset = await getAssetByPropName("id", assetId);
-	if (!existingGroup) next(new GroupNotFoundException("id", groupId));
-	if (!existingAssset) next(new AsssetNotFoundException("id", assetId));
+	if (!existingGroup) next(new GroupNotFoundException(request, response, "id", groupId));
+	if (!existingAssset) next(new AsssetNotFoundException(request, response, "id", assetId));
 	if (existingGroup && existingAssset) {
 		request.group = { ...existingGroup };
 		request.asset = { ...existingAssset };

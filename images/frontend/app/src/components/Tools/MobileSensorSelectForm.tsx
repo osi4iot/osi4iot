@@ -398,14 +398,6 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
                                     </FieldContainer>
                                     <FormikControl
                                         control='select'
-                                        label='Select asset'
-                                        name='assetName'
-                                        type='text'
-                                        options={assetNameOptions}
-                                        onChange={(e) => handleChangeAsset(e, formik)}
-                                    />
-                                    <FormikControl
-                                        control='select'
                                         label='Select mobile sensor'
                                         name='mobileSensor'
                                         type='text'

@@ -30,6 +30,8 @@ import { getNumAssets, getNumAssetsByGroupsIdArray } from "../asset/assetDAL";
 import { getNumSensors, getNumSensorsByGroupsIdArray } from "../sensor/sensorDAL";
 import { getNumDigitalTwins, getNumDigitalTwinsByGroupsIdArray } from "../digitalTwin/digitalTwinDAL";
 import { getNumMLModelsByGroupsIdArray } from "../ml_model/ml_modelDAL";
+import infoLogger from "../../utils/logger/infoLogger";
+import errorLogger from "../../utils/logger/errorLogger";
 
 interface IJwtPayload {
 	id: string;
@@ -149,11 +151,13 @@ class AuthenticationController implements IController {
 			async (err: any, user: any): Promise<Response | void> => {
 				if (err || !user) {
 					const errorMessage = "User credentials not correct.";
-					return next(new HttpException(400, errorMessage));
+					return next(new HttpException(req, res, 400, errorMessage));
 				}
 
 				try {
 					const loginOutput = await this.generateLoginOutput(user);
+					const message = `User with username=${loginOutput.userName} has been logged in successfully.`
+					infoLogger(req, res, 200, message);
 					return res.status(200).json(loginOutput);
 				} catch (error) {
 					return next(error);
@@ -179,16 +183,22 @@ class AuthenticationController implements IController {
 						verifyOptionsAccessToken) as IJwtPayload;
 					const user = await getUserdByEmailOrLogin(jwtPayload.email);
 					if (!user || jwtPayload.action !== "access") {
-						res.status(400).json({ Ok: false, Error: "User not registered" });
+						const errorMessage = "User not registered";
+						errorLogger(req, res, 400, errorMessage)
+						res.status(400).json({ Ok: false, Error: errorMessage });
 						return
 					}
 					if (user.login !== username.slice(4)) {
-						res.status(400).json({ Ok: false, Error: "Username not match with jwt payload" });
+						const errorMessage = "Username not match with jwt payload";
+						errorLogger(req, res, 400, errorMessage)
+						res.status(400).json({ Ok: false, Error: errorMessage });
 						return
 					}
 				} catch (e) {
 					if (e instanceof jwt.JsonWebTokenError) {
-						res.status(401).json({ Ok: false, Error: "JWT provided is unauthorized" });
+						const errorMessage = "JWT provided is unauthorized";
+						errorLogger(req, res, 400, errorMessage)
+						res.status(401).json({ Ok: false, Error: errorMessage });
 						return
 					}
 					res.status(400).json({ Ok: false, Error: "Bad request" });
@@ -198,27 +208,37 @@ class AuthenticationController implements IController {
 				const groupId = parseInt(usernameArray[1], 10);
 				const group = await getFullGroupDataById(groupId);
 				if (!group) {
-					res.status(400).json({ Ok: false, Error: "Group not registered" });
+					const errorMessage = "Group not registered";
+					errorLogger(req, res, 400, errorMessage)
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 				const match = verifiyPassword(password, group.mqttPassword, group.mqttSalt);
 				if (!match) {
-					res.status(400).json({ Ok: false, Error: "Password not correct" });
+					const errorMessage = `Password not correct for username= ${username as string}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 			} else {
 				const user = await getUserLoginDatadByEmailOrLogin(username);
 				if (!user) {
-					res.status(400).json({ Ok: false, Error: "User not registered" });
+					const errorMessage = "User not registered";
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 				const match = verifiyPassword(password, user.password, user.salt);
 				if (!match) {
-					res.status(400).json({ Ok: false, Error: "Password not correct" });
+					const errorMessage = `Password not correct for username= ${username as string}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 			}
 
+			const message = `A user with username=${username as string} has been connected successfully to the MQTT broker.`
+			infoLogger(req, res, 200, message);
 			res.status(200).json({ Ok: true, Error: "" });
 		} catch (error) {
 			return next(error);
@@ -243,7 +263,9 @@ class AuthenticationController implements IController {
 						topicType === "dtm2pdb" ||
 						topicType === "sim2dtm"
 					)) {
-					res.status(400).json({ Ok: false, Error: "Topic type not allowed for dev2pdb" });
+					const errorMessage = "Topic type not allowed for dev2pdb";
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return;
 				} else {
 					res.status(200).json({ Ok: true, Error: "" });
@@ -255,7 +277,9 @@ class AuthenticationController implements IController {
 				const nriHashInTopic = topicArray[1].slice(4);
 				const nriHashInUserName = username.split("_")[1];
 				if (nriHashInTopic !== nriHashInUserName) {
-					res.status(400).json({ Ok: false, Error: "Incorrect nri_hash" });
+					const errorMessage = "Incorrect nri_hash";
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 			}
@@ -271,76 +295,102 @@ class AuthenticationController implements IController {
 				const topicUid = topicArray[3].slice(6);
 				topicData = await getTopicInfoForMqttAclByTopicUid(topicUid);
 				if (!topicData) {
-					res.status(400).json({ Ok: false, Error: "Incorrect topic hash" });
+					const errorMessage = "Incorrect topic hash";
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 				const groupHash = topicArray[1].slice(6);
 				if (groupHash !== topicData.groupHash) {
-					res.status(400).json({ Ok: false, Error: "Incorrect group hash" });
+					const errorMessage = "Incorrect group hash";
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 				const topicType = topicArray[0];
 				if (topicType !== topicData.topicType) {
-					res.status(400).json({ Ok: false, Error: "Incorrect topic type" });
+					const errorMessage = "Incorrect topic type";
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 				if (topicData.topicAccessControl === "None") {
-					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the topic with id: ${topicData.topicId}` });
+					const errorMessage = `It is not allowed any action for the topic with id: ${topicData.topicId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 				if (topicData.groupAccessControl === "None") {
-					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the group with id: ${topicData.groupId}` });
+					const errorMessage = `It is not allowed any action for the group with id: ${topicData.groupId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 				if (topicData.orgAccessControl === "None") {
-					res.status(400).json({ Ok: false, Error: `It is not allowed any action for the group with id: ${topicData.orgId}` });
+					const errorMessage = `It is not allowed any action for the group with id: ${topicData.orgId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 				if ((acc === 1 || acc === 4) && !(topicData.topicAccessControl === "Sub" || topicData.topicAccessControl === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the topic with id: ${topicData.topicId}` });
+					const errorMessage = `Subcription/read action not allowed for the topic with id: ${topicData.topicId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 				if ((acc === 2 || acc === 3) && !(topicData.topicAccessControl === "Pub" || topicData.topicAccessControl === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the topic with id: ${topicData.topicId}` });
+					const errorMessage = `Publication/write action not allowed for the topic with id: ${topicData.topicId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 
 				if ((acc === 1 || acc === 4) && !(topicData.groupAccessControl === "Sub" || topicData.groupAccessControl === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the group with id: ${topicData.groupId}` });
+					const errorMessage = `Subcription/read action not allowed for the group with id: ${topicData.groupId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 
 				if ((acc === 2 || acc === 3) && !(topicData.groupAccessControl === "Pub" || topicData.groupAccessControl === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the group with id: ${topicData.groupId}` });
+					const errorMessage = `Publication/write action not allowed for the group with id: ${topicData.groupId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 				if ((acc === 1 || acc === 4) && !(topicData.orgAccessControl === "Sub" || topicData.orgAccessControl === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: `Subcription/read action not allowed for the org with id: ${topicData.orgId}` });
+					const errorMessage = `Subcription/read action not allowed for the org with id: ${topicData.orgId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 
 
 				if ((acc === 2 || acc === 3) && !(topicData.orgAccessControl === "Pub" || topicData.orgAccessControl === "Pub & Sub")) {
-					res.status(400).json({ Ok: false, Error: `Publication/write action not allowed for the org with id: ${topicData.orgId}` });
+					const errorMessage = `Publication/write action not allowed for the org with id: ${topicData.orgId}`;
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 			}
 
 			const usernameArray = username.split("_");
 			if (usernameArray[0] === "group") {
-				const groupId = parseInt(usernameArray[1],10);
+				const groupId = parseInt(usernameArray[1], 10);
 				if (groupId !== topicData.groupId) {
-					res.status(400).json({ Ok: false, Error: "Group not registered" });
+					const errorMessage = "Group not registered";
+					errorLogger(req, res, 400, errorMessage);
+					res.status(400).json({ Ok: false, Error: errorMessage });
 					return
 				}
 			} else if (usernameArray[0] === "nri") {
@@ -348,7 +398,9 @@ class AuthenticationController implements IController {
 					const nriHashInUserName = username.split("_")[1];
 					const nodeRedInstance = await getNodeRedInstanceByProp("nri_hash", nriHashInUserName);
 					if (nodeRedInstance.groupId !== topicData.groupId) {
-						res.status(400).json({ Ok: false, Error: "Incorrect group for provided nri_hash" });
+						const errorMessage = "Incorrect group for provided nri_hash";
+						errorLogger(req, res, 400, errorMessage);
+						res.status(400).json({ Ok: false, Error: errorMessage });
 						return
 					}
 				}
@@ -368,7 +420,9 @@ class AuthenticationController implements IController {
 						const teamId = topicData.teamId;
 						const isGroupAdminUser = await isThisUserGroupAdmin(user.id, teamId);
 						if (!isGroupAdminUser) {
-							res.status(401).json({ Ok: false, Error: "User not allowed" })
+							const errorMessage = `The username=${username as string} is not allowed to connect to the MQTT broker`;
+							errorLogger(req, res, 400, errorMessage);
+							res.status(401).json({ Ok: false, Error: errorMessage })
 							return;
 						}
 					}
@@ -388,7 +442,7 @@ class AuthenticationController implements IController {
 			const registerDto: UserRegisterDto = req.body;
 			if (user.email !== registerDto.email) {
 				const errorMessage = "The email indicated not match with the user email in database";
-				throw new HttpException(400, errorMessage);
+				throw new HttpException(req, res, 400, errorMessage);
 			}
 			registerDto.userId = user.id;
 			const { message } = await this.grafanaRepository.changeUserPassword(user.id, registerDto.password);
@@ -396,9 +450,10 @@ class AuthenticationController implements IController {
 
 			if (message !== "User password updated") {
 				const errorMessage = "The password could not be updated";
-				throw new HttpException(400, errorMessage);
+				throw new HttpException(req, res, 400, errorMessage);
 			} else {
-				const okMessage = "User registered successfully";
+				const okMessage = `A user with username: ${registerDto.login} has been registered successfully`;
+				infoLogger(req, res, 200, okMessage);
 				res.status(200).json({ message: okMessage });
 			}
 		} catch (error) {
@@ -451,10 +506,11 @@ class AuthenticationController implements IController {
 			)) {
 				const isUpdateUserDataCorrect = await isUserProfileDataCorrect(userData);
 				if (!isUpdateUserDataCorrect)
-					throw new HttpException(400, "The entered values of name, login and email already exists for another user.")
+					throw new HttpException(req, res, 400, "The entered values of name, login and email already exists for another user.")
 				await updateUserProfileById(userData as CreateUserDto);
 			}
-			const message = { message: "User profile updated succesfully" };
+			const message = { message: `User profile with username: ${user.login} updated succesfully` };
+			infoLogger(req, res, 200, message.message);
 			res.status(200).json(message);
 		} catch (error) {
 			return next(error);
@@ -465,7 +521,7 @@ class AuthenticationController implements IController {
 		try {
 			const { user } = req;
 			if (user.isGrafanaAdmin) {
-				throw new HttpException(403, "Platform admin password can not be modified.")
+				throw new HttpException(req, res, 403, "Platform admin password can not be modified.")
 			}
 			const { oldPassword, newPassword } = req.body;
 			const { email } = user;
@@ -473,14 +529,15 @@ class AuthenticationController implements IController {
 			const match = verifiyPassword(oldPassword, storedUserData.password, storedUserData.salt);
 			if (!match) {
 				const errorMessage = "The entred value for old password is not correct.";
-				throw new HttpException(403, errorMessage);
+				throw new HttpException(req, res, 403, errorMessage);
 			}
 			const { message } = await this.grafanaRepository.changeUserPassword(user.id, newPassword);
 			if (message !== "User password updated") {
 				const errorMessage = `The password of user with email: ${email} could not be modified`;
-				throw new HttpException(403, errorMessage);
+				throw new HttpException(req, res, 403, errorMessage);
 			} else {
-				const okMessage = "Password modified successfully";
+				const okMessage = `Password of username: ${user.login} modified successfully`;
+				infoLogger(req, res, 200, okMessage);
 				res.status(200).json({ message: okMessage });
 			}
 		} catch (error) {
@@ -495,7 +552,7 @@ class AuthenticationController implements IController {
 			{ session: false },
 			async (err: any, user: any, info: any): Promise<Response | void> => {
 				if (info) {
-					return next(new HttpException(401, info.message));
+					return next(new HttpException(req, res, 401, info.message));
 				}
 
 				if (err) {
@@ -503,16 +560,18 @@ class AuthenticationController implements IController {
 				}
 
 				if (!user) {
-					return next(new HttpException(401, "You are not allowed to access."));
+					return next(new HttpException(req, res, 401, "You are not allowed to access."));
 				}
 
 				try {
 					const oldRefreshToken: string = req.headers.authorization.slice(7);
 					const isRefreshTokenCorrect = await exitsRefreshToken(oldRefreshToken);
 					if (!isRefreshTokenCorrect) {
-						return next(new HttpException(404, "The refresh token supplied does not exist"));
+						return next(new HttpException(req, res, 404, "The refresh token supplied does not exist"));
 					}
 					const loginOutput = await this.generateLoginOutput(user);
+					const message = `The access token for username=${loginOutput.userName} has been updated.`
+					infoLogger(req, res, 200, message);
 					return res.status(200).json(loginOutput);
 				} catch (error) {
 					return next(error);
@@ -525,6 +584,8 @@ class AuthenticationController implements IController {
 		const { refreshTokenToDisable } = req.body;
 		try {
 			const message = await deleteRefreshToken(refreshTokenToDisable);
+			const logInfoMessage = `The access token for username=${req.user.login} has been deleted.`
+			infoLogger(req, res, 200, logInfoMessage);
 			res.status(200).json({ message });
 		} catch (error) {
 			next(error);
@@ -535,6 +596,8 @@ class AuthenticationController implements IController {
 		const refreshTokenId = parseInt(req.params.refreshTokenId, 10);
 		try {
 			const message = await deleteRefreshTokenById(refreshTokenId);
+			const logInfoMessage = `The access token for username=${req.user.login} has been deleted.`
+			infoLogger(req, res, 200, logInfoMessage);
 			res.status(200).json({ message });
 		} catch (error) {
 			next(error);

@@ -1,7 +1,15 @@
+import { Request, Response } from "express";
 import HttpException from "./HttpException";
 
 class AlreadyExistingItemException extends HttpException {
-	constructor(article: string, entityName: string, itemNames: string[], itemValues: string[]) {
+	constructor(
+		req: Request,
+		res: Response,
+		article: string,
+		entityName: string,
+		itemNames: string[],
+		itemValues: string[]
+	) {
 		let itemListString = "";
 		for (let i = 0; i < itemNames.length; i++) {
 			if (i > 0 && i <= (itemNames.length - 2)) {
@@ -11,7 +19,9 @@ class AlreadyExistingItemException extends HttpException {
 			}
 			itemListString = `${itemListString}${itemNames[i]}: '${itemValues[i]}'`;
 		}
-		super(409, `${article} ${entityName} with ${itemListString} already exists in database`);
+		const message = `${article} ${entityName} with ${itemListString} already exists in database`;
+		const statusCode = 409
+		super(req, res, statusCode, message);
 	}
 }
 

@@ -1,8 +1,9 @@
 import { NextFunction, Request, Response } from "express";
 import HttpException from "../exceptions/HttpException";
+import errorLogger from "../utils/logger/errorLogger";
 
-const errorMiddleware = (error: HttpException, request: Request, response: Response, next: NextFunction) => {
-	if (response.headersSent) {
+const errorMiddleware = (error: HttpException, req: Request, res: Response, next: NextFunction) => {
+	if (res.headersSent) {
 		next(error);
 	} else {
 		const status = error.status || 500;
@@ -11,7 +12,8 @@ const errorMiddleware = (error: HttpException, request: Request, response: Respo
 			errorMessage = `${errorMessage} - ${error.detail}`;
 		}
 		const message = errorMessage || "Something went wrong";
-		response.status(status).send({
+		errorLogger(req, res, status, message);
+		res.status(status).send({
 			message,
 			status
 		});

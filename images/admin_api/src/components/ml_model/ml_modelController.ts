@@ -33,6 +33,7 @@ import process_env from "../../config/api_config";
 import IRequestWithMLModelAndGroup from "./requestWithMLModelAndGroup.interface";
 import mlModelAndGroupExist from "../../middleware/mlModelAndGroupExist.middleware";
 import UpdateMLModelDto from "./ml_modelUpdate.dto";
+import infoLogger from "../../utils/logger/infoLogger";
 
 const uploadMLModelFile = multer({
 	storage: multerS3({
@@ -196,9 +197,9 @@ class MLModelController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidMLModelPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidMLModelPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const mlModel = await getMLModelByProp(propName, propValue);
-			if (!mlModel) throw new ItemNotFoundException("The ML model", propName, propValue);
+			if (!mlModel) throw new ItemNotFoundException(req, res, "The ML model", propName, propValue);
 			res.status(200).json(mlModel);
 		} catch (error) {
 			next(error);
@@ -213,7 +214,7 @@ class MLModelController implements IController {
 		try {
 			const { mlModelId } = req.params;
 			const mlModel = await getMLModelByProp("id", mlModelId);
-			if (!mlModel) throw new ItemNotFoundException("The ML model", "id", mlModelId);
+			if (!mlModel) throw new ItemNotFoundException(req, res, "The ML model", "id", mlModelId);
 			await deleteMLModelByProp("id", mlModelId);
 			const bucketFolder = `org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);
@@ -232,9 +233,9 @@ class MLModelController implements IController {
 		try {
 			const { propName, propValue } = req.params;
 			const mlModelData = req.body;
-			if (!this.isValidMLModelPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidMLModelPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			let mlModel = await getMLModelByProp(propName, propValue);
-			if (!mlModel) throw new ItemNotFoundException("The ML model", propName, propValue);
+			if (!mlModel) throw new ItemNotFoundException(req, res, "The ML model", propName, propValue);
 			mlModel = { ...mlModel, description: mlModelData.description };
 			await updateMLModelByProp(propName, propValue, mlModel);
 			if (mlModelData.areMlModelFilesModified) {
@@ -260,6 +261,7 @@ class MLModelController implements IController {
 				message: `A new ML model has been created`,
 				mlModelId: newMlModel.id
 			};
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -276,6 +278,7 @@ class MLModelController implements IController {
 			const message = {
 				message: `The file ${fileName} has been successfully uploaded in the S3 bucket`,
 			};
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -337,6 +340,7 @@ class MLModelController implements IController {
 			const message = {
 				message: `The file ${fileName} has been successfully deleted from the S3 bucket`,
 			};
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

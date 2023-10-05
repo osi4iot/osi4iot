@@ -26,6 +26,7 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IAsset from "./asset.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
+import infoLogger from "../../utils/logger/infoLogger";
 
 
 class AssetController implements IController {
@@ -148,9 +149,9 @@ class AssetController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const asset = await getAssetByPropName(propName, propValue);
-			if (!asset) throw new ItemNotFoundException("The asset", propName, propValue);
+			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
 			res.status(200).json(asset);
 		} catch (error) {
 			next(error);
@@ -164,9 +165,9 @@ class AssetController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const asset = await getAssetByPropName(propName, propValue);
-			if (!asset) throw new ItemNotFoundException("The asset", propName, propValue);
+			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
 			await deleteAssetByPropName(propName, propValue);
 			const message = { message: "Asset deleted successfully" }
 			res.status(200).json(message);
@@ -183,9 +184,9 @@ class AssetController implements IController {
 		try {
 			const { propName, propValue } = req.params;
 			const assetData = req.body;
-			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			let asset = await getAssetByPropName(propName, propValue);
-			if (!asset) throw new ItemNotFoundException("The asset", propName, propValue);
+			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
 			asset = { ...asset, ...assetData };
 			await updateAssetByPropName(propName, propValue, asset);
 			const message = { message: "Asset updated successfully" }
@@ -204,6 +205,7 @@ class AssetController implements IController {
 			const assetData: CreateAssetDto = req.body;
 			await createNewAsset(req.group, assetData);
 			const message = { message: `A new asset has been created` };
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

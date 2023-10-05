@@ -34,6 +34,7 @@ import { createSensorDashboard } from "../group/dashboardDAL";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import { generateDashboardsUrl } from "../digitalTwin/digitalTwinDAL";
 import ISensorState from "./sensorState.interface";
+import infoLogger from "../../utils/logger/infoLogger";
 
 class SensorController implements IController {
 	public path = "/sensor";
@@ -212,9 +213,9 @@ class SensorController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const sensor = await getSensorByPropName(propName, propValue);
-			if (!sensor) throw new ItemNotFoundException("The sensor", propName, propValue);
+			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", propName, propValue);
 			res.status(200).json(sensor);
 		} catch (error) {
 			next(error);
@@ -228,9 +229,9 @@ class SensorController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const sensor = await getSensorByPropName(propName, propValue);
-			if (!sensor) throw new ItemNotFoundException("The sensor", propName, propValue);
+			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", propName, propValue);
 			await deleteSensorByPropName(propName, propValue);
 			const message = { message: "Sensor deleted successfully" }
 			res.status(200).json(message);
@@ -247,9 +248,9 @@ class SensorController implements IController {
 		try {
 			const { propName, propValue } = req.params;
 			const sensorData = req.body;
-			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			let sensor = await getSensorByPropName(propName, propValue);
-			if (!sensor) throw new ItemNotFoundException("The sensor", propName, propValue);
+			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", propName, propValue);
 			sensor = { ...sensor, ...sensorData };
 			await updateSensorByPropName(propName, propValue, sensor);
 			const message = { message: "Sensor updated successfully" }
@@ -272,6 +273,7 @@ class SensorController implements IController {
 			const dashboardsUrl = generateDashboardsUrl(dashboardsInfo)
 			await createNewSensor(sensorData, dashboarId, dashboardsUrl[0], sensorUid);
 			const message = { message: `A new sensor has been created` };
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

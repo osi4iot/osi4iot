@@ -73,7 +73,7 @@ class DashboardController implements IController {
 		try {
 			const dashboardId = parseInt(req.params.dashboardId, 10);
 			const dashboard = await getDashboardById(dashboardId);
-			if (!dashboard) throw new ItemNotFoundException("The digital twin", "id", req.params.dashboardId);
+			if (!dashboard) throw new ItemNotFoundException(req, res, "The digital twin", "id", req.params.dashboardId);
 			res.status(200).json(dashboard);
 		} catch (error) {
 			next(error);

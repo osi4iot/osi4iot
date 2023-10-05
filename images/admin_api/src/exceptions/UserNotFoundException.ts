@@ -1,7 +1,14 @@
 import HttpException from "./HttpException";
+import { Request, Response } from "express";
 
 class UserNotFoundException extends HttpException {
-	constructor(propName: string, propValue: string, institutionId?: string) {
+	constructor(
+		req: Request,
+		res: Response,
+		propName: string,
+		propValue: string,
+		institutionId?: string
+	) {
 		let message;
 		if (propName === "id") {
 			message = `User with id: ${propValue} is not found`;
@@ -13,7 +20,8 @@ class UserNotFoundException extends HttpException {
 		if (institutionId) {
 			message += ` in the institution with id: ${institutionId}`;
 		}
-		super(404, message);
+		const statusCode = 404
+		super(req, res, statusCode, message);
 	}
 }
 

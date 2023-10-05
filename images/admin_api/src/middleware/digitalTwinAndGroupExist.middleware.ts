@@ -14,8 +14,8 @@ const digitalTwinAndGroupExist = async (
 	const { groupId, digitalTwinId } = request.params;
 	const existingGroup = await getGroupByProp("id", groupId);
 	const existDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
-	if (!existingGroup) next(new GroupNotFoundException("id", groupId));
-	if (!existDigitalTwin) next(new DigitalTwinNotFoundException("id", digitalTwinId));
+	if (!existingGroup) next(new GroupNotFoundException(request, response, "id", groupId));
+	if (!existDigitalTwin) next(new DigitalTwinNotFoundException(request, response, "id", digitalTwinId));
 	if (existingGroup && existDigitalTwin) {
 		request.group = { ...existingGroup };
 		request.digitalTwin = { ...existDigitalTwin };

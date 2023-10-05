@@ -12,7 +12,7 @@ const groupExists = async (
 	const { groupId } = request.params;
 	const existingGroup = await getGroupByProp("id", groupId);
 	if (!existingGroup) {
-		next(new GroupNotFoundException("id",  groupId));
+		next(new GroupNotFoundException(request, response, "id",  groupId));
 	} else {
 		request.group = { ...existingGroup };
 		next();

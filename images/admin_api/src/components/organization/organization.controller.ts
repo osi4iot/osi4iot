@@ -90,6 +90,7 @@ import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import CreateSensorRefDto from "../digitalTwin/sensorRef.dto";
 import ISensor from "../sensor/sensor.interface";
 import ITopic from "../topic/topic.interface";
+import infoLogger from "../../utils/logger/infoLogger";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -304,13 +305,27 @@ class OrganizationController implements IController {
 			const exits_OrganizationWithName = await exitsOrganizationWithName(organizationData.name);
 			const exits_OrganizationWithAcronym = await exitsOrganizationWithAcronym(organizationData.acronym);
 			if (exits_OrganizationWithName || exits_OrganizationWithAcronym) {
-				if (exits_OrganizationWithName) throw new AlreadyExistingItemException("An", "Organization", ["name"], [organizationData.name]);
-				if (exits_OrganizationWithAcronym) throw new AlreadyExistingItemException("An", "Organization", ["acronym"], [organizationData.acronym]);
+				if (exits_OrganizationWithName) throw new AlreadyExistingItemException(
+					req, res, "An", "Organization", ["name"], [organizationData.name]
+				);
+				if (exits_OrganizationWithAcronym) throw new AlreadyExistingItemException(
+					req, res, "An", "Organization", ["acronym"], [organizationData.acronym]
+				);
 			} else {
 				if (!(await isUsersDataCorrect(organizationData.orgAdminArray)))
-					throw new HttpException(400, "The same values of name, login and email of some user already exists.")
+					throw new HttpException(
+						req,
+						res,
+						400,
+						"The same values of name, login and email of some user already exists."
+					)
 				if (!(await existsBuildingWithId(organizationData.buildingId))) {
-					throw new HttpException(400, "There is no building with the indicated buildingId")
+					throw new HttpException(
+						req,
+						res,
+						400,
+						"There is no building with the indicated buildingId"
+					)
 				}
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				await grafanaApi.createOrgApiAdminUser(newOrg.orgId);
@@ -498,6 +513,7 @@ class OrganizationController implements IController {
 				await uploadMobilePhoneGltfFile(gltfFileName);
 			}
 			const message = { message: "Organization created successfully" }
+			infoLogger(req, res, 200, message.message);
 			res.status(201).send(message);
 		} catch (error) {
 			next(error);
@@ -515,12 +531,22 @@ class OrganizationController implements IController {
 			orgUserData.OrgId = organization.id;
 			const existUser = await getUserLoginDatadByEmailOrLogin(orgUserData.email);
 			if (!existUser && !(await isUsersDataCorrect([orgUserData])))
-				throw new HttpException(400, "The same values of name, login and email of some of the users is already taken.")
+				throw new HttpException(
+					req,
+					res,
+					400,
+					"The same values of name, login and email of some of the users is already taken."
+				)
 			let user_msg: IMessage;
 			if (!orgUserData.roleInOrg) orgUserData.roleInOrg = "Viewer";
 			else {
 				if (!req.user.isGrafanaAdmin && orgUserData.roleInOrg === "Admin") {
-					throw new HttpException(401, "To assign organization admin role to a user, platform administrator privileges are needed.");
+					throw new HttpException(
+						req,
+						res,
+						401,
+						"To assign organization admin role to a user, platform administrator privileges are needed."
+					);
 				}
 			}
 			const orgId = organization.id;
@@ -535,6 +561,7 @@ class OrganizationController implements IController {
 				user_msg = msg_users[0];
 			}
 			const message = { message: user_msg.message };
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -554,7 +581,12 @@ class OrganizationController implements IController {
 				if (!user.roleInOrg) user.roleInOrg = "Viewer";
 				else {
 					if (!req.user.isGrafanaAdmin && user.roleInOrg === "Admin") {
-						throw new HttpException(401, "To assign organization admin role to a user, platform administrator privileges are needed.");
+						throw new HttpException(
+							req,
+							res,
+							401,
+							"To assign organization admin role to a user, platform administrator privileges are needed."
+						);
 					}
 				}
 			});
@@ -576,7 +608,12 @@ class OrganizationController implements IController {
 			const orgId = organization.id;
 			if (nonExistingUserArray.length !== 0) {
 				if (!(await isUsersDataCorrect(nonExistingUserArray)))
-					throw new HttpException(400, "The same values of name, login and email of some of the users is already taken.")
+					throw new HttpException(
+						req,
+						res,
+						400,
+						"The same values of name, login and email of some of the users is already taken."
+					)
 				const msg_users = await createOrganizationUsers(orgId, nonExistingUserArray);
 				msg_users.forEach((msg, index) => nonExistingUserArray[index].id = msg.id);
 				await addOrgUsersToDefaultOrgGroup(organization.id, nonExistingUserArray);
@@ -603,14 +640,24 @@ class OrganizationController implements IController {
 		try {
 			const { organization } = req;
 			const { propName, propValue } = req.params;
-			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const user = await getOrganizationUserByProp(organization.id, propName, propValue);
-			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
+			if (!user) throw new ItemNotFoundException(req, res, "The user", propName, propValue);
 			if (user.isGrafanaAdmin) {
-				throw new HttpException(403, "A platform administrator user cannot be removed from an org.")
+				throw new HttpException(
+					req,
+					res,
+					403,
+					"A platform administrator user cannot be removed from an org."
+				)
 			}
 			if (user.login.slice(-9) === "api_admin") {
-				throw new HttpException(403, "An api admin user can not be removed from the org.")
+				throw new HttpException(
+					req,
+					res,
+					403,
+					"An api admin user can not be removed from the org."
+				)
 			}
 			const groupsArray = await getGroupsOfOrgIdWhereUserIdIsMember(organization.id, user.userId);
 			if (groupsArray.length !== 0) {
@@ -632,10 +679,15 @@ class OrganizationController implements IController {
 	): Promise<void> => {
 		try {
 			const { whoToRemove } = req.params;
-			if (!this.isValidWhoToRemove(whoToRemove)) throw new InvalidPropNameExeception(whoToRemove);
+			if (!this.isValidWhoToRemove(whoToRemove)) throw new InvalidPropNameExeception(req, res, whoToRemove);
 			const { organization } = req;
 			if (!req.user.isGrafanaAdmin && whoToRemove === "allUsers") {
-				throw new HttpException(401, "To remove organization admin users, platform administrator privileges are needed.");
+				throw new HttpException(
+					req,
+					res,
+					401,
+					"To remove organization admin users, platform administrator privileges are needed."
+				);
 			}
 			const usersArray = await getOrganizationUsersWithGrafanaAdmin(organization.id);
 			const groupsArray = await getAllGroupsInOrganization(organization.id);
@@ -674,16 +726,26 @@ class OrganizationController implements IController {
 		try {
 			const { organization } = req;
 			const { propName, propValue } = req.params;
-			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const existUserInOrg = await getOrganizationUserWithGrafanaAdminByProp(organization.id, propName, propValue);
-			if (!existUserInOrg) throw new ItemNotFoundException("The user", propName, propValue);
+			if (!existUserInOrg) throw new ItemNotFoundException(req, res, "The user", propName, propValue);
 			const userInOrgData: UserInOrgToUpdateDto = req.body;
 			if (userInOrgData.roleInOrg) {
 				if (!req.user.isGrafanaAdmin && userInOrgData.roleInOrg === "Admin") {
-					throw new HttpException(401, "To assign organization admin role to a user, platform administrator privileges are needed.");
+					throw new HttpException(
+						req,
+						res,
+						401,
+						"To assign organization admin role to a user, platform administrator privileges are needed."
+					);
 				}
 				if (!req.user.isGrafanaAdmin && existUserInOrg.isGrafanaAdmin) {
-					throw new HttpException(401, "The role in the org of the platform administrator only can be modify by himself.");
+					throw new HttpException(
+						req,
+						res,
+						401,
+						"The role in the org of the platform administrator only can be modify by himself."
+					);
 				}
 				if (userInOrgData.roleInOrg !== existUserInOrg.roleInOrg) {
 					await grafanaApi.changeUserRoleInOrganization(organization.id, existUserInOrg.userId, userInOrgData.roleInOrg);
@@ -691,6 +753,7 @@ class OrganizationController implements IController {
 				}
 			}
 			const message = { message: `User role in org updated succesfully.` }
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -705,9 +768,9 @@ class OrganizationController implements IController {
 		try {
 			const { organization } = req;
 			const { propName, propValue } = req.params;
-			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const user = await getOrganizationUserByProp(organization.id, propName, propValue);
-			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
+			if (!user) throw new ItemNotFoundException(req, res, "The user", propName, propValue);
 			if (user.lastSeenAtAge) user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			res.status(200).json(user);
 		} catch (error) {
@@ -744,9 +807,9 @@ class OrganizationController implements IController {
 	private getOrganizationByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const organization = await getOrganizationByProp(propName, propValue);
-			if (!organization) throw new ItemNotFoundException("The organization", propName, propValue);
+			if (!organization) throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
 			res.status(200).send(organization);
 		} catch (error) {
 			next(error);
@@ -756,10 +819,10 @@ class OrganizationController implements IController {
 	private modifyOrganizationByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const orgDataToUpdate: UpdateOrganizationDto = req.body;
 			const oldOrganizationData = await getOrganizationByProp(propName, propValue);
-			if (!oldOrganizationData) throw new ItemNotFoundException("The organization", propName, propValue);
+			if (!oldOrganizationData) throw new ItemNotFoundException(req, res, "The organization", propName, propValue);
 			const newOrganizationData = { ...oldOrganizationData, ...orgDataToUpdate };
 			const currentNodeRedInstanceInOrg = await getNodeRedInstancesByOrgsIdArray([oldOrganizationData.id]);
 			await updateNodeRedInstancesInOrg(currentNodeRedInstanceInOrg, newOrganizationData);
@@ -773,10 +836,15 @@ class OrganizationController implements IController {
 	private deleteOrganizationByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const organization = await getOrganizationByProp(propName, propValue);
-			if (!organization) throw new ItemNotFoundException("The Organization", propName, propValue);
-			if (organization.id === 1) throw new HttpException(400, "Main organization can not be deleted");
+			if (!organization) throw new ItemNotFoundException(req, res, "The Organization", propName, propValue);
+			if (organization.id === 1) throw new HttpException(
+				req,
+				res,
+				400,
+				"Main organization can not be deleted"
+			);
 			await grafanaApi.switchOrgContextForAdmin(1);
 			await grafanaApi.deleteOrgApiAdminUser(organization.id);
 			const deleteOrgMessage = await grafanaApi.deleteOrganizationById(organization.id);
@@ -785,7 +853,12 @@ class OrganizationController implements IController {
 			if (deleteOrgMessage.message === "Organization deleted") {
 				res.status(200).json({ message: `Organization deleted successfully` });
 			} else {
-				throw new HttpException(400, `Organization with id=${organization.id} could not be deleted`);
+				throw new HttpException(
+					req,
+					res,
+					400,
+					`Organization with id=${organization.id} could not be deleted`
+				);
 			}
 		} catch (error) {
 			next(error);

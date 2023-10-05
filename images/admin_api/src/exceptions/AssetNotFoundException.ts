@@ -1,9 +1,16 @@
 import HttpException from "./HttpException";
+import { Request, Response } from "express";
 
 class AsssetNotFoundException extends HttpException {
-	constructor(propName: string, propValue: string) {
+	constructor(
+		req: Request,
+		res: Response,
+		propName: string,
+		propValue: string
+	) {
 		const message = `Asset with ${propName}: '${propValue}' is not found`;
-		super(404, message);
+		const statusCode = 404
+		super(req, res, statusCode, message);
 	}
 }
 

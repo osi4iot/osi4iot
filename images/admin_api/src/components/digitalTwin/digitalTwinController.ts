@@ -52,6 +52,7 @@ import { assetAndGroupExist } from "../../middleware/assetAndGroupExist.middlewa
 import digitalTwinAndGroupExist from "../../middleware/digitalTwinAndGroupExist.middleware";
 import IRequestWithAssetAndGroup from "../group/interfaces/requestWithAssetAndGroup.interface";
 import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigitalTwinAndGroup.interface";
+import infoLogger from "../../utils/logger/infoLogger";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -317,9 +318,9 @@ class DigitalTwinController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidTopicPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidTopicPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const digitalTwin = await getDigitalTwinByProp(propName, propValue);
-			if (!digitalTwin) throw new ItemNotFoundException("The digital twin", propName, propValue);
+			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", propName, propValue);
 			res.status(200).json(digitalTwin);
 		} catch (error) {
 			next(error);
@@ -334,7 +335,7 @@ class DigitalTwinController implements IController {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
-			if (!digitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
+			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
 			const digitalTwinGltfData = await getDigitalTwinGltfData(digitalTwin);
 			res.status(200).send(digitalTwinGltfData);
 		} catch (error) {
@@ -350,7 +351,7 @@ class DigitalTwinController implements IController {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
-			if (!digitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
+			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
 			await deleteDigitalTwinById(digitalTwin);
 			const orgId = digitalTwin.orgId;
 			const groupId = digitalTwin.groupId;
@@ -373,7 +374,7 @@ class DigitalTwinController implements IController {
 			const group = req.group;
 			const { digitalTwinId } = req.params;
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
-			if (!existentDigitalTwin) throw new ItemNotFoundException("The digital twin", "id", digitalTwinId);
+			if (!existentDigitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
 			const digitalTwinUpdated: IDigitalTwin& UpdateDigitalTwinDto = { ...existentDigitalTwin, ...digitalTwinData };
 			if (digitalTwinData.isGltfFileModified) {
 				await verifyAndCorrectDigitalTwinReferences(group, digitalTwinUpdated);
@@ -407,10 +408,10 @@ class DigitalTwinController implements IController {
 						topicSensors: topicSensors.map(topicSensor => { return { id: topicSensor.id, topicName: topicSensor.topicName } })
 					};
 				} else {
-					throw new HttpException(400, "The entered value of dashboardUid is not correct");
+					throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");
 				}
 			} else {
-				throw new HttpException(400, `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`);
+				throw new HttpException(req, res, 400, `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`);
 			}
 			res.status(200).send(response);
 		} catch (error) {
@@ -433,6 +434,7 @@ class DigitalTwinController implements IController {
 			} else if (folder === "gltfFile") {
 				await checkNumberOfGltfFiles(req.digitalTwin);
 			}
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -496,6 +498,7 @@ class DigitalTwinController implements IController {
 			const message = {
 				message: `The file ${fileName} has been successfully deleted from the S3 bucket`,
 			};
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

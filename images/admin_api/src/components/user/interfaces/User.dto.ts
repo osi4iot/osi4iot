@@ -1,4 +1,4 @@
-import { IsString, IsEmail, ValidateIf, IsNumber, IsBoolean } from "class-validator";
+import { IsString, IsEmail, ValidateIf, IsNumber, IsBoolean, Matches } from "class-validator";
 
 class CreateUserDto {
 	public id?: number;
@@ -16,10 +16,12 @@ class CreateUserDto {
 
 	@ValidateIf((obj) => obj.login !== undefined)
 	@IsString()
+	@Matches(/^[a-zA-Z0-9._-]*$/g)
 	public login: string;
 
 	@ValidateIf((obj) => obj.password !== undefined)
 	@IsString()
+	@Matches(/^[a-zA-Z0-9._-]*$/g)
 	public password: string;
 
 	@ValidateIf((obj) => obj.isGrafanaAdmin !== undefined)

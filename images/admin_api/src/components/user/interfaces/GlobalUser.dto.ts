@@ -1,4 +1,4 @@
-import { IsString, IsEmail, ValidateIf } from "class-validator";
+import { IsString, IsEmail, ValidateIf, Matches } from "class-validator";
 
 class CreateGlobalUserDto {
 	public id?: number;
@@ -16,10 +16,12 @@ class CreateGlobalUserDto {
 
 	@ValidateIf((obj) => obj.login !== undefined)
 	@IsString()
+	@Matches(/^[a-zA-Z0-9._-]*$/g)
 	public login: string;
 
 	@ValidateIf((obj) => obj.password !== undefined)
 	@IsString()
+	@Matches(/^[a-zA-Z0-9._-]*$/g)
 	public password: string;
 }
 

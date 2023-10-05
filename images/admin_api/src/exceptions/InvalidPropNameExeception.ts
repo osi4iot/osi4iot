@@ -1,9 +1,16 @@
 import HttpException from "./HttpException";
+import { Request, Response } from "express";
 
 class InvalidPropNameExeception extends HttpException {
-	constructor(propName: string) {
-		const message= `The propName: ${propName} is invalid`;
-		super(400, message);
+	constructor(
+		req: Request,
+		res: Response,
+		propName: string
+	) {
+
+		const message = `The propName: ${propName} is invalid`;
+		const statusCode = 400
+		super(req, res, statusCode, message);
 	}
 }
 

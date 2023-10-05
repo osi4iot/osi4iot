@@ -73,6 +73,7 @@ import sslGroupCerticatesGenerator from "./sslGroupCerticatesGenerator";
 import ISensor from "../sensor/sensor.interface";
 import CreateSensorRefDto from "../digitalTwin/sensorRef.dto";
 import ITopic from "../topic/topic.interface";
+import infoLogger from "../../utils/logger/infoLogger";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -278,14 +279,21 @@ class GroupController implements IController {
 			groupInput.email = `${groupInput.acronym.toLocaleLowerCase()}@test.com`;
 			const orgId = parseInt(req.params.orgId, 10);
 			const existentGroup = await getGroupByProp("name", groupInput.name);
-			if (existentGroup) throw new AlreadyExistingItemException("A", "Group", ["name"], [groupInput.name]);
+			if (existentGroup) throw new AlreadyExistingItemException(
+				req,
+				res,
+				"A",
+				"Group",
+				["name"],
+				[groupInput.name]
+			);
 			const usersArray = await getOrganizationUsersByEmailArray(orgId, groupInput.groupAdminDataArray.map(user => user.email));
 			const nodeRedInstancesUnlinkedInOrg = await getNodeRedInstancesUnassignedInOrg(orgId);
 			if (nodeRedInstancesUnlinkedInOrg.length === 0) {
-				throw new HttpException(400, `The org with id: ${orgId} not have nodered instances available`)
+				throw new HttpException(req, res, 400, `The org with id: ${orgId} not have nodered instances available`)
 			}
 			if (usersArray.length !== groupInput.groupAdminDataArray.length) {
-				throw new HttpException(404, "All the administrators of the group must be members of the organization");
+				throw new HttpException(req, res, 404, "All the administrators of the group must be members of the organization");
 			} else {
 				usersArray.forEach((user, index) => {
 					groupInput.groupAdminDataArray[index].userId = user.userId;
@@ -454,6 +462,7 @@ class GroupController implements IController {
 			const isOrgDefaultGroup = false;
 			const group = { ...groupInput, isOrgDefaultGroup, groupHash, tableHash };
 			const message = { message: `Group created successfully`, group }
+			infoLogger(req, res, 200, message.message);
 			res.status(201).send(message);
 		} catch (error) {
 			next(error);
@@ -473,9 +482,9 @@ class GroupController implements IController {
 	private getGroupByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidGroupPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidGroupPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const group = await getGroupByWithFolderPermissionProp(propName, propValue);
-			if (!group) throw new ItemNotFoundException("The group", propName, propValue);
+			if (!group) throw new ItemNotFoundException(req, res, "The group", propName, propValue);
 			res.status(200).send(group);
 		} catch (error) {
 			next(error);
@@ -486,11 +495,12 @@ class GroupController implements IController {
 		try {
 			const groupInput: UpdateGroupDto = req.body;
 			const { propName, propValue } = req.params;
-			if (!this.isValidGroupPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidGroupPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const existentGroup = await getGroupByWithFolderPermissionProp(propName, propValue);
-			if (!existentGroup) throw new ItemNotFoundException("The group", propName, propValue);
+			if (!existentGroup) throw new ItemNotFoundException(req, res, "The group", propName, propValue);
 			await updateGroup(groupInput, existentGroup);
 			const message = { message: "Group updated successfully" }
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -502,7 +512,7 @@ class GroupController implements IController {
 			const { groupId } = req.params;
 			const groupManagedInput: UpdateGroupManagedDto = req.body;
 			const existentGroup = await getGroupByWithFolderPermissionProp("id", groupId);
-			if (!existentGroup) throw new ItemNotFoundException("The group", "id", groupId);
+			if (!existentGroup) throw new ItemNotFoundException(req, res, "The group", "id", groupId);
 			const nriId = groupManagedInput.nriInGroupId;
 			const longitude = groupManagedInput.nriInGroupIconLongitude;
 			const latitude = groupManagedInput.nriInGroupIconLatitude;
@@ -515,6 +525,7 @@ class GroupController implements IController {
 			const groupManagedUpdate = { ...existentGroup, folderPermission, telegramInvitationLink, telegramChatId };
 			await updateGroup(groupManagedUpdate, existentGroup);
 			const message = { message: "Group managed updated successfully" }
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -525,9 +536,9 @@ class GroupController implements IController {
 		try {
 			const { propName, propValue } = req.params;
 			const orgId = parseInt(req.params.orgId, 10);
-			if (!this.isValidGroupPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidGroupPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const group = await getGroupByProp(propName, propValue);
-			if (!group) throw new ItemNotFoundException("The group", propName, propValue);
+			if (!group) throw new ItemNotFoundException(req, res, "The group", propName, propValue);
 			const nriInGroup = await getNodeRedInstancesInGroup(group.id);
 			if (nriInGroup) {
 				await markAsDeleteNodeRedInstancesInGroup(group.id);
@@ -553,16 +564,31 @@ class GroupController implements IController {
 			const groupMembersArray: CreateGroupMemberDto[] = req.body.members;
 			const usersArray = await getOrganizationUsersByEmailArray(orgId, groupMembersArray.map(user => user.email));
 			if (usersArray.length !== groupMembersArray.length) {
-				throw new HttpException(404, "All the members of the group must be members of its respective organization");
+				throw new HttpException(
+					req,
+					res,
+					404,
+					"All the members of the group must be members of its respective organization"
+				);
 			} else {
 				const isOrgAdminUser = await isThisUserOrgAdmin(req.user.id, req.group.orgId);
 				groupMembersArray.forEach((member: CreateGroupMemberDto) => {
 					if (member.roleInGroup) {
 						if (!isOrgAdminUser && member.roleInGroup === "Admin") {
-							throw new HttpException(401, "To assign group admin role to a user, organization administrator privileges are needed.");
+							throw new HttpException(
+								req,
+								res,
+								401,
+								"To assign group admin role to a user, organization administrator privileges are needed."
+							);
 						}
 						if (member.roleInGroup === "Viewer" && req.group.folderPermission === "Edit") {
-							throw new HttpException(401, "A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed.");
+							throw new HttpException(
+								req,
+								res,
+								401,
+								"A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed."
+							);
 						}
 					}
 				});
@@ -573,6 +599,7 @@ class GroupController implements IController {
 				});
 			}
 			const message = await addMembersToGroup(req.group, groupMembersArray);
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -584,7 +611,12 @@ class GroupController implements IController {
 			const groupMembersArray: CreateGroupMemberDto[] = req.body.members;
 			const existentGroupMemberArray = await getGroupMembersByEmailsArray(req.group, groupMembersArray.map(user => user.email));
 			if (existentGroupMemberArray.length !== groupMembersArray.length) {
-				throw new HttpException(404, "All the members of the group must be members of its respective organization");
+				throw new HttpException(
+					req,
+					res,
+					404,
+					"All the members of the group must be members of its respective organization"
+				);
 			} else {
 				const isOrgAdminUser = await isThisUserOrgAdmin(req.user.id, req.group.orgId);
 				const numMembersWithAdminRole = await getNumberOfGroupMemberWithAdminRole(req.group.teamId);
@@ -592,21 +624,30 @@ class GroupController implements IController {
 				groupMembersArray.forEach((member: CreateGroupMemberDto, index) => {
 					if (member.roleInGroup) {
 						if (!isOrgAdminUser && member.roleInGroup === "Admin") {
-							throw new HttpException(401, "To assign group admin role to a user, organization administrator privileges are needed.");
+							throw new HttpException(
+								req,
+								res,
+								401,
+								"To assign group admin role to a user, organization administrator privileges are needed.");
 						}
 						if (member.roleInGroup === "Viewer" && req.group.folderPermission === "Edit") {
-							throw new HttpException(401, "A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed.");
+							throw new HttpException(
+								req,
+								res,
+								401,
+								"A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed.");
 						}
 						if (existentGroupMemberArray[index].roleInGroup === "Admin" && member.roleInGroup !== "Admin") {
 							numAdminRoleToBeRemoved++;
 							if (numAdminRoleToBeRemoved === numMembersWithAdminRole) {
-								throw new HttpException(405, "At least one group member must have admin role");
+								throw new HttpException(req, res, 405, "At least one group member must have admin role");
 							}
 						}
 					}
 				});
 			}
 			const message = await udpateRoleMemberInGroup(req.group, groupMembersArray, existentGroupMemberArray);
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -616,28 +657,39 @@ class GroupController implements IController {
 	private updateGroupMemberByProp = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidGroupMemberPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidGroupMemberPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const groupMemberRole: UpdateGroupMemberDto = req.body;
 			const existentGroupMember = await getGroupMemberByProp(req.group, propName, propValue);
-			if (!existentGroupMember) throw new ItemNotFoundException("The group member", propName, propValue);
+			if (!existentGroupMember) throw new ItemNotFoundException(req, res, "The group member", propName, propValue);
 			const groupMember = { ...existentGroupMember };
 			groupMember.roleInGroup = groupMemberRole.roleInGroup;
 			const isOrgAdminUser = await isThisUserOrgAdmin(req.user.id, req.group.orgId);
 			if (groupMember.roleInGroup) {
 				if (!isOrgAdminUser && groupMember.roleInGroup === "Admin") {
-					throw new HttpException(401, "To assign group admin role to a user, organization administrator privileges are needed.");
+					throw new HttpException(
+						req,
+						res,
+						401,
+						"To assign group admin role to a user, organization administrator privileges are needed."
+					);
 				}
 				if (groupMember.roleInGroup === "Viewer" && req.group.folderPermission === "Edit") {
-					throw new HttpException(401, "A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed.");
+					throw new HttpException(
+						req,
+						res,
+						401,
+						"A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed."
+					);
 				}
 				if (existentGroupMember.roleInGroup === "Admin" && groupMember.roleInGroup !== "Admin") {
 					const numMembersWithAdminRole = await getNumberOfGroupMemberWithAdminRole(req.group.teamId);
 					if (numMembersWithAdminRole === 1) {
-						throw new HttpException(405, "At least one group member must have admin role");
+						throw new HttpException(req, res, 405, "At least one group member must have admin role");
 					}
 				}
 			}
 			const message = await udpateRoleMemberInGroup(req.group, [groupMember], [existentGroupMember]);
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -651,15 +703,30 @@ class GroupController implements IController {
 			const groupMember: CreateGroupMemberDto = req.body;
 			const user = await getOrganizationUserByProp(orgId, "email", groupMember.email);
 			if (!user) {
-				throw new HttpException(404, "To be member of a group must be member of its respective organization");
+				throw new HttpException(
+					req,
+					res,
+					404,
+					"To be member of a group must be member of its respective organization"
+				);
 			} else {
 				const isOrgAdminUser = await isThisUserOrgAdmin(req.user.id, req.group.orgId);
 				if (groupMember.roleInGroup) {
 					if (!isOrgAdminUser && groupMember.roleInGroup === "Admin") {
-						throw new HttpException(401, "To assign group admin role to a user, organization administrator privileges are needed.");
+						throw new HttpException(
+							req,
+							res,
+							401,
+							"To assign group admin role to a user, organization administrator privileges are needed."
+						);
 					}
 					if (groupMember.roleInGroup === "Viewer" && req.group.folderPermission === "Edit") {
-						throw new HttpException(401, "A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed.");
+						throw new HttpException(
+							req,
+							res,
+							401,
+							"A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed."
+						);
 					}
 				}
 				groupMember.userId = user.userId;
@@ -667,6 +734,7 @@ class GroupController implements IController {
 				groupMember.surname = user.surname;
 			}
 			const message = await addMembersToGroup(req.group, [groupMember]);
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -701,9 +769,9 @@ class GroupController implements IController {
 	private getGroupMemberByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidGroupMemberPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidGroupMemberPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const groupMember = await getGroupMemberByProp(req.group, propName, propValue);
-			if (!groupMember) throw new ItemNotFoundException("The group member", propName, propValue);
+			if (!groupMember) throw new ItemNotFoundException(req, res, "The group member", propName, propValue);
 			res.status(200).send(groupMember);
 		} catch (error) {
 			next(error);
@@ -713,19 +781,26 @@ class GroupController implements IController {
 	private removeGroupMemberByProp = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidGroupMemberPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidGroupMemberPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const groupMember = await getGroupMemberByProp(req.group, propName, propValue);
-			if (!groupMember) throw new ItemNotFoundException("The group member", propName, propValue);
+			if (!groupMember) throw new ItemNotFoundException(req, res, "The group member", propName, propValue);
 			if (groupMember.roleInGroup === "Admin") {
 				const isOrgAdminUser = await isThisUserOrgAdmin(req.user.id, req.group.orgId);
 				if (!isOrgAdminUser) {
-					throw new HttpException(401, "To remove a member with admin role, organization administrator privileges are needed.");
+					throw new HttpException(
+						req,
+						res,
+						401,
+						"To remove a member with admin role, organization administrator privileges are needed."
+					);
 				} else {
 					const numMembersWithAdminRole = await getNumberOfGroupMemberWithAdminRole(req.group.teamId);
-					if (numMembersWithAdminRole === 1) throw new HttpException(405, "At least one group member must have admin role");
+					if (numMembersWithAdminRole === 1)
+						throw new HttpException(req, res, 405, "At least one group member must have admin role");
 				}
 			}
 			const message = await removeMembersInGroup(req.group, [groupMember]);
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -737,6 +812,7 @@ class GroupController implements IController {
 			const groupMembers = await getGroupMembers(req.group);
 			const groupMembersToRemove = groupMembers.filter(member => member.roleInGroup !== "Admin");
 			const message = await removeMembersInGroup(req.group, groupMembersToRemove);
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -751,6 +827,7 @@ class GroupController implements IController {
 			await updateGroupUidOfRawSqlAlertSettingOfGroup(req.group, newGroupUid);
 			await updateMeasurementsGroupUid(req.group, newGroupUid);
 			const message = { message: "Group hash changed successfully" };
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);

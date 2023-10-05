@@ -19,6 +19,7 @@ import HttpException from "../../exceptions/HttpException";
 import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 import INodeRedInstance from "./nodeRedInstance.interface";
 import RecoverNodeRedInstanceDto from "./recoverNodeRedInstances.dto";
+import infoLogger from "../../utils/logger/infoLogger";
 
 
 class NodeRedInstanceController implements IController {
@@ -115,9 +116,9 @@ class NodeRedInstanceController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidNodeRedInstancePropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidNodeRedInstancePropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const nodeRedInstance = await getNodeRedInstanceByProp(propName, propValue);
-			if (!nodeRedInstance) throw new ItemNotFoundException("The nodered istance", propName, propValue);
+			if (!nodeRedInstance) throw new ItemNotFoundException(req, res, "The nodered istance", propName, propValue);
 			res.status(200).json(nodeRedInstance);
 		} catch (error) {
 			next(error);
@@ -133,7 +134,7 @@ class NodeRedInstanceController implements IController {
 		try {
 			const { nriId } = req.params;
 			const nodeRedInstance = await getNodeRedInstanceByProp("id", parseInt(nriId, 10));
-			if (!nodeRedInstance) throw new ItemNotFoundException("The NodeRed instance", "id", nriId);
+			if (!nodeRedInstance) throw new ItemNotFoundException(req, res, "The NodeRed instance", "id", nriId);
 			await deleteNodeRedInstanceById(parseInt(nriId, 10));
 			const message = { message: "NodeRed instance deleted successfully" }
 			res.status(200).json(message);
@@ -174,11 +175,17 @@ class NodeRedInstanceController implements IController {
 				} else {
 					const mdHash = nriData.nriHash;
 					const orgId = nriData.orgId;
-					throw new HttpException(500, `The new NodeRed instance in the org: ${orgId} with hash: ${mdHash} can not be creted`)
+					throw new HttpException(
+						req,
+						res,
+						500,
+						`The new NodeRed instance in the org: ${orgId} with hash: ${mdHash} can not be creted`
+					)
 				}
 			} else {
 				message = { message: `The NodeRed instance with hash: ${nriData.nriHash} already exist` };
 			}
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -193,7 +200,7 @@ class NodeRedInstanceController implements IController {
 		try {
 			const { nriHash } = req.params;
 			const existNodeRedInstance = await getNodeRedInstanceByProp("nri_hash", nriHash);
-			if (!existNodeRedInstance) throw new ItemNotFoundException("The NodeRed instance", "nriHash", nriHash);
+			if (!existNodeRedInstance) throw new ItemNotFoundException(req, res, "The NodeRed instance", "nriHash", nriHash);
 			const user = req.user;
 			const groupId = req.group.id;
 			const response = { user, groupId }

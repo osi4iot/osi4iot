@@ -1,4 +1,4 @@
-import { IsNumber, IsString, IsEmail } from "class-validator";
+import { IsNumber, IsString, IsEmail, Matches } from "class-validator";
 
 class UserProfileDto {
 	id?: number;
@@ -6,7 +6,7 @@ class UserProfileDto {
 	name?: string;
 
 	@IsNumber()
-		userId?: number;
+	public userId?: number;
 
 	@IsString()
 	public firstName: string;
@@ -18,6 +18,7 @@ class UserProfileDto {
 	public email: string;
 
 	@IsString()
+	@Matches(/^[a-zA-Z0-9._-]*$/g)
 	public login: string;
 }
 

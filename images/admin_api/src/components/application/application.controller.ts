@@ -19,6 +19,7 @@ import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeceptio
 import { cleanEmailNotificationChannelForGroupsArray, getGroupsWhereUserIdIsMember } from "../group/groupDAL";
 import CreateGlobalUsersArrayDto from "../user/interfaces/GlobalUsersArray.dto";
 import HttpException from "../../exceptions/HttpException";
+import infoLogger from "../../utils/logger/infoLogger";
 
 class ApplicationController implements IController {
 	public path = "/application";
@@ -101,6 +102,9 @@ class ApplicationController implements IController {
 			} else {
 				message = { message: `The user with email: ${userData.email} already exist` };
 			}
+
+			infoLogger(req, res, 200, message.message);
+
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -128,7 +132,12 @@ class ApplicationController implements IController {
 			let message: { message: string };
 			if (nonExistingUsersArray.length !== 0) {
 				if (!(await isUsersDataCorrect(nonExistingUsersArray)))
-					throw new HttpException(400, "The same values of name, login and email of some of the users is already taken.")
+					throw new HttpException(
+						req,
+						res,
+						400,
+						"The same values of name, login and email of some of the users is already taken."
+					)
 				const msg_users = await createGlobalUsers(nonExistingUsersArray);
 				const globalUsersCreated = msg_users.filter(msg => msg.message === "User created");
 				const numNewGlobalUsers = globalUsersCreated.length;
@@ -147,6 +156,7 @@ class ApplicationController implements IController {
 			} else {
 				message = { message: `All the entered values for new users already exist` };
 			}
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -176,9 +186,9 @@ class ApplicationController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const user = await getUserByProp(propName, propValue);
-			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
+			if (!user) throw new ItemNotFoundException(req, res, "The user", propName, propValue);
 			if (user.lastSeenAtAge) user.lastSeenAtAge = generateLastSeenAtAgeString(user.lastSeenAtAge);
 			res.status(200).json(user);
 		} catch (error) {
@@ -193,10 +203,10 @@ class ApplicationController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const userData: CreateUserDto = req.body;
 			const existUser = await getUserByProp(propName, propValue);
-			if (!existUser) throw new ItemNotFoundException("The user", propName, propValue);
+			if (!existUser) throw new ItemNotFoundException(req, res, "The user", propName, propValue);
 			if (userData.password && userData.password !== "") {
 				await this.grafanaRepository.changeUserPassword(existUser.id, userData.password);
 			}
@@ -216,11 +226,11 @@ class ApplicationController implements IController {
 	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(propName);
+			if (!this.isValidUserPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const user = await getUserByProp(propName, propValue);
-			if (!user) throw new ItemNotFoundException("The user", propName, propValue);
+			if (!user) throw new ItemNotFoundException(req, res, "The user", propName, propValue);
 			if (user.login.slice(-9) === "api_admin") {
-				throw new HttpException(403, "An api admin user can not be deleted.")
+				throw new HttpException(req, res, 403, "An api admin user can not be deleted.")
 			}
 			const groupsArray = await getGroupsWhereUserIdIsMember(user.id);
 			await cleanEmailNotificationChannelForGroupsArray(user.email, groupsArray);

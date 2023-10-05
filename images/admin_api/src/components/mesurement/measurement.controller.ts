@@ -168,13 +168,13 @@ class MeasurementController implements IController {
 			const { topic, timestamp, updatedPayload } = req.body;
 			const groupUid = req.group.groupUid;
 			const existMeasurement = await getMeasurement(groupUid, topic, timestamp);
-			if (!existMeasurement) throw new ItemNotFoundException("The measurement", "timestamp", timestamp);
+			if (!existMeasurement) throw new ItemNotFoundException(req, res, "The measurement", "timestamp", timestamp);
 			let newPayload = existMeasurement.payload;
 			if (JSON.stringify(existMeasurement.payload) !== JSON.stringify(updatedPayload)) {
 				newPayload = updatedPayload;
 			}
 			const response = await updateMeasurement(groupUid, topic, timestamp, newPayload);
-			if (!response) throw new HttpException(500, "The measurement could not be updated");
+			if (!response) throw new HttpException(req, res, 500, "The measurement could not be updated");
 			const message = { message: `Measurement updated succesfully.` }
 			res.status(200).json(message);
 		} catch (error) {
@@ -191,9 +191,9 @@ class MeasurementController implements IController {
 			const groupUid = req.group.groupUid;
 			const { topic, timestamp } = req.body;
 			const existMeasurement = await getMeasurement(groupUid, topic, timestamp);
-			if (!existMeasurement) throw new ItemNotFoundException("The measurement", "timestamp", timestamp);
+			if (!existMeasurement) throw new ItemNotFoundException(req, res, "The measurement", "timestamp", timestamp);
 			const response = await deleteMeasurement(groupUid, topic, timestamp);
-			if (!response) throw new HttpException(500, "Any measurement has been deleted");
+			if (!response) throw new HttpException(req, res, 500, "Any measurement has been deleted");
 			const message = { message: `Measurement deleted succesfully` }
 			res.status(200).json(message);
 		} catch (error) {
@@ -210,7 +210,7 @@ class MeasurementController implements IController {
 			const groupUid = req.group.groupUid;
 			const { topic, deleteDate } = req.body;
 			const response = await deleteMeasurementsBeforeDate(groupUid, topic, deleteDate);
-			if (!response) throw new HttpException(500, "Any measurement has been deleted");
+			if (!response) throw new HttpException(req, res, 500, "Any measurement has been deleted");
 			const message = { message: `Measurements deleted succesfully` }
 			res.status(200).json(message);
 		} catch (error) {

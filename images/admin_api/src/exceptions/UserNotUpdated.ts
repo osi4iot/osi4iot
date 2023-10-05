@@ -1,7 +1,15 @@
 import HttpException from "./HttpException";
+import { Request, Response } from "express";
 
 class UserNotUpdatedException extends HttpException {
-	constructor(propName: string, propValue: string, property: string, institutionId?: string) {
+	constructor(
+		req: Request,
+		res: Response,
+		propName: string,
+		propValue: string,
+		property: string,
+		institutionId?: string
+	) {
 		let message;
 		if (propName === "id") {
 			message = `The property: ${property} of the user with id: ${propValue} could not be updated`;
@@ -13,7 +21,8 @@ class UserNotUpdatedException extends HttpException {
 		if (institutionId) {
 			message += ` in the organization with id: ${institutionId}`;
 		}
-		super(404, message);
+		const statusCode = 404
+		super(req, res, statusCode, message);
 	}
 }
 

@@ -18,6 +18,8 @@ import { getGroupsManagedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId, getOrganizationsWithIdsArray } from "../organization/organizationDAL";
 import IFloor from "./floor.interface";
 import { findBuildingBounds, findFloorBounds } from "../../utils/geolocation.ts/geolocation";
+import { logger } from "../../config/winston";
+import infoLogger from "../../utils/logger/infoLogger";
 
 class BuildingController implements IController {
 	public path = "/building";
@@ -165,7 +167,8 @@ class BuildingController implements IController {
 			const buildingData: CreateBuildingDto = req.body;
 			const existBuilding = await getBuildingByProp("name", buildingData.name)
 			if (existBuilding) {
-				throw new AlreadyExistingItemException("A", "building", ["name"], [buildingData.name]);
+				logger.error(`409 || ${res.statusMessage} - ${req.originalUrl} - ${req.method} - ${req.ip}`);
+				throw new AlreadyExistingItemException(req, res, "A", "building", ["name"], [buildingData.name]);
 			}
 			if (buildingData.geoJsonData) {
 				buildingData.outerBounds = findBuildingBounds(buildingData.geoJsonData);
@@ -183,8 +186,9 @@ class BuildingController implements IController {
 				}
 			}
 			const building = await createBuilding(buildingData);
-			if (!building) throw new HttpException(500, "Could not be created a new building");
+			if (!building) throw new HttpException(req, res, 500, "Could not be created a new building");
 			const message = { message: "A new building has been created" };
+			infoLogger(req, res, 200, message.message);
 			res.status(201).send(message);
 		} catch (error) {
 			next(error);
@@ -202,18 +206,26 @@ class BuildingController implements IController {
 			const floorNumber = floorData.floorNumber;
 			const existBuilding = await getBuildingByProp("id", buildingId);
 			if (!existBuilding) {
-				throw new ItemNotFoundException("The building", "id", buildingId.toString());
+				throw new ItemNotFoundException(req, res, "The building", "id", buildingId.toString());
 			}
 			const existFloor = await getFloorByBuildingIdAndFloorNumber(buildingId, floorNumber);
 			if (existFloor) {
-				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [buildingId.toString(), floorNumber.toString()]);
+				throw new AlreadyExistingItemException(
+					req,
+					res,
+					"A",
+					"building floor",
+					["buildingId", "floorNumber"],
+					[buildingId.toString(), floorNumber.toString()]
+				);
 			}
 			if (floorData.geoJsonData) {
 				floorData.outerBounds = findFloorBounds(floorData);
 			}
 			const Floor = await createFloor(floorData);
-			if (!Floor) throw new HttpException(500, "Could not be created a new building floor");
+			if (!Floor) throw new HttpException(req, res, 500, "Could not be created a new building floor");
 			const message = { message: "A new building floor has been created" };
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -230,13 +242,13 @@ class BuildingController implements IController {
 			const { floorId } = req.params;
 			const existFloor = await getFloorById(parseInt(floorId, 10));
 			if (!existFloor) {
-				throw new ItemNotFoundException("The building floor", "id", floorId);
+				throw new ItemNotFoundException(req, res, "The building floor", "id", floorId);
 			}
 			if (existFloor.id === 1) {
-				throw new HttpException(500, "The platform default floor can not be deleted.");
+				throw new HttpException(req, res, 500, "The platform default floor can not be deleted.");
 			}
 			const response = await deleteFloorById(parseInt(floorId, 10));
-			if (!response) throw new HttpException(500, "The building floor could not be deleted");
+			if (!response) throw new HttpException(req, res, 500, "The building floor could not be deleted");
 			const message = { message: `Building floor deleted succesfully` }
 			res.status(200).json(message);
 		} catch (error) {
@@ -254,17 +266,25 @@ class BuildingController implements IController {
 			const FloorData: CreateFloorDto = req.body;
 			const existFloor = await getFloorById(parseInt(floorId, 10));
 			if (!existFloor) {
-				throw new ItemNotFoundException("The building floor", "id", floorId);
+				throw new ItemNotFoundException(req, res, "The building floor", "id", floorId);
 			}
 			const updatedFloor = { ...existFloor, ...FloorData };
 			const existUpdatedFloor = await getFloorByBuildingIdAndFloorNumber(updatedFloor.buildingId, updatedFloor.floorNumber);
 			if (existFloor.id !== existUpdatedFloor.id) {
-				throw new AlreadyExistingItemException("A", "building floor", ["buildingId", "floorNumber"], [updatedFloor.buildingId.toString(), updatedFloor.floorNumber.toString()]);
+				throw new AlreadyExistingItemException(
+					req,
+					res,
+					"A",
+					"building floor",
+					["buildingId", "floorNumber"],
+					[updatedFloor.buildingId.toString(), updatedFloor.floorNumber.toString()]
+				);
 			}
 			updatedFloor.outerBounds = findFloorBounds(updatedFloor);
 			const response = await updateFloorById(parseInt(floorId, 10), updatedFloor);
-			if (!response) throw new HttpException(500, "The building floor could not be updated");
+			if (!response) throw new HttpException(req, res, 500, "The building floor could not be updated");
 			const message = { message: `Building floor updated succesfully.` }
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -279,7 +299,7 @@ class BuildingController implements IController {
 		try {
 			const { floorId } = req.params;
 			const floor = await getFloorById(parseInt(floorId, 10));
-			if (!floor) throw new ItemNotFoundException("The building floor", "id", floorId);
+			if (!floor) throw new ItemNotFoundException(req, res, "The building floor", "id", floorId);
 			floor.timeFromCreation = generateLastSeenAtAgeString(floor.timeFromCreation);
 			floor.timeFromLastUpdate = generateLastSeenAtAgeString(floor.timeFromLastUpdate);
 			res.status(200).json(floor);
@@ -319,7 +339,7 @@ class BuildingController implements IController {
 		try {
 			const { buildingId } = req.params;
 			const building = await getBuildingByProp("id", buildingId);
-			if (!building) throw new ItemNotFoundException("The building", "id", buildingId);
+			if (!building) throw new ItemNotFoundException(req, res, "The building", "id", buildingId);
 			building.timeFromCreation = generateLastSeenAtAgeString(building.timeFromCreation);
 			building.timeFromLastUpdate = generateLastSeenAtAgeString(building.timeFromLastUpdate);
 			res.status(200).send(building);
@@ -334,7 +354,7 @@ class BuildingController implements IController {
 			const buildingData: CreateBuildingDto = req.body;
 			const existBuilding = await getBuildingByProp("id", parseInt(buildingId, 10));
 			if (!existBuilding) {
-				throw new ItemNotFoundException("The building", "id", buildingId);
+				throw new ItemNotFoundException(req, res, "The building", "id", buildingId);
 			}
 
 			if ((buildingData.longitude === 0 && buildingData.latitude === 0) ||
@@ -354,8 +374,9 @@ class BuildingController implements IController {
 			const updatedBuilding = { ...existBuilding, ...buildingData };
 			updatedBuilding.outerBounds = findBuildingBounds(updatedBuilding.geoJsonData);
 			const response = await updateBuildingById(parseInt(buildingId, 10), updatedBuilding);
-			if (!response) throw new HttpException(500, "The building could not be updated");
+			if (!response) throw new HttpException(req, res, 500, "The building could not be updated");
 			const message = { message: `Building updated succesfully.` }
+			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
 			next(error);
@@ -367,13 +388,13 @@ class BuildingController implements IController {
 			const { buildingId } = req.params;
 			const existBuilding = await getBuildingByProp("id", buildingId);
 			if (!existBuilding) {
-				throw new ItemNotFoundException("The building", "id", buildingId);
+				throw new ItemNotFoundException(req, res, "The building", "id", buildingId);
 			}
 			if (existBuilding.id === 1) {
-				throw new HttpException(500, "The plattorm default building can not be deleted");
+				throw new HttpException(req, res, 500, "The plattorm default building can not be deleted");
 			}
 			const response = await deleteBuildingById(parseInt(buildingId, 10));
-			if (!response) throw new HttpException(500, "The building could not be deleted");
+			if (!response) throw new HttpException(req, res, 500, "The building could not be deleted");
 			const message = { message: `Building deleted succesfully` }
 			res.status(200).json(message);
 		} catch (error) {

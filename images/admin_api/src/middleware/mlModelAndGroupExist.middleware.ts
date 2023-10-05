@@ -14,8 +14,8 @@ const mlModelAndGroupExist = async (
 	const { groupId, mlModelId } = request.params;
 	const existingGroup = await getGroupByProp("id", groupId);
 	const existMlModel = await getMLModelByProp("id", mlModelId);
-	if (!existingGroup) next(new GroupNotFoundException("id", groupId));
-	if (!existMlModel) next(new MLModelNotFoundException("id", mlModelId));
+	if (!existingGroup) next(new GroupNotFoundException(request, response, "id", groupId));
+	if (!existMlModel) next(new MLModelNotFoundException(request, response, "id", mlModelId));
 	if (existingGroup && existMlModel) {
 		request.group = { ...existingGroup };
 		request.mlModel = { ...existMlModel };
