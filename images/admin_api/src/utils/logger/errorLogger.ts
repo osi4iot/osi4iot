@@ -12,7 +12,7 @@ const errorLogger = (req: Request, res: Response, status: number, message: strin
 		timeZoneName: 'short'
 	};
 	const date = (new Date()).toLocaleString('en-US', options as Intl.DateTimeFormatOptions);
-	logger.error(`${req.ip} - - [${date}] "${req.method} ${req.httpVersion} ${req.originalUrl}" ${status} - ${message} \n`);
+	logger.error(`${req.ips.toString()} - - [${date}] "${req.method} ${req.httpVersion} ${req.originalUrl}" ${status} - ${message} \n`);
 }
 
 export default errorLogger;

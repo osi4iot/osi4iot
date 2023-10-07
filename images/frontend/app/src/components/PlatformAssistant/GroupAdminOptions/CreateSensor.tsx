@@ -80,13 +80,13 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
-        const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}`;
+        const assetId = values.assetId;
+        const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}/${assetId}`;
         const config = axiosAuth(accessToken);
 
         const sensorData = {
-            assetId: values.assetId,
             description: values.description,
-            topicId: values.topicId,
+            topicId: parseInt(values.topicId, 10),
             payloadKey: values.payloadKey,
             paramLabel: values.paramLabel,
             valueType: values.valueType,
@@ -120,10 +120,10 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         topicId: "",
         payloadKey: "",
         paramLabel: "",
-        valueType: "",
+        valueType: "number",
         units: "",
-        dashboardRefresh: "",
-        dashboardTimeWindow:""
+        dashboardRefresh: "1s",
+        dashboardTimeWindow: "5m"
     }
 
     const validationSchema = Yup.object().shape({
@@ -212,7 +212,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
                                         label='Dashboard time window'
                                         name='dashboardTimeWindow'
                                         type='text'
-                                    />                                     
+                                    />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

@@ -61,12 +61,13 @@ export const deleteSensorsByIdArray = async (sensorsId: number[]): Promise<void>
 };
 
 export const createNewSensor = async (
+	assetId: number,
 	sensorData: CreateSensorDto,
 	dashboardId: number,
 	dashboardUrl: string,
 	sensorUid: string
 ): Promise<ISensor> => {
-	const sensorInput: ISensor = { ...sensorData, sensorUid, dashboardId, dashboardUrl };
+	const sensorInput: ISensor = { ...sensorData, assetId, sensorUid, dashboardId, dashboardUrl };
 	const newSensor = await insertSensor(sensorInput);
 	return newSensor;
 };

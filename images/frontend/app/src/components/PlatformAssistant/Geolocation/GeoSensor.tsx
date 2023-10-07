@@ -45,7 +45,7 @@ const GeoSensor: FC<GeoSensorProps> = ({
     selectDigitalTwin,
     sensorsState
 }) => {
-    const angle = 360 * (sensorIndex + 1) / 12;
+    const angle = 350 * (sensorIndex + 1) / 13 + 32;
     const positionRadius = 0.00076 * assetData.iconRadio;
     const [centerLongitude, centerLatitude] = calcGeoPointPosition(assetData.longitude, assetData.latitude, positionRadius, angle);
     const [status, setStatus] = useState("unknown");
@@ -68,7 +68,7 @@ const GeoSensor: FC<GeoSensorProps> = ({
             sensorRadio
         ), [centerLongitude, centerLatitude, sensorRadio]);
 
-    const sensorOuterRadio = 0.00018 * assetData.iconRadio;
+    const sensorOuterRadio = 0.00016 * assetData.iconRadio;
     const outerBoundsSensor = useMemo(() =>
         calcGeoBounds(
             centerLongitude,

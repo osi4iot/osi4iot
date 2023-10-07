@@ -372,7 +372,6 @@ class GroupController implements IController {
 			const sensorsUid: string[] = [];
 			sensorsData[0] =
 			{
-				assetId: asset.id,
 				description: `Mobile geolocation`,
 				topicId: topics[0].id,
 				payloadKey: "mobile_geolocation",
@@ -386,7 +385,6 @@ class GroupController implements IController {
 
 			sensorsData[1] =
 			{
-				assetId: asset.id,
 				description: `Mobile accelerations`,
 				topicId: topics[1].id,
 				payloadKey: "mobile_accelerations",
@@ -400,7 +398,6 @@ class GroupController implements IController {
 
 			sensorsData[2] =
 			{
-				assetId: asset.id,
 				description: `Mobile orientation`,
 				topicId: topics[2].id,
 				payloadKey: "mobile_quaternion",
@@ -414,7 +411,6 @@ class GroupController implements IController {
 
 			sensorsData[3] =
 			{
-				assetId: asset.id,
 				description: `Mobile photo`,
 				topicId: topics[3].id,
 				payloadKey: "mobile_photo",
@@ -433,7 +429,7 @@ class GroupController implements IController {
 			const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
 			const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
 			for (let i = 0; i < 4; i++) {
-				sensors[i] = await createNewSensor(sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
+				sensors[i] = await createNewSensor(asset.id, sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
 			}
 
 			const digitalTwinData = {

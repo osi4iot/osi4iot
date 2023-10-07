@@ -12,7 +12,7 @@ const infoLogger = (req: Request, res: Response, status: number, message: string
 		timeZoneName: 'short'
 	};
 	const date = (new Date()).toLocaleString('en-US', options as Intl.DateTimeFormatOptions);
-	logger.info(`${req.ip} - - [${date}] "${req.method} ${req.httpVersion} ${req.originalUrl}" ${status} - ${message} \n`);
+	logger.info(`${req.ips.toString()} - - [${date}] "${req.method} ${req.httpVersion} ${req.originalUrl}" ${status} - ${message} \n`);
 }
 
 export default infoLogger;

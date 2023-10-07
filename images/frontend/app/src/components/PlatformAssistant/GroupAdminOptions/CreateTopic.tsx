@@ -142,8 +142,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
-        const deviceId = values.deviceId;
-        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${deviceId}`;
+        const url = `${protocol}://${domainName}/admin_api/topic/${groupId}`;
         const config = axiosAuth(accessToken);
 
         const topicData = {
@@ -172,7 +171,6 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
 
     const initialTopicData = {
         groupId: "",
-        deviceId: "",
         topicType: "dev2pdb",
         description: "",
         mqttAccessControl: "Pub & Sub"
@@ -180,9 +178,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
 
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
-        deviceId: Yup.number().required('Required'),
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
-        topicName: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
     });
 
@@ -204,12 +200,6 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                         control='input'
                                         label='GroupId'
                                         name='groupId'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='DeviceId'
-                                        name='deviceId'
                                         type='text'
                                     />
                                     <FormikControl

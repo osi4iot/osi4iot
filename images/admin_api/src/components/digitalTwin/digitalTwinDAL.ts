@@ -647,8 +647,8 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 	for (const sensorRef of sensorsRefToAdd) {
 		const topicRef = topicsRef.filter(topicMap => topicMap.topicRef === sensorRef.topicRef)[0].topicRef;
 		const topicId = newSensorTopicsRef.filter(topic => topic.topicRef === topicRef)[0].topicId;
+		const assetId = digitalTwinUpdate.assetId;
 		const sensorData = {
-			assetId: digitalTwinUpdate.assetId,
 			description: sensorRef.description,
 			topicId,
 			payloadKey: sensorRef.payloadKey,
@@ -662,7 +662,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 		const sensorDashboarId = await createSensorDashboard(group, sensorData, sensorsUid);
 		const dashboardsInfo = await getDashboardsInfoFromIdArray([sensorDashboarId]);
 		const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
-		const sensor = await createNewSensor(sensorData, sensorDashboarId, dashboardsUrl[0], sensorsUid);
+		const sensor = await createNewSensor(assetId, sensorData, sensorDashboarId, dashboardsUrl[0], sensorsUid);
 		await createDigitalTwinSensor(digitalTwinId, sensor.id, sensorRef.sensorRef, topicId, true)
 	}
 }
@@ -822,7 +822,7 @@ export const createDigitalTwin = async (
 			} else {
 				const topicIndex = digitalTwinInput.topicsRef.findIndex(topicMap => topicMap.topicRef === sensorMap.topicRef);
 				const sensorData = {
-					assetId: asset.id,
+					assetId,
 					description: sensorMap.description,
 					topicId: topicSensors[topicIndex].id,
 					payloadKey: sensorMap.payloadKey,
@@ -836,7 +836,7 @@ export const createDigitalTwin = async (
 				const sensorDashboarId = await createSensorDashboard(group, sensorData, sensorsUid);
 				const dashboardsInfo = await getDashboardsInfoFromIdArray([sensorDashboarId]);
 				const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
-				const sensor = await createNewSensor(sensorData, sensorDashboarId, dashboardsUrl[0], sensorsUid);
+				const sensor = await createNewSensor(assetId, sensorData, sensorDashboarId, dashboardsUrl[0], sensorsUid);
 				sensors.push(sensor);
 				sensorDashboarsId.push(sensorDashboarId);
 			}

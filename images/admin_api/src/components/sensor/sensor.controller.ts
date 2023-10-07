@@ -95,7 +95,7 @@ class SensorController implements IController {
 				this.updateSensorByProp
 			)
 			.post(
-				`${this.path}/:groupId`,
+				`${this.path}/:groupId/:assetId`,
 				groupExists,
 				groupAdminAuth,
 				validationMiddleware<CreateSensorDto>(CreateSensorDto),
@@ -266,12 +266,13 @@ class SensorController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		try {
+			const assetId = parseInt(req.params.assetId, 10);
 			const sensorData: CreateSensorDto = req.body;
 			const sensorUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 			const dashboarId = await createSensorDashboard(req.group, sensorData, sensorUid);
 			const dashboardsInfo = await getDashboardsInfoFromIdArray([dashboarId]);
 			const dashboardsUrl = generateDashboardsUrl(dashboardsInfo)
-			await createNewSensor(sensorData, dashboarId, dashboardsUrl[0], sensorUid);
+			await createNewSensor(assetId, sensorData, dashboarId, dashboardsUrl[0], sensorUid);
 			const message = { message: `A new sensor has been created` };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);

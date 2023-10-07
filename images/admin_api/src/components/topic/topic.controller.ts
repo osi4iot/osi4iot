@@ -15,7 +15,19 @@ import { updateTopicUidRawSqlAlertSettingOfGroup } from "../group/alertDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import ITopic from "./topic.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
-import { changeTopicUidByUid, createTopic, deleteTopicById, getAllMobileTopics, getAllTopics, getMobileTopicsByGroupsIdArray, getTopicByProp, getTopicsByGroupId, getTopicsByGroupsIdArray, getTopicsByOrgId, updateTopicById } from "./topicDAL";
+import {
+	changeTopicUidByUid,
+	createTopic,
+	deleteTopicById,
+	getAllMobileTopics,
+	getAllTopics,
+	getMobileTopicsByGroupsIdArray,
+	getTopicByProp,
+	getTopicsByGroupId,
+	getTopicsByGroupsIdArray,
+	getTopicsByOrgId,
+	updateTopicById
+} from "./topicDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { updateMeasurementsTopicByTopic } from "../mesurement/measurementDAL";
 import IMobileTopic from "./mobileTopic.interface";
@@ -279,7 +291,7 @@ class TopicController implements IController {
 	): Promise<void> => {
 		try {
 			const topicData: CreateTopicDto = req.body;
-			const groupId =req.group.id;
+			const groupId = req.group.id;
 			await createTopic(groupId, topicData);
 			const message = { message: `A new topic has been created` };
 			infoLogger(req, res, 200, message.message);

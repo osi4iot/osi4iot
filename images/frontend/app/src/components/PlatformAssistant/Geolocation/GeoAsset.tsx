@@ -92,14 +92,17 @@ const GeoAsset: FC<GeoAssetProps> = ({
                 bounds={bounds as LatLngTuple[]}
                 outerBounds={outerBounds as LatLngTuple[]}
             />
-            <Tooltip sticky>
-                <span style={{ fontWeight: 'bold' }}>Asset</span><br />
-                Name: {`Asset_${assetData.assetUid}`}<br />
-                Type: {assetData.type}<br />
-                Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
-            </Tooltip>
             {
-                assetSelected &&
+                (!assetSelected || !(assetSelected?.id === assetData.id)) &&
+                <Tooltip sticky>
+                    <span style={{ fontWeight: 'bold' }}>Asset</span><br />
+                    Name: {`Asset_${assetData.assetUid}`}<br />
+                    Type: {assetData.type}<br />
+                    Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+                </Tooltip>
+            }
+            {
+                (assetSelected && assetSelected.id === assetData.id) &&
                 <GeoSensors
                     key={status}
                     assetSelected={assetSelected}

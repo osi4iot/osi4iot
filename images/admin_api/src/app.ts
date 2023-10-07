@@ -51,6 +51,7 @@ class App {
 		this.app.use(helmet());
 		this.app.use(compression());
 		this.app.use(cors());
+		this.app.set('trust proxy', true)
 		this.app.use(morgan(morganOption,
 			{
 				stream,

@@ -28,8 +28,8 @@ export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> =
 
 export const updateTopicById = async (topicId: number, topic: ITopic): Promise<void> => {
 	const query = `UPDATE grafanadb.topic SET topic_type = $1, description = $2,
-					payload_format = $3,  mqtt_access_control = $4, updated = NOW()
-					WHERE grafanadb.topic.id = $5;`;
+					mqtt_access_control = $3, updated = NOW()
+					WHERE grafanadb.topic.id = $4;`;
 	await pool.query(query, [
 		topic.topicType,
 		topic.description,

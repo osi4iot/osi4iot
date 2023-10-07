@@ -749,7 +749,6 @@ export const dataBaseInitialization = async () => {
 				const sensorsUid: string[] = [];
 				sensorsData[0] =
 				{
-					assetId: asset.id,
 					description: `Mobile geolocation`,
 					topicId: topics[0].id,
 					payloadKey: "mobile_geolocation",
@@ -763,7 +762,6 @@ export const dataBaseInitialization = async () => {
 
 				sensorsData[1] =
 				{
-					assetId: asset.id,
 					description: `Mobile accelerations`,
 					topicId: topics[1].id,
 					payloadKey: "mobile_accelerations",
@@ -777,7 +775,6 @@ export const dataBaseInitialization = async () => {
 
 				sensorsData[2] =
 				{
-					assetId: asset.id,
 					description: `Mobile orientation`,
 					topicId: topics[2].id,
 					payloadKey: "mobile_quaternion",
@@ -791,7 +788,6 @@ export const dataBaseInitialization = async () => {
 
 				sensorsData[3] =
 				{
-					assetId: asset.id,
 					description: `Mobile photo`,
 					topicId: topics[3].id,
 					payloadKey: "mobile_photo",
@@ -815,7 +811,7 @@ export const dataBaseInitialization = async () => {
 					const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
 					const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
 					for (let i = 0; i < 4; i++) {
-						sensors[i] = await createNewSensor(sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
+						sensors[i] = await createNewSensor(asset.id, sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
 					}
 					logger.log("info", `Default sensors for main group has been created sucessfully`);
 				} catch (err) {

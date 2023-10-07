@@ -2,9 +2,6 @@ import { IsNumber, IsString } from "class-validator";
 
 class CreateSensorDto {
 	@IsNumber()
-	public assetId: number;
-
-	@IsNumber()
 	public topicId: number;
 
 	@IsString()

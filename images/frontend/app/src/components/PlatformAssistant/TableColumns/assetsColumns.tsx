@@ -75,7 +75,7 @@ const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetI
     }, [isAssetDeleted, refreshAssets]);
 
     const action = (hideModal: () => void) => {
-        const url = `${protocol}://${domainName}/admin_api/asset/${groupId}/${assetId}`;
+        const url = `${protocol}://${domainName}/admin_api/asset/${groupId}/id/${assetId}`;
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
