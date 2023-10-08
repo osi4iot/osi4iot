@@ -320,6 +320,31 @@ const GroupsControl: FC<GroupsControlProps> = ({ groupSelected, selectGroupOptio
     )
 }
 
+interface AssetsControlProps {
+    assetSelected: IAsset | null;
+    selectAssetOption: () => void;
+}
+
+const AssetsControl: FC< AssetsControlProps> = ({ assetSelected, selectAssetOption }) => {
+
+    const clickHandler = () => {
+        selectAssetOption();
+    };
+
+    return (
+        <ComponentControlContainer>
+            <ComponentLabel>Asset:</ComponentLabel>
+            <ComponentSelection>
+                <ComponentName>
+                    {assetSelected ? `Asset_${assetSelected.assetUid}` : ""}
+                </ComponentName>
+                <SelectionButton onClick={clickHandler} >Select</SelectionButton>
+            </ComponentSelection>
+        </ComponentControlContainer>
+    )
+}
+
+
 interface MapEventProps {
     setNewOuterBounds: (outerBounds: number[][]) => void;
 }
@@ -375,7 +400,7 @@ interface MapProps {
     selectOrgOption: () => void;
     selectFloorOption: () => void;
     selectGroupOption: () => void;
-    selectDigitalTwinOption: () => void;
+    selectAssetOption: () => void;
     resetBuildingSelection: () => void;
     digitalTwinsState: IDigitalTwinState[];
     sensorsState: ISensorState[];
@@ -420,7 +445,7 @@ const Map: FC<MapProps> = (
         selectOrgOption,
         selectFloorOption,
         selectGroupOption,
-        selectDigitalTwinOption,
+        selectAssetOption,
         resetBuildingSelection,
         digitalTwinsState,
         sensorsState,
@@ -519,6 +544,13 @@ const Map: FC<MapProps> = (
                         <GroupsControl
                             groupSelected={groupSelected}
                             selectGroupOption={selectGroupOption}
+                        />
+                    }
+                                        {
+                        (buildingSelected && orgSelected && floorSelected && groupSelected) &&
+                        <AssetsControl
+                            assetSelected={assetSelected}
+                            selectAssetOption={selectAssetOption}
                         />
                     }
                 </ComponentsControlContainer>

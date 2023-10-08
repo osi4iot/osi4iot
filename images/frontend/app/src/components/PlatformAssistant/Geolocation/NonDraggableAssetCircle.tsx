@@ -9,7 +9,7 @@ import { AssetSvgImages } from './AssetSvgImages';
 
 
 const NORMAL = "#9c9a9a";
-const DEVICE_COLOR = "#e0e0dc";
+const ASSET_COLOR = "#e0e0dc";
 
 interface NonDraggableAssetCircleProps {
     asset: IAsset;
@@ -38,9 +38,10 @@ const NonDraggableAssetCircle: FC<NonDraggableAssetCircleProps> = ({ asset }) =>
                 assetId={asset.id}
                 assetType={asset.type}
                 assetSelected={null}
-                fillColor={"#555555"}
+                fillColor={ASSET_COLOR}
                 bounds={bounds as LatLngTuple[]}
                 outerBounds={outerBounds as LatLngTuple[]}
+                imageRef={null}
             />
         </>
     )

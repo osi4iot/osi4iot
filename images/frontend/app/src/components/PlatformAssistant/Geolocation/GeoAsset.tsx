@@ -10,8 +10,8 @@ import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 
-import { AssetSvgImages } from "./AssetSvgImages";
 import GeoSensors from "./GeoSensors";
+import { AssetSvgImages } from "./AssetSvgImages";
 
 
 interface GeoAssetProps {
@@ -65,6 +65,13 @@ const GeoAsset: FC<GeoAssetProps> = ({
     const outerBounds = useMemo(() => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.001), [assetData]);
     const bounds = useMemo(() => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.00045), [assetData]);
 
+    useEffect(() => {
+        if (assetSelected && assetSelected.id === assetData.id) {
+
+            map.fitBounds(outerBounds as LatLngTuple[]);
+        }
+    }, [assetData, assetSelected, outerBounds, map]);
+
     const clickHandler = () => {
         selectAsset(assetData);
         selectDigitalTwin(null);
@@ -91,6 +98,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 outerBounds={outerBounds as LatLngTuple[]}
+                imageRef={null}
             />
             {
                 (!assetSelected || !(assetSelected?.id === assetData.id)) &&

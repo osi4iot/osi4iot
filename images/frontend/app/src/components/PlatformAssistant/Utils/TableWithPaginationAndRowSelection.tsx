@@ -7,7 +7,12 @@ import { numericTextFilter } from "./NumericFilter";
 import { fuzzyTextFilterFn } from "./FuzzyTextFilter";
 
 
-const TableStyles = styled.div`
+interface TableStylesProps {
+    columnsWidth: string[];
+    columnsMaxWidth: string[];
+}
+
+const TableStyles = styled.div<TableStylesProps>`
   padding: 1rem;
   background-color: #202226;
 
@@ -42,33 +47,67 @@ const TableStyles = styled.div`
 
         tr td:nth-child(1),
         th td:nth-child(1) {
-            width: 50px;
-            min-width: 50px;
-            max-width: 100px;
-
-            div input[type=checkbox]:hover {
-                cursor: pointer;
-            }
+            width: "50px";
+            min-width: "50px";
+            max-width: "50px";
+            word-wrap: break-word;
         }
 
         tr td:nth-child(2),
         th td:nth-child(2) {
-            width: 100px;
-            min-width: 120px;
-            max-width: 150px;
+            width: ${(props) => props.columnsWidth[0]};
+            min-width: ${(props) => props.columnsWidth[0]};
+            max-width: ${(props) => props.columnsMaxWidth[0]};
+            word-wrap: break-word;
         }
 
         tr td:nth-child(3),
         th td:nth-child(3) {
-            width: auto;
-            min-width: 100px;
-            max-width: auto;
+            width: ${(props) => props.columnsWidth[1]};
+            min-width: ${(props) => props.columnsWidth[1]};
+            max-width: ${(props) => props.columnsMaxWidth[1]};
+            word-wrap: break-word;
         }
-           
+        
+        tr td:nth-child(4),
+        th td:nth-child(4) {
+            width: ${(props) => props.columnsWidth[2]};
+            min-width: ${(props) => props.columnsWidth[2]};
+            max-width: ${(props) => props.columnsMaxWidth[2]};
+            word-wrap: break-word;
+        }
 
-        th:nth-child(6) {
-            padding: 10px 0px 10px 10px;
+        tr td:nth-child(5),
+        th td:nth-child(5) {
+            width: ${(props) => props.columnsWidth[3]};
+            min-width: ${(props) => props.columnsWidth[3]};
+            max-width: ${(props) => props.columnsMaxWidth[3]};
+            word-wrap: break-word;
         }
+        
+        tr td:nth-child(6),
+        th td:nth-child(6) {
+            width: ${(props) => props.columnsWidth[4]};
+            min-width: ${(props) => props.columnsWidth[4]};
+            max-width: ${(props) => props.columnsMaxWidth[4]};
+            word-wrap: break-word;
+        }
+        
+        tr td:nth-child(7),
+        th td:nth-child(7) {
+            width: ${(props) => props.columnsWidth[5]};
+            min-width: ${(props) => props.columnsWidth[5]};
+            max-width: ${(props) => props.columnsMaxWidth[5]};
+            word-wrap: break-word;
+        }
+        
+        tr td:nth-child(8),
+        th td:nth-child(8) {
+            width: ${(props) => props.columnsWidth[6]};
+            min-width: ${(props) => props.columnsWidth[6]};
+            max-width: ${(props) => props.columnsMaxWidth[6]};
+            word-wrap: break-word;
+        }         
   }
 `
 
@@ -367,6 +406,25 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
     }) => {
     const columns = useMemo(() => columnsTable, [columnsTable]);
     const data = useMemo(() => dataTable, [dataTable]);
+
+    const columnsWidth = columnsTable.map((column, index) => {
+        if (typeof column.Header !== 'function') {
+            const headerName = (column.Header as string);
+            if (headerName.slice(-2) === "Id") return "100px";
+            else return "auto";
+        } else return "auto";
+    });
+
+    const columnsMaxWidth = columnsTable.map(column => {
+        if (typeof column.Header !== 'function') {
+            const headerName = (column.Header as string);
+            if (headerName === "Payload format") return "450px";
+            else if (headerName === "Refresh tokens") return "1200px";
+            else if (headerName === "Timestamp") return "400px";
+            else return "auto"
+        } else return "auto";
+    });
+
     let selectedRowId: ISelectedRow = {};
     if (!multipleSelection && selectedItem) {
         let rowId = -1;
@@ -549,7 +607,7 @@ const TableWithPaginationAndRowSelection: FC<TableProps<any>> = (
                 }
 
             </TableOptionsContainer>
-            <TableStyles >
+            <TableStyles columnsWidth={columnsWidth} columnsMaxWidth={columnsMaxWidth}>
                 <table {...getTableProps()}>
                     <thead>
                         {headerGroups.map(headerGroup => (

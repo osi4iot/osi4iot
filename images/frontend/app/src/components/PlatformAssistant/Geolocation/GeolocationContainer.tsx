@@ -16,6 +16,7 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';
+import SelectAsset from './SelectAsset';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -37,7 +38,6 @@ export const GEOLOCATION_OPTIONS = {
     SELECT_GROUP: "Select group",
     SELECT_ASSET: "Select asset",
     SELECT_SENSOR: "Select sensor",
-    SELECT_DIGITAL_TWIN: "Select digital twin",
 }
 
 const domainName = getDomainName();
@@ -205,9 +205,9 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
 
     }, 10000);
 
-    useCallback(() => {
-        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
-    }, []);
+    // useCallback(() => {
+    //     setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
+    // }, []);
 
     const backToMap = useCallback(() => {
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.MAP);
@@ -225,8 +225,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_GROUP);
     }, []);
 
-    const selectDigitalTwinOption = useCallback(() => {
-        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_DIGITAL_TWIN);
+    const selectAssetOption = useCallback(() => {
+        setGeolocationOptionToShow(GEOLOCATION_OPTIONS.SELECT_ASSET);
     }, []);
 
     const giveBuildingSelected = useCallback((buildingSelected: IBuilding) => {
@@ -244,6 +244,10 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
     const giveGroupManagedSelected = useCallback((groupSelected: IGroupManaged) => {
         selectGroup(groupSelected);
     }, [selectGroup]);
+
+    const giveAssetSelected = useCallback((assetSelected: IAsset) => {
+        selectAsset(assetSelected);
+    }, [selectAsset]);
 
 
     return (
@@ -284,7 +288,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     selectFloorOption={selectFloorOption}
                     selectOrgOption={selectOrgOption}
                     selectGroupOption={selectGroupOption}
-                    selectDigitalTwinOption={selectDigitalTwinOption}
+                    selectAssetOption={selectAssetOption}
                     resetBuildingSelection={resetBuildingSelection}
                     digitalTwinsState={digitalTwinsState}
                     sensorsState={sensorsState}
@@ -327,6 +331,22 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     groupSelected={groupSelected}
                     giveGroupManagedSelected={giveGroupManagedSelected}
                     assets={assets}
+                    digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
+                    sensorsState={sensorsState.filter(sensorState => sensorState.orgId === orgSelected.id)}
+                />
+            }
+
+            {(
+                geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_ASSET &&
+                orgSelected &&
+                floorSelected &&
+                groupSelected
+            ) &&
+                <SelectAsset
+                    groupId={(groupSelected as IGroupManaged).id}
+                    backToMap={backToMap}
+                    assetSelected={assetSelected}
+                    giveAssetSelected={giveAssetSelected}
                     digitalTwinsState={digitalTwinsState.filter(digitalTwin => digitalTwin.orgId === orgSelected.id)}
                     sensorsState={sensorsState.filter(sensorState => sensorState.orgId === orgSelected.id)}
                 />

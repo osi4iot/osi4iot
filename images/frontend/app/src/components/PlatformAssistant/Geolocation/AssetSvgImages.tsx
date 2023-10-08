@@ -1,11 +1,19 @@
 import { FC } from "react";
 import { LatLngTuple } from 'leaflet';
+import { SVGOverlay } from 'react-leaflet';
 import { IAsset } from "../TableColumns/assetsColumns";
-import { MobileAssetSvgImage } from "./MobileAssetImage";
-import { GenericAssetSvgImage } from "./GenericAssetSvgImage";
-import { WindTurbineAssetSvgImage } from "./WindTurbineAsset";
+import { AssetSVGOverlays } from "./svg_assets_overlay/AssetSVGOverlays";
 
+const SELECTED = "#3274d9";
+const NON_SELECTED = "#9c9a9a";
 
+export const setAssetCircleColor = (assetId: number, assetSelected: IAsset | null): string => {
+    let color = NON_SELECTED;
+    if (assetSelected && assetId === assetSelected.id) {
+        return SELECTED;
+    }
+    return color;
+}
 
 interface AssetSvgImagesProps {
     status: string,
@@ -15,6 +23,7 @@ interface AssetSvgImagesProps {
     fillColor: string;
     bounds: LatLngTuple[];
     outerBounds: LatLngTuple[];
+    imageRef: React.MutableRefObject<undefined> | null;
 }
 
 export const AssetSvgImages: FC<AssetSvgImagesProps> = ({
@@ -24,36 +33,27 @@ export const AssetSvgImages: FC<AssetSvgImagesProps> = ({
     assetSelected,
     fillColor,
     bounds,
-    outerBounds
+    outerBounds,
+    imageRef = null
 }) => {
-    switch (assetType) {
-        case 'mobile':
-            return <MobileAssetSvgImage
-                key={status}
-                assetId={assetId}
-                assetSelected={assetSelected as IAsset}
+    return (
+        <>
+            <SVGOverlay attributes={{ viewBox: "0 0 600 600", fill: fillColor }} bounds={outerBounds as LatLngTuple[]}>
+                <circle
+                    fill="#555555"
+                    stroke={setAssetCircleColor(assetId, assetSelected)}
+                    strokeWidth="5"
+                    cx="300"
+                    cy="300"
+                    r="290"
+                />
+            </SVGOverlay >
+            <AssetSVGOverlays
+                assetType={assetType}
                 fillColor={fillColor}
-                bounds={bounds as LatLngTuple[]}
-                outerBounds={outerBounds as LatLngTuple[]}
-            />;
-        case 'wind_turbine':
-            return <WindTurbineAssetSvgImage
-                key={status}
-                assetId={assetId}
-                assetSelected={assetSelected as IAsset}
-                fillColor={fillColor}
-                bounds={bounds as LatLngTuple[]}
-                outerBounds={outerBounds as LatLngTuple[]}
-            />;
-        // .. etc
-        default:
-            return <GenericAssetSvgImage
-                key={status}
-                assetId={assetId}
-                assetSelected={assetSelected as IAsset}
-                fillColor={fillColor}
-                bounds={bounds as LatLngTuple[]}
-                outerBounds={outerBounds as LatLngTuple[]}
-            />;
-    }
+                bounds={bounds}
+                imageRef={imageRef}
+            />
+        </>
+    )
 };

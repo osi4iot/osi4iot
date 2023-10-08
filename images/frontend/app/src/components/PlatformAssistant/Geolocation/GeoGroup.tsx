@@ -105,8 +105,14 @@ const GeoGroup: FC<GeoGroupProps> = (
     }
 
     useEffect(() => {
-        if (groupSelected && groupSelected.outerBounds) map.fitBounds(groupSelected.outerBounds as LatLngTuple[]);
-    }, [assetSelected, groupSelected, map]);
+        if (groupSelected &&
+            groupSelected.id === groupData.id &&
+            !assetSelected &&
+            groupSelected.outerBounds
+        ) {
+            map.fitBounds(groupSelected.outerBounds as LatLngTuple[]);
+        }
+    }, [groupSelected, groupData, assetSelected, map]);
 
     const clickHandler = () => {
         selectGroup(groupData);

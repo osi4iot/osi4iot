@@ -22,6 +22,7 @@ import { useGroupManagedInputFormData } from '../../../contexts/groupsManagedOpt
 import { IAsset } from '../TableColumns/assetsColumns';
 import { useAssetIdToEdit, useAssetInputData, useAssetsPreviousOption } from '../../../contexts/assetsOptions';
 import DraggableAssetCircle from './DraggableAssetCircle';
+import NonDraggableAssetCircle from './NonDraggableAssetCircle';
 
 
 const MapContainerStyled = styled(MapContainer)`
@@ -386,15 +387,14 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                                 setAssetDragging={(assetDragging: boolean) => setAssetDragging(assetDragging)}
                             />
                         )
-                    } else return null
-                    // else {
-                    //     return (
-                    //         <NonDraggableDeviceCircle
-                    //             key={asset.id}
-                    //             device={asset}
-                    //         />
-                    //     )
-                    // }
+                    } else {
+                        return (
+                            <NonDraggableAssetCircle
+                                key={asset.id}
+                                asset={asset}
+                            />
+                        )
+                    }
                 })
             }
             {
