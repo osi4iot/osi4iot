@@ -1,4 +1,4 @@
-import { FC, useState, SyntheticEvent } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
-import { ASSETS_OPTIONS } from '../Utils/platformAssistantOptions';
+import { ASSETS_OPTIONS, ASSETS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import {
@@ -16,6 +16,8 @@ import {
     setAssetGroupId,
     setAssetInputData,
     setAssetsOptionToShow,
+    setAssetsPreviousOption,
+    useAssetInputData,
     useAssetsDispatch
 } from '../../../contexts/assetsOptions';
 import { IAssetInputData } from '../../../contexts/assetsOptions/interfaces';
@@ -133,6 +135,17 @@ const assetTypeOptions = [
     },
 ];
 
+const geolocationModeOptions = [
+    {
+        label: "Static",
+        value: "static"
+    },
+    {
+        label: "Dynamic",
+        value: "dynamic"
+    }
+];
+
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -156,6 +169,12 @@ const CreateAsset: FC<CreateAssetProps> = ({
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const assetsDispatch = useAssetsDispatch();
+    const initialAssetData = useAssetInputData();
+
+    useEffect(() => {
+        const assetsPreviousOption = { assetsPreviousOption: ASSETS_PREVIOUS_OPTIONS.CREATE_ASSET };
+        setAssetsPreviousOption(assetsDispatch, assetsPreviousOption)
+    }, [assetsDispatch])
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
@@ -168,6 +187,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
             iconRadio: values.iconRadio,
             longitude: values.longitude,
             latitude: values.latitude,
+            geolocationMode: "static"
         }
 
         setIsSubmitting(true);
@@ -179,23 +199,14 @@ const CreateAsset: FC<CreateAssetProps> = ({
                 const assetsOptionToShow = { assetsOptionToShow: ASSETS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setAssetsOptionToShow(assetsDispatch, assetsOptionToShow);
-                refreshAssets();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
-    }
-
-
-    const initialAssetData = {
-        groupId: "",
-        assetType: "generic",
-        assetUid: "",
-        description: "",
-        iconRadio: 1.0,
-        longitude: 0.0,
-        latitude: 0.0,
+            .finally(() => {
+                refreshAssets();
+            })
     }
 
     const validationSchema = Yup.object().shape({
@@ -220,20 +231,25 @@ const CreateAsset: FC<CreateAssetProps> = ({
             const warningMessage = "The groupId indicated not exists or not corresponds to a group managed by the user."
             toast.warning(warningMessage);
         } else {
-            const assetInputFormData = { assetInputFormData: assetInputData };
-            setAssetInputData(assetsDispatch, assetInputFormData);
-            const assetGroupId = { assetGroupId: groupId };
-            setAssetGroupId(assetsDispatch, assetGroupId);
-            const buildingId = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0].buildingId;
-            const assetBuildingId = { assetBuildingId: buildingId };
-            setAssetBuildingId(assetsDispatch, assetBuildingId);
-            selectLocationOption();
+            if (group.featureIndex === 0) {
+                const warningMessage = "The group containing the asset does not have a defined space."
+                toast.warning(warningMessage);
+            } else {
+                const assetInputFormData = { assetInputFormData: assetInputData };
+                setAssetInputData(assetsDispatch, assetInputFormData);
+                const assetGroupId = { assetGroupId: groupId };
+                setAssetGroupId(assetsDispatch, assetGroupId);
+                const buildingId = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0].buildingId;
+                const assetBuildingId = { assetBuildingId: buildingId };
+                setAssetBuildingId(assetsDispatch, assetBuildingId);
+                selectLocationOption();
+            }
         }
     };
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting}>Create topic</FormTitle>
+            <FormTitle isSubmitting={isSubmitting}>Create asset</FormTitle>
             <FormContainer>
                 <Formik initialValues={initialAssetData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
@@ -277,6 +293,13 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                             control='input'
                                             label='Icon ratio'
                                             name='iconRadio'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='select'
+                                            label='Geolocation mode'
+                                            name='geolocationMode'
+                                            options={geolocationModeOptions}
                                             type='text'
                                         />
                                         <SelectAssetLocationDivButtonContainer >

@@ -38,6 +38,7 @@ import {
 	removeFilesFromBucketFolder,
 	checkMaxNumberOfFemResFiles,
 	checkNumberOfGltfFiles,
+	ITopicRef,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -397,15 +398,19 @@ class DigitalTwinController implements IController {
 			const asset = req.asset;
 			const group = req.group;
 
-			let response: { message: string, digitalTwinId: number, topicSensors: { id: number; topicName: string }[] };
+			let response: {
+				message: string,
+				digitalTwinId: number,
+				topicsRef: ITopicRef[]
+			};
 			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid)
 			if (!existDigitalTwin) {
-				const { digitalTwin, topicSensors } = await createDigitalTwin(group, asset, digitalTwinData);
+				const { digitalTwin, topicsRef } = await createDigitalTwin(group, asset, digitalTwinData);
 				if (digitalTwin) {
 					response = {
 						message: `A new digital twin has been created`,
 						digitalTwinId: digitalTwin.id,
-						topicSensors: topicSensors.map(topicSensor => { return { id: topicSensor.id, topicName: topicSensor.topicName } })
+						topicsRef
 					};
 				} else {
 					throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");

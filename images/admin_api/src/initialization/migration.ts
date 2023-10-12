@@ -425,6 +425,7 @@ export const dataBaseInitialization = async () => {
 					asset_uid VARCHAR(40) UNIQUE,
 					description VARCHAR(190),
 					geolocation POINT,
+					geolocation_mode VARCHAR(40) NOT NULL DEFAULT 'static',
 					type VARCHAR(40),
 					icon_radio real NOT NULL DEFAULT 1.0,
 					created TIMESTAMPTZ,
@@ -453,6 +454,7 @@ export const dataBaseInitialization = async () => {
 						iconRadio: 1.0,
 						longitude: 0.0,
 						latitude: 0.0,
+						geolocationMode: "dynamic"
 					}
 					asset = await createNewAsset(group, defaultAssetData);
 					logger.log("info", `Default asset for main group has been created sucessfully`);
@@ -495,6 +497,7 @@ export const dataBaseInitialization = async () => {
 					asset_id bigint,
 					sensor_uid VARCHAR(40) UNIQUE,
 					topic_id bigint,
+					type VARCHAR(40),
 					description VARCHAR(190),
 					payload_key VARCHAR(40),
 					param_label VARCHAR(40),
@@ -572,7 +575,7 @@ export const dataBaseInitialization = async () => {
 				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinTopic}(
 					digital_twin_id bigint,
 					topic_id bigint,
-					topic_type VARCHAR(40),
+					topic_ref VARCHAR(40),
 					already_created boolean NOT NULL DEFAULT FALSE,
 					CONSTRAINT fk_digital_twin_id
 						FOREIGN KEY(digital_twin_id)
@@ -729,6 +732,11 @@ export const dataBaseInitialization = async () => {
 							mqttAccessControl: "Pub & Sub"
 						},
 						{
+							topicType: "dev2pdb_wt",
+							description: `Mobile motion topic`,
+							mqttAccessControl: "Pub & Sub"
+						},
+						{
 							topicType: "dev2dtm",
 							description: `Mobile photo topic`,
 							mqttAccessControl: "Pub & Sub"
@@ -751,6 +759,7 @@ export const dataBaseInitialization = async () => {
 				{
 					description: `Mobile geolocation`,
 					topicId: topics[0].id,
+					type: "geolocation",
 					payloadKey: "mobile_geolocation",
 					paramLabel: "longitude,latitude",
 					valueType: "number(2)",
@@ -764,6 +773,7 @@ export const dataBaseInitialization = async () => {
 				{
 					description: `Mobile accelerations`,
 					topicId: topics[1].id,
+					type: "accelerometer",
 					payloadKey: "mobile_accelerations",
 					paramLabel: "ax,ay,az",
 					valueType: "number(3)",
@@ -777,6 +787,7 @@ export const dataBaseInitialization = async () => {
 				{
 					description: `Mobile orientation`,
 					topicId: topics[2].id,
+					type: "quaternion",
 					payloadKey: "mobile_quaternion",
 					paramLabel: "q0,q1,q2,q3",
 					valueType: "number(4)",
@@ -788,8 +799,23 @@ export const dataBaseInitialization = async () => {
 
 				sensorsData[3] =
 				{
-					description: `Mobile photo`,
+					description: `Mobile motion`,
 					topicId: topics[3].id,
+					type: "mobile_motion",
+					payloadKey: "mobile_motion",
+					paramLabel: "ax,ay,az,q0,q1,q2,q3",
+					valueType: "number(7)",
+					units: "-",
+					dashboardRefresh: "200ms",
+					dashboardTimeWindow: "25s"
+				};
+				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+
+				sensorsData[4] =
+				{
+					description: `Mobile photo`,
+					topicId: topics[4].id,
+					type: "photo_camera",
 					payloadKey: "mobile_photo",
 					paramLabel: "mobile_photo",
 					valueType: "string",
@@ -797,10 +823,10 @@ export const dataBaseInitialization = async () => {
 					dashboardRefresh: "1s",
 					dashboardTimeWindow: "5m"
 				};
-				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+				sensorsUid[4] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
 				try {
-					for (let i = 0; i < 4; i++) {
+					for (let i = 0; i < 5; i++) {
 						dashboarsId[i] = await createSensorDashboard(group, sensorsData[i], sensorsUid[i]);
 					}
 				} catch (err) {
@@ -810,7 +836,7 @@ export const dataBaseInitialization = async () => {
 				try {
 					const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
 					const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
-					for (let i = 0; i < 4; i++) {
+					for (let i = 0; i < 5; i++) {
 						sensors[i] = await createNewSensor(asset.id, sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
 					}
 					logger.log("info", `Default sensors for main group has been created sucessfully`);

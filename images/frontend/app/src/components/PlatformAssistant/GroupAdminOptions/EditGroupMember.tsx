@@ -117,13 +117,15 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupM
                 toast.success(data.message);
                 setIsSubmitting(false);
                 setGroupMembersOptionToShow(groupMembersDispatch, { groupMembersOptionToShow: GROUP_MEMBERS_OPTIONS.TABLE });
-                refreshGroupMembers();
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshGroupMembers();
             })
     }
 

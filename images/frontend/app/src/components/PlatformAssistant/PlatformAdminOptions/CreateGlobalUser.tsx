@@ -109,11 +109,13 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
                 const data = response.data;
                 toast.success(data.message);
                 backToTable();
-                refreshGlobalUsers();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshGlobalUsers();
             })
     }
 

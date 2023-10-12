@@ -12,13 +12,14 @@ export const initialState = {
     assetBuildingId: 0,
     assetGroupId: 0,
     assetInputFormData: {
-        groupId: 0,
+        groupId: 1,
         description: "",
-        assetType: "Generic",
+        assetType: "generic",
         assetUid: "",
         iconRadio: 1.0,
         longitude: 0,
         latitude: 0,
+        geolocationMode: "static"
     }
 };
 

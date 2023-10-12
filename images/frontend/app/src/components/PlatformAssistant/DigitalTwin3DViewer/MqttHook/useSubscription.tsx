@@ -123,11 +123,11 @@ const updateObjectsState = (
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
 ) => {
     const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
-    const sim2dtmTopicId = mqttTopicsData.filter(topic => topic.topicType === "sim2dtm")[0].topicId;
-    const dev2simTopicId = mqttTopicsData.filter(topic => topic.topicType === "dev2sim")[0].topicId;
+    const sim2dtmTopicId = mqttTopicsData.filter(topic => topic.topicRef === "sim2dtm")[0].topicId;
+    const dev2simTopicId = mqttTopicsData.filter(topic => topic.topicRef === "dev2sim")[0].topicId;
     const mqttTopicIndex = mqttTopics.findIndex(topic => topic === recievedMessage.topic);
     const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
-    const messageTopicType = mqttTopicsData[mqttTopicIndex].topicType;
+    const messageTopicType = mqttTopicsData[mqttTopicIndex].topicRef;
     let mqttMessage: any;
     try {
         mqttMessage = JSON.parse(recievedMessage.message as string);
@@ -142,7 +142,7 @@ const updateObjectsState = (
             let isfemSimulationObjectsStateChanged = false;
             const femSimulationObjectsNewState = [...femSimulationObjectsState];
 
-            if ((messageTopicType === "dev2pdb" && !digitalTwinSimulatorSendData) ||
+            if ((messageTopicType.slice(0,7) === "dev2pdb" && !digitalTwinSimulatorSendData) ||
                 messageTopicType === "dev2sim" || messageTopicType === "sim2dtm"
             ) {
                 sensorObjects.forEach((obj) => {

@@ -206,13 +206,18 @@ const EditGroup: FC<EditGroupProps> = ({
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
             .then((response) => {
+                setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
-                setIsSubmitting(false);
                 setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
+            })
+            .catch((error) => {
+                axiosErrorHandler(error, authDispatch);
+                backToTable();
+            })
+            .finally(() => {
                 refreshGroups();
-
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
                 const reloadAssetsTable = true;
@@ -223,10 +228,6 @@ const EditGroup: FC<EditGroupProps> = ({
                 setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-            })
-            .catch((error) => {
-                axiosErrorHandler(error, authDispatch);
-                backToTable();
             })
     }
 

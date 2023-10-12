@@ -177,7 +177,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [selectOrgUsersLoading, setSelectOrgUsersLoading] = useState(true);
 
     const [reloadBuildings, setReloadBuildings] = useState(false);
-    const [reloadFloors, setReloadloors] = useState(false);
+    const [reloadFloors, setReloadFloors] = useState(false);
     const reloadGroupsManagedTable = useReloadGroupsManagedTable();
     const reloadGroupMembersTable = useReloadGroupMembersTable();
     const reloadAssetsTable = useReloadAssetsTable();
@@ -245,9 +245,9 @@ const GroupAdminOptions: FC<{}> = () => {
     }, []);
 
     const refreshFloors = useCallback(() => {
-        setReloadloors(true);
+        setReloadFloors(true);
         setFloorsLoading(true);
-        setTimeout(() => setReloadloors(false), 500);
+        setTimeout(() => setReloadFloors(false), 500);
     }, []);
 
     useEffect(() => {

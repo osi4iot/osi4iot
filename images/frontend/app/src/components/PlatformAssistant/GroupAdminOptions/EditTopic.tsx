@@ -128,11 +128,13 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                 const topicsOptionToShow = { topicsOptionToShow: TOPICS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setTopicsOptionToShow(topicsDispatch, topicsOptionToShow);
-                refreshTopics();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshTopics();
             })
     }
 

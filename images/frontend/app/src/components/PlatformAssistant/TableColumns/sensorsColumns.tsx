@@ -30,6 +30,7 @@ export interface ISensor {
     groupId: number;
     assetId: number;
     sensorUid: string;
+    type: string;
     description: string;
     topicId: string;
     payloadKey: string;
@@ -73,8 +74,14 @@ const DeleteSensorModal: FC<DeleteSensorModalProps> = ({ rowIndex, groupId, sens
     useEffect(() => {
         if (isSensorDeleted) {
             refreshSensors();
+            const reloadSensorsTable = true;
+            setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+            const reloadTopicsTable = true;
+            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+            const reloadDashboardsTable = true;
+            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
         }
-    }, [isSensorDeleted, refreshSensors]);
+    }, [isSensorDeleted, plaformAssistantDispatch, refreshSensors]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}/id/${sensorId}`;
@@ -84,14 +91,6 @@ const DeleteSensorModal: FC<DeleteSensorModalProps> = ({ rowIndex, groupId, sens
             .then((response) => {
                 setIsSensorDeleted(true);
                 setIsSubmitting(false);
-
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
@@ -164,6 +163,11 @@ export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISens
         {
             Header: "SensorUid",
             accessor: "sensorUid",
+            filter: 'equals'
+        },
+        {
+            Header: "Type",
+            accessor: "type",
             filter: 'equals'
         },
         {

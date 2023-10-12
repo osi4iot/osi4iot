@@ -9,10 +9,10 @@ export const sensorName = (assetName: string, sensorType: string): string => {
 
 export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
 	const queryString = `INSERT INTO grafanadb.sensor (asset_id,
-		sensor_uid, description, topic_id, payload_key, 
+		sensor_uid, description, type, topic_id, payload_key, 
 		param_label, value_type, units, dashboard_id, dashboard_url,
 		created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 		RETURNING  id, sensor_uid AS "sensorUid",
 		description, topic_id AS "topicId", payload_key AS "payloadKey",
 		param_label AS "paramLabel", value_type AS "valueType", units,
@@ -24,6 +24,7 @@ export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
 			sensorData.assetId,
 			sensorData.sensorUid,
 			sensorData.description,
+			sensorData.type,
 			sensorData.topicId,
 			sensorData.payloadKey,
 			sensorData.paramLabel,
@@ -37,12 +38,13 @@ export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
 
 export const updateSensorByPropName = async (propName: string, propValue: (string | number), sensor: ISensor): Promise<void> => {
 	const query = `UPDATE grafanadb.sensor SET description = $1,
-				topic_id = $2, payload_key = $3,
-				param_label = $4, value_type = $5,
-				units = $6, updated = NOW()
-				WHERE grafanadb.asset.${propName} = $7;`;
+				type = $2, topic_id = $3, payload_key = $4,
+				param_label = $5, value_type = $6,
+				units = $7, updated = NOW()
+				WHERE grafanadb.asset.${propName} = $8;`;
 	await pool.query(query, [
 		sensor.description,
+		sensor.type,
 		sensor.topicId,
 		sensor.payloadKey,
 		sensor.paramLabel,
@@ -76,6 +78,7 @@ export const getSensorByPropName = async (propName: string, propValue: (string |
 	const response = await pool.query(`SELECT grafanadb.sensor.id, grafanadb.group.org_id AS "orgId",
 	                                grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
+									grafanadb.sensor.type,
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.sensor.payload_key AS "payloadKey",
@@ -96,6 +99,7 @@ export const getAllSensors = async (): Promise<ISensor[]> => {
 	const response = await pool.query(`SELECT grafanadb.sensor.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
+									grafanadb.sensor.type,
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.sensor.payload_key AS "payloadKey",
@@ -121,6 +125,7 @@ export const getSensorsByGroupId = async (groupId: number): Promise<ISensor[]> =
 	const response = await pool.query(`SELECT grafanadb.sensor.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
+									grafanadb.sensor.type,
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.sensor.payload_key AS "payloadKey",
@@ -142,6 +147,7 @@ export const getSensorsByAssetId = async (assetId: number): Promise<ISensor[]> =
 	const response = await pool.query(`SELECT grafanadb.sensor.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
+									grafanadb.sensor.type,
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.sensor.payload_key AS "payloadKey",
@@ -163,6 +169,7 @@ export const getSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promis
 	const response = await pool.query(`SELECT grafanadb.sensor.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
+									grafanadb.sensor.type,
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.sensor.payload_key AS "payloadKey",
@@ -192,6 +199,7 @@ export const getSensorsByOrgId = async (orgId: number): Promise<ISensor[]> => {
 	const response = await pool.query(`SELECT grafanadb.sensor.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
+									grafanadb.sensor.type,
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.sensor.payload_key AS "payloadKey",

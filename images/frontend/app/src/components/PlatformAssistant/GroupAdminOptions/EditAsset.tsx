@@ -21,6 +21,7 @@ import {
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 
 
 const FormContainer = styled.div`
@@ -149,6 +150,7 @@ const protocol = getProtocol();
 
 interface EditAssetProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
+    groupsManaged: IGroupManaged[];
     assets: IAsset[];
     backToTable: () => void;
     selectLocationOption: () => void;
@@ -157,6 +159,7 @@ interface EditAssetProps {
 
 const EditAsset: FC<EditAssetProps> = ({
     orgsOfGroupManaged,
+    groupsManaged,
     assets,
     backToTable,
     selectLocationOption,
@@ -211,11 +214,13 @@ const EditAsset: FC<EditAssetProps> = ({
                 const assetsOptionToShow = { assetsOptionToShow: ASSETS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setAssetsOptionToShow(assetsDispatch, assetsOptionToShow);
-                refreshAssets();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshAssets();
             })
     }
 
@@ -235,17 +240,23 @@ const EditAsset: FC<EditAssetProps> = ({
     };
 
     const selectLocation = (assetInputData: IAssetInputData) => {
-        assetInputData.iconRadio = parseFloat(assetInputData.iconRadio as unknown as string);
-        const orgId = assets[assetRowIndex].orgId;
-        const assetInputFormData = { assetInputFormData: assetInputData };
-        setAssetInputData(assetsDispatch, assetInputFormData);
-        const buildingId = orgsOfGroupManaged.filter(org => org.id === orgId)[0].buildingId;
-        const assetBuildingId = { assetBuildingId: buildingId };
-        setAssetBuildingId(assetsDispatch, assetBuildingId);
         const groupId = assets[assetRowIndex].groupId;
-        const assetGroupId = { assetGroupId: groupId };
-        setAssetGroupId(assetsDispatch, assetGroupId);
-        selectLocationOption();
+        const group = groupsManaged.filter(group => group.id === groupId)[0];
+        if (group.featureIndex === 0) {
+            const warningMessage = "The group containing the asset does not have a defined space."
+            toast.warning(warningMessage);
+        } else {
+            assetInputData.iconRadio = parseFloat(assetInputData.iconRadio as unknown as string);
+            const orgId = assets[assetRowIndex].orgId;
+            const assetInputFormData = { assetInputFormData: assetInputData };
+            setAssetInputData(assetsDispatch, assetInputFormData);
+            const buildingId = orgsOfGroupManaged.filter(org => org.id === orgId)[0].buildingId;
+            const assetBuildingId = { assetBuildingId: buildingId };
+            setAssetBuildingId(assetsDispatch, assetBuildingId);
+            const assetGroupId = { assetGroupId: groupId };
+            setAssetGroupId(assetsDispatch, assetGroupId);
+            selectLocationOption();
+        }
     }
 
     return (

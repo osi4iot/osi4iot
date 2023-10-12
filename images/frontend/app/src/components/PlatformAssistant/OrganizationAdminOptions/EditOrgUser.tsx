@@ -1,9 +1,9 @@
-import { FC, SyntheticEvent,useState } from 'react';
+import { FC, SyntheticEvent, useState } from 'react';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth,getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -124,6 +124,12 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
                 toast.success(data.message);
                 setIsSubmitting(false);
                 setOrgUsersOptionToShow(orgsUsersDispatch, { orgUsersOptionToShow: ORG_USERS_OPTIONS.TABLE });
+            })
+            .catch((error) => {
+                axiosErrorHandler(error, authDispatch);
+                backToTable();
+            })
+            .finally(() => {
                 refreshOrgUsers();
                 const reloadSelectOrgUsersTable = true;
                 setReloadSelectOrgUsersTable(plaformAssistantDispatch, { reloadSelectOrgUsersTable });
@@ -132,11 +138,7 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
                 const reloadOrgsMembershipTable = true;
                 setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
                 const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });                
-            })
-            .catch((error) => {
-                axiosErrorHandler(error, authDispatch);
-                backToTable();
+                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
     }
 
@@ -160,16 +162,16 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
                                     </FieldContainer>
                                     <FieldContainer>
                                         <label>Surname</label>
-                                        <div>{orgUsers[orgsUsersRowIndex].surname  || ""}</div>
-                                    </FieldContainer>                                    
+                                        <div>{orgUsers[orgsUsersRowIndex].surname || ""}</div>
+                                    </FieldContainer>
                                     <FieldContainer>
                                         <label>Email</label>
                                         <div>{orgUsers[orgsUsersRowIndex].email}</div>
-                                    </FieldContainer>  
+                                    </FieldContainer>
                                     <FieldContainer>
                                         <label>Username</label>
                                         <div>{orgUsers[orgsUsersRowIndex].login}</div>
-                                    </FieldContainer> 
+                                    </FieldContainer>
                                     <FormikControl
                                         control='select'
                                         label='Role in org'

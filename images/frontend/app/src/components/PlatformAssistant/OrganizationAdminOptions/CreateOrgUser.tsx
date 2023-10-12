@@ -164,6 +164,12 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
                 const data = response.data;
                 toast.success(data.message);
                 backToTable();
+            })
+            .catch((error) => {
+                axiosErrorHandler(error, authDispatch);
+                backToTable();
+            })
+            .finally(() => {
                 refreshOrgUsers();
                 const reloadSelectOrgUsersTable = true;
                 setReloadSelectOrgUsersTable(plaformAssistantDispatch, { reloadSelectOrgUsersTable });
@@ -173,10 +179,6 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
                 setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-            })
-            .catch((error) => {
-                axiosErrorHandler(error, authDispatch);
-                backToTable();
             })
     }
 

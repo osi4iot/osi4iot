@@ -261,14 +261,14 @@ export const getTopicInfoForMqttAclByTopicUid = async (topicUid: string): Promis
 									grafanadb.group.org_id AS "orgId",
 									grafanadb.topic.group_id AS "groupId",
 									grafanadb.topic.topic_type AS "topicType", 
-									grafanadb.topic.mqtt_access_control AS "topicAccessControl",,
+									grafanadb.topic.mqtt_access_control AS "topicAccessControl",
 									grafanadb.group.mqtt_access_control AS "groupAccessControl",
 									grafanadb.org.mqtt_access_control AS "orgAccessControl",
 									grafanadb.group.group_uid AS "groupHash",
 									grafanadb.topic.topic_uid AS "topicHash", 
 									grafanadb.group.team_id AS "teamId"
 									FROM grafanadb.topic
-									INNER JOIN grafanadb.group ON grafanadb.topioc.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 									WHERE grafanadb.topic.topic_uid = $1`, [topicUid]);
 	return response.rows[0] as ITopicInfoForMqttAcl;

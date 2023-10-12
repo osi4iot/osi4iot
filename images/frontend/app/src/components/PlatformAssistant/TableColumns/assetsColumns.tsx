@@ -36,6 +36,7 @@ export interface IAsset {
     iconRadio: number;
     latitude: number;
     longitude: number;
+    geolocationMode: string;
 }
 
 
@@ -71,8 +72,14 @@ const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetI
     useEffect(() => {
         if (isAssetDeleted) {
             refreshAssets();
+            const reloadSensorsTable = true;
+            setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+            const reloadTopicsTable = true;
+            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+            const reloadDashboardsTable = true;
+            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
         }
-    }, [isAssetDeleted, refreshAssets]);
+    }, [isAssetDeleted, plaformAssistantDispatch, refreshAssets]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/asset/${groupId}/id/${assetId}`;
@@ -82,14 +89,6 @@ const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetI
             .then((response) => {
                 setIsAssetDeleted(true);
                 setIsSubmitting(false);
-
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
@@ -170,8 +169,6 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
         {
             Header: "Type",
             accessor: "type",
-            disableFilters: true,
-            disableSortBy: true
         },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Icon<br />radio</div>,
@@ -191,6 +188,11 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
             disableFilters: true,
             disableSortBy: true
         },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Geolocation<br />mode</div>,
+            accessor: "geolocationMode",
+            disableFilters: true,
+        },        
         {
             Header: "",
             accessor: "edit",

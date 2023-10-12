@@ -8,6 +8,7 @@ export default interface IAsset {
 	iconRadio: number;
 	longitude: number;
 	latitude: number;
+	geolocationMode: string;
 	created?: string;
 	updated?: string;
 }

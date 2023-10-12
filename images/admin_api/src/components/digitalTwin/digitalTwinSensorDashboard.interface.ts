@@ -1,5 +1,6 @@
 export default interface IDigitalTwinSensorDashboard {
-	digitalTwinId: number;
+	sensorRef: string;
 	sensorId: number;
 	dashboardId: number;
+	dashboardUrl: string;
 }

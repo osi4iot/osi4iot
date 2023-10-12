@@ -86,7 +86,6 @@ const GeoSensors: FC<GeoSensorsProps> = ({
         }
     }
 
-
     return (
         <LayerGroup>
             {digitalTwin &&
@@ -102,22 +101,23 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                 />
             }
             {
-                <GeoFordwardAndBackwardSensor
-                    clickHandler={backwardButtonClickHandler}
-                    posAngle={32}
-                    iconAngle={48}
-                    assetData={assetSelected}
-                    buttonActive={backwardButtonState}
-                />
-            }
-            {
-                <GeoFordwardAndBackwardSensor
-                    clickHandler={fordwardButtonClickHandler}
-                    posAngle={328}
-                    iconAngle={138}
-                    assetData={assetSelected}
-                    buttonActive={fordwardButtonState}
-                />
+                arrayLength > 10 &&
+                <>
+                    <GeoFordwardAndBackwardSensor
+                        clickHandler={backwardButtonClickHandler}
+                        posAngle={32}
+                        iconAngle={48}
+                        assetData={assetSelected}
+                        buttonActive={backwardButtonState}
+                    />
+                    <GeoFordwardAndBackwardSensor
+                        clickHandler={fordwardButtonClickHandler}
+                        posAngle={328}
+                        iconAngle={138}
+                        assetData={assetSelected}
+                        buttonActive={fordwardButtonState}
+                    />
+                </>
             }
             {
                 sensorsArray.map((sensor: ISensor, index: number) =>

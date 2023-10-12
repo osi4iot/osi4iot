@@ -4,6 +4,7 @@ export default interface ISensor {
 	groupId?: number;
 	assetId: number;
 	sensorUid: string;
+	type: string;
 	description: string;
 	topicId: number;
 	payloadKey: string;

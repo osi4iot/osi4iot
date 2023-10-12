@@ -45,7 +45,9 @@ const GeoSensor: FC<GeoSensorProps> = ({
     selectDigitalTwin,
     sensorsState
 }) => {
-    const angle = 350 * (sensorIndex + 1) / 13 + 32;
+    const arrayLength = parseInt(sensorLabel.split("/")[1], 10)
+    const initialAngle = arrayLength > 10 ? 32.0 : 5.0;
+    const angle = 350 * (sensorIndex + 1) / 13 + initialAngle;
     const positionRadius = 0.00076 * assetData.iconRadio;
     const [centerLongitude, centerLatitude] = calcGeoPointPosition(assetData.longitude, assetData.latitude, positionRadius, angle);
     const [status, setStatus] = useState("unknown");
@@ -105,7 +107,9 @@ const GeoSensor: FC<GeoSensorProps> = ({
             <Tooltip sticky>
                 <span style={{ fontWeight: 'bold' }}>Sensor</span><br />
                 Name: {`Sensor_${sensorData.sensorUid}`}<br />
+                Type: {sensorData.type}<br />
                 Description: {sensorData.description}<br />
+                Recieve data from topicId: {sensorData.topicId}<br />
                 Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
             </Tooltip>
         </Circle >

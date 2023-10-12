@@ -157,13 +157,15 @@ const CreateGroupMember: FC<CreateGroupMemberProps> = ({ refreshGroupMembers, ba
                 const data = response.data;
                 toast.success(data.message);
                 backToTable();
-                refreshGroupMembers();
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshGroupMembers();
             })
     }
 

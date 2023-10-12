@@ -171,11 +171,13 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
                 const floorsOptionToShow = { floorsOptionToShow: FLOORS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setFloorsOptionToShow(floorsDispatch, floorsOptionToShow);
-                refreshFloors();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshFloors();
             })
     }
 

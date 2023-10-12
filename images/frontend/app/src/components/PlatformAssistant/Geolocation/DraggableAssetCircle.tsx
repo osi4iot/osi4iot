@@ -60,7 +60,9 @@ const DraggableAssetCircle: FC<DraggableAssetCircleProps> = ({
     const map = useMap();
     const imageRef = useRef();
 
-    const [bounds, setBounds] = useState(calcGeoBounds((assetPosition as number[])[1], (assetPosition as number[])[0], assetRadio * 0.0004));
+    const [bounds, setBounds] = useState(
+        calcGeoBounds((assetPosition as number[])[1], (assetPosition as number[])[0], assetRadio * 0.0004)
+    );
 
     const evenstHandlerCircle = useMemo(
         () => ({

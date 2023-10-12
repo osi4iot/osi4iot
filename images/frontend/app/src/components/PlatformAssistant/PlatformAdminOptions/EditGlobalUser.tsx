@@ -78,11 +78,13 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
                 const globalUsersOptionToShow = { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setGlobalUsersOptionToShow(globalUserDispatch, globalUsersOptionToShow);
-                refreshGlobalUsers();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshGlobalUsers();
             })
     }
 

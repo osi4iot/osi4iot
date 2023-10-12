@@ -91,10 +91,9 @@ export const getPlatformAssistantPathForUserRole = (userRole: string) => {
 }
 
 
-export const digitalTwinFormatValidation = (value: any) => {
+export const digitalTwinFormatValidation = (obj: any) => {
     let output = false;
     try {
-        const obj = JSON.parse(value);
         const keys = Object.keys(obj);
         if (keys.length === 0) {
             output = true;
@@ -150,6 +149,17 @@ export interface IMeshNode {
         clipFieldName: string;
         clipMaxValue: number;
         clipMinValue: number;
+        sensorRef: string;
+        sensorId: number;
+        topicRef: string;
+        description: string;
+        payloadKey: string;
+        paramLabel: string;
+        valueType: string;
+        units: string;
+        dashboardRefresh: string;
+        dashboardTimeWindow: string;
+        topicId: number;
     };
 }
 

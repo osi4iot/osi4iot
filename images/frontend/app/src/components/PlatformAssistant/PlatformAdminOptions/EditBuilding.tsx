@@ -179,11 +179,13 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
                 const buildingsOptionToShow = { buildingsOptionToShow: BUILDINGS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setBuildingsOptionToShow(buildingsDispatch, buildingsOptionToShow);
-                refreshBuildings();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshBuildings();
             })
     }
 

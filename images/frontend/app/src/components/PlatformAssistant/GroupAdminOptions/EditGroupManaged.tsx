@@ -232,11 +232,13 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({
                 const groupsManagedOptionToShow = { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setGroupsManagedOptionToShow(groupsManagedDispatch, groupsManagedOptionToShow);
-                refreshGroupsManaged();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshGroupsManaged();
             })
     }
 

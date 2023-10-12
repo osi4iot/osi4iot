@@ -17,6 +17,7 @@ import {
 } from '../../../contexts/groupsOptions';
 import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
 import {
+    setReloadAssetsTable,
     setReloadDashboardsTable,
     setReloadDigitalTwinsTable,
     setReloadGroupMembersTable,
@@ -24,6 +25,7 @@ import {
     setReloadGroupsMembershipTable,
     setReloadNodeRedInstancesTable,
     setReloadOrgsOfGroupsManagedTable,
+    setReloadSensorsTable,
     setReloadTopicsTable,
     usePlatformAssitantDispatch
 } from '../../../contexts/platformAssistantContext';
@@ -80,8 +82,29 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
     useEffect(() => {
         if (isGroupDeleted) {
             refreshGroups();
+            const reloadGroupsManagedTable = true;
+            setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
+            const reloadGroupsMembershipTable = true;
+            setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+            const reloadNodeRedInstancesTable = true;
+            setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
+
+            const reloadOrgsOfGroupsManagedTable = true;
+            setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+            const reloadGroupMembersTable = true;
+            setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+            const reloadTopicsTable = true;
+            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+            const reloadDigitalTwinsTable = true;
+            setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+            const reloadDashboardsTable = true;
+            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+            const reloadAssetsTable = true;
+            setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+            const reloadSensorsTable = true;
+            setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
         }
-    }, [isGroupDeleted, refreshGroups]);
+    }, [isGroupDeleted, plaformAssistantDispatch, refreshGroups]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/group/${orgId}/id/${groupId}`;
@@ -93,23 +116,6 @@ const DeleteGroupModal: FC<DeleteGroupModalProps> = ({ rowIndex, orgId, groupId,
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
-                const reloadGroupsManagedTable = true;
-                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-                const reloadNodeRedInstancesTable = true;
-                setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
-
-                const reloadOrgsOfGroupsManagedTable = true;
-                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
-                const reloadGroupMembersTable = true;
-                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadDigitalTwinsTable = true;
-                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
                 hideModal();
             })
             .catch((error) => {

@@ -14,9 +14,6 @@ class CreateDigitalTwinDto {
 	@IsString()
 	public type: string;
 
-	@IsString({each: true})
-	public topicSensorTypes: string[];
-
 	@IsNumber()
 	public maxNumResFemFiles: number;
 

@@ -291,8 +291,8 @@ class AuthenticationController implements IController {
 
 
 			let topicData: ITopicInfoForMqttAcl;
-			if (!isMosquittoSysTopic && topicArray.length === 4) {
-				const topicUid = topicArray[3].slice(6);
+			if (!isMosquittoSysTopic && topicArray.length === 3) {
+				const topicUid = topicArray[2].slice(6);
 				topicData = await getTopicInfoForMqttAclByTopicUid(topicUid);
 				if (!topicData) {
 					const errorMessage = "Incorrect topic hash";

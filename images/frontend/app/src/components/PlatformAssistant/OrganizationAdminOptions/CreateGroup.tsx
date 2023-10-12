@@ -263,9 +263,17 @@ const CreateGroup: FC<CreateGroupProps> = ({
             .post(url, groupData, config)
             .then((response) => {
                 const data = response.data;
-                const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
                 setIsSubmitting(false);
+                const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
                 setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
+                toast.success(data.message);
+            })
+            .catch((error) => {
+                axiosErrorHandler(error, authDispatch);
+                setGroupInputData(initialCreateGroupInputData);
+                backToTable();
+            })
+            .finally(() => {
                 refreshGroups();
                 const reloadGroupsManagedTable = true;
                 setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
@@ -289,12 +297,6 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
                 setGroupInputData(initialCreateGroupInputData);
-                toast.success(data.message);
-            })
-            .catch((error) => {
-                axiosErrorHandler(error, authDispatch);
-                setGroupInputData(initialCreateGroupInputData);
-                backToTable();
             })
     }
 
@@ -342,8 +344,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
         setGroupInputData(newgroupInputData);
         const orgFiltered = orgsManagedTable.filter(org => org.id === selectedOrgId)[0];
         if (orgFiltered !== undefined) {
-            const existBuilding = buildings.filter(building => building.id === orgFiltered.buildingId ).length !== 0;
-            if (existBuilding) { 
+            const existBuilding = buildings.filter(building => building.id === orgFiltered.buildingId).length !== 0;
+            if (existBuilding) {
                 const groupBuildingId = { groupBuildingId: orgFiltered.buildingId };
                 setGroupBuildingId(groupsDispatch, groupBuildingId);
                 selectSpaceOption();

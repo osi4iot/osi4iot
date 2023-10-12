@@ -98,7 +98,8 @@ const AssetsContainer: FC<AssetsContainerProps> = ({
             }
             {assetsOptionToShow === ASSETS_OPTIONS.EDIT_ASSET &&
                 <EditAsset
-                    orgsOfGroupManaged={orgsOfGroupManaged}
+                orgsOfGroupManaged={orgsOfGroupManaged}
+                groupsManaged={groupsManaged}
                     assets={assets}
                     backToTable={showAssetsTableOption}
                     refreshAssets={refreshAssets}

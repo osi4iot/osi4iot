@@ -15,6 +15,9 @@ class CreateAssetDto {
 
 	@IsNumber()
 	public latitude: number;
+
+	@IsString()
+	public geolocationMode: string;
 }
 
 export default CreateAssetDto;

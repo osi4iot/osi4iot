@@ -1,8 +1,9 @@
 import IMeasurement from "../mesurement/measurement.interface";
+import IDigitalTwinSensorDashboard from "./digitalTwinSensorDashboard.interface";
 
 export interface IMqttTopicData {
 	topicId: number;
-	topicType: string;
+	topicRef: string;
 	mqttTopic: string;
 	groupUid: string | null;
 	sqlTopic: string | null;
@@ -11,7 +12,7 @@ export interface IMqttTopicData {
 
 export interface IMqttTopicDataShort {
 	topicId: number;
-	topicType: string;
+	topicRef: string;
 	mqttTopic: string;
 	lastMeasurement: IMeasurement | null;
 }
@@ -21,4 +22,5 @@ export default interface IDigitalTwinGltfData {
 	gltfData: string;
 	digitalTwinSimulationFormat: string;
 	mqttTopicsData: IMqttTopicDataShort[];
+	sensorsDashboards: IDigitalTwinSensorDashboard[];
 }

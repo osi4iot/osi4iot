@@ -185,6 +185,12 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 const orgsOptionToShow = { orgsOptionToShow: ORGS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setOrgsOptionToShow(orgsDispatch, orgsOptionToShow);
+            })
+            .catch((error) => {
+                axiosErrorHandler(error, authDispatch);
+                backToTable();
+            })
+            .finally(() => {
                 refreshOrgs();
                 const reloadOrgsManagedTable = true;
                 setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
@@ -211,10 +217,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                 setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-            })
-            .catch((error) => {
-                axiosErrorHandler(error, authDispatch);
-                backToTable();
             })
     }
 

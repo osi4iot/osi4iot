@@ -67,6 +67,12 @@ export interface IBucketFileInfoList {
 	lastModified: string
 }
 
+export default interface IDigitalTwinSensorDashboard {
+	sensorRef: string;
+	sensorId: number;
+	dashboardId: number;
+	dashboardUrl: string;
+}
 
 export interface IDigitalTwinGltfData {
 	id: number;
@@ -74,6 +80,7 @@ export interface IDigitalTwinGltfData {
 	digitalTwinGltfUrl: string | null;
 	femResFileInfoList: IBucketFileInfoList[];
 	mqttTopicsData: IMqttTopicData[];
+	sensorsDashboards: IDigitalTwinSensorDashboard[];
 	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
 }
 
@@ -84,10 +91,10 @@ const findLastMeasurement = (topicId: number, digitalTwinGltfData: IDigitalTwinG
 	if (mqttTopicDataFiltered.length !== 0) {
 		const mqttTopicData = mqttTopicDataFiltered[0];
 		const mqttTopic = mqttTopicData.mqttTopic;
-		const topicType = mqttTopicData.topicType;
+		const topicRef = mqttTopicData.topicRef;
 		if (mqttTopic &&
 			mqttTopic.slice(0, 7) !== "Warning" &&
-			(topicType === "dev2pdb" || topicType === "dtm2pdb")
+			(topicRef.slice(0, 7) === "dev2pdb" || topicRef === "dtm2pdb")
 		) {
 			lastMeasurement = mqttTopicData.lastMeasurement;
 		}
@@ -97,7 +104,7 @@ const findLastMeasurement = (topicId: number, digitalTwinGltfData: IDigitalTwinG
 
 const findLastDtm2pdbMessage = (digitalTwinGltfData: IDigitalTwinGltfData): (IMeasurement | null) => {
 	let lastMeasurement = null;
-	const mqttTopicDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicType === "dtm2pdb");
+	const mqttTopicDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicRef === "dtm2pdb");
 	if (mqttTopicDataFiltered.length !== 0) {
 		const mqttTopicData = mqttTopicDataFiltered[0];
 		const mqttTopic = mqttTopicData.mqttTopic;
@@ -385,7 +392,7 @@ export const generateInitialFemSimObjectsState = (
 ) => {
 	const highlight = false;
 	const initialFemSimObjectsState: FemSimulationObjectState[] = [];
-	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dtm2sim")[0].topicId;
+	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicRef === "dtm2sim")[0].topicId;
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
 	const customAnimationObjNamesDtm2pdb = getCustomAnimationObjNames(lastDtm2pdbMessage);
@@ -527,7 +534,7 @@ var selectedObjTypeRef: HTMLDivElement | null;
 var selectedObjNameRef: HTMLDivElement | null;
 var selectedObjCollectionNameRef: HTMLDivElement | null;
 
-var dashboardUrl: string = "";
+var sensorsDashbboards: IDigitalTwinSensorDashboard[] = [];
 var changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -537,7 +544,8 @@ var mouse = {
 	objSelectable: true,
 	objName: "",
 	type: "",
-	collectionName: ""
+	collectionName: "",
+	sensorDashboardUrl: ""
 };
 
 export const setMeshList = (nodes: any) => {
@@ -629,7 +637,7 @@ export const setParameters = (
 	l_selectedObjNameRef: HTMLDivElement | null,
 	l_selectedObjCollectionNameRef: HTMLDivElement | null,
 	l_changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void,
-	l_dashboardUrl: string,
+	l_sensorsDashbboards: IDigitalTwinSensorDashboard[]
 
 ) => {
 	camera = l_camera;
@@ -638,7 +646,7 @@ export const setParameters = (
 	selectedObjNameRef = l_selectedObjNameRef;
 	selectedObjCollectionNameRef = l_selectedObjCollectionNameRef;
 	changeObjectHighlight = l_changeObjectHighlight;
-	dashboardUrl = l_dashboardUrl;
+	sensorsDashbboards = l_sensorsDashbboards;
 }
 
 const giveDefaultObjectMaterialColor = (obj: any) => {
@@ -935,6 +943,7 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 	let type = "";
 	let collectionName = "";
 	let selectable = true;
+	let sensorDashboardUrl = "";
 
 	if (container && meshList && meshList.length) {
 		const rect = container.getBoundingClientRect();
@@ -962,9 +971,16 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 			if (isSelectable !== undefined && isSelectable === "false") {
 				selectable = false;
 			}
+			if (type === "sensor") {
+				const sensorRef = intersects[0].object.userData.sensorRef;
+				if (sensorRef) {
+					const sensorDashboard = sensorsDashbboards.filter(sensor => sensor.sensorRef === sensorRef)[0];
+					sensorDashboardUrl = sensorDashboard.dashboardUrl;
+				}
+			}
 		}
 	}
-	return [objName, type, collectionName, selectable];
+	return [objName, type, collectionName, selectable, sensorDashboardUrl];
 }
 
 const processMouseEvent = (
@@ -973,7 +989,13 @@ const processMouseEvent = (
 ) => {
 	event.preventDefault();
 
-	const [objName, type, collectionName, selectable] = get_mesh_intersect(event.clientX, event.clientY);
+	const [
+		objName,
+		type,
+		collectionName,
+		selectable,
+		sensorDashboardUrl
+	] = get_mesh_intersect(event.clientX, event.clientY);
 
 	if (selectable) {
 		if (objName !== "" && type) {
@@ -991,6 +1013,9 @@ const processMouseEvent = (
 			mouse.isInsideObject = true;
 			mouse.type = type as string;
 			mouse.objSelectable = true;
+			if (type === "sensor" && sensorDashboardUrl !== "") {
+				mouse.sensorDashboardUrl = sensorDashboardUrl as string;
+			}
 
 			sendCustomEvent(event_name, { type, name: mouse.objName, collectionName: mouse.collectionName });
 		}
@@ -1030,12 +1055,11 @@ export const onMouseDown = (event: MouseEvent) => {
 export const onMouseClick = (event: any) => {
 	processMouseEvent("mesh_mouse_down", event);
 	if (mouse.type === "sensor" && mouse.objName !== "" && mouse.objSelectable) {
-		if (dashboardUrl.slice(0, 7) === "Warning") {
-			toast.warning(dashboardUrl);
-		} else window.open(dashboardUrl, '_blank');
+		if (mouse.sensorDashboardUrl === "") {
+			toast.warning("Sensor dashboard url not definied");
+		} else window.open(mouse.sensorDashboardUrl, '_blank');
 	}
 }
-
 
 export const onMouseMove = (event: MouseEvent) => {
 	processMouseEvent("mesh_mouse_move", event)

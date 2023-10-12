@@ -70,7 +70,7 @@ export interface IMeasurement {
 
 export interface IMqttTopicData {
 	topicId: number;
-	topicType: string;
+	topicRef: string;
 	mqttTopic: string;
 	lastMeasurement: IMeasurement | null;
 }
@@ -183,7 +183,7 @@ const Model: FC<ModelProps> = (
 	const [femSimulationObjectsState, setFemSimulationObjectsState] = useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
 	const { client } = useMqttState();
 	const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
-	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicType === "sim2dtm")[0] || null;
+	const digitalTwinModelMqttTopic = mqttTopicsData.filter(topic => topic.topicRef === "sim2dtm")[0] || null;
 	const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
 
 	const updateSensorStateString = useCallback((objName: string, state: string) => {
@@ -293,7 +293,7 @@ const Model: FC<ModelProps> = (
 			selectedObjNameRef.current as HTMLDivElement | null,
 			selectedObjCollectionNameRef.current as HTMLDivElement | null,
 			changeObjectHighlight,
-			dashboardUrl
+			digitalTwinGltfData.sensorsDashboards
 		);
 		window.addEventListener('mesh_mouse_enter', onMeshMouseEnter, false);
 		window.addEventListener('mesh_mouse_exit', onMeshMouseExit, false);

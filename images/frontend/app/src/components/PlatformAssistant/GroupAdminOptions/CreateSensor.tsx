@@ -104,11 +104,13 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
                 const sensorsOptionToShow = { sensorsOptionToShow: SENSORS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setSensorsOptionToShow(sensorsDispatch, sensorsOptionToShow);
-                refreshSensors();
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshSensors();
             })
     }
 

@@ -12,6 +12,9 @@ class CreateSensorRefDto {
 	public topicRef: string;
 
 	@IsString()
+	public type: string;
+
+	@IsString()
 	public description: string;
 
 	@IsString()

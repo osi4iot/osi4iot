@@ -1,7 +1,7 @@
 export default interface IMqttDigitalTwinTopicInfo {
 	digitalTwinUid: string;
 	topicId: number;
-	topicType: string
+	topicRef: string
 	groupHash: string;
 	topicHash: string;
 }

@@ -5,6 +5,9 @@ class CreateSensorDto {
 	public topicId: number;
 
 	@IsString()
+	public type: string;
+
+	@IsString()
 	public description: string;
 
 	@IsString()

@@ -72,8 +72,31 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
     useEffect(() => {
         if (isOrgDeleted) {
             refreshOrgs();
+            const reloadOrgsManagedTable = true;
+            setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
+            const reloadOrgUsersTable = true;
+            setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
+            const reloadOrgsMembershipTable = true;
+            setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
+            const reloadGroupsTable = true;
+            setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
+            const reloadGroupsMembershipTable = true;
+            setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
+            const reloadGroupsManagedTable = true;
+            setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
+
+            const reloadOrgsOfGroupsManagedTable = true;
+            setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
+            const reloadGroupMembersTable = true;
+            setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
+            const reloadTopicsTable = true;
+            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+            const reloadDigitalTwinsTable = true;
+            setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
+            const reloadDashboardsTable = true;
+            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
         }
-    }, [isOrgDeleted, refreshOrgs]);
+    }, [isOrgDeleted, plaformAssistantDispatch, refreshOrgs]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/organization/id/${orgId}`;
@@ -84,29 +107,6 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
                 setIsOrgDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
-                const reloadOrgsManagedTable = true;
-                setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
-                const reloadOrgUsersTable = true;
-                setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
-                const reloadOrgsMembershipTable = true;
-                setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
-                const reloadGroupsTable = true;
-                setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
-                const reloadGroupsMembershipTable = true;
-                setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-                const reloadGroupsManagedTable = true;
-                setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
-
-                const reloadOrgsOfGroupsManagedTable = true;
-                setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
-                const reloadGroupMembersTable = true;
-                setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadDigitalTwinsTable = true;
-                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
                 toast.success(data.message);
                 
                 hideModal();

@@ -390,6 +390,7 @@ class OrganizationController implements IController {
 					iconRadio: 1.0,
 					longitude: 0.0,
 					latitude: 0.0,
+					geolocationMode: "dynamic"
 				}
 				const asset = await createNewAsset(group, defaultAssetData);
 
@@ -407,6 +408,11 @@ class OrganizationController implements IController {
 					{
 						topicType: "dev2pdb_wt",
 						description: `Mobile orientation topic`,
+						mqttAccessControl: "Pub & Sub"
+					},
+					{
+						topicType: "dev2pdb_wt",
+						description: `Mobile motion topic`,
 						mqttAccessControl: "Pub & Sub"
 					},
 					{
@@ -429,6 +435,7 @@ class OrganizationController implements IController {
 				{
 					description: `Mobile geolocation`,
 					topicId: topics[0].id,
+					type: "geolocation",
 					payloadKey: "mobile_geolocation",
 					paramLabel: "longitude,latitude",
 					valueType: "number(2)",
@@ -442,6 +449,7 @@ class OrganizationController implements IController {
 				{
 					description: `Mobile accelerations`,
 					topicId: topics[1].id,
+					type: "accelerometer",
 					payloadKey: "mobile_accelerations",
 					paramLabel: "ax,ay,az",
 					valueType: "number(3)",
@@ -455,6 +463,7 @@ class OrganizationController implements IController {
 				{
 					description: `Mobile orientation`,
 					topicId: topics[2].id,
+					type: "quaternion",
 					payloadKey: "mobile_quaternion",
 					paramLabel: "q0,q1,q2,q3",
 					valueType: "number(4)",
@@ -466,8 +475,23 @@ class OrganizationController implements IController {
 
 				sensorsData[3] =
 				{
-					description: `Mobile photo`,
+					description: `Mobile motion`,
 					topicId: topics[3].id,
+					type: "mobile_motion",
+					payloadKey: "mobile_motion",
+					paramLabel: "ax,ay,az,q0,q1,q2,q3",
+					valueType: "number(7)",
+					units: "-",
+					dashboardRefresh: "200ms",
+					dashboardTimeWindow: "25s"
+				};
+				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+
+				sensorsData[4] =
+				{
+					description: `Mobile photo`,
+					topicId: topics[4].id,
+					type: "photo_camera",
 					payloadKey: "mobile_photo",
 					paramLabel: "mobile_photo",
 					valueType: "string",
@@ -475,15 +499,15 @@ class OrganizationController implements IController {
 					dashboardRefresh: "1s",
 					dashboardTimeWindow: "5m"
 				};
-				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+				sensorsUid[4] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
-				for (let i = 0; i < 4; i++) {
+				for (let i = 0; i < 5; i++) {
 					dashboarsId[i] = await createSensorDashboard(group, sensorsData[i], sensorsUid[i]);
 				}
 
 				const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
 				const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
-				for (let i = 0; i < 4; i++) {
+				for (let i = 0; i < 5; i++) {
 					sensors[i] = await createNewSensor(asset.id, sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
 				}
 

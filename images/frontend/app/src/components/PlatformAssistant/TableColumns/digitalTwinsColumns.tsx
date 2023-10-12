@@ -86,8 +86,15 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
     useEffect(() => {
         if (isDigitalTwinDeleted) {
             refreshDigitalTwins();
+            const reloadTopicsTable = true;
+            setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+            const reloadSensorsTable = true;
+            setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+            const reloadDashboardsTable = true;
+            setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+
         }
-    }, [isDigitalTwinDeleted, refreshDigitalTwins]);
+    }, [isDigitalTwinDeleted, plaformAssistantDispatch, refreshDigitalTwins]);
 
     const action = (hideModal: () => void) => {
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${digitalTwinId}`;
@@ -97,14 +104,6 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
             .then((response) => {
                 setIsDigitalTwinDeleted(true);
                 setIsSubmitting(false);
-
-                const reloadTopicsTable = true;
-                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
-                const reloadSensorsTable = true;
-                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
-                const reloadDashboardsTable = true;
-                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
@@ -197,7 +196,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             Header: "gltfFileName",
             accessor: "gltfFileName",
             disableFilters: true,
-        }, 
+        },
         {
             Header: "gltfFileLastModifDateString",
             accessor: "gltfFileLastModifDateString",
@@ -207,7 +206,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             Header: "femSimDataFileName",
             accessor: "femSimDataFileName",
             disableFilters: true,
-        }, 
+        },
         {
             Header: "femSimDataFileLastModifDateString",
             accessor: "femSimDataFileLastModifDateString",
@@ -222,7 +221,7 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             Header: "digitalTwinSimulationFormat",
             accessor: "digitalTwinSimulationFormat",
             disableFilters: true
-        },     
+        },
         {
             Header: "",
             accessor: "edit",

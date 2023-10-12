@@ -209,7 +209,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 .then((response) => {
                     const gltfFileInfo = response.data;
                     if (gltfFileInfo.length !== 0) {
-                        setGltfFileName(gltfFileInfo[0].fileName.split("/")[5]);
+                        setGltfFileName(gltfFileInfo[0].fileName.split("/")[4]);
                         setGltfFileLastModif(gltfFileInfo[0].lastModified);
                         const urlfemResFileList = `${urlDigitalTwinFileListBase}/femResFiles`;
                         getAxiosInstance(refreshToken, authDispatch)
@@ -217,7 +217,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                             .then((response) => {
                                 const femResFileList: { fileName: string, lastModified: string }[] = response.data;
                                 if (femResFileList.length !== 0) {
-                                    const femResFileNames = femResFileList.map(femResFile => femResFile.fileName.split("/")[5]);
+                                    const femResFileNames = femResFileList.map(femResFile => femResFile.fileName.split("/")[4]);
                                     setFemResFileNames(femResFileNames);
                                     const femResFilesLastModif = femResFileList.map(femResFile => femResFile.lastModified);
                                     setFemResFilesLastModif(femResFilesLastModif);
@@ -373,7 +373,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     }
 
     const validationSchema = Yup.object().shape({
-        digitalTwinUid: Yup.string().matches(/^DT.{21}$/, "String must be 23 characters long and start with 'DT'").required('Required'),
+        digitalTwinUid: Yup.string().length(20, "String must be 20 characters long").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
         gltfFileName: Yup.string().when("type", {

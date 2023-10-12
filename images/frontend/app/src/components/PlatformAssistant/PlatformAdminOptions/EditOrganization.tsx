@@ -143,6 +143,12 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                 const orgsOptionToShow = { orgsOptionToShow: ORGS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setOrgsOptionToShow(orgsDispatch, orgsOptionToShow);
+            })
+            .catch((error) => {
+                axiosErrorHandler(error, authDispatch);
+                backToTable();
+            })
+            .finally(() => {
                 refreshOrgs();
                 const reloadOrgsManagedTable = true;
                 setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
@@ -152,10 +158,6 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
                 setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
-            })
-            .catch((error) => {
-                axiosErrorHandler(error, authDispatch);
-                backToTable();
             })
     }
 

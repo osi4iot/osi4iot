@@ -216,7 +216,6 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels })
                 const mlModelsOptionToShow = { mlModelsOptionToShow: ML_MODELS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setMlModelsOptionToShow(mlModelsDispatch, mlModelsOptionToShow);
-                refreshMlModels();
 
                 const configMultipart = axiosAuth(accessToken, "multipart/form-data")
                 const urlUploadMlModelBase0 = `${protocol}://${domainName}/admin_api/ml_model_upload_file`;
@@ -255,6 +254,9 @@ const CreateMlModel: FC<CreateMlModelProps> = ({ backToTable, refreshMlModels })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
+            })
+            .finally(() => {
+                refreshMlModels();
             })
     }
 

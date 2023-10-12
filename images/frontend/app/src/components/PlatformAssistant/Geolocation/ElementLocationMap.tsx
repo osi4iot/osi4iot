@@ -422,11 +422,13 @@ const calcInitialAssetPosition = (
     assetsInGroup: IAsset[]) => {
     let assetPosition = [assetsInGroup[0].latitude, assetsInGroup[0].longitude]
     if (floorSpaces) {
-        const floorSpace = floorSpaces.filter(space => space.features[0].properties.index === featureIndex)[0];
         if (assetsPreviousOption === ASSETS_PREVIOUS_OPTIONS.CREATE_ASSET) {
-            const geoPolygon = polygon(floorSpace.features[0].geometry.coordinates);
-            const center = centerOfMass(geoPolygon);
-            assetPosition = [center.geometry.coordinates[1], center.geometry.coordinates[0]]
+            const floorSpace = floorSpaces.filter(space => space.features[0].properties.index === featureIndex)[0];
+            if (floorSpace) {
+                const geoPolygon = polygon(floorSpace.features[0].geometry.coordinates);
+                const center = centerOfMass(geoPolygon);
+                assetPosition = [center.geometry.coordinates[1], center.geometry.coordinates[0]]
+            }
         } else if (assetsPreviousOption === ASSETS_PREVIOUS_OPTIONS.EDIT_ASSET) {
             const assetToEdit = assetsInGroup.filter(asset => asset.id === assetIdToEdit)[0];
             assetPosition = [assetToEdit.latitude, assetToEdit.longitude]

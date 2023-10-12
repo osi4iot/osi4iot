@@ -464,7 +464,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const handleGetLastMeasurementsButton = () => {
 		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
 		if (digitalTwinSelected && Object.keys(digitalTwinSimulationFormat).length !== 0) {
-			const filteredTopics = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicType === "dev2pdb");
+			const filteredTopics = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicRef.slice(0,7) === "dev2pdb");
 			const topicsIdArray = filteredTopics.map(topic => topic.topicId);
 
 			if (topicsIdArray.length !== 0) {
@@ -667,8 +667,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				.then((response) => {
 					const femResFilesInfo: { fileName: string; lastModified: string }[] = response.data;
 					const femResultDates = femResFilesInfo.map(fileInfo => formatDateString(fileInfo.lastModified))
-					setFemResultDates(femResultDates)
-					const femResultFileNames = femResFilesInfo.map(fileInfo => fileInfo.fileName.split("/")[5]);
+					setFemResultDates(femResultDates);
+					const femResultFileNames = femResFilesInfo.map(fileInfo => fileInfo.fileName.split("/")[4]);
 					setFemResultFileNames(femResultFileNames)
 				})
 				.catch((error) => {
@@ -1185,6 +1185,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 											label = `${dtsLabel} (${dtsUnits}) :`
 										}
 										return <StyledDatNumberDTSimulator
+											key={label}
 											label={label}
 											path={`digitalTwinSimulatorState[${paramName}]`}
 											min={digitalTwinGltfData.digitalTwinSimulationFormat[paramName].minValue}
