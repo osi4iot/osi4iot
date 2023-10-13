@@ -1,5 +1,6 @@
 import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/threeInterfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
+import { IWindowObjectReferences, PlatformAssistantDispatch } from "../contexts/platformAssistantContext/interfaces";
 
 
 export const isRegistrationRequest = () => {
@@ -410,3 +411,30 @@ export const changeMaterialPropRecursively = (
         );
     }
 }
+
+export const openWindowTab = (
+    url: string,
+    plaformAssistantDispatch: any,
+    windowObjectReferences: Record<string, Window | null>,
+    setWindowObjectReferences: (plaformAssistantDispatch: PlatformAssistantDispatch, data: IWindowObjectReferences) => void,
+) => {
+    const serviceName = (url.split("/")[3]).split("_")[0];
+    let name = "";
+    if (serviceName === "grafana") {
+        name = (url.split("/")[6]).split("?")[0];
+    } else if (serviceName === "nodered") {
+        name = url.split("/")[3];
+    }
+
+    if (name !== "") {
+        if (!windowObjectReferences[name] || windowObjectReferences[name]?.closed) {
+            const windowObjectRef = window.open(url, name);
+            windowObjectRef?.focus();
+            windowObjectReferences[name] = windowObjectRef;
+            setWindowObjectReferences(plaformAssistantDispatch, { windowObjectReferences });
+        } else {
+            windowObjectReferences[name]?.focus();
+        }
+    }
+}
+

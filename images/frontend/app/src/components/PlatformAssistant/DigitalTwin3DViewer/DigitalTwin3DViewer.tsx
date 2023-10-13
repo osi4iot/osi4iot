@@ -1,4 +1,4 @@
-import { FC, useEffect, useRef, useState } from 'react'
+import { FC, useCallback, useEffect, useRef, useState } from 'react'
 import styled from "styled-components";
 import { nanoid } from "nanoid";
 import { FaShareSquare, FaFolderOpen, FaFolderMinus, FaChartLine } from "react-icons/fa";
@@ -31,7 +31,7 @@ import {
 	generateInitialGenericObjectsState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol, openWindowTab } from '../../../tools/tools';
 import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
@@ -41,6 +41,11 @@ import formatDateString from '../../../tools/formatDate';
 import { toast } from 'react-toastify';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import {
+	setWindowObjectReferences,
+	usePlatformAssitantDispatch,
+	useWindowObjectReferences
+} from '../../../contexts/platformAssistantContext';
 
 const CanvasContainer = styled.div`
 	background-color: #212121;
@@ -409,6 +414,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	close3DViewer
 }) => {
 	const { accessToken, refreshToken } = useAuthState();
+	const plaformAssistantDispatch = usePlatformAssitantDispatch();
+	const windowObjectReferences = useWindowObjectReferences();
 	const userName = useLoggedUserLogin();
 	const authDispatch = useAuthDispatch();
 	const canvasContainerRef = useRef(null);
@@ -452,7 +459,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femResultNames, setFemResultNames] = useState<string[]>([]);
 	const [femResultData, setFemResultData] = useState<null | any>(null);
 	const [femResFilesLastUpdate, setFemResFilesLastUpdate] = useState<Date>(new Date());
-
+	
 	const mqttOptions = {
 		keepalive: 0,
 		clientId: `Client_${nanoid(16).replace(/-/g, "x").replace(/_/g, "X")}`,
@@ -460,6 +467,15 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		username: `jwt_${userName}`,
 		accessToken
 	};
+
+	const openDashboardTab = useCallback((url: string) => {
+		openWindowTab(
+			url,
+			plaformAssistantDispatch,
+			windowObjectReferences,
+			setWindowObjectReferences
+		);
+	}, [plaformAssistantDispatch, windowObjectReferences]);
 
 	const handleGetLastMeasurementsButton = () => {
 		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
@@ -533,7 +549,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			const dashboardUrl = digitalTwinSelected.dashboardUrl;
 			if (dashboardUrl.slice(0, 7) === "Warning") {
 				toast.warning(dashboardUrl);
-			} else window.open(dashboardUrl, '_blank');
+			} else {
+				// window.open(dashboardUrl, '_blank');
+				openDashboardTab(dashboardUrl);
+			}
 		}
 	}
 
@@ -907,6 +926,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								setFemMaxValues={setFemMaxValues}
 								setFemResFilesLastUpdate={setFemResFilesLastUpdate}
 								initialDigitalTwinSimulatorState={initialDigitalTwinSimulatorState}
+								openDashboardTab={openDashboardTab}
 							/>
 						</MqttConnector>
 					</Stage>

@@ -528,11 +528,12 @@ const setCustomAnimationObjectProperty = (
 	}
 }
 
-var camera: Camera;
-var container: HTMLCanvasElement | null;
-var selectedObjTypeRef: HTMLDivElement | null;
-var selectedObjNameRef: HTMLDivElement | null;
-var selectedObjCollectionNameRef: HTMLDivElement | null;
+let camera: Camera;
+let container: HTMLCanvasElement | null;
+let selectedObjTypeRef: HTMLDivElement | null;
+let selectedObjNameRef: HTMLDivElement | null;
+let selectedObjCollectionNameRef: HTMLDivElement | null;
+let openDashboardTab: (url: string) => void;
 
 var sensorsDashbboards: IDigitalTwinSensorDashboard[] = [];
 var changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void;
@@ -637,8 +638,8 @@ export const setParameters = (
 	l_selectedObjNameRef: HTMLDivElement | null,
 	l_selectedObjCollectionNameRef: HTMLDivElement | null,
 	l_changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void,
-	l_sensorsDashbboards: IDigitalTwinSensorDashboard[]
-
+	l_sensorsDashbboards: IDigitalTwinSensorDashboard[],
+	l_openDashboardTab: (url: string) => void,
 ) => {
 	camera = l_camera;
 	container = l_container;
@@ -647,6 +648,7 @@ export const setParameters = (
 	selectedObjCollectionNameRef = l_selectedObjCollectionNameRef;
 	changeObjectHighlight = l_changeObjectHighlight;
 	sensorsDashbboards = l_sensorsDashbboards;
+	openDashboardTab = l_openDashboardTab;
 }
 
 const giveDefaultObjectMaterialColor = (obj: any) => {
@@ -698,11 +700,10 @@ export const findMaterial = (obj: any, materials: Record<string, THREE.MeshStand
 const setQuaternionIniRecursively = (obj: IThreeMesh) => {
 	obj.quaternionIni = new THREE.Quaternion().copy(obj.quaternion);
 	for (let node of obj.children) {
-		if(node.userData.animationType === "custom")
-        setQuaternionIniRecursively(node as IThreeMesh)
-    }
+		if (node.userData.animationType === "custom")
+			setQuaternionIniRecursively(node as IThreeMesh)
+	}
 }
-
 
 export const sortObjects: (
 	nodes: any,
@@ -1052,12 +1053,17 @@ export const onMouseDown = (event: MouseEvent) => {
 	processMouseEvent("mesh_mouse_down", event)
 }
 
+
 export const onMouseClick = (event: any) => {
 	processMouseEvent("mesh_mouse_down", event);
 	if (mouse.type === "sensor" && mouse.objName !== "" && mouse.objSelectable) {
 		if (mouse.sensorDashboardUrl === "") {
-			toast.warning("Sensor dashboard url not definied");
-		} else window.open(mouse.sensorDashboardUrl, '_blank');
+			toast.warning("Sensor dashboard url not defined");
+		} else {
+			// window.open(mouse.sensorDashboardUrl, '_blank');
+			const url = mouse.sensorDashboardUrl;
+			openDashboardTab(url);
+		}
 	}
 }
 

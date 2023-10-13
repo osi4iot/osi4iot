@@ -42,7 +42,8 @@ import {
 	IAssetsTable,
 	IReloadAssetsTable,
 	ISensorsTable,
-	IReloadSensorsTable
+	IReloadSensorsTable,
+	IWindowObjectReferences
 
 } from "./interfaces";
 
@@ -228,6 +229,10 @@ export function setReloadGroupsMembershipTable(plaformAssistantDispatch: Platfor
 
 export function setResetTables(plaformAssistantDispatch: PlatformAssistantDispatch) {
 	plaformAssistantDispatch({ type: 'RESET_TABLES' });
+}
+
+export function setWindowObjectReferences(plaformAssistantDispatch: PlatformAssistantDispatch, data: IWindowObjectReferences) {
+	plaformAssistantDispatch({ type: 'WINDOWS_OBJECT_REFERENCES', payload: data });
 }
 
 

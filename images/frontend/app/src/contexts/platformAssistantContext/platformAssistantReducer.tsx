@@ -62,6 +62,7 @@ export const initialState = {
     reloadOrgsMembershipTable: true,
     groupsMembership: [],
     reloadGroupsMembershipTable: true,
+    windowObjectReferences: {},
 };
 
 export const PlatformAssitantReducer = (initialState: PlatformAssistantContextProps, action: PlatformAssistantAction) => {
@@ -330,6 +331,12 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadGroupsMembershipTable: action.payload.reloadGroupsMembershipTable
             };
 
+        case "WINDOWS_OBJECT_REFERENCES":
+            return {
+                ...initialState,
+                windowObjectReferences: action.payload.windowObjectReferences
+            };
+
         case "RESET_TABLES":
             return {
                 userRole: "unknown",
@@ -380,7 +387,8 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 orgsMembership: [],
                 reloadOrgsMembershipTable: true,
                 groupsMembership: [],
-                reloadGroupsMembershipTable: true
+                reloadGroupsMembershipTable: true,
+                windowObjectReferences: {},
             };
 
         default:

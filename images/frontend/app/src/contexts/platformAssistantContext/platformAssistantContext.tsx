@@ -398,6 +398,14 @@ export const useReloadGroupsMembershipTable = (): boolean => {
 	return context.reloadGroupsMembershipTable;
 }
 
+export const useWindowObjectReferences = (): Record<string, Window | null> => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useWindowObjectReferences must be used within a PlatformAssitantProvider');
+	}
+	return context.windowObjectReferences;
+}
+
 export function usePlatformAssitantDispatch() {
 	const context = React.useContext(PlatformAssitantDispatchContext);
 	if (context === undefined) {

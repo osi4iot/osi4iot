@@ -39,6 +39,7 @@ import {
     setReloadOrgsMembershipTable,
     setGroupsMembershipTable,
     setReloadGroupsMembershipTable,
+    setWindowObjectReferences,
     setResetTables,
 } from './platformAssistantAction';
 import {
@@ -83,6 +84,7 @@ import {
     useReloadOrgsMembershipTable,
     useGroupsMembershipTable,
     useReloadGroupsMembershipTable,
+    useWindowObjectReferences,
 } from './platformAssistantContext';
 
 export {
@@ -126,6 +128,7 @@ export {
     setReloadOrgsMembershipTable,
     setGroupsMembershipTable,
     setReloadGroupsMembershipTable,
+    setWindowObjectReferences,
     setResetTables,
     PlatformAssitantProvider,
     usePlatformAssitantDispatch,
@@ -168,4 +171,5 @@ export {
     useReloadOrgsMembershipTable,
     useGroupsMembershipTable,
     useReloadGroupsMembershipTable,
+    useWindowObjectReferences,
 };

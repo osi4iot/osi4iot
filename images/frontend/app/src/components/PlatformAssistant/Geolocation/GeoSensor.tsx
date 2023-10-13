@@ -12,6 +12,8 @@ import { SensorSvgImage } from "./SensorSvgImage";
 import { STATUS_ALERTING, STATUS_OK, STATUS_PENDING, findOutSensorStatus } from "./statusTools";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { ISensorState } from "./GeolocationContainer";
+import { setWindowObjectReferences, usePlatformAssitantDispatch, useWindowObjectReferences } from "../../../contexts/platformAssistantContext";
+import { openWindowTab } from "../../../tools/tools";
 
 
 interface GeoSensorProps {
@@ -45,6 +47,8 @@ const GeoSensor: FC<GeoSensorProps> = ({
     selectDigitalTwin,
     sensorsState
 }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
+    const windowObjectReferences = useWindowObjectReferences();
     const arrayLength = parseInt(sensorLabel.split("/")[1], 10)
     const initialAngle = arrayLength > 10 ? 32.0 : 5.0;
     const angle = 350 * (sensorIndex + 1) / 13 + initialAngle;
@@ -85,7 +89,15 @@ const GeoSensor: FC<GeoSensorProps> = ({
         const url = (sensorData.dashboardUrl as string);
         if (url.slice(0, 7) === "Warning") {
             toast.warning(url);
-        } else window.open(url, "_blank");
+        } else {
+            // window.open(url, "_blank");
+            openWindowTab(
+                url,
+                plaformAssistantDispatch,
+                windowObjectReferences,
+                setWindowObjectReferences
+            );
+        }
     }
 
     return (

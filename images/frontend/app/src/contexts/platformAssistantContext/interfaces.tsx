@@ -75,6 +75,7 @@ export interface PlatformAssistantContextProps {
 	reloadOrgsMembershipTable: boolean;
 	groupsMembership: IMembershipInGroups[];
 	reloadGroupsMembershipTable: boolean;
+	windowObjectReferences: Record<string, Window | null>;
 }
 
 export interface PlatformAssistantActionPayload {
@@ -127,6 +128,7 @@ export interface PlatformAssistantActionPayload {
 	reloadOrgsMembershipTable: boolean;
 	groupsMembership: IMembershipInGroups[];
 	reloadGroupsMembershipTable: boolean;
+	windowObjectReferences: Record<string, Window | null>;
 }
 
 export interface PlatformAssistantAction {
@@ -312,6 +314,10 @@ export interface IMlModelsTable {
 
 export interface IReloadMlModelsTable {
 	reloadMlModelsTable: boolean;
+}
+
+export interface IWindowObjectReferences {
+	windowObjectReferences: Record<string, Window | null>;
 }
 
 

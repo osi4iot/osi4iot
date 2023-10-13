@@ -29,7 +29,6 @@ import useMqttState from './MqttHook/useMqttState';
 import useSubscription from './MqttHook/useSubscription';
 import { IThreeMesh } from './threeInterfaces';
 
-
 export interface ISensorObject {
 	node: IThreeMesh;
 	collectionName: string;
@@ -124,6 +123,7 @@ interface ModelProps {
 	setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
 	setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void;
 	initialDigitalTwinSimulatorState: Record<string, number>;
+	openDashboardTab: (url: string) => void;
 }
 
 
@@ -172,9 +172,10 @@ const Model: FC<ModelProps> = (
 		setFemMinValues,
 		setFemMaxValues,
 		setFemResFilesLastUpdate,
-		initialDigitalTwinSimulatorState
+		initialDigitalTwinSimulatorState,
+		openDashboardTab
 	}) => {
-	const camera = useThree((state) => state.camera);
+	const camera = useThree((state) => state.camera); 
 	const container = canvasRef.current as HTMLCanvasElement | null;
 	const group = useRef<THREE.Group>();
 	const [sensorsState, setSensorsState] = useState<Record<string, SensorState>>(initialSensorsState);
@@ -293,7 +294,8 @@ const Model: FC<ModelProps> = (
 			selectedObjNameRef.current as HTMLDivElement | null,
 			selectedObjCollectionNameRef.current as HTMLDivElement | null,
 			changeObjectHighlight,
-			digitalTwinGltfData.sensorsDashboards
+			digitalTwinGltfData.sensorsDashboards,
+			openDashboardTab,
 		);
 		window.addEventListener('mesh_mouse_enter', onMeshMouseEnter, false);
 		window.addEventListener('mesh_mouse_exit', onMeshMouseExit, false);
