@@ -5,6 +5,8 @@ export default interface IBuiliding {
 	latitude: number;
 	geoJsonData: string;
 	outerBounds: number[][];
-	timeFromCreation?: string;
-	timeFromLastUpdate?: string;
+	buildingFileName: string;
+	buildingFileLastModifDate: string;
+	createdAtAge: string;
+	updatedAtAge: string;
 }

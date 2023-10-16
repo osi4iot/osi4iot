@@ -121,7 +121,7 @@ interface GeoDigitalTwinProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     selectSensor: (sensorSelected: ISensor | null) => void;
     digitalTwinState: IDigitalTwinState | null;
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
 
@@ -203,7 +203,13 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                         toast.warning(warningMessage);
                     }
                     setGlftDataLoading(false);
-                    openDigitalTwin3DViewer(digitalTwinGltfData);
+                    let isGroupDTDemo = true;
+                    if (assetData.type === "mobile" &&
+                        assetData.description.slice(0, 16) === "Mobile for group"
+                    ) {
+                        isGroupDTDemo = true;
+                    }
+                    openDigitalTwin3DViewer(digitalTwinGltfData, isGroupDTDemo);
                 })
                 .catch((error) => {
                     axiosErrorHandler(error, authDispatch);

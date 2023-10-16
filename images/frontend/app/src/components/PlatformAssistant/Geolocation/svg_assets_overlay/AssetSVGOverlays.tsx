@@ -3,6 +3,7 @@ import { LatLngTuple } from 'leaflet';
 import { GenericAssetSVGOverlay } from "./GenericAssetSVGOverlay";
 import { MobileSVGOverlay } from "./MobileSVGOverlay";
 import { WindTurbineSVGOverlay } from "./WindTurbineSVGOverlay";
+import { MachineSVGOverlay } from "./MachineSVGOverlay";
 
 
 interface AssetSVGOverlaysProps {
@@ -27,6 +28,12 @@ export const AssetSVGOverlays: FC<AssetSVGOverlaysProps> = ({
             />;
         case 'wind_turbine':
             return <WindTurbineSVGOverlay
+                fillColor={fillColor}
+                bounds={bounds as LatLngTuple[]}
+                imageRef={imageRef}
+            />;
+        case 'machine':
+            return <MachineSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}

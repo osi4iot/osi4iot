@@ -18,6 +18,12 @@ class CreateDigitalTwinDto {
 	public maxNumResFemFiles: number;
 
 	@IsString()
+	public dtRefFileName: string;
+
+	@IsString()
+	public dtRefFileLastModifDate: string;
+
+	@IsString()
 	public digitalTwinSimulationFormat: string;
 
 	@ValidateNested({ each: true })

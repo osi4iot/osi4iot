@@ -11,6 +11,12 @@ class CreateFloorDto {
 	public geoJsonData: string;
 
 	public outerBounds?: number[][];
+
+	@IsString()
+	public floorFileName: string;
+
+	@IsString()
+	public floorFileLastModifDate: string;
 }
 
 export default CreateFloorDto;

@@ -403,11 +403,11 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
     const columnsWidth = columnsTable.map(column => {
         if (typeof column.Header !== 'function') {
             const headerName = (column.Header as string);
-            if (headerName.slice(-2) === "Id") return "100px"
+            if (headerName.slice(-2) === "Id") return "100px";
+            else if (headerName === "Floor number") return "120px";
             else return "auto"
         } else return "auto";
     });
-
 
     const columnsMaxWidth = columnsTable.map(column => {
         if (typeof column.Header !== 'function') {
@@ -415,6 +415,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             if (headerName === "Payload format") return "450px";
             else if (headerName === "Refresh tokens") return "1200px";
             else if (headerName === "Timestamp") return "400px";
+            else if (headerName === "Floor number") return "120px";
             else return "auto"
         } else return "auto";
     });

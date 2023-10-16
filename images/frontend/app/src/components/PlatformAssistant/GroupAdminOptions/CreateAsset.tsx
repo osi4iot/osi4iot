@@ -126,6 +126,10 @@ const assetTypeOptions = [
         value: "mobile"
     },
     {
+        label: "Machine",
+        value: "machine"
+    },
+    {
         label: "Wind turbine",
         value: "wind_turbine"
     },

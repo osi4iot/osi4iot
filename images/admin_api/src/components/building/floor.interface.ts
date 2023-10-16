@@ -5,6 +5,8 @@ export default interface IFloor {
 	floorNumber: number;
 	geoJsonData: string;
 	outerBounds: number[][];
-	timeFromCreation?: string;
-	timeFromLastUpdate?: string;
+	floorFileName: string;
+	floorFileLastModifDate: string;
+	createdAtAge: string;
+	updatedAtAge: string;
 }

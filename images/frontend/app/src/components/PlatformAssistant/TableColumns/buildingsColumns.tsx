@@ -29,8 +29,10 @@ export interface IBuilding {
     longitude: number;
     geoJsonData: FeatureCollection;
     outerBounds: number[][];
-    timeFromCreation: string;
-    timeFromLastUpdate: string;
+    buildingFileName: string;
+	buildingFileLastModifDate: string;
+    createdAtAge: string;
+    updatedAtAge: string;
 }
 
 interface IBuildingColumn extends IBuilding {
@@ -157,13 +159,13 @@ export const Create_BUILDINGS_COLUMNS = (refreshBuildings: () => void): Column<I
             disableFilters: true
         },
         {
-            Header: "Time from creation",
-            accessor: "timeFromCreation",
+            Header: "Created",
+            accessor: "createdAtAge",
             disableFilters: true,
         },
         {
-            Header: "Time from last update",
-            accessor: "timeFromLastUpdate",
+            Header: "Updated",
+            accessor: "updatedAtAge",
             disableFilters: true,
         },       
         {

@@ -14,6 +14,12 @@ class CreateBuildingDto {
 	public geoJsonData: string;
 
 	public outerBounds?: number[][];
+
+	@IsString()
+	public buildingFileName: string;
+
+	@IsString()
+	public buildingFileLastModifDate: string;
 }
 
 export default CreateBuildingDto;

@@ -245,3 +245,5 @@ export const getStateOfSensorsByGroupsIdArray = async (groupsIdArray: number[]):
 									grafanadb.sensor.id ASC;`, [groupsIdArray]);
 	return response.rows as ISensorState[];
 };
+
+

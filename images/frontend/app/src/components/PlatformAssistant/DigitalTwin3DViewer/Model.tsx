@@ -224,7 +224,8 @@ const Model: FC<ModelProps> = (
 		setGenericObjectsState,
 		setFemSimulationObjectsState,
 		femResultData,
-		setFemResFilesLastUpdate
+		setFemResFilesLastUpdate,
+		digitalTwinGltfData.isGroupDTDemo
 	)
 
 	useLayoutEffect(() => {

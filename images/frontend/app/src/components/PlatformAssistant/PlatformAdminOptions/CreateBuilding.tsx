@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
+import { FeatureCollection } from 'geojson';
 import centerOfMass from '@turf/center-of-mass';
 import { polygon } from '@turf/helpers';
 import styled from "styled-components";
@@ -15,6 +16,8 @@ import { BUILDINGS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setBuildingsOptionToShow, useBuildingsDispatch } from '../../../contexts/buildingsOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import formatDateString from '../../../tools/formatDate';
+import { isGeoJSONString } from '../../../tools/geojsonValidation';
 
 
 
@@ -69,7 +72,19 @@ const BuildingLocationContainer = styled.div`
     width: 100%;
 `;
 
-const SelectBuildingLocationButtonContainer = styled.div`
+const DataFileTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const DataFileContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+    margin-bottom: 20px;
+`;
+
+const SelectDataFilenButtonContainer = styled.div`
     display: flex;
     margin-bottom: 10px;
     flex-direction: row;
@@ -79,7 +94,7 @@ const SelectBuildingLocationButtonContainer = styled.div`
     width: 100%;
 `;
 
-const SelectFileButton = styled.button`
+const FileButton = styled.button`
 	background-color: #3274d9;
 	padding: 5px 10px;
     margin: 5px 10px;
@@ -90,7 +105,7 @@ const SelectFileButton = styled.button`
 	cursor: pointer;
 	box-shadow: 0 5px #173b70;
     font-size: 14px;
-    width: 80%;
+    width: 40%;
 
 	&:hover {
 		background-color: #2461c0;
@@ -101,6 +116,32 @@ const SelectFileButton = styled.button`
 		box-shadow: 0 2px #173b70;
 		transform: translateY(4px);
 	}
+`;
+
+const FieldContainer = styled.div`
+    margin: 20px 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
+
+    & label {
+        font-size: 12px;
+        margin: 0 0 5px 3px;
+        width: 100%;
+    }
+
+    & div {
+        font-size: 14px;
+        background-color: #0c0d0f;
+        border: 2px solid #2c3235;
+        padding: 5px;
+        margin-left: 2px;
+        color: white;
+        width: 100%;
+    }
 `;
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
@@ -121,49 +162,99 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const buildingsDispatch = useBuildingsDispatch();
-    const [localFileContent, setLocalFileContent] = useState("");
-    const [localFileLoaded, setLocalFileLoaded] = useState(false);
-    const [localFileLabel, setLocalFileLabel] = useState("Select local file");
+    const [buildingGeoData, setBuildingGeoData] = useState({});
+    const [buildingFileLoaded, setBuildingFileLoaded] = useState(false);
+    const [buildingFileName, setBuildingFileName] = useState("-");
+    const [buildingFileLastModifDate, setBuildingFileLastModifDate] = useState("-");
+    const [longitude, setLongitude] = useState(0);
+    const [latitude, setLatitude] = useState(0);
+    const [isBuildingDataReady, setIsBuildingDataReady] = useState(false);
 
-    const [openFileSelector, { filesContent, plainFiles, loading, clear }] = useFilePicker({
+    const [openBuildingFileSelector, buildingFileParams] = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.geojson',
     });
 
     useEffect(() => {
-        if (!loading && filesContent.length !== 0 && plainFiles.length !== 0) {
-            setLocalFileContent(filesContent[0].content);
-            setLocalFileLoaded(true)
-            setLocalFileLabel(`Add geodata from ${plainFiles[0].name} file`);
-        }
-    }, [loading, filesContent, plainFiles])
+        if (
+            !buildingFileParams.loading &&
+            buildingFileParams.filesContent.length !== 0 &&
+            buildingFileParams.plainFiles.length !== 0
+        ) {
+            setBuildingFileLoaded(true)
+            try {
+                const fileContent = buildingFileParams.filesContent[0].content;
+                const errorArray = isGeoJSONString(fileContent, true);
+                if (Array.isArray(errorArray) && errorArray.length !== 0) {
+                    throw new Error(errorArray.join(", "));
+                }
+                const buildingGeoData = JSON.parse(fileContent);
+                setBuildingGeoData(buildingGeoData);
+                const buildingFileName = buildingFileParams.plainFiles[0].name;
+                setBuildingFileName(buildingFileName);
+                const dateString = (buildingFileParams.plainFiles[0] as any).lastModified;
+                setBuildingFileLastModifDate(formatDateString(dateString));
+                setBuildingFileLoaded(false);
+                buildingFileParams.clear();
+                setIsBuildingDataReady(true);
 
-    const resetFileSelect = (e: SyntheticEvent) => {
-        e.preventDefault();
-        setLocalFileLabel("Select local file");
-        setLocalFileContent("");
-        setLocalFileLoaded(false);
-        clear();
+                let geoPolygon;
+                if (buildingGeoData.features[0].geometry.type === "Polygon") {
+                    geoPolygon = polygon(buildingGeoData.features[0].geometry.coordinates);
+                } else if (buildingGeoData.features[0].geometry.type === "MultiPolygon") {
+                    geoPolygon = polygon(buildingGeoData.features[0].geometry.coordinates[0]);
+                }
+                const center = centerOfMass(geoPolygon);
+                setLongitude(center.geometry.coordinates[0]);
+                setLatitude(center.geometry.coordinates[1]);
+
+            } catch (error) {
+                if (error instanceof Error) {
+                    toast.error(`Invalid geojson file. ${error.message}`);
+                } else {
+                    toast.error("Invalid geojson file");
+                }
+                setBuildingFileLoaded(false);
+                setIsBuildingDataReady(false);
+                setBuildingFileName("-");
+                setBuildingGeoData({} as FeatureCollection);
+                setBuildingFileLastModifDate("-");
+                buildingFileParams.clear();
+            }
+        }
+    }, [
+        buildingFileParams.loading,
+        buildingFileParams.filesContent,
+        buildingFileParams.plainFiles,
+        buildingFileParams,
+    ])
+
+    const clearBuildingDataFile = () => {
+        setBuildingFileName("-");
+        setBuildingFileLastModifDate("-");
+        setBuildingGeoData({});
+        setBuildingFileLoaded(false);
+        buildingFileParams.clear();
+    }
+
+    const buildingFileButtonHandler = async () => {
+        if (!buildingFileLoaded) {
+            selectFile(openBuildingFileSelector, buildingFileParams.clear);
+        }
     }
 
     const onSubmit = (values: any, actions: any) => {
         const url = `${protocol}://${domainName}/admin_api/building`;
         const config = axiosAuth(accessToken);
 
-        if (typeof (values as any).longitude === 'string') {
-            (values as any).longitude = parseFloat((values as any).longitude);
-        }
-
-        if (typeof (values as any).latitude === 'string') {
-            (values as any).latitude = parseFloat((values as any).latitude);
-        }
-
         const buildingData = {
             name: values.name,
-            longitude: values.longitude,
-            latitude: values.latitude,
-            geoJsonData: values.geoJsonData
+            longitude,
+            latitude,
+            geoJsonData: JSON.stringify(buildingGeoData),
+            buildingFileName,
+            buildingFileLastModifDate,
         }
 
         setIsSubmitting(true);
@@ -195,9 +286,6 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
 
     const validationSchema = Yup.object().shape({
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
-        latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
-        geoJsonData: Yup.string().required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -210,37 +298,13 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
         <>
             <FormTitle isSubmitting={isSubmitting}>Create building</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialBuildingData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik
+                    initialValues={initialBuildingData}
+                    validationSchema={validationSchema}
+                    onSubmit={onSubmit}
+                >
                     {
                         formik => {
-                            const localFileButtonHandler = () => {
-                                if (!localFileLoaded) {
-                                    selectFile(openFileSelector, clear);
-                                } else {
-                                    try {
-                                        const values = { ...formik.values };
-                                        const geojsonObj = JSON.parse(localFileContent);
-                                        values.geoJsonData = JSON.stringify(geojsonObj, null, 4);
-                                        let geoPolygon;
-                                        if (geojsonObj.features[0].geometry.type === "Polygon") {
-                                            geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
-                                        } else if (geojsonObj.features[0].geometry.type === "MultiPolygon") {
-                                            geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates[0]);
-                                        }
-                                        const center = centerOfMass(geoPolygon);
-                                        values.longitude = center.geometry.coordinates[0];
-                                        values.latitude = center.geometry.coordinates[1];
-                                        formik.setValues(values);
-                                    } catch (e) {
-                                        console.log(e);
-                                        toast.error("Invalid geojson file");
-                                        setLocalFileLabel("Select local file");
-                                        setLocalFileContent("");
-                                        setLocalFileLoaded(false);
-                                        clear();
-                                    }
-                                }
-                            }
                             return (
                                 <Form>
                                     <ControlsContainer>
@@ -252,36 +316,45 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
                                         />
                                         <BuildingLocationTitle>Building location</BuildingLocationTitle>
                                         <BuildingLocationContainer>
-                                            <FormikControl
-                                                control='input'
-                                                label='Longitude'
-                                                name='longitude'
-                                                type='text'
-                                            />
-                                            <FormikControl
-                                                control='input'
-                                                label='Latitude'
-                                                name='latitude'
-                                                type='text'
-                                            />
-                                            <FormikControl
-                                                control='textarea'
-                                                label='Geojson data'
-                                                name='geoJsonData'
-                                                textAreaSize='Small'
-                                            />
-                                            <SelectBuildingLocationButtonContainer >
-                                                <SelectFileButton
-                                                    type='button'
-                                                    onClick={() => localFileButtonHandler()}
-                                                    onContextMenu={resetFileSelect}
-                                                >
-                                                    {localFileLabel}
-                                                </SelectFileButton>
-                                            </SelectBuildingLocationButtonContainer>
+                                            <FieldContainer>
+                                                <label>Longitude</label>
+                                                <div>{longitude}</div>
+                                            </FieldContainer>
+                                            <FieldContainer>
+                                                <label>Latitude</label>
+                                                <div>{latitude}</div>
+                                            </FieldContainer>
+                                            <DataFileTitle>Geojson file</DataFileTitle>
+                                            <DataFileContainer>
+                                                <FieldContainer>
+                                                    <label>File name</label>
+                                                    <div>{buildingFileName}</div>
+                                                </FieldContainer>
+                                                <FieldContainer>
+                                                    <label>Last modification date</label>
+                                                    <div>{buildingFileLastModifDate}</div>
+                                                </FieldContainer>
+                                                <SelectDataFilenButtonContainer >
+                                                    <FileButton
+                                                        type='button'
+                                                        onClick={clearBuildingDataFile}
+                                                    >
+                                                        Clear
+                                                    </FileButton>
+                                                    <FileButton
+                                                        type='button'
+                                                        onClick={() => buildingFileButtonHandler()}
+                                                    >
+                                                        Select local file
+                                                    </FileButton>
+                                                </SelectDataFilenButtonContainer>
+                                            </DataFileContainer>
                                         </BuildingLocationContainer>
                                     </ControlsContainer>
-                                    <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                                    <FormButtonsProps
+                                        onCancel={onCancel}
+                                        isValid={formik.isValid && isBuildingDataReady}
+                                        isSubmitting={formik.isSubmitting} />
                                 </Form>
                             )
                         }

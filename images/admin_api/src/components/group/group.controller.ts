@@ -463,6 +463,8 @@ class GroupController implements IController {
 				topicSensorTypes: ["dev2pdb_wt"],
 				maxNumResFemFiles: 1,
 				digitalTwinSimulationFormat: "{}",
+				dtRefFileName: "-",
+				dtRefFileLastModifDate: "-",
 				topicsRef: [
 					{
 						topicRef: "dev2pdb_wt_1",

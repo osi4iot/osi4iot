@@ -65,7 +65,7 @@ interface GeoGroupProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     digitalTwinsState: IDigitalTwinState[];
     sensorsState: ISensorState[];
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
 

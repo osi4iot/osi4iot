@@ -2,36 +2,63 @@ import pool from "../../config/dbconfig";
 import IDashboard from "./dashboard.interface";
 import IDashboardInfo from "./dashboardInfo.interfase";
 
+const extendDashboards = (dashboards: IDashboard[]) => {
+	const dashboardsExtended: IDashboard[] = []
+	for (const dashboard of dashboards) {
+		const data = JSON.parse(dashboard.data);
+		const newDashboard = {
+			id: dashboard.id,
+			orgId: dashboard.orgId,
+			groupId: dashboard.groupId,
+			uid: dashboard.uid,
+			title: dashboard.title,
+			slug: dashboard.slug,
+			refresh: data.refresh,
+			timeRangeFrom: data.time.from,
+			timeRangeTo: data.time.to,
+			created: dashboard.created,
+			updated: dashboard.updated
+		}
+		dashboardsExtended.push(newDashboard);
+	}
+	return dashboardsExtended;
+}
+
 export const getDashboardById = async (dashboardId: number): Promise<IDashboard> => {
 	const response = await pool.query(`SELECT grafanadb.dashboard.id, grafanadb.group.org_id as "orgId",
 									grafanadb.group.id as "groupId", grafanadb.dashboard.slug,
 									grafanadb.dashboard.title,  grafanadb.dashboard.uid,
+									grafanadb.dashboard.data,
 									grafanadb.dashboard.created, grafanadb.dashboard.updated
 									FROM grafanadb.dashboard
 									INNER JOIN grafanadb.dashboard_acl ON grafanadb.dashboard.folder_id = grafanadb.dashboard_acl.dashboard_id
 									INNER JOIN grafanadb.group ON grafanadb.dashboard_acl.team_id = grafanadb.group.team_id
 									WHERE grafanadb.dashboard.id = $1 AND
 									grafanadb.dashboard.is_folder = $2`, [dashboardId, false]);
-	return response.rows[0] as IDashboard;
+	const dashboard = response.rows[0] as IDashboard;
+	return extendDashboards([dashboard])[0];
 }
 
 export const getAllDashboards = async (): Promise<IDashboard[]> => {
 	const response = await pool.query(`SELECT grafanadb.dashboard.id, grafanadb.group.org_id as "orgId",
 									grafanadb.group.id as "groupId", grafanadb.dashboard.slug,
                                     grafanadb.dashboard.title,  grafanadb.dashboard.uid,
+									grafanadb.dashboard.data,
                                     grafanadb.dashboard.created, grafanadb.dashboard.updated
                                     FROM grafanadb.dashboard
 									INNER JOIN grafanadb.dashboard_acl ON grafanadb.dashboard.folder_id = grafanadb.dashboard_acl.dashboard_id
 									INNER JOIN grafanadb.group ON grafanadb.dashboard_acl.team_id = grafanadb.group.team_id
                                     WHERE grafanadb.dashboard.is_folder = $1
 									ORDER BY grafanadb.dashboard.id ASC;`, [false]);
-	return response.rows as IDashboard[];
+	const dashboards = response.rows as IDashboard[];
+	return extendDashboards(dashboards);
 }
 
 export const getDashboardsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDashboard[]> => {
 	const response = await pool.query(`SELECT grafanadb.dashboard.id, grafanadb.group.org_id as "orgId",
 									grafanadb.group.id as "groupId", grafanadb.dashboard.slug,
 									grafanadb.dashboard.title,  grafanadb.dashboard.uid,
+									grafanadb.dashboard.data,
 									grafanadb.dashboard.created, grafanadb.dashboard.updated
 									FROM grafanadb.dashboard
 									INNER JOIN grafanadb.dashboard_acl ON grafanadb.dashboard.folder_id = grafanadb.dashboard_acl.dashboard_id
@@ -39,7 +66,8 @@ export const getDashboardsByGroupsIdArray = async (groupsIdArray: number[]): Pro
 									WHERE grafanadb.group.id = ANY($1::bigint[]) AND grafanadb.dashboard.is_folder = $2
 									ORDER BY grafanadb.dashboard.id ASC,
                                     grafanadb.group.id ASC;`, [groupsIdArray, false]);
-	return response.rows as IDashboard[];
+	const dashboards = response.rows as IDashboard[];
+	return extendDashboards(dashboards);
 };
 
 export const checkIfExistDashboards = async (dashboardsIdArray: number[]): Promise<string> => {

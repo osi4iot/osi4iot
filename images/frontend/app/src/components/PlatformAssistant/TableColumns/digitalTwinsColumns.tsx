@@ -40,6 +40,8 @@ export interface IDigitalTwin {
     digitalTwinSimulationFormat: string;
     dashboardUrl: string;
     digitalTwinRef: string;
+    dtRefFileName: string;
+	dtRefFileLastModifDate: string;
 }
 
 export interface IDigitalTwinSimulator {

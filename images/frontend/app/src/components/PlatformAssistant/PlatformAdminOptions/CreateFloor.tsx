@@ -1,4 +1,5 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
+import { FeatureCollection } from 'geojson';
 import styled from "styled-components";
 import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
@@ -13,6 +14,8 @@ import { FLOORS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setFloorsOptionToShow, useFloorsDispatch } from '../../../contexts/floorsOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import formatDateString from '../../../tools/formatDate';
+import { isGeoJSONString } from '../../../tools/geojsonValidation';
 
 
 const FormContainer = styled.div`
@@ -24,7 +27,7 @@ const FormContainer = styled.div`
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
+    height: calc(100vh - 510px);
     width: 100%;
     padding: 0px 5px;
     overflow-y: auto;
@@ -66,7 +69,19 @@ const FloorLocationContainer = styled.div`
     width: 100%;
 `;
 
-const SelectFloorLocationButtonContainer = styled.div`
+const DataFileTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const DataFileContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+    margin-bottom: 10px;
+`;
+
+const SelectDataFilenButtonContainer = styled.div`
     display: flex;
     margin-bottom: 10px;
     flex-direction: row;
@@ -76,7 +91,7 @@ const SelectFloorLocationButtonContainer = styled.div`
     width: 100%;
 `;
 
-const SelectFileButton = styled.button`
+const FileButton = styled.button`
 	background-color: #3274d9;
 	padding: 5px 10px;
     margin: 5px 10px;
@@ -87,7 +102,7 @@ const SelectFileButton = styled.button`
 	cursor: pointer;
 	box-shadow: 0 5px #173b70;
     font-size: 14px;
-    width: 80%;
+    width: 40%;
 
 	&:hover {
 		background-color: #2461c0;
@@ -98,6 +113,32 @@ const SelectFileButton = styled.button`
 		box-shadow: 0 2px #173b70;
 		transform: translateY(4px);
 	}
+`;
+
+const FieldContainer = styled.div`
+    margin: 20px 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
+
+    & label {
+        font-size: 12px;
+        margin: 0 0 5px 3px;
+        width: 100%;
+    }
+
+    & div {
+        font-size: 14px;
+        background-color: #0c0d0f;
+        border: 2px solid #2c3235;
+        padding: 5px;
+        margin-left: 2px;
+        color: white;
+        width: 100%;
+    }
 `;
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
@@ -118,23 +159,75 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const floorsDispatch = useFloorsDispatch();
-    const [localFileContent, setLocalFileContent] = useState("");
-    const [localFileLoaded, setLocalFileLoaded] = useState(false);
-    const [localFileLabel, setLocalFileLabel] = useState("Select local file");
+    const [floorGeoData, setFloorGeoData] = useState({});
+    const [floorFileLoaded, setFloorFileLoaded] = useState(false);
+    const [floorFileName, setFloorFileName] = useState("-");
+    const [floorFileLastModifDate, setFloorFileLastModifDate] = useState("-");
+    const [isFloorDataReady, setIsFloorDataReady] = useState(false);
 
-    const [openFileSelector, { filesContent, plainFiles, loading, clear }] = useFilePicker({
+    const [openFloorFileSelector, floorFileParams] = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.geojson',
     });
 
     useEffect(() => {
-        if (!loading && filesContent.length !== 0 && plainFiles.length !== 0) {
-            setLocalFileContent(filesContent[0].content);
-            setLocalFileLoaded(true)
-            setLocalFileLabel(`Add geodata from ${plainFiles[0].name} file`);
+        if (
+            !floorFileParams.loading &&
+            floorFileParams.filesContent.length !== 0 &&
+            floorFileParams.plainFiles.length !== 0
+        ) {
+            setFloorFileLoaded(true)
+            try {
+                const fileContent = floorFileParams.filesContent[0].content;
+                const errorArray = isGeoJSONString(fileContent, true);
+                if (Array.isArray(errorArray) && errorArray.length !== 0) {
+                    throw new Error(errorArray.join(", "));
+                }
+                const floorGeoData = JSON.parse(fileContent);
+                setFloorGeoData(floorGeoData);
+                const floorFileName = floorFileParams.plainFiles[0].name;
+                setFloorFileName(floorFileName);
+                const dateString = (floorFileParams.plainFiles[0] as any).lastModified;
+                setFloorFileLastModifDate(formatDateString(dateString));
+                setFloorFileLoaded(false);
+                floorFileParams.clear();
+                setIsFloorDataReady(true);
+
+            } catch (error) {
+                if (error instanceof Error) {
+                    toast.error(`Invalid geojson file. ${error.message}`);
+                } else {
+                    toast.error("Invalid geojson file");
+                }
+                setFloorFileLoaded(false);
+                setFloorFileName("-");
+                setFloorGeoData({} as FeatureCollection);
+                setFloorFileLastModifDate("-");
+                setIsFloorDataReady(false);
+                floorFileParams.clear();
+            }
         }
-    }, [loading, filesContent, plainFiles])
+    }, [
+        floorFileParams.loading,
+        floorFileParams.filesContent,
+        floorFileParams.plainFiles,
+        floorFileParams,
+    ])
+
+    const clearFloorDataFile = () => {
+        setFloorFileName("-");
+        setFloorFileLastModifDate("-");
+        setFloorGeoData({});
+        setFloorFileLoaded(false);
+        floorFileParams.clear();
+    }
+
+    const floorFileButtonHandler = async () => {
+        if (!floorFileLoaded) {
+            selectFile(openFloorFileSelector, floorFileParams.clear);
+        }
+    }
 
     const onSubmit = (values: any, actions: any) => {
         const url = `${protocol}://${domainName}/admin_api/building_floor`;
@@ -147,13 +240,13 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
         if (typeof (values as any).floorNumber === 'string') {
             (values as any).floorNumber = parseInt((values as any).floorNumber, 10);
         }
-        
-        values.geoJsonData = JSON.stringify(JSON.parse(values.geoJsonData));
 
         const floorData = {
             buildingId: values.buildingId,
             floorNumber: values.floorNumber,
-            geoJsonData: values.geoJsonData
+            geoJsonData: JSON.stringify(floorGeoData),
+            floorFileName,
+            floorFileLastModifDate,
         }
 
         setIsSubmitting(true);
@@ -179,22 +272,12 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
     const initialFloorData = {
         buildingId: 1,
         floorNumber: 0,
-        geoJsonData: "{}"
     }
 
     const validationSchema = Yup.object().shape({
         buildingId: Yup.number().integer().positive().required('Required'),
         floorNumber: Yup.number().integer().required('Required'),
-        geoJsonData: Yup.string().required('Required'),
     });
-    
-    const resetFileSelect = (e: SyntheticEvent) => {
-        e.preventDefault();
-        setLocalFileLabel("Select local file");
-        setLocalFileContent("");
-        setLocalFileLoaded(false);
-        clear();
-    }
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
@@ -208,25 +291,6 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
                 <Formik initialValues={initialFloorData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => {
-                            const localFileButtonHandler = () => {
-                                if (!localFileLoaded) {
-                                    selectFile(openFileSelector, clear);
-                                } else {
-                                    try {
-                                        const values = { ...formik.values };
-                                        const geojsonObj = JSON.parse(localFileContent);
-                                        values.geoJsonData = JSON.stringify(geojsonObj, null, 4);
-                                        formik.setValues(values);
-                                    } catch (e) {
-                                        console.log(e);
-                                        toast.error("Invalid geojson file");
-                                        setLocalFileLabel("Select local file");
-                                        setLocalFileContent("");
-                                        setLocalFileLoaded(false);
-                                        clear();
-                                    }
-                                }
-                            }
                             return (
                                 <Form>
                                     <ControlsContainer>
@@ -244,24 +308,38 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
                                                 name='floorNumber'
                                                 type='text'
                                             />
-                                            <FormikControl
-                                                control='textarea'
-                                                label='Geojson data'
-                                                name='geoJsonData'
-                                                textAreaSize='Large'
-                                            />
-                                            <SelectFloorLocationButtonContainer >
-                                                <SelectFileButton
-                                                    type='button'
-                                                    onClick={() => localFileButtonHandler()}
-                                                    onContextMenu={resetFileSelect}
-                                                >
-                                                    {localFileLabel}
-                                                </SelectFileButton>
-                                            </SelectFloorLocationButtonContainer>
+                                            <DataFileTitle>Geojson file</DataFileTitle>
+                                            <DataFileContainer>
+                                                <FieldContainer>
+                                                    <label>File name</label>
+                                                    <div>{floorFileName}</div>
+                                                </FieldContainer>
+                                                <FieldContainer>
+                                                    <label>Last modification date</label>
+                                                    <div>{floorFileLastModifDate}</div>
+                                                </FieldContainer>
+                                                <SelectDataFilenButtonContainer >
+                                                    <FileButton
+                                                        type='button'
+                                                        onClick={clearFloorDataFile}
+                                                    >
+                                                        Clear
+                                                    </FileButton>
+                                                    <FileButton
+                                                        type='button'
+                                                        onClick={() => floorFileButtonHandler()}
+                                                    >
+                                                        Select local file
+                                                    </FileButton>
+                                                </SelectDataFilenButtonContainer>
+                                            </DataFileContainer>
                                         </FloorLocationContainer>
                                     </ControlsContainer>
-                                    <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                                    <FormButtonsProps
+                                        onCancel={onCancel}
+                                        isValid={formik.isValid && isFloorDataReady}
+                                        isSubmitting={formik.isSubmitting}
+                                    />
                                 </Form>
                             )
                         }

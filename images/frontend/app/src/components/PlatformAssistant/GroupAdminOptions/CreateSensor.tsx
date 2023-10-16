@@ -12,6 +12,7 @@ import { SENSORS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setSensorsOptionToShow, useSensorsDispatch } from '../../../contexts/sensorsOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { setReloadDashboardsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -73,6 +74,7 @@ interface CreateSensorProps {
 }
 
 const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -85,6 +87,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         const config = axiosAuth(accessToken);
 
         const sensorData = {
+            type: values.type,
             description: values.description,
             topicId: parseInt(values.topicId, 10),
             payloadKey: values.payloadKey,
@@ -111,6 +114,8 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
             })
             .finally(() => {
                 refreshSensors();
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
             })
     }
 
@@ -118,8 +123,9 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
     const initialSensorData = {
         groupId: "",
         assetId: "",
-        description: "",
         topicId: "",
+        type: "",
+        description: "",
         payloadKey: "",
         paramLabel: "",
         valueType: "number",
@@ -132,6 +138,7 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
         groupId: Yup.number().required('Required'),
         assetId: Yup.number().required('Required'),
         topicId: Yup.number().required('Required'),
+        type: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         payloadKey: Yup.string().required('Required'),
         paramLabel: Yup.string().required('Required'),
@@ -165,6 +172,12 @@ const CreateSensor: FC<CreateSensorProps> = ({ backToTable, refreshSensors }) =>
                                         control='input'
                                         label='AssetId'
                                         name='assetId'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Type'
+                                        name='type'
                                         type='text'
                                     />
                                     <FormikControl

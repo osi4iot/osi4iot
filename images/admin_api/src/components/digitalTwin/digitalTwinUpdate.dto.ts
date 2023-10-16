@@ -22,6 +22,12 @@ class UpdateDigitalTwinDto {
 	@IsString()
 	public digitalTwinSimulationFormat: string;
 
+	@IsString()
+	public dtRefFileName: string;
+
+	@IsString()
+	public dtRefFileLastModifDate: string;
+
 	@ValidateNested({ each: true })
 	@Type(() => CreateTopicRefDto)
 	public topicsRef: CreateTopicRefDto[];

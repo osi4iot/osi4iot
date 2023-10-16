@@ -39,7 +39,7 @@ export const SensorSvgImage: FC<SensorSvgImageProps> = ({
                 <circle
                     fill="#555555"
                     stroke={setSensorCircleColor(sensorId, sensorSelected)}
-                    strokeWidth="5"
+                    strokeWidth="15"
                     cx="300"
                     cy="300"
                     r="290"

@@ -37,7 +37,7 @@ export const FordwardAndBackwardSensorSvgImage: FC<FordwardAndBackwardSensorSvgI
                 <circle
                     fill="#555555"
                     stroke={buttonHover ? HOVER : NON_SELECTED}
-                    strokeWidth={buttonHover ? 15 : 5}
+                    strokeWidth={buttonHover ? 18 : 15}
                     cx="300"
                     cy="300"
                     r="290"

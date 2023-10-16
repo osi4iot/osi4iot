@@ -14,7 +14,16 @@ import UserRegisterDto from "./userRegister.dto";
 import { getUserdByEmailOrLogin, getUserLoginDatadByEmailOrLogin, isThisUserOrgAdmin, isUserProfileDataCorrect, updateOrganizationUser, updateUserProfileById } from "../user/userDAL";
 import IUser from "../user/interfaces/User.interface";
 import RefreshTokenToDisableDto from "./refreshTokenToDisableDTO";
-import { deleteRefreshToken, deleteRefreshTokenById, deleteUserRefreshTokens, exitsRefreshToken, getAllRefreshTokens, getRefreshTokenByUserId, insertRefreshToken, updateRefreshToken } from "./authenticationDAL";
+import {
+	deleteRefreshToken,
+	deleteRefreshTokenById,
+	deleteUserRefreshTokens,
+	exitsRefreshToken,
+	getAllRefreshTokens,
+	getRefreshTokenByUserId,
+	insertRefreshToken,
+	updateRefreshToken
+} from "./authenticationDAL";
 import { getNumOrganizations, getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import { getAllGroupsInOrgArray, getFullGroupDataById, getGroupsManagedByUserId, getNumGroups, isThisUserGroupAdmin } from "../group/groupDAL";
 import IComponentsManagedByUser from "./ComponentsManagedByUser.interface";

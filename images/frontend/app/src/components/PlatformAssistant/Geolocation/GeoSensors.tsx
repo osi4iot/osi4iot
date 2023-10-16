@@ -20,7 +20,7 @@ interface GeoSensorsProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     digitalTwinState: IDigitalTwinState | null;
     sensorsState: ISensorState[];
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
 }
 
@@ -59,8 +59,13 @@ const GeoSensors: FC<GeoSensorsProps> = ({
             let newSensorsSetIndex: number;
             if (sensorsSetIndex >= 2) newSensorsSetIndex = sensorsSetIndex - 1;
             else newSensorsSetIndex = 1;
-            if (newSensorsSetIndex === 1) setBackwardButtonState(false);
-            else setFordwardButtonState(true);
+            if (newSensorsSetIndex === 1) {
+                setBackwardButtonState(false);
+                setFordwardButtonState(true);
+            } else {
+                setFordwardButtonState(true);
+                setFordwardButtonState(true);
+            }
             setSensorsSetIndex(newSensorsSetIndex);
         }
     }

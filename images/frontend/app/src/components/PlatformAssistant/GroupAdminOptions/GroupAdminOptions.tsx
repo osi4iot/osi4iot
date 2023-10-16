@@ -72,6 +72,7 @@ import AssetsContainer from './AssetsContainer';
 import { SensorsProvider } from '../../../contexts/sensorsOptions';
 import SensorsContainer from './SensorsContainer';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
+import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -258,6 +259,11 @@ const GroupAdminOptions: FC<{}> = () => {
                 .get(urlBuildings, config)
                 .then((response) => {
                     const buildings = response.data;
+                    buildings.map((building: IBuilding) => {
+                        building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
+                        building.updatedAtAge = elaspsedTimeFormat(building.updatedAtAge);
+                        return building;
+                    })
                     setBuildingsTable(plaformAssistantDispatch, { buildings });
                     setBuildingsLoading(false);
                     const buildingsFiltered = filterBuildings(buildings);
@@ -286,6 +292,11 @@ const GroupAdminOptions: FC<{}> = () => {
                 .get(urlFloors, config)
                 .then((response) => {
                     const floors = response.data;
+                    floors.map((floor: IFloor) => {
+                        floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
+                        floor.updatedAtAge = elaspsedTimeFormat(floor.updatedAtAge);
+                        return floor;
+                    })
                     setFloorsTable(plaformAssistantDispatch, { floors });
                     setFloorsLoading(false);
                     const floorsFiltered = filterFloors(floors);

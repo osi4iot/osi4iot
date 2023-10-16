@@ -30,7 +30,7 @@ import {
 	updateSensorByPropName
 } from "./sensorDAL";
 import { nanoid } from "nanoid";
-import { createSensorDashboard } from "../group/dashboardDAL";
+import { createSensorDashboard, deleteDashboard } from "../group/dashboardDAL";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import { generateDashboardsUrl } from "../digitalTwin/digitalTwinDAL";
 import ISensorState from "./sensorState.interface";
@@ -232,7 +232,9 @@ class SensorController implements IController {
 			if (!this.isValidSensorPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const sensor = await getSensorByPropName(propName, propValue);
 			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", propName, propValue);
+			const dashboardId = sensor.dashboardId;
 			await deleteSensorByPropName(propName, propValue);
+			await deleteDashboard(dashboardId);
 			const message = { message: "Sensor deleted successfully" }
 			res.status(200).json(message);
 		} catch (error) {

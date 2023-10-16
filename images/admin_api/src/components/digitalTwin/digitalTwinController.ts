@@ -376,7 +376,7 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!existentDigitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
-			const digitalTwinUpdated: IDigitalTwin& UpdateDigitalTwinDto = { ...existentDigitalTwin, ...digitalTwinData };
+			const digitalTwinUpdated: IDigitalTwin & UpdateDigitalTwinDto = { ...existentDigitalTwin, ...digitalTwinData };
 			if (digitalTwinData.isGltfFileModified) {
 				await verifyAndCorrectDigitalTwinReferences(group, digitalTwinUpdated);
 			}

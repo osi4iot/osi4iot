@@ -82,6 +82,7 @@ export interface IDigitalTwinGltfData {
 	mqttTopicsData: IMqttTopicData[];
 	sensorsDashboards: IDigitalTwinSensorDashboard[];
 	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
+	isGroupDTDemo: boolean;
 }
 
 

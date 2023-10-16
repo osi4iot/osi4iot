@@ -119,7 +119,6 @@ export const dataBaseInitialization = async () => {
 		}
 
 		if (process_env.REPLICA === "1") {
-
 			if (result0.rows[0].count !== 0) {
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
@@ -168,6 +167,8 @@ export const dataBaseInitialization = async () => {
 					geolocation POINT,
 					geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
 					outer_bounds float8[2][2],
+					building_file_name VARCHAR(100),
+					building_file_last_modif_date VARCHAR(100),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ
 				);
@@ -182,7 +183,8 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableBuilding} can not be created: %s`, err.message);
 				}
 
-				const queryStringInsertBuilding = `INSERT INTO ${tableBuilding} (name, geolocation, created, updated) VALUES ($1, $2, NOW(), NOW())`;
+				const queryStringInsertBuilding =
+					`INSERT INTO ${tableBuilding} (name, geolocation, created, updated) VALUES ($1, $2, NOW(), NOW())`;
 				const queryParametersInsertBuilding = [process_env.MAIN_ORGANIZATION_NAME, `(0,0)`];
 				try {
 					await postgresClient.query(queryStringInsertBuilding, queryParametersInsertBuilding);
@@ -199,6 +201,8 @@ export const dataBaseInitialization = async () => {
 					floor_number integer,
 					geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
 					outer_bounds float8[2][2],
+					floor_file_name VARCHAR(100),
+					floor_file_last_modif_date VARCHAR(100),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_building_id
@@ -543,6 +547,8 @@ export const dataBaseInitialization = async () => {
 					dashboard_id bigint,
 					max_num_resfem_files SMALLINT NOT NULL DEFAULT 1,
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
+					dt_references_file_name VARCHAR(100),
+					dt_references_file_last_modif_date VARCHAR(100),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (group_id, asset_id, scope),
@@ -851,6 +857,8 @@ export const dataBaseInitialization = async () => {
 					topicSensorTypes: ["dev2pdb_wt"],
 					maxNumResFemFiles: 1,
 					digitalTwinSimulationFormat: "{}",
+					dtRefFileName: "-",
+					dtRefFileLastModifDate: "-",
 					topicsRef: [
 						{
 							topicRef: "dev2pdb_wt_1",

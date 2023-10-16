@@ -10,6 +10,8 @@ export default interface IDigitalTwin {
 	dashboardId: number;
 	maxNumResFemFiles: number;
 	digitalTwinSimulationFormat: string;
+	dtRefFileName: string;
+	dtRefFileLastModifDate: string;
 	dashboardUrl: string;
 	created?: string;
 	updated?: string;

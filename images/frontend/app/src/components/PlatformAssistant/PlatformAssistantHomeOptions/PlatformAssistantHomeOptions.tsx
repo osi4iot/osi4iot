@@ -48,6 +48,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { useAssetsTable, useReloadAssetsTable, useReloadSensorsTable, useSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantContext';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';
+import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -247,8 +248,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setTimeout(() => setReloadDigitalTwins(false), 500);
 	}, [])
 
-	const openDigitalTwin3DViewer = useCallback((digitalTwinGltfData: IDigitalTwinGltfData) => {
+	const openDigitalTwin3DViewer = useCallback((
+		digitalTwinGltfData: IDigitalTwinGltfData,
+		isGroupDTDemo: boolean
+	) => {
 		digitalTwinGltfData.gltfData = JSON.parse(digitalTwinGltfData.gltfData);
+		digitalTwinGltfData.isGroupDTDemo = isGroupDTDemo;
 		setDigitalTwinGltfData(digitalTwinGltfData)
 		setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)
 	}, [])
@@ -328,6 +333,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 				.get(urlBuildings, config)
 				.then((response) => {
 					const buildings = response.data;
+					buildings.map((building: IBuilding) => {
+                        building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
+                        building.updatedAtAge = elaspsedTimeFormat(building.updatedAtAge);
+                        return building;
+                    })
 					setBuildingsTable(plaformAssistantDispatch, { buildings });
 					setBuildingsLoading(false);
 					const buildingsFiltered = filterBuildings(buildings);
@@ -362,6 +372,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 				.get(urlFloors, config)
 				.then((response) => {
 					const floors = response.data;
+					floors.map((floor: IFloor) => {
+                        floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
+                        floor.updatedAtAge = elaspsedTimeFormat(floor.updatedAtAge);
+                        return floor;
+                    })
 					setFloorsTable(plaformAssistantDispatch, { floors });
 					setFloorsLoading(false);
 					const floorsFiltered = filterFloors(floors);

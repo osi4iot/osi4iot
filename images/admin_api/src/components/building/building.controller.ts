@@ -119,8 +119,8 @@ class BuildingController implements IController {
 				}
 			}
 			buildings.forEach(building => {
-				building.timeFromCreation = generateLastSeenAtAgeString(building.timeFromCreation);
-				building.timeFromLastUpdate = generateLastSeenAtAgeString(building.timeFromLastUpdate);
+				building.createdAtAge = generateLastSeenAtAgeString(building.createdAtAge);
+				building.updatedAtAge = generateLastSeenAtAgeString(building.updatedAtAge);
 			});
 			res.status(200).send(buildings);
 		} catch (error) {
@@ -152,8 +152,8 @@ class BuildingController implements IController {
 				}
 			}
 			floors.forEach(floor => {
-				floor.timeFromCreation = generateLastSeenAtAgeString(floor.timeFromCreation);
-				floor.timeFromLastUpdate = generateLastSeenAtAgeString(floor.timeFromLastUpdate);
+				floor.createdAtAge = generateLastSeenAtAgeString(floor.createdAtAge);
+				floor.updatedAtAge = generateLastSeenAtAgeString(floor.updatedAtAge);
 			});
 			res.status(200).send(floors);
 		} catch (error) {
@@ -300,8 +300,8 @@ class BuildingController implements IController {
 			const { floorId } = req.params;
 			const floor = await getFloorById(parseInt(floorId, 10));
 			if (!floor) throw new ItemNotFoundException(req, res, "The building floor", "id", floorId);
-			floor.timeFromCreation = generateLastSeenAtAgeString(floor.timeFromCreation);
-			floor.timeFromLastUpdate = generateLastSeenAtAgeString(floor.timeFromLastUpdate);
+			floor.createdAtAge = generateLastSeenAtAgeString(floor.createdAtAge);
+			floor.updatedAtAge = generateLastSeenAtAgeString(floor.updatedAtAge);
 			res.status(200).json(floor);
 		} catch (error) {
 			next(error);
@@ -313,8 +313,8 @@ class BuildingController implements IController {
 		try {
 			const buildings = await getAllBuildings();
 			buildings.forEach(building => {
-				building.timeFromCreation = generateLastSeenAtAgeString(building.timeFromCreation);
-				building.timeFromLastUpdate = generateLastSeenAtAgeString(building.timeFromLastUpdate);
+				building.createdAtAge = generateLastSeenAtAgeString(building.createdAtAge);
+				building.updatedAtAge = generateLastSeenAtAgeString(building.updatedAtAge);
 			});
 			res.status(200).send(buildings);
 		} catch (error) {
@@ -326,8 +326,8 @@ class BuildingController implements IController {
 		try {
 			const floors = await getAllFloors();
 			floors.forEach(floor => {
-				floor.timeFromCreation = generateLastSeenAtAgeString(floor.timeFromCreation);
-				floor.timeFromLastUpdate = generateLastSeenAtAgeString(floor.timeFromLastUpdate);
+				floor.createdAtAge = generateLastSeenAtAgeString(floor.createdAtAge);
+				floor.updatedAtAge = generateLastSeenAtAgeString(floor.updatedAtAge);
 			});
 			res.status(200).send(floors);
 		} catch (error) {
@@ -340,8 +340,8 @@ class BuildingController implements IController {
 			const { buildingId } = req.params;
 			const building = await getBuildingByProp("id", buildingId);
 			if (!building) throw new ItemNotFoundException(req, res, "The building", "id", buildingId);
-			building.timeFromCreation = generateLastSeenAtAgeString(building.timeFromCreation);
-			building.timeFromLastUpdate = generateLastSeenAtAgeString(building.timeFromLastUpdate);
+			building.createdAtAge = generateLastSeenAtAgeString(building.createdAtAge);
+			building.updatedAtAge = generateLastSeenAtAgeString(building.updatedAtAge);
 			res.status(200).send(building);
 		} catch (error) {
 			next(error);

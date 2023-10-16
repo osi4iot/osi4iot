@@ -23,9 +23,11 @@ export interface IFloor {
     buildingName: number;
     floorNumber: number;
     geoJsonData: FeatureCollection;
+    floorFileName: string;
+	floorFileLastModifDate: string;
     outerBounds: number[][];
-    timeFromCreation: string;
-    timeFromLastUpdate: string;
+    createdAtAge: string;
+    updatedAtAge: string;
 }
 
 interface IFloorColumn extends IFloor {
@@ -145,15 +147,15 @@ export const Create_FLOORS_COLUMNS = (refreshFloors: () => void): Column<IFloorC
             disableFilters: true
         },
         {
-            Header: "Time from creation",
-            accessor: "timeFromCreation",
+            Header: "Created",
+            accessor: "createdAtAge",
             disableFilters: true,
         },
         {
-            Header: "Time from last update",
-            accessor: "timeFromLastUpdate",
+            Header: "Updated",
+            accessor: "updatedAtAge",
             disableFilters: true,
-        },    
+        },     
         {
             Header: "",
             accessor: "edit",

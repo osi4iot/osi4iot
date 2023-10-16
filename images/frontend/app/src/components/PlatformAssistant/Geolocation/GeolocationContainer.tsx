@@ -94,7 +94,7 @@ interface GeolocationContainerProps {
     outerBounds: number[][];
     setNewOuterBounds: (outerBounds: number[][]) => void;
     resetBuildingSelection: () => void;
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     digitalTwinsState: IDigitalTwinState[];
     setDigitalTwinsState: (digitalTwinsState: IDigitalTwinState[]) => void;

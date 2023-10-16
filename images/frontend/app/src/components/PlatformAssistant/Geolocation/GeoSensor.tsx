@@ -90,7 +90,6 @@ const GeoSensor: FC<GeoSensorProps> = ({
         if (url.slice(0, 7) === "Warning") {
             toast.warning(url);
         } else {
-            // window.open(url, "_blank");
             openWindowTab(
                 url,
                 plaformAssistantDispatch,

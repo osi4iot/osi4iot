@@ -27,6 +27,8 @@ import IAsset from "./asset.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import infoLogger from "../../utils/logger/infoLogger";
+import { getSensorsByAssetId } from "../sensor/sensorDAL";
+import { deleteDashboardsByIdArray } from "../group/dashboardDAL";
 
 
 class AssetController implements IController {
@@ -168,7 +170,10 @@ class AssetController implements IController {
 			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const asset = await getAssetByPropName(propName, propValue);
 			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
+			const sensors = getSensorsByAssetId(asset.id);
+			const dashboardIds = (await sensors).map(sensor => sensor.dashboardId);
 			await deleteAssetByPropName(propName, propValue);
+			await deleteDashboardsByIdArray(dashboardIds);
 			const message = { message: "Asset deleted successfully" }
 			res.status(200).json(message);
 		} catch (error) {

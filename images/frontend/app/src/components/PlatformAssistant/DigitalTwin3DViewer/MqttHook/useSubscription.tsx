@@ -37,6 +37,7 @@ const useSubscription = (
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
     femResultData: any,
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
+    isGroupDTDemo: boolean,
     options: SubscribeOptions = {} as SubscribeOptions,
 ) => {
     const { client } = useContext<Context>(MqttContext);
@@ -88,6 +89,7 @@ const useSubscription = (
                         setFemSimulationObjectsState,
                         femResultNames,
                         setFemResFilesLastUpdate,
+                        isGroupDTDemo
                     )
 
                 }
@@ -121,6 +123,7 @@ const updateObjectsState = (
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
     femResultNames: string[],
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
+    isGroupDTDemo: boolean
 ) => {
     const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
     const sim2dtmTopicId = mqttTopicsData.filter(topic => topic.topicRef === "sim2dtm")[0].topicId;
@@ -142,7 +145,16 @@ const updateObjectsState = (
             let isfemSimulationObjectsStateChanged = false;
             const femSimulationObjectsNewState = [...femSimulationObjectsState];
 
-            if ((messageTopicType.slice(0,7) === "dev2pdb" && !digitalTwinSimulatorSendData) ||
+            if (isGroupDTDemo && messageTopicType === "dev2pdb_wt") {
+                genericObjects.forEach((obj) => {
+                    const objName = obj.node.name;
+                    if (objName === "EMPTY_CONTROL_POINTER") {
+                        setOrientationForGroupDemoDT(obj.node, mqttMessage);
+                    }
+                });
+            }
+
+            if ((messageTopicType.slice(0, 7) === "dev2pdb" && !digitalTwinSimulatorSendData) ||
                 messageTopicType === "dev2sim" || messageTopicType === "sim2dtm"
             ) {
                 sensorObjects.forEach((obj) => {
@@ -373,6 +385,7 @@ const updateObjectsState = (
                             if (messagePayloadKeys.includes(fieldName)) {
                                 updateCustomAnimationState(obj.node, mqttMessage)
                             }
+
                         }
 
                         if (obj.node.onOffObjectNames.length !== 0) {
@@ -505,6 +518,24 @@ const findObjectAndSetCustomProperties = (
         for (const childNode of node.children) {
             findObjectAndSetCustomProperties(childNode as IThreeMesh, objName, messagePayloadKeys, msgData);
         }
+    }
+}
+
+const setOrientationForGroupDemoDT = (
+    node: IThreeMesh,
+    mqttMessage: any
+) => {
+    if (mqttMessage.mobile_quaternion) {
+        const mobile_quaternion = mqttMessage.mobile_quaternion;
+        const quaternion = [
+            mobile_quaternion[0],
+            mobile_quaternion[2],
+            -mobile_quaternion[1],
+            mobile_quaternion[3]
+        ];
+        const qr = new THREE.Quaternion(quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+        const qres = new THREE.Quaternion().multiplyQuaternions(qr, node.quaternionIni);
+        node.quaternion.set(qres.x, qres.y, qres.z, qres.w);
     }
 }
 
