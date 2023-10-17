@@ -6,8 +6,8 @@ import * as Yup from 'yup';
 import FormikControl from "./FormikControl";
 import ReadAccelerations from '../../tools/ReadingAccelerations';
 import ProgresBar from './ProgressBar';
-import MobileAccelerationFormButtons from './MobileAccelerationFormButtons';
 import { IMobileTopic } from '../PlatformAssistant/TableColumns/topicsColumns';
+import MobileSensorFormButtons from './MobileSensorFormButtons';
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -193,7 +193,7 @@ const MobileAccelerationForm: FC<MobileSensorSelectFormProps> = (
                                         <ProgresBar value={readingProgress} />
                                     </ProgressBarContainer>
                                 ) : null}
-                                <MobileAccelerationFormButtons onCancel={onCancel} isValid={formik.isValid} isSensorReading={isSensorReading} />
+                                <MobileSensorFormButtons onCancel={onCancel} isValid={formik.isValid} isSensorReading={isSensorReading} />
                             </Form>
                         )
                     }

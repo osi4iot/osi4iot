@@ -39,6 +39,7 @@ import {
 	checkMaxNumberOfFemResFiles,
 	checkNumberOfGltfFiles,
 	ITopicRef,
+	addTopicAndSensorReferences,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -200,8 +201,9 @@ class DigitalTwinController implements IController {
 					digitalTwins = await getDigitalTwinsByGroupsIdArray(groupsIdArray);
 				}
 			}
-			const digitalTwinsExtended = await addDashboardUrls(digitalTwins);
-			res.status(200).send(digitalTwinsExtended);
+			const digitalTwinsWithDashboards = await addDashboardUrls(digitalTwins);
+			const digitalTwinWithRef = await addTopicAndSensorReferences(digitalTwinsWithDashboards);
+			res.status(200).send(digitalTwinWithRef);
 		} catch (error) {
 			next(error);
 		}

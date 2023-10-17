@@ -71,9 +71,9 @@ import { nanoid } from "nanoid";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import sslGroupCerticatesGenerator from "./sslGroupCerticatesGenerator";
 import ISensor from "../sensor/sensor.interface";
-import CreateSensorRefDto from "../digitalTwin/sensorRef.dto";
 import ITopic from "../topic/topic.interface";
 import infoLogger from "../../utils/logger/infoLogger";
+import CreateSensorRefDto from "../digitalTwin/createSensorRef.dto";
 
 class GroupController implements IController {
 	public path = "/group";

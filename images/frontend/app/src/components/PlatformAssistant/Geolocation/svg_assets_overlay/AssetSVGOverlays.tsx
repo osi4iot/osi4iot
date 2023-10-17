@@ -2,8 +2,11 @@ import { FC } from "react";
 import { LatLngTuple } from 'leaflet';
 import { GenericAssetSVGOverlay } from "./GenericAssetSVGOverlay";
 import { MobileSVGOverlay } from "./MobileSVGOverlay";
-import { WindTurbineSVGOverlay } from "./WindTurbineSVGOverlay";
+import { EolicTowerSVGOverlay } from "./EolicTowerSVGOverlay";
 import { MachineSVGOverlay } from "./MachineSVGOverlay";
+import { CarSVGOverlay } from "./CarSVGOverlay";
+import { TruckSVGOverlay } from "./TruckSVGOverlay";
+import { ShipSVGOverlay } from "./ShipSVGOverlay";
 
 
 interface AssetSVGOverlaysProps {
@@ -20,20 +23,38 @@ export const AssetSVGOverlays: FC<AssetSVGOverlaysProps> = ({
     imageRef = null
 }) => {
     switch (assetType) {
-        case 'mobile':
-            return <MobileSVGOverlay
+        case 'car':
+            return <CarSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}
             />;
-        case 'wind_turbine':
-            return <WindTurbineSVGOverlay
+        case 'eolic_tower':
+            return <EolicTowerSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}
             />;
         case 'machine':
             return <MachineSVGOverlay
+                fillColor={fillColor}
+                bounds={bounds as LatLngTuple[]}
+                imageRef={imageRef}
+            />;
+        case 'mobile':
+            return <MobileSVGOverlay
+                fillColor={fillColor}
+                bounds={bounds as LatLngTuple[]}
+                imageRef={imageRef}
+            />;
+        case 'ship':
+            return <ShipSVGOverlay
+                fillColor={fillColor}
+                bounds={bounds as LatLngTuple[]}
+                imageRef={imageRef}
+            />;
+        case 'truck':
+            return <TruckSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}

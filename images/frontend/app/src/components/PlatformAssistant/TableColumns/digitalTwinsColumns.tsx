@@ -22,6 +22,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { ITopicRef, ISensorRef } from '../GroupAdminOptions/CreateDigitalTwin';
 
 export interface IDigitalTwin {
     id: number;
@@ -41,7 +42,9 @@ export interface IDigitalTwin {
     dashboardUrl: string;
     digitalTwinRef: string;
     dtRefFileName: string;
-	dtRefFileLastModifDate: string;
+    dtRefFileLastModifDate: string;
+    topicsRef: ITopicRef[];
+    sensorsRef: ISensorRef[];
 }
 
 export interface IDigitalTwinSimulator {

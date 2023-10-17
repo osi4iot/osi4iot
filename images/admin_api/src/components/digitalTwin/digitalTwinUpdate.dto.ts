@@ -1,7 +1,7 @@
 import { IsBoolean, IsNumber, IsString, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import CreateTopicRefDto from "./topicRef.dto";
-import CreateSensorRefDto from "./sensorRef.dto";
+import UpdateSensorRefDto from "./updateSensorRef.dto";
 
 class UpdateDigitalTwinDto {
 	@IsString()
@@ -33,8 +33,8 @@ class UpdateDigitalTwinDto {
 	public topicsRef: CreateTopicRefDto[];
 
 	@ValidateNested({ each: true })
-	@Type(() => CreateSensorRefDto)
-	public sensorsRef: CreateSensorRefDto[];
+	@Type(() => UpdateSensorRefDto)
+	public sensorsRef: UpdateSensorRefDto[];
 }
 
 export default UpdateDigitalTwinDto;

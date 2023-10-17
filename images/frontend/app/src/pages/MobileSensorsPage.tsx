@@ -14,13 +14,14 @@ import { useLoggedUserLogin } from '../contexts/authContext/authContext';
 import { getAxiosInstance } from '../tools/axiosIntance';
 import axiosErrorHandler from '../tools/axiosErrorHandler';
 import MobileOrientationForm from '../components/Tools/MobileOrientationForm';
+import MobileMotionForm from '../components/Tools/MobileMotionForm';
 
 export interface InitialMobileSensorData {
     orgAcronym: string;
     groupAcronym: string;
 	assetName: string;
 	assetDescription: string;
-    mobileSensor: string;
+    mobileSensorDescription: string;
 }
 
 const domainName = getDomainName();
@@ -44,25 +45,17 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 		getAxiosInstance(refreshToken, authDispatch)
 			.get(urlTopics, config)
 			.then((response) => {
-				const mobileTopics: IMobileTopic[] = response.data;
+				const mobileTopicsData: IMobileTopic[] = response.data;
+				const mobileTopics = mobileTopicsData.filter(mobileTopic => mobileTopic.sensorType !== "geolocation");
 				setMobileTopicsManaged(mobileTopics);
-				setMobileTopicSelected(mobileTopics[0]);
-				let mobileSensor = "none";
-				if (mobileTopics[0].sensorDescription === "Mobile geolocation") {
-					mobileSensor = "Mobile geolocation";
-				} else if (mobileTopics[0].sensorDescription === "Mobile accelerations") {
-					mobileSensor = "Mobile accelerations";
-				} else if (mobileTopics[0].sensorDescription === "Mobile orientation") {
-					mobileSensor = "Mobile orientation";
-				} else if (mobileTopics[0].sensorDescription === "Mobile photo") {
-					mobileSensor = "Mobile photo";
-				}			
+				setMobileTopicSelected(mobileTopics[0]);			
 				const initialMobileSensorData = {
 					orgAcronym: mobileTopics[0].orgAcronym,
 					groupAcronym: mobileTopics[0].groupAcronym,
 					assetName: `Asset_${mobileTopics[0].assetUid}`,
 					assetDescription: mobileTopics[0].assetDescription,
-					mobileSensor: mobileSensor,
+					mobileSensor: mobileTopics[0].sensorType,
+					mobileSensorDescription: mobileTopics[0].sensorDescription
 				}
 				setInitialMobileSensorData(initialMobileSensorData);
 			})
@@ -76,7 +69,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 	}, [userName, accessToken]);
 
 	const handleMobileSensorSelection = (values: any, actions: any) => {
-		const mobileSensorSelected = values.mobileSensor;
+		const mobileSensorSelected = values.mobileSensorDescription;
 		setMobileSensorSelected(mobileSensorSelected);
 	}
 
@@ -108,6 +101,15 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 					{
 						mobileSensorSelected === "Mobile orientation" &&
 						<MobileOrientationForm
+							mqttClient={mqttClient as Paho.Client}
+							isMqttConnected={isMqttConnected}
+							setMobileSensorSelected={setMobileSensorSelected}
+							mobileTopicSelected={mobileTopicSelected as IMobileTopic}
+						/>
+					}
+					{
+						mobileSensorSelected === "Mobile motion" &&
+						<MobileMotionForm
 							mqttClient={mqttClient as Paho.Client}
 							isMqttConnected={isMqttConnected}
 							setMobileSensorSelected={setMobileSensorSelected}

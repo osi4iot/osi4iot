@@ -20,7 +20,12 @@ import IDataSource from "./interfaces/DataSource.interface";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { getTopicByProp } from "../topic/topicDAL";
 
-export const insertDashboard = async (orgId: number, folderId: number, title: string, data: any): Promise<any> => {
+export const insertDashboard = async (
+	orgId: number,
+	folderId: number,
+	title: string,
+	data: any
+): Promise<any> => {
 	const now = new Date();
 	const slug = title.replace(/ /g, "_").toLocaleLowerCase();
 	const uuid = uuidv4();
@@ -132,7 +137,12 @@ export const insertPreference = async (orgId: number, homeDashboardId: number): 
 	);
 };
 
-export const createHomeDashboard = async (orgId: number, orgAcronym: string, orgName: string, folderId: number): Promise<void> => {
+export const createHomeDashboard = async (
+	orgId: number,
+	orgAcronym: string,
+	orgName: string,
+	folderId: number
+): Promise<void> => {
 	const homeDashboard = JSON.parse(homeDashboardJson);
 	const title = `Home ${orgAcronym.replace(/ /g, "_").replace(/"/g, "").toUpperCase()}`;
 	const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} PLATFORM`;

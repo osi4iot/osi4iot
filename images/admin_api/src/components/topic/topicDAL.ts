@@ -107,9 +107,11 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 }
 
 export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.org.acronym AS "orgAcronym",
+	const response = await pool.query(`SELECT grafanadb.topic.id, 
+									grafanadb.org.acronym AS "orgAcronym",
 									grafanadb.group.acronym AS "groupAcronym",
 									grafanadb.topic.topic_type AS "topicType",
+									grafanadb.sensor.type AS "sensorType",
 									grafanadb.sensor.description AS "sensorDescription",
 									grafanadb.asset.description AS "assetDescription",
 									grafanadb.group.group_uid AS "groupUid",
@@ -172,10 +174,13 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 
 
 export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IMobileTopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.org.acronym AS "orgAcronym",
+	const response = await pool.query(`SELECT grafanadb.topic.id, 
+									grafanadb.org.acronym AS "orgAcronym",
 									grafanadb.group.acronym AS "groupAcronym",
 									grafanadb.topic.topic_type AS "topicType",
-									grafanadb.sensor.description AS "description",
+									grafanadb.sensor.type AS "sensorType",
+									grafanadb.sensor.description AS "sensorDescription",
+									grafanadb.asset.description AS "assetDescription",
 									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.topic.topic_uid AS "topicUid"

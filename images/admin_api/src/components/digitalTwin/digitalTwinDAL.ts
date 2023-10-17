@@ -42,8 +42,8 @@ import { createNewSensor, deleteSensorsByIdArray, getSensorByPropName } from "..
 import IDigitalTwinSensor from "./digitalTwinSensor.interface";
 import IDigitalTwinSensorDashboard from "./digitalTwinSensorDashboard.interface";
 import UpdateDigitalTwinDto from "./digitalTwinUpdate.dto";
-import CreateSensorRefDto from "./sensorRef.dto";
 import { mobilePhoneGltfFileData } from "./mobilePhoneGltfFileData";
+import CreateSensorRefDto from "./createSensorRef.dto";
 
 export const insertDigitalTwin = async (
 	digitalTwinData: Partial<IDigitalTwin>
@@ -351,6 +351,17 @@ export const getDTTopicsByDigitalTwinId = async (digitalTwinId: number): Promise
 	return response.rows as IDigitalTwinTopic[];
 };
 
+export const getDTTopicsRefByDigitalTwinId = async (digitalTwinId: number): Promise<ITopicRef[]> => {
+	const queryString = `SELECT grafanadb.digital_twin_topic.topic_id AS "topicId", 
+	                    grafanadb.digital_twin_topic.topic_ref AS "topicRef"
+						FROM grafanadb.digital_twin_topic
+						INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.digital_twin_topic.topic_id
+						WHERE grafanadb.digital_twin_topic.digital_twin_id = $1 AND
+						grafanadb.topic.topic_type = ANY($2::varchar(40)[]);`;
+	const response = await pool.query(queryString, [digitalTwinId, ["dev2pdb", "dev2pdb_wt"]]);
+	return response.rows as IDigitalTwinTopic[];
+};
+
 export const deleteDigitalTwinTopics = async (
 	digitalTwinId: number,
 	topicsId: number[]
@@ -388,7 +399,16 @@ export const getDigitalTwinSensors = async (digitalTwinId: number): Promise<IDig
 						WHERE grafanadb.digital_twin_sensor.digital_twin_id = $1
 						ORDER BY grafanadb.digital_twin_sensor.digital_twin_id ASC,
 						         grafanadb.digital_twin_sensor.sensor_id ASC;`;
-	const response = await pool.query(queryString, [digitalTwinId, false]);
+	const response = await pool.query(queryString, [digitalTwinId]);
+	return response.rows as IDigitalTwinSensor[];
+};
+
+export const getDTSensorsRef = async (digitalTwinId: number): Promise<ISensorRef[]> => {
+	const queryString = `SELECT sensor_id AS "sensorId", sensor_ref AS "sensorRef",
+	                    topic_id AS "topicId"
+						FROM grafanadb.digital_twin_sensor
+						WHERE grafanadb.digital_twin_sensor.digital_twin_id = $1;`;
+	const response = await pool.query(queryString, [digitalTwinId]);
 	return response.rows as IDigitalTwinSensor[];
 };
 
@@ -905,10 +925,16 @@ export const createDigitalTwin = async (
 	}
 
 	const digitalTwinUpdated: Partial<IDigitalTwin> = {
-		...digitalTwinInput,
 		groupId,
 		assetId,
-		dashboardId: digitalTwinDashboardId
+		digitalTwinUid: digitalTwinInput.digitalTwinUid,
+		description: digitalTwinInput.description,
+		type: digitalTwinInput.type,
+		dashboardId: digitalTwinDashboardId,
+		maxNumResFemFiles: digitalTwinInput.maxNumResFemFiles,
+		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
+		dtRefFileName: digitalTwinInput.dtRefFileName,
+		dtRefFileLastModifDate: digitalTwinInput.dtRefFileLastModifDate,
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 
@@ -1266,6 +1292,23 @@ export const removeFilesFromBucketFolder = async (folderPath: string) => {
 	if (filesToRemove.length !== 0) {
 		await deleteBucketFiles(filesToRemove);
 	}
+}
+
+export const addTopicAndSensorReferences = async (
+	digitalTwins: IDigitalTwin[]
+) => {
+	for (const digitalTwin of digitalTwins) {
+		if (digitalTwin.dtRefFileName !== "-" && digitalTwin.dtRefFileLastModifDate !== "-") {
+			const topicsRef = await getDTTopicsRefByDigitalTwinId(digitalTwin.id);
+			digitalTwin.topicsRef = topicsRef;
+			const sensorsRef = await getDTSensorsRef(digitalTwin.id);
+			digitalTwin.sensorsRef = sensorsRef;
+		} else {
+			digitalTwin.topicsRef = [];
+			digitalTwin.sensorsRef = [];
+		}
+	}
+	return digitalTwins;
 }
 
 

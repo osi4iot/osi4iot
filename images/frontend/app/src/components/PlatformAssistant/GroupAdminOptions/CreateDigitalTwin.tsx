@@ -368,7 +368,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [isFormReady, setIsFormReady] = useState(false);
     const initialTopicsRef = [{ topicRef: "dev2pdb_1", topicId: 0 }];
     const [topicsRef, setTopicsRef] = useState<ITopicRef[]>(initialTopicsRef);
-    const [sensorsRef, setSensorsRef] = useState<ITopicRef[]>([]);
+    const [sensorsRef, setSensorsRef] = useState<ISensorRef[]>([]);
 
     const [openGlftFileSelector, gltfFileParams] = useFilePicker({
         readAs: 'Text',

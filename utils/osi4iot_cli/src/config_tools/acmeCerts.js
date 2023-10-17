@@ -62,7 +62,8 @@ export default async function (osi4iotState) {
         throw new Error(`The file ${caCertFile} not exist`)
     }
 
-    const sslCertFile = `${homedir}/.acme.sh/${domainName}${extension}/${domainName}.cer`;
+    //const sslCertFile = `${homedir}/.acme.sh/${domainName}${extension}/${domainName}.cer`;
+    const sslCertFile = `${homedir}/.acme.sh/${domainName}${extension}/fullchain.cer`;
     if (fs.existsSync(sslCertFile)) {
         if (osi4iotState.certs.domain_certs.ssl_cert_crt === "") {
             const sslCertFileText = fs.readFileSync(sslCertFile, 'UTF-8');

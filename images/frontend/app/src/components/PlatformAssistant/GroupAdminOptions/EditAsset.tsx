@@ -122,20 +122,32 @@ const SelectLocationButton = styled.button`
 
 const assetTypeOptions = [
     {
-        label: "Mobile",
-        value: "mobile"
+        label: "Car",
+        value: "car"
+    },
+    {
+        label: "Eolic tower",
+        value: "eolic_tower"
+    },
+    {
+        label: "Generic",
+        value: "generic"
     },
     {
         label: "Machine",
         value: "machine"
     },
     {
-        label: "Wind turbine",
-        value: "wind_turbine"
+        label: "Mobile",
+        value: "mobile"
     },
     {
-        label: "Generic",
-        value: "generic"
+        label: "Ship",
+        value: "ship"
+    },
+    {
+        label: "Truck",
+        value: "truck"
     },
 ];
 

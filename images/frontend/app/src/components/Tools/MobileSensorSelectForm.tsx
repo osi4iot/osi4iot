@@ -208,7 +208,7 @@ const findMobileTopicSelected = (
         mobileTopic.orgAcronym === orgAcronym &&
         mobileTopic.groupAcronym === groupAcronym &&
         `Asset_${mobileTopic.assetUid}` === assetName &&
-        mobileTopic.sensorDescription === mobileSensor
+        mobileTopic.sensorType === mobileSensor
     )[0];
     return mobileTopicSelected;
 }
@@ -333,8 +333,8 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
     }
 
     const handleChangeMobileSensor = (e: { value: string }, formik: FormikType) => {
-        const mobileSensor = e.value;
-        formik.setFieldValue("mobileSensor", mobileSensor);
+        const mobileSensorDescription = e.value;
+        formik.setFieldValue("mobileSensorDescription", mobileSensorDescription);
         const orgAcronym = formik.values.orgAcronym;
         const groupAcronym = formik.values.groupAcronym;
         const assetName = formik.values.assetName;
@@ -345,7 +345,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             orgAcronym,
             groupAcronym,
             assetName,
-            mobileSensor
+            mobileSensorDescription
         );
         setMobileTopicSelected(mobileTopicSelected);
         setInitialMobileSensorData({
@@ -353,7 +353,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
             groupAcronym,
             assetName,
             assetDescription,
-            mobileSensor
+            mobileSensorDescription
         });
     }
 
@@ -399,7 +399,7 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
                                     <FormikControl
                                         control='select'
                                         label='Select mobile sensor'
-                                        name='mobileSensor'
+                                        name='mobileSensorDescription'
                                         type='text'
                                         options={mobileSensorOptions}
                                         onChange={(e) => handleChangeMobileSensor(e, formik)}

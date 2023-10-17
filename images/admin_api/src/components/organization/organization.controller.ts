@@ -87,10 +87,10 @@ import { createNewSensor } from "../sensor/sensorDAL";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { nanoid } from "nanoid";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
-import CreateSensorRefDto from "../digitalTwin/sensorRef.dto";
 import ISensor from "../sensor/sensor.interface";
 import ITopic from "../topic/topic.interface";
 import infoLogger from "../../utils/logger/infoLogger";
+import CreateSensorRefDto from "../digitalTwin/createSensorRef.dto";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -379,7 +379,12 @@ class OrganizationController implements IController {
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);
 				const group = await createGroup(newOrg.orgId, defaultOrgGroup, organizationData.name, true);
 				await addOrgUsersToDefaultOrgGroup(newOrg.orgId, organizationData.orgAdminArray);
-				await createHomeDashboard(newOrg.orgId, organizationData.acronym, organizationData.name, group.folderId);
+				await createHomeDashboard(
+					newOrg.orgId,
+					organizationData.acronym,
+					organizationData.name,
+					group.folderId
+				);
 
 				const noredInstances = await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId);
 				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);

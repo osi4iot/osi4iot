@@ -153,6 +153,10 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
             .get(urlDigitalTwinsState, config)
             .then((response) => {
                 const digitalTwinsState = response.data;
+                digitalTwinsState.map((digitalTwinState: IDigitalTwinState) => {
+                    if (digitalTwinState.state === null) digitalTwinState.state = "ok";
+                    return digitalTwinState;
+                })
                 setDigitalTwinsState(digitalTwinsState);
             })
             .catch((error) => {
@@ -162,7 +166,11 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         getAxiosInstance(refreshToken, authDispatch)
             .get(urlSensorsState, config)
             .then((response) => {
-                const sensorsState = response.data;
+                const sensorsState = response.data;                
+                sensorsState.map((sensorState: ISensorState) => {
+                    if (sensorState.state === null) sensorState.state = "ok";
+                    return sensorState;
+                })
                 setSensorsState(sensorsState);
             })
             .catch((error) => {
@@ -183,6 +191,10 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
             .get(urlDigitalTwinsState, config)
             .then((response) => {
                 const newDigitalTwinsState = response.data;
+                newDigitalTwinsState.map((digitalTwinState: IDigitalTwinState) => {
+                    if (digitalTwinState.state === null) digitalTwinState.state = "ok";
+                    return digitalTwinState;
+                })
                 if (!arraysEqual(newDigitalTwinsState, digitalTwinsState)) {
                     setDigitalTwinsState(newDigitalTwinsState);
                 }
@@ -195,6 +207,10 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
             .get(urlSensorsState, config)
             .then((response) => {
                 const newSensorsState = response.data;
+                newSensorsState.map((sensorState: ISensorState) => {
+                    if (sensorState.state === null) sensorState.state = "ok";
+                    return sensorState;
+                })
                 if (!arraysEqual(newSensorsState, sensorsState)) {
                     setSensorsState(newSensorsState);
                 }

@@ -27,6 +27,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { ISensorRef, ITopicRef, checkReferencesMatch } from './CreateDigitalTwin';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -190,8 +191,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const digitalTwinRowIndex = useDigitalTwinRowIndexToEdit();
     const digitalTwinInitialData = digitalTwins[digitalTwinRowIndex];
     const digitalTwinId = useDigitalTwinIdToEdit();
-    const groupId = digitalTwins[digitalTwinRowIndex].groupId;
-    const storedDigitalTwinType = digitalTwins[digitalTwinRowIndex].type;
+    const groupId = digitalTwinInitialData.groupId;
+    const storedDigitalTwinType = digitalTwinInitialData.type;
     const [digitalTwinGltfDataLoading, setDigitalTwinGltfDataLoading] = useState(true);
     const [localGltfFileLoaded, setLocalGltfFileLoaded] = useState(false);
     const [gltfFile, setGltfFile] = useState<File>();
@@ -209,14 +210,18 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
     const [dtRefFileName, setDTRefFileName] = useState(digitalTwinInitialData.dtRefFileName);
     const [dtRefFileLastModifDate, setDTRefFileLastModifDate] = useState(digitalTwinInitialData.dtRefFileLastModifDate);
-    const initialDtReferencesData = {
-        topicsRef: [],
-        sensorsRef: [],
-        digitalTwinSimulationFormat: digitalTwinInitialData.digitalTwinSimulationFormat
-    };
-    const [dtReferencesData, setDtReferencesData] = useState<any>(initialDtReferencesData);
     const [dtReferencesFileLoaded, setDTReferencesFileLoaded] = useState(false);
     const [digitalTwinType, setDigitalTwinType] = useState(digitalTwinInitialData.type);
+    const [topicsRef, setTopicsRef] = useState<ITopicRef[]>(digitalTwinInitialData.topicsRef);
+    const [sensorsRef, setSensorsRef] = useState<ISensorRef[]>(digitalTwinInitialData.sensorsRef);
+    const [
+        digitalTwinSimulationFormat,
+        setDigitalTwinSimulationFormat
+    ] = useState(digitalTwinInitialData.digitalTwinSimulationFormat);
+    const [isGlftDataReady, setIsGlftDataReady] = useState(storedDigitalTwinType !== "Gltf 3D model");
+    const [isFemResDataReady, setIsFemResDataReady] = useState(storedDigitalTwinType !== "Gltf 3D model");
+    const [isDTRefDataReady, setIsDTRefDataReady] = useState(true);
+    const [isFormReady, setIsFormReady] = useState(false);
 
     const [openGlftFileSelector, gltfFileParams] = useFilePicker({
         readAs: 'Text',
@@ -237,6 +242,43 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         accept: '.json',
     });
 
+    useEffect(() => {
+        const isDigitalTwinDataFilled = Object.keys(digitalTwinGltfData).length !== 0;
+        if (storedDigitalTwinType === "Gltf 3D model" && isDigitalTwinDataFilled) {
+            if (isGlftDataReady && isFemResDataReady && isDTRefDataReady) {
+                const dtReferencesData = {
+                    digitalTwinSimulationFormat,
+                    topicsRef,
+                    sensorsRef
+                };
+                const referencesMatch = checkReferencesMatch(digitalTwinGltfData, dtReferencesData);
+                if (referencesMatch) {
+                    setTopicsRef(topicsRef);
+                    setSensorsRef(sensorsRef);
+                    setIsFormReady(true);
+                } else {
+                    const errorMessage = "Gltf file references not match with digital twin references file";
+                    toast.error(errorMessage);
+                    setIsFormReady(false);
+                }
+                setIsFormReady(true);
+
+            } else {
+                setIsFormReady(false);
+            }
+        } else {
+            setIsFormReady(true);
+        }
+    }, [
+        storedDigitalTwinType,
+        digitalTwinGltfData,
+        isDTRefDataReady,
+        isFemResDataReady,
+        isGlftDataReady,
+        digitalTwinSimulationFormat,
+        topicsRef,
+        sensorsRef
+    ]);
 
     useEffect(() => {
         if (storedDigitalTwinType === "Gltf 3D model") {
@@ -254,7 +296,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         setGltfFileName(gltfFileName);
                         const gltfFileLastModif = formatDateString(gltfFileInfo[0].lastModified);
                         setStoredGltfFileLastModif(gltfFileLastModif);
-                        setGltfFileLastModif(gltfFileLastModif)
+                        setGltfFileLastModif(gltfFileLastModif);
+                        setIsGlftDataReady(true);
                         const urlfemResFileList = `${urlDigitalTwinFileListBase}/femResFiles`;
                         getAxiosInstance(refreshToken, authDispatch)
                             .get(urlfemResFileList, config)
@@ -270,6 +313,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 }
                                 setDigitalTwinGltfDataLoading(false);
                                 setIsSubmitting(false);
+                                setIsFemResDataReady(true);
                             })
                             .catch((error) => {
                                 axiosErrorHandler(error, authDispatch);
@@ -318,6 +362,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 setGltfFileLastModif(formatDateString(dateString));
                 setLocalGltfFileLoaded(false);
                 gltfFileParams.clear();
+                setIsGlftDataReady(true);
             } catch (error) {
                 if (error instanceof Error) {
                     toast.error(`Invalid gltffile. ${error.message}`);
@@ -337,7 +382,10 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     ])
 
     useEffect(() => {
-        if (!femResFileParams.loading && femResFileParams.filesContent.length !== 0 && femResFileParams.plainFiles.length !== 0) {
+        if (!femResFileParams.loading &&
+            femResFileParams.filesContent.length !== 0 &&
+            femResFileParams.plainFiles.length !== 0
+        ) {
             setLocalFemResFileLoaded(true);
             try {
                 const fileContent = femResFileParams.filesContent[0].content
@@ -350,6 +398,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 setFemResFileLastModifDateString(formatDateString(dateString));
                 setLocalFemResFileLoaded(false);
                 femResFileParams.clear();
+                setIsFemResDataReady(true);
             } catch (e) {
                 console.log(e);
                 toast.error("Invalid fem simulation file");
@@ -375,16 +424,43 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             try {
                 const fileContent = dtRefFileParams.filesContent[0].content
                 const dtReferencesData = JSON.parse(fileContent);
-                setDtReferencesData(dtReferencesData);
                 const digitalTwinSimulationFormat = dtReferencesData.digitalTwinSimulationFormat;
                 const isFileOk = digitalTwinFormatValidation(digitalTwinSimulationFormat);
                 if (!isFileOk) throw new Error("Invalid dt simulation format file");
+                setDigitalTwinSimulationFormat(digitalTwinSimulationFormat);
+                const newTopicsRef = dtReferencesData.topicsRef;
+                newTopicsRef.map((topicReference: ITopicRef) => {
+                    if (topicReference.topicId === 0) {
+                        const storedTopicRef = digitalTwinInitialData.topicsRef.filter(item =>
+                            item.topicRef === topicReference.topicRef
+                        )[0];
+                        if (storedTopicRef) topicReference.topicId = storedTopicRef.topicId;
+                    }
+                    return topicReference;
+                })
+                setTopicsRef(newTopicsRef);
+
+                const newSensorsRef = dtReferencesData.sensorsRef;
+                newSensorsRef.map((sensorReference: ISensorRef) => {
+                    if (sensorReference.sensorId === 0) {
+                        const storedSensorRef = digitalTwinInitialData.sensorsRef.filter(item =>
+                            item.sensorRef === sensorReference.sensorRef
+                        )[0];
+                        if (storedSensorRef) {
+                            sensorReference.sensorId = storedSensorRef.sensorId;
+                            sensorReference.topicId = storedSensorRef.topicId;
+                        }
+                    }
+                    return sensorReference;
+                })
+                setSensorsRef(newSensorsRef);
                 const dtRefFileName = dtRefFileParams.plainFiles[0].name;
                 setDTRefFileName(dtRefFileName);
                 const dateString = (dtRefFileParams.plainFiles[0] as any).lastModified;
                 setDTRefFileLastModifDate(formatDateString(dateString));
                 setDTReferencesFileLoaded(false);
                 dtRefFileParams.clear();
+                setIsDTRefDataReady(true);
             } catch (error) {
                 toast.error(error);
                 setDTReferencesFileLoaded(false);
@@ -396,7 +472,9 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             dtRefFileParams.loading,
             dtRefFileParams.filesContent,
             dtRefFileParams.plainFiles,
-            dtRefFileParams
+            dtRefFileParams,
+            digitalTwinInitialData.topicsRef,
+            digitalTwinInitialData.sensorsRef
         ]);
 
 
@@ -468,11 +546,11 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             type: values.type,
             maxNumResFemFiles,
             isGltfFileModified,
-            digitalTwinSimulationFormat: JSON.stringify(dtReferencesData.digitalTwinSimulationFormat),
+            digitalTwinSimulationFormat: JSON.stringify(digitalTwinSimulationFormat),
             dtRefFileName,
             dtRefFileLastModifDate,
-            topicsRef: dtReferencesData.topicsRef,
-            sensorsRef: dtReferencesData.sensorsRef
+            topicsRef,
+            sensorsRef
         }
 
         getAxiosInstance(refreshToken, authDispatch)
@@ -535,6 +613,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         setDigitalTwinGltfData({});
         setLocalGltfFileLoaded(false);
         gltfFileParams.clear();
+        setIsGlftDataReady(false);
     }
 
     const localGltfFileButtonHandler = async () => {
@@ -549,6 +628,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         setDigitalTwiFemResData({});
         setLocalFemResFileLoaded(false);
         femResFileParams.clear();
+        setIsFemResDataReady(false);
     }
 
     const localFemResFileButtonHandler = () => {
@@ -560,9 +640,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const clearDTRefFile = () => {
         setDTRefFileName("-");
         setDTRefFileLastModifDate("-");
-        setDtReferencesData({});
+        setDigitalTwinSimulationFormat("{}");
+        setTopicsRef([]);
+        setSensorsRef([]);
         setDTReferencesFileLoaded(false);
         femResFileParams.clear();
+        setIsDTRefDataReady(false);
     }
 
     const dtRefFileButtonHandler = () => {
@@ -697,7 +780,11 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
                                                     }
                                                 </ControlsContainer>
-                                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                                                <FormButtonsProps
+                                                    onCancel={onCancel}
+                                                    isValid={formik.isValid && isFormReady}
+                                                    isSubmitting={formik.isSubmitting}
+                                                />
                                             </Form>
                                         )
                                     }

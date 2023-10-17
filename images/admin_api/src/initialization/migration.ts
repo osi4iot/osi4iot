@@ -37,7 +37,7 @@ import { nanoid } from "nanoid";
 import { getDashboardsInfoFromIdArray } from "../components/dashboard/dashboardDAL";
 import { createDigitalTwin, generateDashboardsUrl, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
 import ISensor from "../components/sensor/sensor.interface";
-import CreateSensorRefDto from "../components/digitalTwin/sensorRef.dto";
+import CreateSensorRefDto from "../components/digitalTwin/createSensorRef.dto";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({

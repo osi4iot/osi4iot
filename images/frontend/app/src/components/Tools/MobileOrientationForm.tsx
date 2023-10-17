@@ -6,8 +6,8 @@ import * as Yup from 'yup';
 import FormikControl from "./FormikControl";
 import ProgresBar from './ProgressBar';
 import { IMobileTopic } from '../PlatformAssistant/TableColumns/topicsColumns';
-import MobileOrientationFormButtons from './MobileOrientationFormButtons';
 import ReadMobileOrientation from '../../tools/ReadingMobileOrientation';
+import MobileSensorFormButtons from './MobileSensorFormButtons';
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -188,7 +188,7 @@ const MobileOrientationForm: FC<MobileOrientationSelectFormProps> = (
                                         <ProgresBar value={readingProgress} />
                                     </ProgressBarContainer>
                                 ) : null}
-                                <MobileOrientationFormButtons onCancel={onCancel} isValid={formik.isValid} isSensorReading={isSensorReading} />
+                                <MobileSensorFormButtons onCancel={onCancel} isValid={formik.isValid} isSensorReading={isSensorReading} />
                             </Form>
                         )
                     }

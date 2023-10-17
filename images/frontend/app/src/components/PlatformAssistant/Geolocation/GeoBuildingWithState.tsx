@@ -68,10 +68,24 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
     const buildingStatus = findOutStatus(digitalTwinsStateFiltered, sensorsStateFiltered);
     const orgsInBuildingWithStatus: IOrgManagedWithStatus[] = orgsInBuilding.map(org => {
         let orgStatus = "ok";
-        const orgWithNotOkStatus = digitalTwinsStateFiltered.filter(item => item.orgId === org.id && item.state !== "ok").length !== 0;
-        if (orgWithNotOkStatus) {
-            const orgWithAlertingState = digitalTwinsStateFiltered.filter(item => item.orgId === org.id && item.state === "alerting").length !== 0;
-            if(orgWithAlertingState) orgStatus = "alerting"
+        const dtWithNotOkStatus = digitalTwinsStateFiltered.filter(item =>
+            item.orgId === org.id && item.state !== "ok"
+        ).length !== 0;
+
+        const sensorsWithNotOkStatus = sensorsStateFiltered.filter(item =>
+            item.orgId === org.id && item.state !== "ok"
+        ).length !== 0;
+
+        if (dtWithNotOkStatus || sensorsWithNotOkStatus) {
+            const dtWithAlertingState = digitalTwinsStateFiltered.filter(item =>
+                item.orgId === org.id && item.state === "alerting"
+            ).length !== 0;
+
+            const sensorsWithAlertingState = digitalTwinsStateFiltered.filter(item =>
+                item.orgId === org.id && item.state === "alerting"
+            ).length !== 0;
+
+            if(dtWithAlertingState || sensorsWithAlertingState) orgStatus = "alerting"
             else orgStatus="pending"
         }
         return { ...org, orgStatus };

@@ -1,7 +1,7 @@
 import { IsNumber, IsString, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import CreateTopicRefDto from "./topicRef.dto";
-import CreateSensorRefDto from "./sensorRef.dto";
+import CreateSensorRefDto from "./createSensorRef.dto";
 
 
 class CreateDigitalTwinDto {

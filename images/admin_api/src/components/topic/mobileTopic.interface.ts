@@ -3,6 +3,7 @@ export default interface IMobileTopic {
 	orgAcronym: string;
 	groupAcronym: string;
 	assetDescription: string;
+	sensorType: string;
 	sensorDescription: string;
 	groupUid: string;
 	assetUid: string;

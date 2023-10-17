@@ -119,11 +119,6 @@ const MobilePhotoForm: FC<MobileSensorSelectFormProps> = (
                     idealFacingMode={FACING_MODES.ENVIRONMENT}
                     onTakePhoto={(dataUri) => { handleTakePhoto(dataUri); }}
                 />
-                {/* <ButtonsContainer>
-                    <Button onClick={onCancel}>
-                        EXIT
-                    </Button>
-                </ButtonsContainer> */}
                 <ExitIcon onClick={onCancel} />
             </FormContainer>
         </>
