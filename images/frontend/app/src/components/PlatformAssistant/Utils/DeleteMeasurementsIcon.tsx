@@ -4,10 +4,10 @@ import { FaTrash } from "react-icons/fa";
 import styled from "styled-components";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
-import { ITopic } from "../TableColumns/topicsColumns";
 import DeleteModalWithDatePicker from "../../Tools/DeleteModalWithDatePicker";
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { ISensor } from "../TableColumns/sensorsColumns";
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -17,7 +17,6 @@ const FaTrashStyled = styled(FaTrash)`
     color: white;
     background-color: #202226;
  `;
-
 
 
 const IconContainer = styled.div`
@@ -37,18 +36,18 @@ const IconContainer = styled.div`
 
 interface DeleteMeasurementsIconProps {
     measurementTopic: string;
-    selectedTopic: ITopic;
+    selectedSensor: ISensor;
     refreshMeasurements: () => void;
 }
 
-const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTopic, selectedTopic, refreshMeasurements }) => {
+const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTopic, selectedSensor, refreshMeasurements }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE MEASUREMENTS";
     const consequences = "All measurements in this topic prior to the chosen date are going to be lost.";
     const question = "Choose a date from which the measurements will be deleted:";
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const groupId = selectedTopic.groupId;
+    const groupId = selectedSensor.groupId;
     const width = 380;
     const height = 560;
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -66,9 +65,10 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
 
         const payload = {
             deleteDate,
-            topic: measurementTopic
+            topic: measurementTopic,
+            payloadKey: selectedSensor.payloadKey
         }
-        const url = `${protocol}://${domainName}/admin_api/measurements_before_date/${groupId}`;
+        const url = `${protocol}://${domainName}/admin_api/sensor_measurements_before_date/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);
         const headers = config.headers;
         getAxiosInstance(refreshToken, authDispatch)

@@ -5,6 +5,7 @@ import IMeasurement from "./measurement.interface";
 
 const timestampAsString = 'to_char(timestamp, \'YYYY-MM-DD HH24:MI:SS.USOF\') AS "timestamp"';
 
+
 export const updateMeasurement = async (groupUid: string, topic: string, timestamp: string, newPayload: string): Promise<IMeasurement> => {
 	const query = `UPDATE iot_data.thingData SET payload = $1
 				    WHERE timestamp = $2 AND
@@ -33,7 +34,7 @@ export const deleteMeasurementsBeforeDate = async (
 	groupUid: string,
 	topic: string,
 	deleteDate: string,
-): Promise<IMeasurement> => {
+): Promise<number> => {
 	const result = await timescaledb_pool.query(`WITH deleted as (
 					DELETE FROM iot_data.thingData
 					WHERE timestamp <= $1 AND
@@ -43,7 +44,7 @@ export const deleteMeasurementsBeforeDate = async (
 				)
 				select count(*)
 				from deleted;`, [deleteDate, groupUid, topic]);
-	return result.rows[0] as IMeasurement;
+	return result.rows[0] as number;
 };
 
 export const getMeasurement = async (groupUid: string, topic: string, timestamp: string): Promise<IMeasurement> => {
@@ -119,18 +120,84 @@ export const getDuringMeasurementsWithPagination = async (
 	return response.rows as IMeasurement[];
 };
 
+export const getDuringSensorMeasurementsWithPagination = async (
+	groupUid: string,
+	topic: string,
+	start: string,
+	end: string,
+	pageIndex: number,
+	itemsPerPage: number,
+	payloadKey: string
+): Promise<IMeasurement[]> => {
+	const offset = pageIndex * itemsPerPage;
+	const queryString =
+		`SELECT ${timestampAsString},
+		topic, payload->>'${payloadKey}' AS "${payloadKey}"
+		FROM iot_data.thingData
+		WHERE group_uid = $1 AND
+		topic = $2 AND
+		timestamp >= $3 AND
+		timestamp <= $4 AND
+		payload->>'${payloadKey}' IS NOT NULL
+		ORDER BY timestamp DESC
+		LIMIT $5
+		OFFSET  $6;`
+	const response = await timescaledb_pool.query(queryString
+		, [groupUid, topic, start, end, itemsPerPage, offset]);
+
+	return response.rows as IMeasurement[];
+};
+
+export const getSensorMeasurementsBeforeDate = async (
+	groupUid: string,
+	topic: string,
+	date: string
+): Promise<IMeasurement[]> => {
+	const queryString =
+		`SELECT ${timestampAsString}, topic, payload
+		FROM iot_data.thingData
+		WHERE timestamp <= $1 AND
+		group_uid = $2 AND
+		topic = $3;`
+	const response = await timescaledb_pool.query(queryString,
+		[date, groupUid, topic]);
+
+	return response.rows as IMeasurement[];
+};
+
 export const getTotalRowsDuringMeasurements = async (
 	groupUid: string,
 	topic: string,
 	start: string,
 	end: string
 ): Promise<number> => {
-	const response = await timescaledb_pool.query(`SELECT COUNT(*) FROM iot_data.thingData
-									WHERE group_uid = $1 AND
-									topic = $2 AND
-									timestamp >= $3 AND
-									timestamp <= $4`,
-	[groupUid, topic, start, end]);
+	const queryString = `
+		SELECT COUNT(*) FROM iot_data.thingData
+		WHERE group_uid = $1 AND
+		topic = $2 AND
+		timestamp >= $3 AND
+		timestamp <= $4`;
+	const response = await timescaledb_pool.query(queryString,
+		[groupUid, topic, start, end]);
+	return response.rows[0].count as number;
+};
+
+export const getTotalRowsDuringSensorMeasurements = async (
+	groupUid: string,
+	topic: string,
+	start: string,
+	end: string,
+	payloadKey: string
+): Promise<number> => {
+	const queryString = `
+		SELECT COUNT(*) FROM iot_data.thingData
+		WHERE group_uid = $1 AND
+		topic = $2 AND
+		timestamp >= $3 AND
+		timestamp <= $4 AND
+		payload->>'${payloadKey}' IS NOT NULL`;
+	const response = await timescaledb_pool.query(queryString,
+		[groupUid, topic, start, end]);
 	return response.rows[0].count as number;
 };
 
@@ -143,6 +210,33 @@ export const updateMeasurementsTopicByTopic = async (topic: ITopic, newTopicUid:
 export const updateMeasurementsGroupUid = async (group: IGroup, newGroupUid: string): Promise<void> => {
 	const oldGroupUid = group.groupUid;
 	await timescaledb_pool.query(`UPDATE iot_data.thingData SET group_uid = $1 WHERE group_uid = $2;`, [newGroupUid, oldGroupUid]);
+}
+
+export const deleteSensorMeasurementsBeforeSomeDate = async (
+	measurements: IMeasurement[],
+	payloadKey: string,
+	groupUid: string,
+	topic: string
+): Promise<number>  => {
+	const deleteQueries = [];
+	for (const measurement of measurements) {
+		const existentPayloadKeys = Object.keys(measurement.payload);
+		if (existentPayloadKeys.indexOf(payloadKey) !== -1) {
+			if (existentPayloadKeys.length === 1) {
+				const query = deleteMeasurement(groupUid, topic, measurement.timestamp);
+				deleteQueries.push(query);
+			} else {
+				const oldPayload = measurement.payload;
+				const acceptedKeys = existentPayloadKeys.filter(key => key !== payloadKey);
+				const filteredEntries = Object.entries(oldPayload).filter(([k,]) => acceptedKeys.includes(k));
+				const newPayload = JSON.stringify(Object.fromEntries(filteredEntries));
+				const query = await updateMeasurement(groupUid, topic, measurement.timestamp, newPayload);
+				deleteQueries.push(query);
+			}
+		}
+	}
+	const responses = await Promise.all(deleteQueries);
+	return responses.length;
 }
 
 

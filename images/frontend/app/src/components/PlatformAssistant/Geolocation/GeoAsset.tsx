@@ -105,6 +105,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
                 <Tooltip sticky>
                     <span style={{ fontWeight: 'bold' }}>Asset</span><br />
                     Name: {`Asset_${assetData.assetUid}`}<br />
+                    Description: {assetData.description}<br />
                     Type: {assetData.type}<br />
                     Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
                 </Tooltip>

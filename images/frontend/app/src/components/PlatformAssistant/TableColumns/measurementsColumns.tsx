@@ -30,6 +30,7 @@ interface IMeasurementColumn extends IMeasurement {
 interface DeleteMeasurementModalProps {
     groupId: number;
     topic: string;
+    payloadKey: string;
     rowIndex: number;
     timestamp: string;
     refreshMeasurements: () => void;
@@ -38,7 +39,14 @@ interface DeleteMeasurementModalProps {
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({ groupId, topic, rowIndex, timestamp, refreshMeasurements }) => {
+const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({
+    groupId,
+    topic,
+    payloadKey,
+    rowIndex,
+    timestamp,
+    refreshMeasurements
+}) => {
     const [isMeasurementDeleted, setIsMeasurementDeleted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const title = "DELETE MEASUREMENT";
@@ -60,9 +68,10 @@ const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({ groupId, topi
     const action = (hideModal: () => void) => {
         const payload = {
             timestamp,
-            topic
+            topic,
+            payloadKey,
         }
-        const url = `${protocol}://${domainName}/admin_api/measurement/${groupId}`;
+        const url = `${protocol}://${domainName}/admin_api/sensor_measurement/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);
         const headers = config.headers;
         getAxiosInstance(refreshToken, authDispatch)
@@ -93,7 +102,7 @@ interface EditMeasurementProps {
     timestamp: number;
 }
 
-const EditMeasurement: FC<EditMeasurementProps> = ({ rowIndex, timestamp}) => {
+const EditMeasurement: FC<EditMeasurementProps> = ({ rowIndex, timestamp }) => {
     const measurementsDispatch = useMeasurementsDispatch()
 
     const handleClick = () => {
@@ -120,6 +129,7 @@ export const Create_MEASUREMENTS_COLUMNS =
     (
         groupId: number,
         measurementTopic: string,
+        payloadKey: string,
         refreshMeasurements: () => void
     ): Column<IMeasurementColumn>[] => {
         return [
@@ -161,6 +171,7 @@ export const Create_MEASUREMENTS_COLUMNS =
                     return <DeleteMeasurementModal
                         groupId={groupId}
                         topic={measurementTopic}
+                        payloadKey={payloadKey}
                         timestamp={timestamp}
                         rowIndex={rowIndex}
                         refreshMeasurements={refreshMeasurements}

@@ -33,6 +33,7 @@ export interface ISensor {
     type: string;
     description: string;
     topicId: string;
+    topicUid: string;
     payloadKey: string;
     paramLabel: string;
     valueType: string;

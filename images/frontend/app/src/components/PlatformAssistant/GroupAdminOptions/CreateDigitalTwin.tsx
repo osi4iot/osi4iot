@@ -195,6 +195,7 @@ export interface ISensorRef {
     sensorId: number;
     sensorRef: string;
     topicId: number
+    payloadKey?: string;
 }
 
 const findTopicIdForSensor = (topicRef: string, topicsRef: ITopicRef[]) => {
@@ -209,14 +210,17 @@ const findTopicIdForSensor = (topicRef: string, topicsRef: ITopicRef[]) => {
     return sensorTopicId;
 }
 
-export const checkReferencesMatch = (digitalTwinGltfData: any, dtReferencesData: any) => {
+export const checkReferencesMatch = (digitalTwinGltfData: any, dtReferencesData: any): [boolean, string] => {
     let referencesMatch = true;
+    let errorMessage = "Gltf file references not match with digital twin references file";
+    let outputMessage = "";
     const { topicsRefList, sensorsRefList } = getTopicSensorTypesFromDigitalTwin(digitalTwinGltfData);
     if (
         topicsRefList.length !== dtReferencesData.topicsRef.length &&
         sensorsRefList.length !== dtReferencesData.sensorsRef.length
     ) {
         referencesMatch = false;
+        outputMessage = errorMessage;
     } else {
         topicsRefList.sort();
         dtReferencesData.topicsRef.sort((a: any, b: any) => {
@@ -228,30 +232,73 @@ export const checkReferencesMatch = (digitalTwinGltfData: any, dtReferencesData:
             const index2 = parseInt(dtReferencesData.topicsRef[i].topicRef.split("_")[1], 10);
             if (index1 !== index2 || index1 !== (i + 1)) {
                 topicRefIndexMatch = false;
+                outputMessage = errorMessage;
                 break;
             }
         }
 
         if (topicRefIndexMatch) {
-            sensorsRefList.sort();
+            sensorsRefList.sort((a: string, b: string) =>
+                parseInt(a.split("_")[1], 10) - parseInt(b.split("_")[1], 10)
+            );
             dtReferencesData.sensorsRef.sort((a: any, b: any) => {
                 return a.sensorRef - b.sensorRef;
-            })
+            });
             let sensorRefIndexMatch = true;
             for (let i = 0; i < sensorsRefList.length; i++) {
                 const index1 = parseInt(sensorsRefList[i].split("_")[1], 10);
                 const index2 = parseInt(dtReferencesData.sensorsRef[i].sensorRef.split("_")[1], 10);
                 if (index1 !== index2 || index1 !== (i + 1)) {
                     sensorRefIndexMatch = false;
+                    outputMessage = errorMessage;
                     break;
                 }
             }
             if (!sensorRefIndexMatch) referencesMatch = false;
         } else {
             referencesMatch = false;
+            outputMessage = errorMessage;
         }
     }
-    return referencesMatch;
+    return [referencesMatch, outputMessage];
+}
+
+export const checkPayloadKeyRepetition = (sensorsRef: ISensorRef[]): [boolean, string] => {
+    let arePayloadKeysNotRepetead = true;
+    let errorMessage = "Digital twin references file have sensors with payloadKeys repetead";
+    let outputMessage = "";
+    const payloadKeysArray: string[] = [];
+    for (const sensorRef of sensorsRef) {
+        if (sensorRef.payloadKey) {
+            if (payloadKeysArray.indexOf(sensorRef.payloadKey) === -1) payloadKeysArray.push(sensorRef.payloadKey)
+            else {
+                arePayloadKeysNotRepetead = false;
+                outputMessage = errorMessage;
+                break;
+            }
+        }
+    }
+    return [arePayloadKeysNotRepetead, outputMessage];
+}
+
+export const ckeckDigitalTwinRefFile = (digitalTwinGltfData: any, dtReferencesData: any) => {
+    const outputMessage: string[] = [];
+    const isOk: boolean[] = [];
+    [isOk[0], outputMessage[0]] = checkReferencesMatch(digitalTwinGltfData, dtReferencesData);
+    [isOk[1], outputMessage[1]] = checkPayloadKeyRepetition(dtReferencesData.sensorsRef as ISensorRef[]);
+    let response = [true, ""];
+    const numChecking = isOk.length;
+    for (let i = 0; i < numChecking; i++) {
+        if (!isOk[i]) {
+            response[0] = false;
+            if (response[1] === "") {
+                response[1] = outputMessage[1];
+            } else {
+                response[1] = `${response[1]}, ${outputMessage[1]}`;
+            }
+        }
+    }
+    return response;
 }
 
 export const updatedTopicSensorIdsFromDigitalTwinGltfData = (
@@ -391,15 +438,14 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
     useEffect(() => {
         if (isGlftDataReady && isFemResDataReady && isDTRefDataReady) {
-            const referencesMatch = checkReferencesMatch(digitalTwinGltfData, dtReferencesData);
-            if (referencesMatch) {
+            const [isOk, errorMessage] = ckeckDigitalTwinRefFile(digitalTwinGltfData, dtReferencesData);
+            if (!isOk) {
+                toast.error(errorMessage);
+                setIsFormReady(false);
+            } else {
                 setTopicsRef(dtReferencesData.topicsRef);
                 setSensorsRef(dtReferencesData.sensorsRef);
                 setIsFormReady(true);
-            } else {
-                const errorMessage = "Gltf file references not match with digital twin references file";
-                toast.error(errorMessage);
-                setIsFormReady(false);
             }
 
         } else {
@@ -642,6 +688,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setDigitalTwinGltfData({});
         setLocalGltfFileLoaded(false);
         gltfFileParams.clear();
+        setIsGlftDataReady(false);
     }
 
     const localGltfFileButtonHandler = async () => {
@@ -656,6 +703,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setDigitalTwiFemResData({});
         setLocalFemResFileLoaded(false);
         femResFileParams.clear();
+        setIsFemResDataReady(false);
     }
 
     const localFemResFileButtonHandler = () => {
@@ -670,6 +718,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setDtReferencesData({});
         setDTReferencesFileLoaded(false);
         femResFileParams.clear();
+        setIsDTRefDataReady(false);
     }
 
     const dtRefFileButtonHandler = () => {

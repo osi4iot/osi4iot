@@ -19,7 +19,8 @@ import {
     setReloadDashboardsTable,
     setReloadTopicsTable,
     setReloadSensorsTable,
-    usePlatformAssitantDispatch
+    usePlatformAssitantDispatch,
+    setReloadDigitalTwinsTable
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
@@ -78,6 +79,8 @@ const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetI
             setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
             const reloadDashboardsTable = true;
             setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
+            const reloadDigitalTwinsTable = true;
+            setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
         }
     }, [isAssetDeleted, plaformAssistantDispatch, refreshAssets]);
 

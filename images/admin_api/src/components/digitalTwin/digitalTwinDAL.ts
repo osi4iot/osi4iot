@@ -436,7 +436,7 @@ export const getSensorDashboardByDigitalTwinId = async (
 						digital_twin_sensor_dashboard.dashboard_id AS "dashboardId",
 						grafanadb.sensor.dashboard_url AS "dashboardUrl"
 						FROM grafanadb.digital_twin_sensor_dashboard
-						INNER JOIN grafanadb.digital_twin_sensor ON grafanadb.digital_twin_sensor.digital_twin_id = grafanadb.digital_twin_sensor_dashboard.digital_twin_id
+						INNER JOIN grafanadb.digital_twin_sensor ON grafanadb.digital_twin_sensor.sensor_id = grafanadb.digital_twin_sensor_dashboard.sensor_id
 						INNER JOIN grafanadb.sensor ON grafanadb.digital_twin_sensor_dashboard.sensor_id = grafanadb.sensor.id
 						WHERE grafanadb.digital_twin_sensor_dashboard.digital_twin_id = $1;`
 	const result = await pool.query(

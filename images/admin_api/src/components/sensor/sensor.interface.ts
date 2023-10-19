@@ -7,6 +7,7 @@ export default interface ISensor {
 	type: string;
 	description: string;
 	topicId: number;
+	topicUid?: string;
 	payloadKey: string;
 	paramLabel: string;
 	valueType: string;

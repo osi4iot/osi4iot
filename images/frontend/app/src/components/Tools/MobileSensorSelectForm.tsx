@@ -208,7 +208,7 @@ const findMobileTopicSelected = (
         mobileTopic.orgAcronym === orgAcronym &&
         mobileTopic.groupAcronym === groupAcronym &&
         `Asset_${mobileTopic.assetUid}` === assetName &&
-        mobileTopic.sensorType === mobileSensor
+        mobileTopic.sensorDescription === mobileSensor
     )[0];
     return mobileTopicSelected;
 }

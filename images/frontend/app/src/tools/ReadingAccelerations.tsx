@@ -34,12 +34,12 @@ const ReadAccelerations = (
 		if (readingsCont <= totalReadings) {
 			if (gravity.length !== 0) {
 				const timestamp = (new Date()).toJSON();
-				const accelerations = [
+				const mobile_accelerations = [
 					sensor.x - gravity[0],
 					sensor.y - gravity[1],
 					sensor.z - gravity[2]
 				]
-				const payload = { timestamp, accelerations };
+				const payload = { timestamp, mobile_accelerations };
 				const message = new Paho.Message(JSON.stringify(payload));
 				message.destinationName = mqttTopic;
 				mqttClient.send(message);

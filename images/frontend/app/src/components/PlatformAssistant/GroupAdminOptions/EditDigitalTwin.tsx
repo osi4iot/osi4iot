@@ -27,7 +27,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { ISensorRef, ITopicRef, checkReferencesMatch } from './CreateDigitalTwin';
+import { ISensorRef, ITopicRef, ckeckDigitalTwinRefFile } from './CreateDigitalTwin';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -251,17 +251,21 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     topicsRef,
                     sensorsRef
                 };
-                const referencesMatch = checkReferencesMatch(digitalTwinGltfData, dtReferencesData);
-                if (referencesMatch) {
-                    setTopicsRef(topicsRef);
-                    setSensorsRef(sensorsRef);
-                    setIsFormReady(true);
+
+                if (isGlftDataReady && isFemResDataReady && isDTRefDataReady) {
+                    const [isOk, errorMessage] = ckeckDigitalTwinRefFile(digitalTwinGltfData, dtReferencesData);
+                    if (!isOk) {
+                        toast.error(errorMessage);
+                        setIsFormReady(false);
+                    } else {
+                        setTopicsRef(dtReferencesData.topicsRef);
+                        setSensorsRef(dtReferencesData.sensorsRef);
+                        setIsFormReady(true);
+                    }
+        
                 } else {
-                    const errorMessage = "Gltf file references not match with digital twin references file";
-                    toast.error(errorMessage);
                     setIsFormReady(false);
                 }
-                setIsFormReady(true);
 
             } else {
                 setIsFormReady(false);

@@ -8,18 +8,18 @@ import {
     useMeasurementsOptionToShow,
     setMeasurementsOptionToShow,
 } from '../../../contexts/measurementsOptions';
-import SelectTopic from './SelectTopic';
 import { Create_MEASUREMENTS_COLUMNS, IMeasurement } from '../TableColumns/measurementsColumns';
 import TableWithPaginationAsync from '../Utils/TableWithPaginationAsync';
-import { ISelectTopic } from '../TableColumns/selectTopicColumns';
 import EditMeasurement from './EditMeasurement';
 import timeRangeCalculator from '../../../tools/timeRangeCalculator';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { ISensor } from '../TableColumns/sensorsColumns';
+import SelectSensor from './SelectSensor';
+import { ISelectSensor } from '../TableColumns/selectSensorColumns';
 
-const giveMeasurementTopic = (sensors: ISensor[], selectedTopic: ITopic) => {
-    const topicUid = selectedTopic.topicUid;
+const giveMeasurementSensor = (selectedSensor: ISensor) => {
+    const topicUid = selectedSensor.topicUid;
     const topic = `Topic_${topicUid}`;
     return topic;
 }
@@ -37,7 +37,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
     const authDispatch = useAuthDispatch();
     const measurementsDispatch = useMeasurementsDispatch();
     const measurementsOptionToShow = useMeasurementsOptionToShow();
-    const [selectedTopic, setSelectedTopic] = useState<ITopic>(topics[0]);
+    const [selectedSensor, setSelectedSensor] = useState<ISensor>(sensors[0]);
     const [measurementsTable, setMeasurementsTable] = useState<IMeasurement[]>([]);
     const [measurementsLoading, setMeasurementsLoading] = useState(false);
     const [pageCount, setPageCount] = useState(0);
@@ -46,8 +46,8 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
     const [endDate, setEndDate] = useState(initialEndDate);
     const [selectedTimeRange, setSelectedTimeRange] = useState("Last 15 minutes");
 
-    const groupId = selectedTopic.groupId;
-    const measurementTopic = useMemo(() => giveMeasurementTopic(sensors, selectedTopic), [sensors, selectedTopic]);
+    const groupId = selectedSensor.groupId;
+    const measurementTopic = useMemo(() => giveMeasurementSensor(selectedSensor), [selectedSensor]);
 
     const updateMeasurementsTable = (measurementsTable: IMeasurement[]) => {
         setMeasurementsTable(measurementsTable);
@@ -56,9 +56,9 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
     const fetchMeasurements = useCallback(
         (pageIndex: number, itemsPerPage: number) => {
             const config = axiosAuth(accessToken);
-            let urlMeasurements = `${protocol}://${domainName}/admin_api/measurements_pagination/${groupId}`
+            let urlMeasurements = `${protocol}://${domainName}/admin_api/sensor_measurements_pagination/${groupId}`;
             const paginationData = {
-                topic: measurementTopic,
+                sensorId: selectedSensor.id,
                 startDate,
                 endDate,
                 pageIndex,
@@ -69,8 +69,11 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
                 .post(urlMeasurements, paginationData, config)
                 .then((response) => {
                     const measurements = response.data;
-                    measurements.map((measurement: { payload: Object }) => {
-                        measurement.payload = JSON.stringify(measurement.payload);
+                    const payloadKey = selectedSensor.payloadKey;
+                    measurements.map((measurement: any) => {
+                        const payload: Record<string, string> = {};
+                        payload[payloadKey] = JSON.parse(measurement[payloadKey]);
+                        measurement.payload = JSON.stringify(payload);
                         return measurement;
                     })
                     setMeasurementsTable(measurements);
@@ -86,7 +89,17 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
                 .catch((error) => {
                     axiosErrorHandler(error, authDispatch);
                 });
-        }, [accessToken, refreshToken, authDispatch, startDate, endDate, groupId, measurementTopic]);
+        },
+        [
+            accessToken,
+            groupId,
+            selectedSensor,
+            startDate,
+            endDate,
+            refreshToken,
+            authDispatch
+        ]
+    );
 
     const refreshMeasurements = useCallback(() => {
         fetchMeasurements(0, 10);
@@ -113,30 +126,42 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
     }, []);
 
 
-    const giveSelectedTopic = (selectedTopic: ISelectTopic | null) => {
-        if (selectedTopic) {
-            const topicsFiltered = topics.filter(topic => topic.id === selectedTopic.id);
-            setSelectedTopic(topicsFiltered[0])
+
+    const giveSelectedSensor = (selectedSensor: ISelectSensor | null) => {
+        if (selectedSensor) {
+            const sensorsFiltered = sensors.filter(sensor => sensor.id === selectedSensor.id);
+            setSelectedSensor(sensorsFiltered[0])
         }
     }
 
-    const columnsTable = useMemo(() => Create_MEASUREMENTS_COLUMNS(selectedTopic.groupId, measurementTopic, refreshMeasurements),
-        [selectedTopic.groupId, measurementTopic, refreshMeasurements]);
+    const columnsTable = useMemo(() => Create_MEASUREMENTS_COLUMNS(
+        selectedSensor.groupId,
+        measurementTopic,
+        selectedSensor.payloadKey,
+        refreshMeasurements
+    ),
+        [
+            selectedSensor.groupId,
+            selectedSensor.payloadKey,
+            measurementTopic,
+            refreshMeasurements
+        ]
+    );
 
     const dataTable = useMemo(() => measurementsTable, [measurementsTable]);
 
     return (
         <>
             {
-                measurementsOptionToShow === MEASUREMENTS_OPTIONS.SELECT_TOPIC &&
-                <SelectTopic
+                measurementsOptionToShow === MEASUREMENTS_OPTIONS.SELECT_SENSOR &&
+                <SelectSensor
                     backToTable={showMeasurementsTableOption}
-                    giveSelectedTopic={giveSelectedTopic}
+                    giveSelectedSensor={giveSelectedSensor}
                 />
             }
             {measurementsOptionToShow === MEASUREMENTS_OPTIONS.EDIT_MEASUREMENT &&
                 <EditMeasurement
-                    groupId={selectedTopic.groupId}
+                    groupId={selectedSensor.groupId}
                     measurements={measurementsTable}
                     backToTable={showMeasurementsTableOption}
                     updateMeasurementsTable={updateMeasurementsTable}
@@ -152,7 +177,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
                     loading={measurementsLoading}
                     pageCount={pageCount}
                     showMeasurementSelectionTable={showMeasurementSelectionTable}
-                    selectedTopic={selectedTopic}
+                    selectedSensor={selectedSensor}
                     selectedTimeRange={selectedTimeRange}
                     setSelectedTimeRange={giveSelectedTimeRange}
                     setStartDate={giveStartDate}

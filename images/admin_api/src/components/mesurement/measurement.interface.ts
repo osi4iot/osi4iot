@@ -1,5 +1,5 @@
 export default interface IMeasurement {
-	timestamp: number;
+	timestamp: string;
 	topic: string;
 	payload: string;
 	totalRows?: number;

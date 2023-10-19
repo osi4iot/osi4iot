@@ -1,11 +1,11 @@
 import { useTable, usePagination, Column } from 'react-table';
 import { FC, useEffect } from 'react';
 import styled from "styled-components";
-import { ITopic } from '../TableColumns/topicsColumns';
-import TopicSelection from './TopicSelection';
 import { TimeRangeSelection } from './TimeRangeSelection';
 import DeleteMeasurementsIcon from './DeleteMeasurementsIcon';
 import Loader from "../../Tools/Loader";
+import { ISensor } from '../TableColumns/sensorsColumns';
+import SensorSelection from './SensorSelection';
 
 const TableStyles = styled.div`
   padding: 1rem;
@@ -151,7 +151,7 @@ type TableProps<T extends object> = {
     loading: boolean;
     pageCount: number;
     showMeasurementSelectionTable: () => void;
-    selectedTopic: ITopic;
+    selectedSensor: ISensor;
     selectedTimeRange: string;
     setSelectedTimeRange: (selectedTimeRange: string) => void;
     setStartDate: (startDateString: string) => void;
@@ -168,7 +168,7 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
         showMeasurementSelectionTable,
         measurementTopic,
         loading,
-        selectedTopic,
+        selectedSensor,
         selectedTimeRange,
         setSelectedTimeRange,
         setStartDate,
@@ -214,9 +214,9 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
     // Render the UI for your table
     return (
         <TableContainer>
-            <TopicSelection
+            <SensorSelection
                 showMeasurementSelectionTable={showMeasurementSelectionTable}
-                selectedTopic={selectedTopic}
+                selectedSensor={selectedSensor}
             />
             <TableOptionsContainer>
                 <Pagination>
@@ -265,7 +265,7 @@ const TableWithPaginationAsync: FC<TableProps<any>> = (
                     </select>
                     <DeleteMeasurementsIcon
                         measurementTopic={measurementTopic}
-                        selectedTopic={selectedTopic}
+                        selectedSensor={selectedSensor}
                         refreshMeasurements={refreshMeasurements}
                     />
                 </Pagination>

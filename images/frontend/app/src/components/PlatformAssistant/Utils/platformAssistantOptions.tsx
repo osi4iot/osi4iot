@@ -143,6 +143,7 @@ export const TOPICS_OPTIONS = {
 export const MEASUREMENTS_OPTIONS = {
     TABLE: "Table",
     SELECT_TOPIC: "Select topic",
+    SELECT_SENSOR: "Select topic",
     EDIT_MEASUREMENT: "Edit measurement",
 }
 
