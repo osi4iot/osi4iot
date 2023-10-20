@@ -1,4 +1,4 @@
-FROM grafana/grafana-image-renderer:3.2.1
+FROM grafana/grafana-image-renderer:3.8.4
 USER root
 RUN apk add --no-cache tzdata
 RUN apk --no-cache add curl
