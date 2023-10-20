@@ -154,8 +154,11 @@ const updateObjectsState = (
                 });
             }
 
-            if ((messageTopicType.slice(0, 7) === "dev2pdb" && !digitalTwinSimulatorSendData) ||
-                messageTopicType === "dev2sim" || messageTopicType === "sim2dtm"
+            if (
+                ((messageTopicType.slice(0, 7) === "dev2pdb" || messageTopicType === "dev2sim") &&
+                    !digitalTwinSimulatorSendData
+                ) ||
+                (messageTopicType === "sim2dtm" && digitalTwinSimulatorSendData)
             ) {
                 sensorObjects.forEach((obj) => {
                     const objName = obj.node.name;
@@ -182,7 +185,7 @@ const updateObjectsState = (
                     if (animationType === "blenderTemporary") {
                         const clipTopicId = obj.node.userData.clipTopicId;
                         if ((clipTopicId !== undefined && clipTopicId === messageTopicId) ||
-                            sim2dtmTopicId === messageTopicId
+                            sim2dtmTopicId === messageTopicId || dev2simTopicId === messageTopicId
                         ) {
                             let clipValue = sensorsNewState[objName].clipValue;
                             const fieldName = obj.node.userData.clipFieldName;
@@ -204,7 +207,7 @@ const updateObjectsState = (
                     if (animationType === "blenderTemporary") {
                         const clipTopicId = obj.node.userData.clipTopicId;
                         if ((clipTopicId !== undefined && clipTopicId === messageTopicId) ||
-                            sim2dtmTopicId === messageTopicId
+                            sim2dtmTopicId === messageTopicId || dev2simTopicId === messageTopicId
                         ) {
                             let clipValue = assestsNewState[objName].clipValue;
                             const fieldName = obj.node.userData.clipFieldName;
@@ -226,7 +229,7 @@ const updateObjectsState = (
                     if (animationType === "blenderTemporary") {
                         const clipTopicId = obj.node.userData.clipTopicId;
                         if ((clipTopicId !== undefined && clipTopicId === messageTopicId) ||
-                            sim2dtmTopicId === messageTopicId
+                            sim2dtmTopicId === messageTopicId || dev2simTopicId === messageTopicId
                         ) {
                             let clipValue = genericObjectNewState[objName].clipValue;
                             const fieldName = obj.node.userData.clipFieldName;
@@ -245,7 +248,7 @@ const updateObjectsState = (
                 femSimulationObjects.forEach((obj, index) => {
                     const clipTopicId = obj.node.userData.clipTopicId;
                     if ((clipTopicId !== undefined && clipTopicId === messageTopicId) ||
-                        sim2dtmTopicId === messageTopicId
+                        sim2dtmTopicId === messageTopicId || dev2simTopicId === messageTopicId
                     ) {
                         if (femSimulationObjectsNewState[index] !== undefined &&
                             femSimulationObjectsNewState[index].clipValue !== null

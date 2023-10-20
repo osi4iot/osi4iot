@@ -28,7 +28,7 @@ interface SliderLabelProps {
 
 const SliderLabel = styled.div<SliderLabelProps>`
     display: flex;
-    flex-direction: ${(props) => ((props.label.length+numberFormat(props.value).length)<28 ? "row" : "column")};
+    flex-direction: ${(props) => ((props.label.length + numberFormat(props.value).length) < 28 ? "row" : "column")};
     justify-content: flex-start;
     align-items: flex-start;
     width: calc(100% - 65px);
@@ -149,11 +149,12 @@ interface SliderProps {
 }
 
 const numberFormat = (value: number) => {
-    const intPart = Math.round(value);
+    const roundValue = Math.round(value * 1.0e15) / 1.0e15;
+    const intPart = Math.round(roundValue);
     const lenghtIntPart = intPart.toString().length;
-    let outputValue = value.toString();
-    if (lenghtIntPart > 6) outputValue = value.toExponential(8);
-    if(value.toString().length >= 14) outputValue = value.toExponential(8);
+    let outputValue = roundValue.toString();
+    if (lenghtIntPart > 6) outputValue = roundValue.toExponential(8);
+    if (roundValue.toString().length >= 14) outputValue = roundValue.toExponential(8);
     return outputValue;
 }
 
@@ -170,7 +171,7 @@ const Slider: FC<SliderProps> = ({
 
     const handleDecremet = () => {
         let newValue = value - step;
-        if (newValue <min) newValue = min;
+        if (newValue < min) newValue = min;
         setValue(newValue);
     }
 

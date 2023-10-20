@@ -49,15 +49,19 @@ export interface IDigitalTwin {
 
 export interface IDigitalTwinSimulator {
     id: number;
-    orgId: number;
-    groupId: number;
-    assetId: number;
+    orgAcronym: string;
+    groupAcronym: string;
+    groupId: string;
+    assetUid: string;
+    assetDescription: string;
     digitalTwinUid: string;
+    digitalTwinDescription: string;
     description: string;
     digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
     sensorSimulationTopicId: number;
     mqttTopic: string;
 }
+
 
 interface IDigitalTwinColumn extends IDigitalTwin {
     edit: string;

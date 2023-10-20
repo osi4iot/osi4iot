@@ -12,7 +12,6 @@ import {
 	createTopic,
 	deleteTopicByIdsArray,
 	getMqttTopicsInfoFromIdArray,
-	// getSensorTopicsOfDTByDigitalTwinId,
 	getTopicByProp,
 	markInexistentTopics
 } from "../topic/topicDAL";
@@ -256,13 +255,19 @@ export const deleteSensorDashboardsOfDT = async (digitalTwinId: number): Promise
 };
 
 export const getAllDigitalTwinSimulators = async (): Promise<IDigitalTwinSimulator[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-						grafanadb.group.id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.org.acronym AS "orgAcronym",
+						grafanadb.group.acronym AS "groupAcronym",
+						grafanadb.group.id AS "groupId",
+						grafanadb.asset.asset_uid AS "assetUid",
+						grafanadb.asset.description AS "assetDescription",
+						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", 
+						grafanadb.digital_twin.description AS "digitalTwinDescription", 
 						grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 						grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
 						FROM grafanadb.digital_twin
 						INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+						INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
+						INNER JOIN grafanadb.asset ON grafanadb.digital_twin.asset_id = grafanadb.asset.id
 						INNER JOIN grafanadb.digital_twin_topic ON
 							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
 						WHERE  grafanadb.digital_twin.type = $1 AND
@@ -276,15 +281,21 @@ export const getAllDigitalTwinSimulators = async (): Promise<IDigitalTwinSimulat
 }
 
 export const getDigitalTwinSimulatorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IDigitalTwinSimulator[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.group.org_id AS "orgId",
-						grafanadb.group.group_id AS "groupId", grafanadb.digital_twin.asset_id AS "assetId",
-						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", grafanadb.digital_twin.description,
+	const response = await pool.query(`SELECT grafanadb.digital_twin.id, grafanadb.org.acronym AS "orgAcronym",
+						grafanadb.group.acronym AS "groupAcronym",
+						grafanadb.group.id AS "groupId",
+						grafanadb.asset.asset_uid AS "assetUid",
+						grafanadb.asset.description AS "assetDescription",
+						grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid", 
+						grafanadb.digital_twin.description AS "digitalTwinDescription", 
 						grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 						grafanadb.digital_twin_topic.topic_id AS "sensorSimulationTopicId"
 						FROM grafanadb.digital_twin
 						INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
+						INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
+						INNER JOIN grafanadb.asset ON grafanadb.digital_twin.asset_id = grafanadb.asset.id
 						INNER JOIN grafanadb.digital_twin_topic ON
-							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
+							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.
 						WHERE grafanadb.group.group_id = ANY($1::bigint[]) AND
 						grafanadb.digital_twin.type = $2 AND
 						grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
