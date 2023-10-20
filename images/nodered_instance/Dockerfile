@@ -1,5 +1,4 @@
 FROM ghcr.io/osi4iot/nodered_debian:latest
-#FROM nodered/node-red:2.2.2-16
 
 ARG TARGETARCH
 

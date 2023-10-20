@@ -1,2 +1,2 @@
-docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/mosquitto_go_auth:1.1.0 --push .
+docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/mosquitto_go_auth:latest-mosquitto_2.0.14 --push .
 docker buildx build --platform linux/amd64,linux/arm64 -t ghcr.io/osi4iot/mosquitto_go_auth:latest --push .

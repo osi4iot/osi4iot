@@ -5,22 +5,22 @@ export default function (osi4iotState) {
 	const defaultVersion = osi4iotState.platformInfo.DOCKER_IMAGES_VERSION;
 
 	const defaultServiceImageVersion = {
-		system_prune: defaultVersion || 'latest',
-		traefik: defaultVersion || 'latest',
-		mosquitto_go_auth: defaultVersion || 'latest',
-		agent: defaultVersion || 'latest',
-		portainer: defaultVersion || 'latest',
-		pgadmin4: defaultVersion || 'latest',
-		postgres: defaultVersion || 'latest',
-		timescaledb: defaultVersion || 'latest',
-		grafana: defaultVersion || 'latest',
-		grafana_renderer: defaultVersion || 'latest',
+		system_prune: 'latest',
+		traefik: 'v2.7' || 'latest',
+		mosquitto_go_auth: 'latest-mosquitto_2.0.14' || 'latest',
+		agent: '2.9.1-alpine' || 'latest',
+		portainer: '2.9.1-alpine' || 'latest',
+		pgadmin4: '2023-10-18-2' || 'latest',
+		postgres: '14.6-alpine' || 'latest',
+		timescaledb: '2.4.2-pg13' || 'latest',
+		grafana: '8.4.1-ubuntu' || 'latest',
+		grafana_renderer: '3.2.1' || 'latest',
 		admin_api: defaultVersion || 'latest',
 		frontend: defaultVersion || 'latest',
 		nodered_instance: defaultVersion || 'latest',
-		keepalived: defaultVersion || 'latest',
+		keepalived: 'latest',
 		dev2pdb: defaultVersion || 'latest',
-		minio: defaultVersion || 'latest'
+		minio: 'RELEASE.2023-10-16T04-13-43Z' || 'latest'
 	}
 
 

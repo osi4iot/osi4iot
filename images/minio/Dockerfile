@@ -1,4 +1,4 @@
-FROM quay.io/minio/minio:RELEASE.2022-10-15T19-57-03Z
+FROM quay.io/minio/minio:RELEASE.2023-10-16T04-13-43Z
 
 ENV PATH=/opt/bin:$PATH
 COPY ./entry_script.sh /usr/bin/entry_script.sh
