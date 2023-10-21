@@ -193,7 +193,7 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 										(grafanadb.asset.type = 'mobile' OR grafanadb.asset.type = 'assembly with mobile') AND
 										(grafanadb.sensor.topic_id = grafanadb.topic.id))
 									ORDER BY grafanadb.org.acronym ASC,
-										grafanadb.group.acronym ASC
+										grafanadb.group.acronym ASC,
 										grafanadb.topic.id  ASC;`, [groupsIdArray]);
 	return response.rows as IMobileTopic[];
 };

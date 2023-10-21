@@ -169,7 +169,7 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
-									WHERE grafanadb.asset.group_id = ANY($1::bigint[])
+									WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[])
 									ORDER BY grafanadb.digital_twin.id ASC,
 										grafanadb.group.org_id ASC,
 										grafanadb.digital_twin.group_id ASC,
@@ -295,8 +295,8 @@ export const getDigitalTwinSimulatorsByGroupsIdArray = async (groupsIdArray: num
 						INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 						INNER JOIN grafanadb.asset ON grafanadb.digital_twin.asset_id = grafanadb.asset.id
 						INNER JOIN grafanadb.digital_twin_topic ON
-							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.
-						WHERE grafanadb.group.group_id = ANY($1::bigint[]) AND
+							grafanadb.digital_twin_topic.digital_twin_id = grafanadb.digital_twin.id
+						WHERE grafanadb.digital_twin.group_id = ANY($1::bigint[]) AND
 						grafanadb.digital_twin.type = $2 AND
 						grafanadb.digital_twin.digital_twin_simulation_format != '{}'::jsonb AND
 						grafanadb.digital_twin_topic.topic_ref = $3
