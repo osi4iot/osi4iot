@@ -10484,6 +10484,11 @@ react-fast-compare@^3.0.1:
   resolved "https://registry.yarnpkg.com/react-fast-compare/-/react-fast-compare-3.2.0.tgz#641a9da81b6a6320f270e89724fb45a0b39e43bb"
   integrity sha512-rtGImPZ0YyLrscKI9xTpV8psd6I8VAtjKCzQDlzyDvqJA8XOW78TXYQwNRNd8g8JZnDu8q9Fu/1v4HPAVwVdHA==
 
+react-from-dom@^0.6.2:
+  version "0.6.2"
+  resolved "https://registry.yarnpkg.com/react-from-dom/-/react-from-dom-0.6.2.tgz#9da903a508c91c013b55afcd59348b8b0a39bdb4"
+  integrity sha512-qvWWTL/4xw4k/Dywd41RBpLQUSq97csuv15qrxN+izNeLYlD9wn5W8LspbfYe5CWbaSdkZ72BsaYBPQf2x4VbQ==
+
 react-html5-camera-photo@^1.5.10:
   version "1.5.10"
   resolved "https://registry.yarnpkg.com/react-html5-camera-photo/-/react-html5-camera-photo-1.5.10.tgz#8a6053fa4965901245de763eef75b9dee7f37ded"
@@ -10495,6 +10500,13 @@ react-icons@^4.2.0:
   version "4.2.0"
   resolved "https://registry.yarnpkg.com/react-icons/-/react-icons-4.2.0.tgz#6dda80c8a8f338ff96a1851424d63083282630d0"
   integrity sha512-rmzEDFt+AVXRzD7zDE21gcxyBizD/3NqjbX6cmViAgdqfJ2UiLer8927/QhhrXQV7dEj/1EGuOTPp7JnLYVJKQ==
+
+react-inlinesvg@^4.0.6:
+  version "4.0.6"
+  resolved "https://registry.yarnpkg.com/react-inlinesvg/-/react-inlinesvg-4.0.6.tgz#cd619e66bfc72543997540fb0e865c884ed4642c"
+  integrity sha512-4kByDS+0Ah3sNX9m0qS0SGafiQInz+nRksPFL1aTkmK5ExQYT9kjqQBUwhIFPvZyS/rxDLg9i56lYpHMJz7heg==
+  dependencies:
+    react-from-dom "^0.6.2"
 
 react-input-autosize@^3.0.0:
   version "3.0.0"

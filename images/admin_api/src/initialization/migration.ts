@@ -166,6 +166,11 @@ export const dataBaseInitialization = async () => {
 					name VARCHAR(190) UNIQUE,
 					geolocation POINT,
 					geodata jsonb NOT NULL DEFAULT '{}'::jsonb,
+					address VARCHAR(255),
+					city VARCHAR(255),
+					state VARCHAR(255),
+					zip_code VARCHAR(50),
+					country VARCHAR(255),
 					outer_bounds float8[2][2],
 					building_file_name VARCHAR(100),
 					building_file_last_modif_date VARCHAR(100),
@@ -403,7 +408,7 @@ export const dataBaseInitialization = async () => {
 						folderPermission: ("Viewer" as FolderPermissionOption),
 						groupAdminDataArray: [mainOrgGroupAdmin],
 						floorNumber: 0,
-						featureIndex: 0,
+						featureIndex: 1,
 						mqttAccessControl: "Pub & Sub"
 					}
 					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);

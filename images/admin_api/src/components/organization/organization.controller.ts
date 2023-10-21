@@ -372,7 +372,7 @@ class OrganizationController implements IController {
 					folderPermission: ("Viewer" as FolderPermissionOption),
 					groupAdminDataArray,
 					floorNumber: 0,
-					featureIndex: 0,
+					featureIndex: 1,
 					mqttAccessControl: "Pub & Sub"
 				}
 				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);

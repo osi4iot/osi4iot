@@ -1,4 +1,4 @@
-import { FC, useState,useEffect } from 'react';
+import { FC, useEffect, useState } from 'react';
 import Paho from "paho-mqtt";
 import { ChildrenProp } from '../interfaces/interfaces';
 import MqttConnection from '../tools/MqttConnection';
@@ -12,11 +12,21 @@ import axiosErrorHandler from '../tools/axiosErrorHandler';
 import { IDigitalTwinSimulator } from '../components/PlatformAssistant/TableColumns/digitalTwinsColumns';
 import DigitalTwinSimulatorSelectForm from '../components/Tools/DigitalTwinSimulatorSelectForm';
 import DigitalTwinSimulatorOptions from '../components/Tools/DigitalTwinSimulatorOptions';
+import styled from 'styled-components';
 
+const LoadingItem = styled.div`
+    background-color: #202226;
+	font-size: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+	width: 100%;
+	height: 100%;
+`;
 
 export interface InitialDigitalTwinSimulatorData {
-    orgAcronym: string;
-    groupAcronym: string;
+	orgAcronym: string;
+	groupAcronym: string;
 	assetName: string;
 	assetDescription: string;
 	digitalTwinName: string;
@@ -26,9 +36,10 @@ export interface InitialDigitalTwinSimulatorData {
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-let mqttClient: (Paho.Client | null) = null;
+let mqttClient: (Paho.Client | null) = null
 
 const DigitalTwinSimulatorPage: FC<ChildrenProp> = ({ children }) => {
+	const [loadingLabel, setLoadingLabel] = useState("Loading...");
 	const [isMqttConnected, setIsMqttConnected] = useState(false);
 	const [initialDigitalTwinSimulatorData, setInitialDigitalTwinSimulatorData] =
 		useState<InitialDigitalTwinSimulatorData | null>(null);
@@ -46,16 +57,20 @@ const DigitalTwinSimulatorPage: FC<ChildrenProp> = ({ children }) => {
 			.get(urlTopics, config)
 			.then((response) => {
 				const digitalTwinSimulatorsManaged: IDigitalTwinSimulator[] = response.data;
-				setDigitalTwinSimulatorsManaged(digitalTwinSimulatorsManaged);		
-				const initialDigitalTwinSimulatorData = {
-					orgAcronym: digitalTwinSimulatorsManaged[0].orgAcronym,
-					groupAcronym: digitalTwinSimulatorsManaged[0].groupAcronym,
-					assetName: `Asset_${digitalTwinSimulatorsManaged[0].assetUid}`,
-					assetDescription: digitalTwinSimulatorsManaged[0].assetDescription,
-					digitalTwinName: `DT_${digitalTwinSimulatorsManaged[0].digitalTwinUid}`,
-					digitalTwinDescription: digitalTwinSimulatorsManaged[0].digitalTwinDescription
+				setDigitalTwinSimulatorsManaged(digitalTwinSimulatorsManaged);
+				if (digitalTwinSimulatorsManaged.length !== 0) {
+					const initialDigitalTwinSimulatorData = {
+						orgAcronym: digitalTwinSimulatorsManaged[0].orgAcronym,
+						groupAcronym: digitalTwinSimulatorsManaged[0].groupAcronym,
+						assetName: `Asset_${digitalTwinSimulatorsManaged[0].assetUid}`,
+						assetDescription: digitalTwinSimulatorsManaged[0].assetDescription,
+						digitalTwinName: `DT_${digitalTwinSimulatorsManaged[0].digitalTwinUid}`,
+						digitalTwinDescription: digitalTwinSimulatorsManaged[0].digitalTwinDescription
+					}
+					setInitialDigitalTwinSimulatorData(initialDigitalTwinSimulatorData);
+				} else {
+					setLoadingLabel("No digital twin simulator found");
 				}
-				setInitialDigitalTwinSimulatorData(initialDigitalTwinSimulatorData);
 			})
 			.catch((error) => {
 				axiosErrorHandler(error, authDispatch);
@@ -80,6 +95,10 @@ const DigitalTwinSimulatorPage: FC<ChildrenProp> = ({ children }) => {
 			<Main>
 				<>
 					{
+						!initialDigitalTwinSimulatorData &&
+						<LoadingItem>{loadingLabel}</LoadingItem>
+					}
+					{
 						(initialDigitalTwinSimulatorData !== null && !showDigitalTwinSimulator) &&
 						<DigitalTwinSimulatorSelectForm
 							isMqttConnected={isMqttConnected}
@@ -94,12 +113,12 @@ const DigitalTwinSimulatorPage: FC<ChildrenProp> = ({ children }) => {
 					{
 						showDigitalTwinSimulator &&
 						<DigitalTwinSimulatorOptions
-						    isMqttConnected={isMqttConnected}
+							isMqttConnected={isMqttConnected}
 							mqttClient={mqttClient as Paho.Client}
 							digitalTwinSimulatorSelected={digitalTwinSimulatorSelected as IDigitalTwinSimulator}
 							setShowDigitalTwinSimulator={setShowDigitalTwinSimulator}
 						/>
-					}				
+					}
 				</>
 			</Main>
 		</>
