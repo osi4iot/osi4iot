@@ -8,7 +8,6 @@ import { CarSVGOverlay } from "./CarSVGOverlay";
 import { TruckSVGOverlay } from "./TruckSVGOverlay";
 import { ShipSVGOverlay } from "./ShipSVGOverlay";
 
-
 interface AssetSVGOverlaysProps {
     assetType: string,
     fillColor: string;
@@ -23,37 +22,37 @@ export const AssetSVGOverlays: FC<AssetSVGOverlaysProps> = ({
     imageRef = null
 }) => {
     switch (assetType) {
-        case 'car':
+        case 'Car':
             return <CarSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}
             />;
-        case 'eolic_tower':
+        case 'Eolic_tower':
             return <EolicTowerSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}
             />;
-        case 'machine':
+        case 'Machine':
             return <MachineSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}
             />;
-        case 'mobile':
+        case 'Mobile':
             return <MobileSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}
             />;
-        case 'ship':
+        case 'Ship':
             return <ShipSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}
             />;
-        case 'truck':
+        case 'Truck':
             return <TruckSVGOverlay
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}

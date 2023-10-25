@@ -391,6 +391,7 @@ interface MapProps {
     refreshFloors: () => void;
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
+    refreshAssetTypes: () => void;
     refreshAssets: () => void;
     refreshSensors: () => void;
     refreshDigitalTwins: () => void;
@@ -436,6 +437,7 @@ const Map: FC<MapProps> = (
         refreshFloors,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
+        refreshAssetTypes,
         refreshAssets,
         refreshSensors,
         refreshDigitalTwins,
@@ -460,6 +462,7 @@ const Map: FC<MapProps> = (
         refreshFloors();
         refreshOrgsOfGroupsManaged();
         refreshGroupsManaged();
+        refreshAssetTypes();
         refreshAssets();
         refreshSensors();
         refreshDigitalTwins();
@@ -468,6 +471,7 @@ const Map: FC<MapProps> = (
         refreshFloors,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
+        refreshAssetTypes,
         refreshAssets,
         refreshSensors,
         refreshDigitalTwins

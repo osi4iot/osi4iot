@@ -28,6 +28,8 @@ import {
 	setReloadSensorsTable,
 	setAssetsTable,
 	setSensorsTable,
+	setAssetTypesTable,
+	setReloadAssetTypesTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import GeolocationContainer, { IDigitalTwinState, ISensorState } from '../Geolocation/GeolocationContainer';
@@ -45,10 +47,11 @@ import SceneLoader from '../../Tools/SceneLoader';
 import { useHistory } from 'react-router-dom';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { useAssetsTable, useReloadAssetsTable, useReloadSensorsTable, useSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantContext';
+import { useAssetTypesTable, useAssetsTable, useReloadAssetTypesTable, useReloadAssetsTable, useReloadSensorsTable, useSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantContext';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -171,6 +174,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const floorsTable = useFloorsTable();
 	const orgsOfGroupsManagedTable = useOrgsOfGroupsManagedTable();
 	const groupsManagedTable = useGroupsManagedTable();
+	const assetTypesTable = useAssetTypesTable();
 	const assetsTable = useAssetsTable();
 	const sensorsTable = useSensorsTable();
 	const digitalTwinsTable = useDigitalTwinsTable();
@@ -178,6 +182,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [floorsLoading, setFloorsLoading] = useState(true);
 	const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
 	const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
+	const [assetTypesLoading, setAssetTypesLoading] = useState(true);
 	const [assetsLoading, setAssetsLoading] = useState(true);
 	const [sensorsLoading, setSensorsLoading] = useState(true);;
 	const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
@@ -187,6 +192,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const reloadFloorsTable = useReloadFloorsTable();
 	const reloadOrgsOfGroupsManagedTable = useReloadOrgsOfGroupsManagedTable();
 	const reloadGroupsManagedTable = useReloadGroupsManagedTable();
+	const reloadAssetTypesTable = useReloadAssetTypesTable();
 	const reloadAssetsTable = useReloadAssetsTable();
 	const reloadSensorsTable = useReloadSensorsTable();
 	const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
@@ -229,6 +235,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		const reloadGroupsManagedTable = true;
 		setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
 	}, [plaformAssistantDispatch]);
+
+	const refreshAssetTypes = useCallback(() => {
+		setAssetTypesLoading(true);
+		const reloadAssetTypesTable = true;
+		setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
+	}, [plaformAssistantDispatch])
 
 	const refreshAssets = useCallback(() => {
 		setAssetsLoading(true);
@@ -334,10 +346,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 				.then((response) => {
 					const buildings = response.data;
 					buildings.map((building: IBuilding) => {
-                        building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
-                        building.updatedAtAge = elaspsedTimeFormat(building.updatedAtAge);
-                        return building;
-                    })
+						building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
+						building.updatedAtAge = elaspsedTimeFormat(building.updatedAtAge);
+						return building;
+					})
 					setBuildingsTable(plaformAssistantDispatch, { buildings });
 					setBuildingsLoading(false);
 					const buildingsFiltered = filterBuildings(buildings);
@@ -373,10 +385,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 				.then((response) => {
 					const floors = response.data;
 					floors.map((floor: IFloor) => {
-                        floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
-                        floor.updatedAtAge = elaspsedTimeFormat(floor.updatedAtAge);
-                        return floor;
-                    })
+						floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
+						floor.updatedAtAge = elaspsedTimeFormat(floor.updatedAtAge);
+						return floor;
+					})
 					setFloorsTable(plaformAssistantDispatch, { floors });
 					setFloorsLoading(false);
 					const floorsFiltered = filterFloors(floors);
@@ -459,6 +471,39 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		reloadGroupsManagedTable
 	]);
 
+
+    useEffect(() => {
+        if (assetTypesTable.length === 0 || reloadAssetTypesTable) {
+            const config = axiosAuth(accessToken);
+            const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlAssetTypes, config)
+                .then((response) => {
+                    const assetTypes = response.data;
+                    assetTypes.map((assetType: IAssetType) => {
+                        assetType.isPredefinedString = "No";
+                        if (assetType.isPredefined) assetType.isPredefinedString = "Yes";
+                        return assetType;
+                    })
+                    setAssetTypesTable(plaformAssistantDispatch, { assetTypes });
+                    setAssetTypesLoading(false);
+                    const reloadAssetTypesTable = false;
+                    setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetTypesLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadAssetTypesTable,
+        assetTypesTable.length
+    ]);	
 
 	useEffect(() => {
 		if (assetsTable.length === 0 || reloadAssetsTable) {
@@ -584,6 +629,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 						floorsLoading ||
 						orgsOfGroupsManagedLoading ||
 						groupsManagedLoading ||
+						assetTypesLoading ||
 						assetsLoading ||
 						sensorsLoading ||
 						digitalTwinLoading ||
@@ -619,6 +665,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									refreshFloors={refreshFloors}
 									refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
 									refreshGroupsManaged={refreshGroupsManaged}
+									refreshAssetTypes={refreshAssetTypes}
 									refreshAssets={refreshAssets}
 									refreshSensors={refreshSensors}
 									refreshDigitalTwins={refreshDigitalTwins}

@@ -57,11 +57,13 @@ import TableWithPagination from '../Utils/TableWithPagination';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { MlModelsProvider } from '../../../contexts/mlModelsOptions';
-import { setAssetsTable, setMlModelsTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorsTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
+import { setAssetTypesTable, setAssetsTable, setMlModelsTable, setReloadAssetTypesTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorsTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
 import MlModelsContainer from './MlModelsContainer';
 import {
+    useAssetTypesTable,
     useAssetsTable,
     useMlModelsTable,
+    useReloadAssetTypesTable,
     useReloadAssetsTable,
     useReloadMlModelsTable,
     useReloadSensorsTable,
@@ -73,6 +75,7 @@ import { SensorsProvider } from '../../../contexts/sensorsOptions';
 import SensorsContainer from './SensorsContainer';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -156,6 +159,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const floorsTable = useFloorsTable();
     const orgsOfGroupManagedTable = useOrgsOfGroupsManagedTable();
     const groupsManagedTable = useGroupsManagedTable();
+    const assetTypesTable = useAssetTypesTable();
     const assetsTable = useAssetsTable();
     const sensorsTable = useSensorsTable();
     const groupMembersTable = useGroupMembersTable();
@@ -168,6 +172,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsOfGroupsManagedLoading, setOrgsOfGroupsManagedLoading] = useState(true);
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
+    const [assetTypesLoading, setAssetTypesLoading] = useState(true);
     const [assetsLoading, setAssetsLoading] = useState(true);
     const [sensorsLoading, setSensorsLoading] = useState(true);
     const [topicsLoading, setTopicsLoading] = useState(true);
@@ -181,6 +186,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [reloadFloors, setReloadFloors] = useState(false);
     const reloadGroupsManagedTable = useReloadGroupsManagedTable();
     const reloadGroupMembersTable = useReloadGroupMembersTable();
+    const reloadAssetTypesTable = useReloadAssetTypesTable();
     const reloadAssetsTable = useReloadAssetsTable();
     const reloadSensorsTable = useReloadSensorsTable();
     const reloadTopicsTable = useReloadTopicsTable();
@@ -196,7 +202,7 @@ const GroupAdminOptions: FC<{}> = () => {
         const reloadGroupsManagedTable = true;
         setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
     }, [plaformAssistantDispatch]);
-
+ 
     const refreshAssets = useCallback(() => {
         setAssetsLoading(true);
         const reloadAssetsTable = true;
@@ -440,6 +446,40 @@ const GroupAdminOptions: FC<{}> = () => {
     ]);
 
     useEffect(() => {
+        if (assetTypesTable.length === 0 || reloadAssetTypesTable) {
+            const config = axiosAuth(accessToken);
+            const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlAssetTypes, config)
+                .then((response) => {
+                    const assetTypes = response.data;
+                    assetTypes.map((assetType: IAssetType) => {
+                        assetType.isPredefinedString = "No";
+                        if (assetType.isPredefined) assetType.isPredefinedString = "Yes";
+                        return assetType;
+                    })
+                    setAssetTypesTable(plaformAssistantDispatch, { assetTypes });
+                    setAssetTypesLoading(false);
+                    const reloadAssetTypesTable = false;
+                    setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetTypesLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadAssetTypesTable,
+        assetTypesTable.length
+    ]);
+
+
+    useEffect(() => {
         if (assetsTable.length === 0 || reloadAssetsTable) {
             const config = axiosAuth(accessToken);
             const urlAssets = `${protocol}://${domainName}/admin_api/assets/user_managed`;
@@ -657,6 +697,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         floorsLoading ||
                         orgsOfGroupsManagedLoading ||
                         groupsManagedLoading ||
+                        assetTypesLoading ||
                         assetsLoading ||
                         sensorsLoading ||
                         groupMembersLoading ||

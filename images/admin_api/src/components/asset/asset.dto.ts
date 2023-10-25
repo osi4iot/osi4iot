@@ -1,11 +1,11 @@
 import { IsNumber, IsString } from "class-validator";
 
 class CreateAssetDto {
-	@IsString()
-	public description: string;
+	@IsNumber()
+	public assetTypeId: number;
 
 	@IsString()
-	public type: string;
+	public description: string;
 
 	@IsNumber()
 	public iconRadio: number;
@@ -15,9 +15,6 @@ class CreateAssetDto {
 
 	@IsNumber()
 	public latitude: number;
-
-	@IsString()
-	public geolocationMode: string;
 }
 
 export default CreateAssetDto;

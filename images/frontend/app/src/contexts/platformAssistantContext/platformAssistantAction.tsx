@@ -43,7 +43,9 @@ import {
 	IReloadAssetsTable,
 	ISensorsTable,
 	IReloadSensorsTable,
-	IWindowObjectReferences
+	IWindowObjectReferences,
+	IAssetTypesTable,
+	IReloadAssetTypesTable
 
 } from "./interfaces";
 
@@ -157,6 +159,14 @@ export function setGroupMembersTable(plaformAssistantDispatch: PlatformAssistant
 
 export function setReloadGroupMembersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadGroupMembersTable) {
 	plaformAssistantDispatch({ type: 'RELOAD_GROUPS_MEMBERS_TABLE', payload: data });
+}
+
+export function setAssetTypesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IAssetTypesTable) {
+	plaformAssistantDispatch({ type: 'ASSET_TYPES_TABLE', payload: data });
+}
+
+export function setReloadAssetTypesTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadAssetTypesTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_ASSET_TYPES_TABLE', payload: data });
 }
 
 export function setAssetsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IAssetsTable) {

@@ -7,6 +7,7 @@ export interface IAssetInputData {
 	groupId: number | string;
 	description: string;
 	assetType: string;
+	assetTypeId: number;
 	assetUid: string;
 	iconRadio: number;
 	longitude: number;

@@ -32,6 +32,7 @@ export interface IAsset {
     orgId: number;
     groupId: number;
     assetUid: string;
+    assetTypeId: number;
     description: string;
     type: string;
     iconRadio: number;
@@ -166,12 +167,17 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
             filter: 'equals'
         },
         {
-            Header: "Description",
-            accessor: "description"
+            Header: "AssetTypeId",
+            accessor: "assetTypeId",
+            filter: 'equals'
         },
         {
             Header: "Type",
             accessor: "type",
+        },
+        {
+            Header: "Description",
+            accessor: "description"
         },
         {
             Header: () => <div style={{ backgroundColor: '#202226' }}>Icon<br />radio</div>,
@@ -190,12 +196,7 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
             accessor: "latitude",
             disableFilters: true,
             disableSortBy: true
-        },
-        {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>Geolocation<br />mode</div>,
-            accessor: "geolocationMode",
-            disableFilters: true,
-        },        
+        },   
         {
             Header: "",
             accessor: "edit",
@@ -208,11 +209,12 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
                 const assetInputData = {
                     groupId: row?.cells[2]?.value,
                     assetUid: row?.cells[3]?.value,
-                    description: row?.cells[4]?.value,
+                    assetTypeId: row?.cells[4]?.value,
                     assetType: row?.cells[5]?.value,
-                    iconRadio: row?.cells[6]?.value,
-                    longitude: row?.cells[7]?.value,
-                    latitude: row?.cells[8]?.value,
+                    description: row?.cells[6]?.value,
+                    iconRadio: row?.cells[7]?.value,
+                    longitude: row?.cells[8]?.value,
+                    latitude: row?.cells[9]?.value,
                 }
                 return <EditAsset assetId={assetId} rowIndex={rowIndex} assetInputData={assetInputData} />
             }

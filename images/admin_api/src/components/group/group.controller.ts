@@ -64,7 +64,7 @@ import {
 import UpdateGroupManagedDto from "./interfaces/groupManagedUpdate.dto";
 import rhumbDestination from "@turf/rhumb-destination";
 import { updateMeasurementsGroupUid } from "../mesurement/measurementDAL";
-import { createNewAsset } from "../asset/assetDAL";
+import { createNewAsset, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
 import { createNewSensor } from "../sensor/sensorDAL";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { nanoid } from "nanoid";
@@ -328,10 +328,11 @@ class GroupController implements IController {
 			nodeRedInstancesUnlinkedInOrg[0].longitude = nriLongitude;
 			nodeRedInstancesUnlinkedInOrg[0].latitude = nriLatitude;
 			await assignNodeRedInstanceToGroup(nodeRedInstancesUnlinkedInOrg[0], groupCreated.id);
+			const assetType = await getAssetTypeByTypeAndOrgId(orgId, "Mobile");
 
 			const defaultAssetData = {
 				description: `Mobile for group ${groupCreated.acronym}`,
-				type: "mobile",
+				assetTypeId: assetType.id,
 				iconRadio: 1.0,
 				longitude: assetLongitude,
 				latitude: assetLatitude,

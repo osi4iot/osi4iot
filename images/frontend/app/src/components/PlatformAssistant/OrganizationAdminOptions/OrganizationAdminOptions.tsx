@@ -36,6 +36,10 @@ import {
     setNodeRedInstancesTable,
     useReloadNodeRedInstancesTable,
     setReloadNodeRedInstancesTable,
+    useAssetTypesTable,
+    useReloadAssetTypesTable,
+    setAssetTypesTable,
+    setReloadAssetTypesTable,
 } from '../../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
 import { filterBuildings } from '../../../tools/filterBuildings';
@@ -47,6 +51,9 @@ import { NodeRedInstancesProvider } from '../../../contexts/nodeRedInstancesOpti
 import NodeRedInstancesInOrgsContainer from './NodeRedInstancesInOrgsContainer';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AssetTypesProvider } from '../../../contexts/assetTypes.Options';
+import AssetTypesContainer from './AssetTypesContainer';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 
 const OrganizationAdminOptionsContainer = styled.div`
@@ -131,12 +138,14 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const nodeRedInstancesTable = useNodeRedInstancesTable();
     const orgUsersTable = useOrgUsersTable();
     const groupsTable = useGroupsTable();
+    const assetTypesTable = useAssetTypesTable();
     const globalUsersTable = useGlobalUsersTable();
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
     const [nodeRedInstancesLoading, setNodeRedInstancesLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
+    const [assetTypesLoading, setAssetTypesLoading] = useState(true);
     const [orgUsersLoading, setOrgUsersLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
     const [optionToShow, setOptionToShow] = useState(ORG_ADMIN_OPTIONS.ORGS_MANAGED);
@@ -149,6 +158,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const reloadNodeRedInstancesTable = useReloadNodeRedInstancesTable();
     const reloadOrgUsersTable = useReloadOrgUsersTable();
     const reloadGroupsTable = useReloadGroupsTable();
+    const reloadAssetTypesTable = useReloadAssetTypesTable();
 
     const refreshOrgsManaged = useCallback(() => {
         setOrgsManagedLoading(true);
@@ -162,18 +172,22 @@ const OrganizationAdminOptions: FC<{}> = () => {
         setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
     }, [plaformAssistantDispatch]);
 
-
     const refreshOrgUsers = useCallback(() => {
         setOrgUsersLoading(true);
         const reloadOrgUsersTable = true;
         setReloadOrgUsersTable(plaformAssistantDispatch, { reloadOrgUsersTable });
     }, [plaformAssistantDispatch,])
 
-
     const refreshGroups = useCallback(() => {
         setGroupsLoading(true);
         const reloadGroupsTable = true;
         setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
+    }, [plaformAssistantDispatch])
+
+    const refreshAssetTypes = useCallback(() => {
+        setAssetTypesLoading(true);
+        const reloadAssetTypesTable = true;
+        setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
     }, [plaformAssistantDispatch])
 
     const refreshBuildings = useCallback(() => {
@@ -398,6 +412,39 @@ const OrganizationAdminOptions: FC<{}> = () => {
     ]);
 
     useEffect(() => {
+        if (assetTypesTable.length === 0 || reloadAssetTypesTable) {
+            const config = axiosAuth(accessToken);
+            const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlAssetTypes, config)
+                .then((response) => {
+                    const assetTypes = response.data;
+                    assetTypes.map((assetType: IAssetType) => {
+                        assetType.isPredefinedString = "No";
+                        if (assetType.isPredefined) assetType.isPredefinedString = "Yes";
+                        return assetType;
+                    })
+                    setAssetTypesTable(plaformAssistantDispatch, { assetTypes });
+                    setAssetTypesLoading(false);
+                    const reloadAssetTypesTable = false;
+                    setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetTypesLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadAssetTypesTable,
+        assetTypesTable.length
+    ]);
+
+    useEffect(() => {
         if (globalUsersTable.length === 0 || reloadOrgUsersTable) {
             const config = axiosAuth(accessToken);
             const urlGlobalUsers = `${protocol}://${domainName}/admin_api/application/global_users`;
@@ -438,17 +485,35 @@ const OrganizationAdminOptions: FC<{}> = () => {
     return (
         <>
             <OrganizationAdminOptionsContainer>
-                <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ORGS_MANAGED} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ORGS_MANAGED)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ORGS_MANAGED}
+                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ORGS_MANAGED)}
+                >
                     Orgs managed
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ORG_USERS} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ORG_USERS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ORG_USERS}
+                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ORG_USERS)}
+                >
                     Org users
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.GROUPS} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.GROUPS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.GROUPS}
+                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.GROUPS)}
+                >
                     Groups
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS} onClick={() => clickHandler(ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS)}>
+                <OptionContainer
+                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS}
+                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS)}
+                >
                     Nodered instances in orgs
+                </OptionContainer>
+                <OptionContainer
+                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ASSET_TYPES}
+                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ASSET_TYPES)}
+                >
+                    Asset types
                 </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
@@ -460,7 +525,8 @@ const OrganizationAdminOptions: FC<{}> = () => {
                         groupsLoading ||
                         orgUsersLoading ||
                         globalUsersLoading ||
-                        nodeRedInstancesLoading
+                        nodeRedInstancesLoading ||
+                        assetTypesLoading
                     ) ?
                         <Loader />
                         :
@@ -494,6 +560,14 @@ const OrganizationAdminOptions: FC<{}> = () => {
                                         refreshNodeRedInstances={refreshNodeRedInstances}
                                     />
                                 </NodeRedInstancesProvider>
+                            }
+                            {optionToShow === ORG_ADMIN_OPTIONS.ASSET_TYPES &&
+                                <AssetTypesProvider>
+                                    <AssetTypesContainer
+                                        assetTypes={assetTypesTable}
+                                        refreshAssetTypes={refreshAssetTypes}
+                                    />
+                                </AssetTypesProvider>
                             }
                         </>
                 }

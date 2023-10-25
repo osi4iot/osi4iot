@@ -14,7 +14,9 @@ export const initialState = {
     assetInputFormData: {
         groupId: 1,
         description: "",
-        assetType: "generic",
+        assetTypeId: 0,
+        assetType: "Generic",
+        newAssetType: "-",
         assetUid: "",
         iconRadio: 1.0,
         longitude: 0,

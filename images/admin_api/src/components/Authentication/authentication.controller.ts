@@ -35,7 +35,12 @@ import process_env from "../../config/api_config";
 import { getTopicInfoForMqttAclByTopicUid } from "../topic/topicDAL";
 import ITopicInfoForMqttAcl from "../topic/topicInfoForMqttAcl.interface";
 import { getNodeRedInstanceByProp } from "../nodeRedInstance/nodeRedInstanceDAL";
-import { getNumAssets, getNumAssetsByGroupsIdArray } from "../asset/assetDAL";
+import {
+	getNumAssetTypes,
+	getNumAssetTypesByOrgsIdArray,
+	getNumAssets,
+	getNumAssetsByGroupsIdArray
+} from "../asset/assetDAL";
 import { getNumSensors, getNumSensorsByGroupsIdArray } from "../sensor/sensorDAL";
 import { getNumDigitalTwins, getNumDigitalTwinsByGroupsIdArray } from "../digitalTwin/digitalTwinDAL";
 import { getNumMLModelsByGroupsIdArray } from "../ml_model/ml_modelDAL";
@@ -620,6 +625,7 @@ class AuthenticationController implements IController {
 				numOrganizationsManaged: 0,
 				numGroupsManaged: 0,
 				numAssetsManaged: 0,
+				numAssetTypesManaged: 0,
 				numSensorsManaged: 0,
 				numDigitalTwinsManaged: 0,
 				numMLModelsManaged: 0,
@@ -630,6 +636,7 @@ class AuthenticationController implements IController {
 				componentsManaged.numOrganizationsManaged = await getNumOrganizations();
 				componentsManaged.numGroupsManaged = await getNumGroups();
 				componentsManaged.numAssetsManaged = await getNumAssets();
+				componentsManaged.numAssetTypesManaged = await getNumAssetTypes();
 				componentsManaged.numSensorsManaged = await getNumSensors();
 				componentsManaged.numDigitalTwinsManaged = await getNumDigitalTwins();
 			} else {
@@ -637,10 +644,11 @@ class AuthenticationController implements IController {
 				const groupsManagedByUser = await getGroupsManagedByUserId(req.user.id);
 				const allGroupsManagedByUser = [...groupsManagedByUser];
 				const groupsIdArray = [];
+				let orgIdsArray: number[] = [];
 				if (organizationsManagedByUser.length) {
 					componentsManaged.userRole = "OrgAdmin";
 					componentsManaged.numOrganizationsManaged = organizationsManagedByUser.length;
-					const orgIdsArray = organizationsManagedByUser.map(org => org.id);
+					orgIdsArray = organizationsManagedByUser.map(org => org.id);
 					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
 					const groupsIdArrayManagedByUser = groupsManagedByUser.map(group => group.id);
 					groupsInOrgs.forEach(groupInOrg => {
@@ -656,6 +664,7 @@ class AuthenticationController implements IController {
 						groupsIdArray.push(...allGroupsManagedByUser.map(group => group.id));
 					}
 				}
+				componentsManaged.numAssetTypesManaged = await getNumAssetTypesByOrgsIdArray(orgIdsArray);
 				componentsManaged.numAssetsManaged = await getNumAssetsByGroupsIdArray(groupsIdArray);
 				componentsManaged.numSensorsManaged = await getNumSensorsByGroupsIdArray(groupsIdArray);
 				componentsManaged.numDigitalTwinsManaged = await getNumDigitalTwinsByGroupsIdArray(groupsIdArray);

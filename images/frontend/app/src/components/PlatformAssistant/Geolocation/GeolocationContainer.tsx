@@ -87,6 +87,7 @@ interface GeolocationContainerProps {
     refreshFloors: () => void;
     refreshOrgsOfGroupsManaged: () => void;
     refreshGroupsManaged: () => void;
+    refreshAssetTypes: () => void;
     refreshAssets: () => void;
     refreshSensors: () => void;
     refreshDigitalTwins: () => void;
@@ -129,6 +130,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         refreshFloors,
         refreshOrgsOfGroupsManaged,
         refreshGroupsManaged,
+        refreshAssetTypes,
         refreshAssets,
         refreshSensors,
         refreshDigitalTwins,
@@ -166,7 +168,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         getAxiosInstance(refreshToken, authDispatch)
             .get(urlSensorsState, config)
             .then((response) => {
-                const sensorsState = response.data;                
+                const sensorsState = response.data;
                 sensorsState.map((sensorState: ISensorState) => {
                     if (sensorState.state === null) sensorState.state = "ok";
                     return sensorState;
@@ -295,6 +297,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     refreshFloors={refreshFloors}
                     refreshOrgsOfGroupsManaged={refreshOrgsOfGroupsManaged}
                     refreshGroupsManaged={refreshGroupsManaged}
+                    refreshAssetTypes={refreshAssetTypes}
                     refreshAssets={refreshAssets}
                     refreshSensors={refreshSensors}
                     refreshDigitalTwins={refreshDigitalTwins}

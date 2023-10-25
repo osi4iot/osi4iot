@@ -15,6 +15,7 @@ export interface AuthContextProps {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
+	numAssetTypesManaged: number;
 	numAssetsManaged: number;
 	numSensorsManaged: number;
 	numDigitalTwinsManaged: number;
@@ -29,7 +30,8 @@ export interface AuthActionPayload {
 	refreshToken: string;
 	userRole: string;
 	numOrganizationManaged: number;
-	numGroupsManaged: number; 
+	numGroupsManaged: number;
+	numAssetTypesManaged: number;
 	numAssetsManaged: number;
 	numSensorsManaged: number;
 	numDigitalTwinsManaged: number;

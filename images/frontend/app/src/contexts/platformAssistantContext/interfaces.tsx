@@ -20,6 +20,7 @@ import { IUserProfile } from "../../components/PlatformAssistant/UserOptions/Use
 import { IMlModel } from "../../components/PlatformAssistant/TableColumns/mlModelsColumns";
 import { IAsset } from "../../components/PlatformAssistant/TableColumns/assetsColumns";
 import { ISensor } from "../../components/PlatformAssistant/TableColumns/sensorsColumns";
+import { IAssetType } from "../../components/PlatformAssistant/TableColumns/assetTypesColumns";
 
 export interface PlatformAssistantDispatch {
 	(arg0: { type: string; payload?: any; error?: any }): void;
@@ -29,6 +30,7 @@ export interface PlatformAssistantContextProps {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
+	numAssetTypesManaged: number;
 	numAssetsManaged: number;
 	numSensorsManaged: number;
 	numDigitalTwinsManaged: number;
@@ -58,6 +60,8 @@ export interface PlatformAssistantContextProps {
 	reloadGroupsManagedTable: boolean;
 	groupMembers: IGroupMember[];
 	reloadGroupMembersTable: boolean;
+	assetTypes: IAssetType[];
+	reloadAssetTypesTable: boolean;
 	assets: IAsset[];
 	reloadAssetsTable: boolean;
 	sensors: ISensor[];
@@ -82,6 +86,7 @@ export interface PlatformAssistantActionPayload {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number; 
+	numAssetTypesManaged: number;
 	numAssetsManaged: number;
 	numSensorsManaged: number;
 	numDigitalTwinsManaged: number;
@@ -111,6 +116,8 @@ export interface PlatformAssistantActionPayload {
 	reloadGroupsManagedTable: boolean;
 	groupMembers: IGroupMember[];
 	reloadGroupMembersTable: boolean;
+	assetTypes: IAssetType[];
+	reloadAssetTypesTable: boolean;
 	assets: IAsset[];
 	reloadAssetsTable: boolean;
 	sensors: ISensor[];
@@ -141,6 +148,7 @@ export interface IUserRole {
 	userRole: string;
 	numOrganizationManaged: number;
 	numGroupsManaged: number;
+	numAssetTypesManaged: number;
 	numAssetsManaged: number;
 	numSensorsManaged: number;
 	numDigitalTwinsManaged: number;
@@ -245,6 +253,14 @@ export interface IGroupMembersTable {
 
 export interface IReloadGroupMembersTable {
 	reloadGroupMembersTable: boolean;
+}
+
+export interface IAssetTypesTable {
+	assetTypes: IAssetType[];
+}
+
+export interface IReloadAssetTypesTable {
+	reloadAssetTypesTable: boolean;
 }
 
 export interface IAssetsTable {

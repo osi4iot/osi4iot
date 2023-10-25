@@ -121,8 +121,9 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 									INNER JOIN grafanadb.asset ON grafanadb.topic.group_id = grafanadb.asset.group_id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									INNER JOIN grafanadb.sensor ON grafanadb.sensor.asset_id = grafanadb.asset.id
-									WHERE ((grafanadb.asset.type = 'mobile' OR grafanadb.asset.type = 'assembly with mobile') AND
+									WHERE ((grafanadb.asset_type.type = 'Mobile' OR grafanadb.asset_type.type = 'Assembly with mobile') AND
 									(grafanadb.sensor.topic_id = grafanadb.topic.id))
 									ORDER BY grafanadb.org.acronym ASC,
 									        grafanadb.group.acronym ASC,
@@ -188,9 +189,10 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
 									INNER JOIN grafanadb.asset ON grafanadb.topic.group_id = grafanadb.asset.group_id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									INNER JOIN grafanadb.sensor ON grafanadb.sensor.asset_id = grafanadb.asset.id
 									WHERE ((grafanadb.topic.group_id = ANY($1::bigint[])) AND
-										(grafanadb.asset.type = 'mobile' OR grafanadb.asset.type = 'assembly with mobile') AND
+										(grafanadb.asset_type.type = 'Mobile' OR grafanadb.asset_type.type = 'Assembly with mobile') AND
 										(grafanadb.sensor.topic_id = grafanadb.topic.id))
 									ORDER BY grafanadb.org.acronym ASC,
 										grafanadb.group.acronym ASC,

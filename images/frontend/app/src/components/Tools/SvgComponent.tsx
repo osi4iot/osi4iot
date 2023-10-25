@@ -5,13 +5,26 @@ interface ImagetStyledProps {
     imgWidth: string;
     imgHeight: string;
     fillColor: string;
+    backgroundColor: string;
 }
 
 const ImagetStyled = styled.div<ImagetStyledProps>`
     & svg {
         width: ${(props) => `${props.imgWidth}px !important`};
-        height: ${(props) => `${props.imgWidth}px !important`};
+        height: ${(props) => `${props.imgHeight}px !important`};
         fill: ${(props) => `${props.fillColor} !important`};
+
+        .hollow {
+            fill: ${(props) => `${props.backgroundColor} !important`};
+        }
+
+        .locationPin {
+            fill: ${(props) => `${props.fillColor} !important`};
+        }
+
+        .icon {
+            fill: ${(props) => `${props.backgroundColor} !important`};
+        }
     }
 `;
 
@@ -19,6 +32,7 @@ interface SvgComponentProps {
     svgString: string;
     imgWidth: string;
     imgHeight: string;
+    backgroundColor: string;
     fillColor?: string;
 }
 
@@ -26,7 +40,8 @@ const SvgComponent: FC<SvgComponentProps> = ({
     svgString,
     imgWidth,
     imgHeight,
-    fillColor="#62f700"
+    backgroundColor,
+    fillColor = "#62f700",
 }) => {
     const svgRef = useRef(null);
     
@@ -37,7 +52,13 @@ const SvgComponent: FC<SvgComponentProps> = ({
     }, [svgString]);
 
     return (
-        <ImagetStyled ref={svgRef} imgWidth={imgWidth} imgHeight={imgHeight} fillColor={fillColor} />
+        <ImagetStyled
+            ref={svgRef}
+            imgWidth={imgWidth}
+            imgHeight={imgHeight}
+            backgroundColor={backgroundColor}
+            fillColor={fillColor}
+        />
     )
 
 }

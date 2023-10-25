@@ -24,6 +24,7 @@ import { initialState, PlatformAssitantReducer } from './platformAssistantReduce
 import { IMlModel } from '../../components/PlatformAssistant/TableColumns/mlModelsColumns';
 import { IAsset } from '../../components/PlatformAssistant/TableColumns/assetsColumns';
 import { ISensor } from '../../components/PlatformAssistant/TableColumns/sensorsColumns';
+import { IAssetType } from '../../components/PlatformAssistant/TableColumns/assetTypesColumns';
 
 const PlatformAssitantStateContext = createContext<PlatformAssistantContextProps>(initialState);
 const PlatformAssitantDispatchContext = createContext<any>({});
@@ -260,6 +261,22 @@ export const useReloadGroupMembersTable = (): boolean => {
 		throw new Error('useReloadGroupMembersTable must be used within a PlatformAssitantProvider');
 	}
 	return context.reloadGroupMembersTable;
+}
+
+export const useAssetTypesTable = (): IAssetType[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useAssetsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.assetTypes;
+}
+
+export const useReloadAssetTypesTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadAssetTypesTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadAssetTypesTable;
 }
 
 export const useAssetsTable = (): IAsset[] => {

@@ -123,31 +123,31 @@ const SelectLocationButton = styled.button`
 const assetTypeOptions = [
     {
         label: "Car",
-        value: "car"
-    },
+        value: "Car"
+    },   
     {
         label: "Eolic tower",
-        value: "eolic_tower"
+        value: "Eolic tower"
     },
     {
         label: "Generic",
-        value: "generic"
+        value: "Generic"
     },
     {
         label: "Machine",
-        value: "machine"
+        value: "Machine"
     },
     {
         label: "Mobile",
-        value: "mobile"
+        value: "Mobile"
     },
     {
         label: "Ship",
-        value: "ship"
+        value: "Ship"
     },
     {
         label: "Truck",
-        value: "truck"
+        value: "Truck"
     },
 ];
 
@@ -220,7 +220,7 @@ const EditAsset: FC<EditAssetProps> = ({
         }
 
         const assetInputFormData = { assetInputFormData: assetInitInputFormData };
-        setAssetInputData(assetsDispatch, assetInputFormData);
+        //setAssetInputData(assetsDispatch, assetInputFormData);
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, assetEditData, config)
@@ -251,7 +251,7 @@ const EditAsset: FC<EditAssetProps> = ({
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
         const assetInputFormData = { assetInputFormData: assetInitInputFormData };
-        setAssetInputData(assetsDispatch, assetInputFormData);
+        //setAssetInputData(assetsDispatch, assetInputFormData);
         backToTable();
     };
 

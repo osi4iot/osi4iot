@@ -30,7 +30,7 @@ import {
 } from "../components/organization/organizationDAL";
 import { createTimescaledbOrgDataSource } from "../components/group/datasourceDAL";
 import IAsset from "../components/asset/asset.interface";
-import { createNewAsset } from "../components/asset/assetDAL";
+import { createNewAsset, createNewAssetType } from "../components/asset/assetDAL";
 import { createNewSensor } from "../components/sensor/sensorDAL";
 import CreateSensorDto from "../components/sensor/sensor.dto";
 import { nanoid } from "nanoid";
@@ -38,6 +38,8 @@ import { getDashboardsInfoFromIdArray } from "../components/dashboard/dashboardD
 import { createDigitalTwin, generateDashboardsUrl, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
 import ISensor from "../components/sensor/sensor.interface";
 import CreateSensorRefDto from "../components/digitalTwin/createSensorRef.dto";
+import IAssetType from "../components/asset/assetType.interface";
+import { predefinedAssetTypes } from "./predefinedAssetTypes";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -426,23 +428,81 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);
 				}
 
+
+				const tableAssetType = "grafanadb.asset_type";
+				const queryStringAssetType = `
+				CREATE TABLE IF NOT EXISTS ${tableAssetType}(
+					id serial PRIMARY KEY,
+					org_id bigint,
+					asset_type_uid VARCHAR(40) UNIQUE,
+					type VARCHAR(40),
+					icon_svg_file_name VARCHAR(100),
+					icon_svg_string TEXT,
+					geolocation_mode VARCHAR(40) NOT NULL DEFAULT 'static',
+					marker_svg_file_name VARCHAR(100),
+					marker_svg_string TEXT,
+					asset_state_format jsonb NOT NULL DEFAULT '{}'::jsonb,
+					is_predefined boolean NOT NULL DEFAULT FALSE,
+					created TIMESTAMPTZ,
+					updated TIMESTAMPTZ,
+					UNIQUE(org_id,type),
+					CONSTRAINT fk_org_id
+						FOREIGN KEY(org_id)
+							REFERENCES grafanadb.org(id)
+							ON DELETE CASCADE			
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_asse_type_uid
+				ON grafanadb.asset_type(asset_type_uid);`;
+
+				try {
+					await postgresClient.query(queryStringAssetType);
+					logger.log("info", `Table ${tableAssetType} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableAssetType} can not be created: %s`, err.message);
+				}
+
+				const assetTypes: IAssetType[] = [];
+				try {
+					for (const assetType of predefinedAssetTypes as IAssetType[]) {
+						const defaultAssetTypeData = {
+							orgId: 1,
+							type: assetType.type,
+							iconSvgFileName: assetType.iconSvgFileName,
+							iconSvgString: assetType.iconSvgString,
+							geolocationMode: assetType.geolocationMode,
+							markerSvgFileName: assetType.markerSvgFileName,
+							markerSvgString: assetType.markerSvgString,
+							assetStateFormat: "{}",
+							isPredefined: true,
+						}
+						const newAssetType = await createNewAssetType(defaultAssetTypeData);
+						assetTypes.push(newAssetType);
+					}
+					logger.log("info", `Default asset types for main org has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Default asset types for main org can not be created: %s`, err.message);
+				}
+
 				const tableAsset = "grafanadb.asset";
 				const queryStringAsset = `
 				CREATE TABLE IF NOT EXISTS ${tableAsset}(
 					id serial PRIMARY KEY,
 					group_id bigint,
 					asset_uid VARCHAR(40) UNIQUE,
+					asset_type_id bigint,
 					description VARCHAR(190),
 					geolocation POINT,
-					geolocation_mode VARCHAR(40) NOT NULL DEFAULT 'static',
-					type VARCHAR(40),
 					icon_radio real NOT NULL DEFAULT 1.0,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_group_id
 						FOREIGN KEY(group_id)
 							REFERENCES grafanadb.group(id)
-							ON DELETE CASCADE			
+							ON DELETE CASCADE,
+					CONSTRAINT fk_asset_type_id
+						FOREIGN KEY(asset_type_id)
+							REFERENCES grafanadb.asset_type(id)			
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_asset_uid
@@ -458,8 +518,9 @@ export const dataBaseInitialization = async () => {
 				let asset: IAsset;
 				try {
 					const defaultAssetData = {
+						assetTypeId: assetTypes[4].id,
 						description: `Mobile for group ${group.acronym}`,
-						type: "mobile",
+						type: "Mobile",
 						iconRadio: 1.0,
 						longitude: 0.0,
 						latitude: 0.0,
@@ -470,7 +531,6 @@ export const dataBaseInitialization = async () => {
 				} catch (err) {
 					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
 				}
-
 
 				const tableTopic = "grafanadb.topic";
 				const queryStringTopic = `

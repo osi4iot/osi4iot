@@ -16,6 +16,7 @@ export const initialState = {
     userRole: "unknown",
     numOrganizationManaged: 0,
     numGroupsManaged: 0,
+    numAssetTypesManaged: 0,
     numAssetsManaged: 0,
     numSensorsManaged: 0,
     numDigitalTwinsManaged: 0,
@@ -45,6 +46,8 @@ export const initialState = {
     reloadGroupsManagedTable: true,
     groupMembers: [],
     reloadGroupMembersTable: true,
+    assetTypes: [],
+    reloadAssetTypesTable: true,
     assets: [],
     reloadAssetsTable: true,
     sensors: [],
@@ -73,6 +76,7 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 userRole: action.payload.userRole,
                 numOrganizationManaged: action.payload.numOrganizationManaged,
                 numGroupsManaged: action.payload.numGroupsManaged,
+                numAssetTypesManaged: action.payload.numAssetTypesManaged,
                 numAssetsManaged: action.payload.numAssetsManaged,
                 numSensorsManaged: action.payload.numSensorsManaged,
                 numDigitalTwinsManaged: action.payload.numDigitalTwinsManaged,
@@ -229,6 +233,18 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadGroupMembersTable: action.payload.reloadGroupMembersTable
             };
 
+        case "ASSET_TYPES_TABLE":
+            return {
+                ...initialState,
+                assetTypes: action.payload.assetTypes
+            };
+
+        case "RELOAD_ASSET_TYPES_TABLE":
+            return {
+                ...initialState,
+                reloadAssetTypesTable: action.payload.reloadAssetTypesTable
+            };
+
         case "ASSETS_TABLE":
             return {
                 ...initialState,
@@ -342,6 +358,7 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 userRole: "unknown",
                 numOrganizationManaged: 0,
                 numGroupsManaged: 0,
+                numAssetTypesManaged: 0,
                 numAssetsManaged: 0,
                 numSensorsManaged: 0,
                 numDigitalTwinsManaged: 0,
@@ -371,6 +388,8 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadGroupsManagedTable: true,
                 groupMembers: [],
                 reloadGroupMembersTable: true,
+                assetTypes: [],
+                reloadAssetTypesTable: true,
                 assets: [],
                 reloadAssetsTable: true,
                 sensors: [],

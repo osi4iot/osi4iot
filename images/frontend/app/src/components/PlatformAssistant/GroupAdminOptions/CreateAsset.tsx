@@ -1,6 +1,6 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
-import { Formik, Form } from 'formik';
+import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
@@ -23,6 +23,9 @@ import {
 import { IAssetInputData } from '../../../contexts/assetsOptions/interfaces';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { assetSvgIcons } from './AssetSvgIcons';
+import SvgComponent from '../../Tools/SvgComponent';
+import { useFilePicker } from 'use-file-picker';
 
 
 const FormContainer = styled.div`
@@ -71,6 +74,152 @@ const ControlsContainer = styled.div`
 
     div:last-child {
         margin-bottom: 3px;
+    }
+`;
+
+const AssetTypeSelectionTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const AssetTypeSelectionContainerDiv = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+    margin-bottom: 15px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+`;
+
+const AssetTypeSelectionAndCreationContainerDiv = styled.div`
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+`;
+
+const AssetTypeSelectionInternalContainerDiv = styled.div`
+    width: 80%;
+`;
+
+const CreateNewAssetTypeContainerDiv = styled.div`
+    margin: 7px 0 0 10px;
+`;
+
+const CreateNewAssetTypeButton = styled.button`
+    font-size: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    background-color: #0c0d0f;
+    color: white;
+    cursor: pointer;
+    padding: 10px;
+    width: 105px;
+    &:hover {
+		color: #3274d9;
+        border: 2px solid #3274d9;
+	}
+`;
+
+const SvgIconPreviewContainerDiv = styled.div`
+    margin: 5px 0;
+    width: 100%;
+`;
+
+const SvgIconPreviewTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const SvgComponentContainerDiv = styled.div`
+    padding: 10px;
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+`;
+
+const FileSelectionContainer = styled.div`
+    width: 100%;
+`;
+
+const DataFileTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const DataFileContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+    margin-bottom: 20px;
+`;
+
+const SelectDataFilenButtonContainer = styled.div`
+    display: flex;
+    margin-bottom: 10px;
+    flex-direction: row;
+    justify-content: center;
+	align-items: center;
+    background-color: #202226;
+    width: 100%;
+`;
+
+const FileButton = styled.button`
+	background-color: #3274d9;
+	padding: 5px 10px;
+    margin: 5px 10px;
+	color: white;
+	border: 1px solid #2c3235;
+	border-radius: 10px;
+	outline: none;
+	cursor: pointer;
+	box-shadow: 0 5px #173b70;
+    font-size: 14px;
+    width: 40%;
+
+	&:hover {
+		background-color: #2461c0;
+	}
+
+	&:active {
+		background-color: #2461c0;
+		box-shadow: 0 2px #173b70;
+		transform: translateY(4px);
+	}
+`;
+
+const FieldContainer = styled.div`
+    margin: 20px 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    width: 100%;
+
+    & label {
+        font-size: 12px;
+        margin: 0 0 5px 3px;
+        width: 100%;
+    }
+
+    & div {
+        font-size: 14px;
+        background-color: #0c0d0f;
+        border: 2px solid #2c3235;
+        padding: 5px;
+        margin-left: 2px;
+        color: white;
+        width: 100%;
     }
 `;
 
@@ -123,31 +272,31 @@ const SelectLocationButton = styled.button`
 const assetTypeOptions = [
     {
         label: "Car",
-        value: "car"
+        value: "Car"
     },
     {
         label: "Eolic tower",
-        value: "eolic_tower"
+        value: "Eolic tower"
     },
     {
         label: "Generic",
-        value: "generic"
+        value: "Generic"
     },
     {
         label: "Machine",
-        value: "machine"
+        value: "Machine"
     },
     {
         label: "Mobile",
-        value: "mobile"
+        value: "Mobile"
     },
     {
         label: "Ship",
-        value: "ship"
+        value: "Ship"
     },
     {
         label: "Truck",
-        value: "truck"
+        value: "Truck"
     },
 ];
 
@@ -162,6 +311,10 @@ const geolocationModeOptions = [
     }
 ];
 
+const selectFile = (openFileSelector: () => void, clear: () => void) => {
+    clear();
+    openFileSelector();
+}
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -173,6 +326,8 @@ interface CreateAssetProps {
     groupsManaged: IGroupManaged[];
     selectLocationOption: () => void;
 }
+
+type FormikType = FormikProps<IAssetInputData>
 
 const CreateAsset: FC<CreateAssetProps> = ({
     backToTable,
@@ -186,11 +341,68 @@ const CreateAsset: FC<CreateAssetProps> = ({
     const authDispatch = useAuthDispatch();
     const assetsDispatch = useAssetsDispatch();
     const initialAssetData = useAssetInputData();
+    const [assetSvgString, setAssetSvgString] = useState("");
+    const [iconSvgFileLoaded, setIconSvgFileLoaded] = useState(false);
+    const [iconSvgFileName, setIconSvgFileName] = useState("-");
+    const [openSvgFileSelection, setOpenSvgFileSelection] = useState(false);
+
+    const [openSvgFileSelector, svgFileParams] = useFilePicker({
+        readAs: 'Text',
+        multiple: false,
+        accept: '.svg',
+    });
+
+    useEffect(() => {
+        const assetSvgString = assetSvgIcons.filter((svg: { assetType: string }) =>
+            svg.assetType === "Generic")[0].svgString;
+        setAssetSvgString(assetSvgString);
+    }, []);
+
+
+    useEffect(() => {
+        if (
+            !svgFileParams.loading &&
+            svgFileParams.filesContent.length !== 0 &&
+            svgFileParams.plainFiles.length !== 0
+        ) {
+            setIconSvgFileLoaded(true)
+            try {
+                const assetSvgString = svgFileParams.filesContent[0].content;
+                setAssetSvgString(assetSvgString);
+                const iconSvgFileName = svgFileParams.plainFiles[0].name;
+                setIconSvgFileName(iconSvgFileName);
+                svgFileParams.clear();
+            } catch (error) {
+                if (error instanceof Error) {
+                    toast.error(`Invalid svg file. ${error.message}`);
+                } else {
+                    toast.error("Invalid svg file");
+                }
+                setIconSvgFileLoaded(false);
+                setIconSvgFileName("-");
+                setAssetSvgString("");
+                svgFileParams.clear();
+            }
+        }
+    }, [
+        svgFileParams.loading,
+        svgFileParams.filesContent,
+        svgFileParams.plainFiles,
+        svgFileParams,
+    ])
 
     useEffect(() => {
         const assetsPreviousOption = { assetsPreviousOption: ASSETS_PREVIOUS_OPTIONS.CREATE_ASSET };
         setAssetsPreviousOption(assetsDispatch, assetsPreviousOption)
-    }, [assetsDispatch])
+    }, [assetsDispatch]);
+
+    const handleChangeAssetType = (e: { value: string }, formik: FormikType) => {
+        const assetType = e.value;
+        const assetSvgString = assetSvgIcons.filter((svg: { assetType: string }) =>
+            svg.assetType === assetType
+        )[0].svgString;
+        setAssetSvgString(assetSvgString);
+    }
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
@@ -239,6 +451,25 @@ const CreateAsset: FC<CreateAssetProps> = ({
         backToTable();
     };
 
+    const createNewAssetType = () => {
+        setOpenSvgFileSelection(true);
+    }
+
+    const svgFileButtonHandler = () => {
+        if (!iconSvgFileLoaded) {
+            selectFile(openSvgFileSelector, svgFileParams.clear);
+        }
+    }
+
+    const clearSvgDataFile = () => {
+        setIconSvgFileLoaded(false);
+        setIconSvgFileName("-");
+        setAssetSvgString("");
+        svgFileParams.clear();
+        setOpenSvgFileSelection(false);
+        setOpenSvgFileSelection(false);
+    }
+
     const selectLocation = (assetInputData: IAssetInputData) => {
         assetInputData.iconRadio = parseFloat(assetInputData.iconRadio as unknown as string);
         const groupId = parseInt(assetInputData.groupId as string, 10);
@@ -278,13 +509,71 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                         name='groupId'
                                         type='text'
                                     />
-                                    <FormikControl
-                                        control='select'
-                                        label='Asset type'
-                                        name='assetType'
-                                        options={assetTypeOptions}
-                                        type='text'
-                                    />
+                                    <AssetTypeSelectionTitle>Select asset type</AssetTypeSelectionTitle>
+                                    <AssetTypeSelectionContainerDiv>
+                                        <AssetTypeSelectionAndCreationContainerDiv>
+                                            <AssetTypeSelectionInternalContainerDiv>
+                                                <FormikControl
+                                                    control='select'
+                                                    label='Asset type'
+                                                    name='assetType'
+                                                    type='text'
+                                                    options={assetTypeOptions}
+                                                    onChange={(e) => handleChangeAssetType(e, formik)}
+                                                />
+                                            </AssetTypeSelectionInternalContainerDiv>
+                                            <CreateNewAssetTypeContainerDiv>
+                                                <CreateNewAssetTypeButton type="button" onClick={createNewAssetType} >
+                                                    Create new type
+                                                </CreateNewAssetTypeButton>
+                                            </CreateNewAssetTypeContainerDiv>
+                                        </AssetTypeSelectionAndCreationContainerDiv>
+                                        <SvgIconPreviewContainerDiv>
+                                            <SvgIconPreviewTitle>
+                                                Icon preview
+                                            </SvgIconPreviewTitle>
+                                            <SvgComponentContainerDiv>
+                                                <SvgComponent
+                                                    svgString={assetSvgString}
+                                                    imgWidth="100"
+                                                    imgHeight="100"
+                                                    backgroundColor="#202226"
+                                                />
+                                            </SvgComponentContainerDiv>
+                                        </SvgIconPreviewContainerDiv>
+                                        {
+                                            openSvgFileSelection &&
+                                            <FileSelectionContainer>
+                                                <DataFileTitle>Select svg file</DataFileTitle>
+                                                <DataFileContainer>
+                                                    <FormikControl
+                                                        control='input'
+                                                        label='New asset type'
+                                                        name='newAssetType'
+                                                        type='text'
+                                                    />
+                                                    <FieldContainer>
+                                                        <label>File name</label>
+                                                        <div>{iconSvgFileName}</div>
+                                                    </FieldContainer>
+                                                    <SelectDataFilenButtonContainer >
+                                                        <FileButton
+                                                            type='button'
+                                                            onClick={clearSvgDataFile}
+                                                        >
+                                                            Clear
+                                                        </FileButton>
+                                                        <FileButton
+                                                            type='button'
+                                                            onClick={() => svgFileButtonHandler()}
+                                                        >
+                                                            Select local file
+                                                        </FileButton>
+                                                    </SelectDataFilenButtonContainer>
+                                                </DataFileContainer>
+                                            </FileSelectionContainer>
+                                        }
+                                    </AssetTypeSelectionContainerDiv>
                                     <FormikControl
                                         control='input'
                                         label='Description'

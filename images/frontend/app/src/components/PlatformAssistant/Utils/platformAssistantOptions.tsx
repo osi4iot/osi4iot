@@ -68,7 +68,8 @@ export const ORG_ADMIN_OPTIONS = {
     ORGS_MANAGED: "Orgs Managed",
     ORG_USERS: "Orgs users",
     GROUPS: "Groups",
-    NODERED_INSTANCES_IN_ORGS: "Nodered instances in orgs"
+    NODERED_INSTANCES_IN_ORGS: "Nodered instances in orgs",
+    ASSET_TYPES: "Asset types"
 }
 
 export const ORGS_MANAGED_OPTIONS = {
@@ -113,6 +114,12 @@ export const GROUPS_MANAGED_OPTIONS = {
     CREATE_GROUP_MEMBERS: "Create group members",
     REMOVE_ALL_GROUP_MEMBERS: "Remove all group members",
     SELECT_NRI_ICON_LOCATION: "Select location"
+}
+
+export const ASSET_TYPES_OPTIONS = {
+    TABLE: "Table",
+    CREATE_ASSET_TYPE: "Create asset type",
+    EDIT_ASSET_TYPE: "Edit asset type",
 }
 
 export const ASSETS_OPTIONS = {

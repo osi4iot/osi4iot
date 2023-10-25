@@ -10,8 +10,6 @@ import { StyledTooltip as Tooltip } from './Tooltip';
 import calcGeoBounds from '../../../tools/calcGeoBounds';
 import { AssetSVGOverlays } from './svg_assets_overlay/AssetSVGOverlays';
 
-
-
 const CircleStyledDragging = styled(Circle)`
     &:hover {
         cursor: all-scroll;

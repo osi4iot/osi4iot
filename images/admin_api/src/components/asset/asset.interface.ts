@@ -4,11 +4,11 @@ export default interface IAsset {
 	groupId: number;
 	assetUid: string;
 	description: string;
-	type: string;
+	assetTypeId: number;
 	iconRadio: number;
 	longitude: number;
 	latitude: number;
-	geolocationMode: string;
+	iconSvgString?: string;
 	created?: string;
 	updated?: string;
 }

@@ -82,7 +82,7 @@ import {
 	getNodeRedInstancesByOrgsIdArray
 } from "../nodeRedInstance/nodeRedInstanceDAL";
 import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
-import { createNewAsset } from "../asset/assetDAL";
+import { createNewAsset, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
 import { createNewSensor } from "../sensor/sensorDAL";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { nanoid } from "nanoid";
@@ -388,14 +388,14 @@ class OrganizationController implements IController {
 
 				const noredInstances = await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId);
 				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);
+				const assetType = await getAssetTypeByTypeAndOrgId(newOrg.orgId, "Mobile");
 
 				const defaultAssetData = {
 					description: `Mobile for group ${group.acronym}`,
-					type: "mobile",
+					assetTypeId: assetType.id,
 					iconRadio: 1.0,
 					longitude: 0.0,
 					latitude: 0.0,
-					geolocationMode: "dynamic"
 				}
 				const asset = await createNewAsset(group, defaultAssetData);
 
