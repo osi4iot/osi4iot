@@ -82,7 +82,7 @@ import {
 	getNodeRedInstancesByOrgsIdArray
 } from "../nodeRedInstance/nodeRedInstanceDAL";
 import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
-import { createNewAsset, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
+import { createNewAsset, createNewAssetType } from "../asset/assetDAL";
 import { createNewSensor } from "../sensor/sensorDAL";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { nanoid } from "nanoid";
@@ -91,6 +91,8 @@ import ISensor from "../sensor/sensor.interface";
 import ITopic from "../topic/topic.interface";
 import infoLogger from "../../utils/logger/infoLogger";
 import CreateSensorRefDto from "../digitalTwin/createSensorRef.dto";
+import { predefinedAssetTypes } from "../../initialization/predefinedAssetTypes";
+import IAssetType from "../asset/assetType.interface";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -388,11 +390,27 @@ class OrganizationController implements IController {
 
 				const noredInstances = await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId);
 				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);
-				const assetType = await getAssetTypeByTypeAndOrgId(newOrg.orgId, "Mobile");
+
+				const assetTypes: IAssetType[] = [];
+				for (const assetType of predefinedAssetTypes as IAssetType[]) {
+					const defaultAssetTypeData = {
+						orgId: newOrg.id,
+						type: assetType.type,
+						iconSvgFileName: assetType.iconSvgFileName,
+						iconSvgString: assetType.iconSvgString,
+						geolocationMode: assetType.geolocationMode,
+						markerSvgFileName: assetType.markerSvgFileName,
+						markerSvgString: assetType.markerSvgString,
+						assetStateFormat: "{}",
+						isPredefined: true,
+					}
+					const newAssetType = await createNewAssetType(defaultAssetTypeData);
+					assetTypes.push(newAssetType);
+				}
 
 				const defaultAssetData = {
 					description: `Mobile for group ${group.acronym}`,
-					assetTypeId: assetType.id,
+					assetTypeId: assetTypes[4].id,
 					iconRadio: 1.0,
 					longitude: 0.0,
 					latitude: 0.0,

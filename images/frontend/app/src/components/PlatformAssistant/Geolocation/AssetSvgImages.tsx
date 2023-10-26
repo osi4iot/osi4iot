@@ -51,6 +51,7 @@ export const AssetSvgImages: FC<AssetSvgImagesProps> = ({
             <AssetSVGOverlays
                 iconSvgString={iconSvgString}
                 fillColor={fillColor}
+                backgroundColor="#555555"
                 bounds={bounds}
                 imageRef={imageRef}
             />

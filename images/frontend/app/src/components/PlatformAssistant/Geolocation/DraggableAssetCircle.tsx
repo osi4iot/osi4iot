@@ -128,6 +128,7 @@ const DraggableAssetCircle: FC<DraggableAssetCircleProps> = ({
             <AssetSVGOverlays
                 iconSvgString={iconSvgString}
                 fillColor={ASSET_COLOR}
+                backgroundColor="#555555"
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}
             />
