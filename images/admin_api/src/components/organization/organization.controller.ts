@@ -394,7 +394,7 @@ class OrganizationController implements IController {
 				const assetTypes: IAssetType[] = [];
 				for (const assetType of predefinedAssetTypes as IAssetType[]) {
 					const defaultAssetTypeData = {
-						orgId: newOrg.id,
+						orgId: newOrg.orgId,
 						type: assetType.type,
 						iconSvgFileName: assetType.iconSvgFileName,
 						iconSvgString: assetType.iconSvgString,

@@ -13,6 +13,7 @@ import organizationExists from "../../middleware/organizationExists.middleware";
 import CreateAssetDto from "./asset.dto";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
 import {
+	checkInitialAssetGeolocation,
 	createNewAsset,
 	createNewAssetType,
 	deleteAssetByPropName,
@@ -375,6 +376,7 @@ class AssetController implements IController {
 	): Promise<void> => {
 		try {
 			const assetData: CreateAssetDto = req.body;
+			await checkInitialAssetGeolocation(req.group, assetData);
 			await createNewAsset(req.group, assetData);
 			const message = { message: `A new asset has been created` };
 			infoLogger(req, res, 200, message.message);

@@ -8,6 +8,11 @@ import CreateAssetDto from "./asset.dto";
 import IAsset from "./asset.interface";
 import IAssetType from "./assetType.interface";
 import CreateAssetTypeDto from "./assetType.dto";
+import { findGroupGeojsonData, findGroupBounds } from "../../utils/geolocation.ts/geolocation";
+import arrayCompare from "../../utils/helpers/arrayCompare";
+import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
+import { updateGroupById } from "../group/groupDAL";
+import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -228,6 +233,21 @@ export const updateAssetByPropName = async (propName: string, propValue: (string
 export const deleteAssetByPropName = async (propName: string, propValue: (string | number)): Promise<void> => {
 	await pool.query(`DELETE FROM grafanadb.asset WHERE ${propName} = $1`, [propValue]);
 };
+
+export const checkInitialAssetGeolocation = async (group: IGroup, assetData: CreateAssetDto) => {
+	if (assetData.longitude === 0 && assetData.latitude === 0) {
+		const featureIndex = group.featureIndex;
+		const floorData = await getFloorByOrgIdAndFloorNumber(group.orgId, group.floorNumber);
+		const geoJsonDataString = findGroupGeojsonData(floorData, featureIndex);
+		if (geoJsonDataString !== "{}") {
+			const geojsonObj = JSON.parse(geoJsonDataString);
+			const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+			const center = pointOnFeature(geoPolygon);
+			assetData.longitude = center.geometry.coordinates[0];
+			assetData.latitude = center.geometry.coordinates[1];
+		}
+	}
+}
 
 export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): Promise<IAsset> => {
 	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
