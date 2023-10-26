@@ -14,6 +14,7 @@ import GeoNodeRedInstance from "./GeoNodeRedInstance";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import GeoAssets from "./GeoAssets";
+import { IAssetType } from "../TableColumns/assetTypesColumns";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";
@@ -54,6 +55,7 @@ interface GeoGroupProps {
     groupData: IGroupManaged;
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
+    assetTypeDataArray: IAssetType[];
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
     selectAsset: (assetSelected: IAsset | null) => void;
@@ -75,6 +77,7 @@ const GeoGroup: FC<GeoGroupProps> = (
         groupData,
         groupSelected,
         selectGroup,
+        assetTypeDataArray,
         assetDataArray,
         assetSelected,
         selectAsset,
@@ -143,6 +146,7 @@ const GeoGroup: FC<GeoGroupProps> = (
                             nriHash={groupData.nriInGroupHash}
                         />
                         <GeoAssets
+                            assetTypeDataArray={assetTypeDataArray}
                             assetDataArray={assetDataArrayFiltered}
                             assetSelected={assetSelected}
                             selectAsset={selectAsset}

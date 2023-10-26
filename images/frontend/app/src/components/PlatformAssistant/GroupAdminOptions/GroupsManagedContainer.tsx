@@ -18,6 +18,7 @@ import { IFloor } from '../TableColumns/floorsColumns';
 import { useBuildingsTable, useFloorsTable } from '../../../contexts/platformAssistantContext';
 import NriLocationContainer from './NriLocationContainer';
 import { IAsset } from '../TableColumns/assetsColumns';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 
 export interface IGroupMemberInput {
@@ -49,6 +50,7 @@ interface GroupsManagedContainerProps {
     floorsFiltered: IFloor[];
     refreshGroupsManaged: () => void;
     refreshGroupMembers: () => void;
+    assetTypes: IAssetType[];
     assets: IAsset[];
     refreshAssets: () => void;
     refreshGroups: () => void;
@@ -63,6 +65,7 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
     floorsFiltered,
     refreshGroupsManaged,
     refreshGroupMembers,
+    assetTypes,
     assets,
     refreshAssets,
     refreshGroups,
@@ -135,6 +138,7 @@ const GroupsManagedContainer: FC<GroupsManagedContainerProps> = ({
                     buildings={buildingsTable}
                     floors={floorsTable}
                     groupsManaged={groupsManaged}
+                    assetTypes={assetTypes}
                     assets={assets}
                     refreshBuildings={refreshBuildings}
                     refreshFloors={refreshFloors}

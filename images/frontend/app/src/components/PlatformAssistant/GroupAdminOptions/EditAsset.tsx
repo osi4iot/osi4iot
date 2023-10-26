@@ -1,8 +1,8 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
-import { Formik, Form } from 'formik';
+import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
-import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
+import { axiosAuth, convertArrayToOptions, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
@@ -22,6 +22,8 @@ import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns'
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
+import SvgComponent from '../../Tools/SvgComponent';
 
 
 const FormContainer = styled.div`
@@ -66,6 +68,10 @@ const ControlsContainer = styled.div`
 
     div:first-child {
         margin-top: 0;
+    }
+
+    div:nth-child(2) {
+        margin-bottom: 10px;
     }
 
     div:last-child {
@@ -119,39 +125,30 @@ const SelectLocationButton = styled.button`
 	}
 `;
 
+const SvgIconPreviewContainerDiv = styled.div`
+    margin: 5px 0 20px 0;
+    width: 100%;
+`;
 
-const assetTypeOptions = [
-    {
-        label: "Car",
-        value: "Car"
-    },   
-    {
-        label: "Eolic tower",
-        value: "Eolic tower"
-    },
-    {
-        label: "Generic",
-        value: "Generic"
-    },
-    {
-        label: "Machine",
-        value: "Machine"
-    },
-    {
-        label: "Mobile",
-        value: "Mobile"
-    },
-    {
-        label: "Ship",
-        value: "Ship"
-    },
-    {
-        label: "Truck",
-        value: "Truck"
-    },
-];
+const SvgIconPreviewTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const SvgComponentContainerDiv = styled.div`
+    padding: 10px;
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+`;
 
 const assetInitInputFormData = {
+    orgAcronym: "",
+    orgId: 0,
+    groupAcronym: "",
     groupId: 0,
     description: "",
     assetType: "Generic",
@@ -159,14 +156,18 @@ const assetInitInputFormData = {
     iconRadio: 1.0,
     longitude: 0,
     latitude: 0,
+    iconSvgString: ""
 }
 
 const domainName = getDomainName();
 const protocol = getProtocol();
 
+type FormikType = FormikProps<IAssetInputData>
+
 interface EditAssetProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
+    assetTypes: IAssetType[];
     assets: IAsset[];
     backToTable: () => void;
     selectLocationOption: () => void;
@@ -176,6 +177,7 @@ interface EditAssetProps {
 const EditAsset: FC<EditAssetProps> = ({
     orgsOfGroupManaged,
     groupsManaged,
+    assetTypes,
     assets,
     backToTable,
     selectLocationOption,
@@ -188,6 +190,12 @@ const EditAsset: FC<EditAssetProps> = ({
     const assetId = useAssetIdToEdit();
     const assetRowIndex = useAssetRowIndexToEdit();
     const initialAssetData = useAssetInputData();
+    const orgId = initialAssetData.orgId;
+    const assetTypesFiltered = assetTypes.filter(item => item.orgId === orgId);
+    const assetsTypeArray = assetTypesFiltered.map(item => item.type);
+    const assetTypeOptions = convertArrayToOptions(assetsTypeArray);
+    const initialAssetType = assetTypesFiltered.filter(item => item.type === initialAssetData.assetType)[0];
+    const [iconSvgString, setIconSvgString] = useState(initialAssetType.iconSvgString);
 
     useEffect(() => {
         const assetsPreviousOption = { assetsPreviousOption: ASSETS_PREVIOUS_OPTIONS.EDIT_ASSET };
@@ -211,16 +219,18 @@ const EditAsset: FC<EditAssetProps> = ({
             (values as any).iconRadio = parseFloat((values as any).iconRadio);
         }
 
+        const assetTypeId = assetTypesFiltered.filter(item => item.type === values.assetType)[0].id;
+
         const assetEditData = {
             description: values.description,
-            type: values.assetType,
+            assetTypeId,
             iconRadio: values.iconRadio,
             longitude: values.longitude,
             latitude: values.latitude,
         }
 
-        const assetInputFormData = { assetInputFormData: assetInitInputFormData };
-        //setAssetInputData(assetsDispatch, assetInputFormData);
+        // const assetInputFormData = { assetInputFormData: assetInitInputFormData };
+        // setAssetInputData(assetsDispatch, assetInputFormData);
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, assetEditData, config)
@@ -251,7 +261,7 @@ const EditAsset: FC<EditAssetProps> = ({
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
         const assetInputFormData = { assetInputFormData: assetInitInputFormData };
-        //setAssetInputData(assetsDispatch, assetInputFormData);
+        setAssetInputData(assetsDispatch, assetInputFormData);
         backToTable();
     };
 
@@ -263,6 +273,7 @@ const EditAsset: FC<EditAssetProps> = ({
             toast.warning(warningMessage);
         } else {
             assetInputData.iconRadio = parseFloat(assetInputData.iconRadio as unknown as string);
+            assetInputData = {...assetInputData, iconSvgString}
             const orgId = assets[assetRowIndex].orgId;
             const assetInputFormData = { assetInputFormData: assetInputData };
             setAssetInputData(assetsDispatch, assetInputFormData);
@@ -273,6 +284,13 @@ const EditAsset: FC<EditAssetProps> = ({
             setAssetGroupId(assetsDispatch, assetGroupId);
             selectLocationOption();
         }
+    }
+
+    const handleChangeAssetType = (e: { value: string }, formik: FormikType) => {
+        const assetType = e.value;
+        const iconSvgString = assetTypesFiltered.filter(item => item.type === assetType)[0].iconSvgString;
+        setIconSvgString(iconSvgString);
+        formik.setFieldValue("assetType", assetType);
     }
 
     return (
@@ -296,7 +314,24 @@ const EditAsset: FC<EditAssetProps> = ({
                                         name="assetType"
                                         options={assetTypeOptions}
                                         type='text'
+                                        onChange={(e) => handleChangeAssetType(e, formik)}
                                     />
+                                    {
+                                        iconSvgString !== "" &&
+                                        <SvgIconPreviewContainerDiv>
+                                            <SvgIconPreviewTitle>
+                                                Icon preview
+                                            </SvgIconPreviewTitle>
+                                            <SvgComponentContainerDiv>
+                                                <SvgComponent
+                                                    svgString={iconSvgString}
+                                                    imgWidth="100"
+                                                    imgHeight="100"
+                                                    backgroundColor="#202226"
+                                                />
+                                            </SvgComponentContainerDiv>
+                                        </SvgIconPreviewContainerDiv>
+                                    }
                                     <AssetLocationTitle>Asset location and icon size</AssetLocationTitle>
                                     <AssetLocationContainer>
                                         <FormikControl

@@ -13,9 +13,10 @@ const ASSET_COLOR = "#e0e0dc";
 
 interface NonDraggableAssetCircleProps {
     asset: IAsset;
+    iconSvgString: string;
 }
 
-const NonDraggableAssetCircle: FC<NonDraggableAssetCircleProps> = ({ asset }) => {
+const NonDraggableAssetCircle: FC<NonDraggableAssetCircleProps> = ({ asset, iconSvgString }) => {
     const assetPosition = [asset.latitude, asset.longitude];
 
     const outerBounds = useMemo(() => calcGeoBounds(asset.longitude, asset.latitude, asset.iconRadio * 0.001), [asset]);
@@ -36,7 +37,7 @@ const NonDraggableAssetCircle: FC<NonDraggableAssetCircleProps> = ({ asset }) =>
             <AssetSvgImages
                 status={"OK"}
                 assetId={asset.id}
-                assetType={asset.type}
+                iconSvgString={iconSvgString}
                 assetSelected={null}
                 fillColor={ASSET_COLOR}
                 bounds={bounds as LatLngTuple[]}

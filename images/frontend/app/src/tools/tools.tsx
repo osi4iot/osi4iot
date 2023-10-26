@@ -176,21 +176,6 @@ const optionalEntriesConditional = (key: string) => {
     return optionalKeys.indexOf(key) !== -1;
 }
 
-// const customKeys = [
-//     "customTopicType",
-// ];
-
-// const displayKeys = [
-//     "displayType",
-//     "displayTopicType",
-//     "displayFieldName",
-//     "displayColor",
-//     "displayTimeout",
-//     "timeoutAction",
-//     "digitPosition",
-//     "digitMeshType"
-// ];
-
 const clipKeys = [
     "animationType",
     "clipNames",
@@ -224,13 +209,6 @@ const assetEntriesConditional = (key: string) => {
     ];
     return keysArray.indexOf(key) === -1;
 }
-
-// const objectExtraEntriesConditional = (key: string) => {
-//     const keysArray = [
-//         ...optionalKeys
-//     ];
-//     return keysArray.indexOf(key) === -1;
-// }
 
 const checkOptionalEntries = (entries: [string, string | number | string[] | number[]][]): string => {
     let message = "OK";
@@ -436,5 +414,22 @@ export const openWindowTab = (
             windowObjectReferences[name]?.focus();
         }
     }
+}
+
+export interface IOption {
+    value: string;
+    label: string;
+}
+
+export const convertArrayToOptions = (vector: string[]): IOption[] => {
+    const options: IOption[] = [];
+    for (const elem of vector) {
+        const option: IOption = {
+            label: elem,
+            value: elem
+        }
+        options.push(option);
+    }
+    return options;
 }
 

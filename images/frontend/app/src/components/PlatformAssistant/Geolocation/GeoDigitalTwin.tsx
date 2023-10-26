@@ -204,7 +204,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                     }
                     setGlftDataLoading(false);
                     let isGroupDTDemo = true;
-                    if (assetData.type === "Mobile" &&
+                    if (assetData.assetType === "Mobile" &&
                         assetData.description.slice(0, 16) === "Mobile for group"
                     ) {
                         isGroupDTDemo = true;

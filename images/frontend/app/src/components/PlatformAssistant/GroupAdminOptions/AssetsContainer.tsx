@@ -23,12 +23,14 @@ import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns'
 import { setAssetInputData } from '../../../contexts/assetsOptions/assetsAction';
 import { useAssetInputData } from '../../../contexts/assetsOptions/assetsContext';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 interface AssetsContainerProps {
     orgsOfGroupManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
     buildingsFiltered: IBuilding[];
     floorsFiltered: IFloor[];
+    assetTypes: IAssetType[];
     assets: IAsset[];
     refreshAssets: () => void;
     refreshGroups: () => void;
@@ -41,6 +43,7 @@ const AssetsContainer: FC<AssetsContainerProps> = ({
     groupsManaged,
     buildingsFiltered,
     floorsFiltered,
+    assetTypes,
     assets,
     refreshAssets,
     refreshGroups,
@@ -93,13 +96,15 @@ const AssetsContainer: FC<AssetsContainerProps> = ({
                     refreshAssets={refreshAssets}
                     orgsOfGroupManaged={orgsOfGroupManaged}
                     groupsManaged={groupsManaged}
+                    assetTypes={assetTypes}
                     selectLocationOption={showSelectLocationOption}
                 />
             }
             {assetsOptionToShow === ASSETS_OPTIONS.EDIT_ASSET &&
                 <EditAsset
-                orgsOfGroupManaged={orgsOfGroupManaged}
-                groupsManaged={groupsManaged}
+                    orgsOfGroupManaged={orgsOfGroupManaged}
+                    groupsManaged={groupsManaged}
+                    assetTypes={assetTypes}
                     assets={assets}
                     backToTable={showAssetsTableOption}
                     refreshAssets={refreshAssets}
@@ -109,7 +114,7 @@ const AssetsContainer: FC<AssetsContainerProps> = ({
             {assetsOptionToShow === ASSETS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={assets}
-                    columnsTable={Create_ASSETS_COLUMNS(refreshAssets)}
+                    columnsTable={Create_ASSETS_COLUMNS(orgsOfGroupManaged, groupsManaged, assetTypes, refreshAssets)}
                     componentName="asset"
                     reloadTable={refreshAssets}
                     createComponent={() => setAssetsOptionToShow(assetsDispatch, { assetsOptionToShow: ASSETS_OPTIONS.CREATE_ASSET })}
@@ -121,6 +126,7 @@ const AssetsContainer: FC<AssetsContainerProps> = ({
                     buildings={buildingsTable}
                     floors={floorsTable}
                     groupsManaged={groupsManagedTable}
+                    assetTypes={assetTypes}
                     assets={assets}
                     refreshBuildings={refreshBuildings}
                     refreshFloors={refreshFloors}

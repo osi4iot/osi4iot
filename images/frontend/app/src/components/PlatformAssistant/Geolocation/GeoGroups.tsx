@@ -11,6 +11,7 @@ import { isGeoJSONObject } from "../../../tools/geojsonValidation";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
+import { IAssetType } from "../TableColumns/assetTypesColumns";
 
 
 const STATUS_OK = "#3e3f3b";
@@ -35,6 +36,7 @@ interface GeoGroupsProps {
     groupsInSelectedOrg: IGroupManaged[];
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
+    assetTypes: IAssetType[];
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
     selectAsset: (assetSelected: IAsset | null) => void;
@@ -59,6 +61,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
         selectOrg,
         groupSelected,
         selectGroup,
+        assetTypes,
         assetDataArray,
         assetSelected,
         selectAsset,
@@ -76,6 +79,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
 ) => {
     const map = useMap();
     const isValidGeoJsonData = useState(isGeoJSONObject(floorData.geoJsonData))[0];
+    const assetTypeDataArray = assetTypes.filter(assetType => assetType.orgId === orgSelected?.id);
 
     const styleGeoFloorJson = (geoJsonFeature: any) => {
         return floorStyle();
@@ -100,6 +104,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         groupData={group}
                         groupSelected={groupSelected}
                         selectGroup={selectGroup}
+                        assetTypeDataArray={assetTypeDataArray}
                         assetDataArray={assetDataArray}
                         assetSelected={assetSelected}
                         selectAsset={selectAsset}

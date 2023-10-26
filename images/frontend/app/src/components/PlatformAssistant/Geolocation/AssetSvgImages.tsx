@@ -17,7 +17,7 @@ export const setAssetCircleColor = (assetId: number, assetSelected: IAsset | nul
 
 interface AssetSvgImagesProps {
     status: string,
-    assetType: string,
+    iconSvgString: string,
     assetId: number,
     assetSelected: IAsset | null,
     fillColor: string;
@@ -28,7 +28,7 @@ interface AssetSvgImagesProps {
 
 export const AssetSvgImages: FC<AssetSvgImagesProps> = ({
     status,
-    assetType,
+    iconSvgString,
     assetId,
     assetSelected,
     fillColor,
@@ -49,7 +49,7 @@ export const AssetSvgImages: FC<AssetSvgImagesProps> = ({
                 />
             </SVGOverlay >
             <AssetSVGOverlays
-                assetType={assetType}
+                iconSvgString={iconSvgString}
                 fillColor={fillColor}
                 bounds={bounds}
                 imageRef={imageRef}

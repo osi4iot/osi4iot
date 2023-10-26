@@ -472,38 +472,38 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	]);
 
 
-    useEffect(() => {
-        if (assetTypesTable.length === 0 || reloadAssetTypesTable) {
-            const config = axiosAuth(accessToken);
-            const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlAssetTypes, config)
-                .then((response) => {
-                    const assetTypes = response.data;
-                    assetTypes.map((assetType: IAssetType) => {
-                        assetType.isPredefinedString = "No";
-                        if (assetType.isPredefined) assetType.isPredefinedString = "Yes";
-                        return assetType;
-                    })
-                    setAssetTypesTable(plaformAssistantDispatch, { assetTypes });
-                    setAssetTypesLoading(false);
-                    const reloadAssetTypesTable = false;
-                    setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
-                })
-                .catch((error) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
-        } else {
-            setAssetTypesLoading(false);
-        }
-    }, [
-        accessToken,
-        refreshToken,
-        authDispatch,
-        plaformAssistantDispatch,
-        reloadAssetTypesTable,
-        assetTypesTable.length
-    ]);	
+	useEffect(() => {
+		if (assetTypesTable.length === 0 || reloadAssetTypesTable) {
+			const config = axiosAuth(accessToken);
+			const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
+			getAxiosInstance(refreshToken, authDispatch)
+				.get(urlAssetTypes, config)
+				.then((response) => {
+					const assetTypes = response.data;
+					assetTypes.map((assetType: IAssetType) => {
+						assetType.isPredefinedString = "No";
+						if (assetType.isPredefined) assetType.isPredefinedString = "Yes";
+						return assetType;
+					})
+					setAssetTypesTable(plaformAssistantDispatch, { assetTypes });
+					setAssetTypesLoading(false);
+					const reloadAssetTypesTable = false;
+					setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
+				})
+				.catch((error) => {
+					axiosErrorHandler(error, authDispatch);
+				});
+		} else {
+			setAssetTypesLoading(false);
+		}
+	}, [
+		accessToken,
+		refreshToken,
+		authDispatch,
+		plaformAssistantDispatch,
+		reloadAssetTypesTable,
+		assetTypesTable.length
+	]);
 
 	useEffect(() => {
 		if (assetsTable.length === 0 || reloadAssetsTable) {
@@ -644,6 +644,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									floors={floorsFiltered}
 									orgsOfGroupsManaged={orgsOfGroupsManagedTable}
 									groupsManaged={groupsManagedTable}
+									assetTypes={assetTypesTable}
 									assets={assetsTable}
 									sensors={sensorsTable}
 									digitalTwins={digitalTwinsTable}

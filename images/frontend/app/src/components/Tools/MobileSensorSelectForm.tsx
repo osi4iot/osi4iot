@@ -6,6 +6,7 @@ import FormikControl from "./FormikControl";
 import MobileSensorSelectFormButtons from "./MobileSensorSelectFormButtons";
 import { IMobileTopic } from '../PlatformAssistant/TableColumns/topicsColumns';
 import { InitialMobileSensorData } from '../../pages/MobileSensorsPage';
+import { IOption, convertArrayToOptions } from '../../tools/tools';
 
 const Title = styled.h2`
 	font-size: 20px;
@@ -112,11 +113,6 @@ const FieldContainer = styled.div`
     }
 `;
 
-interface IOption {
-    value: string;
-    label: string;
-}
-
 
 type FormikType = FormikProps<InitialMobileSensorData>
 
@@ -127,18 +123,6 @@ interface MobileSensorSelectFormProps {
     initialMobileSensorData: InitialMobileSensorData;
     setInitialMobileSensorData: React.Dispatch<React.SetStateAction<InitialMobileSensorData | null>>;
     setMobileTopicSelected: React.Dispatch<React.SetStateAction<IMobileTopic | null>>;
-}
-
-const convertArrayToOptions = (vector: string[]): IOption[] => {
-    const options: IOption[] = [];
-    for (const elem of vector) {
-        const option: IOption = {
-            label: elem,
-            value: elem
-        }
-        options.push(option);
-    }
-    return options;
 }
 
 const findOrgArray = (mobileTopicsManaged: IMobileTopic[]): string[] => {
@@ -231,7 +215,6 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
     const [assetDescription, setAssetDescription] = useState<string>(initialMobileSensorData.assetDescription);
     const [mobileSensorArray, setMobileSensorAarray] = useState<Record<string, string[]>>({});
     const [mobileSensorOptions, setMobileSensorOptions] = useState<IOption[]>([]);
-
 
     useEffect(() => {
         if (mobileTopicsManaged.length !== 0) {

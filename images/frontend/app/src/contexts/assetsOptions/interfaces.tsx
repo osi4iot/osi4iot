@@ -4,14 +4,17 @@ export interface AssetsDispatch {
 
 
 export interface IAssetInputData {
-	groupId: number | string;
-	description: string;
+	orgAcronym: string;
+	orgId: number;
+	groupAcronym: string;
+	groupId: number;
 	assetType: string;
-	assetTypeId: number;
 	assetUid: string;
+	description: string;
 	iconRadio: number;
 	longitude: number;
 	latitude: number;
+	iconSvgString: string;
 }
 
 export interface AssetsContextProps {

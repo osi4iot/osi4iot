@@ -25,6 +25,9 @@ import {
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IAssetInputData } from '../../../contexts/assetsOptions/interfaces';
+import { IAssetType } from './assetTypesColumns';
+import { IGroupManaged } from './groupsManagedColumns';
+import { IOrgOfGroupsManaged } from './orgsOfGroupsManagedColumns';
 
 
 export interface IAsset {
@@ -34,7 +37,7 @@ export interface IAsset {
     assetUid: string;
     assetTypeId: number;
     description: string;
-    type: string;
+    assetType: string;
     iconRadio: number;
     latitude: number;
     longitude: number;
@@ -144,7 +147,12 @@ const EditAsset: FC<EditAssetProps> = ({ rowIndex, assetId, assetInputData }) =>
 }
 
 
-export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetColumn>[] => {
+export const Create_ASSETS_COLUMNS = (
+    orgsOfGroupManaged: IOrgOfGroupsManaged[],
+    groupsManaged: IGroupManaged[],
+    assetTypes: IAssetType[],
+    refreshAssets: () => void
+): Column<IAssetColumn>[] => {
     return [
         {
             Header: "Id",
@@ -167,13 +175,8 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
             filter: 'equals'
         },
         {
-            Header: "AssetTypeId",
-            accessor: "assetTypeId",
-            filter: 'equals'
-        },
-        {
             Header: "Type",
-            accessor: "type",
+            accessor: "assetType",
         },
         {
             Header: "Description",
@@ -196,7 +199,7 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
             accessor: "latitude",
             disableFilters: true,
             disableSortBy: true
-        },   
+        },
         {
             Header: "",
             accessor: "edit",
@@ -206,15 +209,24 @@ export const Create_ASSETS_COLUMNS = (refreshAssets: () => void): Column<IAssetC
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
                 const assetId = row?.cells[0]?.value;
+                const orgId = row?.cells[1]?.value;
+                const assetType = row?.cells[4]?.value;
+                const orgAcronym = orgsOfGroupManaged.filter(org => org.id === orgId)[0].acronym;
+                const groupId = row?.cells[2]?.value;
+                const groupAcronym = groupsManaged.filter(group => group.id === groupId)[0].acronym;
+                const iconSvgString = assetTypes.filter(item => item.orgId === orgId && item.type === assetType)[0].iconSvgString;
                 const assetInputData = {
-                    groupId: row?.cells[2]?.value,
+                    orgAcronym,
+                    orgId,
+                    groupAcronym,
+                    groupId,
                     assetUid: row?.cells[3]?.value,
-                    assetTypeId: row?.cells[4]?.value,
-                    assetType: row?.cells[5]?.value,
-                    description: row?.cells[6]?.value,
-                    iconRadio: row?.cells[7]?.value,
-                    longitude: row?.cells[8]?.value,
-                    latitude: row?.cells[9]?.value,
+                    assetType,
+                    description: row?.cells[5]?.value,
+                    iconRadio: row?.cells[6]?.value,
+                    longitude: row?.cells[7]?.value,
+                    latitude: row?.cells[8]?.value,
+                    iconSvgString
                 }
                 return <EditAsset assetId={assetId} rowIndex={rowIndex} assetInputData={assetInputData} />
             }

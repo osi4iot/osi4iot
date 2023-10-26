@@ -22,6 +22,7 @@ import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
 import { useWindowWidth } from '@react-hook/window-size';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -370,6 +371,7 @@ interface MapProps {
     floors: IFloor[];
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
+    assetTypes: IAssetType[];
     assets: IAsset[];
     sensors: ISensor[];
     digitalTwins: IDigitalTwin[];
@@ -416,6 +418,7 @@ const Map: FC<MapProps> = (
         floors,
         orgsOfGroupsManaged,
         groupsManaged,
+        assetTypes,
         assets,
         sensors,
         digitalTwins,
@@ -510,6 +513,7 @@ const Map: FC<MapProps> = (
                     groupsInSelectedOrg={groupsManaged.filter(group => group.orgId === orgSelected.id && group.floorNumber === floorSelected.floorNumber)}
                     groupSelected={groupSelected}
                     selectGroup={selectGroup}
+                    assetTypes={assetTypes}
                     assetDataArray={assets}
                     assetSelected={assetSelected}
                     selectAsset={selectAsset}

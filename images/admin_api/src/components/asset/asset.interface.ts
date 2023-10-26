@@ -4,6 +4,7 @@ export default interface IAsset {
 	groupId: number;
 	assetUid: string;
 	description: string;
+	assetType?: string;
 	assetTypeId: number;
 	iconRadio: number;
 	longitude: number;

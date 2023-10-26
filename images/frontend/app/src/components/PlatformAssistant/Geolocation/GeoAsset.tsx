@@ -12,9 +12,11 @@ import { ISensor } from "../TableColumns/sensorsColumns";
 
 import GeoSensors from "./GeoSensors";
 import { AssetSvgImages } from "./AssetSvgImages";
+import { IAssetType } from "../TableColumns/assetTypesColumns";
 
 
 interface GeoAssetProps {
+    assetTypeData: IAssetType;
     assetData: IAsset;
     assetSelected: IAsset | null;
     selectAsset: (assetSelected: IAsset | null) => void;
@@ -31,6 +33,7 @@ interface GeoAssetProps {
 }
 
 const GeoAsset: FC<GeoAssetProps> = ({
+    assetTypeData,
     assetData,
     assetSelected,
     selectAsset,
@@ -93,7 +96,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
                 key={`${assetData.id}-${status}`}
                 status={status}
                 assetId={assetData.id}
-                assetType={assetData.type}
+                iconSvgString={assetTypeData.iconSvgString}
                 assetSelected={assetSelected as IAsset}
                 fillColor={fillColor}
                 bounds={bounds as LatLngTuple[]}
@@ -106,7 +109,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
                     <span style={{ fontWeight: 'bold' }}>Asset</span><br />
                     Name: {`Asset_${assetData.assetUid}`}<br />
                     Description: {assetData.description}<br />
-                    Type: {assetData.type}<br />
+                    Type: {assetData.assetType}<br />
                     Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
                 </Tooltip>
             }

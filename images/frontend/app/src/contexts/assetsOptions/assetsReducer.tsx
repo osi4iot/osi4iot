@@ -12,16 +12,17 @@ export const initialState = {
     assetBuildingId: 0,
     assetGroupId: 0,
     assetInputFormData: {
+        orgAcronym: "",
+        orgId: 1,
+        groupAcronym: "",
         groupId: 1,
-        description: "",
-        assetTypeId: 0,
-        assetType: "Generic",
-        newAssetType: "-",
+        assetType: "",
         assetUid: "",
+        description: "",
         iconRadio: 1.0,
         longitude: 0,
         latitude: 0,
-        geolocationMode: "static"
+        iconSvgString: ""
     }
 };
 

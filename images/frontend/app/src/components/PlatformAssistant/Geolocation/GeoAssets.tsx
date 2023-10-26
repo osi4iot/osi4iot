@@ -5,8 +5,10 @@ import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import GeoAsset from "./GeoAsset";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
+import { IAssetType } from "../TableColumns/assetTypesColumns";
 
 interface GeoAssetsProps {
+    assetTypeDataArray: IAssetType[];
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
     selectAsset: (assetSelected: IAsset | null) => void;
@@ -25,6 +27,7 @@ interface GeoAssetsProps {
 
 const GeoAssets: FC<GeoAssetsProps> = (
     {
+        assetTypeDataArray,
         assetDataArray,
         assetSelected,
         selectAsset,
@@ -46,6 +49,7 @@ const GeoAssets: FC<GeoAssetsProps> = (
                 assetDataArray.map(asset => {
                     return <GeoAsset
                         key={asset.id}
+                        assetTypeData={assetTypeDataArray.filter(assetType=> assetType.type === asset.assetType)[0]}
                         assetData={asset}
                         assetSelected={assetSelected}
                         selectAsset={selectAsset}

@@ -17,6 +17,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';
 import SelectAsset from './SelectAsset';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -66,6 +67,7 @@ interface GeolocationContainerProps {
     floors: IFloor[];
     orgsOfGroupsManaged: IOrgOfGroupsManaged[];
     groupsManaged: IGroupManaged[];
+    assetTypes: IAssetType[];
     assets: IAsset[];
     sensors: ISensor[];
     digitalTwins: IDigitalTwin[];
@@ -109,6 +111,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         floors,
         orgsOfGroupsManaged,
         groupsManaged,
+        assetTypes,
         assets,
         sensors,
         digitalTwins,
@@ -276,6 +279,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     floors={floors}
                     orgsOfGroupsManaged={orgsOfGroupsManaged}
                     groupsManaged={groupsManaged}
+                    assetTypes={assetTypes}
                     assets={assets}
                     sensors={sensors}
                     digitalTwins={digitalTwins}

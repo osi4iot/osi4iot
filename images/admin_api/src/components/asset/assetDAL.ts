@@ -49,9 +49,9 @@ export const updateAssetTypeByPropName = async (
 	const query = `UPDATE grafanadb.asset_type SET type = $1,
 	            icon_svg_file_name = $2, icon_svg_string = $3,
 				marker_svg_file_name = $4, marker_svg_string = $5,
-				geolocation_mode = $6, assetStateFormat = $7,
+				geolocation_mode = $6, asset_state_format = $7,
 				updated = NOW()
-				WHERE grafanadb.asset.${propName} = $8;`;
+				WHERE grafanadb.asset_type.${propName} = $8;`;
 	await pool.query(query, [
 		assetType.type,
 		assetType.iconSvgFileName,
@@ -189,10 +189,11 @@ export const getNumAssetTypesByOrgsIdArray = async (orgsIdArray: number[]): Prom
 
 export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 	const queryString = `INSERT INTO grafanadb.asset (group_id, asset_uid,
-		description, geolocation, icon_radio, created, updated)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		asset_type_id, description, geolocation, icon_radio, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 		RETURNING id, group_id AS "groupId",
 		asset_uid AS "assetUid",
+		asset_type_id AS "assetTypeId",
 		description, icon_radio AS "iconRadio",
 		geolocation[0] AS longitude,
 		geolocation[1] AS latitude,
@@ -202,6 +203,7 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 		[
 			assetData.groupId,
 			assetData.assetUid,
+			assetData.assetTypeId,
 			assetData.description,
 			`(${assetData.longitude},${assetData.latitude})`,
 			assetData.iconRadio,
@@ -240,6 +242,7 @@ export const getAssetByPropName = async (propName: string, propValue: (string | 
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 	                                grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.asset.description,
+									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
@@ -247,6 +250,7 @@ export const getAssetByPropName = async (propName: string, propValue: (string | 
 									grafanadb.asset.created, grafanadb.asset.updated
 									FROM grafanadb.asset
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									WHERE grafanadb.asset.${propName} = $1`, [propValue]);
 	return response.rows[0] as IAsset;
 }
@@ -254,14 +258,16 @@ export const getAssetByPropName = async (propName: string, propValue: (string | 
 export const getAllAssets = async (): Promise<IAsset[]> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.asset.description, 
+									grafanadb.asset.description,
+									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
-									grafanadb.asset.geolocation[1] AS latitude,
+									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated
 									FROM grafanadb.asset
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									ORDER BY grafanadb.asset.id  ASC;`);
 	return response.rows as IAsset[];
 }
@@ -276,29 +282,33 @@ export const getAssetsByGroupId = async (groupId: number): Promise<IAsset[]> => 
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.asset.description,
-									grafanadb.asset.asset_type_id AS "assetTypeId",,
+									grafanadb.asset_type.type AS "assetType",
+									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
-									grafanadb.asset.geolocation[1] AS latitude,
+									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated
 									FROM grafanadb.asset
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									WHERE grafanadb.asset.group_id = $1
-									ORDER BY grafanadb.asset.id  ASC`, [groupId]);
+									ORDER BY grafanadb.asset.id  ASC;`, [groupId]);
 	return response.rows as IAsset[];
 };
 
 export const getAssetsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IAsset[]> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
-									grafanadb.asset.description, 
+									grafanadb.asset.description,
+									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
-									grafanadb.asset.geolocation[1] AS latitude,
+									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated
 									FROM grafanadb.asset
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									WHERE grafanadb.asset.group_id = ANY($1::bigint[])
 									ORDER BY grafanadb.asset.id  ASC`, [groupsIdArray]);
 	return response.rows as IAsset[];
@@ -315,13 +325,15 @@ export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.asset.description,
+									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
 									grafanadb.asset.geolocation[0] AS longitude,
-									grafanadb.asset.geolocation[1] AS latitude,
+									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated
 									FROM grafanadb.asset
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									WHERE grafanadb.group.org_id = $1
 									ORDER BY grafanadb.asset.id  ASC`, [orgId]);
 	return response.rows as IAsset[];

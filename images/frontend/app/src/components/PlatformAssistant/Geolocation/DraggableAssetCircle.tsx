@@ -39,6 +39,7 @@ interface DraggableAssetCircleProps {
     assetName: string;
     assetRadio: number;
     assetType: string;
+    iconSvgString: string;
     assetPosition: LatLngExpression;
     setAssetPosition: (assetPosition: LatLngExpression) => void;
     assetDragging: boolean;
@@ -50,6 +51,7 @@ const DraggableAssetCircle: FC<DraggableAssetCircleProps> = ({
     assetName,
     assetRadio,
     assetType,
+    iconSvgString,
     assetPosition,
     setAssetPosition,
     assetDragging,
@@ -109,14 +111,22 @@ const DraggableAssetCircle: FC<DraggableAssetCircleProps> = ({
                         radius={assetRadio}
                         eventHandlers={evenstHandlerCircle}
                     >
-                        <Tooltip sticky>
-                            <span style={{ fontWeight: 'bold' }}>Device</span><br />
-                            Name: {assetName}<br />
-                        </Tooltip>
+                        {
+                            assetName === "" ?
+                                <Tooltip sticky>
+                                    <span style={{ fontWeight: 'bold' }}>New asset</span><br />
+                                    Type: {assetType}<br />
+                                </Tooltip>
+                                :
+                                <Tooltip sticky>
+                                    <span style={{ fontWeight: 'bold' }}>Asset</span><br />
+                                    Name: {assetName}<br />
+                                </Tooltip>
+                        }
                     </CircleStyledNoDragging>
             }
             <AssetSVGOverlays
-                assetType={assetType}
+                iconSvgString={iconSvgString}
                 fillColor={ASSET_COLOR}
                 bounds={bounds as LatLngTuple[]}
                 imageRef={imageRef}

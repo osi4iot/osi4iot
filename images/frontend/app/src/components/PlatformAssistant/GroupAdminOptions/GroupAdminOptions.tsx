@@ -719,6 +719,7 @@ const GroupAdminOptions: FC<{}> = () => {
                                         floorsFiltered={floorsFiltered}
                                         refreshGroupsManaged={refreshGroupsManaged}
                                         refreshGroupMembers={refreshGroupMembers}
+                                        assetTypes={assetTypesTable}
                                         assets={assetsTable}
                                         refreshAssets={refreshAssets}
                                         refreshGroups={refreshGroupsManaged}
@@ -739,6 +740,7 @@ const GroupAdminOptions: FC<{}> = () => {
                                         groupsManaged={groupsManagedTable}
                                         buildingsFiltered={buildingsFiltered}
                                         floorsFiltered={floorsFiltered}
+                                        assetTypes={assetTypesTable}
                                         assets={assetsTable}
                                         refreshAssets={refreshAssets}
                                         refreshGroups={refreshGroupsManaged}

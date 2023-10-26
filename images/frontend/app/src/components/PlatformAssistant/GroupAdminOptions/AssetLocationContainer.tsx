@@ -5,12 +5,14 @@ import { IAsset } from '../TableColumns/assetsColumns';
 import { useAssetBuildingId, useAssetGroupId } from '../../../contexts/assetsOptions';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import ElementLocationMap from '../Geolocation/ElementLocationMap';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 
 interface AssetLocationContainerProps {
     buildings: IBuilding[];
     floors: IFloor[];
     groupsManaged: IGroupManaged[];
+    assetTypes: IAssetType[];
     assets: IAsset[];
     refreshBuildings: () => void;
     refreshFloors: () => void;
@@ -25,6 +27,7 @@ const AssetLocationContainer: FC<AssetLocationContainerProps> = (
         buildings,
         floors,
         groupsManaged,
+        assetTypes,
         assets,
         refreshBuildings,
         refreshFloors,
@@ -37,6 +40,7 @@ const AssetLocationContainer: FC<AssetLocationContainerProps> = (
     const building = buildings.filter(building => building.id === assetBuildingId)[0];
     const assetGroupId = useAssetGroupId();
     const groupManaged = groupsManaged.filter(group => group.id === assetGroupId)[0];
+    const assetTypesInOrg = assetTypes.filter(assetType => assetType.orgId === groupManaged.orgId);
     const assetsInGroup = useState(assets.filter(asset => asset.groupId === assetGroupId))[0];
     const groupFloor = useState(floors.filter(floor =>
         floor.buildingId === assetBuildingId &&
@@ -56,6 +60,7 @@ const AssetLocationContainer: FC<AssetLocationContainerProps> = (
             building={building}
             floorData={groupFloor}
             groupManaged={groupManaged}
+            assetTypes={assetTypesInOrg}
             assetsInGroup={assetsInGroup}
             featureIndex={featureIndex}
             refreshBuildings={refreshBuildings}

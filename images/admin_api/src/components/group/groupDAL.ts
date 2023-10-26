@@ -177,7 +177,7 @@ export const updateGroup = async (newGroupData: UpdateGroupDto, existentGroup: I
 		await updateGroupById(groupData);
 		if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
 			await updateGroupAssetsLocation(geoJsonDataString, groupData);
-			await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData)
+			await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData);
 		}
 	}
 	let hasGroupChange = false;

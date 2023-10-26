@@ -5,13 +5,13 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { useGroupManagedBuildingId, useGroupManagedIdToEdit } from '../../../contexts/groupsManagedOptions';
 import ElementLocationMap from '../Geolocation/ElementLocationMap';
 import { IAsset } from '../TableColumns/assetsColumns';
-
-
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 interface NriLocationContainerProps {
     buildings: IBuilding[];
     floors: IFloor[];
     groupsManaged: IGroupManaged[];
+    assetTypes: IAssetType[];
     assets: IAsset[];
     refreshBuildings: () => void;
     refreshFloors: () => void;
@@ -26,6 +26,7 @@ const NriLocationContainer: FC<NriLocationContainerProps> = (
         buildings,
         floors,
         groupsManaged,
+        assetTypes,
         assets,
         refreshBuildings,
         refreshFloors,
@@ -38,6 +39,7 @@ const NriLocationContainer: FC<NriLocationContainerProps> = (
     const building = buildings.filter(building => building.id === groupManagedBuildingId)[0];
     const groupManagedId = useGroupManagedIdToEdit();
     const groupManaged = groupsManaged.filter(group => group.id === groupManagedId)[0];
+    const assetTypesInOrg = assetTypes.filter(assetType => assetType.orgId === groupManaged.orgId);
     const assetsInGroup = useState(assets.filter(asset => asset.groupId === groupManagedId))[0];
     const groupFloor = useState(floors.filter(floor =>
         floor.buildingId === groupManagedBuildingId &&
@@ -57,6 +59,7 @@ const NriLocationContainer: FC<NriLocationContainerProps> = (
             building={building}
             floorData={groupFloor}
             groupManaged={groupManaged}
+            assetTypes={assetTypesInOrg}
             assetsInGroup={assetsInGroup}
             featureIndex={featureIndex}
             refreshBuildings={refreshBuildings}

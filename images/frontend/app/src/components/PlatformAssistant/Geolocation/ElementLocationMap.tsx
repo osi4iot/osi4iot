@@ -23,6 +23,7 @@ import { IAsset } from '../TableColumns/assetsColumns';
 import { useAssetIdToEdit, useAssetInputData, useAssetsPreviousOption } from '../../../contexts/assetsOptions';
 import DraggableAssetCircle from './DraggableAssetCircle';
 import NonDraggableAssetCircle from './NonDraggableAssetCircle';
+import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 
 const MapContainerStyled = styled(MapContainer)`
@@ -293,6 +294,7 @@ interface GeoGroupSpaceMapProps {
     floorSpace: IFeatureCollection
     floorData: IFloor;
     groupManaged: IGroupManaged;
+    assetTypes: IAssetType[];
     assetsInGroup: IAsset[];
     assetPosition: LatLngExpression;
     setAssetPosition: (assetPosition: LatLngExpression) => void;
@@ -306,6 +308,7 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
     floorSpace,
     floorData,
     groupManaged,
+    assetTypes,
     assetsInGroup,
     assetPosition,
     setAssetPosition,
@@ -380,7 +383,8 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                                 key={asset.id}
                                 assetName={`Asset_${asset.assetUid}`}
                                 assetRadio={assetInputData.iconRadio}
-                                assetType={asset.type}
+                                assetType={asset.assetType}
+                                iconSvgString={assetInputData.iconSvgString}
                                 assetPosition={assetPosition}
                                 setAssetPosition={(assetPosition: LatLngExpression) => setAssetPosition(assetPosition)}
                                 assetDragging={assetDragging}
@@ -392,6 +396,7 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
                             <NonDraggableAssetCircle
                                 key={asset.id}
                                 asset={asset}
+                                iconSvgString={assetTypes.filter(assetType=> assetType.type === asset.assetType)[0].iconSvgString}
                             />
                         )
                     }
@@ -400,9 +405,10 @@ const GeoGroupSpaceMap: FC<GeoGroupSpaceMapProps> = ({
             {
                 (elementToDrag === "asset" && assetsPreviousOption === ASSETS_PREVIOUS_OPTIONS.CREATE_ASSET) &&
                 <DraggableAssetCircle
-                    assetName={`Asset_${assetInputData.assetUid}`}
+                    assetName=""
                     assetRadio={assetInputData.iconRadio}
                     assetType={assetInputData.assetType}
+                    iconSvgString={assetInputData.iconSvgString}
                     assetPosition={assetPosition}
                     setAssetPosition={(assetPosition: LatLngExpression) => setAssetPosition(assetPosition)}
                     assetDragging={assetDragging}
@@ -443,6 +449,7 @@ interface ElementLocationMapProps {
     building: IBuilding;
     floorData: IFloor;
     groupManaged: IGroupManaged;
+    assetTypes: IAssetType[];
     assetsInGroup: IAsset[];
     featureIndex: number;
     setNewOuterBounds: (outerBounds: number[][]) => void;
@@ -462,6 +469,7 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
         building,
         floorData,
         groupManaged,
+        assetTypes,
         assetsInGroup,
         featureIndex,
         setNewOuterBounds,
@@ -530,6 +538,7 @@ const ElementLocationMap: FC<ElementLocationMapProps> = (
                             floorSpace={floorSpace}
                             floorData={floorData}
                             groupManaged={groupManaged}
+                            assetTypes={assetTypes}
                             assetsInGroup={assetsInGroup}
                             assetPosition={assetPosition}
                             setAssetPosition={(assetPosition: LatLngExpression) => setAssetPosition(assetPosition)}
