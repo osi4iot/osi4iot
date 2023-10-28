@@ -350,7 +350,7 @@ const Model: FC<ModelProps> = (
 	}, 500)
 
 	return (
-		<group ref={group} dispose={null}>
+		<group ref={group as React.MutableRefObject<THREE.Group>} dispose={null}>
 			{(sensorObjects.length !== 0 && sensorsState && sensorsVisibilityState) &&
 				<Sensors
 					sensorObjects={sensorObjects}

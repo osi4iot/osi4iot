@@ -262,9 +262,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     ]);
 
     return (
-        <group ref={objectRef} >
+        <group ref={objectRef as React.MutableRefObject<THREE.Group>} >
             <mesh
-                ref={geometryRef}
+                ref={geometryRef as React.MutableRefObject<THREE.Mesh<THREE.BufferGeometry, THREE.Material | THREE.Material[]>>}
                 castShadow
                 receiveShadow
                 material={material}

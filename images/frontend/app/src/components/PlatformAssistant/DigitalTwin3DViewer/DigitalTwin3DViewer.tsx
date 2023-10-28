@@ -1,4 +1,4 @@
-import { FC, useCallback, useEffect, useRef, useState } from 'react'
+import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import styled from "styled-components";
 import { nanoid } from "nanoid";
 import { FaShareSquare, FaFolderOpen, FaFolderMinus, FaChartLine } from "react-icons/fa";
@@ -459,7 +459,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femResultNames, setFemResultNames] = useState<string[]>([]);
 	const [femResultData, setFemResultData] = useState<null | any>(null);
 	const [femResFilesLastUpdate, setFemResFilesLastUpdate] = useState<Date>(new Date());
-	
+
 	const mqttOptions = {
 		keepalive: 0,
 		clientId: `Client_${nanoid(16).replace(/-/g, "x").replace(/_/g, "X")}`,
@@ -480,7 +480,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const handleGetLastMeasurementsButton = () => {
 		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
 		if (digitalTwinSelected && Object.keys(digitalTwinSimulationFormat).length !== 0) {
-			const filteredTopics = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicRef.slice(0,7) === "dev2pdb");
+			const filteredTopics = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicRef.slice(0, 7) === "dev2pdb");
 			const topicsIdArray = filteredTopics.map(topic => topic.topicId);
 
 			if (topicsIdArray.length !== 0) {

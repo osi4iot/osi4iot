@@ -292,9 +292,9 @@ export const ckeckDigitalTwinRefFile = (digitalTwinGltfData: any, dtReferencesDa
         if (!isOk[i]) {
             response[0] = false;
             if (response[1] === "") {
-                response[1] = outputMessage[1];
+                response[1] = outputMessage[i];
             } else {
-                response[1] = `${response[1]}, ${outputMessage[1]}`;
+                response[1] = `${response[1]}, ${outputMessage[i]}`;
             }
         }
     }

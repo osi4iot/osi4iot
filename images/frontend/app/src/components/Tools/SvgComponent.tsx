@@ -8,7 +8,7 @@ interface ImagetStyledProps {
     backgroundColor: string;
 }
 
-const ImagetStyled = styled.div<ImagetStyledProps>`
+const ImageStyled = styled.div<ImagetStyledProps>`
     & svg {
         width: ${(props) => `${props.imgWidth}px !important`};
         height: ${(props) => `${props.imgHeight}px !important`};
@@ -52,7 +52,7 @@ const SvgComponent: FC<SvgComponentProps> = ({
     }, [svgString]);
 
     return (
-        <ImagetStyled
+        <ImageStyled
             ref={svgRef}
             imgWidth={imgWidth}
             imgHeight={imgHeight}

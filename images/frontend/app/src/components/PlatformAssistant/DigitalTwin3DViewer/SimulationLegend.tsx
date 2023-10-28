@@ -11,7 +11,6 @@ interface SimulationLegendContainerProps {
     containerHeight: number;
 }
 
-
 const SimulationLegendContainer = styled.div<SimulationLegendContainerProps>`
     background-color: #212121;
     overflow: hidden;

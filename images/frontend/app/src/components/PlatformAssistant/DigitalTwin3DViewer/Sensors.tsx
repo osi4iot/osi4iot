@@ -6,6 +6,42 @@ import { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState }
 import { changeMaterialPropRecursively } from '../../../tools/tools';
 import { sensorDisplay } from '../../../tools/sensorDisplay';
 import { IThreeMesh } from './threeInterfaces';
+import { Html } from "@react-three/drei";
+import styled from 'styled-components';
+
+const SensorLabel = styled.div`
+    position: relative;
+    display: inline-block;
+    border-bottom: 1px dotted black;
+    
+    span {
+        width: 150px;
+        background-color: #ffeb99;
+        font-size: 12px;
+        font-weight: 700;
+        color: black;
+        text-align: center;
+        border-radius: 6px;
+        padding: 5px 0;
+        position: absolute;
+        z-index: 1;
+        bottom: 150%;
+        left: 50%;
+        margin-left: -75px;
+        margin-bottom: 25px;
+
+        ::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #ffeb99 transparent transparent transparent;
+        }
+    }
+`;
 
 interface SensorProps {
     obj: IThreeMesh;
@@ -42,7 +78,7 @@ const SensorBase: FC<SensorProps> = ({
     const timeout = obj.userData.timeout as number || 60;
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
-    const [clipsDuration, setClipsDuration] = useState(0);
+	const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
@@ -168,27 +204,51 @@ const SensorBase: FC<SensorProps> = ({
             obj.customAnimationObjectNames.length !== 0 ||
             obj.children.length !== 0
         ) ?
-            <mesh
-                ref={meshRef as React.MutableRefObject<IThreeMesh>}
-                castShadow
-                receiveShadow
-                material={material}
-            >
-                <primitive
-                    object={obj}
-                />
-            </mesh>
+            <group>
+                <mesh
+                    ref={meshRef as React.MutableRefObject<IThreeMesh>}
+                    castShadow
+                    receiveShadow
+                    material={material}
+                >
+                    <primitive
+                        object={obj}
+                    />
+                </mesh>
+                <Html
+                    castShadow // Make HTML cast a shadow
+                    receiveShadow // Make HTML receive shadows
+                >
+                    <SensorLabel >
+                        <span>{obj.name}</span>
+                    </SensorLabel>
+                </Html>
+            </group>
             :
-            <mesh
-                ref={meshRef as React.MutableRefObject<IThreeMesh>}
-                castShadow
-                receiveShadow
-                geometry={obj.geometry}
-                material={material}
+            <group
                 position={obj.position}
-                scale={obj.scale}
                 quaternion={obj.quaternion}
-            />
+                scale={obj.scale}
+            >
+                <mesh
+                    ref={meshRef as React.MutableRefObject<IThreeMesh>}
+                    castShadow
+                    receiveShadow
+                    geometry={obj.geometry}
+                    material={material}
+                    position={[0, 0, 0]}
+                    scale={[1.0, 1.0, 1.0]}
+                    rotation={[0, 0, 0]}
+                />
+				<Html
+                    castShadow // Make HTML cast a shadow
+                    receiveShadow // Make HTML receive shadows
+                >
+                    <SensorLabel >
+                        <span>{obj.name}</span>
+                    </SensorLabel>
+                </Html>
+            </group>
     )
 }
 
@@ -225,7 +285,7 @@ const Sensors: FC<SensorsProps> = ({
     updateSensorStateString,
 }) => {
     const sensorsStateString = Object.values(sensorsState).map(state => state.stateString === "off" ? "1" : "0").join("");
-    
+
     return (
         <>
             {

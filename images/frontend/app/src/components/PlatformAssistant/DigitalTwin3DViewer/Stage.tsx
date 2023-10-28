@@ -11,7 +11,6 @@ const dirZ = new THREE.Vector3(0, 0, 1);
 const blueColor = new THREE.Color("#0000FF");
 const origin = new THREE.Vector3(0, 0, 0);
 
-
 type ControlsProto = { update(): void; target: THREE.Vector3 }
 
 type Props = JSX.IntrinsicElements['group'] & {
@@ -60,11 +59,11 @@ export function Stage({
     const spotLightRefBase = useRef();
     const spotLightRefNull = useRef(undefined);
     const spotLightRef = showSpotLightHelper ? spotLightRefBase : spotLightRefNull;
-    useHelper(spotLightRef, THREE.SpotLightHelper, "teal");
+    useHelper(spotLightRef as React.MutableRefObject<any>, THREE.SpotLightHelper, "teal");
     const pointLightRefBase = useRef();
     const pointLightRefNull = useRef(undefined);
     const pointLightRef = showPointLightHelper ? pointLightRefBase : pointLightRefNull;
-    useHelper(pointLightRef, THREE.PointLightHelper, 0.2, 'cyan');
+    useHelper(pointLightRef  as React.MutableRefObject<any>, THREE.PointLightHelper, 0.2, 'cyan');
     const [axisLength, setAxisLength] = useState(1);
 
     useLayoutEffect(() => {
@@ -119,7 +118,7 @@ export function Stage({
             {spotLight &&
                 <>
                     <spotLight
-                        ref={spotLightRefBase}
+                        ref={spotLightRefBase as React.MutableRefObject<any>}
                         penumbra={0.5}
                         position={[sceneCenter.x + radius * 1.0, sceneCenter.y + radius * 2.0, sceneCenter.z + radius * 1.0]}
                         power={spotLightPower}
@@ -133,7 +132,7 @@ export function Stage({
 
             {pointLight &&
                 <pointLight
-                    ref={pointLightRefBase}
+                    ref={pointLightRefBase as React.MutableRefObject<any>}
                     // position={[-2.0 * radius, -0.5 * radius, -1.8 * radius]}
                     position={[sceneCenter.x - radius * 1.0, sceneCenter.y - radius * 2.0, sceneCenter.z - radius * 1.0]}
                     power={pointLightPower}
