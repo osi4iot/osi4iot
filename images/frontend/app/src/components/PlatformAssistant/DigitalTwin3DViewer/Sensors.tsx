@@ -241,8 +241,8 @@ const SensorBase: FC<SensorProps> = ({
                     rotation={[0, 0, 0]}
                 />
 				<Html
-                    castShadow // Make HTML cast a shadow
-                    receiveShadow // Make HTML receive shadows
+                    castShadow
+                    receiveShadow
                 >
                     <SensorLabel >
                         <span>{obj.name}</span>
