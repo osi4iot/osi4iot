@@ -1,0 +1,72 @@
+import { FC } from "react";
+import Input from "./Input";
+import InputArray from "./InputArray";
+import InputArrayRows from "./InputArrayRows";
+import SelectControl from "./SelectControl";
+import Textarea from "./Textarea";
+
+interface IOption {
+    value: string | boolean;
+    label: string;
+}
+
+interface FormikControlProps {
+    control: string;
+    label?: string;
+    name?: string;
+    type?: string;
+    labelArray?: string[];
+    nameArray?: string[];
+    typeArray?: string[];
+    addLabel?: string;
+    selectLabel?: string;
+    goToSelect?: () => void;
+    options?: IOption[];
+    autoFocus?: boolean;
+    onChange?: (option: any) => void;
+    textAreaSize?: string;
+    readOnly?: boolean
+}
+
+const FormikControl: FC<FormikControlProps> = ({ control, label, name, type, labelArray, nameArray, typeArray, addLabel, selectLabel, goToSelect, options, autoFocus, textAreaSize, readOnly=false, ...rest }) => {
+    switch (control) {
+        case 'input':
+            return <Input label={label as string} name={name as string} type={type as string} {...rest} />
+        case 'inputArray':
+            return (
+                <InputArray
+                    label={label as string}
+                    name={name as string}
+                    labelArray={labelArray as string[]}
+                    typeArray={typeArray as string[]}
+                    nameArray={nameArray as string[]}
+                    addLabel={addLabel as string}
+                    selectLabel={selectLabel as string}
+                    goToSelect={goToSelect as () => void}
+                    {...rest}
+                />
+            )
+        case 'inputArrayRows':
+            return (
+                <InputArrayRows
+                    label={label as string}
+                    name={name as string}
+                    labelArray={labelArray as string[]}
+                    typeArray={typeArray as string[]}
+                    nameArray={nameArray as string[]}
+                    addLabel={addLabel as string}
+                    inputSelectOptions={options as IOption[]}
+                    selectLabel={selectLabel as string}
+                    goToSelect={goToSelect as () => void}
+                    {...rest}
+                />
+            )
+        case 'textarea':
+            return <Textarea label={label as string} name={name as string} textAreaSize={textAreaSize as string} readOnly={readOnly} {...rest}/>
+        case 'select':
+            return <SelectControl label={label as string} name={name as string} options={options as IOption[]} autoFocus={ autoFocus as boolean} {...rest} />
+        default: return null;
+    }
+}
+
+export default FormikControl;

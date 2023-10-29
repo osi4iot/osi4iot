@@ -35,6 +35,11 @@ images/frontend/app/.env
 images/frontend/app/node_modules
 images/frontend/app/build
 images/frontend/app/public/env-config.js
+images/frontend/app_r18/.env
+images/frontend/app_r18/node_modules
+images/frontend/app_r18/build
+images/frontend/app_r18/public/env-config.js
+!images/frontend/app_r18/.env
 images/mobile_sensors/app/.env
 images/mobile_sensors/app/node_modules
 images/mobile_sensors/app/build
