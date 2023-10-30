@@ -21,13 +21,11 @@ const StyledLoader = styled(Oval)`
 	background-color: #202226;
 `
 
-
-
 const SceneLoader: FC<{}> = () => {
     return (
         <SceneLoaderContainer>
             <Text>Loading scene</Text>
-            <StyledLoader color="#3274d9" height={20} width={20} />
+            <StyledLoader color="#3274d9" secondaryColor="#235197" height={20} width={20} />
         </SceneLoaderContainer>
     );
 };

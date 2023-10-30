@@ -17,7 +17,7 @@ const StyledLoader = styled(Oval)`
 const Loader: FC<{}> = () => {
 	return (
 		<LoaderContainer>
-			<StyledLoader color="#3274d9" height={150} width={150} />
+			<StyledLoader color="#3274d9" secondaryColor="#235197" height={150} width={150} />
 		</LoaderContainer>
 	);
 };

@@ -20,7 +20,7 @@ const StyledLoader = styled(Spinner)`
 const PdfLoader: FC<{}> = () => {
     return (
         <PdfLoaderContainer>
-            <StyledLoader type="Oval" color="#3274d9" height={200} width={200} />
+            <StyledLoader type="Oval" color="#3274d9" secondaryColor="#235197" height={200} width={200} />
         </PdfLoaderContainer>
     );
 };

@@ -25,17 +25,15 @@ const TableStyles = styled.div.withConfig({
         border-spacing: 0;
         background-color: #202226;
 
-        tr {
-            :nth-child(even) {
-                td {
-                    background-color: #202226;
-                }
+        :nth-child(even) {
+            td {
+                background-color: #202226;
             }
+        }
 
-            :nth-child(odd) {
-                td {
-                    background-color: #0c0d0f;
-                }
+        :nth-child(odd) {
+            td {
+                background-color: #0c0d0f;
             }
         }
 

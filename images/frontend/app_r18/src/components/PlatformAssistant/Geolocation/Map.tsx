@@ -31,6 +31,10 @@ const MapContainerStyled = styled(MapContainer)`
         background:  #212121;
         outline: 0;
     }
+
+    .leaflet-interactive {
+        outline-style: none;
+    }
 `;
 
 

@@ -70,15 +70,16 @@ const GeoAsset: FC<GeoAssetProps> = ({
 
     useEffect(() => {
         if (assetSelected && assetSelected.id === assetData.id) {
-
             map.fitBounds(outerBounds as LatLngTuple[]);
         }
     }, [assetData, assetSelected, outerBounds, map]);
 
     const clickHandler = () => {
-        selectAsset(assetData);
-        selectDigitalTwin(null);
-        map.fitBounds(outerBounds as LatLngTuple[]);
+        if (assetSelected?.id !== assetData.id) {
+            selectAsset(assetData);
+            selectDigitalTwin(null);
+            map.fitBounds(outerBounds as LatLngTuple[]);
+        }
     }
 
     useEffect(() => {
@@ -103,16 +104,13 @@ const GeoAsset: FC<GeoAssetProps> = ({
                 outerBounds={outerBounds as LatLngTuple[]}
                 imageRef={null}
             />
-            {
-                (!assetSelected || !(assetSelected?.id === assetData.id)) &&
-                <Tooltip sticky>
-                    <span style={{ fontWeight: 'bold' }}>Asset</span><br />
-                    Name: {`Asset_${assetData.assetUid}`}<br />
-                    Description: {assetData.description}<br />
-                    Type: {assetData.assetType}<br />
-                    Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
-                </Tooltip>
-            }
+            <Tooltip sticky>
+                <span style={{ fontWeight: 'bold' }}>Asset</span><br />
+                Name: {`Asset_${assetData.assetUid}`}<br />
+                Description: {assetData.description}<br />
+                Type: {assetData.assetType}<br />
+                Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>
+            </Tooltip>
             {
                 (assetSelected && assetSelected.id === assetData.id) &&
                 <GeoSensors

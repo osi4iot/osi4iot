@@ -162,7 +162,9 @@ interface AddDataFromFileButtonProps {
     localFileLoaded: boolean;
 }
 
-const AddDataFromFileButton = styled.button<AddDataFromFileButtonProps>`
+const AddDataFromFileButton = styled.button.withConfig({
+	shouldForwardProp: (prop) => prop !== 'localFileLoaded'
+  })<AddDataFromFileButtonProps>`
 	background-color: #3274d9;
 	padding: 10px 20px;
 	color: white;

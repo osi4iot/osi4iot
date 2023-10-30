@@ -20,7 +20,7 @@ const StyledLoader = styled(Oval)`
 const PdfLoader: FC<{}> = () => {
     return (
         <PdfLoaderContainer>
-            <StyledLoader color="#3274d9" height={200} width={200} />
+            <StyledLoader color="#3274d9" secondaryColor="#235197" height={200} width={200} />
         </PdfLoaderContainer>
     );
 };

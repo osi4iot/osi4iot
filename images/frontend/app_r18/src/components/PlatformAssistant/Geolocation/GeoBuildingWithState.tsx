@@ -22,7 +22,7 @@ const setOrgStyle = (isSelected: boolean) => {
         opacity: 1,
         fill: true,
         fillColor: "#3e3f3b",
-        fillOpacity: 0.2
+        fillOpacity: 0.2,
     }
 }
 

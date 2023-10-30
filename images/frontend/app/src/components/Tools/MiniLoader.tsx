@@ -11,7 +11,7 @@ const LoaderContainer = styled.div`
 const MiniLoader: FC<{}> = () => {
 	return (
 		<LoaderContainer >
-			<Spinner type="Oval" color="#3274d9" height={20} width={20} />
+			<Spinner type="Oval" color="#3274d9" secondaryColor="#235197" height={20} width={20} />
 		</LoaderContainer >
 	);
 };

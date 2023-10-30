@@ -22,7 +22,9 @@ interface ButtonsProps {
     isWideForm: boolean;
 }
 
-const Button = styled.button<ButtonsProps>`
+const Button = styled.button.withConfig({
+	shouldForwardProp: (prop) => prop !== 'isWideForm',
+  })<ButtonsProps>`
 	background-color: #3274d9;
 	padding: 10px 20px;
 	color: white;

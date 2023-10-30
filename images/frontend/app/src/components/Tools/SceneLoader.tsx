@@ -27,7 +27,7 @@ const SceneLoader: FC<{}> = () => {
     return (
         <SceneLoaderContainer>
             <Text>Loading scene</Text>
-            <StyledLoader type="Oval" color="#3274d9" height={20} width={20} />
+            <StyledLoader type="Oval" color="#3274d9" secondaryColor="#235197" height={20} width={20} />
         </SceneLoaderContainer>
     );
 };

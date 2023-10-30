@@ -11,7 +11,7 @@ const setBuildingStyle = () => {
         opacity: 1,
         fill: true,
         fillColor: "#3e3f3b",
-        fillOpacity: 0.2
+        fillOpacity: 0.2,
     }
 }
 
@@ -21,7 +21,7 @@ interface GeoBuildingProps {
     isNecessaryToFitBounds?: boolean
 }
 
-const GeoBuilding: FC<GeoBuildingProps> = ({ outerBounds, buildingData, isNecessaryToFitBounds= true }) => {
+const GeoBuilding: FC<GeoBuildingProps> = ({ outerBounds, buildingData, isNecessaryToFitBounds = true }) => {
     const styleGeoJson = (geoJsonFeature: any) => {
         return setBuildingStyle();
     }

@@ -2,7 +2,6 @@ import { FC } from "react";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import styled from "styled-components";
 import HomePage from "../pages/HomePage";
 import LoginPage from "../pages/LoginPage";
 import MobileSensorsPage from "../pages/MobileSensorsPage";
@@ -18,19 +17,6 @@ import PlatformAssistantPageUser from "../pages/PlatformAssistantPageUser";
 import { PrivateRouteWithUserRole } from "./PrivateRouteWithUserRole";
 import DigitalTwinSimulatorMobilePage from "../pages/DigitalTwinSimulatorMobilePage";
 
-const StyledToastContainer = styled(ToastContainer)`
-
-	.Toastify__toast-body {
-		background-color: inherit;
-		color: white;
-	}
-
-	.Toastify__toast--warning {
-		background-color: #ff8a23;
-	}
-  
-`;
-
 const AppRouter: FC<{}> = () => {
 	return (
 		<>
@@ -45,7 +31,7 @@ const AppRouter: FC<{}> = () => {
 					<Route element={<PrivateRoute redirectAddress={"/login"} />}>
 						<Route path="/mobile_sensors" element={<MobileSensorsPage />} />
 						<Route path="/login" element={<DigitalTwinSimulatorMobilePage />} />
-						<Route path="/platform_assistant" element={<PlatformAssistantPage/>} />
+						<Route path="/platform_assistant" element={<PlatformAssistantPage />} />
 					</Route>
 
 					<Route path="/" element={<HomePage />} />
@@ -70,7 +56,19 @@ const AppRouter: FC<{}> = () => {
 					<Route path="*" element={<NotFoundPage />} />
 				</Routes>
 			</Router>
-			<StyledToastContainer position="bottom-right" hideProgressBar={true} autoClose={5000} />
+			{/* <StyledToastContainer theme="light" position="bottom-right" hideProgressBar={true} autoClose={5000} /> */}
+			<ToastContainer
+				position="bottom-right"
+				autoClose={5000}
+				hideProgressBar={false}
+				newestOnTop={false}
+				closeOnClick
+				rtl={false}
+				pauseOnFocusLoss
+				draggable
+				pauseOnHover
+				theme="colored"
+			/>
 		</>
 	);
 };
