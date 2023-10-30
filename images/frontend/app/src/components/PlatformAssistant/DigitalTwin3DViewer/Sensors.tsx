@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import React, { FC, useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
+import { HiLocationMarker } from "react-icons/hi";
 import { ISensorObject } from './Model';
 import { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState } from './ViewerUtils';
 import { changeMaterialPropRecursively } from '../../../tools/tools';
@@ -9,43 +10,22 @@ import { IThreeMesh } from './threeInterfaces';
 import { Html } from "@react-three/drei";
 import styled from 'styled-components';
 
-const SensorLabel = styled.div`
-    position: relative;
-    display: inline-block;
-    border-bottom: 1px dotted black;
-    
-    span {
-        width: 150px;
-        background-color: #ffeb99;
-        font-size: 12px;
-        font-weight: 700;
-        color: black;
-        text-align: center;
-        border-radius: 6px;
-        padding: 5px 0;
-        position: absolute;
-        z-index: 1;
-        bottom: 150%;
-        left: 50%;
-        margin-left: -75px;
-        margin-bottom: 25px;
+const MarkerContainer = styled.div`
+    position: absolute;
+    top: -30px;
+    right: -15px;
+`;
 
-        ::after {
-            content: "";
-            position: absolute;
-            top: 100%;
-            left: 50%;
-            margin-left: -5px;
-            border-width: 5px;
-            border-style: solid;
-            border-color: #ffeb99 transparent transparent transparent;
-        }
-    }
+
+const MarkerIcon = styled(HiLocationMarker)`
+	font-size: 30px;
+	color: #62f700;
 `;
 
 interface SensorProps {
     obj: IThreeMesh;
     blinking: boolean;
+    marker: boolean;
     opacity: number;
     sensorState: SensorState;
     sensorsStateString: string;
@@ -60,6 +40,7 @@ const noEmitColor = new THREE.Color(0, 0, 0);
 const SensorBase: FC<SensorProps> = ({
     obj,
     blinking,
+    marker,
     opacity = 1,
     sensorState,
     sensorsStateString,
@@ -78,7 +59,7 @@ const SensorBase: FC<SensorProps> = ({
     const timeout = obj.userData.timeout as number || 60;
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
-	const [clipsDuration, setClipsDuration] = useState(0);
+    const [clipsDuration, setClipsDuration] = useState(0);
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
@@ -215,14 +196,17 @@ const SensorBase: FC<SensorProps> = ({
                         object={obj}
                     />
                 </mesh>
-                <Html
-                    castShadow // Make HTML cast a shadow
-                    receiveShadow // Make HTML receive shadows
-                >
-                    <SensorLabel >
-                        <span>{obj.name}</span>
-                    </SensorLabel>
-                </Html>
+                {
+                    marker &&
+                    <Html
+                        castShadow // Make HTML cast a shadow
+                        receiveShadow // Make HTML receive shadows
+                    >
+                        <MarkerContainer>
+                            <MarkerIcon />
+                        </MarkerContainer>
+                    </Html>
+                }
             </group>
             :
             <group
@@ -240,14 +224,17 @@ const SensorBase: FC<SensorProps> = ({
                     scale={[1.0, 1.0, 1.0]}
                     rotation={[0, 0, 0]}
                 />
-				<Html
-                    castShadow
-                    receiveShadow
-                >
-                    <SensorLabel >
-                        <span>{obj.name}</span>
-                    </SensorLabel>
-                </Html>
+                {
+                    marker &&
+                    <Html
+                        castShadow // Make HTML cast a shadow
+                        receiveShadow // Make HTML receive shadows
+                    >
+                        <MarkerContainer>
+                            <MarkerIcon />
+                        </MarkerContainer>
+                    </Html>
+                }
             </group>
     )
 }
@@ -260,6 +247,7 @@ const areEqual = (prevProps: SensorProps, nextProps: SensorProps) => {
         prevProps.sensorState.clipValue === nextProps.sensorState.clipValue &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
+        prevProps.marker === nextProps.marker &&
         prevProps.visible === nextProps.visible;
 }
 const Sensor = React.memo(SensorBase, areEqual);
@@ -268,6 +256,7 @@ interface SensorsProps {
     sensorObjects: ISensorObject[];
     sensorsOpacity: number;
     highlightAllSensors: boolean;
+    showAllSensorsMarker: boolean;
     hideAllSensors: boolean;
     sensorsState: Record<string, SensorState>;
     sensorsVisibilityState: Record<string, ObjectVisibilityState>;
@@ -279,6 +268,7 @@ const Sensors: FC<SensorsProps> = ({
     sensorObjects,
     sensorsOpacity,
     highlightAllSensors,
+    showAllSensorsMarker,
     hideAllSensors,
     sensorsState,
     sensorsVisibilityState,
@@ -298,6 +288,7 @@ const Sensors: FC<SensorsProps> = ({
                         sensorState={sensorsState[obj.node.name]}
                         sensorsStateString={sensorsStateString}
                         updateSensorStateString={(state) => updateSensorStateString(obj.node.name, state)}
+                        marker={(sensorsVisibilityState[obj.collectionName].showSensorMarker || showAllSensorsMarker)}
                         visible={!(sensorsVisibilityState[obj.collectionName].hide || hideAllSensors)}
                     />
                 })

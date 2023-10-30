@@ -570,6 +570,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		showShadows: true,
 		sensorsOpacity: 1,
 		highlightAllSensors: false,
+		showAllSensorsMarker: false,
 		hideAllSensors: false,
 		sensorsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
 		assetsOpacity: 1,
@@ -898,6 +899,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								dashboardUrl={digitalTwinSelected?.dashboardUrl as string}
 								sensorsOpacity={opts.sensorsOpacity}
 								highlightAllSensors={opts.highlightAllSensors}
+								showAllSensorsMarker={opts.showAllSensorsMarker}
 								hideAllSensors={opts.hideAllSensors}
 								assetsOpacity={opts.assetsOpacity}
 								highlightAllAssets={opts.highlightAllAssets}
@@ -1011,6 +1013,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								>
 									<StyledDatNumber label="Opacity" path="sensorsOpacity" min={0} max={1} step={0.05} />
 									<StyledDatBoolean label="Highlight" path="highlightAllSensors" />
+									<StyledDatBoolean label="Sensor marker" path="showAllSensorsMarker" />
 									<StyledDatBoolean label="Hide" path="hideAllSensors" />
 								</DatFolder>
 								{
@@ -1028,6 +1031,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 												label="Highlight"
 												path={`sensorsVisibilityState[${collecionName}].highlight`}
 											/>
+											<StyledDatBoolean
+												label="Sensor marker"
+												path={`sensorsVisibilityState[${collecionName}].showSensorMarker`}
+											/>											
 											<StyledDatBoolean
 												label="Hide"
 												path={`sensorsVisibilityState[${collecionName}].hide`}

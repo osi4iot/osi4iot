@@ -105,19 +105,32 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
 
             const initialGenericObjectsVisibilityState: Record<string, ObjectVisibilityState> = {}
             for (const collectionName of genericObjectsCollectionNames) {
-                initialGenericObjectsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
+                initialGenericObjectsVisibilityState[collectionName] = {
+                    hide: false,
+                    highlight: false,
+                    opacity: 1.0
+                };
             }
             setInitialGenericObjectsVisibilityState(initialGenericObjectsVisibilityState);;
 
             const initialSensorsVisibilityState: Record<string, ObjectVisibilityState> = {}
             for (const collectionName of sensorsCollectionNames) {
-                initialSensorsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
+                initialSensorsVisibilityState[collectionName] = {
+                    hide: false,
+                    highlight: false,
+                    showSensorMarker: false,
+                    opacity: 1.0
+                };
             }
             setInitialSensorsVisibilityState(initialSensorsVisibilityState);
 
             const initialAssetsVisibilityState: Record<string, ObjectVisibilityState> = {}
             for (const collectionName of assetsCollectionNames) {
-                initialAssetsVisibilityState[collectionName] = { hide: false, highlight: false, opacity: 1.0 };
+                initialAssetsVisibilityState[collectionName] = {
+                    hide: false,
+                    highlight: false,
+                    opacity: 1.0
+                };
             }
             setInitialAssetsVisibilityState(initialAssetsVisibilityState);
 

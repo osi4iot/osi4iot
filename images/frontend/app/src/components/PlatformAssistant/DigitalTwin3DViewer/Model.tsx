@@ -95,6 +95,7 @@ interface ModelProps {
 	dashboardUrl: string;
 	sensorsOpacity: number;
 	highlightAllSensors: boolean;
+	showAllSensorsMarker: boolean;
 	hideAllSensors: boolean;
 	assetsOpacity: number;
 	highlightAllAssets: boolean;
@@ -148,6 +149,7 @@ const Model: FC<ModelProps> = (
 		dashboardUrl,
 		sensorsOpacity,
 		highlightAllSensors,
+		showAllSensorsMarker,
 		hideAllSensors,
 		assetsOpacity,
 		highlightAllAssets,
@@ -175,7 +177,7 @@ const Model: FC<ModelProps> = (
 		initialDigitalTwinSimulatorState,
 		openDashboardTab
 	}) => {
-	const camera = useThree((state) => state.camera); 
+	const camera = useThree((state) => state.camera);
 	const container = canvasRef.current as HTMLCanvasElement | null;
 	const group = useRef<THREE.Group>();
 	const [sensorsState, setSensorsState] = useState<Record<string, SensorState>>(initialSensorsState);
@@ -356,6 +358,7 @@ const Model: FC<ModelProps> = (
 					sensorObjects={sensorObjects}
 					sensorsOpacity={sensorsOpacity}
 					highlightAllSensors={highlightAllSensors}
+					showAllSensorsMarker={showAllSensorsMarker}
 					hideAllSensors={hideAllSensors}
 					sensorsState={sensorsState}
 					sensorsVisibilityState={sensorsVisibilityState}

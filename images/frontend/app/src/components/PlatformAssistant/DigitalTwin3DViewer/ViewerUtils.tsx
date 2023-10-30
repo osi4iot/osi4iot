@@ -16,6 +16,7 @@ import { IThreeMesh } from './threeInterfaces';
 export interface SensorState {
 	stateString: string;
 	highlight: boolean;
+	showSensorMarker: boolean;
 	sensorValue: (number | number[] | null);
 	clipValue: (number | null);
 }
@@ -34,6 +35,7 @@ export interface GenericObjectState {
 export interface ObjectVisibilityState {
 	hide: boolean;
 	highlight: boolean;
+	showSensorMarker?: boolean;
 	opacity: number;
 }
 
@@ -158,6 +160,7 @@ export const generateInitialSensorsState = (
 		const sensorTopicId = obj.node.userData.sensorTopicId;
 		const sensorsState: SensorState = {
 			stateString: "off",
+			showSensorMarker: false,
 			highlight: false,
 			sensorValue: null,
 			clipValue: null

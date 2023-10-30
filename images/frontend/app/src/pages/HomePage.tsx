@@ -173,9 +173,6 @@ const HomePage: FC<{}> = () => {
 					<MenuContainer>
 						<Title>Platform options</Title>
 						<MenuBorder>
-							{/* <ButtonLinkGitHub onClick={() => window.open("https://github.com/osi4iot/osi4iot", "_blank")}>
-								<FaGithubStyled />
-							</ButtonLinkGitHub> */}
 							<StyledNavLink exact to="/platform_assistant" >
 								Platform assistant
 							</StyledNavLink>
