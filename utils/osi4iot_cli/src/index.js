@@ -141,7 +141,7 @@ const osi4iotWelcome = () => {
 					'Local Minio',
 					"Cloud AWS S3",
                 ],
-                when: () => deploymentLocation !== "AWS cluster deployment",
+                when: (answers) => answers.DEPLOYMENT_LOCATION !== "AWS cluster deployment",
                 
 			},
         ])
