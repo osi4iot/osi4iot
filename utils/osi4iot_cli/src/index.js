@@ -113,7 +113,7 @@ const loadSSHAgentWarnning = () => {
 
 const osi4iotWelcome = () => {
     console.log(clc.whiteBright("\n************************************************"));
-    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.2.1  **"));
+    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.2.0  **"));
     console.log(clc.whiteBright("************************************************\n"));
 
     inquirer
@@ -282,6 +282,7 @@ const awsQuestions = (oldAnswers) => {
                 fs.writeFileSync(osi4iot_aws_key, answers.AWS_SSH_KEY, { mode: 0o400 });
                 loadSSHAgentWarnning();
             } else {
+                console.log("");
                 chooseOption();
             }
         });

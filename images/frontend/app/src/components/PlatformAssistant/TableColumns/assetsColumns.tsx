@@ -39,6 +39,7 @@ export interface IAsset {
     description: string;
     assetType: string;
     iconRadio: number;
+    iconSizeFactor: number;
     latitude: number;
     longitude: number;
     geolocationMode: string;
@@ -189,6 +190,12 @@ export const Create_ASSETS_COLUMNS = (
             disableSortBy: true
         },
         {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Icon size<br />factor</div>,
+            accessor: "iconSizeFactor",
+            disableFilters: true,
+            disableSortBy: true
+        },
+        {
             Header: "Longitude",
             accessor: "longitude",
             disableFilters: true,
@@ -224,8 +231,9 @@ export const Create_ASSETS_COLUMNS = (
                     assetType,
                     description: row?.cells[5]?.value,
                     iconRadio: row?.cells[6]?.value,
-                    longitude: row?.cells[7]?.value,
-                    latitude: row?.cells[8]?.value,
+                    iconSizeFactor: row?.cells[7]?.value,
+                    longitude: row?.cells[8]?.value,
+                    latitude: row?.cells[9]?.value,
                     iconSvgString
                 }
                 return <EditAsset assetId={assetId} rowIndex={rowIndex} assetInputData={assetInputData} />

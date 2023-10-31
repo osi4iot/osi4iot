@@ -20,6 +20,7 @@ export const initialState = {
         assetUid: "",
         description: "",
         iconRadio: 1.0,
+        iconSizeFactor: 1.0,
         longitude: 0,
         latitude: 0,
         iconSvgString: ""

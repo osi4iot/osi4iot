@@ -334,7 +334,7 @@ class GroupController implements IController {
 				description: `Mobile for group ${groupCreated.acronym}`,
 				assetTypeId: assetType.id,
 				iconRadio: 1.0,
-				iconImageFactor: 1.0,
+				iconSizeFactor: 1.0,
 				longitude: assetLongitude,
 				latitude: assetLatitude,
 				geolocationMode: "dynamic"

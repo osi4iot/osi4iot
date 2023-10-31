@@ -66,7 +66,9 @@ const GeoAsset: FC<GeoAssetProps> = ({
     }, [assetData, digitalTwinsState, sensorStateFiltered]);
 
     const outerBounds = useMemo(() => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.001), [assetData]);
-    const bounds = useMemo(() => calcGeoBounds(assetData.longitude, assetData.latitude, assetData.iconRadio * 0.00045), [assetData]);
+    const bounds = useMemo(() => calcGeoBounds(
+        assetData.longitude, assetData.latitude, assetData.iconSizeFactor * assetData.iconRadio * 0.00045
+    ), [assetData]);
 
     useEffect(() => {
         if (assetSelected && assetSelected.id === assetData.id) {

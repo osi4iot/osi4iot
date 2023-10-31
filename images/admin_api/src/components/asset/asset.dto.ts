@@ -11,7 +11,7 @@ class CreateAssetDto {
 	public iconRadio: number;
 
 	@IsNumber()
-	public iconImageFactor: number
+	public iconSizeFactor: number
 
 	@IsNumber()
 	public longitude: number;

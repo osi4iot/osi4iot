@@ -154,6 +154,7 @@ const assetInitInputFormData = {
     assetType: "Generic",
     assetUid: "",
     iconRadio: 1.0,
+    iconSizeFactor: 1.0,
     longitude: 0,
     latitude: 0,
     iconSvgString: ""
@@ -219,18 +220,20 @@ const EditAsset: FC<EditAssetProps> = ({
             (values as any).iconRadio = parseFloat((values as any).iconRadio);
         }
 
+        if (typeof (values as any).iconSizeFactor === 'string') {
+            (values as any).iconSizeFactor = parseFloat((values as any).iconSizeFactor);
+        }
+
         const assetTypeId = assetTypesFiltered.filter(item => item.type === values.assetType)[0].id;
 
         const assetEditData = {
             description: values.description,
             assetTypeId,
             iconRadio: values.iconRadio,
+            iconSizeFactor: values.iconSizeFactor,
             longitude: values.longitude,
             latitude: values.latitude,
         }
-
-        // const assetInputFormData = { assetInputFormData: assetInitInputFormData };
-        // setAssetInputData(assetsDispatch, assetInputFormData);
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, assetEditData, config)
@@ -256,6 +259,7 @@ const EditAsset: FC<EditAssetProps> = ({
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
         iconRadio: Yup.number().min(0.2, "The minimum value of the icon ratio is 0.2m").max(2, "The maximum value of the icon ratio is 2m").required('Required'),
+        iconSizeFactor: Yup.number().min(0.1, "The minimum value of the icon size factor is 0.1").max(2, "The maximum value of the icon size factor is 2").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -273,7 +277,7 @@ const EditAsset: FC<EditAssetProps> = ({
             toast.warning(warningMessage);
         } else {
             assetInputData.iconRadio = parseFloat(assetInputData.iconRadio as unknown as string);
-            assetInputData = {...assetInputData, iconSvgString}
+            assetInputData = { ...assetInputData, iconSvgString }
             const orgId = assets[assetRowIndex].orgId;
             const assetInputFormData = { assetInputFormData: assetInputData };
             setAssetInputData(assetsDispatch, assetInputFormData);
@@ -350,6 +354,12 @@ const EditAsset: FC<EditAssetProps> = ({
                                             control='input'
                                             label='Icon radio (m)'
                                             name='iconRadio'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Icon size factor'
+                                            name='iconSizeFactor'
                                             type='text'
                                         />
                                         <SelectAssetLocationButtonContainer >

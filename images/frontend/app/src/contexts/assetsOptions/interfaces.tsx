@@ -12,6 +12,7 @@ export interface IAssetInputData {
 	assetUid: string;
 	description: string;
 	iconRadio: number;
+	iconSizeFactor: number;
 	longitude: number;
 	latitude: number;
 	iconSvgString: string;

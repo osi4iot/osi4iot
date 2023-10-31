@@ -494,7 +494,7 @@ export const dataBaseInitialization = async () => {
 					description VARCHAR(190),
 					geolocation POINT,
 					icon_radio real NOT NULL DEFAULT 1.0,
-					icon_image_factor real NOT NULL DEFAULT 1.0,
+					icon_size_factor real NOT NULL DEFAULT 1.0,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_group_id
@@ -523,7 +523,7 @@ export const dataBaseInitialization = async () => {
 						description: `Mobile for group ${group.acronym}`,
 						type: "Mobile",
 						iconRadio: 1.0,
-						iconImageFactor: 1.0,
+						iconSizeFactor: 1.0,
 						longitude: 0.0,
 						latitude: 0.0,
 						geolocationMode: "dynamic"

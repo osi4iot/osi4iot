@@ -7,7 +7,7 @@ export default interface IAsset {
 	assetType?: string;
 	assetTypeId: number;
 	iconRadio: number;
-	iconImageFactor: number;
+	iconSizeFactor: number;
 	longitude: number;
 	latitude: number;
 	iconSvgString?: string;

@@ -187,6 +187,7 @@ interface InitialAssetData {
     longitude: number;
     latitude: number;
     iconRadio: number;
+    iconSizeFactor: number;
 }
 
 type FormikType = FormikProps<InitialAssetData>
@@ -238,6 +239,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
         longitude: storedAssetData.longitude,
         latitude: storedAssetData.latitude,
         iconRadio: storedAssetData.iconRadio,
+        iconSizeFactor: storedAssetData.iconSizeFactor,
     }
 
     useEffect(() => {
@@ -297,6 +299,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
             description: values.description,
             assetTypeId,
             iconRadio: values.iconRadio,
+            iconSizeFactor: values.iconSizeFactor,
             longitude: values.longitude,
             latitude: values.latitude,
         }
@@ -325,6 +328,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
         longitude: Yup.number().moreThan(-180, "The minimum value of longitude is -180").lessThan(180, "The maximum value of longitude is 180").required('Required'),
         latitude: Yup.number().moreThan(-90, "The minimum value of latitude is -90").lessThan(90, "The maximum value of latitude is 90").required('Required'),
         iconRadio: Yup.number().min(0.2, "The minimum value of the icon ratio is 0.2m").max(2, "The maximum value of the icon ratio is 2m").required('Required'),
+        iconSizeFactor: Yup.number().min(0.1, "The minimum value of the icon size factor is 0.1").max(2, "The maximum value of the icon size factor is 2").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -348,6 +352,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
                 assetType: initialAssetData.assetType,
                 description: initialAssetData.description,
                 iconRadio: parseFloat(initialAssetData.iconRadio as unknown as string),
+                iconSizeFactor: parseFloat(initialAssetData.iconSizeFactor as unknown as string),
                 longitude: parseFloat(initialAssetData.longitude as unknown as string),
                 latitude: parseFloat(initialAssetData.latitude as unknown as string),
                 iconSvgString
@@ -440,6 +445,12 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                             control='input'
                                             label='Icon ratio'
                                             name='iconRadio'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Icon size factor'
+                                            name='iconSizeFactor'
                                             type='text'
                                         />
                                         <SelectAssetLocationDivButtonContainer >

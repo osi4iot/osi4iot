@@ -215,50 +215,52 @@ export const checkReferencesMatch = (digitalTwinGltfData: any, dtReferencesData:
     let errorMessage = "Gltf file references not match with digital twin references file";
     let outputMessage = "";
     const { topicsRefList, sensorsRefList } = getTopicSensorTypesFromDigitalTwin(digitalTwinGltfData);
-    if (
-        topicsRefList.length !== dtReferencesData.topicsRef.length &&
-        sensorsRefList.length !== dtReferencesData.sensorsRef.length
-    ) {
-        referencesMatch = false;
-        outputMessage = errorMessage;
-    } else {
-        topicsRefList.sort();
-        dtReferencesData.topicsRef.sort((a: any, b: any) => {
-            return a.topicRef - b.topicRef;
-        })
-        let topicRefIndexMatch = true;
-        for (let i = 0; i < topicsRefList.length; i++) {
-            const index1 = parseInt(topicsRefList[i].split("_")[1], 10);
-            const index2 = parseInt(dtReferencesData.topicsRef[i].topicRef.split("_")[1], 10);
-            if (index1 !== index2 || index1 !== (i + 1)) {
-                topicRefIndexMatch = false;
-                outputMessage = errorMessage;
-                break;
-            }
-        }
-
-        if (topicRefIndexMatch) {
-            sensorsRefList.sort((a: string, b: string) =>
-                parseInt(a.split("_")[1], 10) - parseInt(b.split("_")[1], 10)
-            );
-            dtReferencesData.sensorsRef.sort((a: any, b: any) => {
-                return a.sensorRef - b.sensorRef;
-            });
-            let sensorRefIndexMatch = true;
-            for (let i = 0; i < sensorsRefList.length; i++) {
-                const index1 = parseInt(sensorsRefList[i].split("_")[1], 10);
-                const index2 = parseInt(dtReferencesData.sensorsRef[i].sensorRef.split("_")[1], 10);
+    if (dtReferencesData.topicsRef.length !== 0 && dtReferencesData.sensorsRef.length !== 0) {
+        if (
+            topicsRefList.length !== dtReferencesData.topicsRef.length &&
+            sensorsRefList.length !== dtReferencesData.sensorsRef.length
+        ) {
+            referencesMatch = false;
+            outputMessage = errorMessage;
+        } else {
+            topicsRefList.sort();
+            dtReferencesData.topicsRef.sort((a: any, b: any) => {
+                return a.topicRef - b.topicRef;
+            })
+            let topicRefIndexMatch = true;
+            for (let i = 0; i < topicsRefList.length; i++) {
+                const index1 = parseInt(topicsRefList[i].split("_")[1], 10);
+                const index2 = parseInt(dtReferencesData.topicsRef[i].topicRef.split("_")[1], 10);
                 if (index1 !== index2 || index1 !== (i + 1)) {
-                    sensorRefIndexMatch = false;
+                    topicRefIndexMatch = false;
                     outputMessage = errorMessage;
                     break;
                 }
             }
-            if (!sensorRefIndexMatch) referencesMatch = false;
-        } else {
-            referencesMatch = false;
-            outputMessage = errorMessage;
-        }
+    
+            if (topicRefIndexMatch) {
+                sensorsRefList.sort((a: string, b: string) =>
+                    parseInt(a.split("_")[1], 10) - parseInt(b.split("_")[1], 10)
+                );
+                dtReferencesData.sensorsRef.sort((a: any, b: any) => {
+                    return a.sensorRef - b.sensorRef;
+                });
+                let sensorRefIndexMatch = true;
+                for (let i = 0; i < sensorsRefList.length; i++) {
+                    const index1 = parseInt(sensorsRefList[i].split("_")[1], 10);
+                    const index2 = parseInt(dtReferencesData.sensorsRef[i].sensorRef.split("_")[1], 10);
+                    if (index1 !== index2 || index1 !== (i + 1)) {
+                        sensorRefIndexMatch = false;
+                        outputMessage = errorMessage;
+                        break;
+                    }
+                }
+                if (!sensorRefIndexMatch) referencesMatch = false;
+            } else {
+                referencesMatch = false;
+                outputMessage = errorMessage;
+            }
+    }
     }
     return [referencesMatch, outputMessage];
 }
@@ -406,12 +408,17 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
     const [dtRefFileName, setDTRefFileName] = useState("-");
     const [dtRefFileLastModifDate, setDTRefFileLastModifDate] = useState("-");
-    const [dtReferencesData, setDtReferencesData] = useState<any>({});
+    const initialDtReferencesData = {
+        topicsRef: [],
+        sensorsRef: [],
+        digitalTwinSimulationFormat: {}
+    };
+    const [dtReferencesData, setDtReferencesData] = useState<any>(initialDtReferencesData);
     const [dtReferencesFileLoaded, setDTReferencesFileLoaded] = useState(false);
     const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
-    const [isFemResDataReady, setIsFemResDataReady] = useState(false);
-    const [isDTRefDataReady, setIsDTRefDataReady] = useState(false);
+    const [isFemResDataReady, setIsFemResDataReady] = useState(true);
+    const [isDTRefDataReady, setIsDTRefDataReady] = useState(true);
     const [isFormReady, setIsFormReady] = useState(false);
     const initialTopicsRef = [{ topicRef: "dev2pdb_1", topicId: 0 }];
     const [topicsRef, setTopicsRef] = useState<ITopicRef[]>(initialTopicsRef);
@@ -443,7 +450,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 toast.error(errorMessage);
                 setIsFormReady(false);
             } else {
-                setTopicsRef(dtReferencesData.topicsRef);
+                if (dtReferencesData.topicsRef.length !== 0) {
+                    setTopicsRef(dtReferencesData.topicsRef);
+                }
                 setSensorsRef(dtReferencesData.sensorsRef);
                 setIsFormReady(true);
             }
@@ -456,9 +465,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         dtReferencesData,
         isDTRefDataReady,
         isFemResDataReady,
-        isGlftDataReady
+        isGlftDataReady,
+        digitalTwinType
     ])
-
 
     useEffect(() => {
         if (
