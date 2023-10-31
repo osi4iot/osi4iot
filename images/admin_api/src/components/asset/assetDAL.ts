@@ -8,11 +8,8 @@ import CreateAssetDto from "./asset.dto";
 import IAsset from "./asset.interface";
 import IAssetType from "./assetType.interface";
 import CreateAssetTypeDto from "./assetType.dto";
-import { findGroupGeojsonData, findGroupBounds } from "../../utils/geolocation.ts/geolocation";
-import arrayCompare from "../../utils/helpers/arrayCompare";
+import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
-import { updateGroupById } from "../group/groupDAL";
-import { updateGroupNodeRedInstanceLocation } from "../nodeRedInstance/nodeRedInstanceDAL";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -194,12 +191,14 @@ export const getNumAssetTypesByOrgsIdArray = async (orgsIdArray: number[]): Prom
 
 export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 	const queryString = `INSERT INTO grafanadb.asset (group_id, asset_uid,
-		asset_type_id, description, geolocation, icon_radio, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+		asset_type_id, description, geolocation, icon_radio, icon_image_factor,
+		created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 		RETURNING id, group_id AS "groupId",
 		asset_uid AS "assetUid",
 		asset_type_id AS "assetTypeId",
 		description, icon_radio AS "iconRadio",
+		icon_image_factor AS "iconImageFactor",
 		geolocation[0] AS longitude,
 		geolocation[1] AS latitude,
 		created, updated`;
@@ -212,6 +211,7 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 			assetData.description,
 			`(${assetData.longitude},${assetData.latitude})`,
 			assetData.iconRadio,
+			assetData.iconImageFactor,
 		]);
 	return result.rows[0] as IAsset;
 };
@@ -219,12 +219,14 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 export const updateAssetByPropName = async (propName: string, propValue: (string | number), asset: IAsset): Promise<void> => {
 	const query = `UPDATE grafanadb.asset SET description = $1,
 				geolocation = $2, icon_radio = $3,
-				asset_type_id = $4, updated = NOW()
-				WHERE grafanadb.asset.${propName} = $5;`;
+				icon_image_factor = $4,
+				asset_type_id = $5, updated = NOW()
+				WHERE grafanadb.asset.${propName} = $6;`;
 	await pool.query(query, [
 		asset.description,
 		`(${asset.longitude},${asset.latitude})`,
 		asset.iconRadio,
+		asset.iconImageFactor,
 		asset.assetTypeId,
 		propValue
 	]);
@@ -265,6 +267,7 @@ export const getAssetByPropName = async (propName: string, propValue: (string | 
 									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
+									grafanadb.asset.icon_image_factor AS "iconImageFactor",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated
@@ -282,6 +285,7 @@ export const getAllAssets = async (): Promise<IAsset[]> => {
 									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
+									grafanadb.asset.icon_image_factor AS "iconImageFactor",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated
@@ -305,6 +309,7 @@ export const getAssetsByGroupId = async (groupId: number): Promise<IAsset[]> => 
 									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
+									grafanadb.asset.icon_image_factor AS "iconImageFactor",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated
@@ -323,6 +328,7 @@ export const getAssetsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
+									grafanadb.asset.icon_image_factor AS "iconImageFactor",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated
@@ -348,6 +354,7 @@ export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
 									grafanadb.asset_type.type AS "assetType",
 									grafanadb.asset.asset_type_id AS "assetTypeId",
 									grafanadb.asset.icon_radio AS "iconRadio",
+									grafanadb.asset.icon_image_factor AS "iconImageFactor",
 									grafanadb.asset.geolocation[0] AS longitude,
 									grafanadb.asset.geolocation[1] AS latitude, 
 									grafanadb.asset.created, grafanadb.asset.updated

@@ -8,10 +8,10 @@
     "build:clean": "rm -rf lib",
     "prebuild": "yarn build:clean",
     "build": "babel ./src --out-dir ./lib --source-maps",
-    "build_win_x64": "pkg -t node16-win-x64 -o ./dist/win_x64/osi4iot.exe ./lib/index.js",
-    "build_linux_x64": "pkg -t node16-linux-x64 -o ./dist/linux_x64/osi4iot ./lib/index.js",
+    "build_win_x64": "pkg -t latest-win-x64 -o ./dist/win_x64/osi4iot.exe ./lib/index.js",
+    "build_linux_x64": "pkg -t latest-linux-x64 -o ./dist/linux_x64/osi4iot ./lib/index.js",
     "postbuild_linux_x64": "sudo cp ./dist/linux_x64/osi4iot /usr/local/bin/osi4iot",
-    "build_linux_arm64": "pkg -t node16-linux-arm64 -o ./dist/linux_arm64/osi4iot ./lib/index.js",
+    "build_linux_arm64": "pkg -t latest-linux-arm64 -o ./dist/linux_arm64/osi4iot ./lib/index.js",
     "build:prod": "yarn build && yarn build_win_x64 && yarn build_linux_x64 && yarn build_linux_arm64",
     "build:prod_amd64": "yarn build && yarn build_win_x64 && yarn build_linux_x64",
     "build:prod_arm64": "yarn build && yarn build_linux_arm64",
@@ -29,15 +29,16 @@
     "mkcert": "^1.5.0",
     "nanoid": "^3.3.1",
     "needle": "^3.1.0",
+    "pkg": "^5.8.1",
     "timezone-validator": "^1.0.3",
     "valid-url": "^1.0.9",
     "yargs": "^17.6.0"
   },
   "devDependencies": {
-    "@babel/cli": "^7.17.6",
-    "@babel/core": "^7.17.9",
-    "@babel/node": "^7.16.8",
-    "@babel/plugin-transform-runtime": "^7.17.0",
-    "@babel/preset-env": "^7.16.11"
+    "@babel/cli": "^7.23.0",
+    "@babel/core": "^7.23.2",
+    "@babel/node": "^7.22.19",
+    "@babel/plugin-transform-runtime": "^7.23.2",
+    "@babel/preset-env": "^7.23.2"
   }
 }

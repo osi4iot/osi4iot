@@ -412,6 +412,7 @@ class OrganizationController implements IController {
 					description: `Mobile for group ${group.acronym}`,
 					assetTypeId: assetTypes[4].id,
 					iconRadio: 1.0,
+					iconImageFactor: 1.0,
 					longitude: 0.0,
 					latitude: 0.0,
 				}

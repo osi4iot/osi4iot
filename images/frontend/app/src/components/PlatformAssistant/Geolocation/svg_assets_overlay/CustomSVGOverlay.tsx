@@ -8,7 +8,7 @@ interface SVGOverlayStyledProps {
     backgroundColor: string;
 }
 
-const SVGOverlayStyled = styled(SVGOverlay)<SVGOverlayStyledProps>`
+const SVGOverlayStyled = styled(SVGOverlay) <SVGOverlayStyledProps>`
     & svg {
         fill: ${(props) => `${props.fillColor} !important`};
 

@@ -53,6 +53,7 @@ export default function (osi4iotState) {
 		`MAIN_ORGANIZATION_ZIP_CODE=${osi4iotState.platformInfo.MAIN_ORGANIZATION_ZIP_CODE}\n`,
 		insertQuotesInText("MAIN_ORGANIZATION_STATE", osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE, "\n"),
 		insertQuotesInText("MAIN_ORGANIZATION_COUNTRY", osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY, "\n"),
+		insertQuotesInText("S3_BUCKET_TYPE", osi4iotState.platformInfo.S3_BUCKET_TYPE, "\n"),
 		`S3_BUCKET_NAME=${osi4iotState.platformInfo.S3_BUCKET_NAME}\n`,
 		`AWS_REGION=${osi4iotState.platformInfo.AWS_REGION}`
 	];

@@ -6,6 +6,7 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	PROTOCOL: string;
 	DOMAIN_NAME: string;
 	DEPLOYMENT_LOCATION: string;
+	S3_BUCKET_TYPE: string;
 	PLATFORM_PHRASE: string;
 	MAIN_ORGANIZATION_NAME: string;
 	MAIN_ORGANIZATION_ACRONYM: string;
@@ -53,6 +54,7 @@ const process_env: IProcessEnv = {
 	PROTOCOL: process.env.PROTOCOL || "https",
 	DOMAIN_NAME: process.env.DOMAIN_NAME,
 	DEPLOYMENT_LOCATION: process.env.DEPLOYMENT_LOCATION,
+	S3_BUCKET_TYPE: process.env.S3_BUCKET_TYPE,
 	PLATFORM_PHRASE: process.env.PLATFORM_PHRASE,
 	MAIN_ORGANIZATION_NAME: process.env.MAIN_ORGANIZATION_NAME,
 	MAIN_ORGANIZATION_ACRONYM: process.env.MAIN_ORGANIZATION_ACRONYM,

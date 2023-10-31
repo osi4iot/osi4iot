@@ -27,6 +27,7 @@ const platformInitiation = () => {
 	const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 	const osi4iotStateInitial = JSON.parse(osi4iotStateText);
 	const deploymentMode = osi4iotStateInitial.platformInfo.DEPLOYMENT_MODE;
+	const s3BucketType = osi4iotStateInitial.platformInfo.S3_BUCKET_TYPE;
 	const deploymentLocation = osi4iotStateInitial.platformInfo.DEPLOYMENT_LOCATION;
 	const awsAccessKeyId = osi4iotStateInitial.platformInfo.AWS_ACCESS_KEY_ID;
 	const awsSecretAccessKey = osi4iotStateInitial.platformInfo.AWS_SECRET_ACCESS_KEY;
@@ -193,6 +194,7 @@ const platformInitiation = () => {
 				newAnswers,
 				deploymentLocation,
 				deploymentMode,
+				s3BucketType,
 				awsAccessKeyId,
 				awsSecretAccessKey,
 				awsRegion,
@@ -206,6 +208,7 @@ const finalQuestions = (
 	oldAnswers,
 	deploymentLocation,
 	deploymentMode,
+	s3BucketType,
 	awsAccessKeyId,
 	awsSecretAccessKey,
 	awsRegion,
@@ -447,7 +450,7 @@ const finalQuestions = (
 						return "Please type a password with 7 to 30 characters which contain only characters, numeric digits, underscore and first character must be a letter";
 					}
 				}
-			},
+			},			
 			{
 				name: 'S3_BUCKET_NAME',
 				message: 'S3 storage bucket name:',
@@ -660,6 +663,7 @@ const finalQuestions = (
 								DOCKER_IMAGES_VERSION: dockerImagesVersion,
 								DEPLOYMENT_MODE: deploymentMode,
 								DEPLOYMENT_LOCATION: deploymentLocation,
+								S3_BUCKET_TYPE: s3BucketType,
 								AWS_ACCESS_KEY_ID: awsAccessKeyId,
 								AWS_SECRET_ACCESS_KEY: awsSecretAccessKey,
 								AWS_EFS_DNS: answers.AWS_EFS_DNS,

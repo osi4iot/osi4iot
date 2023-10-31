@@ -3,7 +3,9 @@ import process_env from './api_config';
 
 let s3Client: S3Client;
 
-if (process_env.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
+if (process_env.DEPLOYMENT_LOCATION === "AWS cluster deployment" ||
+	process_env.S3_BUCKET_TYPE === "Cloud AWS S3"
+) {
 	s3Client = new S3Client({
 		credentials: {
 			accessKeyId: process_env.AWS_ACCESS_KEY_ID,

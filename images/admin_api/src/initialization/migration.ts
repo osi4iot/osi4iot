@@ -72,7 +72,7 @@ export const dataBaseInitialization = async () => {
 		});
 
 	let existPlatformS3Bucket = false;
-	if (process_env.DEPLOYMENT_LOCATION !== "AWS cluster deployment") {
+	if (process_env.S3_BUCKET_TYPE !== "Cloud AWS S3") {
 		const minioUrl = `minio:9000/minio/health/live`;
 		await needle('get', minioUrl)
 			.then(() => "ok")
@@ -494,6 +494,7 @@ export const dataBaseInitialization = async () => {
 					description VARCHAR(190),
 					geolocation POINT,
 					icon_radio real NOT NULL DEFAULT 1.0,
+					icon_image_factor real NOT NULL DEFAULT 1.0,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_group_id
@@ -522,6 +523,7 @@ export const dataBaseInitialization = async () => {
 						description: `Mobile for group ${group.acronym}`,
 						type: "Mobile",
 						iconRadio: 1.0,
+						iconImageFactor: 1.0,
 						longitude: 0.0,
 						latitude: 0.0,
 						geolocationMode: "dynamic"

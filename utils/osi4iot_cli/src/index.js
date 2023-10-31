@@ -131,10 +131,22 @@ const osi4iotWelcome = () => {
                         return "Deployment in AWS are not developed yet";
                     }
                 }
-            }
+            },
+            {
+				name: 'S3_BUCKET_TYPE',
+				message: 'Choose the type of S3 bucket to be used:',
+				default: 'Local Minio',
+				type: 'list',
+				choices: [
+					'Local Minio',
+					"Cloud AWS S3",
+                ],
+                when: () => deploymentLocation !== "AWS cluster deployment",
+                
+			},
         ])
         .then(async (answers) => {
-            if (answers.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
+            if (answers.DEPLOYMENT_LOCATION === "AWS cluster deployment" || answers.S3_BUCKET_TYPE === "Cloud AWS S3" ) {
                 awsQuestions(answers);
             } else {
                 answers.AWS_ACCESS_KEY_ID = "";
@@ -177,10 +189,15 @@ const osi4iotWelcome = () => {
 };
 
 const createOsi4iotStateFile = (answers) => {
+    let s3BucketType = answers.S3_BUCKET_TYPE;
+    if (answers.DEPLOYMENT_LOCATION === "AWS cluster deployment") {
+        s3BucketType = "Cloud AWS S3";
+    }
     const osi4iotState = {
         platformInfo: {
             DEPLOYMENT_MODE: "production",
             DEPLOYMENT_LOCATION: answers.DEPLOYMENT_LOCATION,
+            S3_BUCKET_TYPE: s3BucketType,
             AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID || "",
             AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY || "",
             AWS_REGION: answers.AWS_REGION || "eu-west-3",
@@ -193,6 +210,7 @@ const createOsi4iotStateFile = (answers) => {
 }
 
 const awsQuestions = (oldAnswers) => {
+    const deploymentLocation = oldAnswers.DEPLOYMENT_LOCATION;
     const awsRegions = {
         "US East (Ohio)": "us-east-2",
         "US East (N. Virginia)": "us-east-1",
@@ -248,19 +266,22 @@ const awsQuestions = (oldAnswers) => {
                 name: 'AWS_SSH_KEY',
                 message: 'AWS ssh key:',
                 type: 'editor',
+                when: () => deploymentLocation === "AWS cluster deployment",
             }
         ])
         .then(async (newAnswers) => {
             newAnswers.AWS_REGION = awsRegions[newAnswers.AWS_REGION];
             const answers = { ...oldAnswers, ...newAnswers };
             createOsi4iotStateFile(answers);
-            const keys_dir = "./.osi4iot_keys";
-            if (!fs.existsSync(keys_dir)) {
-                fs.mkdirSync(keys_dir);
+            if (deploymentLocation === "AWS cluster deployment") {
+                const keys_dir = "./.osi4iot_keys";
+                if (!fs.existsSync(keys_dir)) {
+                    fs.mkdirSync(keys_dir);
+                }
+                const osi4iot_aws_key = "./.osi4iot_keys/osi4iot_key"
+                fs.writeFileSync(osi4iot_aws_key, answers.AWS_SSH_KEY, { mode: 0o400 });
+                loadSSHAgentWarnning();
             }
-            const osi4iot_aws_key = "./.osi4iot_keys/osi4iot_key"
-            fs.writeFileSync(osi4iot_aws_key, answers.AWS_SSH_KEY, { mode: 0o400 });
-            loadSSHAgentWarnning();
         });
 }
 
