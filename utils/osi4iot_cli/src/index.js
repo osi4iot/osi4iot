@@ -113,7 +113,7 @@ const loadSSHAgentWarnning = () => {
 
 const osi4iotWelcome = () => {
     console.log(clc.whiteBright("\n************************************************"));
-    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.2.0  **"));
+    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.2.0X  **"));
     console.log(clc.whiteBright("************************************************\n"));
 
     inquirer
