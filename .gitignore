@@ -49,6 +49,8 @@ images/admin_api/build
 images/admin_api/ssl_config
 images/admin_api/mqtt_certs
 images/admin_api/logs
+images/s3_storage/node_modules
+image/s3_storage/.env
 images/sensor_demo/nodejs/temp_monitoring/certs
 images/sensor_demo/nodejs/temp_monitoring/node_modules
 images/sensor_demo/nodejs/temp_monitoring/.env
