@@ -363,6 +363,8 @@ const Model: FC<ModelProps> = (
 					sensorsState={sensorsState}
 					sensorsVisibilityState={sensorsVisibilityState}
 					updateSensorStateString={updateSensorStateString}
+					sensorsDashboards={digitalTwinGltfData.sensorsDashboards}
+					openDashboardTab={openDashboardTab}
 
 				/>
 			}

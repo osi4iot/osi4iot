@@ -3,12 +3,13 @@ import React, { FC, useRef, useState, useLayoutEffect, useEffect } from 'react';
 import { useThree, useFrame } from '@react-three/fiber';
 import { HiLocationMarker } from "react-icons/hi";
 import { ISensorObject } from './Model';
-import { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState } from './ViewerUtils';
+import IDigitalTwinSensorDashboard, { defaultOpacity, defaultVisibility, ObjectVisibilityState, SensorState } from './ViewerUtils';
 import { changeMaterialPropRecursively } from '../../../tools/tools';
 import { sensorDisplay } from '../../../tools/sensorDisplay';
 import { IThreeMesh } from './threeInterfaces';
 import { Html } from "@react-three/drei";
 import styled from 'styled-components';
+import { toast } from 'react-toastify';
 
 const MarkerContainer = styled.div`
     position: absolute;
@@ -20,6 +21,11 @@ const MarkerContainer = styled.div`
 const MarkerIcon = styled(HiLocationMarker)`
 	font-size: 30px;
 	color: #62f700;
+
+    &:hover {
+        color: #4bbc00;
+        cursor: pointer;
+    }
 `;
 
 interface SensorProps {
@@ -31,6 +37,8 @@ interface SensorProps {
     sensorsStateString: string;
     updateSensorStateString: (state: string) => void;
     visible: boolean;
+    sensorDashboardUrl: string;
+    openDashboardTab: (url: string) => void;
 }
 
 const sensorOnColor = new THREE.Color(0x00ff00);
@@ -45,7 +53,9 @@ const SensorBase: FC<SensorProps> = ({
     sensorState,
     sensorsStateString,
     updateSensorStateString,
-    visible
+    visible,
+    sensorDashboardUrl,
+    openDashboardTab
 }) => {
     const camera = useThree((state) => state.camera);
     const [lastTimestamp, setLastTimestamp] = useState<Date | null>(null);
@@ -60,6 +70,14 @@ const SensorBase: FC<SensorProps> = ({
     let lastIntervalTime = 0;
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
+
+    const markerClickHandler = () => {
+        if (sensorDashboardUrl === "") {
+            toast.warning("Sensor dashboard url not defined");
+        } else {
+            openDashboardTab(sensorDashboardUrl);
+        }
+    }
 
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
@@ -203,7 +221,7 @@ const SensorBase: FC<SensorProps> = ({
                         receiveShadow // Make HTML receive shadows
                     >
                         <MarkerContainer>
-                            <MarkerIcon />
+                            <MarkerIcon onClick={markerClickHandler} />
                         </MarkerContainer>
                     </Html>
                 }
@@ -231,7 +249,7 @@ const SensorBase: FC<SensorProps> = ({
                         receiveShadow // Make HTML receive shadows
                     >
                         <MarkerContainer>
-                            <MarkerIcon />
+                            <MarkerIcon onClick={markerClickHandler} />
                         </MarkerContainer>
                     </Html>
                 }
@@ -261,6 +279,8 @@ interface SensorsProps {
     sensorsState: Record<string, SensorState>;
     sensorsVisibilityState: Record<string, ObjectVisibilityState>;
     updateSensorStateString: (objName: string, state: string) => void;
+    sensorsDashboards: IDigitalTwinSensorDashboard[],
+    openDashboardTab: (url: string) => void;
 }
 
 
@@ -273,6 +293,8 @@ const Sensors: FC<SensorsProps> = ({
     sensorsState,
     sensorsVisibilityState,
     updateSensorStateString,
+    sensorsDashboards,
+    openDashboardTab
 }) => {
     const sensorsStateString = Object.values(sensorsState).map(state => state.stateString === "off" ? "1" : "0").join("");
 
@@ -280,6 +302,12 @@ const Sensors: FC<SensorsProps> = ({
         <>
             {
                 sensorObjects.map((obj, index) => {
+                    const sensorRef = obj.node.userData.sensorRef;
+                    let sensorDashboardUrl = "";
+                    if (sensorRef && sensorsDashboards.length !== 0) {
+                        const sensorDashboard = sensorsDashboards.filter(sensor => sensor.sensorRef === sensorRef)[0];
+                        sensorDashboardUrl = sensorDashboard.dashboardUrl;
+                    }
                     return <Sensor
                         key={obj.node.uuid}
                         obj={obj.node}
@@ -290,6 +318,8 @@ const Sensors: FC<SensorsProps> = ({
                         updateSensorStateString={(state) => updateSensorStateString(obj.node.name, state)}
                         marker={(sensorsVisibilityState[obj.collectionName].showSensorMarker || showAllSensorsMarker)}
                         visible={!(sensorsVisibilityState[obj.collectionName].hide || hideAllSensors)}
+                        sensorDashboardUrl={sensorDashboardUrl}
+                        openDashboardTab={openDashboardTab}
                     />
                 })
             }

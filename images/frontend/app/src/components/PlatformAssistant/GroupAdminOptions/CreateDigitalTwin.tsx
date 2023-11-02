@@ -417,8 +417,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [dtReferencesFileLoaded, setDTReferencesFileLoaded] = useState(false);
     const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
-    const [isFemResDataReady, setIsFemResDataReady] = useState(true);
-    const [isDTRefDataReady, setIsDTRefDataReady] = useState(true);
     const [isFormReady, setIsFormReady] = useState(false);
     const initialTopicsRef = [{ topicRef: "dev2pdb_1", topicId: 0 }];
     const [topicsRef, setTopicsRef] = useState<ITopicRef[]>(initialTopicsRef);
@@ -444,7 +442,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     });
 
     useEffect(() => {
-        if (isGlftDataReady && isFemResDataReady && isDTRefDataReady) {
+        if (isGlftDataReady) {
             const [isOk, errorMessage] = ckeckDigitalTwinRefFile(digitalTwinGltfData, dtReferencesData);
             if (!isOk) {
                 toast.error(errorMessage);
@@ -463,8 +461,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     }, [
         digitalTwinGltfData,
         dtReferencesData,
-        isDTRefDataReady,
-        isFemResDataReady,
         isGlftDataReady,
         digitalTwinType
     ])
@@ -524,7 +520,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 setFemResFileLastModifDateString(formatDateString(dateString));
                 setLocalFemResFileLoaded(false);
                 femResFileParams.clear();
-                setIsFemResDataReady(true);
             } catch (e) {
                 console.log(e);
                 toast.error("Invalid fem simulation file");
@@ -560,7 +555,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 setDTRefFileLastModifDate(formatDateString(dateString));
                 setDTReferencesFileLoaded(false);
                 dtRefFileParams.clear();
-                setIsDTRefDataReady(true);
             } catch (error) {
                 toast.error(error);
                 setDTReferencesFileLoaded(false);
@@ -712,7 +706,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setDigitalTwiFemResData({});
         setLocalFemResFileLoaded(false);
         femResFileParams.clear();
-        setIsFemResDataReady(false);
     }
 
     const localFemResFileButtonHandler = () => {
@@ -727,7 +720,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setDtReferencesData({});
         setDTReferencesFileLoaded(false);
         femResFileParams.clear();
-        setIsDTRefDataReady(false);
     }
 
     const dtRefFileButtonHandler = () => {

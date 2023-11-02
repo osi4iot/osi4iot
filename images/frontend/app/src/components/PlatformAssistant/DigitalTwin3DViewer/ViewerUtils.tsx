@@ -539,7 +539,7 @@ let selectedObjNameRef: HTMLDivElement | null;
 let selectedObjCollectionNameRef: HTMLDivElement | null;
 let openDashboardTab: (url: string) => void;
 
-var sensorsDashbboards: IDigitalTwinSensorDashboard[] = [];
+var sensorsDashboards: IDigitalTwinSensorDashboard[] = [];
 var changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void;
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -642,7 +642,7 @@ export const setParameters = (
 	l_selectedObjNameRef: HTMLDivElement | null,
 	l_selectedObjCollectionNameRef: HTMLDivElement | null,
 	l_changeObjectHighlight: (objType: string, objName: string, highlighted: boolean) => void,
-	l_sensorsDashbboards: IDigitalTwinSensorDashboard[],
+	l_sensorsDashboards: IDigitalTwinSensorDashboard[],
 	l_openDashboardTab: (url: string) => void,
 ) => {
 	camera = l_camera;
@@ -651,7 +651,7 @@ export const setParameters = (
 	selectedObjNameRef = l_selectedObjNameRef;
 	selectedObjCollectionNameRef = l_selectedObjCollectionNameRef;
 	changeObjectHighlight = l_changeObjectHighlight;
-	sensorsDashbboards = l_sensorsDashbboards;
+	sensorsDashboards = l_sensorsDashboards;
 	openDashboardTab = l_openDashboardTab;
 }
 
@@ -978,8 +978,8 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 			}
 			if (type === "sensor") {
 				const sensorRef = intersects[0].object.userData.sensorRef;
-				if (sensorRef) {
-					const sensorDashboard = sensorsDashbboards.filter(sensor => sensor.sensorRef === sensorRef)[0];
+				if (sensorRef && sensorsDashboards.length !== 0) {
+					const sensorDashboard = sensorsDashboards.filter(sensor => sensor.sensorRef === sensorRef)[0];
 					sensorDashboardUrl = sensorDashboard.dashboardUrl;
 				}
 			}
@@ -1063,10 +1063,8 @@ export const onMouseClick = (event: any) => {
 	if (mouse.type === "sensor" && mouse.objName !== "" && mouse.objSelectable) {
 		if (mouse.sensorDashboardUrl === "") {
 			toast.warning("Sensor dashboard url not defined");
-		} else {
-			// window.open(mouse.sensorDashboardUrl, '_blank');
-			const url = mouse.sensorDashboardUrl;
-			openDashboardTab(url);
+		} else {;
+			openDashboardTab(mouse.sensorDashboardUrl);
 		}
 	}
 }

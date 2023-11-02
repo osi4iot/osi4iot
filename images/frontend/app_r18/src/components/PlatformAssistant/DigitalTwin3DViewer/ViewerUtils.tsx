@@ -975,7 +975,7 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 			}
 			if (type === "sensor") {
 				const sensorRef = intersects[0].object.userData.sensorRef;
-				if (sensorRef) {
+				if (sensorRef && sensorsDashbboards.length !== 0) {
 					const sensorDashboard = sensorsDashbboards.filter(sensor => sensor.sensorRef === sensorRef)[0];
 					sensorDashboardUrl = sensorDashboard.dashboardUrl;
 				}
