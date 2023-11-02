@@ -38,8 +38,8 @@ import {
 	removeFilesFromBucketFolder,
 	checkMaxNumberOfFemResFiles,
 	checkNumberOfGltfFiles,
-	ITopicRef,
 	addTopicAndSensorReferences,
+	checkDigitalTwinConstraint,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -400,26 +400,25 @@ class DigitalTwinController implements IController {
 			const asset = req.asset;
 			const group = req.group;
 
-			let response: {
-				message: string,
-				digitalTwinId: number,
-				topicsRef: ITopicRef[]
+			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid);
+			if (existDigitalTwin) throw new HttpException(req, res, 400,
+				`A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`
+			);
+
+			const isConstraintOk = await checkDigitalTwinConstraint(group.id, asset.id, "Asset");
+			if (!isConstraintOk) throw new HttpException(req, res, 400,
+				"The unique constraint for groupId, assetId and scope is violated"
+			);
+
+			const { digitalTwin, topicsRef } = await createDigitalTwin(group, asset, digitalTwinData);
+			if (!digitalTwin) throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");
+
+			const response = {
+				message: `A new digital twin has been created`,
+				digitalTwinId: digitalTwin.id,
+				topicsRef
 			};
-			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid)
-			if (!existDigitalTwin) {
-				const { digitalTwin, topicsRef } = await createDigitalTwin(group, asset, digitalTwinData);
-				if (digitalTwin) {
-					response = {
-						message: `A new digital twin has been created`,
-						digitalTwinId: digitalTwin.id,
-						topicsRef
-					};
-				} else {
-					throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");
-				}
-			} else {
-				throw new HttpException(req, res, 400, `A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`);
-			}
+
 			res.status(200).send(response);
 		} catch (error) {
 			next(error);

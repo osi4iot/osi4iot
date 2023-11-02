@@ -9,31 +9,47 @@ import ITopicInfoForMqttAcl from "./topicInfoForMqttAcl.interface";
 
 export const insertTopic = async (topicData: Partial<ITopic>): Promise<ITopic> => {
 	const result = await pool.query(`INSERT INTO grafanadb.topic (group_id, topic_type,
-					description, topic_uid,  mqtt_access_control,
+					description, topic_uid,  mqtt_access_control, payload_json_schema,
+					require_s3_storage, s3_folder, parquet_schema, last_s3_storage,
 					created, updated)
-					VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW(), NOW())
 					RETURNING  id, group_id AS "groupId", topic_type AS "topicType",
 					description, topic_uid AS "topicUid",
 					mqtt_access_control AS "mqttAccessControl",
+                    payload_json_schema AS "payloadJsonSchema",
+					require_s3_storage AS "requireS3Storage",
+					s3_folder AS "s3Folder",
+					parquet_schema AS "parquetSchema",
+					last_s3_storage AS "lastS3Storage",
 					created, updated`,
 	[
 		topicData.groupId,
 		topicData.topicType,
 		topicData.description,
 		topicData.topicUid,
-		topicData.mqttAccessControl
+		topicData.mqttAccessControl,
+		topicData.payloadJsonSchema,
+		topicData.requireS3Storage,
+		topicData.s3Folder,
+		topicData.parquetSchema
 	]);
 	return result.rows[0] as ITopic;
 };
 
 export const updateTopicById = async (topicId: number, topic: ITopic): Promise<void> => {
 	const query = `UPDATE grafanadb.topic SET topic_type = $1, description = $2,
-					mqtt_access_control = $3, updated = NOW()
-					WHERE grafanadb.topic.id = $4;`;
+					mqtt_access_control = $3, payload_json_schema = $4,
+					require_s3_storage = $5, s3_folder = $6, parquet_schema = $7,
+					updated = NOW()
+					WHERE grafanadb.topic.id = $8;`;
 	await pool.query(query, [
 		topic.topicType,
 		topic.description,
 		topic.mqttAccessControl,
+		topic.payloadJsonSchema,
+		topic.requireS3Storage,
+		topic.s3Folder,
+		topic.parquetSchema,
 		topicId
 	]);
 };
@@ -68,6 +84,11 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.topic.require_s3_storage AS "requireS3Storage",
+									grafanadb.topic.s3_folder AS "s3Folder",
+									grafanadb.topic.parquet_schema AS "parquetSchema",
+									grafanadb.topic.last_s3_storage AS "lastS3Storage",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -82,6 +103,11 @@ export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number):
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.topic.require_s3_storage AS "requireS3Storage",
+									grafanadb.topic.s3_folder AS "s3Folder",
+									grafanadb.topic.parquet_schema AS "parquetSchema",
+									grafanadb.topic.last_s3_storage AS "lastS3Storage",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -97,6 +123,11 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.topic.require_s3_storage AS "requireS3Storage",
+									grafanadb.topic.s3_folder AS "s3Folder",
+									grafanadb.topic.parquet_schema AS "parquetSchema",
+									grafanadb.topic.last_s3_storage AS "lastS3Storage",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -145,6 +176,11 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.topic.require_s3_storage AS "requireS3Storage",
+									grafanadb.topic.s3_folder AS "s3Folder",
+									grafanadb.topic.parquet_schema AS "parquetSchema",
+									grafanadb.topic.last_s3_storage AS "lastS3Storage",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -163,6 +199,11 @@ export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.topic.require_s3_storage AS "requireS3Storage",
+									grafanadb.topic.s3_folder AS "s3Folder",
+									grafanadb.topic.parquet_schema AS "parquetSchema",
+									grafanadb.topic.last_s3_storage AS "lastS3Storage",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
@@ -214,6 +255,11 @@ export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
 									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
+									grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.topic.require_s3_storage AS "requireS3Storage",
+									grafanadb.topic.s3_folder AS "s3Folder",
+									grafanadb.topic.parquet_schema AS "parquetSchema",
+									grafanadb.topic.last_s3_storage AS "lastS3Storage",
 									grafanadb.topic.created, grafanadb.topic.updated
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id

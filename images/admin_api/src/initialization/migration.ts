@@ -40,6 +40,7 @@ import ISensor from "../components/sensor/sensor.interface";
 import CreateSensorRefDto from "../components/digitalTwin/createSensorRef.dto";
 import IAssetType from "../components/asset/assetType.interface";
 import { predefinedAssetTypes } from "./predefinedAssetTypes";
+import { emptyBucket } from "./emptyS3Bucket";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -82,24 +83,7 @@ export const dataBaseInitialization = async () => {
 			});
 	}
 
-
-	try {
-		const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
-		const bucketName = process_env.S3_BUCKET_NAME;
-		existPlatformS3Bucket = listBucketsResult.Buckets.filter(bucket => bucket.Name === bucketName).length !== 0;
-		if (!existPlatformS3Bucket) {
-			await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
-			logger.log("info", `The S3 bucket for the platform has been created successfully`)
-		} else {
-			logger.log("info", `An S3 bucket with the name ${bucketName} already has been created`)
-		}
-	} catch (err) {
-		logger.log("error", "The S3 bucket for the platform can not be created: %s", err)
-		process.exit(1);
-	}
-
-
-	if (timescaledbClient && postgresClient && grafanaState === "ok" && existPlatformS3Bucket) {
+	if (timescaledbClient && postgresClient && grafanaState === "ok") {
 		const tableOrg = "grafanadb.org";
 		const queryString1a = 'SELECT COUNT(*) FROM grafanadb.org WHERE name = $1';
 		const parameterArray1a = ["Main Org."];
@@ -122,6 +106,22 @@ export const dataBaseInitialization = async () => {
 
 		if (process_env.REPLICA === "1") {
 			if (result0.rows[0].count !== 0) {
+				try {
+					const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
+					const bucketName = process_env.S3_BUCKET_NAME;
+					existPlatformS3Bucket = listBucketsResult.Buckets.filter(bucket => bucket.Name === bucketName).length !== 0;
+					if (!existPlatformS3Bucket) {
+						await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
+						logger.log("info", `The S3 bucket for the platform has been created successfully`)
+					} else {
+						logger.log("info", `An S3 bucket with the name ${bucketName} already has been created`);
+						await emptyBucket();
+					}
+				} catch (err) {
+					logger.log("error", "The S3 bucket for the platform can not be created: %s", err)
+					process.exit(1);
+				}
+
 				const queryStringAlterOrg = `ALTER TABLE grafanadb.org
 											ADD COLUMN acronym varchar(20) UNIQUE,
 											ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'Generic',
@@ -542,7 +542,12 @@ export const dataBaseInitialization = async () => {
 					topic_type VARCHAR(40),
 					description VARCHAR(190),
 					topic_uid VARCHAR(40) UNIQUE,
+					payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
 					mqtt_access_control VARCHAR(10),
+					require_s3_storage boolean NOT NULL DEFAULT FALSE,
+					s3_folder VARCHAR(190) NOT NULL DEFAULT '',
+					last_s3_storage TIMESTAMPTZ,
+					parquet_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_group_id
@@ -792,27 +797,47 @@ export const dataBaseInitialization = async () => {
 						{
 							topicType: "dev2pdb",
 							description: `Mobile geolocation topic`,
-							mqttAccessControl: "Pub & Sub"
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: "{}",
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
 						},
 						{
 							topicType: "dev2pdb_wt",
 							description: `Mobile accelerations topic`,
-							mqttAccessControl: "Pub & Sub"
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: "{}",
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
 						},
 						{
 							topicType: "dev2pdb_wt",
 							description: `Mobile orientation topic`,
-							mqttAccessControl: "Pub & Sub"
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: "{}",
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
 						},
 						{
 							topicType: "dev2pdb_wt",
 							description: `Mobile motion topic`,
-							mqttAccessControl: "Pub & Sub"
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: "{}",
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
 						},
 						{
 							topicType: "dev2dtm",
 							description: `Mobile photo topic`,
-							mqttAccessControl: "Pub & Sub"
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: "{}",
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
 						}
 					];
 					for (let i = 0; i < topicsDataForMobileAsset.length; i++) {

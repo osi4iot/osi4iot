@@ -345,27 +345,47 @@ class GroupController implements IController {
 				{
 					topicType: "dev2pdb",
 					description: `Mobile geolocation topic`,
-					mqttAccessControl: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub",
+					payloadJsonSchema: "{}",
+					requireS3Storage: false,
+					s3Folder: "",
+					parquetSchema: "{}",
 				},
 				{
 					topicType: "dev2pdb_wt",
 					description: `Mobile accelerations topic`,
-					mqttAccessControl: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub",
+					payloadJsonSchema: "{}",
+					requireS3Storage: false,
+					s3Folder: "",
+					parquetSchema: "{}",
 				},
 				{
 					topicType: "dev2pdb_wt",
 					description: `Mobile orientation topic`,
-					mqttAccessControl: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub",
+					payloadJsonSchema: "{}",
+					requireS3Storage: false,
+					s3Folder: "",
+					parquetSchema: "{}",
 				},
 				{
 					topicType: "dev2pdb_wt",
 					description: `Mobile motion topic`,
-					mqttAccessControl: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub",
+					payloadJsonSchema: "{}",
+					requireS3Storage: false,
+					s3Folder: "",
+					parquetSchema: "{}",
 				},
 				{
 					topicType: "dev2dtm",
 					description: `Mobile photo topic`,
-					mqttAccessControl: "Pub & Sub"
+					mqttAccessControl: "Pub & Sub",
+					payloadJsonSchema: "{}",
+					requireS3Storage: false,
+					s3Folder: "",
+					parquetSchema: "{}",
 				}
 			];
 

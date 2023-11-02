@@ -6,7 +6,12 @@ export default interface ITopic {
 	topicName: string;
 	description: string;
 	topicUid: string;
+	payloadJsonSchema: string;
 	mqttAccessControl: string;
+	requireS3Storage: boolean;
+	s3Folder: string;
+	lastS3Storage: string;
+	parquetSchema: string;
 	created?: string;
 	updated?: string;
 }

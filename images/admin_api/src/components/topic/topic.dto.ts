@@ -1,4 +1,4 @@
-import { IsString } from "class-validator";
+import { IsBoolean, IsString } from "class-validator";
 
 class CreateTopicDto {
 	@IsString()
@@ -8,7 +8,19 @@ class CreateTopicDto {
 	public description: string;
 
 	@IsString()
+	public payloadJsonSchema: string;
+
+	@IsString()
 	public mqttAccessControl: string;
+
+	@IsBoolean()
+	public requireS3Storage: boolean;
+
+	@IsString()
+	public s3Folder: string;
+
+	@IsString()
+	public parquetSchema: string;
 }
 
 export default CreateTopicDto;
