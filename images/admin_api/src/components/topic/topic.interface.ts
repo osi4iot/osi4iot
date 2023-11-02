@@ -6,8 +6,8 @@ export default interface ITopic {
 	topicName: string;
 	description: string;
 	topicUid: string;
-	payloadJsonSchema: string;
 	mqttAccessControl: string;
+	payloadJsonSchema: string;
 	requireS3Storage: boolean;
 	s3Folder: string;
 	lastS3Storage: string;

@@ -1,6 +1,6 @@
 import { FC, useState, SyntheticEvent } from 'react';
 import styled from "styled-components";
-import { Formik, Form } from 'formik';
+import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
@@ -16,19 +16,19 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 
 const FormContainer = styled.div`
 	font-size: 12px;
-    padding: 30px 10px 30px 20px;
+    padding: 20px 10px 20px 20px;
     border: 3px solid #3274d9;
     border-radius: 20px;
     width: 400px;
-    height: calc(100vh - 290px);
+    height: calc(100vh - 280px);
 
     form > div:nth-child(2) {
-        margin-right: 10px;
+        margin-top: 15px;
     }
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
+    height: calc(100vh - 380px);
     width: 100%;
     padding: 0px 5px;
     overflow-y: auto;
@@ -56,6 +56,7 @@ const ControlsContainer = styled.div`
 
     div:first-child {
         margin-top: 0;
+        margin-bottom: 10px;
     }
 
     div:last-child {
@@ -71,7 +72,7 @@ const topicTypeOptions = [
     {
         label: "Device to platform DB message array",
         value: "dev2pdb_ma"
-    },    
+    },
     {
         label: "Device to platform DB with timestamp",
         value: "dev2pdb_wt"
@@ -87,7 +88,7 @@ const topicTypeOptions = [
     {
         label: "Device to simulator",
         value: "dev2sim"
-    },    
+    },
     {
         label: "DTM to simulator",
         value: "dtm2sim"
@@ -125,6 +126,30 @@ const mqttAccessControlOptions = [
     }
 ];
 
+const requireS3StorateOptions = [
+    {
+        label: "Yes",
+        value: "yes"
+    },
+    {
+        label: "No",
+        value: "no"
+    },
+]
+
+interface IFormikValues {
+    groupId: string;
+    topicType: string;
+    description: string;
+    mqttAccessControl: string;
+    payloadJsonSchema: string;
+    requireS3StorageString: string;
+    s3Folder: string;
+    parquetSchema: string;
+}
+
+type FormikType = FormikProps<IFormikValues>
+
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -139,6 +164,7 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const topicsDispatch = useTopicsDispatch();
+    const [requireS3Storage, setRequireS3Storage] = useState(false);
 
     const onSubmit = (values: any, actions: any) => {
         const groupId = values.groupId;
@@ -148,7 +174,11 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         const topicData = {
             topicType: values.topicType,
             description: values.description,
-            mqttAccessControl: values.mqttAccessControl
+            mqttAccessControl: values.mqttAccessControl,
+            payloadJsonSchema: values.payloadJsonSchema,
+            requireS3Storage: requireS3Storage,
+            s3Folder: values.s3Folder,
+            parquetSchema: values.parquetSchema,
         }
 
         setIsSubmitting(true);
@@ -175,19 +205,38 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
         groupId: "",
         topicType: "dev2pdb",
         description: "",
-        mqttAccessControl: "Pub & Sub"
+        mqttAccessControl: "Pub & Sub",
+        payloadJsonSchema: "{}",
+        requireS3StorageString: "no",
+        s3Folder: "",
+        parquetSchema: "{}",
     }
 
     const validationSchema = Yup.object().shape({
         groupId: Yup.number().required('Required'),
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        payloadJsonSchema: Yup.string().required('Required'),
+        requireS3StorageString: Yup.string().required('Required'),
+        s3Folder: Yup.string().when("requireS3StorageString", {
+            is: "yes",
+            then: Yup.string().required("Must enter maxNumResFemFiles")
+        }),
+        parquetSchema: Yup.string().when("requireS3StorageString", {
+            is: "yes",
+            then: Yup.string().required("Must enter maxNumResFemFiles")
+        }),
     });
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
         backToTable();
     };
+
+    const onRequireS3StorageSelectChange = (e: { value: string }, formik: FormikType) => {
+        setRequireS3Storage(e.value === "yes" ? true : false);
+        formik.setFieldValue("requireS3StorageString", e.value)
+    }
 
     return (
         <>
@@ -224,6 +273,37 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                                         options={mqttAccessControlOptions}
                                         type='text'
                                     />
+                                    <FormikControl
+                                        control='textarea'
+                                        label='Payload json schema'
+                                        name='payloadJsonSchema'
+                                        textAreaSize='Small'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Require S3 storage'
+                                        name="requireS3StorageString"
+                                        options={requireS3StorateOptions}
+                                        type='text'
+                                        onChange={(e) => onRequireS3StorageSelectChange(e, formik)}
+                                    />
+                                    {
+                                        requireS3Storage &&
+                                        <>
+                                            <FormikControl
+                                                control='input'
+                                                label='S3 folder name'
+                                                name='s3Folder'
+                                                type='text'
+                                            />
+                                            <FormikControl
+                                                control='textarea'
+                                                label='Parquet schema'
+                                                name='parquetSchema'
+                                                textAreaSize='Small'
+                                            />
+                                        </>
+                                    }
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

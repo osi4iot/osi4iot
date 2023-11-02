@@ -76,6 +76,7 @@ import SensorsContainer from './SensorsContainer';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
+import { ITopic } from '../TableColumns/topicsColumns';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -543,6 +544,12 @@ const GroupAdminOptions: FC<{}> = () => {
                 .get(urlTopics, config)
                 .then((response) => {
                     const topics = response.data;
+                    topics.map((topic: ITopic) => {
+                        topic.payloadJsonSchema = JSON.stringify(topic.payloadJsonSchema);
+                        topic.parquetSchema = JSON.stringify(topic.parquetSchema);
+                        topic.requireS3StorageString = topic.requireS3Storage ? "yes" : "no";
+                        return topic;
+                    })
                     setTopicsTable(plaformAssistantDispatch, { topics });
                     setTopicsLoading(false);
                     const reloadTopicsTable = false;

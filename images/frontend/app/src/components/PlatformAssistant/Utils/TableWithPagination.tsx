@@ -401,23 +401,26 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
     const columns = useMemo(() => columnsTable, [columnsTable]);
     const data = useMemo(() => dataTable, [dataTable]);
     const columnsWidth = columnsTable.map(column => {
+        const accessor = (column.accessor as string);
+        const headerName = (column.Header as string);
         if (typeof column.Header !== 'function') {
-            const headerName = (column.Header as string);
             if (headerName.slice(-2) === "Id") return "100px";
             else if (headerName === "Floor number") return "120px";
             else if (headerName === "Predefined") return "100px";
+            else if (accessor === "S3 storage") return "100px";
             else return "auto"
         } else return "auto";
     });
 
     const columnsMaxWidth = columnsTable.map(column => {
+        const headerName = (column.Header as string);
         if (typeof column.Header !== 'function') {
-            const headerName = (column.Header as string);
             if (headerName === "Payload format") return "450px";
             else if (headerName === "Refresh tokens") return "1200px";
             else if (headerName === "Timestamp") return "400px";
             else if (headerName === "Floor number") return "120px";
             else if (headerName === "Predefined") return "100px";
+            else if (headerName === "S3 storage") return "100px";
             else return "auto"
         } else return "auto";
     });

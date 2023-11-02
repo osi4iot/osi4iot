@@ -294,7 +294,23 @@ const CreateAsset: FC<CreateAssetProps> = ({
         const config = axiosAuth(accessToken);
 
         const orgId = orgsOfGroupManaged.filter(org => org.acronym === values.orgAcronym)[0].id;
-        const assetTypeId = assetTypes.filter(assetType => assetType.orgId === orgId && assetType.type === values.assetType)[0].id
+        const assetTypeId = assetTypes.filter(assetType => assetType.orgId === orgId && assetType.type === values.assetType)[0].id;
+
+        if (typeof (values as any).longitude === 'string') {
+            (values as any).longitude = parseFloat((values as any).longitude);
+        }
+        if (typeof (values as any).latitude === 'string') {
+            (values as any).latitude = parseFloat((values as any).latitude);
+        }
+
+        if (typeof (values as any).iconRadio === 'string') {
+            (values as any).iconRadio = parseFloat((values as any).iconRadio);
+        }
+
+        if (typeof (values as any).iconSizeFactor === 'string') {
+            (values as any).iconSizeFactor = parseFloat((values as any).iconSizeFactor);
+        }
+
         const assetData = {
             description: values.description,
             assetTypeId,
