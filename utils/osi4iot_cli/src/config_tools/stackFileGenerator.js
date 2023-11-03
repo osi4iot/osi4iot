@@ -369,6 +369,9 @@ export default function (osi4iotState) {
 				networks: [
 					'internal_net',
 				],
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],				
 				volumes: [
 					's3_storage_data:/data'
 				],

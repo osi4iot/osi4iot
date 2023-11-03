@@ -18,25 +18,25 @@ export const s3Storage = async () => {
     for (const topic of topics) {
         const measurements = await getLastMeasurements(topic.groupUid, topic.topicUid);
         const parquetSchema = topic.parquetSchema;
-        if (Object.keys(parquetSchema).length !== 0) {
+        if (Object.keys(parquetSchema).length !== 0 && measurements.length !== 0) {
             console.log(`Storing data for topicId: ${topic.topicId}`);
             const startTime = new Date().getTime();
             const schema = new parquet.ParquetSchema(parquetSchema);
             const filePath = `/data/${fileName}`;
             const writer = await parquet.ParquetWriter.openFile(schema, filePath);
             for (const measurement of measurements) {
-                const payload = JSON.parse(measurement.payload)
+                const payload = measurement.payload
                 const timestamp = measurement.timestamp;
                 const data = { timestamp, ...payload };
                 await writer.appendRow(data);
             }
             await writer.close();
-    
+
             const fileStream = fs.createReadStream(fileName);
             fileStream.on('error', (err) => {
-              console.log('File error', err);
+                console.log('File error', err);
             });
-    
+
             const orgId = topic.orgId;
             const groupId = topic.groupId;
             const assetId = topic.assetId;
