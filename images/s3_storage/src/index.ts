@@ -15,8 +15,9 @@ const main = async (): Promise<void> => {
 			response.send({ success: true, message: "It is working" });
 		});
 
-		app.listen(3500, () => {
+		app.listen(3500, async () => {
 			console.log("Listen on the port 3500...");
+			await s3Storage();
 			const job = new CronJob(
 				'0 0 * * *',
 				async function () {

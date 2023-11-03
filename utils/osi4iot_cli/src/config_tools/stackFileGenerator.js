@@ -18,6 +18,7 @@ export default function (osi4iotState) {
 		admin_api: defaultVersion || 'latest',
 		frontend: defaultVersion || 'latest',
 		nodered_instance: defaultVersion || 'latest',
+		s3_storage: defaultVersion || 'latest',
 		keepalived: 'latest',
 		dev2pdb: defaultVersion || 'latest',
 		minio: 'RELEASE.2023-10-16T04-13-43Z' || 'latest'
@@ -363,6 +364,39 @@ export default function (osi4iotState) {
 					}
 				}
 			},
+			s3_storage: {
+				image: `ghcr.io/osi4iot/s3_storage:${serviceImageVersion['s3_storage']}`,
+				networks: [
+					'internal_net',
+				],
+				volumes: [
+					's3_storage_data:/data'
+				],
+				working_dir: '/app',
+				secrets: [
+					{
+						source: 's3_storage',
+						target: 's3_storage.txt',
+						mode: 0o444
+					}
+				],
+				configs: [
+					{
+						source: 's3_storage_conf',
+						target: '/run/configs/s3_storage.conf',
+						mode: 0o444
+					}
+
+				],
+				ports: [
+					'3500:3500'
+				],
+				deploy: {
+					placement: {
+						constraints: workerConstraintsArray
+					}
+				}
+			},			
 			dev2pdb: {
 				image: `ghcr.io/osi4iot/dev2pdb:${serviceImageVersion['dev2pdb']}`,
 				networks: [
@@ -613,6 +647,9 @@ export default function (osi4iotState) {
 			},
 			admin_api_log: {
 				driver: 'local'
+			},
+			s3_storage_data: {
+				driver: 'local'
 			}
 		},
 		secrets: {
@@ -662,6 +699,9 @@ export default function (osi4iotState) {
 			admin_api: {
 				file: './secrets/admin_api.txt',
 				name: osi4iotState.admin_api_secret_name
+			},
+			s3_storage: {
+				file: './secrets/s3_storage.txt',
 			}
 		},
 		configs: {
@@ -679,6 +719,9 @@ export default function (osi4iotState) {
 			},
 			frontend_conf: {
 				file: './config/frontend/frontend.conf',
+			},
+			s3_storage_conf: {
+				file: './config/s3_storage/s3_storage.conf',
 			}
 		}
 	}
@@ -1052,6 +1095,15 @@ export default function (osi4iotState) {
 				}
 			}
 
+			osi4iotStackObj.volumes['s3_storage_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `nfsvers=4,addr=${nfsServerIP},rw`,
+					device: ':/var/nfs_osi4iot/s3_storage_data'
+				}
+			}
+
 			if (deploymentMode === "development") {
 				osi4iotStackObj.volumes['pgadmin4_data'] = {
 					driver: 'local',
@@ -1126,6 +1178,15 @@ export default function (osi4iotState) {
 					device: `${efs_dns}:/admin_api_log`
 				}
 			}
+
+			osi4iotStackObj.volumes['s3_storage_data'] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+					device: `${efs_dns}:/s3_storage_data`
+				}
+			}			
 
 			if (deploymentMode === "development") {
 				osi4iotStackObj.volumes['pgadmin4_data'] = {

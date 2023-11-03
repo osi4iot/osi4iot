@@ -182,4 +182,21 @@ export default function (osi4iotState) {
 		fs.appendFileSync('./config/mosquitto/go-auth.conf', mosquittoGoAuthConf[iline]);
 	}
 
+	//s3_storage config
+	const s3StorageConfig = [
+		insertQuotesInText("DEPLOYMENT_LOCATION", osi4iotState.platformInfo.DEPLOYMENT_LOCATION, "\n"),
+		`DEFAULT_TIME_ZONE=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}\n`,
+		insertQuotesInText("S3_BUCKET_TYPE", osi4iotState.platformInfo.S3_BUCKET_TYPE, "\n"),
+		`S3_BUCKET_NAME=${osi4iotState.platformInfo.S3_BUCKET_NAME}\n`,
+		`AWS_REGION=${osi4iotState.platformInfo.AWS_REGION}`
+	];
+
+	if (fs.existsSync('./config/s3_storage/s3_storage.conf')) {
+		fs.rmSync('./config/s3_storage/s3_storage.conf');
+	}
+
+	for (let iline = 0; iline < s3StorageConfig.length; iline++) {
+		fs.appendFileSync('./config/s3_storage/s3_storage.conf', s3StorageConfigg[iline]);
+	}
+
 };

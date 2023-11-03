@@ -73,7 +73,7 @@ export default function (osi4iotState) {
 	if (fs.existsSync('./secrets/timescaledb_data_ret_int.txt')) {
 		fs.rmSync('./secrets/timescaledb_data_ret_int.txt');
 	}
-	fs.appendFileSync('./secrets/timescaledb_data_ret_int.txt', timescaledbDataRetentionIntervalSecret);	
+	fs.appendFileSync('./secrets/timescaledb_data_ret_int.txt', timescaledbDataRetentionIntervalSecret);
 
 	//dev2pdb_password secret
 	if (fs.existsSync('./secrets/dev2pdb_password.txt')) {
@@ -110,6 +110,27 @@ export default function (osi4iotState) {
 		for (let iline = 0; iline < pgadmin4Secrets.length; iline++) {
 			fs.appendFileSync('./secrets/pgadmin4.txt', pgadmin4Secrets[iline]);
 		}
+	}
+
+
+	//s3_storage secrets
+	const s3StorageSecrets = [
+		`POSTGRES_USER=${osi4iotState.platformInfo.POSTGRES_USER}\n`,
+		`POSTGRES_PASSWORD=${osi4iotState.platformInfo.POSTGRES_PASSWORD}\n`,
+		`POSTGRES_DB=${osi4iotState.platformInfo.POSTGRES_DB}\n`,
+		`TIMESCALE_USER=${osi4iotState.platformInfo.TIMESCALE_USER}\n`,
+		`TIMESCALE_PASSWORD=${osi4iotState.platformInfo.TIMESCALE_PASSWORD}\n`,
+		`TIMESCALE_DB=${osi4iotState.platformInfo.TIMESCALE_DB}\n`,,
+		`AWS_ACCESS_KEY_ID=${osi4iotState.platformInfo.AWS_ACCESS_KEY_ID}\n`,
+		`AWS_SECRET_ACCESS_KEY=${osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY}\n`,
+	];
+
+	if (fs.existsSync('./secrets/s3_storage.txt')) {
+		fs.rmSync('./secrets/s3_storage.txt');
+	}
+
+	for (let iline = 0; iline < s3StorageSecrets.length; iline++) {
+		fs.appendFileSync('./secrets/s3_storage.txt', s3StorageSecrets[iline]);
 	}
 
 };
