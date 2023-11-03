@@ -33,6 +33,11 @@ export default function (osi4iotState) {
 		fs.mkdirSync(mosquitto_conf_dir);
 	}
 
+	const s3_storage_conf_dir = "./config/s3_storage";
+	if (!fs.existsSync(s3_storage_conf_dir)) {
+		fs.mkdirSync(s3_storage_conf_dir);
+	}
+
 	let protocol = "https";
 	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
 	if (domainCertsType === "No certs") {
