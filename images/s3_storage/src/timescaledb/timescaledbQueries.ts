@@ -3,21 +3,17 @@ import IMeasurement from "./measurements.interface";
 
 const timestampAsString = 'to_char(timestamp, \'YYYY-MM-DD HH24:MI:SS.USOF\') AS "timestamp"';
 
-export const getLastMeasurements = async (groupUid: string, topic: string):
+export const getLastMeasurements = async (groupUid: string, topicUid: string):
     Promise<IMeasurement[]> => {
-    // const yesterdayMidnight = new Date();
-    // yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
-    // yesterdayMidnight.setHours(0, 0, 0, 0);
-    // const start = yesterdayMidnight.toISOString();
+    const topic = `Topic_${topicUid}`
+    const yesterdayMidnight = new Date();
+    yesterdayMidnight.setDate(yesterdayMidnight.getDate() - 1);
+    yesterdayMidnight.setHours(0, 0, 0, 0);
+    const start = yesterdayMidnight.toISOString();
 
-    // const todayMidnight = new Date();
-    // todayMidnight.setHours(0, 0, 0, 0);
-    // const end = todayMidnight.toISOString();
-
-    const end = new Date().toISOString();
-    const fiveMinutesEarly = new Date(Date.now() - 1000 * (60 * 120));
-    const start = fiveMinutesEarly.toISOString();
-
+    const todayMidnight = new Date();
+    todayMidnight.setHours(0, 0, 0, 0);
+    const end = todayMidnight.toISOString();
     const queryString = `SELECT ${timestampAsString},
                         topic, payload FROM iot_data.thingData
                         WHERE group_uid = $1 AND
