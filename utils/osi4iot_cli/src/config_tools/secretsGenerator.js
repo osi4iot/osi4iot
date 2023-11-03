@@ -120,7 +120,7 @@ export default function (osi4iotState) {
 		`POSTGRES_DB=${osi4iotState.platformInfo.POSTGRES_DB}\n`,
 		`TIMESCALE_USER=${osi4iotState.platformInfo.TIMESCALE_USER}\n`,
 		`TIMESCALE_PASSWORD=${osi4iotState.platformInfo.TIMESCALE_PASSWORD}\n`,
-		`TIMESCALE_DB=${osi4iotState.platformInfo.TIMESCALE_DB}\n`,,
+		`TIMESCALE_DB=${osi4iotState.platformInfo.TIMESCALE_DB}\n`,
 		`AWS_ACCESS_KEY_ID=${osi4iotState.platformInfo.AWS_ACCESS_KEY_ID}\n`,
 		`AWS_SECRET_ACCESS_KEY=${osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY}\n`,
 	];
