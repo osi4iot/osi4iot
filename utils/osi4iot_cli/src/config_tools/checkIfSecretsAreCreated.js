@@ -38,7 +38,9 @@ export default function (osi4iotState) {
 		areSecretsCreated = false;
 	}
 
-
+	if (!fs.existsSync('./secrets/s3_storage.txt')) {
+		areSecretsCreated = false;
+	}
 
 	if (osi4iotState.platformInfo.DEPLOYMENT_MODE === "development") {
 		if (!fs.existsSync('./secrets/pgadmin4.txt')) {
