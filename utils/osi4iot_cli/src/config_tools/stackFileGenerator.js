@@ -370,7 +370,7 @@ export default function (osi4iotState) {
 					'internal_net',
 				],
 				volumes: [
-					's3_storage_data:/data'
+					's3_storage_data:/app/data'
 				],
 				working_dir: '/app',
 				secrets: [

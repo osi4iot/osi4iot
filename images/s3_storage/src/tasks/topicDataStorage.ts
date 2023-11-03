@@ -13,20 +13,22 @@ export const s3Storage = async () => {
     const todayString = new Date().toISOString().slice(0, 10);
     const fileName = `${todayString}.parquet`;
     if (topics.length !== 0) {
-        console.log(`Beginning store for day: ${todayString}`);
+        console.log(`Beginning store for day ${todayString}`);
     }
     for (const topic of topics) {
         const measurements = await getLastMeasurements(topic.groupUid, topic.topicUid);
-        const parquetSchema = JSON.parse(topic.parquetSchema);
+        const parquetSchema = topic.parquetSchema;
         if (Object.keys(parquetSchema).length !== 0) {
             console.log(`Storing data for topicId: ${topic.topicId}`);
             const startTime = new Date().getTime();
             const schema = new parquet.ParquetSchema(parquetSchema);
-            const filePath = `/data/${fileName}`;
+            const filePath = `/app/data/${fileName}`;
             const writer = await parquet.ParquetWriter.openFile(schema, filePath);
             for (const measurement of measurements) {
                 const payload = JSON.parse(measurement.payload)
-                await writer.appendRow(payload);
+                const timestamp = measurement.timestamp;
+                const data = { timestamp, ...payload };
+                await writer.appendRow(data);
             }
             await writer.close();
     
@@ -55,5 +57,5 @@ export const s3Storage = async () => {
             console.log(`TopicId: ${topic.topicId} stored. Elapsed time: ${timeElapsed}secs`);
         }
     }
-    console.log(`Data storage for day: ${todayString} has finished\n`);
+    console.log(`Data storage for day ${todayString} has finished\n`);
 }

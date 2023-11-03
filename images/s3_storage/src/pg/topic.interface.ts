@@ -1,3 +1,5 @@
+import { SchemaInterface } from "parquetjs/lib/schema.interface";
+
 export default interface ITopic {
 	orgId: number;
     groupId: number;
@@ -7,6 +9,6 @@ export default interface ITopic {
 	topicUid: string;
 	requireS3Storage: boolean;
 	s3Folder: string;
-	parquetSchema: string;
+	parquetSchema: SchemaInterface;
 	lastS3Storage: string;
 }
