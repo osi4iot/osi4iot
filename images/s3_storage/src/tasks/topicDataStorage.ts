@@ -22,7 +22,7 @@ export const s3Storage = async () => {
             console.log(`Storing data for topicId: ${topic.topicId}`);
             const startTime = new Date().getTime();
             const schema = new parquet.ParquetSchema(parquetSchema);
-            const filePath = `/app/data/${fileName}`;
+            const filePath = `/data/${fileName}`;
             const writer = await parquet.ParquetWriter.openFile(schema, filePath);
             for (const measurement of measurements) {
                 const payload = JSON.parse(measurement.payload)

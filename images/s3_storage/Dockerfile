@@ -18,6 +18,8 @@ COPY package*.json ./
 RUN apk add --no-cache tzdata
 RUN apk add --no-cache curl
 RUN npm install --only=production
+RUN mkdir /data
+RUN chown -R node:node /data
 USER node
 COPY --from=0 /app/build ./build
 CMD npm start

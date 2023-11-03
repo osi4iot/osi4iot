@@ -15,7 +15,7 @@ export const getLastMeasurements = async (groupUid: string, topic: string):
     // const end = todayMidnight.toISOString();
 
     const end = new Date().toISOString();
-    const fiveMinutesEarly = new Date(Date.now() - 1000 * (60 * 10));
+    const fiveMinutesEarly = new Date(Date.now() - 1000 * (60 * 30));
     const start = fiveMinutesEarly.toISOString();
 
     const queryString = `SELECT ${timestampAsString},
