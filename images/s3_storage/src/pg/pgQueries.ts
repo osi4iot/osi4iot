@@ -5,7 +5,7 @@ export const getAllTopics = async (): Promise<ITopic[]> => {
     const lastMidnight = new Date();
     lastMidnight.setHours(0,0,0,0);
     const newTimeStorage = lastMidnight.toISOString();
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
+	const response = await pool.query(`SELECT grafanadb.group.org_id AS "orgId",
                                         grafanadb.topic.group_id AS "groupId",
                                         grafanadb.asset.id AS "assetId",
                                         grafanadb.topic.id AS "topicId",

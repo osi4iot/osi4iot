@@ -16,6 +16,7 @@ import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { logger } from "../../config/winston";
+import IAssetS3Folder from "./assetS3Folder.interface";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -449,9 +450,79 @@ export const getBucketFolderFileNames = async (folderPath: string) => {
 			command.input.ContinuationToken = data.NextContinuationToken;
 		}
 	} catch (err) {
-		logger.log("error",`Files info list for bucket ${bucketName} could not be obtained: %s`, err.message)
+		logger.log("error", `Files info list for bucket ${bucketName} could not be obtained: %s`, err.message)
 	}
 	return fileNames;
 }
+
+export const getAllAssetS3Folder = async (): Promise<IAssetS3Folder[]> => {
+	const response = await pool.query(`SELECT grafanadb.org.id AS "orgId",
+	                                    grafanadb.org.acronym AS "orgAcronym",
+	                                    grafanadb.group.id AS "groupId",
+										grafanadb.group.acronym AS "groupAcronym",
+										grafanadb.asset.id AS "assetId",
+                                        grafanadb.asset.asset_uid AS "assetUid",
+                                        grafanadb.asset.description AS "assetDescription",
+                                        grafanadb.topic.s3_folder AS "s3Folder"
+                                        FROM grafanadb.topic
+                                        INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+										INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
+                                        INNER JOIN grafanadb.sensor ON grafanadb.sensor.topic_id = grafanadb.topic.id
+                                        INNER JOIN grafanadb.asset ON grafanadb.asset.id = grafanadb.sensor.asset_id
+                                        WHERE grafanadb.topic.require_s3_storage = $1
+                                        ORDER BY grafanadb.group.org_id ASC,
+                                        grafanadb.topic.group_id ASC,
+                                        grafanadb.asset.id ASC,
+                                        grafanadb.topic.id  ASC;`, [true]);
+	return response.rows as IAssetS3Folder[];
+}
+
+export const getAssetS3FolderByGroupsIdArray = async (groupsIdArray: number[]): Promise<IAssetS3Folder[]> => {
+	const response = await pool.query(`SELECT grafanadb.org.id AS "orgId",
+										grafanadb.org.acronym AS "orgAcronym",
+										grafanadb.group.id AS "groupId",
+										grafanadb.group.acronym AS "groupAcronym",
+										grafanadb.asset.id AS "assetId",
+										grafanadb.asset.asset_uid AS "assetUid",
+										grafanadb.asset.description AS "assetDescription",
+										grafanadb.topic.s3_folder AS "s3Folder"
+										FROM grafanadb.topic
+                                        INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+										INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
+                                        INNER JOIN grafanadb.sensor ON grafanadb.sensor.topic_id = grafanadb.topic.id
+                                        INNER JOIN grafanadb.asset ON grafanadb.asset.id = grafanadb.sensor.asset_id
+                                        WHERE grafanadb.topic.require_s3_storage = $1
+										AND grafanadb.asset.group_id = ANY($2::bigint[])
+                                        ORDER BY grafanadb.group.org_id ASC,
+                                        grafanadb.topic.group_id ASC,
+                                        grafanadb.asset.id ASC,
+                                        grafanadb.topic.id  ASC;`, [true, groupsIdArray]);
+	return response.rows as IAssetS3Folder[];
+}
+
+export const getAssetS3StorageYears = async (assetFolderPath: string) => {
+	const bucketParams = {
+		Bucket: process_env.S3_BUCKET_NAME,
+		Prefix: assetFolderPath,
+		Delimiter: "/",
+		MaxKeys: 20,
+	};
+
+	const command = new ListObjectsV2Command(bucketParams);
+	const years = [];
+	try {
+		const data = await s3Client.send(command);
+		for (const item of data.CommonPrefixes) {
+			const prefixArray = item.Prefix.split("/");
+			if (prefixArray.length >= 5) {
+				years.push(prefixArray[4]);
+			}
+		}
+	} catch (err) {
+		logger.log("error",`S3 bucket subfolders of ${assetFolderPath} could not be obtained: %s`, err.message)
+	}
+	return years;
+}
+
 
 

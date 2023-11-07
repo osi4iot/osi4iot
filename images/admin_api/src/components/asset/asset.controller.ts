@@ -19,9 +19,12 @@ import {
 	deleteAssetByPropName,
 	deleteAssetTypeByPropName,
 	generateZipFileStream,
+	getAllAssetS3Folder,
 	getAllAssetTypes,
 	getAllAssets,
 	getAssetByPropName,
+	getAssetS3FolderByGroupsIdArray,
+	getAssetS3StorageYears,
 	getAssetTypeByPropName,
 	getAssetTypesByOrgId,
 	getAssetTypesByOrgsIdArray,
@@ -43,6 +46,7 @@ import CreateAssetTypeDto from "./assetType.dto";
 import IAssetType from "./assetType.interface";
 import HttpException from "../../exceptions/HttpException";
 import process_env from "../../config/api_config";
+import IAssetS3Folder from "./assetS3Folder.interface";
 
 
 class AssetController implements IController {
@@ -141,10 +145,15 @@ class AssetController implements IController {
 
 		this.router
 			.get(
-				`${this.path}_s3_storage/:groupId/:assetId/:s3Folder/:year`,
+				`${this.path}_s3_folders/user_managed/`,
+				userAuth,
+				this.getAssetS3FoldersManagedByUser
+			)
+			.get(
+				`${this.path}_s3_storage_download/:groupId/:assetId/:s3Folder/:year`,
 				groupExists,
 				groupAdminAuth,
-				this.getAsseetDataFromS3
+				this.getAssetDataFromS3
 			)
 	}
 
@@ -397,7 +406,48 @@ class AssetController implements IController {
 		}
 	};
 
-	private getAsseetDataFromS3 = async (
+	private getAssetS3FoldersManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let assetS3Folders: IAssetS3Folder[] = [];
+			if (req.user.isGrafanaAdmin) {
+				assetS3Folders = await getAllAssetS3Folder();
+			} else {
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					assetS3Folders = await getAssetS3FolderByGroupsIdArray(groupsIdArray);
+				}
+			}
+			if (assetS3Folders.length !== 0) {
+				for (const assetFolder of assetS3Folders) {
+					const orgId = assetFolder.orgId;
+					const groupId = assetFolder.groupId;
+					const assetId = assetFolder.assetId;
+					const folderName = assetFolder.s3Folder.replace(/ /g, "_");
+					const assetFolderPath = `org_${orgId}/group_${groupId}/asset_${assetId}/${folderName}/`;
+					assetFolder.years = await getAssetS3StorageYears(assetFolderPath);
+				}
+			}
+			res.status(200).send(assetS3Folders);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getAssetDataFromS3 = async (
 		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
@@ -425,7 +475,6 @@ class AssetController implements IController {
 			next(error);
 		}
 	};
-
 
 	private isValidAssetPropName = (propName: string) => {
 		const validPropName = ["id", "assetUid"];
