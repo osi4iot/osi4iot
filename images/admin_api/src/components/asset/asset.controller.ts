@@ -18,6 +18,7 @@ import {
 	createNewAssetType,
 	deleteAssetByPropName,
 	deleteAssetTypeByPropName,
+	generateZipFileStream,
 	getAllAssetTypes,
 	getAllAssets,
 	getAssetByPropName,
@@ -26,6 +27,7 @@ import {
 	getAssetTypesByOrgsIdArray,
 	getAssetsByGroupsIdArray,
 	getAssetsByOrgId,
+	getBucketFolderFileNames,
 	updateAssetByPropName,
 	updateAssetTypeByPropName,
 } from "./assetDAL";
@@ -40,6 +42,7 @@ import { deleteDashboardsByIdArray } from "../group/dashboardDAL";
 import CreateAssetTypeDto from "./assetType.dto";
 import IAssetType from "./assetType.interface";
 import HttpException from "../../exceptions/HttpException";
+import process_env from "../../config/api_config";
 
 
 class AssetController implements IController {
@@ -135,6 +138,14 @@ class AssetController implements IController {
 				validationMiddleware<CreateAssetDto>(CreateAssetDto),
 				this.createAsset
 			)
+
+		this.router
+			.get(
+				`${this.path}_s3_storage/:groupId/:assetId/:s3Folder/:year`,
+				groupExists,
+				groupAdminAuth,
+				this.getAsseetDataFromS3
+			)
 	}
 
 	private getAssetTypesManagedByUser = async (
@@ -207,7 +218,7 @@ class AssetController implements IController {
 			const orgId = req.organization.id;
 			const assetType = await getAssetTypeByPropName(orgId, propName, propValue);
 			if (!assetType) throw new ItemNotFoundException(req, res, "The asset type", propName, propValue);
-			if(assetType.isPredefined)  throw new HttpException(req, res, 500, "Predefined asset type can not be deleted.");
+			if (assetType.isPredefined) throw new HttpException(req, res, 500, "Predefined asset type can not be deleted.");
 			await deleteAssetTypeByPropName(propName, propValue);
 			const message = { message: "Asset type deleted successfully" }
 			res.status(200).json(message);
@@ -385,6 +396,36 @@ class AssetController implements IController {
 			next(error);
 		}
 	};
+
+	private getAsseetDataFromS3 = async (
+		req: IRequestWithGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { assetId, s3Folder, year } = req.params;
+			const asset = await getAssetByPropName("id", assetId);
+			if (!asset) throw new ItemNotFoundException(req, res, "The asset", "id", assetId);
+			const group = req.group;
+			const orgId = group.orgId;
+			const folderName = s3Folder.replace(/ /g, "_");
+			const folderPath = `org_${orgId}/group_${group.id}/asset_${assetId}/${folderName}/${year}`;
+			const fileNames = await getBucketFolderFileNames(folderPath);
+			if (fileNames.length === 0) {
+				const bucketName = process_env.S3_BUCKET_NAME;
+				const errorMessage = `Files info list for bucket ${bucketName} could not be obtained`;
+				throw new HttpException(req, res, 500, errorMessage);
+			}
+			const zipFile = `${folderName.toLowerCase()}_${year}`;
+			const archive = generateZipFileStream(folderPath, fileNames)
+			res.setHeader('Content-Type', 'application/zip');
+			res.setHeader('Content-disposition', `attachment; filename="${zipFile}.zip"`);
+			archive.pipe(res)
+		} catch (error) {
+			next(error);
+		}
+	};
+
 
 	private isValidAssetPropName = (propName: string) => {
 		const validPropName = ["id", "assetUid"];

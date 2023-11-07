@@ -1,4 +1,12 @@
-import { SchemaInterface } from "parquetjs/lib/schema.interface";
+import { SingleFieldInterface } from "parquetjs/lib/schema.interface";
+
+interface SingleFieldInterfaceExtended extends SingleFieldInterface{
+    compression: string;
+}
+
+export interface SchemaInterface {
+    [key: string]: SingleFieldInterfaceExtended;
+}
 
 export default interface ITopic {
 	orgId: number;

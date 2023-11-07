@@ -20,6 +20,7 @@
     "@turf/rhumb-destination": "^6.5.0",
     "@types/multer": "^1.4.7",
     "@types/multer-s3": "^3.0.0",
+    "archiver": "^6.0.1",
     "body-parser": "^1.20.0",
     "class-transformer": "^0.5.1",
     "class-transformer-validator": "^0.9.1",
@@ -48,12 +49,14 @@
     "pg-format": "^1.0.4",
     "reflect-metadata": "^0.1.13",
     "rimraf": "^3.0.2",
+    "s3-files": "^3.0.1",
     "supertest": "^6.2.2",
     "swagger-ui-express": "^4.3.0",
     "uuid": "^8.3.2",
     "winston": "^3.7.2"
   },
   "devDependencies": {
+    "@types/archiver": "^6.0.1",
     "@types/compression": "^1.7.2",
     "@types/cookie-parser": "^1.4.2",
     "@types/cors": "^2.8.12",

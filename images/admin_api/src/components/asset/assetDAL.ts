@@ -3,6 +3,9 @@ import pointOnFeature from '@turf/point-on-feature';
 import rhumbDestination from '@turf/rhumb-destination';
 import { point, polygon } from '@turf/helpers';
 import pool from "../../config/dbconfig";
+import archiver from 'archiver';
+import s3Files from 's3-files';
+import s3Client from "../../config/s3Config";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateAssetDto from "./asset.dto";
 import IAsset from "./asset.interface";
@@ -10,6 +13,9 @@ import IAssetType from "./assetType.interface";
 import CreateAssetTypeDto from "./assetType.dto";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
+import process_env from "../../config/api_config";
+import { ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { logger } from "../../config/winston";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -400,6 +406,52 @@ export const updateGroupAssetsLocation = async (geoJsonDataString: string, group
 		}
 		await Promise.all(assetsLocationQueries)
 	}
+}
+
+export const generateZipFileStream = (folderPath: string, fileNames: string[]) => {
+	const keyStream = s3Files
+		.connect({ s3: s3Client, bucket: process_env.S3_BUCKET_NAME })
+		.createKeyStream(folderPath, fileNames)
+
+	const fileSream = s3Files.createFileStream(keyStream, false);
+	const archive = archiver('zip', { zlib: { level: 5 } });
+	fileSream
+		.on('data', (file: any) => {
+			if (file.data.length !== 0) {
+				archive.append(file.data, { name: file.path })
+			}
+		})
+		.on('end', () => {
+			void archive.finalize();
+		})
+		.on('error', (err: any) => {
+			archive.emit('error', err)
+		})
+	return archive;
+}
+
+export const getBucketFolderFileNames = async (folderPath: string) => {
+	const bucketName = process_env.S3_BUCKET_NAME;
+	const bucketParams = {
+		Bucket: bucketName,
+		Prefix: folderPath,
+		MaxKeys: 1,
+	};
+
+	const command = new ListObjectsV2Command(bucketParams);
+	const fileNames = [];
+	try {
+		let isTruncated = true;
+		while (isTruncated) {
+			const data = await s3Client.send(command);
+			fileNames.push(...data.Contents.map(fileData => fileData.Key.split("/")[5]))
+			isTruncated = data.IsTruncated;
+			command.input.ContinuationToken = data.NextContinuationToken;
+		}
+	} catch (err) {
+		logger.log("error",`Files info list for bucket ${bucketName} could not be obtained: %s`, err.message)
+	}
+	return fileNames;
 }
 
 
