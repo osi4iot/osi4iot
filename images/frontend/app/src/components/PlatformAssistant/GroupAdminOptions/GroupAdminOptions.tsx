@@ -57,12 +57,14 @@ import TableWithPagination from '../Utils/TableWithPagination';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { MlModelsProvider } from '../../../contexts/mlModelsOptions';
-import { setAssetTypesTable, setAssetsTable, setMlModelsTable, setReloadAssetTypesTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorsTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
+import { setAssetS3FoldersTable, setAssetTypesTable, setAssetsTable, setMlModelsTable, setReloadAssetS3FoldersTable, setReloadAssetTypesTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorsTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
 import MlModelsContainer from './MlModelsContainer';
 import {
+    useAssetS3FoldersTable,
     useAssetTypesTable,
     useAssetsTable,
     useMlModelsTable,
+    useReloadAssetS3FoldersTable,
     useReloadAssetTypesTable,
     useReloadAssetsTable,
     useReloadMlModelsTable,
@@ -77,6 +79,7 @@ import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import { ITopic } from '../TableColumns/topicsColumns';
+import S3StorageForm from '../../Tools/S3StorageForm';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -162,6 +165,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const groupsManagedTable = useGroupsManagedTable();
     const assetTypesTable = useAssetTypesTable();
     const assetsTable = useAssetsTable();
+    const assetS3FoldersTable = useAssetS3FoldersTable();
     const sensorsTable = useSensorsTable();
     const groupMembersTable = useGroupMembersTable();
     const selectOrgUsersTable = useSelectOrgUsersTable();
@@ -175,6 +179,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
     const [assetTypesLoading, setAssetTypesLoading] = useState(true);
     const [assetsLoading, setAssetsLoading] = useState(true);
+    const [assetS3FoldersLoading, setAssetS3FoldersLoading] = useState(true);
     const [sensorsLoading, setSensorsLoading] = useState(true);
     const [topicsLoading, setTopicsLoading] = useState(true);
     const [dashboardsLoading, setDashboardsLoading] = useState(true);
@@ -189,6 +194,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const reloadGroupMembersTable = useReloadGroupMembersTable();
     const reloadAssetTypesTable = useReloadAssetTypesTable();
     const reloadAssetsTable = useReloadAssetsTable();
+    const reloadAssetS3FoldersTable = useReloadAssetS3FoldersTable();
     const reloadSensorsTable = useReloadSensorsTable();
     const reloadTopicsTable = useReloadTopicsTable();
     const reloadDashboardsTable = useReloadDashboardsTable();
@@ -203,11 +209,17 @@ const GroupAdminOptions: FC<{}> = () => {
         const reloadGroupsManagedTable = true;
         setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
     }, [plaformAssistantDispatch]);
- 
+
     const refreshAssets = useCallback(() => {
         setAssetsLoading(true);
         const reloadAssetsTable = true;
         setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+    }, [plaformAssistantDispatch])
+
+    const refreshAssetS3Folders = useCallback(() => {
+        setAssetS3FoldersLoading(true);
+        const reloadAssetS3FoldersTable = true;
+        setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
     }, [plaformAssistantDispatch])
 
     const refreshSensors = useCallback(() => {
@@ -509,6 +521,35 @@ const GroupAdminOptions: FC<{}> = () => {
     ]);
 
     useEffect(() => {
+        if (assetS3FoldersTable.length === 0 || reloadAssetS3FoldersTable) {
+            const config = axiosAuth(accessToken);
+            const urlAssetS3Folders = `${protocol}://${domainName}/admin_api/asset_s3_folders/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlAssetS3Folders, config)
+                .then((response) => {
+                    const assetS3Folders = response.data;
+                    setAssetS3FoldersTable(plaformAssistantDispatch, { assetS3Folders });
+                    setAssetS3FoldersLoading(false);
+                    const reloadAssetS3FoldersTable = false;
+                    setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetS3FoldersLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadAssetS3FoldersTable,
+        assetS3FoldersTable.length
+    ]);
+
+
+    useEffect(() => {
         if (sensorsTable.length === 0 || reloadSensorsTable) {
             const config = axiosAuth(accessToken);
             const urlSensors = `${protocol}://${domainName}/admin_api/sensors/user_managed`;
@@ -687,6 +728,9 @@ const GroupAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.MEASUREMENTS)}>
                     Measurements
                 </OptionContainer>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.S3_STORAGE)}>
+                    S3 storage
+                </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DASHBOARDS)}>
                     Dashboards
                 </OptionContainer>
@@ -712,6 +756,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         topicsLoading ||
                         dashboardsLoading ||
                         digitalTwinsLoading ||
+                        assetS3FoldersLoading ||
                         mlModelsLoading
                     ) ?
                         <Loader />
@@ -771,6 +816,12 @@ const GroupAdminOptions: FC<{}> = () => {
                                 <MeasurementsProvider>
                                     <MeasurementsContainer topics={topicsTable} sensors={sensorsTable} />
                                 </MeasurementsProvider>
+                            }
+                            {optionToShow === GROUP_ADMIN_OPTIONS.S3_STORAGE &&
+                                <S3StorageForm
+                                    assetS3Folders={assetS3FoldersTable}
+                                    refreshAssetS3Folders={refreshAssetS3Folders}
+                                />
                             }
                             {optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS &&
                                 <TableWithPagination

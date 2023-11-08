@@ -104,6 +104,7 @@ export const GROUP_ADMIN_OPTIONS = {
     TOPICS: "Topics",
     DASHBOARDS: "Dashboards",
     MEASUREMENTS: "Measurements",
+    S3_STORAGE: "S3_Storage",
     DIGITAL_TWINS: "Digital twins",
     ML_MODELS: "ML models"
 }

@@ -47,6 +47,8 @@ import IAssetType from "./assetType.interface";
 import HttpException from "../../exceptions/HttpException";
 import process_env from "../../config/api_config";
 import IAssetS3Folder from "./assetS3Folder.interface";
+import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
+import { generateS3StorageToken, isS3StorageTokenValid } from "../../utils/s3StorageToken";
 
 
 class AssetController implements IController {
@@ -150,9 +152,14 @@ class AssetController implements IController {
 				this.getAssetS3FoldersManagedByUser
 			)
 			.get(
-				`${this.path}_s3_storage_download/:groupId/:assetId/:s3Folder/:year`,
+				`${this.path}_s3_storage_token/:groupId/:assetId/:s3Folder/:year`,
 				groupExists,
 				groupAdminAuth,
+				this.getAssetS3StorageToken
+			)
+			.get(
+				`${this.path}_s3_storage_download/:groupId/:assetId/:s3Folder/:year/:token`,
+				groupExists,
 				this.getAssetDataFromS3
 			)
 	}
@@ -431,6 +438,7 @@ class AssetController implements IController {
 					assetS3Folders = await getAssetS3FolderByGroupsIdArray(groupsIdArray);
 				}
 			}
+			const assetS3FoldersFiltered: IAssetS3Folder[] = [];
 			if (assetS3Folders.length !== 0) {
 				for (const assetFolder of assetS3Folders) {
 					const orgId = assetFolder.orgId;
@@ -440,12 +448,36 @@ class AssetController implements IController {
 					const assetFolderPath = `org_${orgId}/group_${groupId}/asset_${assetId}/${folderName}/`;
 					assetFolder.years = await getAssetS3StorageYears(assetFolderPath);
 				}
+				assetS3FoldersFiltered.push(...assetS3Folders.filter(folder => folder.years.length !== 0));
 			}
-			res.status(200).send(assetS3Folders);
+			res.status(200).send(assetS3FoldersFiltered);
 		} catch (error) {
 			next(error);
 		}
 	};
+
+	private getAssetS3StorageToken = (
+		req: IRequestWithUserAndGroup,
+		res: Response,
+		next: NextFunction
+	): void => {
+		try {
+			const { assetId, s3Folder, year } = req.params;
+			const groupId = req.group.id;
+			const userId = req.user.id;
+			const token = generateS3StorageToken(
+				userId,
+				groupId,
+				parseInt(assetId, 10),
+				s3Folder,
+				year
+			)
+			res.status(200).json(token);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 
 	private getAssetDataFromS3 = async (
 		req: IRequestWithGroup,
@@ -453,7 +485,18 @@ class AssetController implements IController {
 		next: NextFunction
 	): Promise<void> => {
 		try {
-			const { assetId, s3Folder, year } = req.params;
+			const { assetId, s3Folder, year, token } = req.params;
+			const isValidToken = isS3StorageTokenValid(
+				req.group,
+				assetId,
+				s3Folder,
+				year,
+				token
+			);
+			if (!isValidToken) {
+				const message = "You are not allowed to get s3 storage token.";
+				throw new HttpException(req, res, 401, message)
+			}
 			const asset = await getAssetByPropName("id", assetId);
 			if (!asset) throw new ItemNotFoundException(req, res, "The asset", "id", assetId);
 			const group = req.group;
@@ -470,7 +513,7 @@ class AssetController implements IController {
 			const archive = generateZipFileStream(folderPath, fileNames)
 			res.setHeader('Content-Type', 'application/zip');
 			res.setHeader('Content-disposition', `attachment; filename="${zipFile}.zip"`);
-			archive.pipe(res)
+			archive.pipe(res);
 		} catch (error) {
 			next(error);
 		}

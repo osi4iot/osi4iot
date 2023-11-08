@@ -512,14 +512,17 @@ export const getAssetS3StorageYears = async (assetFolderPath: string) => {
 	const years = [];
 	try {
 		const data = await s3Client.send(command);
-		for (const item of data.CommonPrefixes) {
-			const prefixArray = item.Prefix.split("/");
-			if (prefixArray.length >= 5) {
-				years.push(prefixArray[4]);
+		if (data.CommonPrefixes) {
+			for (const item of data.CommonPrefixes) {
+				const prefixArray = item.Prefix.split("/");
+				if (prefixArray.length >= 5) {
+					years.push(prefixArray[4]);
+				}
 			}
+			years.sort();
 		}
 	} catch (err) {
-		logger.log("error",`S3 bucket subfolders of ${assetFolderPath} could not be obtained: %s`, err.message)
+		logger.log("error", `S3 bucket subfolders of ${assetFolderPath} could not be obtained: %s`, err.message)
 	}
 	return years;
 }

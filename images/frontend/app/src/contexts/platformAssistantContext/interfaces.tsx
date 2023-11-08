@@ -21,6 +21,7 @@ import { IMlModel } from "../../components/PlatformAssistant/TableColumns/mlMode
 import { IAsset } from "../../components/PlatformAssistant/TableColumns/assetsColumns";
 import { ISensor } from "../../components/PlatformAssistant/TableColumns/sensorsColumns";
 import { IAssetType } from "../../components/PlatformAssistant/TableColumns/assetTypesColumns";
+import IAssetS3Folder from "../../components/PlatformAssistant/TableColumns/assetS3Folder.interface";
 
 export interface PlatformAssistantDispatch {
 	(arg0: { type: string; payload?: any; error?: any }): void;
@@ -64,6 +65,8 @@ export interface PlatformAssistantContextProps {
 	reloadAssetTypesTable: boolean;
 	assets: IAsset[];
 	reloadAssetsTable: boolean;
+	assetS3Folders: IAssetS3Folder[];
+	reloadAssetS3FoldersTable: boolean;
 	sensors: ISensor[];
 	reloadSensorsTable: boolean;
 	topics: ITopic[];
@@ -120,6 +123,8 @@ export interface PlatformAssistantActionPayload {
 	reloadAssetTypesTable: boolean;
 	assets: IAsset[];
 	reloadAssetsTable: boolean;
+	assetS3Folders: IAssetS3Folder[];
+	reloadAssetS3FoldersTable: boolean;
 	sensors: ISensor[];
 	reloadSensorsTable: boolean;
 	topics: ITopic[];
@@ -269,6 +274,14 @@ export interface IAssetsTable {
 
 export interface IReloadAssetsTable {
 	reloadAssetsTable: boolean;
+}
+
+export interface IAssetS3FoldersTable {
+	assetS3Folders: IAssetS3Folder[];
+}
+
+export interface IReloadAssetS3FoldersTable {
+	reloadAssetS3FoldersTable: boolean;
 }
 
 export interface ISensorsTable {

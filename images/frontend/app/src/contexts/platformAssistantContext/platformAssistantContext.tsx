@@ -25,6 +25,7 @@ import { IMlModel } from '../../components/PlatformAssistant/TableColumns/mlMode
 import { IAsset } from '../../components/PlatformAssistant/TableColumns/assetsColumns';
 import { ISensor } from '../../components/PlatformAssistant/TableColumns/sensorsColumns';
 import { IAssetType } from '../../components/PlatformAssistant/TableColumns/assetTypesColumns';
+import IAssetS3Folder from '../../components/PlatformAssistant/TableColumns/assetS3Folder.interface';
 
 const PlatformAssitantStateContext = createContext<PlatformAssistantContextProps>(initialState);
 const PlatformAssitantDispatchContext = createContext<any>({});
@@ -373,6 +374,22 @@ export const useReloadMlModelsTable = (): boolean => {
 		throw new Error('useReloadMlModelsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.reloadMlModelsTable;
+}
+
+export const useAssetS3FoldersTable = (): IAssetS3Folder[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useAssetS3FoldersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.assetS3Folders;
+}
+
+export const useReloadAssetS3FoldersTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadAssetS3FoldersTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadAssetS3FoldersTable;
 }
 
 export const useUserProfileTable = (): IUserProfile => {

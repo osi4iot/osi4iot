@@ -50,6 +50,8 @@ export const initialState = {
     reloadAssetTypesTable: true,
     assets: [],
     reloadAssetsTable: true,
+    assetS3Folders: [],
+    reloadAssetS3FoldersTable: true,
     sensors: [],
     reloadSensorsTable: true,
     topics: [],
@@ -257,6 +259,18 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadAssetsTable: action.payload.reloadAssetsTable
             };
 
+        case "ASSET_S3_FOLDERS_TABLE":
+            return {
+                ...initialState,
+                assetS3Folders: action.payload.assetS3Folders
+            };
+
+        case "RELOAD_ASSET_S3_FOLDERS_TABLE":
+            return {
+                ...initialState,
+                reloadAssetS3FoldersTable: action.payload.reloadAssetS3FoldersTable
+            };
+
         case "SENSORS_TABLE":
             return {
                 ...initialState,
@@ -392,6 +406,8 @@ export const PlatformAssitantReducer = (initialState: PlatformAssistantContextPr
                 reloadAssetTypesTable: true,
                 assets: [],
                 reloadAssetsTable: true,
+                assetS3Folders: [],
+                reloadAssetS3FoldersTable: true,
                 sensors: [],
                 reloadSensorsTable: true,
                 topics: [],
