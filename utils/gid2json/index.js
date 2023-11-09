@@ -167,13 +167,17 @@ const dictCompOfInterest = {
     'Shells//Stresses_Bottom':1,
     'Shells//Equivalent_stresses//Von_Mises//Top':1,
     'Shells//Equivalent_stresses//Von_Mises//Bottom':1,
+    'Shells//Stresses_Top//Von_mises':6,
     'Shells//Main_stresses//Top//Si':1,
     'Shells//Main_stresses//Top//Sii':1,
     'Shells//Main_stresses//Top//Siii':1,
     'Shells//Main_stresses//Bottom//Si':1,
     'Shells//Main_stresses//Bottom//Sii':1,
     'Shells//Main_stresses//Bottom//Siii':1,
-    'Stresses_Top (Pa)//Sx':6,
+    'Shells//Stresses_Top//SI':1,
+    'Shells//Stresses_Top//SII':1,
+    'Shells//Stresses_Top//SIII':1,
+    'Stresses_Top (Pa)':6,
     'Stresses_Bottom':6,
     'Axial_Force':4,
     'Temperature': 1,
@@ -182,7 +186,7 @@ const dictCompOfInterest = {
 
 if (resultsOfInterest == undefined) {
     console.log('No result specified, using the defaults.');
-    resultsOfInterest = ["Displacements", "Shells//Stresses_Top", "Shells//Stresses_Bottom"];
+    resultsOfInterest = ["Displacements", "Shells//Stresses_Top", "Shells//Stresses_Bottom, Von_mises"];
     // resultsOfInterest = ["Displacements","Stresses_Top (Pa)","Stresses_Bottom (Pa)","Axial_Force"];
 }
 
@@ -299,12 +303,16 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
         let valueSign = 1
         let lineString = line.toString('ascii');
         if (lineString.slice(0, 10) === "End Values") break;
+        else if (lineString.includes('Values\r')) {
+            line = liner.next();
+            lineString = line.toString('ascii');
+        }
 
         if (componentNamesArray) {
             if (resultType === "OnNodes") {
                 const valuesArray = lineString.split(" ").filter(word => word !== "").slice(1);
                 let idx_elm=parseInt(lineString.split(" ").filter(word => word !== "").slice(0,1));
-                if (elements[0][idx_elm]==undefined) boolMixMaxSave = false;
+                if (elements[0] == undefined ||elements[0][idx_elm]==undefined) boolMixMaxSave = false;
                 for (let icomp = 0; icomp < componentNamesArray.length; icomp++) {
                     const fieldNameParent =componentNamesArray[icomp]
                     if (reverseField && reverseField.indexOf(fieldNameParent)>-1){
@@ -329,7 +337,7 @@ const readResults = (header, liner, elements, nodalResults, elemResults, maxValu
                 const gpValuesMatrix = [];
                 gpValuesMatrix[0] = lineString.split(" ").filter(word => word !== "").slice(1);
                 let idx_elm=parseInt(lineString.split(" ").filter(word => word !== "").slice(0,1));
-                if (elements[0][idx_elm]==undefined) boolMixMaxSave = false;
+                if (elements[0] == undefined ||elements[0][idx_elm]==undefined) boolMixMaxSave = false;
                 line = liner.next()
                 lineString = line.toString('ascii');
                 gpValuesMatrix[1] = lineString.split(" ").filter(word => word !== "");
