@@ -13,21 +13,6 @@ class UpdateOrganizationDto {
 	@IsEnum(OrgRoleOptions, { message: " 'Main', 'Generic' or 'Provider' are the only valid options for org role." })
 	public role: OrgRoleOption;
 
-	@IsString()
-	public address: string;
-
-	@IsString()
-	public city: string;
-
-	@IsString()
-	public zipCode: string;
-
-	@IsString()
-	public state: string;
-
-	@IsString()
-	public country: string;
-
 	@IsNumber()
 	public buildingId: number;
 

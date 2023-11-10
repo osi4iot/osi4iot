@@ -530,8 +530,17 @@ export default function (osi4iotState) {
 						source: 'admin_api_conf',
 						target: '/run/configs/admin_api.conf',
 						mode: 0o444
-					}
-
+					},
+					{
+						source: 'admin_api_main_org_building',
+						target: '/run/configs/main_org_building.geojson',
+						mode: 0o444
+					},
+					{
+						source: 'admin_api_main_org_floor',
+						target: '/run/configs/main_org_floor.geojson',
+						mode: 0o444
+					}					
 				],
 				ports: [
 					'3200:3200'
@@ -720,6 +729,12 @@ export default function (osi4iotState) {
 			admin_api_conf: {
 				file: './config/admin_api/admin_api.conf'
 			},
+			admin_api_main_org_building: {
+				file: './config/admin_api/main_org_building.geojson'
+			},
+			admin_api_main_org_floor: {
+				file: './config/admin_api/main_org_floor.geojson'
+			},				
 			frontend_conf: {
 				file: './config/frontend/frontend.conf',
 			},

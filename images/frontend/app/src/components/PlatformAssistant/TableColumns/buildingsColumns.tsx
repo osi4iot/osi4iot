@@ -29,6 +29,11 @@ export interface IBuilding {
     longitude: number;
     geoJsonData: FeatureCollection;
     outerBounds: number[][];
+    address: string;
+    city: string;
+    zipCode: string;
+    state: string;
+    country: string;
     buildingFileName: string;
 	buildingFileLastModifDate: string;
     createdAtAge: string;
@@ -158,6 +163,31 @@ export const Create_BUILDINGS_COLUMNS = (refreshBuildings: () => void): Column<I
             accessor: "outerBounds",
             disableFilters: true
         },
+        {
+            Header: "Address",
+            accessor: "address",
+            disableFilters: true
+        },
+        {
+            Header: "City",
+            accessor: "city",
+            disableFilters: true
+        },
+        {
+            Header: "Zip code",
+            accessor: "zipCode",
+            disableFilters: true
+        },
+        {
+            Header: "State",
+            accessor: "state",
+            disableFilters: true
+        },
+        {
+            Header: "Country",
+            accessor: "country",
+            disableFilters: true
+        },        
         {
             Header: "Created",
             accessor: "createdAtAge",

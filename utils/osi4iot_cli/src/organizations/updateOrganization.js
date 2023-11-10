@@ -54,11 +54,6 @@ export default async function () {
 					clc.cyanBright('Id'),
 					clc.cyanBright('Name'),
 					clc.cyanBright('Acronym'),
-					clc.cyanBright('Address'),
-					clc.cyanBright('City'),
-					clc.cyanBright('Zip Code'),
-					clc.cyanBright('State'),
-					clc.cyanBright('Country'),
 					clc.cyanBright('Building Id'),
 					clc.cyanBright('Org hash'),
 					clc.cyanBright('Mqtt acc'),
@@ -77,11 +72,6 @@ export default async function () {
 					orgs[iorg].id,
 					orgs[iorg].name,
 					orgs[iorg].acronym,
-					orgs[iorg].address,
-					orgs[iorg].city,
-					orgs[iorg].zipCode,
-					orgs[iorg].state,
-					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
 					orgs[iorg].mqttAccessControl,
@@ -198,66 +188,6 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInsta
 						return true;
 					} else {
 						return "Role of main Org can not be modified.";
-					}
-				}
-			},			
-			{
-				name: 'ORGANIZATION_ADDRESS',
-				message: 'Organization address:',
-				default: orgToUpdate.address,
-				validate: function (text) {
-					if (text.length >= 4) {
-						return true;
-					} else {
-						return "Please type at least a valid address";
-					}
-				}
-			},
-			{
-				name: 'ORGANIZATION_CITY',
-				message: 'Organization city:',
-				default: orgToUpdate.city,
-				validate: function (text) {
-					if (text.length >= 4) {
-						return true;
-					} else {
-						return "Please type at least a valid city";
-					}
-				}
-			},
-			{
-				name: 'ORGANIZATION_ZIP_CODE',
-				message: 'Organization zip code:',
-				default: orgToUpdate.zipCode,
-				validate: function (text) {
-					if (text.length >= 5) {
-						return true;
-					} else {
-						return "Please type at least a valid zip code";
-					}
-				}
-			},
-			{
-				name: 'ORGANIZATION_STATE',
-				message: 'Organization state/province:',
-				default: orgToUpdate.state,
-				validate: function (text) {
-					if (text.length >= 4) {
-						return true;
-					} else {
-						return "Please type at least a valid state/province";
-					}
-				}
-			},
-			{
-				name: 'ORGANIZATION_COUNTRY',
-				message: 'Organization country:',
-				default: orgToUpdate.country,
-				validate: function (text) {
-					if (text.length >= 4) {
-						return true;
-					} else {
-						return "Please type at least a valid country";
 					}
 				}
 			},
@@ -472,11 +402,6 @@ const requestUpdateOrg = async (accessToken, osi4iotState, orgToUpdate, orgData)
 		name: orgData.ORGANIZATION_NAME,
 		acronym: orgData.ORGANIZATION_ACRONYM,
 		role: orgData.ORGANIZATION_ROLE,
-		address: orgData.ORGANIZATION_ADDRESS,
-		city: orgData.ORGANIZATION_CITY,
-		zipCode: orgData.ORGANIZATION_ZIP_CODE,
-		state: orgData.ORGANIZATION_STATE,
-		country: orgData.ORGANIZATION_COUNTRY,
 		buildingId: parseInt(orgData.BUILDING_ID, 10),
 		orgHash: org_hash,
 		nriHashes: new_nodered_instances.map(nri => nri.nri_hash),

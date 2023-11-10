@@ -11,6 +11,21 @@ class CreateBuildingDto {
 	public latitude: number;
 
 	@IsString()
+	public address: string;
+
+	@IsString()
+	public city: string;
+
+	@IsString()
+	public zipCode: string;
+
+	@IsString()
+	public state: string;
+
+	@IsString()
+	public country: string;
+
+	@IsString()
 	public geoJsonData: string;
 
 	public outerBounds?: number[][];

@@ -250,6 +250,11 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
 
         const buildingData = {
             name: values.name,
+            address: values.address,
+            city: values.city,
+            zipCode: values.zipCode,
+            state: values.state,
+            country: values.country,
             longitude,
             latitude,
             geoJsonData: JSON.stringify(buildingGeoData),
@@ -286,6 +291,11 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
 
     const validationSchema = Yup.object().shape({
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
+        address: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        city: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        zipCode: Yup.string().max(50, "The maximum number of characters allowed is 50").required('Required'),
+        state: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
+        country: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -312,6 +322,36 @@ const CreateBuilding: FC<CreateBuildingProps> = ({ backToTable, refreshBuildings
                                             control='input'
                                             label='Building name'
                                             name='name'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Address'
+                                            name='address'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='City'
+                                            name='city'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Zip code'
+                                            name='zipCode'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='State'
+                                            name='state'
+                                            type='text'
+                                        />
+                                        <FormikControl
+                                            control='input'
+                                            label='Country'
+                                            name='country'
                                             type='text'
                                         />
                                         <BuildingLocationTitle>Building location</BuildingLocationTitle>

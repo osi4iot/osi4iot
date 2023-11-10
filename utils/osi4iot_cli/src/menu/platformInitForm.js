@@ -377,6 +377,16 @@ const finalQuestions = (
 				}
 			},
 			{
+				name: 'MAIN_ORGANIZATION_BUILDING',
+				message: 'Main organization building:',
+				type: 'editor',
+			},
+			{
+				name: 'MAIN_ORGANIZATION_FLOOR',
+				message: 'Main organization floor:',
+				type: 'editor',
+			},			
+			{
 				name: 'TELEGRAM_BOTTOKEN',
 				message: 'Telegram boottoken for main organization default group:',
 				validate: function (text) {
@@ -691,6 +701,8 @@ const finalQuestions = (
 								MAIN_ORGANIZATION_ZIP_CODE: answers.MAIN_ORGANIZATION_ZIP_CODE,
 								MAIN_ORGANIZATION_STATE: answers.MAIN_ORGANIZATION_STATE,
 								MAIN_ORGANIZATION_COUNTRY: answers.MAIN_ORGANIZATION_COUNTRY,
+								MAIN_ORGANIZATION_BUILDING: answers.MAIN_ORGANIZATION_BUILDING,
+								MAIN_ORGANIZATION_FLOOR: answers.MAIN_ORGANIZATION_FLOOR,
 								TELEGRAM_BOTTOKEN: answers.TELEGRAM_BOTTOKEN,
 								MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: answers.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 								MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: answers.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,

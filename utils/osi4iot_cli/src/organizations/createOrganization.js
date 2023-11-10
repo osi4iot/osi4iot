@@ -87,66 +87,6 @@ export default async function () {
 						choices: ["Generic", "Provider"],
 					},
 					{
-						name: 'ORGANIZATION_ADDRESS',
-						message: 'Organization address:',
-						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_ADDRESS1,
-						validate: function (text) {
-							if (text.length >= 4) {
-								return true;
-							} else {
-								return "Please type at least a valid address";
-							}
-						}
-					},
-					{
-						name: 'ORGANIZATION_CITY',
-						message: 'Organization city:',
-						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_CITY,
-						validate: function (text) {
-							if (text.length >= 4) {
-								return true;
-							} else {
-								return "Please type at least a valid city";
-							}
-						}
-					},
-					{
-						name: 'ORGANIZATION_ZIP_CODE',
-						message: 'Organization zip code:',
-						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_ZIP_CODE,
-						validate: function (text) {
-							if (text.length >= 5) {
-								return true;
-							} else {
-								return "Please type at least a valid zip code";
-							}
-						}
-					},
-					{
-						name: 'ORGANIZATION_STATE',
-						message: 'Organization state/province:',
-						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_STATE,
-						validate: function (text) {
-							if (text.length >= 4) {
-								return true;
-							} else {
-								return "Please type at least a valid state/province";
-							}
-						}
-					},
-					{
-						name: 'ORGANIZATION_COUNTRY',
-						message: 'Organization country:',
-						default: osi4iotState.platformInfo.MAIN_ORGANIZATION_COUNTRY,
-						validate: function (text) {
-							if (text.length >= 4) {
-								return true;
-							} else {
-								return "Please type at least a valid country";
-							}
-						}
-					},
-					{
 						name: 'BUILDING_ID',
 						message: 'Building id:',
 						default: 1,
@@ -316,11 +256,6 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 		name: orgData.ORGANIZATION_NAME,
 		acronym: orgData.ORGANIZATION_ACRONYM,
 		role: orgData.ORGANIZATION_ROLE,
-		address: orgData.ORGANIZATION_ADDRESS,
-		city: orgData.ORGANIZATION_CITY,
-		zipCode: orgData.ORGANIZATION_ZIP_CODE,
-		state: orgData.ORGANIZATION_STATE,
-		country: orgData.ORGANIZATION_COUNTRY,
 		buildingId: parseInt(orgData.BUILDING_ID, 10),
 		orgHash: newOrg.org_hash,
 		nriHashes: newOrg.nodered_instances.map(nri => nri.nri_hash),

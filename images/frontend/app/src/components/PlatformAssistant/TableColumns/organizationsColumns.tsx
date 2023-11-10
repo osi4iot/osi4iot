@@ -5,10 +5,7 @@ export interface IOrganization {
     name: string;
     acronym: string;
     role: string;
-    address: string;
     city: string;
-    zipCode: string;
-    state: string;
     country: string;
     buildingId: string;
     orgHash: string;
@@ -40,31 +37,6 @@ export const Create_ORGANIZATIONS_COLUMNS = (): Column<IOrganizationColumn>[] =>
             Header: "Role",
             accessor: "role"
         },        
-        {
-            Header: "Address",
-            accessor: "address",
-            disableFilters: true
-        },
-        {
-            Header: "City",
-            accessor: "city",
-            disableFilters: true
-        },
-        {
-            Header: "Zip code",
-            accessor: "zipCode",
-            disableFilters: true
-        },
-        {
-            Header: "State",
-            accessor: "state",
-            disableFilters: true
-        },
-        {
-            Header: "Country",
-            accessor: "country",
-            disableFilters: true
-        },
         {
             Header: "Building Id",
             accessor: "buildingId",

@@ -1,5 +1,6 @@
 import { logger } from "../config/winston";
 import { Pool } from "pg";
+import fs from "fs";
 import grafanaApi from "../GrafanaApi"
 import { encrypt } from "../utils/encryptAndDecrypt/encryptAndDecrypt";
 import {
@@ -41,6 +42,7 @@ import CreateSensorRefDto from "../components/digitalTwin/createSensorRef.dto";
 import IAssetType from "../components/asset/assetType.interface";
 import { predefinedAssetTypes } from "./predefinedAssetTypes";
 import { emptyBucket } from "./emptyS3Bucket";
+import IFloor from "../components/building/floor.interface";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -190,9 +192,30 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableBuilding} can not be created: %s`, err.message);
 				}
 
+				const mainOrgBuildingGeoJson = "/run/configs/main_org_building.geojson";
+				let geodataBuilding = "{}";
+				if (fs.existsSync(mainOrgBuildingGeoJson)) {
+					try {
+						geodataBuilding = fs.readFileSync(mainOrgBuildingGeoJson, {encoding:'utf8', flag:'r'});
+					} catch (err) {
+						logger.log("error", `An error occurred while trying to read the file: ${mainOrgBuildingGeoJson}:  %s`, err.message);
+					}
+				}
+
 				const queryStringInsertBuilding =
-					`INSERT INTO ${tableBuilding} (name, geolocation, created, updated) VALUES ($1, $2, NOW(), NOW())`;
-				const queryParametersInsertBuilding = [process_env.MAIN_ORGANIZATION_NAME, `(0,0)`];
+					`INSERT INTO ${tableBuilding} 
+					(name, address, city, state, zip_code, country, geoData, geolocation, created, updated)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`;
+				const queryParametersInsertBuilding = [
+					process_env.MAIN_ORGANIZATION_NAME,
+					process_env.MAIN_ORGANIZATION_ADDRESS1,
+					process_env.MAIN_ORGANIZATION_CITY,
+					process_env.MAIN_ORGANIZATION_STATE,
+					process_env.MAIN_ORGANIZATION_ZIP_CODE,
+					process_env.MAIN_ORGANIZATION_COUNTRY,
+					geodataBuilding,
+					`(0,0)`
+				];
 				try {
 					await postgresClient.query(queryStringInsertBuilding, queryParametersInsertBuilding);
 					logger.log("info", `Data in table ${tableBuilding} has been inserted sucessfully`);
@@ -228,10 +251,23 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableFloor} can not be created: %s`, err.message);
 				}
 
-				const queryStringInsertFloor = `INSERT INTO ${tableFloor} (building_id, floor_number, created, updated) VALUES ($1, $2, NOW(), NOW())`;
-				const queryParametersInsertFloor = [1, 0];
+				const mainOrgFloorGeoJson = "/run/configs/main_org_building.geojson";
+				let geodataFloor = "{}";
+				if (fs.existsSync(mainOrgFloorGeoJson )) {
+					try {
+						geodataFloor= fs.readFileSync(mainOrgFloorGeoJson, {encoding:'utf8', flag:'r'});
+					} catch (err) {
+						logger.log("error", `An error occurred while trying to read the file: ${mainOrgFloorGeoJson}:  %s`, err.message);
+					}
+				}
+
+				const queryStringInsertFloor =
+					`INSERT INTO ${tableFloor} 
+					(building_id, floor_number, geodata, created, updated)
+					VALUES ($1, $2, $3, NOW(), NOW()) RETURNING *`;
+				const queryParametersInsertFloor = [1, 0, geodataFloor];
 				try {
-					await postgresClient.query(queryStringInsertFloor, queryParametersInsertFloor);
+					await postgresClient.query(queryStringInsertFloor, queryParametersInsertFloor) as unknown as IFloor;
 					logger.log("info", `Data in table ${tableFloor} has been inserted sucessfully`);
 				} catch (err) {
 					logger.log("error", `Data in table ${tableFloor} con not been inserted: %s`, err.message);
@@ -411,6 +447,7 @@ export const dataBaseInitialization = async () => {
 						groupAdminDataArray: [mainOrgGroupAdmin],
 						floorNumber: 0,
 						featureIndex: 1,
+						outerBounds: [] as number[][],
 						mqttAccessControl: "Pub & Sub"
 					}
 					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
@@ -422,7 +459,7 @@ export const dataBaseInitialization = async () => {
 						email: process_env.PLATFORM_ADMIN_EMAIL,
 						roleInGroup: "Admin" as RoleInGroupOption
 					}
-					await addMembersToGroup(group, [groupMember])
+					await addMembersToGroup(group, [groupMember]);
 					logger.log("info", `Table ${tableGroup} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);
@@ -790,6 +827,16 @@ export const dataBaseInitialization = async () => {
 				} catch (err) {
 					logger.log("error", `NodeRed instance can not be assigned to group with id: ${group.id}: %s`, err.message);
 				}
+
+				// const geoJsonDataString = findGroupGeojsonData(floorData, featureIndex);
+				// if (geoJsonDataString !== "{}") {
+				// 	groupData.outerBounds = findGroupBounds(geoJsonDataString, floorData);
+				// 	await updateGroupById(groupData);
+				// 	if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
+				// 		await updateGroupAssetsLocation(geoJsonDataString, groupData);
+				// 		await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData);
+				// 	}
+				// }
 
 				const topics: ITopic[] = [];
 				try {

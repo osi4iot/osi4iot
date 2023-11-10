@@ -5,10 +5,7 @@ export default interface IOrganization {
 	name: string;
 	acronym: string;
 	role: OrgRoleOption;
-	address: string;
 	city: string;
-	zipCode: string;
-	state: string;
 	country: string;
 	buildingId: number;
 	orgHash: string;
@@ -20,10 +17,7 @@ export interface IOrganizationWichTheLoggedUserIsUser {
 	name: string;
 	acronym: string;
 	role: OrgRoleOption;
-	address: string;
 	city: string;
-	zipCode: string;
-	state: string;
 	country: string;
 	buildingId: number;
 	roleInOrg: string;

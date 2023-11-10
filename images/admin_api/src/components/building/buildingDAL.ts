@@ -5,9 +5,10 @@ import CreateFloorDto from "./floor.dto";
 import IFloor from "./floor.interface";
 
 export const createBuilding = async (buildingInput: CreateBuildingDto): Promise<IBuiliding> => {
-	const result = await pool.query(`INSERT INTO grafanadb.building (name, geodata, outer_bounds, 
+	const result = await pool.query(`INSERT INTO grafanadb.building (name, geodata,
+		outer_bounds, address, city, zip_code, state, country,
 		geolocation, building_file_name, building_file_last_modif_date, created, updated)
-        VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
         RETURNING  id, name, geodata AS "geoJsonData", outer_bounds AS "outerBounds",
         geolocation[0] AS longitude, geolocation[1] AS latitude,
         building_file_name AS "buildingFileName",
@@ -17,6 +18,11 @@ export const createBuilding = async (buildingInput: CreateBuildingDto): Promise<
 		buildingInput.name,
 		buildingInput.geoJsonData,
 		buildingInput.outerBounds,
+		buildingInput.address,
+		buildingInput.city,
+		buildingInput.zipCode,
+		buildingInput.state,
+		buildingInput.country,
 		`(${buildingInput.longitude},${buildingInput.latitude})`,
 		buildingInput.buildingFileName,
 		buildingInput.buildingFileLastModifDate
@@ -28,6 +34,7 @@ export const getBuildingByProp = async (propName: string, propValue: (string | n
 	const response = await pool.query(`SELECT id, name, geodata AS "geoJsonData",
 									outer_bounds[1:2][1:2] AS "outerBounds",
 									geolocation[0] AS longitude, geolocation[1] AS latitude,
+									address, city, zip_code AS "zipCode", state, country,
 									building_file_name AS "buildingFileName",
 									building_file_last_modif_date AS "buildingFileLastModifDate",
 									AGE(NOW(), created) AS "createdAtAge",
@@ -43,6 +50,7 @@ export const getBuildingByOrgId = async (orgId: number): Promise<IBuiliding> => 
 									grafanadb.building.outer_bounds[1:2][1:2] AS "outerBounds",
 									grafanadb.building.geolocation[0] AS longitude,
 									grafanadb.building.geolocation[1] AS latitude,
+									address, city, zip_code AS "zipCode", state, country,
 									grafanadb.building.building_file_name AS "buildingFileName",
 									grafanadb.building.building_file_last_modif_date AS "buildingFileLastModifDate",
 									AGE(NOW(), grafanadb.building.created) AS "createdAtAge",
@@ -141,16 +149,23 @@ export const deleteFloorById = async (floorId: number): Promise<IFloor> => {
 export const updateBuildingById = async (buildingId: number, building: IBuiliding): Promise<IBuiliding> => {
 	const query = `UPDATE grafanadb.building SET name = $1, geodata= $2,
 				outer_bounds = $3, geolocation = $4,
-				building_file_name = $5,
-				building_file_last_modif_date = $6,
+				address = $5, city = $6, zip_code = $7,
+				state= $8, country = $9,
+				building_file_name = $10,
+				building_file_last_modif_date = $11,
 				updated = NOW()
-				WHERE id = $7
+				WHERE id = $12
 				RETURNING *;`;
 	const response = await pool.query(query, [
 		building.name,
 		building.geoJsonData,
 		building.outerBounds,
 		`(${building.longitude},${building.latitude})`,
+		building.address,
+		building.city,
+		building.zipCode,
+		building.state,
+		building.country,
 		building.buildingFileName,
 		building.buildingFileLastModifDate,
 		buildingId
@@ -182,6 +197,7 @@ export const getAllBuildings = async (): Promise<IBuiliding[]> => {
 									geolocation[0] AS longitude, geolocation[1] AS latitude,
 									geodata AS "geoJsonData",
 									outer_bounds[1:2][1:2] AS "outerBounds",
+									address, city, zip_code AS "zipCode", state, country,
 									building_file_name AS "buildingFileName",
 									building_file_last_modif_date AS "buildingFileLastModifDate",
 									AGE(NOW(), created) AS "createdAtAge",
@@ -196,6 +212,11 @@ export const getBuildingsFromOrgIdArray = async (orgIdArray: number[]): Promise<
 									grafanadb.building.geodata AS "geoJsonData",
 									grafanadb.building.outer_bounds AS "outerBounds",
 									grafanadb.building.geolocation[0] AS longitude, grafanadb.building.geolocation[1] AS latitude,
+									grafanadb.building.address AS "address", 
+									grafanadb.building.city AS "city", 
+									grafanadb.building.zip_code AS "zipCode", 
+									grafanadb.building.state AS "state",  
+									grafanadb.building.country AS "country", 
 									grafanadb.building.building_file_name AS "buildingFileName",
 									grafanadb.building.building_file_last_modif_date AS "buildingFileLastModifDate",
 									grafanadb.building.created, grafanadb.building.updated,

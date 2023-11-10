@@ -71,6 +71,16 @@ export default function (osi4iotState) {
 		fs.appendFileSync('./config/admin_api/admin_api.conf', adminApiConfig[iline]);
 	}
 
+	if (fs.existsSync('./config/admin_api/main_org_building.geojson')) {
+		fs.rmSync('./config/admin_api/main_org_building.geojson');
+	}
+	fs.writeFileSync('./config/admin_api/main_org_building.geojson', osi4iotState.platformInfo.MAIN_ORGANIZATION_BUILDING);
+
+	if (fs.existsSync('./config/admin_api/main_org_floor.geojson')) {
+		fs.rmSync('./config/admin_api/main_org_floor.geojson');
+	}
+	fs.writeFileSync('./config/admin_api/main_org_floor.geojson', osi4iotState.platformInfo.MAIN_ORGANIZATION_FLOOR);
+
 	//frontend config
 	updateFrontendConfigFile(osi4iotState);
 
