@@ -22,7 +22,8 @@ import { createFictitiousUserForService } from "../components/user/userDAL";
 import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
 import {
 	assignNodeRedInstanceToGroup,
-	createNodeRedInstancesInOrg
+	createNodeRedInstancesInOrg,
+	updateGroupNodeRedInstanceLocation
 } from "../components/nodeRedInstance/nodeRedInstanceDAL";
 import s3Client from "../config/s3Config";
 import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
@@ -31,7 +32,7 @@ import {
 } from "../components/organization/organizationDAL";
 import { createTimescaledbOrgDataSource } from "../components/group/datasourceDAL";
 import IAsset from "../components/asset/asset.interface";
-import { createNewAsset, createNewAssetType } from "../components/asset/assetDAL";
+import { createNewAsset, createNewAssetType, updateGroupAssetsLocation } from "../components/asset/assetDAL";
 import { createNewSensor } from "../components/sensor/sensorDAL";
 import CreateSensorDto from "../components/sensor/sensor.dto";
 import { nanoid } from "nanoid";
@@ -43,6 +44,7 @@ import IAssetType from "../components/asset/assetType.interface";
 import { predefinedAssetTypes } from "./predefinedAssetTypes";
 import { emptyBucket } from "./emptyS3Bucket";
 import IFloor from "../components/building/floor.interface";
+import { findBuildingBounds, findGeographicCoordinates, findGroupGeojsonData } from "../utils/geolocation.ts/geolocation";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -137,18 +139,13 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Column acronym can not be added sucessfully to Table ${tableOrg}: %s`, err.message);
 				}
 
-				const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, role = $3, address1 = $4, city = $5, 
-				                            zip_code = $6, state = $7, country = $8, building_id = $9, org_hash = $10,
-											mqtt_access_control = $11 WHERE name = $12`;
+				const queryStringUpdateOrg = `UPDATE grafanadb.org SET name = $1,  acronym = $2, role = $3, 
+				                            building_id = $4, org_hash = $5,
+											mqtt_access_control = $6 WHERE name = $7`;
 				const parameterArrayUpdateOrg = [
 					process_env.MAIN_ORGANIZATION_NAME,
 					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
 					"Main",
-					process_env.MAIN_ORGANIZATION_ADDRESS1,
-					process_env.MAIN_ORGANIZATION_CITY,
-					process_env.MAIN_ORGANIZATION_ZIP_CODE,
-					process_env.MAIN_ORGANIZATION_STATE,
-					process_env.MAIN_ORGANIZATION_COUNTRY,
 					1,
 					process_env.MAIN_ORG_HASH,
 					"Pub & Sub",
@@ -161,7 +158,6 @@ export const dataBaseInitialization = async () => {
 				} catch (err) {
 					logger.log("error", `Table ${tableOrg} can not be updated: %s`, err.message);
 				}
-
 
 				const tableBuilding = "grafanadb.building";
 				const queryStringBuilding = `
@@ -201,11 +197,16 @@ export const dataBaseInitialization = async () => {
 						logger.log("error", `An error occurred while trying to read the file: ${mainOrgBuildingGeoJson}:  %s`, err.message);
 					}
 				}
+				const buildingOuterBounds = findBuildingBounds(geodataBuilding);
+				const [buildingLongitude, buildingLatitude] = findGeographicCoordinates(geodataBuilding);
 
 				const queryStringInsertBuilding =
 					`INSERT INTO ${tableBuilding} 
-					(name, address, city, state, zip_code, country, geoData, geolocation, created, updated)
-					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())`;
+					(name, address, city, state, zip_code, country,
+					geoData, outer_bounds, geolocation,
+					building_file_name, building_file_last_modif_date,
+					created, updated)
+					VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())`;
 				const queryParametersInsertBuilding = [
 					process_env.MAIN_ORGANIZATION_NAME,
 					process_env.MAIN_ORGANIZATION_ADDRESS1,
@@ -214,7 +215,10 @@ export const dataBaseInitialization = async () => {
 					process_env.MAIN_ORGANIZATION_ZIP_CODE,
 					process_env.MAIN_ORGANIZATION_COUNTRY,
 					geodataBuilding,
-					`(0,0)`
+					buildingOuterBounds,
+					`(${buildingLongitude},${buildingLatitude})`,
+					"building_1.geojson",
+					(new Date()).toISOString(),
 				];
 				try {
 					await postgresClient.query(queryStringInsertBuilding, queryParametersInsertBuilding);
@@ -251,7 +255,7 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableFloor} can not be created: %s`, err.message);
 				}
 
-				const mainOrgFloorGeoJson = "/run/configs/main_org_building.geojson";
+				const mainOrgFloorGeoJson = "/run/configs/main_org_floor.geojson";
 				let geodataFloor = "{}";
 				if (fs.existsSync(mainOrgFloorGeoJson )) {
 					try {
@@ -263,11 +267,29 @@ export const dataBaseInitialization = async () => {
 
 				const queryStringInsertFloor =
 					`INSERT INTO ${tableFloor} 
-					(building_id, floor_number, geodata, created, updated)
-					VALUES ($1, $2, $3, NOW(), NOW()) RETURNING *`;
-				const queryParametersInsertFloor = [1, 0, geodataFloor];
+					(building_id, floor_number, geodata, floor_file_name, 
+					floor_file_last_modif_date, created, updated)
+					VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+					RETURNING  id, 
+					building_id AS "buildingId",
+					floor_number AS "floorNumber",
+					geodata AS "geoJsonData",
+					outer_bounds AS "outerBounds",
+					floor_file_name AS "floorFileName",
+					floor_file_last_modif_date AS "floorFileLastModifDate",
+					AGE(NOW(), floor.created) AS "createdAtAge",
+					AGE(NOW(), floor.updated) AS "updatedAtAge"`;
+				const queryParametersInsertFloor = [
+					1,
+					0,
+					geodataFloor,
+					"Floor_0_of_building_1.geojson",
+					(new Date()).toISOString(),
+				];
+				let floor: IFloor;
 				try {
-					await postgresClient.query(queryStringInsertFloor, queryParametersInsertFloor) as unknown as IFloor;
+					const response = await postgresClient.query(queryStringInsertFloor, queryParametersInsertFloor);
+					floor = response.rows[0];
 					logger.log("info", `Data in table ${tableFloor} has been inserted sucessfully`);
 				} catch (err) {
 					logger.log("error", `Data in table ${tableFloor} con not been inserted: %s`, err.message);
@@ -828,15 +850,14 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `NodeRed instance can not be assigned to group with id: ${group.id}: %s`, err.message);
 				}
 
-				// const geoJsonDataString = findGroupGeojsonData(floorData, featureIndex);
-				// if (geoJsonDataString !== "{}") {
-				// 	groupData.outerBounds = findGroupBounds(geoJsonDataString, floorData);
-				// 	await updateGroupById(groupData);
-				// 	if (!arrayCompare(groupData.outerBounds, existentGroup.outerBounds)) {
-				// 		await updateGroupAssetsLocation(geoJsonDataString, groupData);
-				// 		await updateGroupNodeRedInstanceLocation(geoJsonDataString, groupData);
-				// 	}
-				// }
+				try {
+					const geoJsonDataString = findGroupGeojsonData(floor, 1);
+					await updateGroupAssetsLocation(geoJsonDataString, group);
+					await updateGroupNodeRedInstanceLocation(geoJsonDataString, group);
+					logger.log("info", `Updapting geolocation for asset in group with id: ${group.id}`);
+				} catch (err) {
+					logger.log("error", `Update of group assets with id: ${group.id} could not be performed: %s`, err.message);
+				}
 
 				const topics: ITopic[] = [];
 				try {

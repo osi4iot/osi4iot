@@ -91,6 +91,16 @@ const FieldContainer = styled.div`
     }
 `;
 
+const NoDataContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100px;
+`;
+
+
 
 export interface InitialAsssetS3FolderData {
     orgAcronym: string;
@@ -380,67 +390,73 @@ const S3StorageForm: FC<S3StorageFormProps> = (
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting}>Dowload zip file</FormTitle>
             {
-                initialAssetS3FolderData &&
-                <FormContainer>
-                    <Formik
-                        initialValues={initialAssetS3FolderData as InitialAsssetS3FolderData}
-                        onSubmit={handleDownloadSubmit} >
-                        {
-                            formik => (
-                                <Form>
-                                    <ControlsContainer>
-                                        <FormikControl
-                                            control='select'
-                                            label='Select org'
-                                            name='orgAcronym'
-                                            type='text'
-                                            options={orgOptions}
-                                            onChange={(e) => handleChangeOrg(e, formik)}
-                                        />
-                                        <FormikControl
-                                            control='select'
-                                            label='Select group'
-                                            name='groupAcronym'
-                                            type='text'
-                                            options={groupOptions}
-                                            onChange={(e) => handleChangeGroup(e, formik)}
-                                        />
-                                        <FormikControl
-                                            control='select'
-                                            label='Select asset'
-                                            name='assetName'
-                                            type='text'
-                                            options={assetNameOptions}
-                                            onChange={(e) => handleChangeAsset(e, formik)}
-                                        />
-                                        <FieldContainer>
-                                            <label>Asset description</label>
-                                            <div>{assetDescription}</div>
-                                        </FieldContainer>
-                                        <FormikControl
-                                            control='select'
-                                            label='Select S3 folder'
-                                            name='s3FolderName'
-                                            type='text'
-                                            options={s3FolderOptions}
-                                            onChange={(e) => handleChangeS3Folder(e, formik)}
-                                        />
-                                        <FormikControl
-                                            control='select'
-                                            label='Select year'
-                                            name='year'
-                                            type='text'
-                                            options={yearOptions}
-                                        />
-                                    </ControlsContainer>
-                                    <S3StorageFormButtons onCancel={onCancel} isSubmitting={isSubmitting} />
-                                </Form>
-                            )
-                        }
-                    </Formik>
-                </FormContainer>
+                initialAssetS3FolderData ?
+                    <>
+                        <FormTitle isSubmitting={isSubmitting}>Select S3 folder</FormTitle>
+                        <FormContainer>
+                            <Formik
+                                initialValues={initialAssetS3FolderData as InitialAsssetS3FolderData}
+                                onSubmit={handleDownloadSubmit} >
+                                {
+                                    formik => (
+                                        <Form>
+                                            <ControlsContainer>
+                                                <FormikControl
+                                                    control='select'
+                                                    label='Select org'
+                                                    name='orgAcronym'
+                                                    type='text'
+                                                    options={orgOptions}
+                                                    onChange={(e) => handleChangeOrg(e, formik)}
+                                                />
+                                                <FormikControl
+                                                    control='select'
+                                                    label='Select group'
+                                                    name='groupAcronym'
+                                                    type='text'
+                                                    options={groupOptions}
+                                                    onChange={(e) => handleChangeGroup(e, formik)}
+                                                />
+                                                <FormikControl
+                                                    control='select'
+                                                    label='Select asset'
+                                                    name='assetName'
+                                                    type='text'
+                                                    options={assetNameOptions}
+                                                    onChange={(e) => handleChangeAsset(e, formik)}
+                                                />
+                                                <FieldContainer>
+                                                    <label>Asset description</label>
+                                                    <div>{assetDescription}</div>
+                                                </FieldContainer>
+                                                <FormikControl
+                                                    control='select'
+                                                    label='Select S3 folder'
+                                                    name='s3FolderName'
+                                                    type='text'
+                                                    options={s3FolderOptions}
+                                                    onChange={(e) => handleChangeS3Folder(e, formik)}
+                                                />
+                                                <FormikControl
+                                                    control='select'
+                                                    label='Select year'
+                                                    name='year'
+                                                    type='text'
+                                                    options={yearOptions}
+                                                />
+                                            </ControlsContainer>
+                                            <S3StorageFormButtons onCancel={onCancel} isSubmitting={isSubmitting} />
+                                        </Form>
+                                    )
+                                }
+                            </Formik>
+                        </FormContainer>
+                    </>
+                    :
+                    <NoDataContainer>
+                        No data
+                    </NoDataContainer >
             }
         </>
     )

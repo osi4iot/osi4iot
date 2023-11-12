@@ -34,7 +34,7 @@ const LogoContainer = styled.div`
 const Logo: FC<{}> = () => {
 	const history = useHistory();
 	const windowWidth = useWindowWidth();
-	const isMobile = windowWidth < 768;
+	const isMobile = windowWidth < 800;
 
 	const handleSendHome = (e: SyntheticEvent) => {
 		history.push("/");

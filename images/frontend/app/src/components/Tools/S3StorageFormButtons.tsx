@@ -62,7 +62,7 @@ const S3StorageFormButtons: FC<FormButtonsProps> = ({ onCancel, isSubmitting, is
     return (
         <ButtonsContainer  isMobile={isMobile}>
             <Button type='submit' disabled={isSubmitting} >
-                Download
+                Download zip file
             </Button>
         </ButtonsContainer>
     )

@@ -7,7 +7,7 @@ import { logger } from "../config/winston";
 export const emptyBucket = async () => {
 	const bucketName = process_env.S3_BUCKET_NAME;
 	const bucketParams = {
-		Bucket:  bucketName,
+		Bucket: bucketName,
 		MaxKeys: 1,
 	};
 	const command = new ListObjectsV2Command(bucketParams);
@@ -16,11 +16,13 @@ export const emptyBucket = async () => {
 		let isTruncated = true;
 		while (isTruncated) {
 			const data = await s3Client.send(command);
-			fileListToRemove.push(...data.Contents.map(fileData => fileData.Key))
+			if (data.KeyCount !== 0) {
+				fileListToRemove.push(...data.Contents.map(fileData => fileData.Key))
+			}
 			isTruncated = data.IsTruncated;
 			command.input.ContinuationToken = data.NextContinuationToken;
 		}
-		await deleteBucketFiles(fileListToRemove);
+		if(fileListToRemove.length !== 0) await deleteBucketFiles(fileListToRemove);
 		logger.log("info", `Bucket ${bucketName} has been emptied`);
 	} catch (err) {
 		logger.log("error", `Bucket ${bucketName} could not be emptied: %s`, err.message)

@@ -38,8 +38,12 @@ const SignInSignOutContainer = styled.div`
 		}
 	}
 
-	@media screen and (max-width: 768px) {
+	@media screen and (max-width: 350px) {
 		border: 1px solid #202226;
+	}
+
+	@media screen and (max-width: 768px) {
+		width: 50px;
 	}
 `;
 

@@ -9,7 +9,7 @@ COPY ./app/. .
 RUN export NODE_OPTIONS=--openssl-legacy-provider && yarn build
 
 # => Run container
-FROM nginx:1.23.1
+FROM nginx:1.25.3
 
 # Nginx config
 COPY ./nginx.conf /etc/nginx/nginx.conf

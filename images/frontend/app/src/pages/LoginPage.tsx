@@ -25,7 +25,7 @@ const Form = styled.form`
 	color: white;
 	margin: 20px 0;
 	padding: 20px;
-	width: 300px;
+	width: 250px;
 	border: 2px solid #3274d9;
 	border-radius: 15px;
 
@@ -47,7 +47,6 @@ const Input = styled.input<InputProps>`
 	background-color: #0b0c0e;
 	padding: 8px 5px;
 	font-size: 14px;
-	// margin-bottom: 20px;
 	color: white;
 	width: 100%;
 	border-width: 1px;

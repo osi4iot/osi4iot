@@ -5,10 +5,11 @@ import Main from "../components/Layout/Main";
 import Header from "../components/Layout/Header";
 import { getDomainName, getProtocol } from "../tools/tools";
 import { FaGithub } from "react-icons/fa";
+import { useWindowWidth } from "@react-hook/window-size";
 
 const Title = styled.h2`
 	font-size: 20px;
-	margin-top: 30px;
+	margin-top: 20px;
 	margin-bottom: 20px;
 	font-weight: 400;
 	text-align: center;
@@ -17,7 +18,7 @@ const Title = styled.h2`
 `;
 
 const ImageContainer = styled.div`
-	width: 75vw;
+	width: calc(100vw - 250px);
 	height: 100%;
 	padding: 0px 0px 10px 0px;
 	display: none;
@@ -35,7 +36,7 @@ const FondImage = styled.img`
 `;
 
 const MenuContainer = styled.div`
-	width: 25vw;
+	width: 400px;
 	min-width: 440px;
 	display: flex;
 	flex-direction: column;
@@ -50,19 +51,36 @@ const MenuContainer = styled.div`
 
 const MenuBorder = styled.div`
 	position: relative;
-	display: flex;
-	flex-direction: column;
-	justify-content: space-around;
-	align-items: center;
-	width: 320px;
+	width: 250px;
 	height: calc(100vh - 180px);
 	font-size: 18px;
 	border: 3px solid #3274d9;
 	border-radius: 15px;
 	padding-bottom: 40px;
 
+	@media screen and (max-width: 768px) {
+		font-size: 16px;
+	}
+
+	@media screen and (min-width: 350px) {
+		width: 300px;
+	}
+
 	@media screen and (min-width: 768px) {
 		width: 400px;
+	}
+`;
+
+const Menu = styled.div`
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	justify-content: space-around;
+	align-items: center;
+	height: 400px;
+
+	@media screen and (max-height: 700px) {
+		height: 300px;
 	}
 `;
 
@@ -99,6 +117,10 @@ const FaGithubStyled = styled(FaGithub)`
 	&:hover {
 		background-color: #0c0d0f;
 		color: #d2d5d9;
+	}
+
+	@media screen and (max-width: 768px) {
+		font-size: 40px;
 	}
  `;
 
@@ -138,17 +160,42 @@ const StyledNavLink = styled(NavLink)`
 	&:hover p {
 		background-color: #2461c0;
 	}
-
-	// @media screen and (min-height: 750px) {
-	// 	margin: 50px 0;
-	// }
 `;
 
-const Footer = styled.p`
+const FooterContainer = styled.div`
 	position: absolute;
-	font-size: 12px;
 	margin: 5px;
 	bottom: 5px;
+	padding: 10px;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	width: 100%;
+	height: 150px;
+`;
+
+const CreditsContainer = styled.div`
+	position: absolute;
+	margin: 5px;
+	bottom: 5px;
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: center;
+
+	@media screen and (max-width: 768px) {
+		flex-direction: column;
+	}
+`;
+
+const CreditsText = styled.div`
+	margin: 2px;
+	font-size: 12px;
+
+	@media screen and (max-width: 768px) {
+		font-size: 10px;
+	}
 `;
 
 
@@ -156,7 +203,7 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 const HomePage: FC<{}> = () => {
-
+	const windowWidth = useWindowWidth();
 	const handleLinkClick = (path: string) => {
 		const url = `${protocol}://${domainName}${path}`;
 		window.open(url, "_blank");
@@ -173,27 +220,44 @@ const HomePage: FC<{}> = () => {
 					<MenuContainer>
 						<Title>Platform options</Title>
 						<MenuBorder>
-							<StyledNavLink exact to="/platform_assistant" >
-								Platform assistant
-							</StyledNavLink>
-							<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
-							{
-								(
-									(window._env_ && window._env_.PROTOCOL === "https") ||
-									window.location.href.split("/")[2] === "localhost:3000"
-								) &&
-								<>
-									<StyledNavLink exact to="/digital_twin_simulator_mobile">
-										Digital twin simulator
-									</StyledNavLink>
-									<StyledNavLink exact to="/mobile_sensors">
-										<p>Mobile sensors</p>
-										<p>(Only Android devices)</p>
-									</StyledNavLink>
-								</>
-							}
-							<FaGithubStyled onClick={() => window.open("https://github.com/osi4iot/osi4iot", "_blank")} />
-							<Footer>Power by Aula CIMNE-EEBE - dicapua@cimne.upc.edu</Footer>
+							<Menu>
+								<StyledNavLink exact to="/platform_assistant" >
+									Platform assistant
+								</StyledNavLink>
+								<ButtonLink onClick={() => handleLinkClick("/grafana/")}>Dashboards</ButtonLink>
+								{
+									(
+										(window._env_ && window._env_.PROTOCOL === "https") ||
+										window.location.href.split("/")[2] === "localhost:3000"
+									) &&
+									<>
+										<StyledNavLink exact to="/digital_twin_simulator_mobile">
+											Digital twin simulator
+										</StyledNavLink>
+										<StyledNavLink exact to="/mobile_sensors">
+											<p>Mobile sensors</p>
+											<p>(Only Android devices)</p>
+										</StyledNavLink>
+									</>
+								}
+							</Menu>
+							<FooterContainer>
+								<FaGithubStyled onClick={() => window.open("https://github.com/osi4iot/osi4iot", "_blank")} />
+								<CreditsContainer>
+									<CreditsText>
+										Power by Aula CIMNE-EEBE
+									</CreditsText>
+									{
+										windowWidth > 768 &&
+										<CreditsText>
+											-
+										</CreditsText>
+									}
+									<CreditsText>
+										dicapua@cimne.upc.edu
+									</CreditsText>
+								</CreditsContainer>
+							</FooterContainer>
 						</MenuBorder>
 					</MenuContainer>
 				</>

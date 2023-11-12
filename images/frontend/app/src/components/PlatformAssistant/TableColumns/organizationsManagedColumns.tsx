@@ -120,10 +120,7 @@ export interface IOrgManaged {
     name: string;
     acronym: string;
     role: string;
-    address: string;
     city: string;
-    zipCode: string;
-    state: string;
     country: string;
     buildingId: number;
     orgHash: string;
@@ -155,24 +152,9 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             accessor: "role"
         },        
         {
-            Header: "Address",
-            accessor: "address",
-            disableFilters: true,
-        },
-        {
             Header: "City",
             accessor: "city",
             disableFilters: true,
-        },
-        {
-            Header: "Zip code",
-            accessor: "zipCode",
-            disableFilters: true,
-        },
-        {
-            Header: "State",
-            accessor: "state",
-            disableFilters: true
         },
         {
             Header: "Country",
@@ -196,7 +178,7 @@ export const CREATE_ORGS_MANAGED_COLUMNS = (refreshOrgUsers: () => void): Column
             Cell: props => {
                 const rowIndex = parseInt(props.row.id, 10);
                 const row = props.rows.filter(row => row.index === rowIndex)[0];
-                const mqttAccessControl = row?.cells[9]?.value;
+                const mqttAccessControl = row?.cells[7]?.value;
                 const style: React.CSSProperties = {
                     color: mqttAccessControl === "None" ? 'red' : 'white'
                 };

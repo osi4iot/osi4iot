@@ -7,10 +7,7 @@ export interface IOrgOfGroupsManaged {
     name: string;
     acronym: string;
     role: string;
-    address: string;
     city: string;
-    zipCode: string;
-    state: string;
     country: string;
     latitude: number;
     longitude: number;
@@ -40,24 +37,9 @@ export const ORGS_OF_GROUPS_MANAGED_COLUMNS: Column<IOrgOfGroupsManaged>[] = [
         accessor: "role"
     },    
     {
-        Header: "Address",
-        accessor: "address",
-        disableFilters: true,
-    },
-    {
         Header: "City",
         accessor: "city",
         disableFilters: true,
-    },
-    {
-        Header: "Zip code",
-        accessor: "zipCode",
-        disableFilters: true,
-    },
-    {
-        Header: "State",
-        accessor: "state",
-        disableFilters: true
     },
     {
         Header: "Country",

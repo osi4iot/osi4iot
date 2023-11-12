@@ -1,7 +1,5 @@
 
 import { Router, NextFunction, Request, Response } from "express";
-import pointOnFeature from '@turf/point-on-feature';
-import { polygon } from '@turf/helpers';
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { superAdminAuth, userAuth } from "../../middleware/auth.middleware";
@@ -17,7 +15,7 @@ import IBuiliding from "./building.interface";
 import { getGroupsManagedByUserId } from "../group/groupDAL";
 import { getOrganizationsManagedByUserId, getOrganizationsWithIdsArray } from "../organization/organizationDAL";
 import IFloor from "./floor.interface";
-import { findBuildingBounds, findFloorBounds } from "../../utils/geolocation.ts/geolocation";
+import { findBuildingBounds, findFloorBounds, findGeographicCoordinates } from "../../utils/geolocation.ts/geolocation";
 import { logger } from "../../config/winston";
 import infoLogger from "../../utils/logger/infoLogger";
 
@@ -173,16 +171,7 @@ class BuildingController implements IController {
 			if (buildingData.geoJsonData) {
 				buildingData.outerBounds = findBuildingBounds(buildingData.geoJsonData);
 				if (buildingData.longitude === 0 && buildingData.latitude === 0) {
-					const geojsonObj = JSON.parse(buildingData.geoJsonData);
-					let geoPolygon;
-					if (geojsonObj.features[0].geometry.type === "Polygon") {
-						geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
-					} else if (geojsonObj.features[0].geometry.type === "MultiPolygon") {
-						geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates[0]);
-					}
-					const center = pointOnFeature(geoPolygon);
-					buildingData.longitude = center.geometry.coordinates[0];
-					buildingData.latitude = center.geometry.coordinates[1];
+					[buildingData.longitude, buildingData.latitude] = findGeographicCoordinates(buildingData.geoJsonData);
 				}
 			}
 			const building = await createBuilding(buildingData);
@@ -360,16 +349,7 @@ class BuildingController implements IController {
 			if ((buildingData.longitude === 0 && buildingData.latitude === 0) ||
 				buildingData.geoJsonData !== existBuilding.geoJsonData
 			) {
-				const geojsonObj = JSON.parse(buildingData.geoJsonData);
-				let geoPolygon;
-				if (geojsonObj.features[0].geometry.type === "Polygon") {
-					geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
-				} else if (geojsonObj.features[0].geometry.type === "MultiPolygon") {
-					geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates[0]);
-				}
-				const center = pointOnFeature(geoPolygon);
-				buildingData.longitude = center.geometry.coordinates[0];
-				buildingData.latitude = center.geometry.coordinates[1];
+				[buildingData.longitude, buildingData.latitude] = findGeographicCoordinates(buildingData.geoJsonData);
 			}
 			const updatedBuilding = { ...existBuilding, ...buildingData };
 			updatedBuilding.outerBounds = findBuildingBounds(updatedBuilding.geoJsonData);

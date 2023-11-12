@@ -31,7 +31,7 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
-	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, address1 = $4,  city = $5, zip_code = $6, state = $7, country = $8, building_id = $9, org_hash = $10,  mqtt_access_control = $11  WHERE ${propName} = $12;`;
+	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, address1 = $4,  city = $5, zip_code = $6, state = $7, country = $8, building_id = $9, org_hash = $10,  mqtt_access_control = $11  WHERE grafanadb.org.${propName} = $12;`;
 	const queryArray =
 		[
 			orgData.name,
@@ -67,26 +67,28 @@ export const insertOrganizationToken = async (orgId: number, apiKeyId: number, h
 };
 
 export const getOrganizations = async (): Promise<IOrganization[]> => {
-	const query = `SELECT id, org.name, acronym, role, 
-	                grafana.building.city, grafana.building.country,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
+	                grafanadb.org.acronym, grafanadb.org.role, 
+	                grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
-					INNER JOIN grafana.building ON grafanadb.org.building_id = grafana.building.id
-					ORDER BY id ASC;`;
+					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
+					ORDER BY grafanadb.org.id ASC;`;
 	const result = await pool.query(query);
 	return result.rows as IOrganization[];
 }
 
 export const getOrganizationsWithIdsArray = async (orgIdsArray: number[]): Promise<IOrganization[]> => {
-	const query = `SELECT id, org.name, acronym, role, 
-					grafana.building.city, grafana.building.country,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
+	                grafanadb.org.acronym, grafanadb.org.role, 
+					grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
-					INNER JOIN grafana.building ON grafanadb.org.building_id = grafana.building.id
-					WHERE id = ANY($1::integer[])
-					ORDER BY id ASC;`;
+					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
+					WHERE grafanadb.org.id = ANY($1::integer[])
+					ORDER BY grafanadb.org.id ASC;`;
 	const result = await pool.query(query, [orgIdsArray]);
 	return result.rows as IOrganization[];
 }
@@ -98,13 +100,14 @@ export const getNumOrganizations = async (): Promise<number> => {
 }
 
 export const getOrganizationByProp = async (propName: string, propValue: (string | number)): Promise<IOrganization> => {
-	const query = `SELECT id, org.name, acronym, role, 
-					grafana.building.city, grafana.building.country,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
+	                grafanadb.org.acronym, grafanadb.org.role,
+					grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
-					INNER JOIN grafana.building ON grafanadb.org.building_id = grafana.building.id
-					WHERE ${propName} = $1;`;
+					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
+					WHERE grafanadb.org.${propName} = $1;`;
 	const result = await pool.query(query, [propValue]);
 	return result.rows[0] as IOrganization;
 }
@@ -166,12 +169,14 @@ export const getOrganizationAdmin = async (orgId: number): Promise<Partial<IUser
 }
 
 export const getOrganizationsManagedByUserId = async (userId: number): Promise<IOrganization[]> => {
-	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym,
-					grafanadb.org.role, grafana.building.city, grafana.building.country,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
+	                grafanadb.org.acronym, grafanadb.org.role,
+					grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
-					INNER JOIN grafana.building ON grafanadb.org.building_id = grafana.building.id					
+					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
+					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id					
 					WHERE grafanadb.org_user.user_id = $1 AND grafanadb.org_user.role = $2
 					ORDER BY id ASC`;
 	const result = await pool.query(query, [userId, "Admin"]);
@@ -180,12 +185,13 @@ export const getOrganizationsManagedByUserId = async (userId: number): Promise<I
 
 
 export const organizationsWhichTheLoggedUserIsUser = async (userId: number): Promise<IOrganizationWichTheLoggedUserIsUser[]> => {
-	const query = `SELECT grafanadb.org.id, grafanadb.org.name, acronym,
-					grafanadb.org.role, grafana.building.city, grafana.building.country,
+	const query = `SELECT grafanadb.org.id, grafanadb.org.name, 
+	                grafanadb.org.acronym, grafanadb.org.role,
+					grafanadb.building.city, grafanadb.building.country,
 					building_id AS "buildingId", org_hash AS "orgHash",
 					mqtt_access_control AS "mqttAccessControl"
 					FROM grafanadb.org
-					INNER JOIN grafana.building ON grafanadb.org.building_id = grafana.building.id
+					INNER JOIN grafanadb.building ON grafanadb.org.building_id = grafanadb.building.id
 					INNER JOIN grafanadb.org_user ON grafanadb.org.id = grafanadb.org_user.org_id
 					WHERE grafanadb.org_user.user_id = $1
 					ORDER BY id ASC`;

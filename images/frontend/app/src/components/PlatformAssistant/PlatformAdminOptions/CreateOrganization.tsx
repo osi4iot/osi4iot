@@ -142,11 +142,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
     const validationSchema = Yup.object().shape({
         name: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         acronym: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
-        address: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
-        city: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
-        zipCode: Yup.string().max(50, "The maximum number of characters allowed is 50").required('Required'),
-        state: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
-        country: Yup.string().max(255, "The maximum number of characters allowed is 255").required('Required'),
         buildingId: Yup.number().positive().integer().required('Required'),
         telegramInvitationLink: Yup.string().url("Enter a valid url").max(60, "The maximum number of characters allowed is 60").required('Required'),
         telegramChatId: Yup.string().max(15, "The maximum number of characters allowed is 15").required('Required'),
@@ -251,36 +246,6 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                                                 control='input'
                                                 label='Org acronym'
                                                 name='acronym'
-                                                type='text'
-                                            />
-                                            <FormikControl
-                                                control='input'
-                                                label='Address'
-                                                name='address'
-                                                type='text'
-                                            />
-                                            <FormikControl
-                                                control='input'
-                                                label='City'
-                                                name='city'
-                                                type='text'
-                                            />
-                                            <FormikControl
-                                                control='input'
-                                                label='Zip code'
-                                                name='zipCode'
-                                                type='text'
-                                            />
-                                            <FormikControl
-                                                control='input'
-                                                label='State'
-                                                name='state'
-                                                type='text'
-                                            />
-                                            <FormikControl
-                                                control='input'
-                                                label='Country'
-                                                name='country'
                                                 type='text'
                                             />
                                             <FormikControl

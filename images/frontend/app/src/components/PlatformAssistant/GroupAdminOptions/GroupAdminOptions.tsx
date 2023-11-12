@@ -728,7 +728,7 @@ const GroupAdminOptions: FC<{}> = () => {
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.MEASUREMENTS)}>
                     Measurements
                 </OptionContainer>
-                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.S3_STORAGE)}>
+                <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.S3_STORAGE} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.S3_STORAGE)}>
                     S3 storage
                 </OptionContainer>
                 <OptionContainer isOptionActive={optionToShow === GROUP_ADMIN_OPTIONS.DASHBOARDS} onClick={() => clickHandler(GROUP_ADMIN_OPTIONS.DASHBOARDS)}>

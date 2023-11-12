@@ -57,6 +57,14 @@ const MainContainer = styled.main<MainContainerProps>`
         /* background-color: #0c0d0f; */
         background: #202226;
     }
+
+	@media screen and (max-width: 350px) {
+		height: calc(100vh - 60px);
+	}
+
+	@media screen and (min-height: 900px) {
+		height: calc(100vh - 100px);
+	}
 `;
 
 interface MainProps {

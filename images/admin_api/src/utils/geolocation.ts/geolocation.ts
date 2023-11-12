@@ -1,3 +1,5 @@
+import pointOnFeature from '@turf/point-on-feature';
+import { polygon } from '@turf/helpers';
 import CreateFloorDto from "../../components/building/floor.dto";
 import IFloor from "../../components/building/floor.interface";
 
@@ -118,4 +120,18 @@ export const findGroupGeojsonData = (floor: IFloor, featureIndex: number): strin
 		return JSON.stringify(polygonFeature);
 
 	} else return "{}";
+}
+
+export const findGeographicCoordinates = (geoJsonDataString: any) => {
+	const geojsonObj = JSON.parse(geoJsonDataString);
+	let geoPolygon;
+	if (geojsonObj.features[0].geometry.type === "Polygon") {
+		geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+	} else if (geojsonObj.features[0].geometry.type === "MultiPolygon") {
+		geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates[0]);
+	}
+	const center = pointOnFeature(geoPolygon);
+	const longitude = center.geometry.coordinates[0];
+	const latitude = center.geometry.coordinates[1];
+	return [longitude, latitude];
 }
