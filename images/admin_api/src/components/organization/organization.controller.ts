@@ -467,7 +467,7 @@ class OrganizationController implements IController {
 				];
 
 				const topics: ITopic[] = [];
-				for (let i = 0; i <= topicsDataForMobileAsset.length; i++) {
+				for (let i = 0; i < topicsDataForMobileAsset.length; i++) {
 					topics[i] = await createTopic(group.id, topicsDataForMobileAsset[i]);
 				}
 
@@ -572,7 +572,6 @@ class OrganizationController implements IController {
 					],
 					sensorsRef: [] as CreateSensorRefDto[]
 				}
-
 				const { digitalTwin } = await createDigitalTwin(group, asset, digitalTwinData);
 				const keyBase = `org_1/group_${group.id}/digitalTwin_${digitalTwin.id}`;
 				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
