@@ -31,7 +31,8 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
-	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, address1 = $4,  city = $5, zip_code = $6, state = $7, country = $8, building_id = $9, org_hash = $10,  mqtt_access_control = $11  WHERE grafanadb.org.${propName} = $12;`;
+	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, 
+	building_id = $4, org_hash = $5,  mqtt_access_control = $6  WHERE grafanadb.org.${propName} = $7;`;
 	const queryArray =
 		[
 			orgData.name,

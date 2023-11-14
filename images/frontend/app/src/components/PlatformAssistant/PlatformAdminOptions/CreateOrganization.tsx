@@ -82,7 +82,7 @@ const ControlsContainer = styled.div`
     }
 `;
 
-const  mqttAccessControlOptions = [
+const mqttAccessControlOptions = [
     {
         label: "Subscribe & Publish",
         value: "Pub & Sub"
@@ -152,11 +152,13 @@ const CreateOrganization: FC<CreateOrganizationProps> = ({ backToTable, refreshO
                     surname: Yup.string().max(127, "The maximum number of characters allowed is 127").required('Required'),
                     email: Yup.string().email("Enter a valid email").max(190, "The maximum number of characters allowed is 190").required('Required'),
                     login: Yup.string()
-                        .matches(/^[a-zA-Z0-9._-]*$/g, "Only the following characters are allowed for username: a-zA-Z0-9._-")
+                        .matches(/^[a-zA-Z0-9._-]{4,}$/, "Only the following characters are allowed for username: a-zA-Z0-9._-")
+                        .min(4, "The minimum number of characters allowed is 4")
                         .max(190, "The maximum number of characters allowed is 190"),
                     password: Yup.string()
-                        .matches(/^[a-zA-Z0-9.-_\\@\\#\\$\\%]*$/g, "Only the following characters are allowed for password: a-zA-Z0-9.-_@#$%")
-                        .max(190, "The maximum number of characters allowed is 100"),
+                        .matches(/^[a-zA-Z0-9._-]{8,20}$/, "Only the following characters are allowed for username: a-zA-Z0-9._-")
+                        .min(4, "The minimum number of characters allowed is 8")
+                        .max(20, "The maximum number of characters allowed is 20"),
                 })
             )
             .required('Must have org admin') // these constraints are shown if and only if inner constraints are satisfied

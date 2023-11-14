@@ -18,7 +18,7 @@ class UserProfileDto {
 	public email: string;
 
 	@IsString()
-	@Matches(/^[a-zA-Z0-9._-]*$/g)
+	@Matches(/^[a-zA-Z0-9._-]{4,}$/)
 	public login: string;
 }
 

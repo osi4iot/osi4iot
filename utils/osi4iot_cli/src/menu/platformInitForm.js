@@ -110,12 +110,12 @@ const platformInitiation = () => {
 				type: 'password',
 				mask: "*",
 				validate: function (password) {
-					const valid = /^[A-Za-z]\w{7,14}$/.test(password);
+					const valid = /^[a-zA-Z0-9._-]{8,20}$/.test(password);
 					if (valid) {
 						mainOrgAdminPassword = password;
 						return true;
 					} else {
-						return "Please type a password with 7 to 15 characters which contain only characters, numeric digits, underscore and first character must be a letter";
+						return "Please type a password with 8 to 20 characters which contain only characters, numeric digits, underscore and first character must be a letter";
 					}
 				}
 			},
@@ -125,7 +125,7 @@ const platformInitiation = () => {
 				type: 'password',
 				mask: "*",
 				validate: function (password) {
-					const valid = /^[A-Za-z]\w{7,14}$/.test(password);
+					const valid = /^[a-zA-Z0-9._-]{8,20}$/.test(password);
 					if (valid) {
 						if (mainOrgAdminPassword === password) {
 							return true;
@@ -133,7 +133,7 @@ const platformInitiation = () => {
 							return "The password typed not match with previous one"
 						}
 					} else {
-						return "Please type a password with 7 to 15 characters which contain only characters, numeric digits, underscore and first character must be a letter";
+						return "Please type a password with 8 to 20 characters which contain only characters, numeric digits, underscore and first character must be a letter";
 					}
 				}
 			},
@@ -453,11 +453,11 @@ const finalQuestions = (
 				type: 'password',
 				mask: "*",
 				validate: function (password) {
-					let valid = /^[A-Za-z]\w{7,30}$/.test(password);
+					let valid = /^[A-Za-z]\w{8,20}$/.test(password);
 					if (valid) {
 						return true;
 					} else {
-						return "Please type a password with 7 to 30 characters which contain only characters, numeric digits, underscore and first character must be a letter";
+						return "Please type a password with 8 to 20 characters which contain only characters, numeric digits, underscore and first character must be a letter";
 					}
 				}
 			},			
