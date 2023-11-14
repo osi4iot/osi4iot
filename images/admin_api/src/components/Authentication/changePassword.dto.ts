@@ -5,7 +5,7 @@ class CreateChangePasswordDto {
 	public oldPassword: string;
 
 	@IsString()
-	@Matches(/^[a-zA-Z0-9._-]*$/g)
+	@Matches(/^[a-zA-Z0-9._-]{8,20}$/)
 	public newPassword: string;
 }
 
