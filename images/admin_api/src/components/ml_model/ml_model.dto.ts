@@ -6,6 +6,9 @@ class CreateMLModelDto {
 
 	@IsString()
 	public description: string;
+
+	@IsString()
+	public mlLibrary: string;
 }
 
 export default CreateMLModelDto;

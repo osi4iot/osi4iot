@@ -19,6 +19,7 @@ import { getOrganizationKey } from "../organization/organizationDAL";
 import IDataSource from "./interfaces/DataSource.interface";
 import CreateSensorDto from "../sensor/sensor.dto";
 import { getTopicByProp } from "../topic/topicDAL";
+import { getSensorTypeByPropName } from "../sensor/sensorDAL";
 
 export const insertDashboard = async (
 	orgId: number,
@@ -244,6 +245,7 @@ export const createSensorDashboard = async (
 	sensorsUid: string
 ): Promise<number> => {
 	const topic = await getTopicByProp("id", sensorData.topicId);
+	const sensorType = await getSensorTypeByPropName(group.orgId, "id", sensorData.sensorTypeId);
 
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);

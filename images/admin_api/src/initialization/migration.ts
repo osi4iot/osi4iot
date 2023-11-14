@@ -32,19 +32,33 @@ import {
 } from "../components/organization/organizationDAL";
 import { createTimescaledbOrgDataSource } from "../components/group/datasourceDAL";
 import IAsset from "../components/asset/asset.interface";
-import { createNewAsset, createNewAssetType, updateGroupAssetsLocation } from "../components/asset/assetDAL";
-import { createNewSensor } from "../components/sensor/sensorDAL";
+import {
+	createNewAsset,
+	createNewAssetType,
+	updateGroupAssetsLocation
+} from "../components/asset/assetDAL";
+import { createNewSensor, createNewSensorType } from "../components/sensor/sensorDAL";
 import CreateSensorDto from "../components/sensor/sensor.dto";
 import { nanoid } from "nanoid";
 import { getDashboardsInfoFromIdArray } from "../components/dashboard/dashboardDAL";
-import { createDigitalTwin, generateDashboardsUrl, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
+import {
+	createDigitalTwin,
+	generateDashboardsUrl,
+	uploadMobilePhoneGltfFile
+} from "../components/digitalTwin/digitalTwinDAL";
 import ISensor from "../components/sensor/sensor.interface";
 import CreateSensorRefDto from "../components/digitalTwin/createSensorRef.dto";
 import IAssetType from "../components/asset/assetType.interface";
 import { predefinedAssetTypes } from "./predefinedAssetTypes";
 import { emptyBucket } from "./emptyS3Bucket";
 import IFloor from "../components/building/floor.interface";
-import { findBuildingBounds, findGeographicCoordinates, findGroupGeojsonData } from "../utils/geolocation.ts/geolocation";
+import {
+	findBuildingBounds,
+	findGeographicCoordinates,
+	findGroupGeojsonData
+} from "../utils/geolocation.ts/geolocation";
+import ISensorType from "../components/sensor/sensorType.interface";
+import { predefinedSensorTypes } from "./predefinedSensorTypes";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -192,7 +206,7 @@ export const dataBaseInitialization = async () => {
 				let geodataBuilding = "{}";
 				if (fs.existsSync(mainOrgBuildingGeoJson)) {
 					try {
-						geodataBuilding = fs.readFileSync(mainOrgBuildingGeoJson, {encoding:'utf8', flag:'r'});
+						geodataBuilding = fs.readFileSync(mainOrgBuildingGeoJson, { encoding: 'utf8', flag: 'r' });
 					} catch (err) {
 						logger.log("error", `An error occurred while trying to read the file: ${mainOrgBuildingGeoJson}:  %s`, err.message);
 					}
@@ -257,9 +271,9 @@ export const dataBaseInitialization = async () => {
 
 				const mainOrgFloorGeoJson = "/run/configs/main_org_floor.geojson";
 				let geodataFloor = "{}";
-				if (fs.existsSync(mainOrgFloorGeoJson )) {
+				if (fs.existsSync(mainOrgFloorGeoJson)) {
 					try {
-						geodataFloor= fs.readFileSync(mainOrgFloorGeoJson, {encoding:'utf8', flag:'r'});
+						geodataFloor = fs.readFileSync(mainOrgFloorGeoJson, { encoding: 'utf8', flag: 'r' });
 					} catch (err) {
 						logger.log("error", `An error occurred while trying to read the file: ${mainOrgFloorGeoJson}:  %s`, err.message);
 					}
@@ -487,6 +501,60 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);
 				}
 
+				const tableSensorType = "grafanadb.sensor_type";
+				const queryStringSensorType = `
+				CREATE TABLE IF NOT EXISTS ${tableSensorType}(
+					id serial PRIMARY KEY,
+					org_id bigint,
+					sensor_type_uid VARCHAR(40) UNIQUE,
+					type VARCHAR(40),
+					icon_svg_file_name VARCHAR(100),
+					icon_svg_string TEXT,
+					marker_svg_file_name VARCHAR(100),
+					marker_svg_string TEXT,
+					payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
+					dashboard_refresh_string VARCHAR(20),
+					dashboard_time_window VARCHAR(20),
+					is_predefined boolean NOT NULL DEFAULT FALSE,
+					created TIMESTAMPTZ,
+					updated TIMESTAMPTZ,
+					UNIQUE(org_id,type),
+					CONSTRAINT fk_org_id
+						FOREIGN KEY(org_id)
+							REFERENCES grafanadb.org(id)
+							ON DELETE CASCADE			
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_sensor_type_uid
+				ON grafanadb.asset_type(sensor_type_uid);`;
+
+				try {
+					await postgresClient.query(queryStringSensorType);
+					logger.log("info", `Table ${tableSensorType} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableSensorType} can not be created: %s`, err.message);
+				}
+
+				const sensorTypes: ISensorType[] = [];
+				try {
+					for (const sensorType of predefinedSensorTypes) {
+						const defaultSensorTypeData = {
+							orgId: 1,
+							type: sensorType.type,
+							iconSvgFileName: sensorType.iconSvgFileName,
+							iconSvgString: sensorType.iconSvgString,
+							markerSvgFileName: sensorType.markerSvgFileName,
+							markerSvgString: sensorType.markerSvgString,
+							payloadJsonSchema: JSON.stringify(sensorType.payloadJsonSchema),
+							isPredefined: true,
+						}
+						const newSensorType = await createNewSensorType(defaultSensorTypeData);
+						sensorTypes.push(newSensorType);
+					}
+					logger.log("info", `Default sensor types for main org has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Default sensor types for main org can not be created: %s`, err.message);
+				}
 
 				const tableAssetType = "grafanadb.asset_type";
 				const queryStringAssetType = `
@@ -562,7 +630,8 @@ export const dataBaseInitialization = async () => {
 							ON DELETE CASCADE,
 					CONSTRAINT fk_asset_type_id
 						FOREIGN KEY(asset_type_id)
-							REFERENCES grafanadb.asset_type(id)			
+							REFERENCES grafanadb.asset_type(id)
+							ON DELETE CASCADE;		
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_asset_uid
@@ -625,6 +694,29 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableTopic} can not be created: %s`, err.message);
 				}
 
+				const tableAssetTopic = "grafanadb.asset_topic";
+				const queryStringAssetTopic = `
+				CREATE TABLE IF NOT EXISTS ${tableAssetTopic}(
+					asset_id bigint,
+					topic_id bigint,
+					topic_ref VARCHAR(40),
+					CONSTRAINT fk_asset_id
+						FOREIGN KEY(asset_id)
+						REFERENCES grafanadb.asset(id)
+						ON DELETE CASCADE,
+					CONSTRAINT fk_topic_id
+						FOREIGN KEY(topic_id)
+						REFERENCES grafanadb.topic(id)
+						ON DELETE CASCADE		
+				);`;
+
+				try {
+					await postgresClient.query(queryStringAssetTopic);
+					logger.log("info", `Table ${tableAssetTopic} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableAssetType} can not be created: %s`, err.message);
+				}
+
 				const tableSensor = "grafanadb.sensor";
 				const queryStringSensor = `
 				CREATE TABLE IF NOT EXISTS ${tableSensor}(
@@ -632,24 +724,23 @@ export const dataBaseInitialization = async () => {
 					asset_id bigint,
 					sensor_uid VARCHAR(40) UNIQUE,
 					topic_id bigint,
-					type VARCHAR(40),
+					sensor_type_id bigint,
 					description VARCHAR(190),
-					payload_key VARCHAR(40),
-					param_label VARCHAR(40),
-					value_type VARCHAR(10),
-					units VARCHAR(10),
 					dashboard_id bigint,
 					dashboard_url VARCHAR(255),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
-					UNIQUE (topic_id, payload_key),
 					CONSTRAINT fk_asset_id
 						FOREIGN KEY(asset_id)
 							REFERENCES grafanadb.asset(id)
 								ON DELETE CASCADE,
+					CONSTRAINT fk_sensor_type_id
+						FOREIGN KEY(sensor_type_id)
+							REFERENCES grafanadb.sensor_type(id)
+								ON DELETE CASCADE,															
 					CONSTRAINT fk_dashboard_id
 						FOREIGN KEY(dashboard_id)
-							REFERENCES grafanadb.dashboard(id),
+							REFERENCES grafanadb.dashboard(id),							
 					CONSTRAINT fk_sensor_topic_id
 						FOREIGN KEY(topic_id)
 							REFERENCES grafanadb.topic(id)
@@ -731,6 +822,7 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
 				}
 
+				// Luego eliminar
 				const tableDigitalTwinSensor = "grafanadb.digital_twin_sensor";
 				const queryStringDigitalTwinSensor = `
 				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinSensor}(
@@ -760,6 +852,7 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableDigitalTwinSensor} can not be created: %s`, err.message);
 				}
 
+				// Luego eliminar
 				const tableDigitalTwinSensorDashboard = "grafanadb.digital_twin_sensor_dashboard";
 				const queryStringDigitalTwinSensorDashboard = `
 				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinSensorDashboard}(
@@ -794,6 +887,7 @@ export const dataBaseInitialization = async () => {
 					group_id bigint,
 					ml_model_uid VARCHAR(40) UNIQUE,
 					description VARCHAR(190) UNIQUE,
+					ml_library VARCHAR(40),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					CONSTRAINT fk_group_id
@@ -866,7 +960,7 @@ export const dataBaseInitialization = async () => {
 							topicType: "dev2pdb",
 							description: `Mobile geolocation topic`,
 							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: "{}",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].payloadJsonSchema),
 							requireS3Storage: false,
 							s3Folder: "",
 							parquetSchema: "{}",
@@ -875,7 +969,7 @@ export const dataBaseInitialization = async () => {
 							topicType: "dev2pdb_wt",
 							description: `Mobile accelerations topic`,
 							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: "{}",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].payloadJsonSchema),
 							requireS3Storage: false,
 							s3Folder: "",
 							parquetSchema: "{}",
@@ -884,7 +978,7 @@ export const dataBaseInitialization = async () => {
 							topicType: "dev2pdb_wt",
 							description: `Mobile orientation topic`,
 							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: "{}",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].payloadJsonSchema),
 							requireS3Storage: false,
 							s3Folder: "",
 							parquetSchema: "{}",
@@ -893,7 +987,7 @@ export const dataBaseInitialization = async () => {
 							topicType: "dev2pdb_wt",
 							description: `Mobile motion topic`,
 							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: "{}",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].payloadJsonSchema),
 							requireS3Storage: false,
 							s3Folder: "",
 							parquetSchema: "{}",
@@ -902,7 +996,7 @@ export const dataBaseInitialization = async () => {
 							topicType: "dev2dtm",
 							description: `Mobile photo topic`,
 							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: "{}",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].payloadJsonSchema),
 							requireS3Storage: false,
 							s3Folder: "",
 							parquetSchema: "{}",
@@ -925,13 +1019,7 @@ export const dataBaseInitialization = async () => {
 				{
 					description: `Mobile geolocation`,
 					topicId: topics[0].id,
-					type: "geolocation",
-					payloadKey: "mobile_geolocation",
-					paramLabel: "longitude,latitude",
-					valueType: "number(2)",
-					units: "-",
-					dashboardRefresh: "1s",
-					dashboardTimeWindow: "5m"
+					sensorTypeId: sensorTypes[0].id,
 				};
 				sensorsUid[0] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
@@ -939,13 +1027,7 @@ export const dataBaseInitialization = async () => {
 				{
 					description: `Mobile accelerations`,
 					topicId: topics[1].id,
-					type: "accelerometer",
-					payloadKey: "mobile_accelerations",
-					paramLabel: "ax,ay,az",
-					valueType: "number(3)",
-					units: "m/s^2",
-					dashboardRefresh: "200ms",
-					dashboardTimeWindow: "25s"
+					sensorTypeId: sensorTypes[1].id,
 				};
 				sensorsUid[1] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
@@ -953,13 +1035,7 @@ export const dataBaseInitialization = async () => {
 				{
 					description: `Mobile orientation`,
 					topicId: topics[2].id,
-					type: "quaternion",
-					payloadKey: "mobile_quaternion",
-					paramLabel: "q0,q1,q2,q3",
-					valueType: "number(4)",
-					units: "-",
-					dashboardRefresh: "200ms",
-					dashboardTimeWindow: "25s"
+					sensorTypeId: sensorTypes[2].id,
 				};
 				sensorsUid[2] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
@@ -967,13 +1043,7 @@ export const dataBaseInitialization = async () => {
 				{
 					description: `Mobile motion`,
 					topicId: topics[3].id,
-					type: "mobile_motion",
-					payloadKey: "mobile_motion",
-					paramLabel: "ax,ay,az,q0,q1,q2,q3",
-					valueType: "number(7)",
-					units: "-",
-					dashboardRefresh: "200ms",
-					dashboardTimeWindow: "25s"
+					sensorTypeId: sensorTypes[3].id,
 				};
 				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
@@ -981,13 +1051,7 @@ export const dataBaseInitialization = async () => {
 				{
 					description: `Mobile photo`,
 					topicId: topics[4].id,
-					type: "photo_camera",
-					payloadKey: "mobile_photo",
-					paramLabel: "mobile_photo",
-					valueType: "string",
-					units: "-",
-					dashboardRefresh: "1s",
-					dashboardTimeWindow: "5m"
+					sensorTypeId: sensorTypes[4].id,
 				};
 				sensorsUid[4] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 

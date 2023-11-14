@@ -1,7 +1,156 @@
+import { nanoid } from "nanoid";
 import pool from "../../config/dbconfig";
 import CreateSensorDto from "./sensor.dto";
 import ISensor from "./sensor.interface";
 import ISensorState from "./sensorState.interface";
+import ISensorType from "./sensorType.interface";
+import CreateSensorTypeDto from "./sensorType.dto";
+
+export const insertSensorType = async (sensorTypeData: ISensorType): Promise<ISensorType> => {
+	const queryString = `INSERT INTO grafanadb.sensor_type (org_id, sensor_type_uid,
+		type, icon_svg_file_name, icon_svg_string, geolocation_mode, marker_svg_file_name,
+		marker_svg_string, is_predefined, asset_state_format, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		RETURNING id, org_id AS "orgId",
+		asset_type_uid AS "assetTypeUid", type,
+		icon_svg_file_name AS "iconSvgFileName",
+		icon_svg_string AS "iconSvgString", 
+		geolocation_mode AS "geolocationMode",
+		marker_svg_file_name AS "markerSvgFileName",
+		marker_svg_string  AS "markerSvgString",
+        is_predefined AS "isPredefined",
+		asset_state_format AS "assetStateFormat",
+		created, updated`;
+
+	const result = await pool.query(queryString,
+		[
+			sensorTypeData.orgId,
+			sensorTypeData.sensorTypeUid,
+			sensorTypeData.type,
+			sensorTypeData.iconSvgFileName,
+			sensorTypeData.iconSvgString,
+			sensorTypeData.markerSvgFileName,
+			sensorTypeData.markerSvgString,
+			sensorTypeData.isPredefined || false,
+			sensorTypeData.payloadJsonSchema,
+		]);
+	return result.rows[0] as ISensorType;
+};
+
+export const createNewSensorType = async (sensorTypeData: CreateSensorTypeDto): Promise<ISensorType> => {
+	const sensorTypeUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+	const sensorTypeInput: ISensorType = { ...sensorTypeData, sensorTypeUid };
+	const newSensorType = await insertSensorType(sensorTypeInput);
+	return newSensorType;
+};
+
+export const deleteSensorTypeByPropName = async (propName: string, propValue: (string | number)): Promise<void> => {
+	await pool.query(`DELETE FROM grafanadb.sensor_type WHERE ${propName} = $1`, [propValue]);
+};
+
+export const getAllSensorTypes = async (): Promise<ISensorType[]> => {
+	const response = await pool.query(`SELECT grafanadb.sensor_type.id, 
+	                                grafanadb.sensor_type.org_id AS "orgId",
+									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+									grafanadb.sensor_type.type,
+									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.is_predefined AS "isPredefined",
+									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+									FROM grafanadb.sensor_type
+									ORDER BY grafanadb.sensor_type.id  ASC;`);
+	return response.rows as ISensorType[];
+};
+
+export const getSensorTypesByOrgsIdArray = async (orgsIdArray: number[]): Promise<ISensorType[]> => {
+	const response = await pool.query(`SELECT grafanadb.sensor_type.id, 
+									grafanadb.sensor_type.org_id AS "orgId",
+									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+									grafanadb.sensor_type.type,
+									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.is_predefined AS "isPredefined",
+									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+									FROM grafanadb.sensor_type
+									WHERE grafanadb.sensor_type.org_id = ANY($1::bigint[])
+									ORDER BY grafanadb.sensor_type.id  ASC;`, [orgsIdArray]);
+	return response.rows as ISensorType[];
+};
+
+export const getSensorTypesByOrgId = async (orgId: number): Promise<ISensorType[]> => {
+	const response = await pool.query(`SELECT grafanadb.sensor_type.id, 
+									grafanadb.sensor_type.org_id AS "orgId",
+									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+									grafanadb.sensor_type.type,
+									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.is_predefined AS "isPredefined",
+									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+									WHERE grafanadb.sensor_type.org_id = $1
+									ORDER BY grafanadb.sensor_type.id  ASC;`, [orgId]);
+	return response.rows as ISensorType[];
+};
+
+export const getSensorTypeByPropName = async (
+	orgId: number,
+	propName: string,
+	propValue: (string | number)
+): Promise<ISensorType> => {
+	const response = await pool.query(`SELECT grafanadb.sensor_type.id, 
+									grafanadb.sensor_type.org_id AS "orgId",
+									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+									grafanadb.sensor_type.type,
+									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.is_predefined AS "isPredefined",
+									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+									WHERE grafanadb.sensor_type.${propName} = $1 AND
+									grafanadb.sensor_type.org_id = $2`, [propValue, orgId]);
+	return response.rows[0] as ISensorType;
+}
+
+export const getSensorTypeByTypeAndOrgId = async (
+	orgId: number,
+	type: string,
+): Promise<ISensorType> => {
+	const response = await pool.query(`SELECT grafanadb.sensor_type.id, 
+									grafanadb.sensor_type.org_id AS "orgId",
+									grafanadb.sensor_type.sensor_type_uid AS "sensorTypeUid",
+									grafanadb.sensor_type.type,
+									grafanadb.sensor_type.icon_svg_file_name AS "iconSvgFileName",
+									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
+									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
+									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
+									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.is_predefined AS "isPredefined",
+									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
+									WHERE grafanadb.sensor_type.type = $1 AND
+									grafanadb.sensor_type.org_id = $2`, [type, orgId]);
+	return response.rows[0] as ISensorType;
+}
+
+export const getNumASensorTypes = async (): Promise<number> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.sensor_type;`);
+	return parseInt(result.rows[0].count, 10);
+}
+
+export const getNumSensorTypesByOrgsIdArray = async (orgsIdArray: number[]): Promise<number> => {
+	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.sensor_type
+									WHERE grafanadb.sensor_type.org_id = ANY($1::bigint[])`, [orgsIdArray]);
+	return parseInt(result.rows[0].count, 10);
+}
 
 export const sensorName = (assetName: string, sensorType: string): string => {
 	return `${assetName.replace(/ /g, "_")}_${sensorType.replace(/ /g, "_")}`;
@@ -9,13 +158,11 @@ export const sensorName = (assetName: string, sensorType: string): string => {
 
 export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
 	const queryString = `INSERT INTO grafanadb.sensor (asset_id,
-		sensor_uid, description, type, topic_id, payload_key, 
-		param_label, value_type, units, dashboard_id, dashboard_url,
-		created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
+		sensor_uid, description, sensor_type_id, topic_id,
+		dashboard_id, dashboard_url, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 		RETURNING  id, sensor_uid AS "sensorUid",
-		description, topic_id AS "topicId", payload_key AS "payloadKey",
-		param_label AS "paramLabel", value_type AS "valueType", units,
+		description, topic_id AS "topicId", sensor_type_id AS "sensorTypeId",
 		dashboard_id AS "dashboardId", dashboard_url AS "dashboardUrl",
 		created, updated`;
 
@@ -24,12 +171,8 @@ export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
 			sensorData.assetId,
 			sensorData.sensorUid,
 			sensorData.description,
-			sensorData.type,
+			sensorData.sensorTypeId,
 			sensorData.topicId,
-			sensorData.payloadKey,
-			sensorData.paramLabel,
-			sensorData.valueType,
-			sensorData.units,
 			sensorData.dashboardId,
 			sensorData.dashboardUrl,
 		]);
@@ -38,18 +181,12 @@ export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
 
 export const updateSensorByPropName = async (propName: string, propValue: (string | number), sensor: ISensor): Promise<void> => {
 	const query = `UPDATE grafanadb.sensor SET description = $1,
-				type = $2, topic_id = $3, payload_key = $4,
-				param_label = $5, value_type = $6,
-				units = $7, updated = NOW()
+				sensor_type_id = $2, topic_id = $3, updated = NOW()
 				WHERE grafanadb.sensor.${propName} = $8;`;
 	await pool.query(query, [
 		sensor.description,
-		sensor.type,
+		sensor.sensorTypeId,
 		sensor.topicId,
-		sensor.payloadKey,
-		sensor.paramLabel,
-		sensor.valueType,
-		sensor.units,
 		propValue
 	]);
 };

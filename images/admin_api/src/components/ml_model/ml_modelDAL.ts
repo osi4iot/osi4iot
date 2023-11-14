@@ -6,23 +6,25 @@ import IMLModel from "./ml_model.interface";
 
 export const insertMLModel = async (mlModelData: IMLModel): Promise<IMLModel> => {
 	const result = await pool.query(`INSERT INTO grafanadb.ml_model(group_id, ml_model_uid,
-		            description, created, updated)
-					VALUES ($1, $2, $3, NOW(), NOW())
+		            description, ml_library, created, updated)
+					VALUES ($1, $2, $3, $4, NOW(), NOW())
 					RETURNING  id, group_id AS "groupId", ml_model_uid AS "mlModelUid",
-					description, created, updated`,
+					description, ml_library AS "mlLibrary", created, updated`,
 	[
 		mlModelData.groupId,
 		mlModelData.mlModelUid,
 		mlModelData.description,
+		mlModelData.mlLibrary,
 	]);
 	return result.rows[0] as IMLModel;
 };
 
 export const updateMLModelByProp = async (propName: string, propValue: (string | number), mlModel: IMLModel): Promise<void> => {
-	const query = `UPDATE grafanadb.ml_model SET description = $1, updated = NOW()
-				WHERE grafanadb.ml_model.${propName} = $2;`;
+	const query = `UPDATE grafanadb.ml_model SET description = $1, mlLibrary =$2, updated = NOW()
+				WHERE grafanadb.ml_model.${propName} = $3;`;
 	await pool.query(query, [
 		mlModel.description,
+		mlModel.mlLibrary,
 		propValue
 	]);
 };
@@ -42,6 +44,7 @@ export const getMLModelByProp = async (propName: string, propValue: (string | nu
 	const response = await pool.query(`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 									grafanadb.ml_model.ml_model_uid AS "mlModelUid",
+									grafanadb.ml_model.ml_library AS "mlLibrary",
 									grafanadb.ml_model.created, grafanadb.ml_model.updated
 									FROM grafanadb.ml_model
 									INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id
@@ -54,6 +57,7 @@ export const getAllMLModels = async (): Promise<IMLModel[]> => {
 	const response = await pool.query(`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
                                     grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 									grafanadb.ml_model.ml_model_uid AS "mlModelUid",
+									grafanadb.ml_model.ml_library AS "mlLibrary",
                                     grafanadb.ml_model.created, grafanadb.ml_model.updated
                                     FROM grafanadb.ml_model
                                     INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id
@@ -71,6 +75,7 @@ export const getMLModelsByGroupId = async (groupId: number): Promise<IMLModel[]>
 	const response = await pool.query(`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
                                     grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 									grafanadb.ml_model.ml_model_uid AS "mlModelUid",
+									grafanadb.ml_model.ml_library AS "mlLibrary",
                                     grafanadb.ml_model.created, grafanadb.ml_model.updated
                                     FROM grafanadb.ml_model
                                     INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id
@@ -83,6 +88,7 @@ export const getMLModelsByGroupsIdArray = async (groupsIdArray: number[]): Promi
 	const response = await pool.query(`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
                                     grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 									grafanadb.ml_model.ml_model_uid AS "mlModelUid",
+									grafanadb.ml_model.ml_library AS "mlLibrary",
                                     grafanadb.ml_model.created, grafanadb.ml_model.updated
                                     FROM grafanadb.ml_model
                                     INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id
@@ -103,6 +109,7 @@ export const getMLModelsByOrgId = async (orgId: number): Promise<IMLModel[]> => 
 	const response = await pool.query(`SELECT grafanadb.ml_model.id, grafanadb.group.org_id AS "orgId",
                                     grafanadb.ml_model.group_id AS "groupId", grafanadb.ml_model.description,
 									grafanadb.ml_model.ml_model_uid AS "mlModelUid",
+									grafanadb.ml_model.ml_library AS "mlLibrary",
                                     grafanadb.ml_model.created, grafanadb.ml_model.updated
                                     FROM grafanadb.ml_model
                                     INNER JOIN grafanadb.group ON grafanadb.ml_model.group_id = grafanadb.group.id

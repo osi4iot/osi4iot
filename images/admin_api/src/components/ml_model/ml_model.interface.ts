@@ -4,6 +4,7 @@ export default interface IMLModel {
 	groupId: number;
 	mlModelUid: string;
 	description: string;
+	mlLibrary: string;
 	created?: string;
 	updated?: string;
 }
