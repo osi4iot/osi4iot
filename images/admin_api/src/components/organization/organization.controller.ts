@@ -467,7 +467,7 @@ class OrganizationController implements IController {
 				];
 
 				const topics: ITopic[] = [];
-				for (let i = 0; i <= topicsDataForMobileAsset.length; i++) {
+				for (let i = 0; i < topicsDataForMobileAsset.length; i++) {
 					topics[i] = await createTopic(group.id, topicsDataForMobileAsset[i]);
 				}
 
@@ -572,9 +572,8 @@ class OrganizationController implements IController {
 					],
 					sensorsRef: [] as CreateSensorRefDto[]
 				}
-
 				const { digitalTwin } = await createDigitalTwin(group, asset, digitalTwinData);
-				const keyBase = `org_1/group_${group.id}/digitalTwin_${digitalTwin.id}`;
+				const keyBase = `org_${newOrg.id}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
 				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
 				await uploadMobilePhoneGltfFile(gltfFileName);
 			}
@@ -916,6 +915,7 @@ class OrganizationController implements IController {
 			const deleteOrgMessage = await grafanaApi.deleteOrganizationById(organization.id);
 			const bucketFolder = `org_${organization.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);
+			console.log("deleteOrgMessage=", deleteOrgMessage)
 			if (deleteOrgMessage.message === "Organization deleted") {
 				res.status(200).json({ message: `Organization deleted successfully` });
 			} else {

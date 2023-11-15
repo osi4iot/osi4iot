@@ -894,6 +894,7 @@ export const createDigitalTwin = async (
 
 	const topicSensors: ITopic[] = [];
 	const topicsRef: ITopicRef[] = [];
+
 	if (digitalTwinInput.topicsRef?.length !== 0) {
 		for (const topicMap of digitalTwinInput.topicsRef) {
 			const newTopicRef = {
