@@ -901,11 +901,8 @@ class OrganizationController implements IController {
 	private deleteOrganizationByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			console.log("paso por aqui 1")
 			if (!this.isValidOrganizationPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
-			console.log("paso por aqui 2")
 			const organization = await getOrganizationByProp(propName, propValue);
-			console.log("paso por aqui 3")
 			if (!organization) throw new ItemNotFoundException(req, res, "The Organization", propName, propValue);
 			if (organization.id === 1) throw new HttpException(
 				req,
@@ -913,17 +910,12 @@ class OrganizationController implements IController {
 				400,
 				"Main organization can not be deleted"
 			);
-			console.log("paso por aqui 4")
 			await grafanaApi.switchOrgContextForAdmin(1);
-			console.log("paso por aqui 5")
 			await grafanaApi.deleteOrgApiAdminUser(organization.id);
-			console.log("paso por aqui 6")
 			const deleteOrgMessage = await grafanaApi.deleteOrganizationById(organization.id);
-			console.log("paso por aqui 7")
 			const bucketFolder = `org_${organization.id}`;
-			console.log("paso por aqui 8")
 			await removeFilesFromBucketFolder(bucketFolder);
-			console.log("paso por aqui 9")
+			console.log("deleteOrgMessage=", deleteOrgMessage)
 			if (deleteOrgMessage.message === "Organization deleted") {
 				res.status(200).json({ message: `Organization deleted successfully` });
 			} else {

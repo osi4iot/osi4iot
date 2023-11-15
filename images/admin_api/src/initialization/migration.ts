@@ -562,7 +562,7 @@ export const dataBaseInitialization = async () => {
 							ON DELETE CASCADE,
 					CONSTRAINT fk_asset_type_id
 						FOREIGN KEY(asset_type_id)
-							REFERENCES grafanadb.asset_type(id)			
+							REFERENCES grafanadb.asset_type(id)	
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_asset_uid
@@ -649,10 +649,12 @@ export const dataBaseInitialization = async () => {
 								ON DELETE CASCADE,
 					CONSTRAINT fk_dashboard_id
 						FOREIGN KEY(dashboard_id)
-							REFERENCES grafanadb.dashboard(id),
+							REFERENCES grafanadb.dashboard(id)
+							 	ON DELETE CASCADE,
 					CONSTRAINT fk_sensor_topic_id
 						FOREIGN KEY(topic_id)
 							REFERENCES grafanadb.topic(id)
+							  	ON DELETE CASCADE
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_sensor_uid
