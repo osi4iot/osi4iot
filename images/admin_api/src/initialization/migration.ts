@@ -11,13 +11,10 @@ import {
 	getAllGroups
 } from "../components/group/groupDAL";
 import { FolderPermissionOption } from "../components/group/interfaces/FolerPermissionsOptions";
-import { createHomeDashboard, createSensorDashboard } from "../components/group/dashboardDAL";
+import { createHomeDashboard } from "../components/group/dashboardDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
-import { createTopic } from "../components/topic/topicDAL";
-import process_env from "../config/api_config";
 import needle from "needle";
-import ITopic from "../components/topic/topic.interface";
 import { createFictitiousUserForService } from "../components/user/userDAL";
 import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
 import {
@@ -37,17 +34,12 @@ import {
 	createNewAssetType,
 	updateGroupAssetsLocation
 } from "../components/asset/assetDAL";
-import { createNewSensor, createNewSensorType } from "../components/sensor/sensorDAL";
-import CreateSensorDto from "../components/sensor/sensor.dto";
+import {createNewSensorType } from "../components/sensor/sensorDAL";;
 import { nanoid } from "nanoid";
-import { getDashboardsInfoFromIdArray } from "../components/dashboard/dashboardDAL";
 import {
 	createDigitalTwin,
-	generateDashboardsUrl,
 	uploadMobilePhoneGltfFile
 } from "../components/digitalTwin/digitalTwinDAL";
-import ISensor from "../components/sensor/sensor.interface";
-import CreateSensorRefDto from "../components/digitalTwin/createSensorRef.dto";
 import IAssetType from "../components/asset/assetType.interface";
 import { predefinedAssetTypes } from "./predefinedAssetTypes";
 import { emptyBucket } from "./emptyS3Bucket";
@@ -59,6 +51,7 @@ import {
 } from "../utils/geolocation.ts/geolocation";
 import ISensorType from "../components/sensor/sensorType.interface";
 import { predefinedSensorTypes } from "./predefinedSensorTypes";
+import process_env from "../config/api_config";
 
 export const dataBaseInitialization = async () => {
 	const timescaledb_pool = new Pool({
@@ -512,10 +505,10 @@ export const dataBaseInitialization = async () => {
 					icon_svg_string TEXT,
 					marker_svg_file_name VARCHAR(100),
 					marker_svg_string TEXT,
-					payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
+					default_payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
+					is_predefined boolean NOT NULL DEFAULT FALSE,
 					dashboard_refresh_string VARCHAR(20),
 					dashboard_time_window VARCHAR(20),
-					is_predefined boolean NOT NULL DEFAULT FALSE,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE(org_id,type),
@@ -545,8 +538,10 @@ export const dataBaseInitialization = async () => {
 							iconSvgString: sensorType.iconSvgString,
 							markerSvgFileName: sensorType.markerSvgFileName,
 							markerSvgString: sensorType.markerSvgString,
-							payloadJsonSchema: JSON.stringify(sensorType.payloadJsonSchema),
+							defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
 							isPredefined: true,
+							dashboardRefreshString: sensorType.dashboardRefreshString,
+							dashboardTimeWindow: sensorType.dashboardTimeWindow
 						}
 						const newSensorType = await createNewSensorType(defaultSensorTypeData);
 						sensorTypes.push(newSensorType);
@@ -644,24 +639,6 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
 				}
 
-				let asset: IAsset;
-				try {
-					const defaultAssetData = {
-						assetTypeId: assetTypes[4].id,
-						description: `Mobile for group ${group.acronym}`,
-						type: "Mobile",
-						iconRadio: 1.0,
-						iconSizeFactor: 1.0,
-						longitude: 0.0,
-						latitude: 0.0,
-						geolocationMode: "dynamic"
-					}
-					asset = await createNewAsset(group, defaultAssetData);
-					logger.log("info", `Default asset for main group has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
-				}
-
 				const tableTopic = "grafanadb.topic";
 				const queryStringTopic = `
 				CREATE TABLE IF NOT EXISTS ${tableTopic}(
@@ -700,6 +677,7 @@ export const dataBaseInitialization = async () => {
 					asset_id bigint,
 					topic_id bigint,
 					topic_ref VARCHAR(40),
+					UNIQUE (asset_id, topic_ref),
 					CONSTRAINT fk_asset_id
 						FOREIGN KEY(asset_id)
 						REFERENCES grafanadb.asset(id)
@@ -723,6 +701,7 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					asset_id bigint,
 					sensor_uid VARCHAR(40) UNIQUE,
+					sensor_ref VARCHAR(20),
 					topic_id bigint,
 					sensor_type_id bigint,
 					description VARCHAR(190),
@@ -730,6 +709,7 @@ export const dataBaseInitialization = async () => {
 					dashboard_url VARCHAR(255),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
+					UNIQUE (asset_id, sensor_ref),
 					CONSTRAINT fk_asset_id
 						FOREIGN KEY(asset_id)
 							REFERENCES grafanadb.asset(id)
@@ -955,125 +935,111 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Update of group assets with id: ${group.id} could not be performed: %s`, err.message);
 				}
 
-				const topics: ITopic[] = [];
+				let asset: IAsset;
 				try {
-					const topicsDataForMobileAsset = [
-						{
-							topicType: "dev2pdb",
-							description: `Mobile geolocation topic`,
-							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].payloadJsonSchema),
-							requireS3Storage: false,
-							s3Folder: "",
-							parquetSchema: "{}",
-						},
-						{
-							topicType: "dev2pdb_wt",
-							description: `Mobile accelerations topic`,
-							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].payloadJsonSchema),
-							requireS3Storage: false,
-							s3Folder: "",
-							parquetSchema: "{}",
-						},
-						{
-							topicType: "dev2pdb_wt",
-							description: `Mobile orientation topic`,
-							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].payloadJsonSchema),
-							requireS3Storage: false,
-							s3Folder: "",
-							parquetSchema: "{}",
-						},
-						{
-							topicType: "dev2pdb_wt",
-							description: `Mobile motion topic`,
-							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].payloadJsonSchema),
-							requireS3Storage: false,
-							s3Folder: "",
-							parquetSchema: "{}",
-						},
-						{
-							topicType: "dev2dtm",
-							description: `Mobile photo topic`,
-							mqttAccessControl: "Pub & Sub",
-							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].payloadJsonSchema),
-							requireS3Storage: false,
-							s3Folder: "",
-							parquetSchema: "{}",
-						}
-					];
-					for (let i = 0; i < topicsDataForMobileAsset.length; i++) {
-						topics[i] = await createTopic(group.id, topicsDataForMobileAsset[i]);
+					const defaultAssetData = {
+						assetTypeId: assetTypes[4].id,
+						description: `Mobile for group ${group.acronym}`,
+						type: "Mobile",
+						iconRadio: 1.0,
+						iconSizeFactor: 1.0,
+						longitude: 0.0,
+						latitude: 0.0,
+						geolocationMode: "dynamic",
+						topicsRef: [
+							{
+								topicRef: "dev2pdb_1",
+								topicType: "dev2pdb",
+								description: `Mobile geolocation topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "dev2pdb_2",
+								topicType: "dev2pdb_wt",
+								description: `Mobile accelerations topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].defaultPayloadJsonSchema),
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "dev2pdb_3",
+								topicType: "dev2pdb_wt",
+								description: `Mobile orientation topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].defaultPayloadJsonSchema),
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "dev2pdb_4",
+								topicType: "dev2pdb_wt",
+								description: `Mobile motion topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].defaultPayloadJsonSchema),
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							},
+							{
+								topicRef: "dev2pdb_5",
+								topicType: "dev2dtm",
+								description: `Mobile photo topic`,
+								mqttAccessControl: "Pub & Sub",
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
+								requireS3Storage: false,
+								s3Folder: "",
+								parquetSchema: "{}",
+							}
+						],
+						sensorsRef: [
+							{
+								sensorRef: "sensor_1",
+								sensorTypeId: sensorTypes[0].id,
+								topicRef: "dev2pdb_1",
+								description: `Mobile geolocation`,
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),
+							},
+							{
+								sensorRef: "sensor_2",
+								sensorTypeId: sensorTypes[1].id,
+								topicRef: "dev2pdb_2",
+								description: `Mobile accelerations`,
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].defaultPayloadJsonSchema),
+							},
+							{
+								sensorRef: "sensor_3",
+								sensorTypeId: sensorTypes[2].id,
+								topicRef: "dev2pdb_3",
+								description: `Mobile orientation`,
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].defaultPayloadJsonSchema),
+							},
+							{
+								sensorRef: "sensor_4",
+								sensorTypeId: sensorTypes[3].id,
+								topicRef: "dev2pdb_4",
+								description: `Mobile motion`,
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].defaultPayloadJsonSchema),
+							},
+							{
+								sensorRef: "sensor_5",
+								sensorTypeId: sensorTypes[4].id,
+								topicRef: "dev2pdb_5",
+								description: `Mobile photo`,
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
+							}
+						]
 					}
-
-					logger.log("info", `Topics for mobile asset has been created sucessfully`);
+					asset = await createNewAsset(group, defaultAssetData);
+					logger.log("info", `Default asset for main group has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Topics for mobile asset could not be created: %s`, err.message);
-				}
-
-				const sensorsData: CreateSensorDto[] = [];
-				const sensors: ISensor[] = [];
-				const dashboarsId: number[] = [];
-				const sensorsUid: string[] = [];
-				sensorsData[0] =
-				{
-					description: `Mobile geolocation`,
-					topicId: topics[0].id,
-					sensorTypeId: sensorTypes[0].id,
-				};
-				sensorsUid[0] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				sensorsData[1] =
-				{
-					description: `Mobile accelerations`,
-					topicId: topics[1].id,
-					sensorTypeId: sensorTypes[1].id,
-				};
-				sensorsUid[1] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				sensorsData[2] =
-				{
-					description: `Mobile orientation`,
-					topicId: topics[2].id,
-					sensorTypeId: sensorTypes[2].id,
-				};
-				sensorsUid[2] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				sensorsData[3] =
-				{
-					description: `Mobile motion`,
-					topicId: topics[3].id,
-					sensorTypeId: sensorTypes[3].id,
-				};
-				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				sensorsData[4] =
-				{
-					description: `Mobile photo`,
-					topicId: topics[4].id,
-					sensorTypeId: sensorTypes[4].id,
-				};
-				sensorsUid[4] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				try {
-					for (let i = 0; i < 5; i++) {
-						dashboarsId[i] = await createSensorDashboard(group, sensorsData[i], sensorsUid[i]);
-					}
-				} catch (err) {
-					logger.log("error", `Default sensors dashboards could not be created: %s`, err.message);
-				}
-
-				try {
-					const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
-					const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
-					for (let i = 0; i < 5; i++) {
-						sensors[i] = await createNewSensor(asset.id, sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
-					}
-					logger.log("info", `Default sensors for main group has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Default sensors for main group can not be created: %s`, err.message);
+					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
 				}
 
 				const digitalTwinData = {
@@ -1085,13 +1051,6 @@ export const dataBaseInitialization = async () => {
 					digitalTwinSimulationFormat: "{}",
 					dtRefFileName: "-",
 					dtRefFileLastModifDate: "-",
-					topicsRef: [
-						{
-							topicRef: "dev2pdb_wt_1",
-							topicId: topics[2].id
-						}
-					],
-					sensorsRef: [] as CreateSensorRefDto[]
 				}
 
 				try {

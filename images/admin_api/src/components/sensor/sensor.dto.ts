@@ -9,6 +9,9 @@ class CreateSensorDto {
 
 	@IsNumber()
 	public sensorTypeId: number;
+
+	@IsString()
+	public payloadJsonSchema: string;
 }
 
 export default CreateSensorDto;

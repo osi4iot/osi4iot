@@ -8,9 +8,10 @@ import CreateSensorTypeDto from "./sensorType.dto";
 
 export const insertSensorType = async (sensorTypeData: ISensorType): Promise<ISensorType> => {
 	const queryString = `INSERT INTO grafanadb.sensor_type (org_id, sensor_type_uid,
-		type, icon_svg_file_name, icon_svg_string, geolocation_mode, marker_svg_file_name,
-		marker_svg_string, is_predefined, asset_state_format, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+		type, icon_svg_file_name, icon_svg_string, marker_svg_file_name,
+		marker_svg_string,  default_payload_json_schema, is_predefined,
+		dashboard_refresh_string, dashboard_time_window, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 		RETURNING id, org_id AS "orgId",
 		asset_type_uid AS "assetTypeUid", type,
 		icon_svg_file_name AS "iconSvgFileName",
@@ -31,8 +32,10 @@ export const insertSensorType = async (sensorTypeData: ISensorType): Promise<ISe
 			sensorTypeData.iconSvgString,
 			sensorTypeData.markerSvgFileName,
 			sensorTypeData.markerSvgString,
+			sensorTypeData.defaultPayloadJsonSchema,
 			sensorTypeData.isPredefined || false,
-			sensorTypeData.payloadJsonSchema,
+			sensorTypeData.dashboardRefreshString,
+			sensorTypeData.dashboardTimeWindow
 		]);
 	return result.rows[0] as ISensorType;
 };
@@ -57,7 +60,9 @@ export const getAllSensorTypes = async (): Promise<ISensorType[]> => {
 									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
 									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
 									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
 									grafanadb.sensor_type.is_predefined AS "isPredefined",
 									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
 									FROM grafanadb.sensor_type
@@ -74,7 +79,9 @@ export const getSensorTypesByOrgsIdArray = async (orgsIdArray: number[]): Promis
 									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
 									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
 									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
 									grafanadb.sensor_type.is_predefined AS "isPredefined",
 									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
 									FROM grafanadb.sensor_type
@@ -92,7 +99,9 @@ export const getSensorTypesByOrgId = async (orgId: number): Promise<ISensorType[
 									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
 									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
 									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
 									grafanadb.sensor_type.is_predefined AS "isPredefined",
 									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
 									WHERE grafanadb.sensor_type.org_id = $1
@@ -113,7 +122,9 @@ export const getSensorTypeByPropName = async (
 									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
 									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
 									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
 									grafanadb.sensor_type.is_predefined AS "isPredefined",
 									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
 									WHERE grafanadb.sensor_type.${propName} = $1 AND
@@ -133,7 +144,9 @@ export const getSensorTypeByTypeAndOrgId = async (
 									grafanadb.sensor_type.icon_svg_string AS "iconSvgString",
 									grafanadb.sensor_type.marker_svg_file_name AS "markerSvgFileName",
 									grafanadb.sensor_type.marker_svg_string AS "markerSvgString",
-									grafanadb.sensor_type.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor_type.default_payload_json_schema AS "defaultPayloadJsonSchema",
+									grafanadb.sensor_type.dashboard_refresh_string AS "dashboardRefreshString",
+									grafanadb.sensor_type.dashboard_time_window AS "dashboardTimeWindow",
 									grafanadb.sensor_type.is_predefined AS "isPredefined",
 									grafanadb.sensor_type.created, grafanadb.sensor_type.updated
 									WHERE grafanadb.sensor_type.type = $1 AND
@@ -156,7 +169,7 @@ export const sensorName = (assetName: string, sensorType: string): string => {
 	return `${assetName.replace(/ /g, "_")}_${sensorType.replace(/ /g, "_")}`;
 }
 
-export const insertSensor = async (sensorData: ISensor): Promise<ISensor> => {
+export const insertSensor = async (sensorData: Partial<ISensor>): Promise<ISensor> => {
 	const queryString = `INSERT INTO grafanadb.sensor (asset_id,
 		sensor_uid, description, sensor_type_id, topic_id,
 		dashboard_id, dashboard_url, created, updated)
@@ -201,12 +214,12 @@ export const deleteSensorsByIdArray = async (sensorsId: number[]): Promise<void>
 
 export const createNewSensor = async (
 	assetId: number,
-	sensorData: CreateSensorDto,
+	sensorData: Partial<CreateSensorDto>,
 	dashboardId: number,
 	dashboardUrl: string,
 	sensorUid: string
 ): Promise<ISensor> => {
-	const sensorInput: ISensor = { ...sensorData, assetId, sensorUid, dashboardId, dashboardUrl };
+	const sensorInput: Partial<ISensor> = { ...sensorData, assetId, sensorUid, dashboardId, dashboardUrl };
 	const newSensor = await insertSensor(sensorInput);
 	return newSensor;
 };

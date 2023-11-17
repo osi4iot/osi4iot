@@ -241,7 +241,7 @@ export const createDashboard = async (group: IGroup, topicUid: string, dashboard
 
 export const createSensorDashboard = async (
 	group: IGroup,
-	sensorData: CreateSensorDto,
+	sensorData: Partial<CreateSensorDto>,
 	sensorsUid: string
 ): Promise<number> => {
 	const topic = await getTopicByProp("id", sensorData.topicId);
@@ -257,27 +257,53 @@ export const createSensorDashboard = async (
 	const topicHash = `Topic_${topic.topicUid}`;
 	const topicString = `${topicHash}`;
 	let rawSql = "";
-	const numComponent = Number(sensorData.valueType.slice(7, -1));
-	const payloadKey = sensorData.payloadKey;
-	if (numComponent === 0) {
-		const paramLabel = sensorData.paramLabel;
-		rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS \"${paramLabel}\" FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
-	} else {
-		const paramsLabel = sensorData.paramLabel.split(",");
-		rawSql = `SELECT timestamp AS \"time\",`;
-		for (let i = 0; i < numComponent; i++) {
-			rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${paramsLabel[i]}"`
-			if (i < (numComponent - 1)) {
-				rawSql = `${rawSql},`;
-			}
-		}
-		rawSql = `${rawSql} FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+	let payloadJsonSchema = JSON.parse(sensorData.payloadJsonSchema);
+	if (Object.keys(payloadJsonSchema).length === 0) {
+		payloadJsonSchema = JSON.parse(sensorType.defaultPayloadJsonSchema);
 	}
-	dashboard.panels[0].title = `${sensorData.description} (${sensorData.units})`;
+
+	let units = "-";
+	const type = payloadJsonSchema.type;
+	if (type === "object") {
+		const keys = Object.keys(payloadJsonSchema.properties);
+		if (keys.length === 1) {
+			const payloadKey = keys[0];
+			const keyType = payloadJsonSchema.properties[keys[0]].type as string;
+			const paramLabel = payloadJsonSchema.properties[keys[0]].description as string;
+			units = payloadJsonSchema.properties[keys[0]].units as string;
+			if (keyType === "number") {
+				rawSql = `SELECT timestamp AS \"time\", CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS \"${paramLabel}\" FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+			} else if (keyType === "array") {
+				const itemLabels = payloadJsonSchema.properties[keys[0]].description.split(",") as string[];
+				rawSql = `SELECT timestamp AS \"time\",`;
+				for (let i = 0; i < itemLabels.length; i++) {
+					rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${itemLabels[i]}"`
+					if (i < (keys.length - 1)) {
+						rawSql = `${rawSql},`;
+					}
+				}
+				rawSql = `${rawSql} FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+			}
+		} else {
+			rawSql = `SELECT timestamp AS \"time\",`;
+			units = payloadJsonSchema.properties[keys[0]].units as string;
+			for (let i = 0; i < keys.length; i++) {
+				const payloadKey = keys[i];
+				const paramLabel = payloadJsonSchema.properties[keys[i]].description as string;
+				rawSql = `${rawSql} CAST(payload->'${payloadKey}' AS DOUBLE PRECISION) AS "${paramLabel}"`
+				if (i < (keys.length - 1)) {
+					rawSql = `${rawSql},`;
+				}
+			}
+			rawSql = `${rawSql} FROM  iot_datasource.${tableHash} WHERE topic = '${topicString}' AND $__timeFilter(timestamp) ORDER BY time DESC;`;
+		}
+	}
+
+	dashboard.panels[0].title = `${sensorData.description} (${units})`;
 	dashboard.panels[0].targets[0].rawSql = rawSql;
 	dashboard.panels[0].targets[0].datasource.uid = dataSource.uid;
-	dashboard.refresh = sensorData.dashboardRefresh;
-	dashboard.time.from = `now-${sensorData.dashboardTimeWindow}`;
+	dashboard.refresh = sensorType.dashboardRefreshString;
+	dashboard.time.from = `now-${sensorType.dashboardTimeWindow}`;
 	const dashboardCreated = await insertDashboard(group.orgId, group.folderId, dashboard.title, dashboard);
 
 	return dashboardCreated.id as number;

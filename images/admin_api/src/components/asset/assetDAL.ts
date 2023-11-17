@@ -17,6 +17,14 @@ import process_env from "../../config/api_config";
 import { ListObjectsV2Command } from "@aws-sdk/client-s3";
 import { logger } from "../../config/winston";
 import IAssetS3Folder from "./assetS3Folder.interface";
+import { createTopic } from "../topic/topicDAL";
+import ITopic from "../topic/topic.interface";
+import { createSensorDashboard } from "../group/dashboardDAL";
+import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
+import { generateDashboardsUrl } from "../digitalTwin/digitalTwinDAL";
+import { createNewSensor } from "../sensor/sensorDAL";
+import ISensor from "../sensor/sensor.interface";
+import IAssetTopic from "./assetTopic.interface";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -223,6 +231,38 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 	return result.rows[0] as IAsset;
 };
 
+export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): Promise<IAsset> => {
+	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+	const groupId = group.id;
+
+	const assetInput: IAsset = { ...assetData, groupId, assetUid };
+	const newAsset = await insertAsset(assetInput);
+
+	const topicsRef = assetData.topicsRef;
+	const topics: ITopic[] = [];
+	for (let i = 0; i < topicsRef.length; i++) {
+		topics[i] = await createTopic(group.id, topicsRef[i]);
+		await createAssetTopic(newAsset.id, topics[i].id, topicsRef[i].topicRef);
+	}
+
+	const sensorsRef = assetData.sensorsRef;
+	const sensors: ISensor[] = [];
+	const dashboarsId: number[] = [];
+	const sensorsUid: string[] = [];
+	for (let i = 0; i < sensorsRef.length; i++) {
+		sensorsUid[i] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+		dashboarsId[i] = await createSensorDashboard(group, sensorsRef[i], sensorsUid[i]);
+	}
+
+	const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
+	const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
+	for (let i = 0; i < sensorsRef.length; i++) {
+		sensors[i] = await createNewSensor(newAsset.id, sensorsRef[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
+	}
+
+	return newAsset;
+};
+
 export const updateAssetByPropName = async (propName: string, propValue: (string | number), asset: IAsset): Promise<void> => {
 	const query = `UPDATE grafanadb.asset SET description = $1,
 				geolocation = $2, icon_radio = $3,
@@ -257,15 +297,6 @@ export const checkInitialAssetGeolocation = async (group: IGroup, assetData: Cre
 		}
 	}
 }
-
-export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): Promise<IAsset> => {
-	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-	const groupId = group.id;
-
-	const assetInput: IAsset = { ...assetData, groupId, assetUid };
-	const newAsset = await insertAsset(assetInput);
-	return newAsset;
-};
 
 export const getAssetByPropName = async (propName: string, propValue: (string | number)): Promise<IAsset> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
@@ -371,6 +402,54 @@ export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
 									WHERE grafanadb.group.org_id = $1
 									ORDER BY grafanadb.asset.id  ASC`, [orgId]);
 	return response.rows as IAsset[];
+};
+
+export const createAssetTopic = async (
+	assetId: number,
+	topicId: number,
+	topicRef: string,
+): Promise<IAssetTopic > => {
+	const queryString = `INSERT INTO grafanadb.asset_topic (
+		asset_id, topic_id, topic_ref, already_created)
+		VALUES ($1, $2, $3)
+	    RETURNING  asset_id AS "assetId", topic_id AS "topicId", 
+		topic_ref AS "topicRef"`
+	const result = await pool.query(
+		queryString,
+		[assetId, topicId, topicRef]);
+	return result.rows[0] as IAssetTopic;
+};
+
+export const getAssetTopicsByAssetId = async (assetId: number): Promise<IAssetTopic[]> => {
+	const queryString = `SELECT asset_id AS "asseId",
+						topic_id AS "topicId", topic_ref AS "topicRef"
+						FROM grafanadb.asset_topic
+						WHERE grafanadb.asset_topic.asset_id = $1
+						ORDER BY grafanadb.asset_topic.asset_id ASC,
+						         grafanadb.asset_topic.topic_id ASC;`;
+	const response = await pool.query(queryString, [assetId]);
+	return response.rows as IAssetTopic[];
+};
+
+export const getAssetTopicByAssetIdAndTopicRef = async (assetId: number, topicRef: string): Promise<IAssetTopic> => {
+	const queryString = `SELECT asset_id AS "asseId",
+						topic_id AS "topicId", topic_ref AS "topicRef"
+						FROM grafanadb.asset_topic
+						WHERE grafanadb.asset_topic.asset_id = $1 AND
+						grafanadb.asset_topic.topic_ref =$2
+						ORDER BY grafanadb.asset_topic.asset_id ASC,
+						         grafanadb.asset_topic.topic_id ASC;`;
+	const response = await pool.query(queryString, [assetId, topicRef]);
+	return response.rows[0] as IAssetTopic;
+};
+
+
+export const deleteAssetTopics = async (
+	assetId: number,
+): Promise<void> => {
+	const queryString = `DELETE FROM grafanadb.asset_topic
+						WHERE grafanadb.asset_topic.asset_twin_id = $1;`;
+	await pool.query(queryString, [assetId]);
 };
 
 export const updateGroupAssetsLocation = async (geoJsonDataString: string, group: IGroup): Promise<void> => {

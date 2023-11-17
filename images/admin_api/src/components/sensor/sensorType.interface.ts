@@ -8,7 +8,9 @@ export default interface ISensorType {
 	markerSvgFileName: string;
 	markerSvgString: string;
 	isPredefined: boolean;
-	payloadJsonSchema: string;
+	defaultPayloadJsonSchema: string;
+	dashboardRefreshString: string;
+	dashboardTimeWindow: string;
 	created?: string;
 	updated?: string;
 }
