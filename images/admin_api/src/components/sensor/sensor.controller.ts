@@ -19,15 +19,22 @@ import { getOrganizationsManagedByUserId } from "../organization/organizationDAL
 import ISensor from "./sensor.interface";
 import {
 	createNewSensor,
+	createNewSensorType,
 	deleteSensorByPropName,
+	deleteSensorTypeByPropName,
+	getAllSensorTypes,
 	getAllSensors, getSensorByPropName,
+	getSensorTypeByPropName,
+	getSensorTypesByOrgId,
+	getSensorTypesByOrgsIdArray,
 	getSensorsByAssetId,
 	getSensorsByGroupId,
 	getSensorsByGroupsIdArray,
 	getSensorsByOrgId,
 	getStateOfAllSensors,
 	getStateOfSensorsByGroupsIdArray,
-	updateSensorByPropName
+	updateSensorByPropName,
+	updateSensorTypeByPropName
 } from "./sensorDAL";
 import { nanoid } from "nanoid";
 import { createSensorDashboard, deleteDashboard } from "../group/dashboardDAL";
@@ -35,6 +42,9 @@ import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import { generateDashboardsUrl } from "../digitalTwin/digitalTwinDAL";
 import ISensorState from "./sensorState.interface";
 import infoLogger from "../../utils/logger/infoLogger";
+import CreateSensorTypeDto from "./sensorType.dto";
+import ISensorType from "./sensorType.interface";
+import HttpException from "../../exceptions/HttpException";
 
 class SensorController implements IController {
 	public path = "/sensor";
@@ -46,6 +56,45 @@ class SensorController implements IController {
 	}
 
 	private initializeRoutes(): void {
+		this.router
+			.get(
+				`${this.path}_types/user_managed/`,
+				userAuth,
+				this.getSensorTypesManagedByUser
+			)
+			.get(
+				`${this.path}_types_in_org/:orgId/`,
+				organizationAdminAuth,
+				organizationExists,
+				this.getSensorTypesInOrg
+			)
+			.get(
+				`${this.path}}_type/:orgId/:propName/:propValue`,
+				organizationAdminAuth,
+				organizationExists,
+				this.getSensorTypeByProp
+			)
+			.delete(
+				`${this.path}_type/:orgId/:propName/:propValue`,
+				organizationAdminAuth,
+				organizationExists,
+				this.deleteSensorTypeByProp
+			)
+			.patch(
+				`${this.path}_type/:orgId/:propName/:propValue`,
+				organizationAdminAuth,
+				organizationExists,
+				validationMiddleware<CreateSensorTypeDto>(CreateSensorTypeDto, true),
+				this.updateSensorTypeByProp
+			)
+			.post(
+				`${this.path}_type/:orgId`,
+				organizationAdminAuth,
+				organizationExists,
+				validationMiddleware<CreateSensorTypeDto>(CreateSensorTypeDto),
+				this.createSensorType
+			)
+
 		this.router
 			.get(
 				`${this.path}s/user_managed/`,
@@ -102,6 +151,126 @@ class SensorController implements IController {
 				this.createSensor
 			)
 	}
+
+
+	private getSensorTypesManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let sensorTypes: ISensorType[] = [];
+			if (req.user.isGrafanaAdmin) {
+				sensorTypes = await getAllSensorTypes();
+			} else {
+				const orgIdsArray: number[] = [];
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					orgIdsArray.push(...organizations.map(org => org.id));
+				}
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				for (const group of groups) {
+					if (orgIdsArray.indexOf(group.orgId) === -1) {
+						orgIdsArray.push(group.orgId);
+					}
+				}
+				sensorTypes = await getSensorTypesByOrgsIdArray(orgIdsArray);
+			}
+			res.status(200).send(sensorTypes);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getSensorTypesInOrg = async (
+		req: IRequestWithOrganization,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const sensorTypes = await getSensorTypesByOrgId(req.organization.id);
+			res.status(200).send(sensorTypes);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getSensorTypeByProp = async (
+		req: IRequestWithOrganization,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { propName, propValue } = req.params;
+			if (!this.isValidSensorTypePropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
+			const orgId = req.organization.id;
+			const sensorType = await getSensorTypeByPropName(orgId, propName, propValue);
+			if (!sensorType) throw new ItemNotFoundException(req, res, "The sensor type", propName, propValue);
+			res.status(200).json(sensorType);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private deleteSensorTypeByProp = async (
+		req: IRequestWithOrganization,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { propName, propValue } = req.params;
+			if (!this.isValidSensorTypePropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
+			const orgId = req.organization.id;
+			const sensorType = await getSensorTypeByPropName(orgId, propName, propValue);
+			if (!sensorType) throw new ItemNotFoundException(req, res, "The sensor type", propName, propValue);
+			if (sensorType.isPredefined) throw new HttpException(req, res, 500, "Predefined sensor type can not be deleted.");
+			await deleteSensorTypeByPropName(propName, propValue);
+			const message = { message: "Sensor type deleted successfully" }
+			res.status(200).json(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private updateSensorTypeByProp = async (
+		req: IRequestWithOrganization,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { propName, propValue } = req.params;
+			const sensorTypeData = req.body;
+			if (!this.isValidSensorTypePropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
+			const orgId = req.organization.id;
+			let sensorType = await getSensorTypeByPropName(orgId, propName, propValue);
+			if (!sensorType) throw new ItemNotFoundException(req, res, "The sensor type", propName, propValue);
+			sensorType = { ...sensorType, ...sensorTypeData };
+			await updateSensorTypeByPropName(propName, propValue, sensorType);
+			const message = { message: "Sensor type updated successfully" }
+			res.status(200).json(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private createSensorType = async (
+		req: IRequestWithOrganization,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let sensorTypeData: CreateSensorTypeDto = req.body;
+			const orgId = req.organization.id;
+			sensorTypeData = { ...sensorTypeData, orgId };
+			await createNewSensorType(sensorTypeData);
+			const message = { message: `A new sensor type has been created` };
+			infoLogger(req, res, 200, message.message);
+			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 
 	private getSensorsManagedByUser = async (
 		req: IRequestWithUser,
@@ -285,6 +454,11 @@ class SensorController implements IController {
 
 	private isValidSensorPropName = (propName: string) => {
 		const validPropName = ["id", "sensorUid"];
+		return validPropName.indexOf(propName) !== -1;
+	};
+
+	private isValidSensorTypePropName = (propName: string) => {
+		const validPropName = ["id", "sensorTypeUid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
 

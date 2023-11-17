@@ -1,4 +1,5 @@
 import { Router, NextFunction, Request, Response } from "express";
+import { point, polygon } from '@turf/helpers';
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
@@ -61,20 +62,18 @@ import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeceptio
 import { FolderPermissionOption } from "../group/interfaces/FolerPermissionsOptions";
 import CreateGroupAdminDto from "../group/interfaces/groupAdmin.dto";
 import { RoleInGroupOption } from "../group/interfaces/RoleInGroupOptions";
-import { createHomeDashboard, createSensorDashboard } from "../group/dashboardDAL";
+import { createHomeDashboard } from "../group/dashboardDAL";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IOrganization from "./interfaces/organization.interface";
 import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import IGroupMember from "../group/interfaces/GroupMember.interface";
 import IUser from "../user/interfaces/User.interface";
-import { createTopic } from "../topic/topicDAL";
 import {
 	createDigitalTwin,
-	generateDashboardsUrl,
 	removeFilesFromBucketFolder,
 	uploadMobilePhoneGltfFile
 } from "../digitalTwin/digitalTwinDAL";
-import { existsBuildingWithId } from "../building/buildingDAL";
+import { existsBuildingWithId, getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import process_env from "../../config/api_config";
 import {
 	assignNodeRedInstanceToGroup,
@@ -82,17 +81,15 @@ import {
 	getNodeRedInstancesByOrgsIdArray
 } from "../nodeRedInstance/nodeRedInstanceDAL";
 import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
-import { createNewAsset, createNewAssetType } from "../asset/assetDAL";
-import { createNewSensor } from "../sensor/sensorDAL";
-import CreateSensorDto from "../sensor/sensor.dto";
+import { createNewAsset, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
+import { createNewSensorType } from "../sensor/sensorDAL";
 import { nanoid } from "nanoid";
-import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
-import ISensor from "../sensor/sensor.interface";
-import ITopic from "../topic/topic.interface";
 import infoLogger from "../../utils/logger/infoLogger";
-import CreateSensorRefDto from "../digitalTwin/createSensorRef.dto";
-import { predefinedAssetTypes } from "../../initialization/predefinedAssetTypes";
-import IAssetType from "../asset/assetType.interface";
+import { predefinedSensorTypes } from "../../initialization/predefinedSensorTypes";
+import ISensorType from "../sensor/sensorType.interface";
+import pointOnFeature from "@turf/point-on-feature";
+import rhumbDestination from "@turf/rhumb-destination";
+import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -330,6 +327,7 @@ class OrganizationController implements IController {
 					)
 				}
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
+				const orgId = newOrg.orgId;
 				await grafanaApi.createOrgApiAdminUser(newOrg.orgId);
 				await updateOrganizationByProp("id", newOrg.orgId, organizationData);
 				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g, "")}`
@@ -388,172 +386,156 @@ class OrganizationController implements IController {
 					group.folderId
 				);
 
-				const noredInstances = await createNodeRedInstancesInOrg(organizationData.nriHashes, newOrg.orgId);
+				const floorData = await getFloorByOrgIdAndFloorNumber(orgId, group.floorNumber);
+				const geoJsonDataString = findGroupGeojsonData(floorData, group.featureIndex);
+				const geojsonObj = JSON.parse(geoJsonDataString);
+				let centerGroupAreaLongitude = 0.0;
+				let centerGroupAreaLatitude = 0.0;
+				let assetLongitude = 0.0;
+				let assetLatitude = 0.0;
+				let nriLongitude = 0.0;
+				let nriLatitude = 0.0;
+				if (geojsonObj.features) {
+					const geoPolygon = polygon(geojsonObj.features[0].geometry.coordinates);
+					const center = pointOnFeature(geoPolygon);
+					centerGroupAreaLongitude = center.geometry.coordinates[0];
+					centerGroupAreaLatitude = center.geometry.coordinates[1];
+					const ptCenterGroupArea = point([centerGroupAreaLongitude, centerGroupAreaLatitude]);
+					const ptAsset = rhumbDestination(ptCenterGroupArea, 0.001, 180);
+					assetLongitude = ptAsset.geometry.coordinates[0];
+					assetLatitude = ptAsset.geometry.coordinates[1];
+					const ptNri = rhumbDestination(ptCenterGroupArea, 0.002, 0.0);
+					nriLongitude = ptNri.geometry.coordinates[0];
+					nriLatitude = ptNri.geometry.coordinates[1];
+				}
+
+				const noredInstances = await createNodeRedInstancesInOrg(
+					organizationData.nriHashes,
+					newOrg.orgId,
+					nriLongitude,
+					nriLatitude
+				);
 				await assignNodeRedInstanceToGroup(noredInstances[0], group.id);
 
-				const assetTypes: IAssetType[] = [];
-				for (const assetType of predefinedAssetTypes as IAssetType[]) {
-					const defaultAssetTypeData = {
-						orgId: newOrg.orgId,
-						type: assetType.type,
-						iconSvgFileName: assetType.iconSvgFileName,
-						iconSvgString: assetType.iconSvgString,
-						geolocationMode: assetType.geolocationMode,
-						markerSvgFileName: assetType.markerSvgFileName,
-						markerSvgString: assetType.markerSvgString,
-						assetStateFormat: "{}",
+				const sensorTypes: ISensorType[] = [];
+				for (const sensorType of predefinedSensorTypes) {
+					const defaultSensorTypeData = {
+						orgId,
+						type: sensorType.type,
+						iconSvgFileName: sensorType.iconSvgFileName,
+						iconSvgString: sensorType.iconSvgString,
+						markerSvgFileName: sensorType.markerSvgFileName,
+						markerSvgString: sensorType.markerSvgString,
+						defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
 						isPredefined: true,
+						dashboardRefreshString: sensorType.dashboardRefreshString,
+						dashboardTimeWindow: sensorType.dashboardTimeWindow
 					}
-					const newAssetType = await createNewAssetType(defaultAssetTypeData);
-					assetTypes.push(newAssetType);
+					const newSensorType = await createNewSensorType(defaultSensorTypeData);
+					sensorTypes.push(newSensorType);
 				}
 
+				const assetType = await getAssetTypeByTypeAndOrgId(orgId, "Mobile");
 				const defaultAssetData = {
+					assetTypeId: assetType.id,
 					description: `Mobile for group ${group.acronym}`,
-					assetTypeId: assetTypes[4].id,
+					type: "Mobile",
 					iconRadio: 1.0,
 					iconSizeFactor: 1.0,
-					longitude: 0.0,
-					latitude: 0.0,
+					longitude: assetLongitude,
+					latitude: assetLatitude,
+					geolocationMode: "dynamic",
+					topicsRef: [
+						{
+							topicRef: "dev2pdb_1",
+							topicType: "dev2pdb",
+							description: `Mobile geolocation topic`,
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
+						},
+						{
+							topicRef: "dev2pdb_2",
+							topicType: "dev2pdb_wt",
+							description: `Mobile accelerations topic`,
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].defaultPayloadJsonSchema),
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
+						},
+						{
+							topicRef: "dev2pdb_3",
+							topicType: "dev2pdb_wt",
+							description: `Mobile orientation topic`,
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].defaultPayloadJsonSchema),
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
+						},
+						{
+							topicRef: "dev2pdb_4",
+							topicType: "dev2pdb_wt",
+							description: `Mobile motion topic`,
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].defaultPayloadJsonSchema),
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
+						},
+						{
+							topicRef: "dev2pdb_5",
+							topicType: "dev2dtm",
+							description: `Mobile photo topic`,
+							mqttAccessControl: "Pub & Sub",
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
+							requireS3Storage: false,
+							s3Folder: "",
+							parquetSchema: "{}",
+						}
+					],
+					sensorsRef: [
+						{
+							sensorRef: "sensor_1",
+							sensorTypeId: sensorTypes[0].id,
+							topicRef: "dev2pdb_1",
+							description: `Mobile geolocation`,
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),
+						},
+						{
+							sensorRef: "sensor_2",
+							sensorTypeId: sensorTypes[1].id,
+							topicRef: "dev2pdb_2",
+							description: `Mobile accelerations`,
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].defaultPayloadJsonSchema),
+						},
+						{
+							sensorRef: "sensor_3",
+							sensorTypeId: sensorTypes[2].id,
+							topicRef: "dev2pdb_3",
+							description: `Mobile orientation`,
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].defaultPayloadJsonSchema),
+						},
+						{
+							sensorRef: "sensor_4",
+							sensorTypeId: sensorTypes[3].id,
+							topicRef: "dev2pdb_4",
+							description: `Mobile motion`,
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].defaultPayloadJsonSchema),
+						},
+						{
+							sensorRef: "sensor_5",
+							sensorTypeId: sensorTypes[4].id,
+							topicRef: "dev2pdb_5",
+							description: `Mobile photo`,
+							payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
+						}
+					]
 				}
 				const asset = await createNewAsset(group, defaultAssetData);
-
-				const topicsDataForMobileAsset = [
-					{
-						topicType: "dev2pdb",
-						description: `Mobile geolocation topic`,
-						mqttAccessControl: "Pub & Sub",
-						payloadJsonSchema: "{}",
-						requireS3Storage: false,
-						s3Folder: "",
-						parquetSchema: "{}",
-					},
-					{
-						topicType: "dev2pdb_wt",
-						description: `Mobile accelerations topic`,
-						mqttAccessControl: "Pub & Sub",
-						payloadJsonSchema: "{}",
-						requireS3Storage: false,
-						s3Folder: "",
-						parquetSchema: "{}",
-					},
-					{
-						topicType: "dev2pdb_wt",
-						description: `Mobile orientation topic`,
-						mqttAccessControl: "Pub & Sub",
-						payloadJsonSchema: "{}",
-						requireS3Storage: false,
-						s3Folder: "",
-						parquetSchema: "{}",
-					},
-					{
-						topicType: "dev2pdb_wt",
-						description: `Mobile motion topic`,
-						mqttAccessControl: "Pub & Sub",
-						payloadJsonSchema: "{}",
-						requireS3Storage: false,
-						s3Folder: "",
-						parquetSchema: "{}",
-					},
-					{
-						topicType: "dev2dtm",
-						description: `Mobile photo topic`,
-						mqttAccessControl: "Pub & Sub",
-						payloadJsonSchema: "{}",
-						requireS3Storage: false,
-						s3Folder: "",
-						parquetSchema: "{}",
-					}
-				];
-
-				const topics: ITopic[] = [];
-				for (let i = 0; i < topicsDataForMobileAsset.length; i++) {
-					topics[i] = await createTopic(group.id, topicsDataForMobileAsset[i]);
-				}
-
-				const sensorsData: CreateSensorDto[] = [];
-				const sensors: ISensor[] = [];
-				const dashboarsId: number[] = [];
-				const sensorsUid: string[] = [];
-				sensorsData[0] =
-				{
-					description: `Mobile geolocation`,
-					topicId: topics[0].id,
-					type: "geolocation",
-					payloadKey: "mobile_geolocation",
-					paramLabel: "longitude,latitude",
-					valueType: "number(2)",
-					units: "-",
-					dashboardRefresh: "1s",
-					dashboardTimeWindow: "5m"
-				};
-				sensorsUid[0] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				sensorsData[1] =
-				{
-					description: `Mobile accelerations`,
-					topicId: topics[1].id,
-					type: "accelerometer",
-					payloadKey: "mobile_accelerations",
-					paramLabel: "ax,ay,az",
-					valueType: "number(3)",
-					units: "m/s^2",
-					dashboardRefresh: "200ms",
-					dashboardTimeWindow: "25s"
-				};
-				sensorsUid[1] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				sensorsData[2] =
-				{
-					description: `Mobile orientation`,
-					topicId: topics[2].id,
-					type: "quaternion",
-					payloadKey: "mobile_quaternion",
-					paramLabel: "q0,q1,q2,q3",
-					valueType: "number(4)",
-					units: "-",
-					dashboardRefresh: "200ms",
-					dashboardTimeWindow: "25s"
-				};
-				sensorsUid[2] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				sensorsData[3] =
-				{
-					description: `Mobile motion`,
-					topicId: topics[3].id,
-					type: "mobile_motion",
-					payloadKey: "mobile_motion",
-					paramLabel: "ax,ay,az,q0,q1,q2,q3",
-					valueType: "number(7)",
-					units: "-",
-					dashboardRefresh: "200ms",
-					dashboardTimeWindow: "25s"
-				};
-				sensorsUid[3] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				sensorsData[4] =
-				{
-					description: `Mobile photo`,
-					topicId: topics[4].id,
-					type: "photo_camera",
-					payloadKey: "mobile_photo",
-					paramLabel: "mobile_photo",
-					valueType: "string",
-					units: "-",
-					dashboardRefresh: "1s",
-					dashboardTimeWindow: "5m"
-				};
-				sensorsUid[4] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-
-				for (let i = 0; i < 5; i++) {
-					dashboarsId[i] = await createSensorDashboard(group, sensorsData[i], sensorsUid[i]);
-				}
-
-				const dashboardsInfo = await getDashboardsInfoFromIdArray(dashboarsId);
-				const dashboardsUrl = generateDashboardsUrl(dashboardsInfo);
-				for (let i = 0; i < 5; i++) {
-					sensors[i] = await createNewSensor(asset.id, sensorsData[i], dashboarsId[i], dashboardsUrl[i], sensorsUid[i]);
-				}
 
 				const digitalTwinData = {
 					description: "Mobile phone default DT",
@@ -564,15 +546,9 @@ class OrganizationController implements IController {
 					digitalTwinSimulationFormat: "{}",
 					dtRefFileName: "-",
 					dtRefFileLastModifDate: "-",
-					topicsRef: [
-						{
-							topicRef: "dev2pdb_wt_1",
-							topicId: topics[2].id
-						}
-					],
-					sensorsRef: [] as CreateSensorRefDto[]
+					sensorsRef: ["sensor_3"]
 				}
-				const { digitalTwin } = await createDigitalTwin(group, asset, digitalTwinData);
+				const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
 				const keyBase = `org_${newOrg.id}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
 				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
 				await uploadMobilePhoneGltfFile(gltfFileName);

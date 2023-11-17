@@ -25,6 +25,7 @@ import { generateDashboardsUrl } from "../digitalTwin/digitalTwinDAL";
 import { createNewSensor } from "../sensor/sensorDAL";
 import ISensor from "../sensor/sensor.interface";
 import IAssetTopic from "./assetTopic.interface";
+import IMqttDigitalTwinTopicInfo from "../digitalTwin/mqttDigitalTwinTopicInfo.interface";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -410,7 +411,7 @@ export const createAssetTopic = async (
 	topicRef: string,
 ): Promise<IAssetTopic > => {
 	const queryString = `INSERT INTO grafanadb.asset_topic (
-		asset_id, topic_id, topic_ref, already_created)
+		asset_id, topic_id, topic_ref)
 		VALUES ($1, $2, $3)
 	    RETURNING  asset_id AS "assetId", topic_id AS "topicId", 
 		topic_ref AS "topicRef"`
@@ -451,6 +452,22 @@ export const deleteAssetTopics = async (
 						WHERE grafanadb.asset_topic.asset_twin_id = $1;`;
 	await pool.query(queryString, [assetId]);
 };
+
+export const getAssetTopicsInfoFromByDTIdsArray = async (digitalTwinIdsArray: number[]): Promise<IMqttDigitalTwinTopicInfo[]> => {
+	const response = await pool.query(`SELECT grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+	                                grafanadb.asset_topic.topic_id AS "topicId", grafanadb.digital_twin_topic.topic_ref AS "topicRef",
+									grafanadb.group.group_uid AS "groupHash",
+									grafanadb.topic.topic_uid AS "topicHash"
+									FROM grafanadb.asset_topic
+									INNER JOIN grafanadb.digital_twin ON grafanadb.digital_twin.asset_id = grafanadb.asset_topic.asset_id
+									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
+									WHERE grafanadb.digital_twin_topic.digital_twin_id = ANY($1::bigint[])
+									ORDER BY grafanadb.asset_topic.topic_id ASC;`, [digitalTwinIdsArray]);
+
+	return response.rows as IMqttDigitalTwinTopicInfo[];
+}
+
 
 export const updateGroupAssetsLocation = async (geoJsonDataString: string, group: IGroup): Promise<void> => {
 	const groupAssets = await getAssetsByGroupId(group.id);

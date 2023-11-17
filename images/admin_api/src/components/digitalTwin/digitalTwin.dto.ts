@@ -22,6 +22,9 @@ class CreateDigitalTwinDto {
 
 	@IsString()
 	public digitalTwinSimulationFormat: string;
+
+	@IsString({ each: true })
+	public sensorsRef: string[];
 }
 
 export default CreateDigitalTwinDto;

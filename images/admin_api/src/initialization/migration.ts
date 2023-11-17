@@ -34,7 +34,7 @@ import {
 	createNewAssetType,
 	updateGroupAssetsLocation
 } from "../components/asset/assetDAL";
-import {createNewSensorType } from "../components/sensor/sensorDAL";;
+import { createNewSensorType } from "../components/sensor/sensorDAL";;
 import { nanoid } from "nanoid";
 import {
 	createDigitalTwin,
@@ -804,64 +804,6 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
 				}
 
-				// Luego eliminar
-				const tableDigitalTwinSensor = "grafanadb.digital_twin_sensor";
-				const queryStringDigitalTwinSensor = `
-				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinSensor}(
-					digital_twin_id bigint,
-					sensor_id bigint,
-					sensor_ref VARCHAR(40),
-					topic_id bigint,
-					already_created boolean NOT NULL DEFAULT FALSE,
-					CONSTRAINT fk_digital_twin_id
-						FOREIGN KEY(digital_twin_id)
-						REFERENCES grafanadb.digital_twin(id)
-						ON DELETE CASCADE,
-					CONSTRAINT fk_sensor_id
-						FOREIGN KEY(sensor_id)
-						REFERENCES grafanadb.sensor(id)
-						ON DELETE CASCADE,
-					CONSTRAINT fk_topic_id
-						FOREIGN KEY(topic_id)
-						REFERENCES grafanadb.topic(id)
-						ON DELETE CASCADE						
-				);`;
-
-				try {
-					await postgresClient.query(queryStringDigitalTwinSensor);
-					logger.log("info", `Table ${tableDigitalTwinSensor} has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Table ${tableDigitalTwinSensor} can not be created: %s`, err.message);
-				}
-
-				// Luego eliminar
-				const tableDigitalTwinSensorDashboard = "grafanadb.digital_twin_sensor_dashboard";
-				const queryStringDigitalTwinSensorDashboard = `
-				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinSensorDashboard}(
-					digital_twin_id bigint,
-					sensor_id bigint,
-					dashboard_id bigint,
-					CONSTRAINT fk_digital_twin_id
-						FOREIGN KEY(digital_twin_id)
-						REFERENCES grafanadb.digital_twin(id)
-						ON DELETE CASCADE,
-					CONSTRAINT fk_sensor_id
-						FOREIGN KEY(sensor_id)
-						REFERENCES grafanadb.sensor(id)
-						ON DELETE CASCADE,
-					CONSTRAINT fk_dashboard_id
-						FOREIGN KEY(dashboard_id)
-						REFERENCES grafanadb.dashboard(id)
-						ON DELETE CASCADE						
-				);`;
-
-				try {
-					await postgresClient.query(queryStringDigitalTwinSensorDashboard);
-					logger.log("info", `Table ${tableDigitalTwinSensorDashboard} has been created sucessfully`);
-				} catch (err) {
-					logger.log("error", `Table ${tableDigitalTwinSensorDashboard} can not be created: %s`, err.message);
-				}
-
 				const tableMLModel = "grafanadb.ml_model";
 				const queryStringMLModel = `
 				CREATE TABLE IF NOT EXISTS ${tableMLModel}(
@@ -924,15 +866,6 @@ export const dataBaseInitialization = async () => {
 					logger.log("info", `NodeRed instance assigned to group with id: ${group.id}`);
 				} catch (err) {
 					logger.log("error", `NodeRed instance can not be assigned to group with id: ${group.id}: %s`, err.message);
-				}
-
-				try {
-					const geoJsonDataString = findGroupGeojsonData(floor, 1);
-					await updateGroupAssetsLocation(geoJsonDataString, group);
-					await updateGroupNodeRedInstanceLocation(geoJsonDataString, group);
-					logger.log("info", `Updapting geolocation for asset in group with id: ${group.id}`);
-				} catch (err) {
-					logger.log("error", `Update of group assets with id: ${group.id} could not be performed: %s`, err.message);
 				}
 
 				let asset: IAsset;
@@ -1042,19 +975,28 @@ export const dataBaseInitialization = async () => {
 					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
 				}
 
+				try {
+					const geoJsonDataString = findGroupGeojsonData(floor, 1);
+					await updateGroupAssetsLocation(geoJsonDataString, group);
+					await updateGroupNodeRedInstanceLocation(geoJsonDataString, group);
+					logger.log("info", `Updapting geolocation for asset in group with id: ${group.id}`);
+				} catch (err) {
+					logger.log("error", `Update of group assets with id: ${group.id} could not be performed: %s`, err.message);
+				}
+
 				const digitalTwinData = {
 					description: "Mobile phone default DT",
 					type: "Gltf 3D model",
 					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
-					topicSensorTypes: ["dev2pdb_wt"],
 					maxNumResFemFiles: 1,
 					digitalTwinSimulationFormat: "{}",
 					dtRefFileName: "-",
 					dtRefFileLastModifDate: "-",
+					sensorsRef: ["sensor_3"]
 				}
 
 				try {
-					const { digitalTwin } = await createDigitalTwin(group, asset, digitalTwinData);
+					const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
 					const keyBase = `org_1/group_${group.id}/digitalTwin_${digitalTwin.id}`;
 					const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
 					await uploadMobilePhoneGltfFile(gltfFileName);

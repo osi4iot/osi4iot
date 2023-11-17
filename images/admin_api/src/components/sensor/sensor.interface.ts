@@ -5,6 +5,7 @@ export default interface ISensor {
 	assetId: number;
 	sensorUid: string;
 	topicId: number;
+	sensorRef: string;
 	description: string;
 	sensorTypeId: number;
 	dashboardId: number;

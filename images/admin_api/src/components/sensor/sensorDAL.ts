@@ -5,6 +5,7 @@ import ISensor from "./sensor.interface";
 import ISensorState from "./sensorState.interface";
 import ISensorType from "./sensorType.interface";
 import CreateSensorTypeDto from "./sensorType.dto";
+import ISensorDashboard from "./sensorDashboard.interface";
 
 export const insertSensorType = async (sensorTypeData: ISensorType): Promise<ISensorType> => {
 	const queryString = `INSERT INTO grafanadb.sensor_type (org_id, sensor_type_uid,
@@ -13,14 +14,15 @@ export const insertSensorType = async (sensorTypeData: ISensorType): Promise<ISe
 		dashboard_refresh_string, dashboard_time_window, created, updated)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW(), NOW())
 		RETURNING id, org_id AS "orgId",
-		asset_type_uid AS "assetTypeUid", type,
+		sensor_type_uid AS "assetTypeUid", type,
 		icon_svg_file_name AS "iconSvgFileName",
 		icon_svg_string AS "iconSvgString", 
-		geolocation_mode AS "geolocationMode",
 		marker_svg_file_name AS "markerSvgFileName",
 		marker_svg_string  AS "markerSvgString",
+		default_payload_json_schema AS "defaultPayloadJsonSchema",
         is_predefined AS "isPredefined",
-		asset_state_format AS "assetStateFormat",
+		dashboard_refresh_string AS "dashboardRefreshString",
+		dashboard_time_window AS "dashboardRefreshString",
 		created, updated`;
 
 	const result = await pool.query(queryString,
@@ -38,6 +40,28 @@ export const insertSensorType = async (sensorTypeData: ISensorType): Promise<ISe
 			sensorTypeData.dashboardTimeWindow
 		]);
 	return result.rows[0] as ISensorType;
+};
+
+export const updateSensorTypeByPropName = async (
+	propName: string,
+	propValue: (string | number),
+	sensorType: ISensorType
+): Promise<void> => {
+	const query = `UPDATE grafanadb.sensor_type SET type = $1,
+	            icon_svg_file_name = $2, icon_svg_string = $3,
+				marker_svg_file_name = $4, marker_svg_string = $5,
+				default_payload_json_schema = $6,
+				updated = NOW()
+				WHERE grafanadb.sensor_type.${propName} = $7;`;
+	await pool.query(query, [
+		sensorType.type,
+		sensorType.iconSvgFileName,
+		sensorType.iconSvgString,
+		sensorType.markerSvgFileName,
+		sensorType.markerSvgString,
+		sensorType.defaultPayloadJsonSchema,
+		propValue
+	]);
 };
 
 export const createNewSensorType = async (sensorTypeData: CreateSensorTypeDto): Promise<ISensorType> => {
@@ -171,8 +195,8 @@ export const sensorName = (assetName: string, sensorType: string): string => {
 
 export const insertSensor = async (sensorData: Partial<ISensor>): Promise<ISensor> => {
 	const queryString = `INSERT INTO grafanadb.sensor (asset_id,
-		sensor_uid, description, sensor_type_id, topic_id,
-		dashboard_id, dashboard_url, created, updated)
+		sensor_uid, description, sensor_type_id, sensor_ref,
+		topic_id, dashboard_id, dashboard_url, created, updated)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW(), NOW())
 		RETURNING  id, sensor_uid AS "sensorUid",
 		description, topic_id AS "topicId", sensor_type_id AS "sensorTypeId",
@@ -185,6 +209,7 @@ export const insertSensor = async (sensorData: Partial<ISensor>): Promise<ISenso
 			sensorData.sensorUid,
 			sensorData.description,
 			sensorData.sensorTypeId,
+			sensorData.sensorRef,
 			sensorData.topicId,
 			sensorData.dashboardId,
 			sensorData.dashboardUrl,
@@ -194,12 +219,14 @@ export const insertSensor = async (sensorData: Partial<ISensor>): Promise<ISenso
 
 export const updateSensorByPropName = async (propName: string, propValue: (string | number), sensor: ISensor): Promise<void> => {
 	const query = `UPDATE grafanadb.sensor SET description = $1,
-				sensor_type_id = $2, topic_id = $3, updated = NOW()
-				WHERE grafanadb.sensor.${propName} = $8;`;
+				sensor_type_id = $2, topic_id = $3, sensor_ref = $4,
+				updated = NOW()
+				WHERE grafanadb.sensor.${propName} = $5;`;
 	await pool.query(query, [
 		sensor.description,
 		sensor.sensorTypeId,
 		sensor.topicId,
+		sensor.sensorRef,
 		propValue
 	]);
 };
@@ -232,6 +259,7 @@ export const getSensorByPropName = async (propName: string, propValue: (string |
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor.payload_key AS "payloadKey",
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
@@ -255,7 +283,8 @@ export const getAllSensors = async (): Promise<ISensor[]> => {
 									grafanadb.sensor.type,
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
-									grafanadb.topic.topic_uid AS "topicUid",									
+									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.sensor.sensor_ref AS "sensorRef",							
 									grafanadb.sensor.payload_key AS "payloadKey",
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
@@ -284,6 +313,7 @@ export const getSensorsByGroupId = async (groupId: number): Promise<ISensor[]> =
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor.payload_key AS "payloadKey",
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
@@ -308,6 +338,7 @@ export const getSensorsByAssetId = async (assetId: number): Promise<ISensor[]> =
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor.payload_key AS "payloadKey",
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
@@ -324,6 +355,22 @@ export const getSensorsByAssetId = async (assetId: number): Promise<ISensor[]> =
 	return response.rows as ISensor[];
 }
 
+
+export const getSensorDashboardByAssetId = async (
+	assetId: number
+): Promise<ISensorDashboard[]> => {
+	const queryString = `SELECT grafanadb.sensor.sensor_ref AS "sensorRef",
+	                    grafanadb.sensor.id AS "sensorId", 
+						grafanadb.sensor.dashboard_id AS "dashboardId",
+						grafanadb.sensor.dashboard_url AS "dashboardUrl"
+						FROM grafanadb.sensor
+						WHERE grafanadb.sensor.asset_id = $1;`
+	const result = await pool.query(
+		queryString,
+		[assetId]);
+	return result.rows as ISensorDashboard[];
+}
+
 export const getSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ISensor[]> => {
 	const response = await pool.query(`SELECT grafanadb.sensor.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.group.id AS "groupId", grafanadb.sensor.asset_id AS "assetId",
@@ -332,6 +379,7 @@ export const getSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promis
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor.payload_key AS "payloadKey",
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",
@@ -364,6 +412,7 @@ export const getSensorsByOrgId = async (orgId: number): Promise<ISensor[]> => {
 									grafanadb.sensor.description, 
 									grafanadb.sensor.topic_id AS "topicId",
 									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor.payload_key AS "payloadKey",
 									grafanadb.sensor.param_label AS "paramLabel",
 									grafanadb.sensor.value_type AS "valueType",

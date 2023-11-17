@@ -15,7 +15,6 @@ import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
 import CreateDigitalTwinDto from "./digitalTwin.dto";
 import {
-	addDashboardUrls,
 	createDigitalTwin,
 	deleteDigitalTwinById,
 	getAllDigitalTwins,
@@ -38,8 +37,8 @@ import {
 	removeFilesFromBucketFolder,
 	checkMaxNumberOfFemResFiles,
 	checkNumberOfGltfFiles,
-	addTopicAndSensorReferences,
 	checkDigitalTwinConstraint,
+	checkExistentSensorsRef,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -55,6 +54,7 @@ import digitalTwinAndGroupExist from "../../middleware/digitalTwinAndGroupExist.
 import IRequestWithAssetAndGroup from "../group/interfaces/requestWithAssetAndGroup.interface";
 import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigitalTwinAndGroup.interface";
 import infoLogger from "../../utils/logger/infoLogger";
+import { getAssetTopicsInfoFromByDTIdsArray } from "../asset/assetDAL";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -201,9 +201,7 @@ class DigitalTwinController implements IController {
 					digitalTwins = await getDigitalTwinsByGroupsIdArray(groupsIdArray);
 				}
 			}
-			const digitalTwinsWithDashboards = await addDashboardUrls(digitalTwins);
-			const digitalTwinWithRef = await addTopicAndSensorReferences(digitalTwinsWithDashboards);
-			res.status(200).send(digitalTwinWithRef);
+			res.status(200).send(digitalTwins);
 		} catch (error) {
 			next(error);
 		}
@@ -306,7 +304,9 @@ class DigitalTwinController implements IController {
 		try {
 			const digitalTwinsInGroup = await getDigitalTwinsByGroupId(req.group.id);
 			const digitalTwinIdsArray = digitalTwinsInGroup.map(digitalTwin => digitalTwin.id);
-			const digitalTwinMqttTopicsInfo = await getDigitalTwinMqttTopicsInfoFromByDTIdsArray(digitalTwinIdsArray);
+			const digitalTwinTopicsInfo = await getDigitalTwinMqttTopicsInfoFromByDTIdsArray(digitalTwinIdsArray);
+			const assetTopicsInfo = await getAssetTopicsInfoFromByDTIdsArray(digitalTwinIdsArray);
+			const digitalTwinMqttTopicsInfo = [...digitalTwinTopicsInfo, ...assetTopicsInfo];
 			const digitalTwinMqttTopics = generateDigitalTwinMqttTopics(digitalTwinMqttTopicsInfo);
 			res.status(200).send(digitalTwinMqttTopics);
 		} catch (error) {
@@ -379,6 +379,12 @@ class DigitalTwinController implements IController {
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!existentDigitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
 			const digitalTwinUpdated: IDigitalTwin & UpdateDigitalTwinDto = { ...existentDigitalTwin, ...digitalTwinData };
+
+			const isSensorsRefOk = await checkExistentSensorsRef(digitalTwinUpdated.assetId, digitalTwinUpdated.sensorsRef);
+			if (!isSensorsRefOk) throw new HttpException(req, res, 500,
+				"Some indicated sensor has not been defined"
+			);
+
 			if (digitalTwinData.isGltfFileModified) {
 				await verifyAndCorrectDigitalTwinReferences(group, digitalTwinUpdated);
 			}
@@ -410,13 +416,17 @@ class DigitalTwinController implements IController {
 				"The unique constraint for groupId, assetId and scope is violated"
 			);
 
-			const { digitalTwin, topicsRef } = await createDigitalTwin(group, asset, digitalTwinData);
+			const isSensorsRefOk = await checkExistentSensorsRef(existDigitalTwin.assetId, digitalTwinData.sensorsRef);
+			if (!isSensorsRefOk) throw new HttpException(req, res, 500,
+				"Some indicated sensor has not been defined"
+			);
+
+			const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
 			if (!digitalTwin) throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");
 
 			const response = {
 				message: `A new digital twin has been created`,
-				digitalTwinId: digitalTwin.id,
-				topicsRef
+				digitalTwinId: digitalTwin.id
 			};
 
 			res.status(200).send(response);

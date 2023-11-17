@@ -11,6 +11,9 @@ class CreateSensorDto {
 	public sensorTypeId: number;
 
 	@IsString()
+	public sensorRef: string;
+
+	@IsString()
 	public payloadJsonSchema: string;
 }
 

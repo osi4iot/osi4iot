@@ -117,14 +117,19 @@ export const updateNodeRedInstanceHashById = async (nriId: number, newNriHash: s
 	]);
 };
 
-export const createNodeRedInstancesInOrg = async (nriHashes: string[], orgId: number): Promise<INodeRedInstance[]> => {
+export const createNodeRedInstancesInOrg = async (
+	nriHashes: string[],
+	orgId: number,
+	nriLongitude = 0,
+	nriLatitude  = 0,
+): Promise<INodeRedInstance[]> => {
 	const nodeRedInstancesQueries = [];
 	for (const nriHash of nriHashes) {
 		const nriInput: CreateNodeRedInstanceDto = {
 			nriHash,
 			orgId,
-			longitude: 0,
-			latitude: 0,
+			longitude: nriLongitude,
+			latitude: nriLatitude,
 			iconRadio: 1
 		}
 		const nodeRedInstanceQuery = createNodeRedInstance(nriInput);

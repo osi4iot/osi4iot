@@ -1,7 +1,4 @@
-import { IsBoolean, IsNumber, IsString, ValidateNested } from "class-validator";
-import { Type } from "class-transformer";
-import CreateTopicRefDto from "./topicRef.dto";
-import UpdateSensorRefDto from "./updateSensorRef.dto";
+import { IsBoolean, IsNumber, IsString } from "class-validator";
 
 class UpdateDigitalTwinDto {
 	@IsString()
@@ -28,13 +25,8 @@ class UpdateDigitalTwinDto {
 	@IsString()
 	public dtRefFileLastModifDate: string;
 
-	@ValidateNested({ each: true })
-	@Type(() => CreateTopicRefDto)
-	public topicsRef: CreateTopicRefDto[];
-
-	@ValidateNested({ each: true })
-	@Type(() => UpdateSensorRefDto)
-	public sensorsRef: UpdateSensorRefDto[];
+	@IsString({ each: true })
+	public sensorsRef: string[];
 }
 
 export default UpdateDigitalTwinDto;

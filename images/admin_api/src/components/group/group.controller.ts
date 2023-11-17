@@ -456,11 +456,11 @@ class GroupController implements IController {
 				maxNumResFemFiles: 1,
 				digitalTwinSimulationFormat: "{}",
 				dtRefFileName: "-",
-				dtRefFileLastModifDate: "-"
+				dtRefFileLastModifDate: "-",
+				sensorsRef: ["sensor_3"]
 			}
-
-			const { digitalTwin } = await createDigitalTwin(groupCreated, asset, digitalTwinData);
-			const keyBase = `org_1/group_${groupCreated.id}/digitalTwin_${digitalTwin.id}`;
+			const digitalTwin = await createDigitalTwin(groupCreated, asset, digitalTwinData);
+			const keyBase = `org_${orgId}/group_${groupCreated.id}/digitalTwin_${digitalTwin.id}`;
 			const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
 			await uploadMobilePhoneGltfFile(gltfFileName);
 

@@ -96,26 +96,6 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 	return response.rows[0] as ITopic;
 }
 
-export const getSensorTopicsOfDTByDigitalTwinId = async (digitalTwinId: number): Promise<ITopic[]> => {
-	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
-									grafanadb.topic.group_id AS "groupId",
-									grafanadb.topic.topic_type AS "topicType",
-									grafanadb.topic.description,
-									grafanadb.topic.topic_uid AS "topicUid",
-									grafanadb.topic.mqtt_access_control AS "mqttAccessControl",
-									grafanadb.topic.payload_json_schema AS "payloadJsonSchema",
-									grafanadb.topic.require_s3_storage AS "requireS3Storage",
-									grafanadb.topic.s3_folder AS "s3Folder",
-									grafanadb.topic.parquet_schema AS "parquetSchema",
-									grafanadb.topic.last_s3_storage AS "lastS3Storage",
-									grafanadb.topic.created, grafanadb.topic.updated
-									FROM grafanadb.topic
-									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
-									INNER JOIN grafanadb.digital_twin_topic ON grafanadb.digital_twin_topic.topic_id = grafanadb.topic.id
-									WHERE grafanadb.digital_twin_topic.digital_twin_id = $1`, [digitalTwinId]);
-	return response.rows as ITopic[];
-}
-
 export const getAllTopics = async (): Promise<ITopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.topic.group_id AS "groupId",
