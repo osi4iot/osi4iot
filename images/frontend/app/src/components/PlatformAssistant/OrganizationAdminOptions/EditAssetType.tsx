@@ -13,7 +13,7 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import SvgComponent from '../../Tools/SvgComponent';
 import { useFilePicker } from 'use-file-picker';
-import { setAssetTypesOptionToShow, useAssetTypeIdToEdit, useAssetTypeRowIndexToEdit, useAssetTypesDispatch } from '../../../contexts/assetTypes.Options';
+import { setAssetTypesOptionToShow, useAssetTypeIdToEdit, useAssetTypeRowIndexToEdit, useAssetTypesDispatch } from '../../../contexts/assetTypesOptions';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 
 

@@ -69,6 +69,7 @@ export const ORG_ADMIN_OPTIONS = {
     ORG_USERS: "Orgs users",
     GROUPS: "Groups",
     NODERED_INSTANCES_IN_ORGS: "Nodered instances in orgs",
+    SENSOR_TYPES: "Sensor types",
     ASSET_TYPES: "Asset types"
 }
 
@@ -134,6 +135,12 @@ export const ASSETS_PREVIOUS_OPTIONS = {
     TABLE: "Table",
     CREATE_ASSET: "Create asset",
     EDIT_ASSET: "Edit asset"
+}
+
+export const SENSOR_TYPES_OPTIONS = {
+    TABLE: "Table",
+    CREATE_SENSOR_TYPE: "Create sensor type",
+    EDIT_SENSOR_TYPE: "Edit sensor type",
 }
 
 export const SENSORS_OPTIONS = {

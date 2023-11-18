@@ -26,6 +26,7 @@ import { IAsset } from '../../components/PlatformAssistant/TableColumns/assetsCo
 import { ISensor } from '../../components/PlatformAssistant/TableColumns/sensorsColumns';
 import { IAssetType } from '../../components/PlatformAssistant/TableColumns/assetTypesColumns';
 import IAssetS3Folder from '../../components/PlatformAssistant/TableColumns/assetS3Folder.interface';
+import { ISensorType } from '../../components/PlatformAssistant/TableColumns/sensorTypesColumns';
 
 const PlatformAssitantStateContext = createContext<PlatformAssistantContextProps>(initialState);
 const PlatformAssitantDispatchContext = createContext<any>({});
@@ -294,6 +295,22 @@ export const useReloadAssetsTable = (): boolean => {
 		throw new Error('useReloadAssetsTable must be used within a PlatformAssitantProvider');
 	}
 	return context.reloadAssetsTable;
+}
+
+export const useSensorTypesTable = (): ISensorType[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useSensorsTable must be used within a PlatformAssitantProvider');
+	}
+	return context.sensorTypes;
+}
+
+export const useReloadSensorTypesTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadSensorTypesTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadSensorTypesTable;
 }
 
 export const useSensorsTable = (): ISensor[] => {

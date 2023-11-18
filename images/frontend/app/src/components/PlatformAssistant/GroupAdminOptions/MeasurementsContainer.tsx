@@ -69,7 +69,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
                 .post(urlMeasurements, paginationData, config)
                 .then((response) => {
                     const measurements = response.data;
-                    const payloadKey = selectedSensor.payloadKey;
+                    const payloadKey = selectedSensor.payloadJsonSchema;
                     measurements.map((measurement: any) => {
                         const payload: Record<string, string> = {};
                         payload[payloadKey] = JSON.parse(measurement[payloadKey]);
@@ -137,12 +137,12 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
     const columnsTable = useMemo(() => Create_MEASUREMENTS_COLUMNS(
         selectedSensor.groupId,
         measurementTopic,
-        selectedSensor.payloadKey,
+        selectedSensor.payloadJsonSchema,
         refreshMeasurements
     ),
         [
             selectedSensor.groupId,
-            selectedSensor.payloadKey,
+            selectedSensor.payloadJsonSchema,
             measurementTopic,
             refreshMeasurements
         ]

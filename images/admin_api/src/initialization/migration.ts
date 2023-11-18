@@ -707,6 +707,7 @@ export const dataBaseInitialization = async () => {
 					description VARCHAR(190),
 					dashboard_id bigint,
 					dashboard_url VARCHAR(255),
+					payload_json_schema jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (asset_id, sensor_ref),

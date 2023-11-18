@@ -82,18 +82,12 @@ const EditSensor: FC<EdiSensorProps> = ({ sensors, backToTable, refreshSensors }
     const initialSensorData = {
         description: sensors[sensorRowIndex].description,
         topicId: sensors[sensorRowIndex].topicId,
-        payloadKey: sensors[sensorRowIndex].payloadKey,
-        paramLabel: sensors[sensorRowIndex].paramLabel,
-        valueType: sensors[sensorRowIndex].valueType,
-        units: sensors[sensorRowIndex].units,
+        payloadJsonSchema: sensors[sensorRowIndex].payloadJsonSchema,
     }
 
     const validationSchema = Yup.object().shape({
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
-        payloadKey: Yup.string().required('Required'),
-        paramLabel: Yup.string().required('Required'),
-        valueType: Yup.string().required('Required'),
-        units: Yup.string().required('Required'),
+        payloadJsonSchema: Yup.string().required('Required'),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -123,28 +117,10 @@ const EditSensor: FC<EdiSensorProps> = ({ sensors, backToTable, refreshSensors }
                                         type='text'
                                     />
                                     <FormikControl
-                                        control='input'
-                                        label='Payload key'
-                                        name='payloadKey'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Key label'
-                                        name='paramLabel'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Value type'
-                                        name='valueType'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Units'
-                                        name='units'
-                                        type='text'
+                                        control='textarea'
+                                        label='Payload json schema'
+                                        name='payloadJsonSchema'
+                                        textAreaSize='Small'
                                     />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />

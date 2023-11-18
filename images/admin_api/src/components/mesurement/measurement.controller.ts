@@ -195,7 +195,7 @@ class MeasurementController implements IController {
 	): Promise<void> => {
 		try {
 			const groupUid = req.group.groupUid;
-			const { sensorId, startDate, endDate, pageIndex, itemsPerPage } = req.body;
+			const { sensorId, startDate, endDate, pageIndex, itemsPerPage, payloadKey } = req.body;
 			const sensor = await getSensorByPropName("id", sensorId);
 			if (!sensor) throw new ItemNotFoundException(req, res, "The sensor", "id", sensorId);
 			const topic = `Topic_${sensor.topicUid}`;
@@ -206,7 +206,7 @@ class MeasurementController implements IController {
 				endDate,
 				pageIndex,
 				itemsPerPage,
-				sensor.payloadKey
+				payloadKey
 			);
 			if (pageIndex === 0 && measurements.length !== 0) {
 				measurements[0].totalRows = await getTotalRowsDuringSensorMeasurements(
@@ -214,7 +214,7 @@ class MeasurementController implements IController {
 					topic,
 					startDate,
 					endDate,
-					sensor.payloadKey
+					payloadKey
 				)
 			}
 			res.status(200).send(measurements);

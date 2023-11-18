@@ -57,7 +57,7 @@ import TableWithPagination from '../Utils/TableWithPagination';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { MlModelsProvider } from '../../../contexts/mlModelsOptions';
-import { setAssetS3FoldersTable, setAssetTypesTable, setAssetsTable, setMlModelsTable, setReloadAssetS3FoldersTable, setReloadAssetTypesTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorsTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
+import { setAssetS3FoldersTable, setAssetTypesTable, setAssetsTable, setMlModelsTable, setReloadAssetS3FoldersTable, setReloadAssetTypesTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorTypesTable, setReloadSensorsTable, setSensorTypesTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
 import MlModelsContainer from './MlModelsContainer';
 import {
     useAssetS3FoldersTable,
@@ -68,7 +68,9 @@ import {
     useReloadAssetTypesTable,
     useReloadAssetsTable,
     useReloadMlModelsTable,
+    useReloadSensorTypesTable,
     useReloadSensorsTable,
+    useSensorTypesTable,
     useSensorsTable
 } from '../../../contexts/platformAssistantContext/platformAssistantContext';
 import { AssetsProvider } from '../../../contexts/assetsOptions';
@@ -80,6 +82,7 @@ import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import { ITopic } from '../TableColumns/topicsColumns';
 import S3StorageForm from '../../Tools/S3StorageForm';
+import { ISensorType } from '../TableColumns/sensorTypesColumns';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -164,6 +167,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const orgsOfGroupManagedTable = useOrgsOfGroupsManagedTable();
     const groupsManagedTable = useGroupsManagedTable();
     const assetTypesTable = useAssetTypesTable();
+    const sensorTypesTable = useSensorTypesTable();
     const assetsTable = useAssetsTable();
     const assetS3FoldersTable = useAssetS3FoldersTable();
     const sensorsTable = useSensorsTable();
@@ -180,6 +184,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [assetTypesLoading, setAssetTypesLoading] = useState(true);
     const [assetsLoading, setAssetsLoading] = useState(true);
     const [assetS3FoldersLoading, setAssetS3FoldersLoading] = useState(true);
+    const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
     const [sensorsLoading, setSensorsLoading] = useState(true);
     const [topicsLoading, setTopicsLoading] = useState(true);
     const [dashboardsLoading, setDashboardsLoading] = useState(true);
@@ -193,6 +198,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const reloadGroupsManagedTable = useReloadGroupsManagedTable();
     const reloadGroupMembersTable = useReloadGroupMembersTable();
     const reloadAssetTypesTable = useReloadAssetTypesTable();
+    const reloadSensorTypesTable = useReloadSensorTypesTable();
     const reloadAssetsTable = useReloadAssetsTable();
     const reloadAssetS3FoldersTable = useReloadAssetS3FoldersTable();
     const reloadSensorsTable = useReloadSensorsTable();
@@ -456,6 +462,39 @@ const GroupAdminOptions: FC<{}> = () => {
         plaformAssistantDispatch,
         reloadSelectOrgUsersTable,
         selectOrgUsersTable.length
+    ]);
+
+    useEffect(() => {
+        if (sensorTypesTable.length === 0 || reloadSensorTypesTable) {
+            const config = axiosAuth(accessToken);
+            const urlSensorTypes = `${protocol}://${domainName}/admin_api/sensor_types/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlSensorTypes, config)
+                .then((response) => {
+                    const sensorTypes = response.data;
+                    sensorTypes.map((sensorType: ISensorType) => {
+                        sensorType.isPredefinedString = "No";
+                        if (sensorType.isPredefined) sensorType.isPredefinedString = "Yes";
+                        return sensorType;
+                    })
+                    setSensorTypesTable(plaformAssistantDispatch, { sensorTypes });
+                    setSensorTypesLoading(false);
+                    const reloadSensorTypesTable = false;
+                    setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetTypesLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadSensorTypesTable,
+        sensorTypesTable.length
     ]);
 
     useEffect(() => {
@@ -750,6 +789,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         groupsManagedLoading ||
                         assetTypesLoading ||
                         assetsLoading ||
+                        sensorTypesLoading ||
                         sensorsLoading ||
                         groupMembersLoading ||
                         selectOrgUsersLoading ||

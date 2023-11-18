@@ -20,5 +20,6 @@ RUN npm install node-red-dashboard
 RUN npm install node-red-contrib-image-output
 RUN npm install node-red-contrib-image-tools
 RUN npm install node-red-contrib-browser-utils
+RUN npm install pyodide
 
 ENTRYPOINT ["/src/scripts/entry_script.sh"]

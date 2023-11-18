@@ -51,7 +51,7 @@ import { NodeRedInstancesProvider } from '../../../contexts/nodeRedInstancesOpti
 import NodeRedInstancesInOrgsContainer from './NodeRedInstancesInOrgsContainer';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { AssetTypesProvider } from '../../../contexts/assetTypes.Options';
+import { AssetTypesProvider } from '../../../contexts/assetTypesOptions';
 import AssetTypesContainer from './AssetTypesContainer';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 

@@ -40,6 +40,8 @@ import {
     useReloadAssetTypesTable,
     setAssetTypesTable,
     setReloadAssetTypesTable,
+    setReloadSensorTypesTable,
+    setSensorTypesTable,
 } from '../../../contexts/platformAssistantContext';
 import OrgsManagedContainer from './OrgsManagedContainer';
 import { filterBuildings } from '../../../tools/filterBuildings';
@@ -51,9 +53,13 @@ import { NodeRedInstancesProvider } from '../../../contexts/nodeRedInstancesOpti
 import NodeRedInstancesInOrgsContainer from './NodeRedInstancesInOrgsContainer';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { AssetTypesProvider } from '../../../contexts/assetTypes.Options';
+import { AssetTypesProvider } from '../../../contexts/assetTypesOptions';
 import AssetTypesContainer from './AssetTypesContainer';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
+import { useReloadSensorTypesTable, useSensorTypesTable } from '../../../contexts/platformAssistantContext/platformAssistantContext';
+import { ISensorType } from '../TableColumns/sensorTypesColumns';
+import { SensorTypesProvider } from '../../../contexts/sensorTypesOptions';
+import SensorTypesContainer from './SensorTypesContainer';
 
 
 const OrganizationAdminOptionsContainer = styled.div`
@@ -139,12 +145,14 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const orgUsersTable = useOrgUsersTable();
     const groupsTable = useGroupsTable();
     const assetTypesTable = useAssetTypesTable();
+    const sensorTypesTable = useSensorTypesTable();
     const globalUsersTable = useGlobalUsersTable();
     const [buildingsLoading, setBuildingsLoading] = useState(true);
     const [floorsLoading, setFloorsLoading] = useState(true);
     const [orgsManagedLoading, setOrgsManagedLoading] = useState(true);
     const [nodeRedInstancesLoading, setNodeRedInstancesLoading] = useState(true);
     const [groupsLoading, setGroupsLoading] = useState(true);
+    const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
     const [assetTypesLoading, setAssetTypesLoading] = useState(true);
     const [orgUsersLoading, setOrgUsersLoading] = useState(true);
     const [globalUsersLoading, setGlobalUsersLoading] = useState(true);
@@ -159,6 +167,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
     const reloadOrgUsersTable = useReloadOrgUsersTable();
     const reloadGroupsTable = useReloadGroupsTable();
     const reloadAssetTypesTable = useReloadAssetTypesTable();
+    const reloadSensorTypesTable = useReloadSensorTypesTable();
 
     const refreshOrgsManaged = useCallback(() => {
         setOrgsManagedLoading(true);
@@ -182,6 +191,12 @@ const OrganizationAdminOptions: FC<{}> = () => {
         setGroupsLoading(true);
         const reloadGroupsTable = true;
         setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
+    }, [plaformAssistantDispatch])
+
+    const refreshSensorTypes = useCallback(() => {
+        setSensorTypesLoading(true);
+        const reloadSensorTypesTable = true;
+        setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
     }, [plaformAssistantDispatch])
 
     const refreshAssetTypes = useCallback(() => {
@@ -412,6 +427,39 @@ const OrganizationAdminOptions: FC<{}> = () => {
     ]);
 
     useEffect(() => {
+        if (sensorTypesTable.length === 0 || reloadSensorTypesTable) {
+            const config = axiosAuth(accessToken);
+            const urlSensorTypes = `${protocol}://${domainName}/admin_api/sensor_types/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlSensorTypes, config)
+                .then((response) => {
+                    const sensorTypes = response.data;
+                    sensorTypes.map((sensorType: ISensorType) => {
+                        sensorType.isPredefinedString = "No";
+                        if (sensorType.isPredefined) sensorType.isPredefinedString = "Yes";
+                        return sensorType;
+                    })
+                    setSensorTypesTable(plaformAssistantDispatch, { sensorTypes });
+                    setSensorTypesLoading(false);
+                    const reloadSensorTypesTable = false;
+                    setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetTypesLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadSensorTypesTable,
+        sensorTypesTable.length
+    ]);
+
+    useEffect(() => {
         if (assetTypesTable.length === 0 || reloadAssetTypesTable) {
             const config = axiosAuth(accessToken);
             const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
@@ -504,16 +552,22 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     Groups
                 </OptionContainer>
                 <OptionContainer
-                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS}
-                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS)}
+                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.SENSOR_TYPES}
+                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.SENSOR_TYPES)}
                 >
-                    Nodered instances in orgs
+                    Sensor types
                 </OptionContainer>
                 <OptionContainer
                     isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.ASSET_TYPES}
                     onClick={() => clickHandler(ORG_ADMIN_OPTIONS.ASSET_TYPES)}
                 >
                     Asset types
+                </OptionContainer>
+                <OptionContainer
+                    isOptionActive={optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS}
+                    onClick={() => clickHandler(ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS)}
+                >
+                    Nodered instances in orgs
                 </OptionContainer>
             </OrganizationAdminOptionsContainer>
             <ContentContainer >
@@ -526,7 +580,8 @@ const OrganizationAdminOptions: FC<{}> = () => {
                         orgUsersLoading ||
                         globalUsersLoading ||
                         nodeRedInstancesLoading ||
-                        assetTypesLoading
+                        assetTypesLoading ||
+                        sensorTypesLoading
                     ) ?
                         <Loader />
                         :
@@ -553,13 +608,13 @@ const OrganizationAdminOptions: FC<{}> = () => {
                                     />
                                 </GroupsProvider>
                             }
-                            {optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS &&
-                                <NodeRedInstancesProvider>
-                                    <NodeRedInstancesInOrgsContainer
-                                        nodeRedInstances={nodeRedInstancesTable}
-                                        refreshNodeRedInstances={refreshNodeRedInstances}
+                            {optionToShow === ORG_ADMIN_OPTIONS.SENSOR_TYPES &&
+                                <SensorTypesProvider>
+                                    <SensorTypesContainer
+                                        sensorTypes={sensorTypesTable}
+                                        refreshSensorTypes={refreshSensorTypes}
                                     />
-                                </NodeRedInstancesProvider>
+                                </SensorTypesProvider>
                             }
                             {optionToShow === ORG_ADMIN_OPTIONS.ASSET_TYPES &&
                                 <AssetTypesProvider>
@@ -568,6 +623,14 @@ const OrganizationAdminOptions: FC<{}> = () => {
                                         refreshAssetTypes={refreshAssetTypes}
                                     />
                                 </AssetTypesProvider>
+                            }
+                            {optionToShow === ORG_ADMIN_OPTIONS.NODERED_INSTANCES_IN_ORGS &&
+                                <NodeRedInstancesProvider>
+                                    <NodeRedInstancesInOrgsContainer
+                                        nodeRedInstances={nodeRedInstancesTable}
+                                        refreshNodeRedInstances={refreshNodeRedInstances}
+                                    />
+                                </NodeRedInstancesProvider>
                             }
                         </>
                 }

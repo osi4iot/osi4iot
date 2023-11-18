@@ -18,7 +18,7 @@
 	},
 	"include": [
 		"src", 
-		"src/tools/ReadingAccelerations.tsx", 
-		"src/contexts/orgsOptions/index.tsx"
+		"src/tools/ReadingAccelerations.ts", 
+		"src/contexts/orgsOptions/index.ts"
 	]
 }

@@ -66,7 +66,7 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
         const payload = {
             deleteDate,
             topic: measurementTopic,
-            payloadKey: selectedSensor.payloadKey
+            payloadKey: selectedSensor.payloadJsonSchema
         }
         const url = `${protocol}://${domainName}/admin_api/sensor_measurements_before_date/${groupId}`;
         const config: { headers: { Authorization: string } } = axiosAuth(accessToken);

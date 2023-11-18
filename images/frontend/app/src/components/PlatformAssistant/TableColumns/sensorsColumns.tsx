@@ -34,9 +34,7 @@ export interface ISensor {
     description: string;
     topicId: string;
     topicUid: string;
-    payloadKey: string;
-    paramLabel: string;
-    valueType: string;
+    payloadJsonSchema: string;
     units: string;
     dashboardId: string;
     dashboardUrl: string;
@@ -178,22 +176,6 @@ export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISens
         {
             Header: "TopicId",
             accessor: "topicId",
-        },      
-        {
-            Header: "PayloadKey",
-            accessor: "payloadKey",
-        },
-        {
-            Header: "KeyLabel",
-            accessor: "paramLabel",
-            disableFilters: true,
-            disableSortBy: true,
-        },
-        {
-            Header: "ValueType",
-            accessor: "valueType",
-            disableFilters: true,
-            disableSortBy: true,
         },
         {
             Header: "Units",

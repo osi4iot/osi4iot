@@ -20,7 +20,7 @@ const cliOptions = [
     '- delete_platform: Stop all services and remove images and volumes in platform.',
 ];
 
-const dockerImagesVersions = ["dev", "1.1.0", "1.2.0", "latest"];
+const dockerImagesVersions = ["dev", "1.1.0", "1.2.0", "1.3.0", "latest"];
 var argv = null;
 
 const osi4iotCli = async () => {
@@ -113,7 +113,7 @@ const loadSSHAgentWarnning = () => {
 
 const osi4iotWelcome = () => {
     console.log(clc.whiteBright("\n************************************************"));
-    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.2.0  **"));
+    console.log(clc.whiteBright("**   WELCOME TO OSI4IOT PLATFORM CLI v1.3.0  **"));
     console.log(clc.whiteBright("************************************************\n"));
 
     inquirer
@@ -201,7 +201,7 @@ const createOsi4iotStateFile = (answers) => {
             AWS_ACCESS_KEY_ID: answers.AWS_ACCESS_KEY_ID || "",
             AWS_SECRET_ACCESS_KEY: answers.AWS_SECRET_ACCESS_KEY || "",
             AWS_REGION: answers.AWS_REGION || "eu-west-3",
-            DOCKER_IMAGES_VERSION: answers.DOCKER_IMAGES_VERSION || "1.2.0"
+            DOCKER_IMAGES_VERSION: answers.DOCKER_IMAGES_VERSION || "1.3.0"
         }
     }
     const osi4iotStateFile = JSON.stringify(osi4iotState);

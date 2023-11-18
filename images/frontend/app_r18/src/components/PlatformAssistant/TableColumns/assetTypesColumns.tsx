@@ -9,7 +9,12 @@ import DeleteModal from '../../Tools/DeleteModal';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
-import { setAssetTypeIdToEdit, setAssetTypeRowIndexToEdit, setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../contexts/assetTypes.Options';
+import {
+    setAssetTypeIdToEdit,
+    setAssetTypeRowIndexToEdit,
+    setAssetTypesOptionToShow,
+    useAssetTypesDispatch
+} from '../../../contexts/assetTypesOptions';
 import { ASSET_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 
 export interface IAssetType {

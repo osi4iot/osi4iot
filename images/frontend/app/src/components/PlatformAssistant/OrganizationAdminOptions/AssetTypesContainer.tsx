@@ -2,7 +2,7 @@ import React, { FC, useCallback } from 'react';
 import TableWithPagination from '../Utils/TableWithPagination';
 import { ASSET_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { Create_ASSET_TYPES_COLUMNS, IAssetType } from '../TableColumns/assetTypesColumns';
-import { setAssetTypesOptionToShow, useAssetTypesDispatch, useAssetTypesOptionToShow } from '../../../contexts/assetTypes.Options';
+import { setAssetTypesOptionToShow, useAssetTypesDispatch, useAssetTypesOptionToShow } from '../../../contexts/assetTypesOptions';
 import CreateAssetType from './CreateAssetType';
 import EditAssetType from './EditAssetType';
 
