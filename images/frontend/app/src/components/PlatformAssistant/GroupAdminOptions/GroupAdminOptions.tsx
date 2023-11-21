@@ -486,7 +486,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
-            setAssetTypesLoading(false);
+            setSensorTypesLoading(false);
         }
     }, [
         accessToken,

@@ -69,7 +69,7 @@ const DeleteSensorTypeModal: FC<DeleteSensorTypeModalProps> = ({ rowIndex, orgId
     }, [isSensorTypeDeleted, plaformAssistantDispatch, refreshSensorTypes]);
 
     const action = (hideModal: () => void) => {
-        const url = `${protocol}://${domainName}/admin_api/asset_type/${orgId}/id/${sensorTypeId}`;
+        const url = `${protocol}://${domainName}/admin_api/sensor_type/${orgId}/id/${sensorTypeId}`;
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
@@ -152,14 +152,14 @@ export const Create_SENSOR_TYPES_COLUMNS = (refreshSensorTypes: () => void): Col
             filter: 'equals'
         },
         {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>Dashboard<br />refresh</div>,
+            Header: "Refresh",
             accessor: "dashboardRefreshString",
-            filter: 'equals'
+            disableFilters: true
         },
         {
-            Header: () => <div style={{ backgroundColor: '#202226' }}>Dashboard<br />time window</div>,
+            Header: "Time window",
             accessor: "dashboardTimeWindow",
-            filter: 'equals'
+            disableFilters: true
         }, 
         {
             Header: "",

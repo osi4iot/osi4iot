@@ -122,7 +122,7 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 									grafanadb.org.acronym AS "orgAcronym",
 									grafanadb.group.acronym AS "groupAcronym",
 									grafanadb.topic.topic_type AS "topicType",
-									grafanadb.sensor.type AS "sensorType",
+									grafanadb.sensor_type.type AS "sensorType",
 									grafanadb.sensor.description AS "sensorDescription",
 									grafanadb.asset.description AS "assetDescription",
 									grafanadb.group.group_uid AS "groupUid",
@@ -131,9 +131,11 @@ export const getAllMobileTopics = async (): Promise<IMobileTopic[]> => {
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
-									INNER JOIN grafanadb.asset ON grafanadb.topic.group_id = grafanadb.asset.group_id
+									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+									INNER JOIN grafanadb.asset ON grafanadb.asset_topic.asset_id = grafanadb.asset.id
 									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									INNER JOIN grafanadb.sensor ON grafanadb.sensor.asset_id = grafanadb.asset.id
+									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
 									WHERE ((grafanadb.asset_type.type = 'Mobile' OR grafanadb.asset_type.type = 'Assembly with mobile') AND
 									(grafanadb.sensor.topic_id = grafanadb.topic.id))
 									ORDER BY grafanadb.org.acronym ASC,
@@ -200,7 +202,7 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 									grafanadb.org.acronym AS "orgAcronym",
 									grafanadb.group.acronym AS "groupAcronym",
 									grafanadb.topic.topic_type AS "topicType",
-									grafanadb.sensor.type AS "sensorType",
+									grafanadb.sensor_type.type AS "sensorType",
 									grafanadb.sensor.description AS "sensorDescription",
 									grafanadb.asset.description AS "assetDescription",
 									grafanadb.group.group_uid AS "groupUid",
@@ -209,9 +211,11 @@ export const getMobileTopicsByGroupsIdArray = async (groupsIdArray: number[]): P
 									FROM grafanadb.topic
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.org ON grafanadb.group.org_id = grafanadb.org.id
-									INNER JOIN grafanadb.asset ON grafanadb.topic.group_id = grafanadb.asset.group_id
+									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+									INNER JOIN grafanadb.asset ON grafanadb.asset_topic.asset_id = grafanadb.asset.id
 									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									INNER JOIN grafanadb.sensor ON grafanadb.sensor.asset_id = grafanadb.asset.id
+									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
 									WHERE ((grafanadb.topic.group_id = ANY($1::bigint[])) AND
 										(grafanadb.asset_type.type = 'Mobile' OR grafanadb.asset_type.type = 'Assembly with mobile') AND
 										(grafanadb.sensor.topic_id = grafanadb.topic.id))

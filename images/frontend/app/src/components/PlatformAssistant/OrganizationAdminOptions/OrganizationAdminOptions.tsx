@@ -448,7 +448,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
-            setAssetTypesLoading(false);
+            setSensorTypesLoading(false);
         }
     }, [
         accessToken,

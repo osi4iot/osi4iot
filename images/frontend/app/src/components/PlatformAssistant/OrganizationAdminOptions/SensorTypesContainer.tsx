@@ -1,6 +1,6 @@
 import React, { FC, useCallback } from 'react';
 import TableWithPagination from '../Utils/TableWithPagination';
-import { ASSET_TYPES_OPTIONS, SENSOR_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
+import { SENSOR_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { Create_SENSOR_TYPES_COLUMNS, ISensorType } from '../TableColumns/sensorTypesColumns';
 import {
     setSensorTypesOptionToShow,
@@ -42,7 +42,7 @@ const SensorTypesContainer: FC<SensorTypesContainerProps> = ({
                     refreshSensorTypes={refreshSensorTypes}
                 />
             }
-            {sensorTypesOptionToShow === ASSET_TYPES_OPTIONS.TABLE &&
+            {sensorTypesOptionToShow === SENSOR_TYPES_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={sensorTypes}
                     columnsTable={Create_SENSOR_TYPES_COLUMNS(refreshSensorTypes)}

@@ -1,6 +1,8 @@
 import { IsNumber, IsString } from "class-validator";
 
 class CreateAssetSensorsRefDto {
+	topicId?: number;
+
 	@IsString()
 	public sensorRef: string;
 

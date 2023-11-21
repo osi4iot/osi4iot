@@ -8,10 +8,12 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import GeoDigitalTwin from "./GeoDigitalTwin";
 import GeoFordwardAndBackwardSensor from "./GeoFordwardAndBackwardSensor";
+import { ISensorType } from "../TableColumns/sensorTypesColumns";
 
 
 interface GeoSensorsProps {
     assetSelected: IAsset;
+    sensorTypes: ISensorType[];
     sensors: ISensor[];
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor | null) => void;
@@ -27,6 +29,7 @@ interface GeoSensorsProps {
 
 const GeoSensors: FC<GeoSensorsProps> = ({
     assetSelected,
+    sensorTypes,
     sensors,
     sensorSelected,
     selectSensor,
@@ -130,6 +133,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                         key={sensor.id}
                         sensorLabel={`${(sensorsSetIndex - 1) * 10 + index + 1}/${sensors.length}`}
                         assetData={assetSelected}
+                        sensorType={sensorTypes.filter(sensorType=> sensorType.type === sensor.sensorType)[0]}
                         sensorData={sensor}
                         sensorIndex={index}
                         sensorSelected={sensorSelected}

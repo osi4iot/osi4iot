@@ -23,6 +23,7 @@ import { useWindowWidth } from '@react-hook/window-size';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
+import { ISensorType } from '../TableColumns/sensorTypesColumns';
 
 const MapContainerStyled = styled(MapContainer)`
     background-color: #212121;
@@ -373,6 +374,7 @@ interface MapProps {
     groupsManaged: IGroupManaged[];
     assetTypes: IAssetType[];
     assets: IAsset[];
+    sensorTypes: ISensorType[];
     sensors: ISensor[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
@@ -420,6 +422,7 @@ const Map: FC<MapProps> = (
         groupsManaged,
         assetTypes,
         assets,
+        sensorTypes,
         sensors,
         digitalTwins,
         buildingSelected,
@@ -517,6 +520,7 @@ const Map: FC<MapProps> = (
                     assetDataArray={assets}
                     assetSelected={assetSelected}
                     selectAsset={selectAsset}
+                    sensorTypes={sensorTypes}
                     sensorDataArray={sensors}
                     sensorSelected={sensorSelected}
                     selectSensor={selectSensor}

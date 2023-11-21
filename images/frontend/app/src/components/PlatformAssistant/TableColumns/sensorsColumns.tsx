@@ -30,15 +30,17 @@ export interface ISensor {
     groupId: number;
     assetId: number;
     sensorUid: string;
-    type: string;
-    description: string;
+    sensorRef: string;
+    sensorType: string;
+    sensorTypeId: number;
     topicId: string;
     topicUid: string;
-    payloadJsonSchema: string;
-    units: string;
+    description: string;
     dashboardId: string;
     dashboardUrl: string;
+    payloadJsonSchema: string;
 }
+
 
 
 interface ISensorColumn extends  ISensor {
@@ -166,7 +168,7 @@ export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISens
         },
         {
             Header: "Type",
-            accessor: "type",
+            accessor: "sensorType",
             filter: 'equals'
         },
         {
@@ -176,12 +178,6 @@ export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISens
         {
             Header: "TopicId",
             accessor: "topicId",
-        },
-        {
-            Header: "Units",
-            accessor: "units",
-            disableFilters: true,
-            disableSortBy: true,
         },
         {
             Header: "DashboardId",

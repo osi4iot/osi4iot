@@ -31,7 +31,7 @@ export const insertDashboard = async (
 	const slug = title.replace(/ /g, "_").toLocaleLowerCase();
 	const uuid = uuidv4();
 	const queryString = `INSERT INTO grafanadb.dashboard (version, slug, title,
-		data, org_id, created, updated,created_by, updated_by, gnet_id,
+		data, org_id, created, updated, created_by, updated_by, gnet_id,
 		plugin_id, folder_id, is_folder, has_acl, uid)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 		RETURNING *`;
@@ -278,7 +278,7 @@ export const createSensorDashboard = async (
 				rawSql = `SELECT timestamp AS \"time\",`;
 				for (let i = 0; i < itemLabels.length; i++) {
 					rawSql = `${rawSql} CAST(payload->'${payloadKey}'->>${i} AS DOUBLE PRECISION) AS "${itemLabels[i]}"`
-					if (i < (keys.length - 1)) {
+					if (i < (itemLabels.length - 1)) {
 						rawSql = `${rawSql},`;
 					}
 				}
@@ -290,7 +290,7 @@ export const createSensorDashboard = async (
 			for (let i = 0; i < keys.length; i++) {
 				const payloadKey = keys[i];
 				const paramLabel = payloadJsonSchema.properties[keys[i]].description as string;
-				rawSql = `${rawSql} CAST(payload->'${payloadKey}' AS DOUBLE PRECISION) AS "${paramLabel}"`
+				rawSql = `${rawSql} CAST(payload->>'${payloadKey}' AS DOUBLE PRECISION) AS "${paramLabel}"`
 				if (i < (keys.length - 1)) {
 					rawSql = `${rawSql},`;
 				}

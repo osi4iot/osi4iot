@@ -519,7 +519,7 @@ export const dataBaseInitialization = async () => {
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_sensor_type_uid
-				ON grafanadb.asset_type(sensor_type_uid);`;
+				ON grafanadb.sensor_type(sensor_type_uid);`;
 
 				try {
 					await postgresClient.query(queryStringSensorType);
@@ -626,7 +626,7 @@ export const dataBaseInitialization = async () => {
 					CONSTRAINT fk_asset_type_id
 						FOREIGN KEY(asset_type_id)
 							REFERENCES grafanadb.asset_type(id)
-							ON DELETE CASCADE;
+							ON DELETE CASCADE
 				);
 
 				CREATE INDEX IF NOT EXISTS idx_asset_uid
@@ -701,9 +701,9 @@ export const dataBaseInitialization = async () => {
 					id serial PRIMARY KEY,
 					asset_id bigint,
 					sensor_uid VARCHAR(40) UNIQUE,
+					sensor_type_id bigint,
 					sensor_ref VARCHAR(20),
 					topic_id bigint,
-					sensor_type_id bigint,
 					description VARCHAR(190),
 					dashboard_id bigint,
 					dashboard_url VARCHAR(255),
@@ -872,7 +872,7 @@ export const dataBaseInitialization = async () => {
 				let asset: IAsset;
 				try {
 					const defaultAssetData = {
-						assetTypeId: assetTypes[4].id,
+						assetTypeId: assetTypes[5].id,
 						description: `Mobile for group ${group.acronym}`,
 						type: "Mobile",
 						iconRadio: 1.0,
@@ -973,7 +973,7 @@ export const dataBaseInitialization = async () => {
 					asset = await createNewAsset(group, defaultAssetData);
 					logger.log("info", `Default asset for main group has been created sucessfully`);
 				} catch (err) {
-					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
+					logger.log("error", `Default asset for main group can not be created: %s`, err.message);
 				}
 
 				try {

@@ -891,7 +891,6 @@ class OrganizationController implements IController {
 			const deleteOrgMessage = await grafanaApi.deleteOrganizationById(organization.id);
 			const bucketFolder = `org_${organization.id}`;
 			await removeFilesFromBucketFolder(bucketFolder);
-			console.log("deleteOrgMessage=", deleteOrgMessage)
 			if (deleteOrgMessage.message === "Organization deleted") {
 				res.status(200).json({ message: `Organization deleted successfully` });
 			} else {

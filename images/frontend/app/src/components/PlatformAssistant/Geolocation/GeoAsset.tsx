@@ -13,6 +13,7 @@ import { ISensor } from "../TableColumns/sensorsColumns";
 import GeoSensors from "./GeoSensors";
 import { AssetSvgImages } from "./AssetSvgImages";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
+import { ISensorType } from "../TableColumns/sensorTypesColumns";
 
 
 interface GeoAssetProps {
@@ -20,6 +21,7 @@ interface GeoAssetProps {
     assetData: IAsset;
     assetSelected: IAsset | null;
     selectAsset: (assetSelected: IAsset | null) => void;
+    sensorTypeDataArray: ISensorType[];
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor | null) => void;
@@ -37,6 +39,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
     assetData,
     assetSelected,
     selectAsset,
+    sensorTypeDataArray,
     sensorDataArray,
     sensorSelected,
     selectSensor,
@@ -120,6 +123,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
                 <GeoSensors
                     key={status}
                     assetSelected={assetSelected}
+                    sensorTypes={sensorTypeDataArray}
                     sensors={sensorsFiltered}
                     sensorSelected={sensorSelected}
                     selectSensor={selectSensor}

@@ -14,11 +14,13 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { ISensorState } from "./GeolocationContainer";
 import { setWindowObjectReferences, usePlatformAssitantDispatch, useWindowObjectReferences } from "../../../contexts/platformAssistantContext";
 import { openWindowTab } from "../../../tools/tools";
+import { ISensorType } from "../TableColumns/sensorTypesColumns";
 
 
 interface GeoSensorProps {
     sensorLabel: string,
     assetData: IAsset;
+    sensorType: ISensorType;
     sensorData: ISensor;
     sensorIndex: number;
     sensorSelected: ISensor | null;
@@ -40,6 +42,7 @@ const calcGeoPointPosition = (pointLongitude: number, pointLatitude: number, dis
 const GeoSensor: FC<GeoSensorProps> = ({
     sensorLabel,
     assetData,
+    sensorType,
     sensorData,
     sensorIndex,
     sensorSelected,
@@ -66,13 +69,13 @@ const GeoSensor: FC<GeoSensorProps> = ({
         else if (status === "alerting") setFillColor(STATUS_ALERTING);
     }, [sensorState]);
 
-    const sensorRadio = 0.00010 * assetData.iconRadio;
+    const sensorRadio = 0.000085 * assetData.iconRadio;
     const boundsSensor = useMemo(() =>
         calcGeoBounds(
             centerLongitude,
-            centerLatitude,
+            centerLatitude - 2.0e-7 * assetData.iconRadio,
             sensorRadio
-        ), [centerLongitude, centerLatitude, sensorRadio]);
+        ), [centerLongitude, centerLatitude, sensorRadio, assetData.iconRadio]);
 
     const sensorOuterRadio = 0.00016 * assetData.iconRadio;
     const outerBoundsSensor = useMemo(() =>
@@ -108,6 +111,7 @@ const GeoSensor: FC<GeoSensorProps> = ({
         >
             <SensorSvgImage
                 key={status}
+                sensorType={sensorType}
                 sensorLabel={sensorLabel}
                 sensorId={sensorData.id}
                 sensorSelected={sensorSelected as ISensor}
@@ -118,7 +122,7 @@ const GeoSensor: FC<GeoSensorProps> = ({
             <Tooltip sticky>
                 <span style={{ fontWeight: 'bold' }}>Sensor</span><br />
                 Name: {`Sensor_${sensorData.sensorUid}`}<br />
-                Type: {sensorData.type}<br />
+                Type: {sensorData.sensorType}<br />
                 Description: {sensorData.description}<br />
                 Recieve data from topicId: {sensorData.topicId}<br />
                 Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>

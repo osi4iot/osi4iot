@@ -18,6 +18,7 @@ import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';
 import SelectAsset from './SelectAsset';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
+import { ISensorType } from '../TableColumns/sensorTypesColumns';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -69,6 +70,7 @@ interface GeolocationContainerProps {
     groupsManaged: IGroupManaged[];
     assetTypes: IAssetType[];
     assets: IAsset[];
+    sensorTypes: ISensorType[];
     sensors: ISensor[];
     digitalTwins: IDigitalTwin[];
     buildingSelected: IBuilding | null;
@@ -113,6 +115,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         groupsManaged,
         assetTypes,
         assets,
+        sensorTypes,
         sensors,
         digitalTwins,
         buildingSelected,
@@ -281,6 +284,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     groupsManaged={groupsManaged}
                     assetTypes={assetTypes}
                     assets={assets}
+                    sensorTypes={sensorTypes}
                     sensors={sensors}
                     digitalTwins={digitalTwins}
                     buildingSelected={buildingSelected}

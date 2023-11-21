@@ -49,6 +49,7 @@ export const CustomSVGOverlay: FC<CustomSVGOverlayProps> = ({
         }
     }, [svgString]);
 
+
     return (
         <SVGOverlayStyled
             ref={imageRef as any}

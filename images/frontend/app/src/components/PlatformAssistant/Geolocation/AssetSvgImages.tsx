@@ -2,7 +2,7 @@ import { FC } from "react";
 import { LatLngTuple } from 'leaflet';
 import { SVGOverlay } from 'react-leaflet';
 import { IAsset } from "../TableColumns/assetsColumns";
-import { AssetSVGOverlays } from "./svg_assets_overlay/AssetSVGOverlays";
+import { CustomSVGOverlay } from "./svg_assets_overlay/CustomSVGOverlay";
 
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
@@ -48,8 +48,8 @@ export const AssetSvgImages: FC<AssetSvgImagesProps> = ({
                     r="290"
                 />
             </SVGOverlay >
-            <AssetSVGOverlays
-                iconSvgString={iconSvgString}
+            <CustomSVGOverlay
+                svgString={iconSvgString}
                 fillColor={fillColor}
                 backgroundColor="#555555"
                 bounds={bounds}

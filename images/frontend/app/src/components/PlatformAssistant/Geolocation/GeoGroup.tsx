@@ -15,6 +15,7 @@ import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import GeoAssets from "./GeoAssets";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
+import { ISensorType } from "../TableColumns/sensorTypesColumns";
 
 const STATUS_OK = "#3e3f3b";
 const STATUS_ALERTING = "#ff4040";
@@ -59,6 +60,7 @@ interface GeoGroupProps {
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
     selectAsset: (assetSelected: IAsset | null) => void;
+    sensorTypeDataArray: ISensorType[];
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor | null) => void;
@@ -81,6 +83,7 @@ const GeoGroup: FC<GeoGroupProps> = (
         assetDataArray,
         assetSelected,
         selectAsset,
+        sensorTypeDataArray,
         sensorDataArray,
         sensorSelected,
         selectSensor,
@@ -150,6 +153,7 @@ const GeoGroup: FC<GeoGroupProps> = (
                             assetDataArray={assetDataArrayFiltered}
                             assetSelected={assetSelected}
                             selectAsset={selectAsset}
+                            sensorTypeDataArray={sensorTypeDataArray}
                             sensorDataArray={sensorDataArrayFiltered}
                             sensorSelected={sensorSelected}
                             selectSensor={selectSensor}

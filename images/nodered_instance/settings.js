@@ -296,7 +296,7 @@ module.exports = {
     //    global.get("os")
     functionGlobalContext: {
         getDTMqttTopics,
-        pyodide: require('./pyodide_init'),
+        initPyodide: require('./pyodide_init'),
         MLModels: require('./ml_models'),
         tf: require('@tensorflow/tfjs-node'),
         Jimp: require('jimp')

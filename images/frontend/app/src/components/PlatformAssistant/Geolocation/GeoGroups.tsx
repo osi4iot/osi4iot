@@ -12,6 +12,7 @@ import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import { IAssetType } from "../TableColumns/assetTypesColumns";
+import { ISensorType } from "../TableColumns/sensorTypesColumns";
 
 
 const STATUS_OK = "#3e3f3b";
@@ -40,6 +41,7 @@ interface GeoGroupsProps {
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
     selectAsset: (assetSelected: IAsset | null) => void;
+    sensorTypes: ISensorType[];
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor | null) => void;
@@ -65,6 +67,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
         assetDataArray,
         assetSelected,
         selectAsset,
+        sensorTypes,
         sensorDataArray,
         sensorSelected,
         selectSensor,
@@ -80,6 +83,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
     const map = useMap();
     const isValidGeoJsonData = useState(isGeoJSONObject(floorData.geoJsonData))[0];
     const assetTypeDataArray = assetTypes.filter(assetType => assetType.orgId === orgSelected?.id);
+    const sensorTypeDataArray = sensorTypes.filter(sensorType => sensorType.orgId === orgSelected?.id);
 
     const styleGeoFloorJson = (geoJsonFeature: any) => {
         return floorStyle();
@@ -108,6 +112,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         assetDataArray={assetDataArray}
                         assetSelected={assetSelected}
                         selectAsset={selectAsset}
+                        sensorTypeDataArray={sensorTypeDataArray}
                         sensorDataArray={sensorDataArray}
                         sensorSelected={sensorSelected}
                         selectSensor={selectSensor}

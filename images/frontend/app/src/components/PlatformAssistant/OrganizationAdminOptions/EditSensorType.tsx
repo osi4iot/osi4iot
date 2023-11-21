@@ -8,7 +8,7 @@ import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
-import { ASSET_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
+import { SENSOR_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import SvgComponent from '../../Tools/SvgComponent';
@@ -94,6 +94,7 @@ const SvgComponentContainerDiv = styled.div`
 
 const FileSelectionContainer = styled.div`
     width: 100%;
+    margin-bottom: 15px;
 `;
 
 const DataFileTitle = styled.div`
@@ -168,6 +169,57 @@ const FieldContainer = styled.div`
     }
 `;
 
+const dashboardRefreshOptions = [
+    {
+        label: "200ms",
+        value: "200ms"
+    },
+    {
+        label: "1s",
+        value: "1s"
+    },
+    {
+        label: "5s",
+        value: "5s"
+    },
+    {
+        label: "10s",
+        value: "10s"
+    },
+    {
+        label: "30s",
+        value: "30s"
+    },
+    {
+        label: "1m",
+        value: "1m"
+    },
+    {
+        label: "5m",
+        value: "5m"
+    },
+    {
+        label: "15m",
+        value: "15m"
+    },
+    {
+        label: "30m",
+        value: "30m"
+    },
+    {
+        label: "1h",
+        value: "1h"
+    },
+    {
+        label: "2h",
+        value: "2h"
+    },
+    {
+        label: "1d",
+        value: "1d"
+    },
+];
+
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
@@ -197,12 +249,12 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
     const orgId = sensorTypes[sensorTypeRowIndex].orgId;
     const storedIconSvgString = sensorTypes[sensorTypeRowIndex].iconSvgString;
     const [iconSvgString, setIconSvgString] = useState(storedIconSvgString);
-    const [iconSvgFileLoaded, setIconSvgFileLoaded] = useState(storedIconSvgString !== "-");
+    const [iconSvgFileLoaded, setIconSvgFileLoaded] = useState(storedIconSvgString !== "");
     const storedIconSvgFileName = sensorTypes[sensorTypeRowIndex].iconSvgFileName;
     const [iconSvgFileName, setIconSvgFileName] = useState(storedIconSvgFileName);
     const storedMarkerSvgString = sensorTypes[sensorTypeRowIndex].markerSvgString;
     const [markerSvgString, setMarkerSvgString] = useState(storedMarkerSvgString);
-    const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(storedMarkerSvgString !== "-");
+    const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(storedMarkerSvgString !== "");
     const storedMarkerSvgFileName = sensorTypes[sensorTypeRowIndex].markerSvgFileName;
     const [markerSvgFileName, setMarkerSvgFileName] = useState(storedMarkerSvgFileName);
 
@@ -226,8 +278,8 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
         ) {
             setIconSvgFileLoaded(true)
             try {
-                const assetSvgString = iconSvgFileParams.filesContent[0].content;
-                setIconSvgString(assetSvgString);
+                const sensorTypeSvgString = iconSvgFileParams.filesContent[0].content;
+                setIconSvgString(sensorTypeSvgString);
                 const iconSvgFileName = iconSvgFileParams.plainFiles[0].name;
                 setIconSvgFileName(iconSvgFileName);
                 iconSvgFileParams.clear();
@@ -289,11 +341,12 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
         const sensorTypeData = {
             type: values.type,
             iconSvgFileName,
-            iconSvgString,
-            geolocationMode: values.geolocationMode,
             markerSvgFileName,
             markerSvgString,
-            assetStateFormat: values.assetStateFormat
+            iconSvgString,
+            dashboardRefreshString: values.dashboardRefresh,
+            dashboardTimeWindow: values.dashboardTimeWindow,
+            defaultPayloadJsonSchema: values.defaultPayloadJsonSchema
         }
 
         setIsSubmitting(true);
@@ -302,7 +355,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);
-                const sensorTypesOptionToShow = { sensorTypesOptionToShow: ASSET_TYPES_OPTIONS.TABLE };
+                const sensorTypesOptionToShow = { sensorTypesOptionToShow: SENSOR_TYPES_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setSensorTypesOptionToShow(sensorTypesDispatch, sensorTypesOptionToShow);
             })
@@ -315,13 +368,18 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
             })
     }
 
-    const initialAssetTypeData = {
+    const initialSensorTypeData = {
         type: sensorTypes[sensorTypeRowIndex].type,
-        defaultPayloadJsonSchema: JSON.stringify(sensorTypes[sensorTypeRowIndex].defaultPayloadJsonSchema),
+        dashboardRefresh: sensorTypes[sensorTypeRowIndex].dashboardRefreshString,
+        dashboardTimeWindow: sensorTypes[sensorTypeRowIndex].dashboardTimeWindow,
+        defaultPayloadJsonSchema: JSON.stringify(sensorTypes[sensorTypeRowIndex].defaultPayloadJsonSchema, null, 4),
     }
 
     const validationSchema = Yup.object().shape({
         type: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
+        dashboardTimeWindow: Yup.string().matches(/\d+(s|m|h)$/,
+            "Dashboard time window must contain a number follow by 's', 'm' or 'h'"
+        ).required('Required'),
         defaultPayloadJsonSchema: Yup.string().required('Required'),
     });
 
@@ -358,9 +416,9 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting}>Create asset type</FormTitle>
+            <FormTitle isSubmitting={isSubmitting}>Edit sensor type</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialAssetTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik initialValues={initialSensorTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
                             <Form>
@@ -370,6 +428,25 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                         label='Type'
                                         name='type'
                                         type='text'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Dashboard refresh time'
+                                        name="dashboardRefresh"
+                                        options={dashboardRefreshOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Dashboard time window'
+                                        name='dashboardTimeWindow'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='textarea'
+                                        label='Default payload json schema'
+                                        name='defaultPayloadJsonSchema'
+                                        textAreaSize='Small'
                                     />
                                     <DataFileTitle>Select icon svg file</DataFileTitle>
                                     <FileSelectionContainer>
@@ -449,12 +526,6 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                             </SelectDataFilenButtonContainer>
                                         </DataFileContainer>
                                     </FileSelectionContainer>
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Asset state json format'
-                                        name='assetStateFormat'
-                                        textAreaSize='Small'
-                                    />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

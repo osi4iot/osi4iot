@@ -1,6 +1,6 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
-import { Formik, Form, FormikProps } from 'formik';
+import { Formik, Form } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
@@ -8,12 +8,12 @@ import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
-import { ASSET_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
+import { SENSOR_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import SvgComponent from '../../Tools/SvgComponent';
 import { useFilePicker } from 'use-file-picker';
-import { setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../contexts/assetTypesOptions';
+import { setSensorTypesOptionToShow, useSensorTypesDispatch } from '../../../contexts/sensorTypesOptions';
 
 
 const FormContainer = styled.div`
@@ -88,6 +88,7 @@ const SvgComponentContainerDiv = styled.div`
 
 const FileSelectionContainer = styled.div`
     width: 100%;
+    margin-bottom: 15px;
 `;
 
 const DataFileTitle = styled.div`
@@ -162,15 +163,55 @@ const FieldContainer = styled.div`
     }
 `;
 
-const geolocationModeOptions = [
+const dashboardRefreshOptions = [
     {
-        label: "Static",
-        value: "static"
+        label: "200ms",
+        value: "200ms"
     },
     {
-        label: "Dynamic",
-        value: "dynamic"
-    }
+        label: "1s",
+        value: "1s"
+    },
+    {
+        label: "5s",
+        value: "5s"
+    },
+    {
+        label: "10s",
+        value: "10s"
+    },
+    {
+        label: "30s",
+        value: "30s"
+    },
+    {
+        label: "1m",
+        value: "1m"
+    },
+    {
+        label: "5m",
+        value: "5m"
+    },
+    {
+        label: "15m",
+        value: "15m"
+    },
+    {
+        label: "30m",
+        value: "30m"
+    },
+    {
+        label: "1h",
+        value: "1h"
+    },
+    {
+        label: "2h",
+        value: "2h"
+    },
+    {
+        label: "1d",
+        value: "1d"
+    },
 ];
 
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
@@ -181,15 +222,6 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-
-interface IFormikValues {
-    orgId: number;
-    type: string;
-    geolocationMode: string;
-    assetStateFormat: string;
-}
-
-type FormikType = FormikProps<IFormikValues>
 
 interface CreateSensorTypeProps {
     backToTable: () => void;
@@ -203,8 +235,7 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
-    const assetTypesDispatch = useAssetTypesDispatch();
-    const [geolocationMode, setGeolocationMode] = useState("static");
+    const sensorTypesDispatch = useSensorTypesDispatch();
     const [iconSvgString, setIconSvgString] = useState("");
     const [iconSvgFileLoaded, setIconSvgFileLoaded] = useState(false);
     const [iconSvgFileName, setIconSvgFileName] = useState("-");
@@ -290,28 +321,29 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
 
     const onSubmit = (values: any, actions: any) => {
         const orgId = values.orgId;
-        const url = `${protocol}://${domainName}/admin_api/asset_type/${orgId}`;
+        const url = `${protocol}://${domainName}/admin_api/sensor_type/${orgId}`;
         const config = axiosAuth(accessToken);
 
-        const assetTypeData = {
+        const sensorTypeData = {
             type: values.type,
             iconSvgFileName,
-            iconSvgString,
-            geolocationMode: values.geolocationMode,
             markerSvgFileName,
             markerSvgString,
-            assetStateFormat: values.assetStateFormat
+            iconSvgString,
+            dashboardRefreshString: values.dashboardRefresh,
+            dashboardTimeWindow: values.dashboardTimeWindow,
+            defaultPayloadJsonSchema: values.defaultPayloadJsonSchema
         }
 
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
-            .post(url, assetTypeData, config)
+            .post(url, sensorTypeData, config)
             .then((response) => {
                 const data = response.data;
                 toast.success(data.message);
-                const assetTypesOptionToShow = { assetTypesOptionToShow: ASSET_TYPES_OPTIONS.TABLE };
+                const sensorTypesOptionToShow = { sensorTypesOptionToShow: SENSOR_TYPES_OPTIONS.TABLE };
                 setIsSubmitting(false);
-                setAssetTypesOptionToShow(assetTypesDispatch, assetTypesOptionToShow);
+                setSensorTypesOptionToShow(sensorTypesDispatch, sensorTypesOptionToShow);
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
@@ -322,23 +354,33 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
             })
     }
 
-    const initialAssetTypeData = {
+    const defaultPayloadJsonSchema = {
+        "type": "object",
+        "properties": {
+            "parameter1": {
+                "type": "number",
+                "units": "m"
+            }
+        }
+    };
+
+    const initialSensorTypeData = {
         orgId: 1,
         type: "",
-        geolocationMode: "static",
-        assetStateFormat: "{}"
+        dashboardRefresh: "1s",
+        dashboardTimeWindow: "5m",
+        defaultPayloadJsonSchema: JSON.stringify(defaultPayloadJsonSchema, null, 4)
     }
 
     const validationSchema = Yup.object().shape({
         orgId: Yup.number().required('Required'),
         type: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
-        assetStateFormat: Yup.string().required('Required'),
+        dashboardTimeWindow: Yup.string().matches(/\d+(s|m|h)$/,
+            "Dashboard time window must contain a number follow by 's', 'm' or 'h'"
+        ).required('Required'),
+        defaultPayloadJsonSchema: Yup.string().required('Required'),
     });
 
-    const onGeolocationModeSelectChange = (e: { value: string }, formik: FormikType) => {
-        setGeolocationMode(e.value);
-        formik.setFieldValue("geolocationMode", e.value)
-    }
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
@@ -373,9 +415,9 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
 
     return (
         <>
-            <FormTitle isSubmitting={isSubmitting}>Create asset type</FormTitle>
+            <FormTitle isSubmitting={isSubmitting}>Create sensor type</FormTitle>
             <FormContainer>
-                <Formik initialValues={initialAssetTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
+                <Formik initialValues={initialSensorTypeData} validationSchema={validationSchema} onSubmit={onSubmit} >
                     {
                         formik => (
                             <Form>
@@ -391,6 +433,25 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
                                         label='Type'
                                         name='type'
                                         type='text'
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Dashboard refresh time'
+                                        name="dashboardRefresh"
+                                        options={dashboardRefreshOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Dashboard time window'
+                                        name='dashboardTimeWindow'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='textarea'
+                                        label='Default payload json schema'
+                                        name='defaultPayloadJsonSchema'
+                                        textAreaSize='Small'
                                     />
                                     <DataFileTitle>Select icon svg file</DataFileTitle>
                                     <FileSelectionContainer>
@@ -431,64 +492,45 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
                                             </SelectDataFilenButtonContainer>
                                         </DataFileContainer>
                                     </FileSelectionContainer>
-                                    <FormikControl
-                                        control='select'
-                                        label='Geolocation mode'
-                                        name='geolocationMode'
-                                        options={geolocationModeOptions}
-                                        type='text'
-                                        onChange={(e) => onGeolocationModeSelectChange(e, formik)}
-                                    />
-                                    {
-                                        geolocationMode === "dynamic" &&
-                                        <>
-                                            <DataFileTitle>Select marker svg file</DataFileTitle>
-                                            <FileSelectionContainer>
-                                                <DataFileContainer>
-                                                    {
-                                                        markerSvgFileLoaded &&
-                                                        <SvgIconPreviewContainerDiv>
-                                                            <SvgIconPreviewTitle>
-                                                                Marker preview
-                                                            </SvgIconPreviewTitle>
-                                                            <SvgComponentContainerDiv>
-                                                                <SvgComponent
-                                                                    svgString={markerSvgString}
-                                                                    imgWidth="100"
-                                                                    imgHeight="100"
-                                                                    backgroundColor="#202226"
-                                                                />
-                                                            </SvgComponentContainerDiv>
-                                                        </SvgIconPreviewContainerDiv>
-                                                    }
-                                                    <FieldContainer>
-                                                        <label>File name</label>
-                                                        <div>{markerSvgFileName}</div>
-                                                    </FieldContainer>
-                                                    <SelectDataFilenButtonContainer >
-                                                        <FileButton
-                                                            type='button'
-                                                            onClick={clearMarkerSvgDataFile}
-                                                        >
-                                                            Clear
-                                                        </FileButton>
-                                                        <FileButton
-                                                            type='button'
-                                                            onClick={() => markerSvgFileButtonHandler()}
-                                                        >
-                                                            Select local file
-                                                        </FileButton>
-                                                    </SelectDataFilenButtonContainer>
-                                                </DataFileContainer>
-                                            </FileSelectionContainer>
-                                        </>
-                                    }
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Asset state json format'
-                                        name='assetStateFormat'
-                                        textAreaSize='Small'
-                                    />
+                                    <DataFileTitle>Select marker svg file</DataFileTitle>
+                                    <FileSelectionContainer>
+                                        <DataFileContainer>
+                                            {
+                                                markerSvgFileLoaded &&
+                                                <SvgIconPreviewContainerDiv>
+                                                    <SvgIconPreviewTitle>
+                                                        Marker preview
+                                                    </SvgIconPreviewTitle>
+                                                    <SvgComponentContainerDiv>
+                                                        <SvgComponent
+                                                            svgString={markerSvgString}
+                                                            imgWidth="100"
+                                                            imgHeight="100"
+                                                            backgroundColor="#202226"
+                                                        />
+                                                    </SvgComponentContainerDiv>
+                                                </SvgIconPreviewContainerDiv>
+                                            }
+                                            <FieldContainer>
+                                                <label>File name</label>
+                                                <div>{markerSvgFileName}</div>
+                                            </FieldContainer>
+                                            <SelectDataFilenButtonContainer >
+                                                <FileButton
+                                                    type='button'
+                                                    onClick={clearMarkerSvgDataFile}
+                                                >
+                                                    Clear
+                                                </FileButton>
+                                                <FileButton
+                                                    type='button'
+                                                    onClick={() => markerSvgFileButtonHandler()}
+                                                >
+                                                    Select local file
+                                                </FileButton>
+                                            </SelectDataFilenButtonContainer>
+                                        </DataFileContainer>
+                                    </FileSelectionContainer>
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

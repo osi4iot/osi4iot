@@ -19,13 +19,13 @@ class CreateSensorTypeDto {
 	public markerSvgString: string;
 
 	@IsString()
-	public defaultPayloadJsonSchema: string;
-
-	@IsString()
 	public dashboardRefreshString: string;
 
 	@IsString()
 	public dashboardTimeWindow: string;
+
+	@IsString()
+	public defaultPayloadJsonSchema: string;
 
 	isPredefined: boolean;
 }

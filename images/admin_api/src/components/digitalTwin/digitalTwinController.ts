@@ -39,6 +39,7 @@ import {
 	checkNumberOfGltfFiles,
 	checkDigitalTwinConstraint,
 	checkExistentSensorsRef,
+	addDashboardUrls,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -201,7 +202,8 @@ class DigitalTwinController implements IController {
 					digitalTwins = await getDigitalTwinsByGroupsIdArray(groupsIdArray);
 				}
 			}
-			res.status(200).send(digitalTwins);
+			const digitalTwinsExtended = await addDashboardUrls(digitalTwins);
+			res.status(200).send(digitalTwinsExtended);
 		} catch (error) {
 			next(error);
 		}

@@ -408,12 +408,15 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (headerName === "Floor number") return "120px";
             else if (headerName === "Predefined") return "100px";
             else if (accessor === "S3 storage") return "100px";
+            else if (accessor === "dashboardRefreshString") return "100px";
+            else if (accessor === "dashboardTimeWindow") return "110px";
             else return "auto"
         } else return "auto";
     });
 
     const columnsMaxWidth = columnsTable.map(column => {
         const headerName = (column.Header as string);
+        const accessor = (column.accessor as string);
         if (typeof column.Header !== 'function') {
             if (headerName === "Payload format") return "450px";
             else if (headerName === "Refresh tokens") return "1200px";
@@ -421,6 +424,8 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (headerName === "Floor number") return "120px";
             else if (headerName === "Predefined") return "100px";
             else if (headerName === "S3 storage") return "100px";
+            else if (accessor === "dashboardRefreshString") return "100px";
+            else if (accessor === "dashboardTimeWindow") return "110px";
             else return "auto"
         } else return "auto";
     });

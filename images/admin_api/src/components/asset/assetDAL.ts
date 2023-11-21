@@ -241,9 +241,11 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): 
 
 	const topicsRef = assetData.topicsRef;
 	const topics: ITopic[] = [];
+	const assetTopics: IAssetTopic[] = [];
 	for (let i = 0; i < topicsRef.length; i++) {
 		topics[i] = await createTopic(group.id, topicsRef[i]);
-		await createAssetTopic(newAsset.id, topics[i].id, topicsRef[i].topicRef);
+		const assetTopic = await createAssetTopic(newAsset.id, topics[i].id, topicsRef[i].topicRef);
+		assetTopics.push(assetTopic);
 	}
 
 	const sensorsRef = assetData.sensorsRef;
@@ -252,6 +254,8 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): 
 	const sensorsUid: string[] = [];
 	for (let i = 0; i < sensorsRef.length; i++) {
 		sensorsUid[i] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+		const topicId = assetTopics.filter(assetTopic => assetTopic.topicRef === sensorsRef[i].topicRef)[0].topicId;
+		sensorsRef[i].topicId = topicId;
 		dashboarsId[i] = await createSensorDashboard(group, sensorsRef[i], sensorsUid[i]);
 	}
 

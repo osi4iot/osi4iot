@@ -30,6 +30,8 @@ import {
 	setSensorsTable,
 	setAssetTypesTable,
 	setReloadAssetTypesTable,
+	setSensorTypesTable,
+	setReloadSensorTypesTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import GeolocationContainer, { IDigitalTwinState, ISensorState } from '../Geolocation/GeolocationContainer';
@@ -47,11 +49,21 @@ import SceneLoader from '../../Tools/SceneLoader';
 import { useHistory } from 'react-router-dom';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { useAssetTypesTable, useAssetsTable, useReloadAssetTypesTable, useReloadAssetsTable, useReloadSensorsTable, useSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantContext';
+import {
+	useAssetTypesTable,
+	useAssetsTable,
+	useReloadAssetTypesTable,
+	useReloadAssetsTable,
+	useReloadSensorTypesTable,
+	useReloadSensorsTable,
+	useSensorTypesTable,
+	useSensorsTable
+} from '../../../contexts/platformAssistantContext/platformAssistantContext';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
+import { ISensorType } from '../TableColumns/sensorTypesColumns';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -176,6 +188,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const groupsManagedTable = useGroupsManagedTable();
 	const assetTypesTable = useAssetTypesTable();
 	const assetsTable = useAssetsTable();
+	const sensorTypesTable = useSensorTypesTable();
 	const sensorsTable = useSensorsTable();
 	const digitalTwinsTable = useDigitalTwinsTable();
 	const [buildingsLoading, setBuildingsLoading] = useState(true);
@@ -184,7 +197,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
 	const [assetTypesLoading, setAssetTypesLoading] = useState(true);
 	const [assetsLoading, setAssetsLoading] = useState(true);
-	const [sensorsLoading, setSensorsLoading] = useState(true);;
+	const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
+	const [sensorsLoading, setSensorsLoading] = useState(true);
 	const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
 	const [digitalTwinGltfData, setDigitalTwinGltfData] = useState<IDigitalTwinGltfData | null>(null);
 	const [optionToShow, setOptionToShow] = useState(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);;
@@ -195,6 +209,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const reloadAssetTypesTable = useReloadAssetTypesTable();
 	const reloadAssetsTable = useReloadAssetsTable();
 	const reloadSensorsTable = useReloadSensorsTable();
+	const reloadSensorTypesTable = useReloadSensorTypesTable();
 	const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
 	const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
 	const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
@@ -534,6 +549,39 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	]);
 
 	useEffect(() => {
+		if (sensorTypesTable.length === 0 || reloadSensorTypesTable) {
+			const config = axiosAuth(accessToken);
+			const urlSensorTypes = `${protocol}://${domainName}/admin_api/sensor_types/user_managed`;
+			getAxiosInstance(refreshToken, authDispatch)
+				.get(urlSensorTypes, config)
+				.then((response) => {
+					const sensorTypes = response.data;
+					sensorTypes.map((sensorType: ISensorType) => {
+                        sensorType.isPredefinedString = "No";
+                        if (sensorType.isPredefined) sensorType.isPredefinedString = "Yes";
+                        return sensorType;
+                    })
+					setSensorTypesTable(plaformAssistantDispatch, { sensorTypes });
+					setSensorTypesLoading(false);
+					const reloadSensorTypesTable = false;
+					setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
+				})
+				.catch((error) => {
+					axiosErrorHandler(error, authDispatch);
+				});
+		} else {
+			setSensorTypesLoading(false);
+		}
+	}, [
+		refreshToken,
+		accessToken,
+		authDispatch,
+		plaformAssistantDispatch,
+		sensorTypesTable.length,
+		reloadSensorTypesTable
+	]);	
+
+	useEffect(() => {
 		if (sensorsTable.length === 0 || reloadSensorsTable) {
 			const config = axiosAuth(accessToken);
 			const urlSensors = `${protocol}://${domainName}/admin_api/sensors/user_managed`;
@@ -630,6 +678,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 						orgsOfGroupsManagedLoading ||
 						groupsManagedLoading ||
 						assetTypesLoading ||
+						sensorTypesLoading ||
 						assetsLoading ||
 						sensorsLoading ||
 						digitalTwinLoading ||
@@ -646,6 +695,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									groupsManaged={groupsManagedTable}
 									assetTypes={assetTypesTable}
 									assets={assetsTable}
+									sensorTypes={sensorTypesTable}
 									sensors={sensorsTable}
 									digitalTwins={digitalTwinsTable}
 									buildingSelected={buildingSelected}
