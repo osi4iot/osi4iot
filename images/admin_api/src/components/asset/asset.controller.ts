@@ -14,9 +14,11 @@ import CreateAssetDto from "./asset.dto";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
 import {
 	checkInitialAssetGeolocation,
+	checkSensorReferences,
 	createNewAsset,
 	createNewAssetType,
 	deleteAssetByPropName,
+	deleteAssetTopics,
 	deleteAssetTypeByPropName,
 	generateZipFileStream,
 	getAllAssetS3Folder,
@@ -365,8 +367,9 @@ class AssetController implements IController {
 			if (!this.isValidAssetPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const asset = await getAssetByPropName(propName, propValue);
 			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
-			const sensors = getSensorsByAssetId(asset.id);
-			const dashboardIds = (await sensors).map(sensor => sensor.dashboardId);
+			const sensors = await getSensorsByAssetId(asset.id);
+			const dashboardIds = sensors.map(sensor => sensor.dashboardId);
+			await deleteAssetTopics(asset.id);
 			await deleteAssetByPropName(propName, propValue);
 			await deleteDashboardsByIdArray(dashboardIds);
 			const message = { message: "Asset deleted successfully" }
@@ -404,6 +407,11 @@ class AssetController implements IController {
 		try {
 			const assetData: CreateAssetDto = req.body;
 			await checkInitialAssetGeolocation(req.group, assetData);
+			const areSensorTypesOk = await checkSensorReferences(req.group, assetData);
+			if (!areSensorTypesOk) {
+				const errorMessage = "At least one sensor type is not correct";
+				throw new HttpException(req, res, 401, errorMessage)
+			}
 			await createNewAsset(req.group, assetData);
 			const message = { message: `A new asset has been created` };
 			infoLogger(req, res, 200, message.message);

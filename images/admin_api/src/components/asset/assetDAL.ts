@@ -22,7 +22,7 @@ import ITopic from "../topic/topic.interface";
 import { createSensorDashboard } from "../group/dashboardDAL";
 import { getDashboardsInfoFromIdArray } from "../dashboard/dashboardDAL";
 import { generateDashboardsUrl } from "../digitalTwin/digitalTwinDAL";
-import { createNewSensor } from "../sensor/sensorDAL";
+import { createNewSensor, getSensorTypeByPropName } from "../sensor/sensorDAL";
 import ISensor from "../sensor/sensor.interface";
 import IAssetTopic from "./assetTopic.interface";
 import IMqttDigitalTwinTopicInfo from "../digitalTwin/mqttDigitalTwinTopicInfo.interface";
@@ -232,6 +232,19 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 	return result.rows[0] as IAsset;
 };
 
+export const checkSensorReferences = async (group: IGroup, assetData: CreateAssetDto) => {
+	let areSensorTypesOk = true;
+	const sensorsRef = assetData.sensorsRef;
+	for (const sensorRef of sensorsRef) {
+		const sensorType = await getSensorTypeByPropName(group.orgId, "type", sensorRef.sensorType);
+		if (!sensorType) {
+			areSensorTypesOk = false;
+			break;
+		}
+	}
+	return areSensorTypesOk;
+}
+
 export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): Promise<IAsset> => {
 	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	const groupId = group.id;
@@ -256,6 +269,8 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): 
 		sensorsUid[i] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 		const topicId = assetTopics.filter(assetTopic => assetTopic.topicRef === sensorsRef[i].topicRef)[0].topicId;
 		sensorsRef[i].topicId = topicId;
+		const sensorType = await getSensorTypeByPropName(group.orgId, "type", sensorsRef[i].sensorType);
+		sensorsRef[i].sensorTypeId = sensorType.id;
 		dashboarsId[i] = await createSensorDashboard(group, sensorsRef[i], sensorsUid[i]);
 	}
 
@@ -413,7 +428,7 @@ export const createAssetTopic = async (
 	assetId: number,
 	topicId: number,
 	topicRef: string,
-): Promise<IAssetTopic > => {
+): Promise<IAssetTopic> => {
 	const queryString = `INSERT INTO grafanadb.asset_topic (
 		asset_id, topic_id, topic_ref)
 		VALUES ($1, $2, $3)
@@ -448,12 +463,12 @@ export const getAssetTopicByAssetIdAndTopicRef = async (assetId: number, topicRe
 	return response.rows[0] as IAssetTopic;
 };
 
-
 export const deleteAssetTopics = async (
 	assetId: number,
 ): Promise<void> => {
-	const queryString = `DELETE FROM grafanadb.asset_topic
-						WHERE grafanadb.asset_topic.asset_twin_id = $1;`;
+	const queryString = `DELETE FROM grafanadb.topic USING grafanadb.asset_topic
+						WHERE grafanadb.asset_topic.topic_id = grafanadb.topic.id AND
+						grafanadb.asset_topic.asset_id = $1;`;
 	await pool.query(queryString, [assetId]);
 };
 

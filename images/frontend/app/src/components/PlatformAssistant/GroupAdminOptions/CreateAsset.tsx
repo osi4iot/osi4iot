@@ -24,6 +24,7 @@ import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns'
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import SvgComponent from '../../Tools/SvgComponent';
+import { setReloadDashboardsTable, setReloadSensorsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -144,6 +145,38 @@ const SvgComponentContainerDiv = styled.div`
     align-items: center;
 `;
 
+const defaultTopicsRef = [
+    {
+        topicRef: "dev2pdb_1",
+        topicType: "dev2pdb",
+        description: `New asset topic`,
+        mqttAccessControl: "Pub & Sub",
+        payloadJsonSchema: "{}",
+        requireS3Storage: false,
+        s3Folder: "",
+        parquetSchema: "{}",
+    }
+];
+
+const defaultSensorsRef = [
+    {
+        sensorRef: "sensor_1",
+        sensorType: "Generic sensor",
+        topicRef: "dev2pdb_1",
+        description: `New generic sensor`,
+        payloadJsonSchema: {
+            "type": "object",
+            "properties": {
+                "parameter": {
+                    "type": "number",
+                    "description": "parameter",
+                    "units": "-"
+                }
+            }
+        }
+    }
+];
+
 const domainName = getDomainName();
 const protocol = getProtocol();
 
@@ -188,6 +221,8 @@ interface InitialAssetData {
     latitude: number;
     iconRadio: number;
     iconSizeFactor: number;
+    topicsRef: string;
+    sensorsRef: string;
 }
 
 type FormikType = FormikProps<InitialAssetData>
@@ -209,6 +244,7 @@ const CreateAsset: FC<CreateAssetProps> = ({
     assetTypes,
     selectLocationOption
 }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -240,6 +276,8 @@ const CreateAsset: FC<CreateAssetProps> = ({
         latitude: storedAssetData.latitude,
         iconRadio: storedAssetData.iconRadio,
         iconSizeFactor: storedAssetData.iconSizeFactor,
+        topicsRef: JSON.stringify(defaultTopicsRef, null, 4),
+        sensorsRef: JSON.stringify(defaultSensorsRef, null, 4),
     }
 
     useEffect(() => {
@@ -311,14 +349,27 @@ const CreateAsset: FC<CreateAssetProps> = ({
             (values as any).iconSizeFactor = parseFloat((values as any).iconSizeFactor);
         }
 
+        const topicsRef = JSON.parse(values.topicsRef);
+        for (const topicRef of topicsRef) {
+            topicRef.payloadJsonSchema = JSON.stringify(topicRef.payloadJsonSchema);
+        }
+
+        const sensorsRef = JSON.parse(values.sensorsRef);
+        for (const sensorRef of sensorsRef) {
+            sensorRef.payloadJsonSchema = JSON.stringify(sensorRef.payloadJsonSchema);
+        }
+
         const assetData = {
-            description: values.description,
             assetTypeId,
+            description: values.description,
             iconRadio: values.iconRadio,
             iconSizeFactor: values.iconSizeFactor,
             longitude: values.longitude,
             latitude: values.latitude,
+            topicsRef,
+            sensorsRef
         }
+
 
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -336,6 +387,12 @@ const CreateAsset: FC<CreateAssetProps> = ({
             })
             .finally(() => {
                 refreshAssets();
+                const reloadSensorsTable = true;
+                setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
+                const reloadTopicsTable = true;
+                setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
+                const reloadDashboardsTable = true;
+                setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
             })
     }
 
@@ -371,7 +428,9 @@ const CreateAsset: FC<CreateAssetProps> = ({
                 iconSizeFactor: parseFloat(initialAssetData.iconSizeFactor as unknown as string),
                 longitude: parseFloat(initialAssetData.longitude as unknown as string),
                 latitude: parseFloat(initialAssetData.latitude as unknown as string),
-                iconSvgString
+                iconSvgString,
+                topicsRef: initialAssetData.topicsRef,
+                sensorsRef: initialAssetData.sensorsRef
             }
             if (group.featureIndex === 0) {
                 const warningMessage = "The group containing the asset does not have a defined space."
@@ -475,6 +534,18 @@ const CreateAsset: FC<CreateAssetProps> = ({
                                             </SelectLocationButton>
                                         </SelectAssetLocationDivButtonContainer>
                                     </AssetLocationContainerDiv>
+                                    <FormikControl
+                                        control='textarea'
+                                        label='Topic references'
+                                        name='topicsRef'
+                                        textAreaSize='Large'
+                                    />
+                                    <FormikControl
+                                        control='textarea'
+                                        label='Sensor references'
+                                        name='sensorsRef'
+                                        textAreaSize='Large'
+                                    />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

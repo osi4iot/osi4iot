@@ -1,4 +1,4 @@
-import { IsNumber, IsString } from "class-validator";
+import { IsString } from "class-validator";
 
 class CreateAssetSensorsRefDto {
 	topicId?: number;
@@ -6,8 +6,10 @@ class CreateAssetSensorsRefDto {
 	@IsString()
 	public sensorRef: string;
 
-	@IsNumber()
-	public sensorTypeId: number;
+	sensorTypeId?: number;
+
+	@IsString()
+	public sensorType: string;
 
 	@IsString()
 	public topicRef: string;

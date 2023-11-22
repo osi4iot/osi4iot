@@ -7,6 +7,8 @@ class CreateSensorDto {
 	@IsString()
 	public description: string;
 
+	sensorType: string;
+
 	@IsNumber()
 	public sensorTypeId: number;
 

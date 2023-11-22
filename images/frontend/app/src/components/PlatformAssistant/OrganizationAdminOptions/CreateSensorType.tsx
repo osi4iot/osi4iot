@@ -214,6 +214,16 @@ const dashboardRefreshOptions = [
     },
 ];
 
+const defaultPayloadJsonSchema = {
+    "type": "object",
+    "properties": {
+        "parameter1": {
+            "type": "number",
+            "units": "m"
+        }
+    }
+};
+
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
@@ -353,16 +363,6 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
                 refreshSensorTypes();
             })
     }
-
-    const defaultPayloadJsonSchema = {
-        "type": "object",
-        "properties": {
-            "parameter1": {
-                "type": "number",
-                "units": "m"
-            }
-        }
-    };
 
     const initialSensorTypeData = {
         orgId: 1,
