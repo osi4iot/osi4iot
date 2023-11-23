@@ -33,28 +33,26 @@ const ConnectionLed = styled.span<ConnectionLedProps>`
 
 const FormContainer = styled.div`
 	font-size: 12px;
-    height: calc(100vh - 160px);
+    height: calc(100vh - 190px);
+	width: calc(100vw - 40px);
 	position: relative;
 	margin: 0 5px;
 	color: white;
 	margin: 10px 0;
 	padding: 10px;
-	width: calc(100vw - 40px);
 	max-width: 400px;
 	border: 2px solid #3274d9;
 	border-radius: 15px;
 
     video {
-        width: calc(100vw - 70px);
+        height: calc(100vh - 230px);
         max-width: 360px;
-        height: calc(100vh - 185px);
         object-fit: cover;
     }
     
     img {
-        width: calc(100vw - 70px);
+        height: calc(100vh - 230px);
         max-width: 360px;
-        height: calc(100vh - 185px);
         object-fit: cover;
     }
 `;

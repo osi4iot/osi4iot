@@ -35,7 +35,7 @@ const ConnectionLed = styled.span<ConnectionLedProps>`
 
 const FormContainer = styled.div`
 	font-size: 12px;
-    height: calc(100vh - 160px);
+    height: calc(100vh - 190px);
 	position: relative;
 	margin: 0 5px;
 	color: white;
@@ -52,9 +52,10 @@ const FormContainer = styled.div`
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 230px);
+    height: calc(100vh - 280px);
     width: 100%;
     padding: 10px 5px;
+    margin-bottom: 15px;
     overflow-y: auto;
     /* width */
     ::-webkit-scrollbar {

@@ -138,6 +138,7 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"temperature": {
 					"type": "number",
+					"description": "Temperature",
 					"units": "°C"
 				}
 			}
@@ -156,6 +157,7 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"temperature": {
 					"type": "number",
+					"description": "Presure",
 					"units": "Pa"
 				}
 			}
@@ -174,6 +176,7 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"temperature": {
 					"type": "number",
+					"description": "Humidity",
 					"units": "%"
 				}
 			}
@@ -192,6 +195,7 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"temperature": {
 					"type": "number",
+					"description": "Power",
 					"units": "kW"
 				}
 			}
@@ -210,6 +214,7 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"temperature": {
 					"type": "number",
+					"description": "Energy_consumption",
 					"units": "kW"
 				}
 			}
@@ -228,6 +233,7 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"temperature": {
 					"type": "number",
+					"description": "Flow",
 					"units": "m^3/h"
 				}
 			}
@@ -246,6 +252,7 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"temperature": {
 					"type": "number",
+					"description": "Proximity",
 					"units": "m"
 				}
 			}
@@ -264,7 +271,8 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"temperature": {
 					"type": "number",
-					"units": "m"
+					"description": "Counter",
+					"units": "-"
 				}
 			}
 		},
@@ -282,6 +290,7 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"strain": {
 					"type": "number",
+					"description": "Strain",
 					"units": "µε"
 				}
 			}
@@ -297,12 +306,14 @@ export const predefinedSensorTypes = [
 		markerSvgString: "-",
 		defaultPayloadJsonSchema: {
 			"type": "object",
-			"rotations": {
-				"type": "array",
-				"description": "Rot_x,Rot_y",
-				"units": "rad",
-				"items": {
-					"type": "number"
+			"properties": {
+				"rotations": {
+					"type": "array",
+					"description": "Rot_x,Rot_y",
+					"units": "rad",
+					"items": {
+						"type": "number"
+					}
 				}
 			}
 		},
@@ -317,12 +328,14 @@ export const predefinedSensorTypes = [
 		markerSvgString: "-",
 		defaultPayloadJsonSchema: {
 			"type": "object",
-			"rotations": {
-				"type": "array",
-				"description": "Ax,Ay,Az",
-				"units": "m/s^2",
-				"items": {
-					"type": "number"
+			"properties": {
+				"accelerations": {
+					"type": "array",
+					"description": "Ax,Ay,Az",
+					"units": "m/s^2",
+					"items": {
+						"type": "number"
+					}
 				}
 			}
 		},
@@ -337,12 +350,14 @@ export const predefinedSensorTypes = [
 		markerSvgString: "-",
 		defaultPayloadJsonSchema: {
 			"type": "object",
-			"rotations": {
-				"type": "array",
-				"description": "Vel_theta_x,Vel_theta_y,Vel_theta_z",
-				"units": "rad/s",
-				"items": {
-					"type": "number"
+			"properties": {
+				"angular_velocity": {
+					"type": "array",
+					"description": "Vel_theta_x,Vel_theta_y,Vel_theta_z",
+					"units": "rad/s",
+					"items": {
+						"type": "number"
+					}
 				}
 			}
 		},
@@ -360,16 +375,19 @@ export const predefinedSensorTypes = [
 			"properties": {
 				"Min_value": {
 					"type": "number",
+					"description": "Min_value",
 					"units": "-"
 				},
 				"Mean_value": {
 					"type": "number",
+					"description": "Mean_value",
 					"units": "-"
 				},
 				"Max_value": {
 					"type": "number",
+					"description": "Max_value",
 					"units": "-"
-				},
+				}
 			}
 		},
 		dashboardRefreshString: "1s",
@@ -384,8 +402,9 @@ export const predefinedSensorTypes = [
 		defaultPayloadJsonSchema: {
 			"type": "object",
 			"properties": {
-				"process_state": {
+				"product_state": {
 					"type": "number",
+					"description": "Product state",
 					"units": "-"
 				}
 			}

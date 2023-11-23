@@ -80,6 +80,7 @@ const Menu = styled.div`
 	height: 400px;
 
 	@media screen and (max-height: 700px) {
+		margin-top: 15px;
 		height: 300px;
 	}
 `;
