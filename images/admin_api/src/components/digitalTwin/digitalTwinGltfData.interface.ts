@@ -22,5 +22,6 @@ export default interface IDigitalTwinGltfData {
 	gltfData: string;
 	digitalTwinSimulationFormat: string;
 	mqttTopicsData: IMqttTopicDataShort[];
+	topicIdBySensorRef: Record<string, number>;
 	sensorsDashboards: IDigitalTwinSensorDashboard[];
 }

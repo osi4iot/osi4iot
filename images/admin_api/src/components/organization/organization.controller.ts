@@ -544,8 +544,6 @@ class OrganizationController implements IController {
 					topicSensorTypes: ["dev2pdb_wt"],
 					maxNumResFemFiles: 1,
 					digitalTwinSimulationFormat: "{}",
-					dtRefFileName: "-",
-					dtRefFileLastModifDate: "-",
 					sensorsRef: ["sensor_3"]
 				}
 				const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);

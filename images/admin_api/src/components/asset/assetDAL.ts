@@ -26,6 +26,7 @@ import { createNewSensor, getSensorTypeByPropName } from "../sensor/sensorDAL";
 import ISensor from "../sensor/sensor.interface";
 import IAssetTopic from "./assetTopic.interface";
 import IMqttDigitalTwinTopicInfo from "../digitalTwin/mqttDigitalTwinTopicInfo.interface";
+import IDigitalTwinTopic from "../digitalTwin/digitalTwinTopic.interface";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -474,19 +475,33 @@ export const deleteAssetTopics = async (
 
 export const getAssetTopicsInfoFromByDTIdsArray = async (digitalTwinIdsArray: number[]): Promise<IMqttDigitalTwinTopicInfo[]> => {
 	const response = await pool.query(`SELECT grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
-	                                grafanadb.asset_topic.topic_id AS "topicId", grafanadb.digital_twin_topic.topic_ref AS "topicRef",
+									grafanadb.asset_topic.topic_id AS "topicId", 
+									grafanadb.topic.topic_type AS "topicType",
+									grafanadb.asset_topic.topic_ref AS "topicRef",
 									grafanadb.group.group_uid AS "groupHash",
 									grafanadb.topic.topic_uid AS "topicHash"
 									FROM grafanadb.asset_topic
 									INNER JOIN grafanadb.digital_twin ON grafanadb.digital_twin.asset_id = grafanadb.asset_topic.asset_id
 									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
-									WHERE grafanadb.digital_twin_topic.digital_twin_id = ANY($1::bigint[])
+									WHERE grafanadb.digital_twin.id = ANY($1::bigint[])
 									ORDER BY grafanadb.asset_topic.topic_id ASC;`, [digitalTwinIdsArray]);
 
 	return response.rows as IMqttDigitalTwinTopicInfo[];
 }
 
+export const getAssetTopicsByDigitalTwinId = async (digitalTwinId: number): Promise<IDigitalTwinTopic[]> => {
+	const queryString = `SELECT grafanadb.digital_twin.id AS "digitalTwinId",
+						grafanadb.asset_topic.topic_id AS "topicId", 
+						grafanadb.asset_topic.topic_ref AS "topicRef"
+						FROM grafanadb.asset_topic
+						INNER JOIN grafanadb.digital_twin ON grafanadb.digital_twin.asset_id = grafanadb.asset_topic.asset_id
+						WHERE grafanadb.digital_twin.id = $1
+						ORDER BY grafanadb.digital_twin.id ASC,
+						grafanadb.asset_topic.topic_id ASC;`;
+	const response = await pool.query(queryString, [digitalTwinId]);
+	return response.rows as IDigitalTwinTopic[];
+};
 
 export const updateGroupAssetsLocation = async (geoJsonDataString: string, group: IGroup): Promise<void> => {
 	const groupAssets = await getAssetsByGroupId(group.id);

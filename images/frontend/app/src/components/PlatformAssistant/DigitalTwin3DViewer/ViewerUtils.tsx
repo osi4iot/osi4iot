@@ -83,6 +83,7 @@ export interface IDigitalTwinGltfData {
 	femResFileInfoList: IBucketFileInfoList[];
 	mqttTopicsData: IMqttTopicData[];
 	sensorsDashboards: IDigitalTwinSensorDashboard[];
+	topicIdBySensorRef: Record<string, number>;
 	digitalTwinSimulationFormat: Record<string, DigitalTwinSimulationParameter>;
 	isGroupDTDemo: boolean;
 }
@@ -155,9 +156,11 @@ export const generateInitialSensorsState = (
 	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
 	const customAnimationObjNamesDtm2pdb = getCustomAnimationObjNames(lastDtm2pdbMessage);
 	const objectOnOffObjNamesDtm2pdb = getObjectOnOffObjNames(lastDtm2pdbMessage);
+	const topicIdBySensorRef = digitalTwinGltfData.topicIdBySensorRef;
 	sensorObjects.forEach(obj => {
 		const objName = obj.node.name;
-		const sensorTopicId = obj.node.userData.sensorTopicId;
+		const sensorRef = obj.node.userData.sensorRef;
+		const sensorTopicId = topicIdBySensorRef[sensorRef]
 		const sensorsState: SensorState = {
 			stateString: "off",
 			showSensorMarker: false,
@@ -213,7 +216,8 @@ export const generateInitialSensorsState = (
 		}
 
 		let clipValue: (number | null) = null;
-		const clipTopicId = obj.node.userData.clipTopicId;
+		const clipSensorRef = obj.node.userData.clipSensorRef;
+		const clipTopicId = topicIdBySensorRef[clipSensorRef];
 		if (clipTopicId !== undefined) {
 			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
 			if (mqttTopicsDataFiltered.length !== 0) {
@@ -287,7 +291,8 @@ export const generateInitialAssetsState = (
 		}
 
 		let clipValue: (number | null) = null;
-		const clipTopicId = obj.node.userData.clipTopicId;
+		const clipSensorRef = obj.node.userData.clipSensorRef;
+		const clipTopicId = digitalTwinGltfData.topicIdBySensorRef[clipSensorRef];
 		if (clipTopicId !== undefined) {
 			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
 			if (mqttTopicsDataFiltered.length !== 0) {
@@ -346,7 +351,8 @@ export const generateInitialGenericObjectsState = (
 		};
 
 		let clipValue: (number | null) = null;
-		const clipTopicId = obj.node.userData.clipTopicId;
+		const clipSensorRef = obj.node.userData.clipSensorRef;
+		const clipTopicId = digitalTwinGltfData.topicIdBySensorRef[clipSensorRef];
 		if (clipTopicId !== undefined) {
 			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
 			if (mqttTopicsDataFiltered.length !== 0) {
@@ -421,7 +427,8 @@ export const generateInitialFemSimObjectsState = (
 		}
 
 		let clipValue: (number | null) = null;
-		const clipTopicId = obj.node.userData.clipTopicId;
+		const clipSensorRef = obj.node.userData.clipSensorRef;
+		const clipTopicId = digitalTwinGltfData.topicIdBySensorRef[clipSensorRef];
 		if (clipTopicId !== undefined) {
 			const mqttTopicsDataFiltered = digitalTwinGltfData.mqttTopicsData.filter(topicData => topicData.topicId === clipTopicId);
 			if (mqttTopicsDataFiltered.length !== 0) {

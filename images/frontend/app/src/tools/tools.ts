@@ -92,9 +92,11 @@ export const getPlatformAssistantPathForUserRole = (userRole: string) => {
 }
 
 
-export const digitalTwinFormatValidation = (obj: any) => {
+export const digitalTwinFormatValidation = (value: any) => {
     let output = false;
     try {
+        let obj = value;
+        if (typeof value === 'string') obj = JSON.parse(value);
         const keys = Object.keys(obj);
         if (keys.length === 0) {
             output = true;

@@ -92,6 +92,7 @@ interface ModelProps {
 	initialGenericObjectsState: Record<string, GenericObjectState>;
 	genericObjectsVisibilityState: Record<string, ObjectVisibilityState>;
 	mqttTopicsData: IMqttTopicData[];
+	topicIdBySensorRef: Record<string, number>;
 	dashboardUrl: string;
 	sensorsOpacity: number;
 	highlightAllSensors: boolean;
@@ -146,6 +147,7 @@ const Model: FC<ModelProps> = (
 		initialGenericObjectsState,
 		genericObjectsVisibilityState,
 		mqttTopicsData,
+		topicIdBySensorRef,
 		dashboardUrl,
 		sensorsOpacity,
 		highlightAllSensors,
@@ -212,6 +214,7 @@ const Model: FC<ModelProps> = (
 	useSubscription(
 		mqttTopics,
 		mqttTopicsData,
+		topicIdBySensorRef,
 		sensorsState,
 		assetsState,
 		genericObjectsState,

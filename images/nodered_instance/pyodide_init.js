@@ -8,5 +8,4 @@ const initPyodide = async () => {
     return pyodide;
 }
 
-
 module.exports = initPyodide;

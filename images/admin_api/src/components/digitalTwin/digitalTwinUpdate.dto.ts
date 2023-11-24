@@ -19,12 +19,6 @@ class UpdateDigitalTwinDto {
 	@IsString()
 	public digitalTwinSimulationFormat: string;
 
-	@IsString()
-	public dtRefFileName: string;
-
-	@IsString()
-	public dtRefFileLastModifDate: string;
-
 	@IsString({ each: true })
 	public sensorsRef: string[];
 }

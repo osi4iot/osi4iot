@@ -896,6 +896,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								initialGenericObjectsState={initialGenericObjectsState as Record<string, GenericObjectState>}
 								genericObjectsVisibilityState={opts.genericObjectsVisibilityState}
 								mqttTopicsData={digitalTwinGltfData.mqttTopicsData}
+								topicIdBySensorRef={digitalTwinGltfData.topicIdBySensorRef}
 								dashboardUrl={digitalTwinSelected?.dashboardUrl as string}
 								sensorsOpacity={opts.sensorsOpacity}
 								highlightAllSensors={opts.highlightAllSensors}

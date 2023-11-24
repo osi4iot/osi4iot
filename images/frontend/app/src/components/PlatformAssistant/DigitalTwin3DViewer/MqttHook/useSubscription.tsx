@@ -22,6 +22,7 @@ import { IThreeMesh } from '../threeInterfaces';
 const useSubscription = (
     mqttTopics: string | string[],
     mqttTopicsData: IMqttTopicData[],
+    topicIdBySensorRef: Record<string, number>,
     sensorsState: Record<string, SensorState>,
     assetsState: Record<string, AssetState>,
     genericObjectsState: Record<string, GenericObjectState>,
@@ -74,6 +75,7 @@ const useSubscription = (
                     updateObjectsState(
                         recievedMessage,
                         mqttTopicsData,
+                        topicIdBySensorRef,
                         sensorsState,
                         assetsState,
                         genericObjectsState,
@@ -108,6 +110,7 @@ const useSubscription = (
 const updateObjectsState = (
     recievedMessage: IMessage,
     mqttTopicsData: IMqttTopicData[],
+    topicIdBySensorRef: Record<string, number>,
     sensorsState: Record<string, SensorState>,
     assetsState: Record<string, AssetState>,
     genericObjectsState: Record<string, GenericObjectState>,
@@ -162,7 +165,8 @@ const updateObjectsState = (
             ) {
                 sensorObjects.forEach((obj) => {
                     const objName = obj.node.name;
-                    const sensorTopicId = obj.node.userData.sensorTopicId;
+                    const sensorRef = obj.node.userData.sensorRef;
+                    const sensorTopicId = topicIdBySensorRef[sensorRef];
                     if (
                         sensorTopicId === messageTopicId ||
                         sim2dtmTopicId === messageTopicId ||
@@ -183,7 +187,8 @@ const updateObjectsState = (
                     }
                     const animationType = obj.node.userData.animationType;
                     if (animationType === "blenderTemporary") {
-                        const clipTopicId = obj.node.userData.clipTopicId;
+                        const clipSensorRef = obj.node.userData.clipSensorRef;
+                        const clipTopicId = topicIdBySensorRef[clipSensorRef];
                         if ((clipTopicId !== undefined && clipTopicId === messageTopicId) ||
                             sim2dtmTopicId === messageTopicId || dev2simTopicId === messageTopicId
                         ) {
@@ -205,7 +210,8 @@ const updateObjectsState = (
                     const objName = obj.node.name;
                     const animationType = obj.node.userData.animationType;
                     if (animationType === "blenderTemporary") {
-                        const clipTopicId = obj.node.userData.clipTopicId;
+                        const clipSensorRef = obj.node.userData.clipSensorRef;
+                        const clipTopicId = topicIdBySensorRef[clipSensorRef];
                         if ((clipTopicId !== undefined && clipTopicId === messageTopicId) ||
                             sim2dtmTopicId === messageTopicId || dev2simTopicId === messageTopicId
                         ) {
@@ -227,7 +233,8 @@ const updateObjectsState = (
                     const objName = obj.node.name;
                     const animationType = obj.node.userData.animationType;
                     if (animationType === "blenderTemporary") {
-                        const clipTopicId = obj.node.userData.clipTopicId;
+                        const clipSensorRef = obj.node.userData.clipSensorRef;
+                        const clipTopicId = topicIdBySensorRef[clipSensorRef];
                         if ((clipTopicId !== undefined && clipTopicId === messageTopicId) ||
                             sim2dtmTopicId === messageTopicId || dev2simTopicId === messageTopicId
                         ) {
@@ -246,7 +253,8 @@ const updateObjectsState = (
                 });
 
                 femSimulationObjects.forEach((obj, index) => {
-                    const clipTopicId = obj.node.userData.clipTopicId;
+                    const clipSensorRef = obj.node.userData.clipSensorRef;
+                    const clipTopicId = topicIdBySensorRef[clipSensorRef];
                     if ((clipTopicId !== undefined && clipTopicId === messageTopicId) ||
                         sim2dtmTopicId === messageTopicId || dev2simTopicId === messageTopicId
                     ) {

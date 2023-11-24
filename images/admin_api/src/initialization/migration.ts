@@ -752,8 +752,6 @@ export const dataBaseInitialization = async () => {
 					dashboard_id bigint,
 					max_num_resfem_files SMALLINT NOT NULL DEFAULT 1,
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
-					dt_references_file_name VARCHAR(100),
-					dt_references_file_last_modif_date VARCHAR(100),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (group_id, asset_id, scope),
@@ -787,7 +785,6 @@ export const dataBaseInitialization = async () => {
 					digital_twin_id bigint,
 					topic_id bigint,
 					topic_ref VARCHAR(40),
-					already_created boolean NOT NULL DEFAULT FALSE,
 					CONSTRAINT fk_digital_twin_id
 						FOREIGN KEY(digital_twin_id)
 						REFERENCES grafanadb.digital_twin(id)
@@ -803,6 +800,28 @@ export const dataBaseInitialization = async () => {
 					logger.log("info", `Table ${tableDigitalTwinTopic} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
+				}
+
+				const tableDigitalTwinSensor = "grafanadb.digital_twin_sensor";
+				const queryStringDigitalTwinSensor = `
+				CREATE TABLE IF NOT EXISTS ${tableDigitalTwinSensor}(
+					digital_twin_id bigint,
+					sensor_id bigint,
+					CONSTRAINT fk_digital_twin_id
+						FOREIGN KEY(digital_twin_id)
+						REFERENCES grafanadb.digital_twin(id)
+						ON DELETE CASCADE,
+					CONSTRAINT fk_sensor_id
+						FOREIGN KEY(sensor_id)
+						REFERENCES grafanadb.sensor(id)
+						ON DELETE CASCADE
+				);`;
+
+				try {
+					await postgresClient.query(queryStringDigitalTwinSensor);
+					logger.log("info", `Table ${tableDigitalTwinSensor} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableDigitalTwinSensor} can not be created: %s`, err.message);
 				}
 
 				const tableMLModel = "grafanadb.ml_model";
@@ -991,8 +1010,6 @@ export const dataBaseInitialization = async () => {
 					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 					maxNumResFemFiles: 1,
 					digitalTwinSimulationFormat: "{}",
-					dtRefFileName: "-",
-					dtRefFileLastModifDate: "-",
 					sensorsRef: ["sensor_3"]
 				}
 

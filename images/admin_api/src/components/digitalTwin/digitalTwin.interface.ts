@@ -1,5 +1,3 @@
-import { ISensorRef, ITopicRef } from "./digitalTwinDAL";
-
 export default interface IDigitalTwin {
 	id?: number;
 	orgId: number;
@@ -12,11 +10,8 @@ export default interface IDigitalTwin {
 	dashboardId: number;
 	maxNumResFemFiles: number;
 	digitalTwinSimulationFormat: string;
-	dtRefFileName: string;
-	dtRefFileLastModifDate: string;
 	dashboardUrl: string;
-	topicsRef?: ITopicRef[];
-	sensorsRef?: ISensorRef[];
+	sensorsRef: string[];
 	created?: string;
 	updated?: string;
 }

@@ -149,7 +149,7 @@ const defaultTopicsRef = [
     {
         topicRef: "dev2pdb_1",
         topicType: "dev2pdb",
-        description: `New asset topic`,
+        description: "New asset topic",
         mqttAccessControl: "Pub & Sub",
         payloadJsonSchema: "{}",
         requireS3Storage: false,
@@ -163,7 +163,7 @@ const defaultSensorsRef = [
         sensorRef: "sensor_1",
         sensorType: "Generic sensor",
         topicRef: "dev2pdb_1",
-        description: `New generic sensor`,
+        description: "New generic sensor",
         payloadJsonSchema: {
             "type": "object",
             "properties": {

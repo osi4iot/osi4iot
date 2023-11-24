@@ -418,7 +418,7 @@ class DigitalTwinController implements IController {
 				"The unique constraint for groupId, assetId and scope is violated"
 			);
 
-			const isSensorsRefOk = await checkExistentSensorsRef(existDigitalTwin.assetId, digitalTwinData.sensorsRef);
+			const isSensorsRefOk = await checkExistentSensorsRef(asset.id, digitalTwinData.sensorsRef);
 			if (!isSensorsRefOk) throw new HttpException(req, res, 500,
 				"Some indicated sensor has not been defined"
 			);
