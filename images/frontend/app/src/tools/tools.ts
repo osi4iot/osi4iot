@@ -17,7 +17,7 @@ export const isRegistrationRequest = () => {
     return isRegistrationReq
 };
 
-export const getDomainName = () => {
+export const getDomainName = (): string => {
     const location = window.location.href;
     let domainName = location.split("/")[2];
     // if (domainName === "localhost:3000") domainName = "localhost";  //Development case
@@ -28,7 +28,7 @@ export const getDomainName = () => {
     return domainName;
 }
 
-export const getProtocol = () => {
+export const getProtocol = (): string => {
     let protocol = "https";
     if (window._env_ && window._env_.PROTOCOL === "http") {
         protocol = "http";

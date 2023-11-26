@@ -5,6 +5,7 @@ echo "################################## Run template_script"
 mv /tmp/settings.js /data
 mv /tmp/ml_models.js /data
 mv /tmp/pyodide_init.js /data
+mv /tmp/python_libraries.js /data
 if [ $IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED == "false" ]
 then
     mv /tmp/flows.json /data

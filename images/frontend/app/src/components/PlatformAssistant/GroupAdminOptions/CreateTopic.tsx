@@ -12,6 +12,7 @@ import { TOPICS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setTopicsOptionToShow, useTopicsDispatch } from '../../../contexts/topicsOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { setReloadAssetTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 
 const FormContainer = styled.div`
@@ -160,6 +161,7 @@ interface CreateTopicProps {
 }
 
 const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -197,6 +199,8 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
             })
             .finally(() => {
                 refreshTopics();
+                const reloadAssetTopicsTable = true;
+                setReloadAssetTopicsTable(plaformAssistantDispatch, { reloadAssetTopicsTable })
             })
     }
 

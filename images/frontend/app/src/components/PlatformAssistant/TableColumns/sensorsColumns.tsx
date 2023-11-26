@@ -33,8 +33,9 @@ export interface ISensor {
     sensorRef: string;
     sensorType: string;
     sensorTypeId: number;
-    topicId: string;
+    topicId: number;
     topicUid: string;
+    topicRef: string;
     description: string;
     dashboardId: string;
     dashboardUrl: string;
@@ -176,8 +177,19 @@ export const Create_SENSORS_COLUMNS = (refreshSensors: () => void): Column<ISens
             accessor: "description"
         },
         {
+            Header: "SensorRef",
+            accessor: "sensorRef",
+            filter: 'equals'
+        },
+        {
+            Header: "TopicRef",
+            accessor: "topicRef",
+            filter: 'equals'
+        },
+        {
             Header: "TopicId",
             accessor: "topicId",
+            filter: 'equals'
         },
         {
             Header: "DashboardId",

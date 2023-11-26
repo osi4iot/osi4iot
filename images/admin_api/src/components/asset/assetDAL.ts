@@ -441,8 +441,30 @@ export const createAssetTopic = async (
 	return result.rows[0] as IAssetTopic;
 };
 
+export const getAllAssetTopics = async (): Promise<IAssetTopic[]> => {
+	const queryString = `SELECT asset_id AS "assetId",
+						topic_id AS "topicId", topic_ref AS "topicRef"
+						FROM grafanadb.asset_topic
+						ORDER BY grafanadb.asset_topic.asset_id ASC,
+						         grafanadb.asset_topic.topic_id ASC;`;
+	const response = await pool.query(queryString);
+	return response.rows as IAssetTopic[];
+};
+
+export const getAssetTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IAssetTopic[]> => {
+	const queryString = `SELECT asset_id AS "assetId",
+						topic_id AS "topicId", topic_ref AS "topicRef"
+						FROM grafanadb.asset_topic
+						INNER JOIN grafanadb.asset ON grafanadb.asset.id = grafanadb.asset_topic.asset_id
+						WHERE grafanadb.asset.group_id = ANY($1::bigint[])
+						ORDER BY grafanadb.asset_topic.asset_id ASC,
+						         grafanadb.asset_topic.topic_id ASC;`;
+	const response = await pool.query(queryString, [groupsIdArray]);
+	return response.rows as IAssetTopic[];
+};
+
 export const getAssetTopicsByAssetId = async (assetId: number): Promise<IAssetTopic[]> => {
-	const queryString = `SELECT asset_id AS "asseId",
+	const queryString = `SELECT asset_id AS "assetId",
 						topic_id AS "topicId", topic_ref AS "topicRef"
 						FROM grafanadb.asset_topic
 						WHERE grafanadb.asset_topic.asset_id = $1
@@ -453,7 +475,7 @@ export const getAssetTopicsByAssetId = async (assetId: number): Promise<IAssetTo
 };
 
 export const getAssetTopicByAssetIdAndTopicRef = async (assetId: number, topicRef: string): Promise<IAssetTopic> => {
-	const queryString = `SELECT asset_id AS "asseId",
+	const queryString = `SELECT asset_id AS "assetId",
 						topic_id AS "topicId", topic_ref AS "topicRef"
 						FROM grafanadb.asset_topic
 						WHERE grafanadb.asset_topic.asset_id = $1 AND

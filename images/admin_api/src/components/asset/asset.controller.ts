@@ -22,11 +22,13 @@ import {
 	deleteAssetTypeByPropName,
 	generateZipFileStream,
 	getAllAssetS3Folder,
+	getAllAssetTopics,
 	getAllAssetTypes,
 	getAllAssets,
 	getAssetByPropName,
 	getAssetS3FolderByGroupsIdArray,
 	getAssetS3StorageYears,
+	getAssetTopicsByGroupsIdArray,
 	getAssetTypeByPropName,
 	getAssetTypesByOrgId,
 	getAssetTypesByOrgsIdArray,
@@ -51,6 +53,7 @@ import process_env from "../../config/api_config";
 import IAssetS3Folder from "./assetS3Folder.interface";
 import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 import { generateS3StorageToken, isS3StorageTokenValid } from "../../utils/s3StorageToken";
+import IAssetTopic from "./assetTopic.interface";
 
 
 class AssetController implements IController {
@@ -145,6 +148,13 @@ class AssetController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreateAssetDto>(CreateAssetDto),
 				this.createAsset
+			)
+
+		this.router
+			.get(
+				`${this.path}_topics/user_managed/`,
+				userAuth,
+				this.getAssetTopicsManagedByUser
 			)
 
 		this.router
@@ -416,6 +426,37 @@ class AssetController implements IController {
 			const message = { message: `A new asset has been created` };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getAssetTopicsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let assetTopics: IAssetTopic[] = [];
+			if (req.user.isGrafanaAdmin) {
+				assetTopics = await getAllAssetTopics();
+			} else {
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					assetTopics = await getAssetTopicsByGroupsIdArray(groupsIdArray);
+				}
+			}
+			res.status(200).send(assetTopics);
 		} catch (error) {
 			next(error);
 		}

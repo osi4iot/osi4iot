@@ -24,7 +24,7 @@ import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns'
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import SvgComponent from '../../Tools/SvgComponent';
-import { setReloadDashboardsTable, setReloadSensorsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { setReloadAssetTopicsTable, setReloadDashboardsTable, setReloadSensorsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -387,6 +387,8 @@ const CreateAsset: FC<CreateAssetProps> = ({
             })
             .finally(() => {
                 refreshAssets();
+                const reloadAssetTopicsTable = true;
+                setReloadAssetTopicsTable(plaformAssistantDispatch, { reloadAssetTopicsTable });
                 const reloadSensorsTable = true;
                 setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
                 const reloadTopicsTable = true;

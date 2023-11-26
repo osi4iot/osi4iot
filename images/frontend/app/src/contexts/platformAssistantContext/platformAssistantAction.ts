@@ -49,7 +49,9 @@ import {
 	IAssetS3FoldersTable,
 	IReloadAssetS3FoldersTable,
 	ISensorTypesTable,
-	IReloadSensorTypesTable
+	IReloadSensorTypesTable,
+	IAssetTopicsTable,
+	IReloadAssetTopicsTable
 
 } from "./interfaces";
 
@@ -179,6 +181,14 @@ export function setAssetsTable(plaformAssistantDispatch: PlatformAssistantDispat
 
 export function setReloadAssetsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadAssetsTable) {
 	plaformAssistantDispatch({ type: 'RELOAD_ASSETS_TABLE', payload: data });
+}
+
+export function setAssetTopicsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IAssetTopicsTable) {
+	plaformAssistantDispatch({ type: 'ASSET_TOPICS_TABLE', payload: data });
+}
+
+export function setReloadAssetTopicsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadAssetTopicsTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_ASSET_TOPICS_TABLE', payload: data });
 }
 
 export function setAssetS3FoldersTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IAssetS3FoldersTable) {

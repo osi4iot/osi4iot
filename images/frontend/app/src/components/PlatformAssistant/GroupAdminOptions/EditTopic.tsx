@@ -203,7 +203,7 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                 backToTable();
             })
             .finally(() => {
-                refreshTopics();
+                refreshTopics();;
             })
     }
 

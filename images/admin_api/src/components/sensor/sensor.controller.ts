@@ -45,6 +45,7 @@ import infoLogger from "../../utils/logger/infoLogger";
 import CreateSensorTypeDto from "./sensorType.dto";
 import ISensorType from "./sensorType.interface";
 import HttpException from "../../exceptions/HttpException";
+import UpdateSensorDto from "./sensorUpdate.dto";
 
 class SensorController implements IController {
 	public path = "/sensor";
@@ -140,7 +141,7 @@ class SensorController implements IController {
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
 				groupAdminAuth,
-				validationMiddleware<CreateSensorDto>(CreateSensorDto, true),
+				validationMiddleware<UpdateSensorDto>(UpdateSensorDto, true),
 				this.updateSensorByProp
 			)
 			.post(

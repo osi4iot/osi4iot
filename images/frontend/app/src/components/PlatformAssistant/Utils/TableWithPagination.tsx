@@ -108,7 +108,23 @@ const TableStyles = styled.div<TableStylesProps>`
             min-width: ${(props) => props.columnsWidth[7]};
             max-width: ${(props) => props.columnsMaxWidth[7]};
             word-wrap: break-word;
-        }         
+        }
+        
+        tr td:nth-child(9),
+        th td:nth-child(9) {
+            width: ${(props) => props.columnsWidth[8]};
+            min-width: ${(props) => props.columnsWidth[8]};
+            max-width: ${(props) => props.columnsMaxWidth[8]};
+            word-wrap: break-word;
+        }
+        
+        tr td:nth-child(10),
+        th td:nth-child(10) {
+            width: ${(props) => props.columnsWidth[9]};
+            min-width: ${(props) => props.columnsWidth[9]};
+            max-width: ${(props) => props.columnsMaxWidth[9]};
+            word-wrap: break-word;
+        } 
   }
 `
 
@@ -410,6 +426,9 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (accessor === "S3 storage") return "100px";
             else if (accessor === "dashboardRefreshString") return "100px";
             else if (accessor === "dashboardTimeWindow") return "110px";
+            else if (accessor === "topicRef") return "120px";
+            else if (accessor === "topicId") return "120px";
+            else if (accessor === "sensorRef") return "120px";
             else return "auto"
         } else return "auto";
     });
@@ -426,6 +445,9 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (headerName === "S3 storage") return "100px";
             else if (accessor === "dashboardRefreshString") return "100px";
             else if (accessor === "dashboardTimeWindow") return "110px";
+            else if (accessor === "topicRef") return "120px";
+            else if (accessor === "topicId") return "120px";
+            else if (accessor === "sensorRef") return "120px";
             else return "auto"
         } else return "auto";
     });

@@ -57,14 +57,16 @@ import TableWithPagination from '../Utils/TableWithPagination';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { MlModelsProvider } from '../../../contexts/mlModelsOptions';
-import { setAssetS3FoldersTable, setAssetTypesTable, setAssetsTable, setMlModelsTable, setReloadAssetS3FoldersTable, setReloadAssetTypesTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorTypesTable, setReloadSensorsTable, setSensorTypesTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
+import { setAssetS3FoldersTable, setAssetTopicsTable, setAssetTypesTable, setAssetsTable, setMlModelsTable, setReloadAssetS3FoldersTable, setReloadAssetTopicsTable, setReloadAssetTypesTable, setReloadAssetsTable, setReloadMlModelsTable, setReloadSensorTypesTable, setReloadSensorsTable, setSensorTypesTable, setSensorsTable } from '../../../contexts/platformAssistantContext/platformAssistantAction';
 import MlModelsContainer from './MlModelsContainer';
 import {
     useAssetS3FoldersTable,
+    useAssetTopicsTable,
     useAssetTypesTable,
     useAssetsTable,
     useMlModelsTable,
     useReloadAssetS3FoldersTable,
+    useReloadAssetTopicsTable,
     useReloadAssetTypesTable,
     useReloadAssetsTable,
     useReloadMlModelsTable,
@@ -169,6 +171,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const assetTypesTable = useAssetTypesTable();
     const sensorTypesTable = useSensorTypesTable();
     const assetsTable = useAssetsTable();
+    const assetTopicsTable = useAssetTopicsTable();
     const assetS3FoldersTable = useAssetS3FoldersTable();
     const sensorsTable = useSensorsTable();
     const groupMembersTable = useGroupMembersTable();
@@ -183,6 +186,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
     const [assetTypesLoading, setAssetTypesLoading] = useState(true);
     const [assetsLoading, setAssetsLoading] = useState(true);
+    const [assetTopicsLoading, setAssetTopicsLoading] = useState(true);
     const [assetS3FoldersLoading, setAssetS3FoldersLoading] = useState(true);
     const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
     const [sensorsLoading, setSensorsLoading] = useState(true);
@@ -200,6 +204,7 @@ const GroupAdminOptions: FC<{}> = () => {
     const reloadAssetTypesTable = useReloadAssetTypesTable();
     const reloadSensorTypesTable = useReloadSensorTypesTable();
     const reloadAssetsTable = useReloadAssetsTable();
+    const reloadAssetTopicsTable = useReloadAssetTopicsTable();
     const reloadAssetS3FoldersTable = useReloadAssetS3FoldersTable();
     const reloadSensorsTable = useReloadSensorsTable();
     const reloadTopicsTable = useReloadTopicsTable();
@@ -560,6 +565,35 @@ const GroupAdminOptions: FC<{}> = () => {
     ]);
 
     useEffect(() => {
+        if (assetTopicsTable.length === 0 || reloadAssetTopicsTable) {
+            const config = axiosAuth(accessToken);
+            const urlAssetTopics = `${protocol}://${domainName}/admin_api/asset_topics/user_managed`;
+            getAxiosInstance(refreshToken, authDispatch)
+                .get(urlAssetTopics, config)
+                .then((response) => {
+                    const assetTopics = response.data;
+                    setAssetTopicsTable(plaformAssistantDispatch, { assetTopics });
+                    setAssetTopicsLoading(false);
+                    const reloadAssetTopicsTable = false;
+                    setReloadAssetTopicsTable(plaformAssistantDispatch, { reloadAssetTopicsTable });
+                })
+                .catch((error) => {
+                    axiosErrorHandler(error, authDispatch);
+                });
+        } else {
+            setAssetTopicsLoading(false);
+        }
+    }, [
+        accessToken,
+        refreshToken,
+        authDispatch,
+        plaformAssistantDispatch,
+        reloadAssetTopicsTable,
+        assetTopicsTable.length
+    ]);
+
+
+    useEffect(() => {
         if (assetS3FoldersTable.length === 0 || reloadAssetS3FoldersTable) {
             const config = axiosAuth(accessToken);
             const urlAssetS3Folders = `${protocol}://${domainName}/admin_api/asset_s3_folders/user_managed`;
@@ -789,6 +823,7 @@ const GroupAdminOptions: FC<{}> = () => {
                         groupsManagedLoading ||
                         assetTypesLoading ||
                         assetsLoading ||
+                        assetTopicsLoading ||
                         sensorTypesLoading ||
                         sensorsLoading ||
                         groupMembersLoading ||
@@ -844,7 +879,10 @@ const GroupAdminOptions: FC<{}> = () => {
                             }
                             {optionToShow === GROUP_ADMIN_OPTIONS.SENSORS &&
                                 <SensorsProvider>
-                                    <SensorsContainer sensors={sensorsTable} refreshSensors={refreshSensors} />
+                                    <SensorsContainer
+                                        sensors={sensorsTable}
+                                        refreshSensors={refreshSensors}
+                                    />
                                 </SensorsProvider>
                             }
                             {optionToShow === GROUP_ADMIN_OPTIONS.TOPICS &&
