@@ -45,7 +45,7 @@ import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUse
 import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 import infoLogger from "../../utils/logger/infoLogger";
 import { getSensorsByAssetId } from "../sensor/sensorDAL";
-import { deleteDashboardsByIdArray } from "../group/dashboardDAL";
+import { deleteDashboard, deleteDashboardsByIdArray } from "../group/dashboardDAL";
 import CreateAssetTypeDto from "./assetType.dto";
 import IAssetType from "./assetType.interface";
 import HttpException from "../../exceptions/HttpException";
@@ -54,6 +54,7 @@ import IAssetS3Folder from "./assetS3Folder.interface";
 import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGroup.interface";
 import { generateS3StorageToken, isS3StorageTokenValid } from "../../utils/s3StorageToken";
 import IAssetTopic from "./assetTopic.interface";
+import { deleteTopicsOfDT, getDigitalTwinByProp } from "../digitalTwin/digitalTwinDAL";
 
 
 class AssetController implements IController {
@@ -379,6 +380,11 @@ class AssetController implements IController {
 			if (!asset) throw new ItemNotFoundException(req, res, "The asset", propName, propValue);
 			const sensors = await getSensorsByAssetId(asset.id);
 			const dashboardIds = sensors.map(sensor => sensor.dashboardId);
+			const digitalTwin = await getDigitalTwinByProp("asset_id", asset.id);
+			if (digitalTwin) {
+				await deleteTopicsOfDT(digitalTwin.id);
+				await deleteDashboard(digitalTwin.dashboardId);
+			}
 			await deleteAssetTopics(asset.id);
 			await deleteAssetByPropName(propName, propValue);
 			await deleteDashboardsByIdArray(dashboardIds);

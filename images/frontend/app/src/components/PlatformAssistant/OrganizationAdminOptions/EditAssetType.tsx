@@ -213,12 +213,12 @@ const EditAssetType: FC<EditAssetTypeProps> = ({
     const [geolocationMode, setGeolocationMode] = useState(storedGeolocationMode);
     const storedIconSvgString = assetTypes[assetTypeRowIndex].iconSvgString;
     const [iconSvgString, setIconSvgString] = useState(storedIconSvgString);
-    const [iconSvgFileLoaded, setIconSvgFileLoaded] = useState(storedIconSvgString !== "-");
+    const [iconSvgFileLoaded, setIconSvgFileLoaded] = useState(storedIconSvgString !== "");
     const storedIconSvgFileName = assetTypes[assetTypeRowIndex].iconSvgFileName;
     const [iconSvgFileName, setIconSvgFileName] = useState(storedIconSvgFileName);
     const storedMarkerSvgString = assetTypes[assetTypeRowIndex].markerSvgString;
     const [markerSvgString, setMarkerSvgString] = useState(storedMarkerSvgString);
-    const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(storedMarkerSvgString !== "-");
+    const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(storedMarkerSvgString !== "");
     const storedMarkerSvgFileName = assetTypes[assetTypeRowIndex].markerSvgFileName;
     const [markerSvgFileName, setMarkerSvgFileName] = useState(storedMarkerSvgFileName);
 

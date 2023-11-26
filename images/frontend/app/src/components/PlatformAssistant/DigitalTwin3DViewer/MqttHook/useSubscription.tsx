@@ -133,7 +133,7 @@ const updateObjectsState = (
     const dev2simTopicId = mqttTopicsData.filter(topic => topic.topicRef === "dev2sim")[0].topicId;
     const mqttTopicIndex = mqttTopics.findIndex(topic => topic === recievedMessage.topic);
     const messageTopicId = mqttTopicsData[mqttTopicIndex].topicId;
-    const messageTopicType = mqttTopicsData[mqttTopicIndex].topicRef;
+    const messageTopicRef = mqttTopicsData[mqttTopicIndex].topicRef;
     let mqttMessage: any;
     try {
         mqttMessage = JSON.parse(recievedMessage.message as string);
@@ -148,7 +148,7 @@ const updateObjectsState = (
             let isfemSimulationObjectsStateChanged = false;
             const femSimulationObjectsNewState = [...femSimulationObjectsState];
 
-            if (isGroupDTDemo && messageTopicType === "dev2pdb_wt") {
+            if (isGroupDTDemo && messageTopicRef === "dev2pdb_3") {
                 genericObjects.forEach((obj) => {
                     const objName = obj.node.name;
                     if (objName === "EMPTY_CONTROL_POINTER") {
@@ -158,10 +158,10 @@ const updateObjectsState = (
             }
 
             if (
-                ((messageTopicType.slice(0, 7) === "dev2pdb" || messageTopicType === "dev2sim") &&
+                ((messageTopicRef.slice(0, 7) === "dev2pdb" || messageTopicRef === "dev2sim") &&
                     !digitalTwinSimulatorSendData
                 ) ||
-                (messageTopicType === "sim2dtm" && digitalTwinSimulatorSendData)
+                (messageTopicRef === "sim2dtm" && digitalTwinSimulatorSendData)
             ) {
                 sensorObjects.forEach((obj) => {
                     const objName = obj.node.name;
@@ -279,7 +279,7 @@ const updateObjectsState = (
                 });
             }
 
-            if (messageTopicType === "dtm2sim") {
+            if (messageTopicRef === "dtm2sim") {
                 let eventTriggerTopicType = "dev2pdb";
                 if (messagePayloadKeys.includes("eventTriggerTopicType")) {
                     eventTriggerTopicType = mqttMessage["eventTriggerTopicType"];

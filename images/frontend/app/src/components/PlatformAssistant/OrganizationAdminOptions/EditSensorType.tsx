@@ -254,6 +254,7 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
     const [iconSvgFileName, setIconSvgFileName] = useState(storedIconSvgFileName);
     const storedMarkerSvgString = sensorTypes[sensorTypeRowIndex].markerSvgString;
     const [markerSvgString, setMarkerSvgString] = useState(storedMarkerSvgString);
+    console.log("storedMarkerSvgString=", storedMarkerSvgString)
     const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(storedMarkerSvgString !== "");
     const storedMarkerSvgFileName = sensorTypes[sensorTypeRowIndex].markerSvgFileName;
     const [markerSvgFileName, setMarkerSvgFileName] = useState(storedMarkerSvgFileName);
@@ -429,25 +430,6 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                         name='type'
                                         type='text'
                                     />
-                                    <FormikControl
-                                        control='select'
-                                        label='Dashboard refresh time'
-                                        name="dashboardRefresh"
-                                        options={dashboardRefreshOptions}
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='input'
-                                        label='Dashboard time window'
-                                        name='dashboardTimeWindow'
-                                        type='text'
-                                    />
-                                    <FormikControl
-                                        control='textarea'
-                                        label='Default payload json schema'
-                                        name='defaultPayloadJsonSchema'
-                                        textAreaSize='Small'
-                                    />
                                     <DataFileTitle>Select icon svg file</DataFileTitle>
                                     <FileSelectionContainer>
                                         <DataFileContainer>
@@ -525,7 +507,26 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
                                                 </FileButton>
                                             </SelectDataFilenButtonContainer>
                                         </DataFileContainer>
-                                    </FileSelectionContainer>
+                                    </FileSelectionContainer>                                    
+                                    <FormikControl
+                                        control='select'
+                                        label='Dashboard refresh time'
+                                        name="dashboardRefresh"
+                                        options={dashboardRefreshOptions}
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='input'
+                                        label='Dashboard time window'
+                                        name='dashboardTimeWindow'
+                                        type='text'
+                                    />
+                                    <FormikControl
+                                        control='textarea'
+                                        label='Default payload json schema'
+                                        name='defaultPayloadJsonSchema'
+                                        textAreaSize='Small'
+                                    />
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>
