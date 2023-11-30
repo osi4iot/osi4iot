@@ -18,6 +18,7 @@
 // to make it available:
 const fs = require("fs");
 const needle = require("needle");
+const EventEmitter = require('events');
 process.env.TOKEN = "";
 process.env.TOKEN_EXPIRATION_DATE = "";
 process.env.USER_NAME = "";
@@ -297,6 +298,7 @@ module.exports = {
     functionGlobalContext: {
         getDTMqttTopics,
         initPyodide: require('./pyodide_init'),
+        pyodideEmiter: new EventEmitter(),
         PythonLibraries: require('./python_libraries'),
         MLModels: require('./ml_models'),
         tf: require('@tensorflow/tfjs-node'),

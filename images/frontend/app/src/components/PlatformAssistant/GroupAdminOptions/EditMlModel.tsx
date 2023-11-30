@@ -146,6 +146,17 @@ const MlModelField = styled.div`
     }
 `;
 
+const mlLibrariesOptions = [
+    {
+        label: "Tensorflow",
+        value: "Tensorflow"
+    },
+    {
+        label: "Scikit-learn",
+        value: "Scikit-learn"
+    }
+];
+
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
@@ -183,7 +194,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
     const [openMlModelFilesSelector, mlModelFilesParams] = useFilePicker({
         readAs: 'Text',
         multiple: true,
-        accept: ['.json', '.bin']
+        accept: ['.json', '.bin', '.pkl']
     });
 
     useEffect(() => {
@@ -253,6 +264,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
         try {
             const mlModelData = {
                 description: values.description,
+                mlLibrary: values.mlLibrary,
                 areMlModelFilesModified
             };
             const response = await getAxiosInstance(refreshToken, authDispatch)
@@ -315,6 +327,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
     const initialDigitalTwinData = {
         mlModelUid: mlModels[mlModelRowIndex].mlModelUid,
         description: mlModels[mlModelRowIndex].description,
+        mlLibrary: mlModels[mlModelRowIndex].mlLibrary
     }
 
     const validationSchema = Yup.object().shape({
@@ -418,7 +431,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                                                     clearMlModelFiles();
                                                 }
                                             }
-                                        }                                        
+                                        }
 
                                         return (
                                             <Form>
@@ -431,6 +444,13 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                                                         control='input'
                                                         label='Description'
                                                         name='description'
+                                                        type='text'
+                                                    />
+                                                    <FormikControl
+                                                        control='select'
+                                                        label='Select ML library'
+                                                        name="mlLibrary"
+                                                        options={mlLibrariesOptions}
                                                         type='text'
                                                     />
                                                     <DataFileTitle>ML model files</DataFileTitle>

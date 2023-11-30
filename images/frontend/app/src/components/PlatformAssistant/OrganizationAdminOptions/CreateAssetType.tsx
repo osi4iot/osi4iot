@@ -490,7 +490,11 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                                         textAreaSize='Small'
                                     />
                                 </ControlsContainer>
-                                <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                                <FormButtonsProps
+                                    onCancel={onCancel}
+                                    isValid={formik.isValid}
+                                    isSubmitting={formik.isSubmitting}
+                                />
                             </Form>
                         )
                     }

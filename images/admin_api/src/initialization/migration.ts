@@ -902,7 +902,7 @@ export const dataBaseInitialization = async () => {
 						topicsRef: [
 							{
 								topicRef: "dev2pdb_1",
-								topicType: "dev2pdb",
+								topicType: "dev2pdb_wt",
 								description: `Mobile geolocation topic`,
 								mqttAccessControl: "Pub & Sub",
 								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),

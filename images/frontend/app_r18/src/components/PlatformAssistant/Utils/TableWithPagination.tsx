@@ -371,10 +371,6 @@ const hiddenColumnCondition = (col: any) => {
         col.Header === "femSimDataFileName" ||
         col.Header === "femSimDataFileLastModifDateString" ||
         col.Header === "maxNumResFemFiles" ||
-        col.Header === "modelJsonFileName" ||
-        col.Header === "modelJsonFileLastModifDateString" ||
-        col.Header === "modelBinFileName" ||
-        col.Header === "modelBinFileLastModifDateString" ||
         col.Header === "digitalTwinSimulationFormat" ||
         col.Header === "telegramInvitationLink" ||
         col.Header === "telegramChatId" ||
@@ -406,6 +402,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             if (headerName.slice(-2) === "Id") return "100px";
             else if (headerName === "Floor number") return "120px";
             else if (headerName === "Predefined") return "100px";
+            else if (headerName === "ML library") return "120px";
             else return "auto"
         } else return "auto";
     });
@@ -418,6 +415,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (headerName === "Timestamp") return "400px";
             else if (headerName === "Floor number") return "120px";
             else if (headerName === "Predefined") return "100px";
+            else if (headerName === "ML library") return "120px";
             else return "auto"
         } else return "auto";
     });

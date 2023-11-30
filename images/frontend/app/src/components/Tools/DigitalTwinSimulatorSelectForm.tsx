@@ -32,17 +32,17 @@ const ConnectionLed = styled.span<ConnectionLedProps>`
 `;
 
 const FormContainer = styled.div`
-	font-size: 12px;
-    height: calc(100vh - 160px);
-	position: relative;
-	margin: 0 5px;
-	color: white;
-	margin: 10px 0;
-	padding: 10px;
-	width: calc(100vw - 40px);
-	max-width: 400px;
-	border: 2px solid #3274d9;
-	border-radius: 15px;
+    font-size: 12px;
+    height: calc(100vh - 190px);
+    position: relative;
+    margin: 0 5px;
+    color: white;
+    margin: 10px 0;
+    padding: 10px;
+    width: calc(100vw - 40px);
+    max-width: 400px;
+    border: 2px solid #3274d9;
+    border-radius: 15px;
 
     form > div:nth-child(2) {
         margin-right: 10px;
@@ -50,7 +50,7 @@ const FormContainer = styled.div`
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 245px);
+    height: calc(100vh - 280px);
     width: 100%;
     padding: 10px 5px;
     margin-bottom: 15px;

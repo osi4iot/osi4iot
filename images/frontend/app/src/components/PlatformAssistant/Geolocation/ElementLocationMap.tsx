@@ -426,7 +426,10 @@ const calcInitialAssetPosition = (
     assetsPreviousOption: string,
     assetIdToEdit: number,
     assetsInGroup: IAsset[]) => {
-    let assetPosition = [assetsInGroup[0].latitude, assetsInGroup[0].longitude]
+    let assetPosition = [0, 0];
+    if (assetsInGroup.length !== 0) {
+        assetPosition = [assetsInGroup[0].latitude, assetsInGroup[0].longitude];
+    }
     if (floorSpaces) {
         if (assetsPreviousOption === ASSETS_PREVIOUS_OPTIONS.CREATE_ASSET) {
             const floorSpace = floorSpaces.filter(space => space.features[0].properties.index === featureIndex)[0];

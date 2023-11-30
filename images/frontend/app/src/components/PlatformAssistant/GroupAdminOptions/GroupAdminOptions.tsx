@@ -911,12 +911,20 @@ const GroupAdminOptions: FC<{}> = () => {
                             }
                             {optionToShow === GROUP_ADMIN_OPTIONS.DIGITAL_TWINS &&
                                 <DigitalTwinsProvider>
-                                    <DigitalTwinsContainer digitalTwins={digitalTwinsTable} refreshDigitalTwins={refreshDigitalTwins} />
+                                    <DigitalTwinsContainer
+                                        digitalTwins={digitalTwinsTable}
+                                        refreshDigitalTwins={refreshDigitalTwins}
+                                    />
                                 </DigitalTwinsProvider>
                             }
                             {optionToShow === GROUP_ADMIN_OPTIONS.ML_MODELS &&
                                 <MlModelsProvider>
-                                    <MlModelsContainer mlModels={mlModelsTable} refreshMlModels={refreshMlModels} />
+                                    <MlModelsContainer
+                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
+                                        groupsManaged={groupsManagedTable}
+                                        mlModels={mlModelsTable}
+                                        refreshMlModels={refreshMlModels}
+                                    />
                                 </MlModelsProvider>
                             }
                         </>

@@ -67,12 +67,10 @@ import UpdateGroupManagedDto from "./interfaces/groupManagedUpdate.dto";
 import rhumbDestination from "@turf/rhumb-destination";
 import { updateMeasurementsGroupUid } from "../mesurement/measurementDAL";
 import { createNewAsset, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
-import { createNewSensorType } from "../sensor/sensorDAL";
 import { nanoid } from "nanoid";
 import sslGroupCerticatesGenerator from "./sslGroupCerticatesGenerator";
 import infoLogger from "../../utils/logger/infoLogger";
 import { predefinedSensorTypes } from "../../initialization/predefinedSensorTypes";
-import ISensorType from "../sensor/sensorType.interface";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -328,24 +326,6 @@ class GroupController implements IController {
 			nodeRedInstancesUnlinkedInOrg[0].latitude = nriLatitude;
 			await assignNodeRedInstanceToGroup(nodeRedInstancesUnlinkedInOrg[0], groupCreated.id);
 
-			const sensorTypes: ISensorType[] = [];
-			for (const sensorType of predefinedSensorTypes) {
-				const defaultSensorTypeData = {
-					orgId,
-					type: sensorType.type,
-					iconSvgFileName: sensorType.iconSvgFileName,
-					iconSvgString: sensorType.iconSvgString,
-					markerSvgFileName: sensorType.markerSvgFileName,
-					markerSvgString: sensorType.markerSvgString,
-					defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
-					isPredefined: true,
-					dashboardRefreshString: sensorType.dashboardRefreshString,
-					dashboardTimeWindow: sensorType.dashboardTimeWindow
-				}
-				const newSensorType = await createNewSensorType(defaultSensorTypeData);
-				sensorTypes.push(newSensorType);
-			}
-
 			const assetType = await getAssetTypeByTypeAndOrgId(orgId, "Mobile");
 			const defaultAssetData = {
 				assetTypeId: assetType.id,
@@ -359,7 +339,7 @@ class GroupController implements IController {
 				topicsRef: [
 					{
 						topicRef: "dev2pdb_1",
-						topicType: "dev2pdb",
+						topicType: "dev2pdb_wt",
 						description: `Mobile geolocation topic`,
 						mqttAccessControl: "Pub & Sub",
 						payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),

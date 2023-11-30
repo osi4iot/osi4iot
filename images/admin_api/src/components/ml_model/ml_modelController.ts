@@ -234,11 +234,11 @@ class MLModelController implements IController {
 			const { propName, propValue } = req.params;
 			const mlModelData = req.body;
 			if (!this.isValidMLModelPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
-			let mlModel = await getMLModelByProp(propName, propValue);
-			if (!mlModel) throw new ItemNotFoundException(req, res, "The ML model", propName, propValue);
-			mlModel = { ...mlModel, description: mlModelData.description };
+			const storedMlModel = await getMLModelByProp(propName, propValue);
+			if (!storedMlModel) throw new ItemNotFoundException(req, res, "The ML model", propName, propValue);
+			const mlModel = { ...storedMlModel, description: mlModelData.description, mlLibrary: mlModelData.mlLibrary };
 			await updateMLModelByProp(propName, propValue, mlModel);
-			if (mlModelData.areMlModelFilesModified) {
+			if (mlModelData.areMlModelFilesModified || storedMlModel.mlLibrary !== mlModelData.mlLibrary) {
 				const bucketFolder = `org_${mlModel.orgId}/group_${mlModel.groupId}/ml_models/ml_model_${mlModel.id}`;
 				await removeFilesFromBucketFolder(bucketFolder);
 			}

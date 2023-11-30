@@ -57,6 +57,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
     const digitalTwinFiltered = digitalTwins.filter(digitalTwin => digitalTwin.assetId === assetSelected?.id)[0];
     const digitalTwinStateFiltered = digitalTwinsState.filter(digitalTwin => digitalTwin.assetId === assetData.id)[0];
     const sensorsFiltered = sensorDataArray.filter(sensor => sensor.assetId === assetData.id);
+    sensorsFiltered.sort((a: any, b: any) => a.sensorRef.slice(7) - b.sensorRef.slice(7));
     const sensorStateFiltered = sensorsState.filter(sensor => sensor.assetId === assetData.id);
 
     useEffect(() => {

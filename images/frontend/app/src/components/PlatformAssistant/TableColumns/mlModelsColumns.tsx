@@ -17,10 +17,13 @@ export interface IMlModel {
     groupId: number;
     mlModelUid: string;
     description: string;
+    mlLibrary: string;
     modelJsonFileName: string;
     modelJsonFileLastModifDateString: string;
     modelBinFileName: string;
     modelBinFileLastModifDateString: string;
+    pickleFileName: string;
+    pickleFileLastModifDateString: string;
 }
 
 
@@ -140,25 +143,9 @@ export const Create_ML_MODELS_COLUMNS = (refreshMlModels: () => void): Column<IM
             accessor: "description"
         },
         {
-            Header: "modelJsonFileName",
-            accessor: "modelJsonFileName",
-            disableFilters: true,
-        }, 
-        {
-            Header: "modelJsonFileLastModifDateString",
-            accessor: "modelJsonFileLastModifDateString",
-            disableFilters: true,
+            Header: "ML library",
+            accessor: "mlLibrary"
         },
-        {
-            Header: "modelBinFileName",
-            accessor: "modelBinFileName",
-            disableFilters: true,
-        }, 
-        {
-            Header: "modelBinFileLastModifDateString",
-            accessor: "modelBinFileLastModifDateString",
-            disableFilters: true,
-        },   
         {
             Header: "",
             accessor: "edit",
