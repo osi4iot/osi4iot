@@ -20,12 +20,30 @@ const PythonLibraries = async (pyodide) => {
         }
     }
 
+    const existsLibrary = (libraryName) => {
+        return libraryList.indexOf(libraryName) !== -1;
+    }
+
+    const existsLibraryList = (nameList) => {
+        let exists = true;
+        for (const libraryName of nameList) {
+            if (libraryList.indexOf(libraryName) === -1) {
+                exists = false;
+                break;
+            }
+        }
+        return exists;
+    }
+
     const purge = () => {
         while (libraryList.length !== 0) libraryList.pop();
     }
 
+
     return {
         load,
+        existsLibrary,
+        existsLibraryList,
         purge
     }
 }

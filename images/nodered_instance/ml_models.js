@@ -2,7 +2,6 @@ const fs = require("fs");
 const path = require('path');
 const needle = require("needle");
 const tf = require('@tensorflow/tfjs-node');
-const { loadPyodide } = require("pyodide");
 
 class MLModels {
     constructor() {
@@ -143,16 +142,11 @@ class MLModels {
         this.mlLibrary[MLM_Ref] = undefined;
     }
 
-    async loadMlModels(token, groupId) {
+    async loadMlModels(token, groupId, pyodide) {
         this.token = token;
         this.groupId = groupId;
+        this.pyodide = pyodide;
         const mlModelsData = await this.getMlModelsData();
-        if (!this.pyodide) {
-            this.pyodide = await loadPyodide();
-            await this.pyodide.loadPackage("micropip");
-            const micropip = this.pyodide.pyimport("micropip");
-            await micropip.install('scikit-learn');
-        }
         if (fs.existsSync("/data/ml_models")) {
             fs.rmSync("/data/ml_models", { recursive: true });
         }
@@ -249,13 +243,8 @@ class MLModels {
         }
     }
 
-    async loadMlModelsFromFileSystem() {
-        if (!this.pyodide) {
-            this.pyodide = await loadPyodide();
-            await this.pyodide.loadPackage("micropip");
-            const micropip = this.pyodide.pyimport("micropip");
-            await micropip.install('scikit-learn');
-        }
+    async loadMlModelsFromFileSystem(pyodide) {
+        this.pyodide = pyodide;
 
         const MLM_Refs = fs.readdirSync("/data/ml_models", { withFileTypes: true })
             .filter(dirent => dirent.isDirectory())
