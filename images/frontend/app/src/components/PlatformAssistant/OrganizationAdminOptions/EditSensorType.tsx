@@ -254,7 +254,6 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
     const [iconSvgFileName, setIconSvgFileName] = useState(storedIconSvgFileName);
     const storedMarkerSvgString = sensorTypes[sensorTypeRowIndex].markerSvgString;
     const [markerSvgString, setMarkerSvgString] = useState(storedMarkerSvgString);
-    console.log("storedMarkerSvgString=", storedMarkerSvgString)
     const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(storedMarkerSvgString !== "");
     const storedMarkerSvgFileName = sensorTypes[sensorTypeRowIndex].markerSvgFileName;
     const [markerSvgFileName, setMarkerSvgFileName] = useState(storedMarkerSvgFileName);

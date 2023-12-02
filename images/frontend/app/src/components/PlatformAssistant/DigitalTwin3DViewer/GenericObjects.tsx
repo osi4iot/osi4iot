@@ -43,7 +43,9 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
             const mixer = new THREE.AnimationMixer(meshRef.current as any);
-            obj.animations.forEach(clip => mixer.clipAction(clip).play());
+            if (!obj.userData.clipTime && !obj.userData.clipValues) {
+                obj.animations.forEach(clip => mixer.clipAction(clip).play());
+            }
             const clipsDuration = obj.animations[0].duration - 0.00001;
             setClipsDuration(clipsDuration);
             setMixer(mixer);
@@ -70,6 +72,27 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 
     useFrame(({ clock }, delta) => {
         if (obj.blenderAnimationTypes.includes("blenderEndless")) {
+            if (obj.userData.clipTime && obj.userData.clipValues) {
+                const time = (clock.elapsedTime % clipsDuration)
+                const interval = obj.userData.clipTime[1] - obj.userData.clipTime[0];
+                const properties = Object.keys(obj.userData.clipValues);
+                for (const key of properties) {
+                    if ((obj as unknown as Record<string, number>)[key]) {
+                        const endIndex = Math.ceil(time / interval);
+                        if (endIndex > 0) {
+                            const valueEnd = obj.userData.clipValues[key][endIndex];
+                            const valueIni = obj.userData.clipValues[key][endIndex - 1];
+                            const timeIni = obj.userData.clipTime[endIndex - 1]
+                            const m = (valueEnd - valueIni) / interval;
+                            const propValue = valueIni + (time - timeIni) * m;
+                            (obj as unknown as Record<string, number>)[key] = propValue;
+                        } else {
+                            const propValue = obj.userData.clipValues[key][0];
+                            (obj as unknown as Record<string, number>)[key] = propValue;
+                        }
+                    }
+                }
+            }
             let newDelta = delta;
             if (genericObjectState.clipValue !== null) {
                 newDelta = delta * genericObjectState.clipValue;
