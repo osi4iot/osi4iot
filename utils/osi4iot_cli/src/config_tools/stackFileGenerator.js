@@ -663,12 +663,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.30',
-							memory: "250M"
+							cpus: '0.50',
+							memory: "1000M"
 						},
 						reservations: {
-							cpus: '0.30',
-							memory: "250M"
+							cpus: '0.50',
+							memory: "1000M"
 						}
 					},
 					labels: [
