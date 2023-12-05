@@ -28,59 +28,7 @@ import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import { setSensorsOptionToShow, useSensorsDispatch } from '../../../contexts/sensorsOptions';
 import IAssetTopic from '../TableColumns/assetTopics.interface';
 import { ISensor } from '../TableColumns/sensorsColumns';
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 10px 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 290px);
-
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:nth-child(3) {
-        margin-bottom: 10px;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
-`;
+import { ControlsContainer, FormContainer } from './CreateAsset';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;

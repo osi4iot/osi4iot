@@ -5,17 +5,17 @@ import CreateFloor from './CreateFloor';
 import EditFloor from './EditFloor';
 import { setFloorsOptionToShow, useFloorsDispatch, useFloorsOptionToShow } from '../../../contexts/floorsOptions';
 import { IFloor, Create_FLOORS_COLUMNS } from '../TableColumns/floorsColumns';
-
+import { useBuildingsTable } from '../../../contexts/platformAssistantContext';
 
 interface FloorsContainerProps {
     floors: IFloor[];
     refreshFloors: () => void;
 }
 
-
 const FloorsContainer: FC<FloorsContainerProps> = ({ floors, refreshFloors }) => {
     const floorsDispatch = useFloorsDispatch();
     const floorsOptionToShow = useFloorsOptionToShow();
+    const buildingsTable = useBuildingsTable();
 
     const showFloorsTableOption = useCallback(() => {
         setFloorsOptionToShow(floorsDispatch, { floorsOptionToShow: FLOORS_OPTIONS.TABLE });
@@ -25,12 +25,14 @@ const FloorsContainer: FC<FloorsContainerProps> = ({ floors, refreshFloors }) =>
         <>
             {floorsOptionToShow === FLOORS_OPTIONS.CREATE_FLOOR &&
                 <CreateFloor
+                    buildingsTable={buildingsTable}
                     backToTable={showFloorsTableOption}
                     refreshFloors={refreshFloors}
                 />
             }
             {floorsOptionToShow === FLOORS_OPTIONS.EDIT_FLOOR &&
                 <EditFloor
+                    buildingsTable={buildingsTable}
                     floors={floors}
                     refreshFloors={refreshFloors}
                     backToTable={showFloorsTableOption}

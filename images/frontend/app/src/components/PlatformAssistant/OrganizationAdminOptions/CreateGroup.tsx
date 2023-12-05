@@ -1,14 +1,20 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import styled from "styled-components";
-import { Formik, Form } from 'formik';
+import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
+import { IOption, axiosAuth, convertArrayToOptions, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
-import { useGroupsDispatch, setGroupsOptionToShow, setGroupBuildingId, setGroupsPreviousOption } from '../../../contexts/groupsOptions';
+import {
+    useGroupsDispatch,
+    setGroupsOptionToShow,
+    setGroupBuildingId,
+    setGroupsPreviousOption,
+    setGroupInputData
+} from '../../../contexts/groupsOptions';
 import { GROUPS_OPTIONS, GROUPS_PREVIOUS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { ISelectOrgUser } from '../TableColumns/selectOrgUsersColumns';
 import SelectOrgUsersOfOrgManaged from './SelectOrgUsersOfOrgManaged';
@@ -31,52 +37,7 @@ import {
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 10px 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 420px;
-    height: calc(100vh - 290px);
-
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-`;
+import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 
 const GroupLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -127,25 +88,6 @@ const SelectSpaceButton = styled.button`
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-const initialCreateGroupInputData = {
-    orgId: 1,
-    name: "",
-    acronym: "",
-    folderPermission: "Viewer",
-    telegramInvitationLink: "",
-    telegramChatId: "",
-    floorNumber: 0,
-    featureIndex: 1,
-    mqttAccessControl: "Pub & Sub",
-    groupAdminDataArray: [
-        {
-            firstName: "",
-            surname: "",
-            email: "",
-        }
-    ]
-};
-
 const folderPermissionOptions = [
     {
         label: "Viewer",
@@ -176,16 +118,36 @@ const mqttAccessControlOptions = [
     }
 ];
 
+const initialCreateGroupInputData = {
+    orgId: 1,
+    name: "",
+    acronym: "",
+    folderPermission: "Viewer",
+    telegramInvitationLink: "",
+    telegramChatId: "",
+    floorNumber: 0,
+    featureIndex: 1,
+    mqttAccessControl: "Pub & Sub",
+    groupAdminDataArray: [
+        {
+            firstName: "",
+            surname: "",
+            email: "",
+        }
+    ]
+}
+
+type FormikType = FormikProps<IGroupInputData>
 
 interface CreateGroupProps {
     buildings: IBuilding[];
+    floors: IFloor[];
+    selectFloor: (floorSelected: IFloor | null) => void;
+    initialGroupData: IGroupInputData;
     orgsManagedTable: IOrgManaged[];
     backToTable: () => void;
     selectSpaceOption: () => void;
     refreshGroups: () => void;
-    groupInputData: IGroupInputData;
-    setGroupInputData: (groupInputData: IGroupInputData) => void;
-    floorSelected: IFloor | null;
 }
 
 const floorNumberWarning = "Floor number must an integer greater or equal to 0";
@@ -193,15 +155,15 @@ const featureIndexWarning = "Feature index must an integer greater or equal to 0
 
 const CreateGroup: FC<CreateGroupProps> = ({
     buildings,
+    floors,
+    selectFloor,
+    initialGroupData,
     orgsManagedTable,
     backToTable,
     selectSpaceOption,
     refreshGroups,
-    groupInputData,
-    setGroupInputData,
-    floorSelected
 }) => {
-    const [selectedOrgId, setSelectedOrgId] = useState(groupInputData.orgId as number);
+    const [selectedOrgId, setSelectedOrgId] = useState(initialGroupData.orgId as number);
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [showCreateGroup, setShowCreateGroup] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -209,25 +171,39 @@ const CreateGroup: FC<CreateGroupProps> = ({
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const groupsDispatch = useGroupsDispatch();
-    const initialGroupData = { ...groupInputData };
-    if (selectedUsersArray.length !== 0) {
-        const newGroupAdmins = selectedUsersArray.map(user => {
-            const groupAdminData = {
-                firstName: user.firstName,
-                surname: user.surname,
-                email: user.email,
-            };
-            return groupAdminData;
-        });
-        if (initialGroupData.groupAdminDataArray) {
-            const lastOrgAdmin = initialGroupData.groupAdminDataArray[initialGroupData.groupAdminDataArray.length - 1];
-            if (Object.values(lastOrgAdmin).filter(value => value !== "").length === 0) {
-                initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray.slice(0, -1), ...newGroupAdmins];
-            } else {
-                initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray, ...newGroupAdmins];
+    const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
+
+    useEffect(() => {
+        if (selectedUsersArray.length !== 0) {
+            const newGroupAdmins = selectedUsersArray.map(user => {
+                const groupAdminData = {
+                    firstName: user.firstName,
+                    surname: user.surname,
+                    email: user.email,
+                };
+                return groupAdminData;
+            });
+            if (initialGroupData.groupAdminDataArray) {
+                const lastOrgAdmin = initialGroupData.groupAdminDataArray[initialGroupData.groupAdminDataArray.length - 1];
+                if (Object.values(lastOrgAdmin).filter(value => value !== "").length === 0) {
+                    initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray.slice(0, -1), ...newGroupAdmins];
+                } else {
+                    initialGroupData.groupAdminDataArray = [...initialGroupData.groupAdminDataArray, ...newGroupAdmins];
+                }
+                const newgroupInputData = { ...initialGroupData };
+                const groupInputFormData = { groupInputFormData: newgroupInputData }
+                setGroupInputData(groupsDispatch, groupInputFormData);
             }
         }
-    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedUsersArray])
+
+    useEffect(() => {
+        const orgArray = orgsManagedTable.map(org => org.acronym);
+        setOrgOptions(convertArrayToOptions(orgArray));
+    }, [
+        orgsManagedTable
+    ]);
 
     useEffect(() => {
         const groupsPreviousOption = { groupsPreviousOption: GROUPS_PREVIOUS_OPTIONS.CREATE_GROUP };
@@ -235,7 +211,7 @@ const CreateGroup: FC<CreateGroupProps> = ({
     }, [groupsDispatch]);
 
     const onSubmit = (values: any, actions: any) => {
-        const orgId = values.orgId;
+        const orgId = selectedOrgId;
         const url = `${protocol}://${domainName}/admin_api/group/${orgId}`;
         const config = axiosAuth(accessToken);
 
@@ -255,8 +231,8 @@ const CreateGroup: FC<CreateGroupProps> = ({
             folderPermission: values.folderPermission,
             groupAdminDataArray: [...values.groupAdminDataArray],
             floorNumber: values.floorNumber,
-            mqttAccessControl: values.mqttAccessControl,
             featureIndex: values.featureIndex,
+            mqttAccessControl: values.mqttAccessControl,
         }
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -270,7 +246,6 @@ const CreateGroup: FC<CreateGroupProps> = ({
             })
             .catch((error) => {
                 axiosErrorHandler(error, authDispatch);
-                setGroupInputData(initialCreateGroupInputData);
                 backToTable();
             })
             .finally(() => {
@@ -296,12 +271,10 @@ const CreateGroup: FC<CreateGroupProps> = ({
                 setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-                setGroupInputData(initialCreateGroupInputData);
             })
     }
 
     const validationSchema = Yup.object().shape({
-        orgId: Yup.number().required('Required'),
         name: Yup.string().max(190, "The maximum number of characters allowed is 200").required('Required'),
         acronym: Yup.string().max(25, "The maximum number of characters allowed is 25").required('Required'),
         folderPermission: Yup.string().required('Required'),
@@ -323,30 +296,49 @@ const CreateGroup: FC<CreateGroupProps> = ({
 
     const onCancel = (e: SyntheticEvent) => {
         e.preventDefault();
-        setGroupInputData(initialCreateGroupInputData);
+        const groupInputData = { ...initialCreateGroupInputData };
+        const groupInputFormData = { groupInputFormData: groupInputData }
+        setGroupInputData(groupsDispatch, groupInputFormData);
         backToTable();
     };
 
     const goToSelect = (groupInputData: IGroupInputData) => {
         const newgroupInputData = { ...groupInputData, orgId: selectedOrgId };
-        setGroupInputData(newgroupInputData);
+        const groupInputFormData = { groupInputFormData: newgroupInputData }
+        setGroupInputData(groupsDispatch, groupInputFormData);
         setShowCreateGroup(false);
     }
 
-    const defineGroupOrgId = (orgId: number) => {
+    const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
+        const orgAcronym = e.value;
+        formik.setFieldValue("orgAcronym", orgAcronym);
+        const orgSelected = orgsManagedTable.filter(org => org.acronym === orgAcronym)[0];
+        const orgId = orgSelected.id;
         setSelectedOrgId(orgId);
+        const groupInputData = formik.values;
         const newgroupInputData = { ...groupInputData, orgId };
-        setGroupInputData(newgroupInputData);
+        const groupInputFormData = { groupInputFormData: newgroupInputData }
+        setGroupInputData(groupsDispatch, groupInputFormData);
     }
 
     const selectSpace = (groupInputData: IGroupInputData) => {
         const newgroupInputData = { ...groupInputData, orgId: selectedOrgId };
-        setGroupInputData(newgroupInputData);
+        const groupInputFormData = { groupInputFormData: newgroupInputData }
+        setGroupInputData(groupsDispatch, groupInputFormData);
         const orgFiltered = orgsManagedTable.filter(org => org.id === selectedOrgId)[0];
         if (orgFiltered !== undefined) {
             const existBuilding = buildings.filter(building => building.id === orgFiltered.buildingId).length !== 0;
             if (existBuilding) {
                 const groupBuildingId = { groupBuildingId: orgFiltered.buildingId };
+                const buildingId = orgFiltered.buildingId;
+                const floorNumber = parseInt(groupInputData.floorNumber as unknown as string, 10);
+                const floorSelected = floors.filter(floor =>
+                    floor.buildingId === buildingId &&
+                    floor.floorNumber === floorNumber
+                )[0];
+                if (floorSelected) {
+                    selectFloor(floorSelected);
+                }
                 setGroupBuildingId(groupsDispatch, groupBuildingId);
                 selectSpaceOption();
             } else {
@@ -372,11 +364,12 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                         <Form>
                                             <ControlsContainer>
                                                 <FormikControl
-                                                    control='input'
-                                                    label='OrgId'
-                                                    name='orgId'
+                                                    control='select'
+                                                    label='Select org'
+                                                    name='orgAcronym'
                                                     type='text'
-                                                    onChange={(e: any) => { formik.handleChange(e); defineGroupOrgId(parseInt(e.target.value, 10)); }}
+                                                    options={orgOptions}
+                                                    onChange={(e) => handleChangeOrg(e, formik)}
                                                 />
                                                 <FormikControl
                                                     control='input'
@@ -448,7 +441,11 @@ const CreateGroup: FC<CreateGroupProps> = ({
                                                     goToSelect={() => goToSelect(formik.values)}
                                                 />
                                             </ControlsContainer>
-                                            <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
+                                            <FormButtonsProps
+                                                onCancel={onCancel}
+                                                isValid={formik.isValid}
+                                                isSubmitting={formik.isSubmitting}
+                                            />
                                         </Form>
                                     )
                                 }

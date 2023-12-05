@@ -7,10 +7,12 @@ import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import {
     axiosAuth,
     checkGltfFile,
+    convertArrayToOptions,
     digitalTwinFormatValidation,
     getDomainName,
     getProtocol,
-    IMeshNode
+    IMeshNode,
+    IOption
 } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
@@ -20,59 +22,21 @@ import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
 import { useFilePicker } from 'use-file-picker';
 import formatDateString from '../../../tools/formatDate';
-import { setReloadDashboardsTable, setReloadSensorsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import {
+    setReloadDashboardsTable,
+    setReloadSensorsTable,
+    setReloadTopicsTable,
+    useAssetsTable,
+    useGroupsManagedTable,
+    useOrgsOfGroupsManagedTable,
+    usePlatformAssitantDispatch
+} from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 20px 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 300px);
-
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 435px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
-`;
+import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
+import { IAsset } from '../TableColumns/assetsColumns';
+import { ControlsContainer, FormContainer } from './CreateAsset';
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -195,16 +159,6 @@ export interface ITopicRef {
 const domainName = getDomainName();
 const protocol = getProtocol();
 
-const initialDigitalTwinData = {
-    groupId: "",
-    assetId: "",
-    description: "",
-    type: "Grafana dashboard",
-    digitalTwinUid: "",
-    maxNumResFemFiles: "1",
-    digitalTwinSimulationFormat: "{}"
-}
-
 const digitalTwinTypeOptions = [
     {
         label: "Grafana dashboard",
@@ -261,6 +215,49 @@ export const getSensorsRefFromDigitalTwinGltfData = (
     return sensorsRef;
 }
 
+const findGroupArray = (
+    orgsOfGroupManaged: IOrgOfGroupsManaged[],
+    groupsManaged: IGroupManaged[]
+): Record<string, string[]> => {
+    const groupArray: Record<string, string[]> = {}
+    for (const group of groupsManaged) {
+        const orgAcronym = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0].acronym;
+        if (groupArray[orgAcronym] === undefined) {
+            groupArray[orgAcronym] = [];
+        }
+        if (groupArray[orgAcronym].indexOf(group.acronym) === -1) {
+            groupArray[orgAcronym].push(group.acronym);
+        }
+    }
+    return groupArray;
+}
+
+const findAssetNameArray = (
+    assetsManaged: IAsset[],
+    groupsManaged: IGroupManaged[]
+): Record<string, string[]> => {
+    const assetArray: Record<string, string[]> = {}
+    for (const asset of assetsManaged) {
+        const groupAcronym = groupsManaged.filter(group => group.id === asset.groupId)[0].acronym;
+        if (assetArray[groupAcronym] === undefined) {
+            assetArray[groupAcronym] = [];
+        }
+        const assetName = `Asset_${asset.assetUid}`;
+        if (assetArray[groupAcronym].indexOf(assetName) === -1) {
+            assetArray[groupAcronym].push(assetName);
+        }
+    }
+    return assetArray;
+}
+
+const findAssetDescription = (
+    assetsManaged: IAsset[],
+    assetName: string
+): string => {
+    const assetManaged = assetsManaged.filter(asset => `Asset_${asset.assetUid}` === assetName)[0];
+    return assetManaged.description;
+}
+
 
 interface CreateDigitalTwinProps {
     backToTable: () => void;
@@ -268,8 +265,9 @@ interface CreateDigitalTwinProps {
 }
 
 interface IFormikValues {
-    groupId: string;
-    assetId: string;
+    orgAcronym: string;
+    groupAcronym: string;
+    assetName: string;
     digitalTwinUid: string;
     description: string;
     type: string;
@@ -280,12 +278,25 @@ interface IFormikValues {
 type FormikType = FormikProps<IFormikValues>
 
 const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDigitalTwins }) => {
-    initialDigitalTwinData.digitalTwinUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+    const digitalTwinUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const digitalTwinsDispatch = useDigitalTwinsDispatch();
+    const orgsOfGroupManaged = useOrgsOfGroupsManagedTable();
+    const groupsManaged = useGroupsManagedTable();
+    const assets = useAssetsTable();
+    const initOrg = orgsOfGroupManaged[0];
+    const initGroup = groupsManaged.filter(group => group.orgId === initOrg.id)[0];
+    const initAsset = assets.filter(asset => asset.groupId === initGroup.id)[0];
+    const initAssetName = `Asset_${initAsset.assetUid}`;
+    const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
+    const [groupArray, setGroupArray] = useState<Record<string, string[]>>({});
+    const [groupOptions, setGroupOptions] = useState<IOption[]>([]);
+    const [assetNameOptions, setAssetNameOptions] = useState<IOption[]>([]);
+    const [assetNameArray, setAssetNameArray] = useState<Record<string, string[]>>({});
+    const [assetDescription, setAssetDescription] = useState<string>("");
     const [localGltfFileLoaded, setLocalGltfFileLoaded] = useState(false);
     const [gltfFile, setGltfFile] = useState<File>();
     const [gltfFileName, setGltfFileName] = useState("-");
@@ -300,6 +311,64 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
 
+
+    useEffect(() => {
+        const orgArray = orgsOfGroupManaged.map(org => org.acronym);
+        setOrgOptions(convertArrayToOptions(orgArray));
+        const groupArray = findGroupArray(orgsOfGroupManaged, groupsManaged);
+        setGroupArray(groupArray);
+        const orgAcronym = initOrg.acronym;
+        const groupsForOrgSelected = groupArray[orgAcronym];
+        setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
+        const assetNameArray = findAssetNameArray(assets, groupsManaged);
+        setAssetNameArray(assetNameArray);
+        const groupAcronym = initGroup.acronym;
+        const assetsForGroupSelected = assetNameArray[groupAcronym];
+        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        const assetName = `Asset_${initAsset.assetUid}`;
+        const assetDescription = findAssetDescription(assets, assetName);
+        setAssetDescription(assetDescription);
+    }, [
+        assets,
+        groupsManaged,
+        initAsset.assetUid,
+        initGroup.acronym,
+        initOrg.acronym,
+        orgsOfGroupManaged,
+    ]);
+
+    const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
+        const orgAcronym = e.value;
+        formik.setFieldValue("orgAcronym", orgAcronym);
+        const groupsForOrgSelected = groupArray[orgAcronym];
+        setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
+        const groupAcronym = groupsForOrgSelected[0];
+        formik.setFieldValue("groupAcronym", groupsForOrgSelected[0]);
+        const assetsForGroupSelected = assetNameArray[groupAcronym];
+        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        const assetName = assetsForGroupSelected[0];
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(assets, assetName);
+        setAssetDescription(assetDescription);
+    }
+
+    const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
+        const groupAcronym = e.value;
+        formik.setFieldValue("groupAcronym", groupAcronym);
+        const assetsForGroupSelected = assetNameArray[groupAcronym];
+        setAssetNameOptions(convertArrayToOptions(assetsForGroupSelected));
+        const assetName = assetsForGroupSelected[0];
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(assets, assetName);
+        setAssetDescription(assetDescription);
+    }
+
+    const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
+        const assetName = e.value;
+        formik.setFieldValue("assetName", assetName);
+        const assetDescription = findAssetDescription(assets, assetName);
+        setAssetDescription(assetDescription);
+    }
 
     const [openGlftFileSelector, gltfFileParams] = useFilePicker({
         readAs: 'Text',
@@ -388,8 +457,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
 
     const onSubmit = (values: any, actions: any) => {
-        const groupId = values.groupId;
-        const assetId = values.assetId;
+        const groupId = groupsManaged.filter(group => group.acronym === values.groupAcronym)[0].id;
+        const assetName = values.assetName;
+        const assetId = assets.filter(asset => asset.assetUid === assetName.slice(6))[0].id;
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${assetId}`;
         const config = axiosAuth(accessToken);
 
@@ -470,8 +540,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     }
 
     const validationSchema = Yup.object().shape({
-        groupId: Yup.number().required('Required'),
-        assetId: Yup.number().required('Required'),
         digitalTwinUid: Yup.string().length(20, "String must be 20 characters long").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
@@ -526,6 +594,17 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         }
     }
 
+    const initialDigitalTwinData = {
+        orgAcronym: initOrg.acronym,
+        groupAcronym: initGroup.acronym,
+        assetName: initAssetName,
+        description: "",
+        type: "Grafana dashboard",
+        digitalTwinUid,
+        maxNumResFemFiles: "1",
+        digitalTwinSimulationFormat: "{}"
+    }
+
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create digital twin</FormTitle>
@@ -541,17 +620,33 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                 <Form>
                                     <ControlsContainer>
                                         <FormikControl
-                                            control='input'
-                                            label='GroupId'
-                                            name='groupId'
+                                            control='select'
+                                            label='Select org'
+                                            name='orgAcronym'
                                             type='text'
+                                            options={orgOptions}
+                                            onChange={(e) => handleChangeOrg(e, formik)}
                                         />
                                         <FormikControl
-                                            control='input'
-                                            label='AssetId'
-                                            name='assetId'
+                                            control='select'
+                                            label='Select group'
+                                            name='groupAcronym'
                                             type='text'
+                                            options={groupOptions}
+                                            onChange={(e) => handleChangeGroup(e, formik)}
                                         />
+                                        <FormikControl
+                                            control='select'
+                                            label='Select asset'
+                                            name='assetName'
+                                            type='text'
+                                            options={assetNameOptions}
+                                            onChange={(e) => handleChangeAsset(e, formik)}
+                                        />
+                                        <FieldContainer>
+                                            <label>Asset description</label>
+                                            <div>{assetDescription}</div>
+                                        </FieldContainer>
                                         <FormikControl
                                             control='input'
                                             label='DigitalTwinUid'

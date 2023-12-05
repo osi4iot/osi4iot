@@ -887,7 +887,12 @@ const GroupAdminOptions: FC<{}> = () => {
                             }
                             {optionToShow === GROUP_ADMIN_OPTIONS.TOPICS &&
                                 <TopicsProvider>
-                                    <TopicsContainer topics={topicsTable} refreshTopics={refreshTopics} />
+                                    <TopicsContainer
+                                        orgsOfGroupManaged={orgsOfGroupManagedTable}
+                                        groupsManaged={groupsManagedTable}
+                                        topics={topicsTable}
+                                        refreshTopics={refreshTopics}
+                                    />
                                 </TopicsProvider>
                             }
                             {optionToShow === GROUP_ADMIN_OPTIONS.MEASUREMENTS &&

@@ -9,6 +9,7 @@ import {
 } from '../../../contexts/sensorTypesOptions';
 import CreateSensorType from './CreateSensorType';
 import EditSensorType from './EditSensorType';
+import { useOrgsManagedTable } from '../../../contexts/platformAssistantContext';
 
 interface SensorTypesContainerProps {
     sensorTypes: ISensorType[];
@@ -21,6 +22,7 @@ const SensorTypesContainer: FC<SensorTypesContainerProps> = ({
 }) => {
     const sensorTypesDispatch = useSensorTypesDispatch();
     const sensorTypesOptionToShow = useSensorTypesOptionToShow();
+    const orgsManagedTable = useOrgsManagedTable();
 
     const showSensorTypesTableOption = useCallback(() => {
         setSensorTypesOptionToShow(sensorTypesDispatch, { sensorTypesOptionToShow: SENSOR_TYPES_OPTIONS.TABLE });
@@ -31,13 +33,15 @@ const SensorTypesContainer: FC<SensorTypesContainerProps> = ({
 
             {sensorTypesOptionToShow === SENSOR_TYPES_OPTIONS.CREATE_SENSOR_TYPE &&
                 <CreateSensorType
+                orgsManagedTable={orgsManagedTable}
                     backToTable={showSensorTypesTableOption}
                     refreshSensorTypes={refreshSensorTypes}
                 />
             }
             {sensorTypesOptionToShow === SENSOR_TYPES_OPTIONS.EDIT_SENSOR_TYPE &&
                 <EditSensorType
-                    sensorTypes={sensorTypes}
+                sensorTypes={sensorTypes}
+                orgsManagedTable={orgsManagedTable}
                     backToTable={showSensorTypesTableOption}
                     refreshSensorTypes={refreshSensorTypes}
                 />

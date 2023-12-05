@@ -5,6 +5,7 @@ import { Create_ASSET_TYPES_COLUMNS, IAssetType } from '../TableColumns/assetTyp
 import { setAssetTypesOptionToShow, useAssetTypesDispatch, useAssetTypesOptionToShow } from '../../../contexts/assetTypesOptions';
 import CreateAssetType from './CreateAssetType';
 import EditAssetType from './EditAssetType';
+import { useOrgsManagedTable } from '../../../contexts/platformAssistantContext';
 
 interface AssetTypesContainerProps {
     assetTypes: IAssetType[];
@@ -17,6 +18,7 @@ const AssetTypesContainer: FC<AssetTypesContainerProps> = ({
 }) => {
     const assetTypesDispatch = useAssetTypesDispatch();
     const assetTypesOptionToShow = useAssetTypesOptionToShow();
+    const orgsManagedTable = useOrgsManagedTable();
 
     const showAssetTypesTableOption = useCallback(() => {
         setAssetTypesOptionToShow(assetTypesDispatch, { assetTypesOptionToShow: ASSET_TYPES_OPTIONS.TABLE });
@@ -27,12 +29,14 @@ const AssetTypesContainer: FC<AssetTypesContainerProps> = ({
 
             {assetTypesOptionToShow === ASSET_TYPES_OPTIONS.CREATE_ASSET_TYPE &&
                 <CreateAssetType
+                    orgsManagedTable={orgsManagedTable}
                     backToTable={showAssetTypesTableOption}
                     refreshAssetTypes={refreshAssetTypes}
                 />
             }
             {assetTypesOptionToShow === ASSET_TYPES_OPTIONS.EDIT_ASSET_TYPE &&
                 <EditAssetType
+                    orgsManagedTable={orgsManagedTable}
                     assetTypes={assetTypes}
                     backToTable={showAssetTypesTableOption}
                     refreshAssetTypes={refreshAssetTypes}

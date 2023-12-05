@@ -18,64 +18,12 @@ import {
 import { ISensor } from '../TableColumns/sensorsColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { useAssetTopicsTable, useAssetsTable, useSensorTypesTable } from '../../../contexts/platformAssistantContext';
+import { useAssetTopicsTable, useAssetsTable, useGroupsManagedTable, useOrgsOfGroupsManagedTable, useSensorTypesTable } from '../../../contexts/platformAssistantContext';
 import SvgComponent from '../../Tools/SvgComponent';
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import IAssetTopic from '../TableColumns/assetTopics.interface';
-
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 10px 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 290px);
-
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:nth-child(3) {
-        margin-bottom: 10px;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
-`;
+import { FieldContainer } from './EditAsset';
+import { ControlsContainer, FormContainer } from './CreateAsset';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -95,32 +43,6 @@ const SvgComponentContainerDiv = styled.div`
     flex-direction: row;
     justify-content: center;
     align-items: center;
-`;
-
-const FieldContainer = styled.div`
-    margin: 20px 0;
-
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: flex-start;
-    width: 100%;
-
-    & label {
-        font-size: 12px;
-        margin: 0 0 5px 3px;
-        width: 100%;
-    }
-
-    & div {
-        font-size: 14px;
-        background-color: #0c0d0f;
-        border: 2px solid #2c3235;
-        padding: 5px;
-        margin-left: 2px;
-        color: white;
-        width: 100%;
-    }
 `;
 
 const findSensorTypeArray = (sensorTypes: ISensorType[]): string[] => {
@@ -163,6 +85,13 @@ const EditSensor: FC<EdiSensorProps> = ({ sensors, backToTable, refreshSensors }
     const assetTopicsFiltered = assetTopics.filter(assetTopic => assetTopic.assetId === assetId);
     const sensorTypes = useSensorTypesTable();
     const orgId = storedSensor.orgId;
+    const groupsManaged = useGroupsManagedTable();
+    const groupId = sensors[sensorRowIndex].groupId;
+    const group = groupsManaged.filter(groupManaged => groupManaged.id === groupId)[0];
+    const groupAcronym = group.acronym;
+    const orgsOfGroupsManaged = useOrgsOfGroupsManagedTable();
+    const organization = orgsOfGroupsManaged.filter(org => org.id === group.orgId)[0];
+    const orgAcronym = organization.acronym;
     const sensorTypesFiltered = sensorTypes.filter(sensorType => sensorType.orgId === orgId);
     const assets = useAssetsTable();
     const sensorId = useSensorIdToEdit();
@@ -194,7 +123,6 @@ const EditSensor: FC<EdiSensorProps> = ({ sensors, backToTable, refreshSensors }
     }
 
     const onSubmit = (values: any, actions: any) => {
-        const groupId = sensors[sensorRowIndex].groupId;
         const url = `${protocol}://${domainName}/admin_api/sensor/${groupId}/id/${sensorId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
@@ -252,6 +180,14 @@ const EditSensor: FC<EdiSensorProps> = ({ sensors, backToTable, refreshSensors }
                         formik => (
                             <Form>
                                 <ControlsContainer>
+                                    <FieldContainer>
+                                        <label>Org acronym</label>
+                                        <div>{orgAcronym}</div>
+                                    </FieldContainer>
+                                    <FieldContainer>
+                                        <label>Group acronym</label>
+                                        <div>{groupAcronym}</div>
+                                    </FieldContainer>
                                     <FieldContainer>
                                         <label>Asset name</label>
                                         <div>{assetName}</div>

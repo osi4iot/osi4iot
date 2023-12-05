@@ -9,13 +9,22 @@ import {
     useTopicsDispatch,
     useTopicsOptionToShow
 } from '../../../contexts/topicsOptions';
+import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 
 interface TopicsContainerProps {
+    orgsOfGroupManaged: IOrgOfGroupsManaged[];
+    groupsManaged: IGroupManaged[];
     topics: ITopic[];
     refreshTopics: () => void;
 }
 
-const TopicsContainer: FC<TopicsContainerProps> = ({ topics, refreshTopics }) => {
+const TopicsContainer: FC<TopicsContainerProps> = ({
+    orgsOfGroupManaged,
+    groupsManaged,
+    topics,
+    refreshTopics
+}) => {
     const topicsDispatch = useTopicsDispatch();
     const topicsOptionToShow = useTopicsOptionToShow();
 
@@ -25,8 +34,23 @@ const TopicsContainer: FC<TopicsContainerProps> = ({ topics, refreshTopics }) =>
 
     return (
         <>
-            {topicsOptionToShow === TOPICS_OPTIONS.CREATE_TOPIC && <CreateTopic backToTable={showTopicsTableOption} refreshTopics={refreshTopics} />}
-            {topicsOptionToShow === TOPICS_OPTIONS.EDIT_TOPIC && <EditTopic topics={topics} backToTable={showTopicsTableOption} refreshTopics={refreshTopics} />}
+            {
+                topicsOptionToShow === TOPICS_OPTIONS.CREATE_TOPIC &&
+                <CreateTopic
+                    orgsOfGroupManaged={orgsOfGroupManaged}
+                    groupsManaged={groupsManaged}
+                    backToTable={showTopicsTableOption}
+                    refreshTopics={refreshTopics}
+                />
+            }
+            {
+                topicsOptionToShow === TOPICS_OPTIONS.EDIT_TOPIC &&
+                <EditTopic
+                    topics={topics}
+                    backToTable={showTopicsTableOption}
+                    refreshTopics={refreshTopics}
+                />
+            }
             {topicsOptionToShow === TOPICS_OPTIONS.TABLE &&
                 <TableWithPagination
                     dataTable={topics}

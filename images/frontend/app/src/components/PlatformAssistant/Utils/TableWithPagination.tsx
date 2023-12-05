@@ -425,7 +425,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (accessor === "topicRef") return "120px";
             else if (accessor === "topicId") return "120px";
             else if (accessor === "sensorRef") return "120px";
-            else if (headerName === "ML library") return "150px";
+            else if (headerName === "ML library") return "120px";
             else return "auto"
         } else return "auto";
     });
@@ -445,7 +445,7 @@ const TableWithPagination: FC<TableProps<any>> = ({ dataTable, columnsTable, com
             else if (accessor === "topicRef") return "120px";
             else if (accessor === "topicId") return "120px";
             else if (accessor === "sensorRef") return "120px";
-            else if (headerName === "ML library") return "150px";
+            else if (headerName === "ML library") return "120px";
             else return "auto"
         } else return "auto";
     });

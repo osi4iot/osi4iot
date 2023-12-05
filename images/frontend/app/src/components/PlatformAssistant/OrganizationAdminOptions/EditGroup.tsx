@@ -33,47 +33,9 @@ import {
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 420px;
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-`;
+import { FieldContainer } from '../GroupAdminOptions/EditAsset';
+import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
+import { IFloor } from '../TableColumns/floorsColumns';
 
 const GroupLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -158,6 +120,8 @@ const featureIndexWarning = "Feature index must an integer greater or equal to 0
 
 interface EditGroupProps {
     buildings: IBuilding[];
+    floors: IFloor[];
+    selectFloor: (floorSelected: IFloor | null) => void;
     groups: IGroup[];
     orgsManagedTable: IOrgManaged[];
     backToTable: () => void;
@@ -167,6 +131,8 @@ interface EditGroupProps {
 
 const EditGroup: FC<EditGroupProps> = ({
     buildings,
+    floors,
+    selectFloor,
     groups,
     orgsManagedTable,
     selectSpaceOption,
@@ -179,6 +145,8 @@ const EditGroup: FC<EditGroupProps> = ({
     const groupId = useGroupIdToEdit();
     const editGroupInputData = useGroupInputData();
     const groupRowIndex = useGroupRowIndexToEdit();
+    const organization = orgsManagedTable.filter(org => org.id === groups[groupRowIndex].orgId)[0];
+    const orgAcronym = organization.acronym;
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
 
@@ -200,11 +168,20 @@ const EditGroup: FC<EditGroupProps> = ({
             (values as any).featureIndex = parseInt((values as any).featureIndex, 10);
         }
 
-
+        const groupData = {
+            name: values.name,
+            acronym: values.acronym,
+            telegramInvitationLink: values.telegramInvitationLink,
+            telegramChatId: values.telegramChatId,
+            folderPermission: values.folderPermission,
+            floorNumber: values.floorNumber,
+            featureIndex: values.featureIndex,
+            mqttAccessControl: values.mqttAccessControl,
+        }
         setIsSubmitting(true);
 
         getAxiosInstance(refreshToken, authDispatch)
-            .patch(url, values, config)
+            .patch(url, groupData, config)
             .then((response) => {
                 setIsSubmitting(false);
                 const data = response.data;
@@ -257,9 +234,17 @@ const EditGroup: FC<EditGroupProps> = ({
         } else {
             const buildingId = orgsManagedTableFiltered[0].buildingId;
             const existBuilding = buildings.filter(building => building.id === buildingId).length !== 0;
-            if (existBuilding) { 
+            if (existBuilding) {
                 const groupBuildingId = { groupBuildingId: buildingId };
                 setGroupBuildingId(groupsDispatch, groupBuildingId);
+                const floorNumber = parseInt(groupInputData.floorNumber as unknown as string, 10);
+                const floorSelected = floors.filter(floor =>
+                    floor.buildingId === buildingId &&
+                    floor.floorNumber === floorNumber
+                )[0];
+                if (floorSelected) {
+                    selectFloor(floorSelected);
+                }
                 selectSpaceOption();
             } else {
                 const warningMessage = `Not exist a building with id=${buildingId}`
@@ -277,6 +262,10 @@ const EditGroup: FC<EditGroupProps> = ({
                         formik => (
                             <Form>
                                 <ControlsContainer>
+                                    <FieldContainer>
+                                        <label>Org acronym</label>
+                                        <div>{orgAcronym}</div>
+                                    </FieldContainer>
                                     <FormikControl
                                         control='input'
                                         label='Group name'

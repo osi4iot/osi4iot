@@ -29,7 +29,7 @@ const FormContainer = styled.div`
     border: 3px solid #3274d9;
     border-radius: 20px;
     /* width: 700px; */
-    height: calc(100vh - 290px);
+    height: calc(100vh - 310px);
 
     form > div:nth-child(2) {
         margin-right: 10px;
@@ -37,7 +37,7 @@ const FormContainer = styled.div`
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
+    height: calc(100vh - 440px);
     width: 100%;
     padding: 0px 5px;
     overflow-y: auto;

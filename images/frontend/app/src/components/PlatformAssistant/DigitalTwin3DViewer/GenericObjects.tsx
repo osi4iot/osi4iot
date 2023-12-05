@@ -5,6 +5,7 @@ import { defaultOpacity, defaultVisibility, GenericObjectState, ObjectVisibility
 import { IGenericObject } from './Model';
 import { changeMaterialPropRecursively } from '../../../tools/tools';
 import { IThreeMesh } from './threeInterfaces';
+import { toast } from 'react-toastify';
 
 
 interface GenericObjectProps {
@@ -43,15 +44,38 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
             const mixer = new THREE.AnimationMixer(meshRef.current as any);
-            if (!obj.userData.clipTime && !obj.userData.clipValues) {
-                obj.animations.forEach(clip => mixer.clipAction(clip).play());
-            }
+            obj.animations.forEach(clip => mixer.clipAction(clip).play());
             const clipsDuration = obj.animations[0].duration - 0.00001;
             setClipsDuration(clipsDuration);
             setMixer(mixer);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [obj.animations, meshRef]);
+
+    useEffect(() => {
+        if (obj.userData.animationType && obj.userData.animationType === "customEndless") {
+            try {
+                const mixer = new THREE.AnimationMixer(obj);
+                const time = obj.userData.clipTime;
+                const lastIndex = obj.userData.clipTime.length - 1;
+                const clipDuration = obj.userData.clipTime[lastIndex];
+                const properties = Object.keys(obj.userData.clipValues);
+                for (const key of properties) {
+                    const trackName = `.${key}`;
+                    const clipName = `Action_${obj.name}_${key}`;
+                    const values = obj.userData.clipValues[key];
+                    const customTrack = new THREE.NumberKeyframeTrack(trackName, time, values);
+                    var customClip = new THREE.AnimationClip(clipName, clipDuration, [customTrack]);
+                    mixer.clipAction(customClip).play()
+                }
+                setClipsDuration(clipDuration);
+                setMixer(mixer);
+            } catch (error: any) {
+                toast.error("Error in custom endless animation: ", error.message);
+            }
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [obj]);
 
     useEffect(() => {
         if (mixer &&
@@ -71,28 +95,10 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 
 
     useFrame(({ clock }, delta) => {
-        if (obj.blenderAnimationTypes.includes("blenderEndless")) {
-            if (obj.userData.clipTime && obj.userData.clipValues) {
-                const time = (clock.elapsedTime % clipsDuration)
-                const interval = obj.userData.clipTime[1] - obj.userData.clipTime[0];
-                const properties = Object.keys(obj.userData.clipValues);
-                for (const key of properties) {
-                    if ((obj as unknown as Record<string, number>)[key]) {
-                        const endIndex = Math.ceil(time / interval);
-                        if (endIndex > 0) {
-                            const valueEnd = obj.userData.clipValues[key][endIndex];
-                            const valueIni = obj.userData.clipValues[key][endIndex - 1];
-                            const timeIni = obj.userData.clipTime[endIndex - 1]
-                            const m = (valueEnd - valueIni) / interval;
-                            const propValue = valueIni + (time - timeIni) * m;
-                            (obj as unknown as Record<string, number>)[key] = propValue;
-                        } else {
-                            const propValue = obj.userData.clipValues[key][0];
-                            (obj as unknown as Record<string, number>)[key] = propValue;
-                        }
-                    }
-                }
-            }
+        if (
+            obj.blenderAnimationTypes.includes("blenderEndless") ||
+            (obj.userData.animationType && obj.userData.animationType === "customEndless")
+        ) {
             let newDelta = delta;
             if (genericObjectState.clipValue !== null) {
                 newDelta = delta * genericObjectState.clipValue;

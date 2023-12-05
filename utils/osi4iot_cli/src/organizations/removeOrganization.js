@@ -45,19 +45,15 @@ export default async function () {
 					clc.cyanBright('Id'),
 					clc.cyanBright('Name'),
 					clc.cyanBright('Acronym'),
-					clc.cyanBright('Role'),
-					clc.cyanBright('City'),
-					clc.cyanBright('Country'),
 					clc.cyanBright('Building Id'),
 					clc.cyanBright('Org hash'),
 					clc.cyanBright('Mqtt acc'),
-					clc.cyanBright('Num nodered instances')
+					clc.cyanBright('Num nodered instances'),
 				],
-				colWidths: [5, 30, 10, 10, 19, 19, 10, 12, 12, 13],
+				colWidths: [5, 30, 10, 10, 12, 12, 13],
 				wordWrap: true,
 				style: { 'padding-left': 1, 'padding-right': 1 }
 			});
-
 
 			const orgIdArray = [];
 			for (let iorg = 0; iorg < orgs.length; iorg++) {
@@ -144,7 +140,7 @@ const requestRemoveOrg = async (accessToken, osi4iotState, orgData) => {
 			removeOrgWorkerNodeLabels(dockerHost, orgToRemove);
 
 			removeMqttCertsFiles(orgToRemove);
-			
+
 			const nfsNode = nodesData.filter(node => node.nodeRole === "NFS server")[0];
 			if (nfsNode !== undefined) {
 				const org_acronym = orgToRemove.org_acronym.toLowerCase();

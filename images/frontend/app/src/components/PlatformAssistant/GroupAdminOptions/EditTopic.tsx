@@ -1,5 +1,4 @@
 import { FC, useState, SyntheticEvent } from 'react';
-import styled from "styled-components";
 import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
@@ -18,57 +17,9 @@ import {
 import { ITopic } from '../TableColumns/topicsColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 20px 10px 20px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 280px);
-
-    form > div:nth-child(2) {
-        margin-top: 15px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 385px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-        margin-bottom: 10px;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
-`;
+import { useGroupsManagedTable, useOrgsOfGroupsManagedTable } from '../../../contexts/platformAssistantContext';
+import { FieldContainer } from './EditAsset';
+import { ControlsContainer, FormContainer } from './CreateAsset';
 
 const topicTypeOptions = [
     {
@@ -78,7 +29,7 @@ const topicTypeOptions = [
     {
         label: "Device to platform DB message array",
         value: "dev2pdb_ma"
-    },    
+    },
     {
         label: "Device to platform DB with timestamp",
         value: "dev2pdb_wt"
@@ -94,7 +45,7 @@ const topicTypeOptions = [
     {
         label: "Device to simulator",
         value: "dev2sim"
-    },    
+    },
     {
         label: "DTM to simulator",
         value: "dtm2sim"
@@ -171,10 +122,17 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
     const topicsDispatch = useTopicsDispatch();
     const topicRowIndex = useTopicRowIndexToEdit();
     const topicId = useTopicIdToEdit();
+    const groupId = topics[topicRowIndex].groupId;
+    const orgId = topics[topicRowIndex].orgId;
+    const groupsManaged = useGroupsManagedTable();
+    const group = groupsManaged.filter(groupManaged => groupManaged.id === groupId)[0];
+    const groupAcronym = group.acronym;
+    const orgsOfGroupsManaged = useOrgsOfGroupsManagedTable();
+    const organization = orgsOfGroupsManaged.filter(org => org.id === orgId)[0];
+    const orgAcronym = organization.acronym;
     const [requireS3Storage, setRequireS3Storage] = useState(topics[topicRowIndex].requireS3Storage);
 
     const onSubmit = (values: any, actions: any) => {
-        const groupId = topics[topicRowIndex].groupId;
         const url = `${protocol}://${domainName}/admin_api/topic/${groupId}/${topicId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
@@ -251,6 +209,14 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                         formik => (
                             <Form>
                                 <ControlsContainer>
+                                    <FieldContainer>
+                                        <label>Org acronym</label>
+                                        <div>{orgAcronym}</div>
+                                    </FieldContainer>
+                                    <FieldContainer>
+                                        <label>Group acronym</label>
+                                        <div>{groupAcronym}</div>
+                                    </FieldContainer>
                                     <FormikControl
                                         control='select'
                                         label='Topic type'
@@ -301,7 +267,7 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
                                                 textAreaSize='Small'
                                             />
                                         </>
-                                    }                                    
+                                    }
                                 </ControlsContainer>
                                 <FormButtonsProps onCancel={onCancel} isValid={formik.isValid} isSubmitting={formik.isSubmitting} />
                             </Form>

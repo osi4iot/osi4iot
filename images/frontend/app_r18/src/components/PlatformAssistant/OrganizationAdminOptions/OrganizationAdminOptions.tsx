@@ -89,7 +89,7 @@ const OptionContainer = styled.div.withConfig({
 
 const ContentContainer = styled.div`
     width: calc(100vw - 75px);
-    height: calc(100vh - 200px);
+    height: calc(100vh - 220px);
     background-color: #202226;
     margin-bottom: 5px;
     display: flex;

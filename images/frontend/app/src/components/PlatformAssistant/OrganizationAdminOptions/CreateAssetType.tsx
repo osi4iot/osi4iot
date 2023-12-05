@@ -3,7 +3,7 @@ import styled from "styled-components";
 import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
+import { IOption, axiosAuth, convertArrayToOptions, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -14,57 +14,8 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import SvgComponent from '../../Tools/SvgComponent';
 import { useFilePicker } from 'use-file-picker';
 import { setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../contexts/assetTypesOptions';
-
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 10px 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 290px);
-
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 420px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
-`;
-
+import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
+import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -183,7 +134,7 @@ const protocol = getProtocol();
 
 
 interface IFormikValues {
-    orgId: number;
+    orgAcronym: string;
     type: string;
     geolocationMode: string;
     assetStateFormat: string;
@@ -192,11 +143,13 @@ interface IFormikValues {
 type FormikType = FormikProps<IFormikValues>
 
 interface CreateAssetTypeProps {
+    orgsManagedTable: IOrgManaged[];
     backToTable: () => void;
     refreshAssetTypes: () => void;
 }
 
 const CreateAssetType: FC<CreateAssetTypeProps> = ({
+    orgsManagedTable,
     backToTable,
     refreshAssetTypes
 }) => {
@@ -211,6 +164,20 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
     const [markerSvgString, setMarkerSvgString] = useState("");
     const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(false);
     const [markerSvgFileName, setMarkerSvgFileName] = useState("-");
+    const initialOrg = orgsManagedTable[0];
+    const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
+
+    useEffect(() => {
+        const orgArray = orgsManagedTable.map(org => org.acronym);
+        setOrgOptions(convertArrayToOptions(orgArray));
+    }, [
+        orgsManagedTable
+    ]);
+
+    const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
+        const orgAcronym = e.value;
+        formik.setFieldValue("orgAcronym", orgAcronym);
+    }
 
     const [openIconSvgFileSelector, iconSvgFileParams] = useFilePicker({
         readAs: 'Text',
@@ -289,7 +256,8 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
     ])
 
     const onSubmit = (values: any, actions: any) => {
-        const orgId = values.orgId;
+        const orgAcronym = values.orgAcronym;
+        const orgId = orgsManagedTable.filter(org => org.acronym === orgAcronym)[0].id;
         const url = `${protocol}://${domainName}/admin_api/asset_type/${orgId}`;
         const config = axiosAuth(accessToken);
 
@@ -323,14 +291,13 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
     }
 
     const initialAssetTypeData = {
-        orgId: 1,
+        orgAcronym: initialOrg.acronym,
         type: "",
         geolocationMode: "static",
         assetStateFormat: "{}"
     }
 
     const validationSchema = Yup.object().shape({
-        orgId: Yup.number().required('Required'),
         type: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         assetStateFormat: Yup.string().required('Required'),
     });
@@ -381,10 +348,12 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl
-                                        control='input'
-                                        label='OrgId'
-                                        name='orgId'
+                                        control='select'
+                                        label='Select org'
+                                        name='orgAcronym'
                                         type='text'
+                                        options={orgOptions}
+                                        onChange={(e) => handleChangeOrg(e, formik)}
                                     />
                                     <FormikControl
                                         control='input'

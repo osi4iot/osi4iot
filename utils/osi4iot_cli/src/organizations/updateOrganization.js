@@ -59,7 +59,7 @@ export default async function () {
 					clc.cyanBright('Mqtt acc'),
 					clc.cyanBright('Num nodered instances'),
 				],
-				colWidths: [5, 30, 15, 30, 19, 8, 19, 19, 12, 18, 12, 13],
+				colWidths: [5, 30, 10, 10, 12, 12, 13],
 				wordWrap: true,
 				style: { 'padding-left': 1, 'padding-right': 1 }
 			});
@@ -204,7 +204,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInsta
 						return "Please type an integer number greater or equal to one";
 					}
 				}
-			},		
+			},
 			{
 				name: 'KEEP_ORG_HASH',
 				message: `The current organization hash is org_hash='${orgToUpdate.orgHash}'. Do you want to keep it?`,
@@ -248,7 +248,7 @@ const updateOrgQuestions = (accessToken, osi4iotState, orgToUpdate, nodeRedInsta
 				type: 'list',
 				default: "Pub & Sub",
 				choices: ["Pub & Sub", "Pub", "Sub", "None"],
-			},	
+			},
 		])
 		.then(async (answers) => {
 			answers.NUMBER_OF_NODERED_INSTANCES_IN_ORG = parseInt(answers.NUMBER_OF_NODERED_INSTANCES_IN_ORG, 10);

@@ -19,26 +19,6 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import {
     useOrgsManagedTable,
 } from '../../../contexts/platformAssistantContext';
-import { IGroupInputData } from '../../../contexts/groupsOptions/interfaces';
-
-const initialCreateGroupInputData = {
-    orgId: 1,
-    name: "",
-    acronym: "",
-    folderPermission: "Viewer",
-    telegramInvitationLink: "",
-    telegramChatId: "",
-    floorNumber: 0,
-    featureIndex: 1,
-    mqttAccessControl: "Pub & Sub",
-    groupAdminDataArray: [
-        {
-            firstName: "",
-            surname: "",
-            email: "",
-        }
-    ]
-}
 
 
 interface GroupsContainerProps {
@@ -61,27 +41,28 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
     const groupsDispatch = useGroupsDispatch();
     const groupsOptionToShow = useGroupsOptionToShow();
     const orgsManagedTable = useOrgsManagedTable();
-    const editGroupInputData = useGroupInputData();
+    const groupInputData = useGroupInputData();
     const previousOption = useGroupsPreviousOption();
-    const intialGroupInputData = { ...initialCreateGroupInputData, orgId: orgsManagedTable[0].id }
-    const [createGroupInputData, setCreateGroupInputData] = useState<IGroupInputData>(intialGroupInputData);
+    const initialGroupData = useGroupInputData();
+    initialGroupData.orgAcronym = orgsManagedTable[0].acronym;
     const [floorSelected, setFloorSelected] = useState<IFloor | null>(null);
 
     const setGroupLocationData = useCallback((floorNumber: number, featureIndex: number) => {
         if (previousOption === GROUPS_PREVIOUS_OPTIONS.CREATE_GROUP) {
-            const newGroupInputData = { ...createGroupInputData };
-            newGroupInputData.floorNumber = floorNumber;
-            newGroupInputData.featureIndex = featureIndex;
-            setCreateGroupInputData(newGroupInputData);
-        }
-        else if (previousOption === GROUPS_PREVIOUS_OPTIONS.EDIT_GROUP) {
-            const newGroupInputData = { ...editGroupInputData };
+            const newGroupInputData = { ...groupInputData };
             newGroupInputData.floorNumber = floorNumber;
             newGroupInputData.featureIndex = featureIndex;
             const groupInputFormData = { groupInputFormData: newGroupInputData }
             setGroupInputData(groupsDispatch, groupInputFormData);
         }
-    }, [createGroupInputData, editGroupInputData, groupsDispatch, previousOption]);
+        else if (previousOption === GROUPS_PREVIOUS_OPTIONS.EDIT_GROUP) {
+            const newGroupInputData = { ...groupInputData };
+            newGroupInputData.floorNumber = floorNumber;
+            newGroupInputData.featureIndex = featureIndex;
+            const groupInputFormData = { groupInputFormData: newGroupInputData }
+            setGroupInputData(groupsDispatch, groupInputFormData);
+        }
+    }, [groupInputData, groupsDispatch, previousOption]);
 
     const showGroupsTableOption = useCallback(() => {
         setGroupsOptionToShow(groupsDispatch, { groupsOptionToShow: GROUPS_OPTIONS.TABLE });
@@ -115,18 +96,20 @@ const GroupsContainer: FC<GroupsContainerProps> = ({
             {groupsOptionToShow === GROUPS_OPTIONS.CREATE_GROUP &&
                 <CreateGroup
                     buildings={buildingsFiltered}
+                    floors={floorsFiltered}
+                    selectFloor={selectFloor}
+                    initialGroupData={initialGroupData}
                     orgsManagedTable={orgsManagedTable}
                     backToTable={showGroupsTableOption}
                     selectSpaceOption={showSelectSpaceOption}
                     refreshGroups={refreshGroups}
-                    groupInputData={createGroupInputData}
-                    setGroupInputData={(groupInputData: IGroupInputData) => setCreateGroupInputData(groupInputData)}
-                    floorSelected={floorSelected}
                 />
             }
             {groupsOptionToShow === GROUPS_OPTIONS.EDIT_GROUP &&
                 <EditGroup
-                    buildings={buildingsFiltered}
+                buildings={buildingsFiltered}
+                floors={floorsFiltered}
+                selectFloor={selectFloor}
                     groups={groups}
                     orgsManagedTable={orgsManagedTable}
                     selectSpaceOption={showSelectSpaceOption}

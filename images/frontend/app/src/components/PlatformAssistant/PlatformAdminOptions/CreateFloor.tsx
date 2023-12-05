@@ -1,11 +1,11 @@
 import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import { FeatureCollection } from 'geojson';
 import styled from "styled-components";
-import { Formik, Form } from 'formik';
+import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
+import { IOption, axiosAuth, convertArrayToOptions, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -16,6 +16,7 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import formatDateString from '../../../tools/formatDate';
 import { isGeoJSONString } from '../../../tools/geojsonValidation';
+import { IBuilding } from '../TableColumns/buildingsColumns';
 
 
 const FormContainer = styled.div`
@@ -141,6 +142,13 @@ const FieldContainer = styled.div`
     }
 `;
 
+interface IFloorInputData {
+    buildingName: string;
+    floorNumber: number;
+}
+
+type FormikType = FormikProps<IFloorInputData>
+
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
@@ -150,11 +158,12 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 interface CreateFloorProps {
+    buildingsTable: IBuilding[];
     backToTable: () => void;
     refreshFloors: () => void;
 }
 
-const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
+const CreateFloor: FC<CreateFloorProps> = ({ buildingsTable, backToTable, refreshFloors }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -164,6 +173,20 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
     const [floorFileName, setFloorFileName] = useState("-");
     const [floorFileLastModifDate, setFloorFileLastModifDate] = useState("-");
     const [isFloorDataReady, setIsFloorDataReady] = useState(false);
+    const initialBuilding = buildingsTable[0];
+    const [buildingOptions, setBuildingOptions] = useState<IOption[]>([]);
+
+    useEffect(() => {
+        const buildingNameArray = buildingsTable.map(building => building.name);
+        setBuildingOptions(convertArrayToOptions(buildingNameArray));
+    }, [
+        buildingsTable
+    ]);
+
+    const handleChangeBuilding = (e: { value: string }, formik: FormikType) => {
+        const buildingName = e.value;
+        formik.setFieldValue("buildingName", buildingName);
+    }
 
     const [openFloorFileSelector, floorFileParams] = useFilePicker({
         readAs: 'Text',
@@ -241,8 +264,11 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
             (values as any).floorNumber = parseInt((values as any).floorNumber, 10);
         }
 
+        const buildingName = values.buildingName;
+        const buildingId = buildingsTable.filter(building => building.name === buildingName)[0].id;
+
         const floorData = {
-            buildingId: values.buildingId,
+            buildingId,
             floorNumber: values.floorNumber,
             geoJsonData: JSON.stringify(floorGeoData),
             floorFileName,
@@ -270,12 +296,11 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
 
 
     const initialFloorData = {
-        buildingId: 1,
+        buildingName: initialBuilding.name,
         floorNumber: 0,
     }
 
     const validationSchema = Yup.object().shape({
-        buildingId: Yup.number().integer().positive().required('Required'),
         floorNumber: Yup.number().integer().required('Required'),
     });
 
@@ -295,10 +320,12 @@ const CreateFloor: FC<CreateFloorProps> = ({ backToTable, refreshFloors }) => {
                                 <Form>
                                     <ControlsContainer>
                                         <FormikControl
-                                            control='input'
-                                            label='Building Id'
-                                            name='buildingId'
+                                            control='select'
+                                            label='Select building'
+                                            name='buildingName'
                                             type='text'
+                                            options={buildingOptions}
+                                            onChange={(e) => handleChangeBuilding(e, formik)}
                                         />
                                         <FloorLocationTitle>Floor location</FloorLocationTitle>
                                         <FloorLocationContainer>

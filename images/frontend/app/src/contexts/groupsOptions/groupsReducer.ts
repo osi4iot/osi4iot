@@ -13,6 +13,7 @@ export const initialState = {
     groupBuildingId: 0,
     groupInputFormData: {
         orgId: 1,
+        orgAcronym: "",
         name: "",
         acronym: "",
         folderPermission: "Viewer",

@@ -24,58 +24,32 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import SvgComponent from '../../Tools/SvgComponent';
+import { ControlsContainer, FormContainer } from './CreateAsset';
 
 
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 30px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 350px);
+export const FieldContainer = styled.div`
+    margin: 20px 0;
 
-    form > div:nth-child(2) {
-        margin-right: 10px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 490px);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
     width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
+
+    & label {
+        font-size: 12px;
+        margin: 0 0 5px 3px;
+        width: 100%;
     }
 
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-    }
-
-    div:nth-child(2) {
-        margin-bottom: 10px;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
+    & div {
+        font-size: 14px;
+        background-color: #0c0d0f;
+        border: 2px solid #2c3235;
+        padding: 5px;
+        margin-left: 2px;
+        color: white;
+        width: 100%;
     }
 `;
 
@@ -192,6 +166,11 @@ const EditAsset: FC<EditAssetProps> = ({
     const assetRowIndex = useAssetRowIndexToEdit();
     const initialAssetData = useAssetInputData();
     const orgId = initialAssetData.orgId;
+    const groupId = assets[assetRowIndex].groupId;
+    const group = groupsManaged.filter(groupManaged => groupManaged.id === groupId)[0];
+    const groupAcronym = group.acronym;
+    const organization = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0];
+    const orgAcronym = organization.acronym;
     const assetTypesFiltered = assetTypes.filter(item => item.orgId === orgId);
     const assetsTypeArray = assetTypesFiltered.map(item => item.type);
     const assetTypeOptions = convertArrayToOptions(assetsTypeArray);
@@ -204,7 +183,6 @@ const EditAsset: FC<EditAssetProps> = ({
     }, [assetsDispatch])
 
     const onSubmit = (values: any, actions: any) => {
-        const groupId = assets[assetRowIndex].groupId;
         const url = `${protocol}://${domainName}/admin_api/asset/${groupId}/id/${assetId}`;
         const config = axiosAuth(accessToken);
         setIsSubmitting(true);
@@ -306,6 +284,14 @@ const EditAsset: FC<EditAssetProps> = ({
                         formik => (
                             <Form>
                                 <ControlsContainer>
+                                    <FieldContainer>
+                                        <label>Org acronym</label>
+                                        <div>{orgAcronym}</div>
+                                    </FieldContainer>
+                                    <FieldContainer>
+                                        <label>Group acronym</label>
+                                        <div>{groupAcronym}</div>
+                                    </FieldContainer>
                                     <FormikControl
                                         control='input'
                                         label='Description'

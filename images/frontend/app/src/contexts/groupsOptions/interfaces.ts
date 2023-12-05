@@ -9,7 +9,8 @@ export interface IGroupAdminData {
 }
 
 export interface IGroupInputData {
-    orgId?: number;
+	orgId?: number;
+	orgAcronym?: string;
     name: string;
     acronym: string;
     folderPermission: string;

@@ -1,9 +1,8 @@
-import { FC, useState, SyntheticEvent } from 'react';
-import styled from "styled-components";
+import { FC, useState, SyntheticEvent, useEffect } from 'react';
 import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
+import { IOption, axiosAuth, convertArrayToOptions, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
@@ -13,57 +12,9 @@ import { setTopicsOptionToShow, useTopicsDispatch } from '../../../contexts/topi
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { setReloadAssetTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
-
-
-const FormContainer = styled.div`
-	font-size: 12px;
-    padding: 20px 10px 20px 20px;
-    border: 3px solid #3274d9;
-    border-radius: 20px;
-    width: 400px;
-    height: calc(100vh - 280px);
-
-    form > div:nth-child(2) {
-        margin-top: 15px;
-    }
-`;
-
-const ControlsContainer = styled.div`
-    height: calc(100vh - 385px);
-    width: 100%;
-    padding: 0px 5px;
-    overflow-y: auto;
-    /* width */
-    ::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    /* Track */
-    ::-webkit-scrollbar-track {
-        background: #202226;
-        border-radius: 5px;
-    }
-    
-    /* Handle */
-    ::-webkit-scrollbar-thumb {
-        background: #2c3235; 
-        border-radius: 5px;
-    }
-
-    /* Handle on hover */
-    ::-webkit-scrollbar-thumb:hover {
-        background-color: #343840;
-    }
-
-    div:first-child {
-        margin-top: 0;
-        margin-bottom: 10px;
-    }
-
-    div:last-child {
-        margin-bottom: 3px;
-    }
-`;
+import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
+import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
+import { ControlsContainer, FormContainer } from './CreateAsset';
 
 const topicTypeOptions = [
     {
@@ -138,8 +89,26 @@ const requireS3StorateOptions = [
     },
 ]
 
+const findGroupArray = (
+    orgsOfGroupManaged: IOrgOfGroupsManaged[],
+    groupsManaged: IGroupManaged[]
+): Record<string, string[]> => {
+    const groupArray: Record<string, string[]> = {}
+    for (const group of groupsManaged) {
+        const orgAcronym = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0].acronym;
+        if (groupArray[orgAcronym] === undefined) {
+            groupArray[orgAcronym] = [];
+        }
+        if (groupArray[orgAcronym].indexOf(group.acronym) === -1) {
+            groupArray[orgAcronym].push(group.acronym);
+        }
+    }
+    return groupArray;
+}
+
 interface IFormikValues {
-    groupId: string;
+    orgAcronym: string;
+    groupAcronym: string;
     topicType: string;
     description: string;
     mqttAccessControl: string;
@@ -158,18 +127,51 @@ const protocol = getProtocol();
 interface CreateTopicProps {
     backToTable: () => void;
     refreshTopics: () => void;
+    orgsOfGroupManaged: IOrgOfGroupsManaged[];
+    groupsManaged: IGroupManaged[];
 }
 
-const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
+const CreateTopic: FC<CreateTopicProps> = ({
+    orgsOfGroupManaged,
+    groupsManaged,
+    backToTable,
+    refreshTopics
+}) => {
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const topicsDispatch = useTopicsDispatch();
+    const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
+    const [groupArray, setGroupArray] = useState<Record<string, string[]>>({});
+    const [groupOptions, setGroupOptions] = useState<IOption[]>([]);
+    const initOrg = orgsOfGroupManaged[0];
+    const initGroup = groupsManaged.filter(group => group.orgId === initOrg.id)[0];
     const [requireS3Storage, setRequireS3Storage] = useState(false);
 
+    useEffect(() => {
+        const orgArray = orgsOfGroupManaged.map(org => org.acronym);
+        setOrgOptions(convertArrayToOptions(orgArray));
+        const groupArray = findGroupArray(orgsOfGroupManaged, groupsManaged);
+        setGroupArray(groupArray);
+        const orgAcronym = orgsOfGroupManaged[0].acronym;
+        const groupsForOrgSelected = groupArray[orgAcronym];
+        setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
+    }, [groupsManaged, orgsOfGroupManaged]);
+
+    const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
+        const orgAcronym = e.value;
+        formik.setFieldValue("orgAcronym", orgAcronym);
+        const groupsForOrgSelected = groupArray[orgAcronym];
+        setGroupOptions(convertArrayToOptions(groupsForOrgSelected));
+        const groupAcronym = groupsForOrgSelected[0];
+        formik.setFieldValue("groupAcronym", groupAcronym);
+    }
+
     const onSubmit = (values: any, actions: any) => {
-        const groupId = values.groupId;
+        const groupAcronym = values.groupAcronym;
+        const groupSelected = groupsManaged.filter(group => group.acronym === groupAcronym)[0];
+        const groupId = groupSelected.id;
         const url = `${protocol}://${domainName}/admin_api/topic/${groupId}`;
         const config = axiosAuth(accessToken);
 
@@ -206,7 +208,8 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
 
 
     const initialTopicData = {
-        groupId: "",
+        orgAcronym: initOrg.acronym,
+        groupAcronym: initGroup.acronym,
         topicType: "dev2pdb",
         description: "",
         mqttAccessControl: "Pub & Sub",
@@ -252,9 +255,18 @@ const CreateTopic: FC<CreateTopicProps> = ({ backToTable, refreshTopics }) => {
                             <Form>
                                 <ControlsContainer>
                                     <FormikControl
-                                        control='input'
-                                        label='GroupId'
-                                        name='groupId'
+                                        control='select'
+                                        label='Org acronym'
+                                        name='orgAcronym'
+                                        options={orgOptions}
+                                        type='text'
+                                        onChange={(e) => handleChangeOrg(e, formik)}
+                                    />
+                                    <FormikControl
+                                        control='select'
+                                        label='Group acronym'
+                                        name='groupAcronym'
+                                        options={groupOptions}
                                         type='text'
                                     />
                                     <FormikControl

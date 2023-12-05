@@ -22,6 +22,7 @@ import { isGeoJSONString } from '../../../tools/geojsonValidation';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import formatDateString from '../../../tools/formatDate';
+import { IBuilding } from '../TableColumns/buildingsColumns';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -155,18 +156,21 @@ const domainName = getDomainName();
 const protocol = getProtocol();
 
 interface EditFloorProps {
+    buildingsTable: IBuilding[];
     floors: IFloor[];
     backToTable: () => void;
     refreshFloors: () => void;
 }
 
-const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) => {
+const EditFloor: FC<EditFloorProps> = ({ buildingsTable, floors, backToTable, refreshFloors }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
     const floorsDispatch = useFloorsDispatch();
     const floorId = useFloorIdToEdit();
     const floorRowIndex = useFloorRowIndexToEdit();
+    const buildingId = floors[floorRowIndex].buildingId;
+    const buildingName = buildingsTable.filter(building => building.id === buildingId)[0].name;
 
     const storedGeoJsonData = floors[floorRowIndex].geoJsonData;
     const [floorGeoData, setFloorGeoData] = useState(storedGeoJsonData);
@@ -247,9 +251,11 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
         const config = axiosAuth(accessToken);
 
         setIsSubmitting(true);
+        const building = buildingsTable.filter(building => building.name === buildingName)[0];
+        let buildingId = building.id;
 
-        if (typeof (values as any).buildingId === 'string') {
-            (values as any).buildingId = parseInt((values as any).buildingId, 10);
+        if (typeof buildingId === 'string') {
+            buildingId = parseInt((values as any).buildingId, 10);
         }
 
         if (typeof (values as any).floorNumber === 'string') {
@@ -257,7 +263,7 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
         }
 
         const floorData = {
-            buildingId: values.buildingId,
+            buildingId,
             floorNumber: values.floorNumber,
             geoJsonData: JSON.stringify(floorGeoData),
             floorFileName,
@@ -307,12 +313,10 @@ const EditFloor: FC<EditFloorProps> = ({ floors, backToTable, refreshFloors }) =
                             return (
                                 <Form>
                                     <ControlsContainer>
-                                        <FormikControl
-                                            control='input'
-                                            label='Building Id'
-                                            name='buildingId'
-                                            type='text'
-                                        />
+                                        <FieldContainer>
+                                            <label>Building name</label>
+                                            <div>{buildingName}</div>
+                                        </FieldContainer>
                                         <FloorLocationTitle>Floor location</FloorLocationTitle>
                                         <FloorLocationContainer>
                                             <FormikControl

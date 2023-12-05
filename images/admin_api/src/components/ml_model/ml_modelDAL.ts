@@ -20,7 +20,7 @@ export const insertMLModel = async (mlModelData: IMLModel): Promise<IMLModel> =>
 };
 
 export const updateMLModelByProp = async (propName: string, propValue: (string | number), mlModel: IMLModel): Promise<void> => {
-	const query = `UPDATE grafanadb.ml_model SET description = $1, mlLibrary =$2, updated = NOW()
+	const query = `UPDATE grafanadb.ml_model SET description = $1, ml_library =$2, updated = NOW()
 				WHERE grafanadb.ml_model.${propName} = $3;`;
 	await pool.query(query, [
 		mlModel.description,
