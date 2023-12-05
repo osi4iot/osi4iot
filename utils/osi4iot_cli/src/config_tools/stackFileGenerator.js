@@ -1268,7 +1268,7 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.5',
-							memory: "2048M"
+							memory: "1600M"
 						},
 						reservations: {
 							cpus: '0.5',
