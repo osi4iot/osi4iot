@@ -141,6 +141,16 @@ export default function (osi4iotState) {
 					mode: "global",
 					restart_policy: {
 						delay: "24h"
+					},
+					resources: {
+						limits: {
+							cpus: '0.03',
+							memory: "25M"
+						},
+						reservations: {
+							cpus: '0.03',
+							memory: "25M"
+						}
 					}
 				}
 			},
@@ -165,6 +175,16 @@ export default function (osi4iotState) {
 					placement: {
 						max_replicas_per_node: 2,
 						constraints: ["node.role==manager"]
+					},
+					resources: {
+						limits: {
+							cpus: '0.15',
+							memory: "125M"
+						},
+						reservations: {
+							cpus: '0.15',
+							memory: "125M"
+						}
 					}
 				},
 				ports: traefik_ports,
@@ -226,6 +246,16 @@ export default function (osi4iotState) {
 					replicas: 1,
 					placement: {
 						constraints: workerConstraintsArray
+					},
+					resources: {
+						limits: {
+							cpus: '0.30',
+							memory: "250M"
+						},
+						reservations: {
+							cpus: '0.30',
+							memory: "250M"
+						}
 					}
 				},
 			},
@@ -246,6 +276,16 @@ export default function (osi4iotState) {
 					mode: 'global',
 					placement: {
 						constraints: ["node.platform.os==linux"]
+					},
+					resources: {
+						limits: {
+							cpus: '0.03',
+							memory: "50M"
+						},
+						reservations: {
+							cpus: '0.03',
+							memory: "50M"
+						}
 					}
 				}
 			},
@@ -267,6 +307,16 @@ export default function (osi4iotState) {
 					replicas: 1,
 					placement: {
 						constraints: ["node.role==manager"]
+					},
+					resources: {
+						limits: {
+							cpus: '0.06',
+							memory: "50M"
+						},
+						reservations: {
+							cpus: '0.06',
+							memory: "50M"
+						}
 					},
 					labels: [
 						'traefik.enable=true',
@@ -317,6 +367,16 @@ export default function (osi4iotState) {
 					replicas: 1,
 					placement: {
 						constraints: workerConstraintsArray
+					},
+					resources: {
+						limits: {
+							cpus: '0.30',
+							memory: "250M"
+						},
+						reservations: {
+							cpus: '0.30',
+							memory: "250M"
+						}
 					}
 				}
 			},			
@@ -361,6 +421,16 @@ export default function (osi4iotState) {
 					replicas: 1,
 					placement: {
 						constraints: workerConstraintsArray
+					},
+					resources: {
+						limits: {
+							cpus: '0.30',
+							memory: "250M"
+						},
+						reservations: {
+							cpus: '0.30',
+							memory: "250M"
+						}
 					}
 				}
 			},
@@ -397,6 +467,16 @@ export default function (osi4iotState) {
 				deploy: {
 					placement: {
 						constraints: workerConstraintsArray
+					},
+					resources: {
+						limits: {
+							cpus: '0.15',
+							memory: "125M"
+						},
+						reservations: {
+							cpus: '0.15',
+							memory: "125M"
+						}
 					}
 				}
 			},			
@@ -429,6 +509,16 @@ export default function (osi4iotState) {
 				deploy: {
 					placement: {
 						constraints: workerConstraintsArray
+					},
+					resources: {
+						limits: {
+							cpus: '0.30',
+							memory: "250M"
+						},
+						reservations: {
+							cpus: '0.30',
+							memory: "250M"
+						}
 					}
 				}
 			},
@@ -474,6 +564,16 @@ export default function (osi4iotState) {
 					placement: {
 						max_replicas_per_node: 2,
 						constraints: ["node.role==manager"]
+					},
+					resources: {
+						limits: {
+							cpus: '0.30',
+							memory: "250M"
+						},
+						reservations: {
+							cpus: '0.30',
+							memory: "250M"
+						}
 					},
 					labels: [
 						'traefik.enable=true',
@@ -561,6 +661,16 @@ export default function (osi4iotState) {
 						max_replicas_per_node: 2,
 						constraints: workerConstraintsArray
 					},
+					resources: {
+						limits: {
+							cpus: '0.30',
+							memory: "250M"
+						},
+						reservations: {
+							cpus: '0.30',
+							memory: "250M"
+						}
+					},
 					labels: [
 						'traefik.enable=true',
 						`traefik.http.routers.admin_api.rule=Host(\`${domainName}\`) && PathPrefix(\`/admin_api/\`)`,
@@ -612,6 +722,16 @@ export default function (osi4iotState) {
 					placement: {
 						max_replicas_per_node: 2,
 						constraints: workerConstraintsArray
+					},
+					resources: {
+						limits: {
+							cpus: '0.30',
+							memory: "250M"
+						},
+						reservations: {
+							cpus: '0.30',
+							memory: "250M"
+						}
 					},
 					labels: [
 						'traefik.enable=true',
@@ -769,6 +889,16 @@ export default function (osi4iotState) {
 				placement: {
 					constraints: workerConstraintsArray
 				},
+				resources: {
+					limits: {
+						cpus: '0.15',
+						memory: "125M"
+					},
+					reservations: {
+						cpus: '0.15',
+						memory: "125M"
+					}
+				},
 				labels: [
 					'traefik.enable=true',
 					`traefik.http.routers.pgadmin4.rule=Host(\`${domainName}\`) && PathPrefix(\`/pgadmin4/\`)`,
@@ -835,6 +965,16 @@ export default function (osi4iotState) {
 				replicas: 1,
 				placement: {
 					constraints: minioConstraintsArray
+				},
+				resources: {
+					limits: {
+						cpus: '0.30',
+						memory: "250M"
+					},
+					reservations: {
+						cpus: '0.30',
+						memory: "250M"
+					}
 				},
 				labels: [
 					// MINIO API
@@ -1019,6 +1159,16 @@ export default function (osi4iotState) {
 			deploy: {
 				placement: {
 					constraints: [...workerConstraintsArray, 'node.platform.arch==x86_64']
+				},
+				resources: {
+					limits: {
+						cpus: '0.15',
+						memory: "125M"
+					},
+					reservations: {
+						cpus: '0.15',
+						memory: "125M"
+					}
 				}
 			}
 		}
@@ -1044,6 +1194,16 @@ export default function (osi4iotState) {
 					mode: 'global',
 					placement: {
 						constraints: ["node.role==manager"]
+					},
+					resources: {
+						limits: {
+							cpus: '0.06',
+							memory: "50M"
+						},
+						reservations: {
+							cpus: '0.06',
+							memory: "50M"
+						}
 					}
 				}
 			}
@@ -1267,11 +1427,11 @@ export default function (osi4iotState) {
 				deploy: {
 					resources: {
 						limits: {
-							cpus: '0.5',
+							cpus: '0.3',
 							memory: "1250M"
 						},
 						reservations: {
-							cpus: '0.5',
+							cpus: '0.3',
 							memory: "1250M"
 						}
 					},
