@@ -1271,8 +1271,8 @@ export default function (osi4iotState) {
 							memory: "512M"
 						},
 						reservations: {
-							cpus: '0.5',
-							memory: "128M"
+							cpus: '1.0',
+							memory: "512M"
 						}
 					},
 					placement: {
