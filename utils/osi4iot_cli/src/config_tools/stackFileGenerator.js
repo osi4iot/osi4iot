@@ -891,12 +891,12 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: '0.15',
-						memory: "125M"
+						cpus: '0.30',
+						memory: "250M"
 					},
 					reservations: {
-						cpus: '0.15',
-						memory: "125M"
+						cpus: '0.30',
+						memory: "250M"
 					}
 				},
 				labels: [
