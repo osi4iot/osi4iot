@@ -1267,11 +1267,11 @@ export default function (osi4iotState) {
 				deploy: {
 					resources: {
 						limits: {
-							cpus: '8.0',
+							cpus: '4.0',
 							memory: "1024M"
 						},
 						reservations: {
-							cpus: '8.0',
+							cpus: '4.0',
 							memory: "1024M"
 						}
 					},
