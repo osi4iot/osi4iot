@@ -1272,7 +1272,7 @@ export default function (osi4iotState) {
 						},
 						reservations: {
 							cpus: '0.5',
-							memory: "2048M"
+							memory: "1600M"
 						}
 					},
 					placement: {
