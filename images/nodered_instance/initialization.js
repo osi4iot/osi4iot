@@ -6,7 +6,7 @@ const initialization = async (token, groupId) => {
     //Init pyodide
     const pyodide = await initPyodide();
 
-    //Inite pythonLibraries
+    //Init pythonLibraries
     const pythonLibraries = await PythonLibraries(pyodide);
 
     //Init mlModels

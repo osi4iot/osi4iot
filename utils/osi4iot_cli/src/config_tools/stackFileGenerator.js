@@ -1437,16 +1437,6 @@ export default function (osi4iotState) {
 					}
 				],
 				deploy: {
-					// resources: {
-					// 	limits: {
-					// 		cpus: '0.50',
-					// 		memory: "2048M"
-					// 	},
-					// 	reservations: {
-					// 		cpus: '0.50',
-					// 		memory: "2048M"
-					// 	}
-					// },
 					placement: {
 						constraints: []
 					},
@@ -1464,6 +1454,19 @@ export default function (osi4iotState) {
 						`traefik.http.routers.${serviceName}.service=${serviceName}`,
 						`traefik.http.services.${serviceName}.loadbalancer.server.port=1880`
 					]
+				}
+			}
+
+			if (platformArch === "x86_64") {
+				osi4iotStackObj.services[serviceName].deploy.resources = {
+					limits: {
+						cpus: '0.50',
+						memory: "2048M"
+					},
+					reservations: {
+						cpus: '0.50',
+						memory: "2048M"
+					}
 				}
 			}
 
