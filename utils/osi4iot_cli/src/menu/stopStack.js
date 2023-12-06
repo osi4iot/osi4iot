@@ -13,7 +13,8 @@ export default async function () {
 		const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 		const osi4iotState = JSON.parse(osi4iotStateText);
 		const nodesData = osi4iotState.platformInfo.NODES_DATA;
-		if (nodesData && nodesData.length !== 0) {
+		const numSwarmNodes = nodesData.length;
+		if (nodesData && numSwarmNodes !== 0) {
 			const dockerHost = findManagerDockerHost(osi4iotState.platformInfo.NODES_DATA);
 			await execShellCommand(`docker ${dockerHost} stack rm osi4iot`);
 
