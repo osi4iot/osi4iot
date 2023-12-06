@@ -677,9 +677,6 @@ export default function (osi4iotState) {
 			}
 		},
 		networks: {
-			agent_network: {
-				external: true
-			},
 			traefik_public: {
 				external: true
 			},
@@ -792,6 +789,9 @@ export default function (osi4iotState) {
 
 	if (deploymentMode === "development") {
 		if (numSwarmNodes > 1) {
+			osi4iotStackObj.networks['agent_network'] = {
+				external: true
+			};
 			osi4iotStackObj.services['agent'] = {
 				image: `ghcr.io/osi4iot/portainer_agent:${serviceImageVersion['agent']}`,
 				environment: [

@@ -37,7 +37,8 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 			const osi4iotStateText = fs.readFileSync('./osi4iot_state.json', 'UTF-8');
 			osi4iotState = JSON.parse(osi4iotStateText);
 			const nodesData = osi4iotState.platformInfo.NODES_DATA
-			if (nodesData && nodesData.length !== 0) {
+			const numSwarmNodes = nodesData.length;
+			if (nodesData && numSwarmNodes !== 0) {
 				if (!dockerHost) {
 					dockerHost = findManagerDockerHost(nodesData);
 				}
@@ -86,6 +87,8 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 	}
 
 	if (osi4iotState.platformInfo.NODES_DATA && osi4iotState.platformInfo.NODES_DATA.length !== 0) {
+		const nodesData = osi4iotState.platformInfo.NODES_DATA
+		const numSwarmNodes = nodesData.length;
 		let encryption = "";
 		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
 			encryption = "-o encrypted=true";
@@ -96,7 +99,7 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 			execSync(`docker ${dockerHost} network create -d overlay ${encryption} traefik_public`);
 		}
 
-		if (networks.toString().indexOf("agent_network") === -1) {
+		if (networks.toString().indexOf("agent_network") === -1 && numSwarmNodes > 1) {
 			execSync(`docker ${dockerHost} network create -d overlay ${encryption} agent_network`);
 		}
 
@@ -128,6 +131,8 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 						}
 						const services = text.split('\n').filter(line => !line.includes("osi4iot_system_prune")).join('\n');
 						let continuar = services.includes(" 0/1 ") ||
+							services.includes(" 0/2 ") ||
+							services.includes(" 1/2 ") ||
 							services.includes(" 0/3 ") ||
 							services.includes(" 1/3 ") ||
 							services.includes(" 2/3 ");
@@ -165,6 +170,8 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 										let text = execSync(`docker ${dockerHost} service ls`).toString();
 										const services = text.split('\n').filter(line => !line.includes("osi4iot_system_prune")).join('\n');
 										let continuar = services.includes(" 0/1 ") ||
+											services.includes(" 0/2 ") ||
+											services.includes(" 1/2 ") ||
 											services.includes(" 0/3 ") ||
 											services.includes(" 1/3 ") ||
 											services.includes(" 2/3 ");
