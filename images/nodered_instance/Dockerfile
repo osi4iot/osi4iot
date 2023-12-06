@@ -23,7 +23,6 @@ RUN if [ "$TARGETARCH" = "arm64" ] ; then cd /usr/src/node-red && npm rebuild @t
 RUN npm install jimp
 
 RUN npm install node-red-contrib-tfjs-coco-ssd
-# RUN if [ "$TARGETARCH" = "arm64" ] ; then cd /usr/src/node-red && npm rebuild @tensorflow/tfjs-node --build-from-source; fi
 RUN npm install node-red-node-base64
 RUN npm install node-red-dashboard
 RUN npm install node-red-contrib-image-output

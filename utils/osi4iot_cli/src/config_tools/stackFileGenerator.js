@@ -178,7 +178,7 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.15',
+							cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
 							memory: "250M"
 						},
 						reservations: {
@@ -249,11 +249,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.30',
+							cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.30',
+							cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
 							memory: "500M"
 						}
 					}
@@ -299,11 +299,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						}
 					}
@@ -353,11 +353,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						}
 					}
@@ -399,11 +399,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.15',
+							cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
 							memory: "250M"
 						},
 						reservations: {
-							cpus: '0.15',
+							cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
 							memory: "250M"
 						}
 					}
@@ -441,11 +441,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						}
 					}
@@ -496,11 +496,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						}
 					},
@@ -592,11 +592,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.30',
+							cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
 							memory: "1000M"
 						},
 						reservations: {
-							cpus: '0.30',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "1000M"
 						}
 					},
@@ -654,11 +654,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.25',
+							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
 							memory: "500M"
 						}
 					},
@@ -895,11 +895,11 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: '0.15',
+						cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
 						memory: "500M"
 					},
 					reservations: {
-						cpus: '0.15',
+						cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
 						memory: "500M"
 					}
 				},
@@ -972,11 +972,11 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: '0.30',
+						cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
 						memory: "500M"
 					},
 					reservations: {
-						cpus: '0.30',
+						cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
 						memory: "500M"
 					}
 				},
@@ -1170,11 +1170,11 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: '0.075',
+						cpus: '0.1',
 						memory: "500M"
 					},
 					reservations: {
-						cpus: '0.075',
+						cpus: '0.1',
 						memory: "500M"
 					}
 				}
@@ -1437,16 +1437,16 @@ export default function (osi4iotState) {
 					}
 				],
 				deploy: {
-					resources: {
-						limits: {
-							cpus: '0.50',
-							memory: "2048M"
-						},
-						reservations: {
-							cpus: '0.50',
-							memory: "2048M"
-						}
-					},
+					// resources: {
+					// 	limits: {
+					// 		cpus: '0.50',
+					// 		memory: "2048M"
+					// 	},
+					// 	reservations: {
+					// 		cpus: '0.50',
+					// 		memory: "2048M"
+					// 	}
+					// },
 					placement: {
 						constraints: []
 					},

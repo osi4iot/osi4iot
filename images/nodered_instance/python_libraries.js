@@ -39,7 +39,6 @@ const PythonLibraries = async (pyodide) => {
         while (libraryList.length !== 0) libraryList.pop();
     }
 
-
     return {
         load,
         existsLibrary,
