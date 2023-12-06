@@ -280,11 +280,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.005',
-							memory: "50M"
+							memory: "100M"
 						},
 						reservations: {
 							cpus: '0.005',
-							memory: "50M"
+							memory: "100M"
 						}
 					}
 				}
@@ -892,11 +892,11 @@ export default function (osi4iotState) {
 				resources: {
 					limits: {
 						cpus: '0.05',
-						memory: "250M"
+						memory: "500M"
 					},
 					reservations: {
 						cpus: '0.05',
-						memory: "250M"
+						memory: "500M"
 					}
 				},
 				labels: [
