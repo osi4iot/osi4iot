@@ -145,11 +145,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.01',
-							memory: "10M"
+							memory: "50M"
 						},
 						reservations: {
 							cpus: '0.01',
-							memory: "10M"
+							memory: "50M"
 						}
 					}
 				}
@@ -179,11 +179,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.075',
-							memory: "62M"
+							memory: "250M"
 						},
 						reservations: {
 							cpus: '0.075',
-							memory: "62M"
+							memory: "250M"
 						}
 					}
 				},
@@ -250,11 +250,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						},
 						reservations: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						}
 					}
 				},
@@ -280,11 +280,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.005',
-							memory: "5M"
+							memory: "50M"
 						},
 						reservations: {
 							cpus: '0.005',
-							memory: "5M"
+							memory: "50M"
 						}
 					}
 				}
@@ -311,11 +311,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.01',
-							memory: "10M"
+							memory: "50M"
 						},
 						reservations: {
 							cpus: '0.01',
-							memory: "10M"
+							memory: "50M"
 						}
 					},
 					labels: [
@@ -371,11 +371,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.15',
-							memory: "250M"
+							memory: "500M"
 						},
 						reservations: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						}
 					}
 				}
@@ -425,11 +425,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.15',
-							memory: "250M"
+							memory: "500M"
 						},
 						reservations: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						}
 					}
 				}
@@ -471,11 +471,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.075',
-							memory: "62.5M"
+							memory: "250M"
 						},
 						reservations: {
 							cpus: '0.075',
-							memory: "62.5M"
+							memory: "250M"
 						}
 					}
 				}
@@ -513,11 +513,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						},
 						reservations: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						}
 					}
 				}
@@ -568,11 +568,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						},
 						reservations: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						}
 					},
 					labels: [
@@ -726,11 +726,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						},
 						reservations: {
 							cpus: '0.15',
-							memory: "125M"
+							memory: "500M"
 						}
 					},
 					labels: [
@@ -892,11 +892,11 @@ export default function (osi4iotState) {
 				resources: {
 					limits: {
 						cpus: '0.05',
-						memory: "200M"
+						memory: "250M"
 					},
 					reservations: {
 						cpus: '0.05',
-						memory: "200M"
+						memory: "250M"
 					}
 				},
 				labels: [
@@ -969,11 +969,11 @@ export default function (osi4iotState) {
 				resources: {
 					limits: {
 						cpus: '0.15',
-						memory: "125M"
+						memory: "500M"
 					},
 					reservations: {
 						cpus: '0.15',
-						memory: "125M"
+						memory: "500M"
 					}
 				},
 				labels: [
@@ -1163,11 +1163,11 @@ export default function (osi4iotState) {
 				resources: {
 					limits: {
 						cpus: '0.075',
-						memory: "125M"
+						memory: "500M"
 					},
 					reservations: {
 						cpus: '0.075',
-						memory: "125M"
+						memory: "500M"
 					}
 				}
 			}
