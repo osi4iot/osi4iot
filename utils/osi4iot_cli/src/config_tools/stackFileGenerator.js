@@ -178,11 +178,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.075',
+							cpus: '0.15',
 							memory: "250M"
 						},
 						reservations: {
-							cpus: '0.075',
+							cpus: '0.15',
 							memory: "250M"
 						}
 					}
@@ -249,11 +249,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.15',
+							cpus: '0.30',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.15',
+							cpus: '0.30',
 							memory: "500M"
 						}
 					}
@@ -299,11 +299,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						}
 					}
@@ -353,11 +353,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						}
 					}
@@ -399,11 +399,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.075',
+							cpus: '0.15',
 							memory: "250M"
 						},
 						reservations: {
-							cpus: '0.075',
+							cpus: '0.15',
 							memory: "250M"
 						}
 					}
@@ -441,11 +441,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						}
 					}
@@ -496,11 +496,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						}
 					},
@@ -654,11 +654,11 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						},
 						reservations: {
-							cpus: '0.15',
+							cpus: '0.25',
 							memory: "500M"
 						}
 					},
@@ -895,11 +895,11 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: '0.05',
+						cpus: '0.15',
 						memory: "500M"
 					},
 					reservations: {
-						cpus: '0.05',
+						cpus: '0.15',
 						memory: "500M"
 					}
 				},
@@ -972,11 +972,11 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: '0.15',
+						cpus: '0.30',
 						memory: "500M"
 					},
 					reservations: {
-						cpus: '0.15',
+						cpus: '0.30',
 						memory: "500M"
 					}
 				},
