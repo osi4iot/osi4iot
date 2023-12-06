@@ -259,77 +259,6 @@ export default function (osi4iotState) {
 					}
 				},
 			},
-			agent: {
-				image: `ghcr.io/osi4iot/portainer_agent:${serviceImageVersion['agent']}`,
-				environment: [
-					"AGENT_CLUSTER_ADDR=tasks.agent",
-					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
-				],
-				volumes: [
-					'/var/run/docker.sock:/var/run/docker.sock',
-					'/var/lib/docker/volumes:/var/lib/docker/volumes'
-				],
-				networks: [
-					'agent_network'
-				],
-				deploy: {
-					mode: 'global',
-					placement: {
-						constraints: ["node.platform.os==linux"]
-					},
-					resources: {
-						limits: {
-							cpus: '0.005',
-							memory: "100M"
-						},
-						reservations: {
-							cpus: '0.005',
-							memory: "100M"
-						}
-					}
-				}
-			},
-			portainer: {
-				image: `ghcr.io/osi4iot/portainer:${serviceImageVersion['portainer']}`,
-				command: '-H tcp://tasks.agent:9001 --tlsskipverify',
-				environment: [
-					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
-				],
-				volumes: [
-					'portainer_data:/data'
-				],
-				networks: [
-					'traefik_public',
-					'agent_network'
-				],
-				deploy: {
-					mode: 'replicated',
-					replicas: 1,
-					placement: {
-						constraints: ["node.role==manager"]
-					},
-					resources: {
-						limits: {
-							cpus: '0.01',
-							memory: "50M"
-						},
-						reservations: {
-							cpus: '0.01',
-							memory: "50M"
-						}
-					},
-					labels: [
-						'traefik.enable=true',
-						`traefik.http.routers.portainer.rule=Host(\`${domainName}\`) && PathPrefix(\`/portainer/\`)`,
-						'traefik.http.middlewares.portainerpathstrip.stripprefix.prefixes=/portainer',
-						'traefik.http.routers.portainer.middlewares=portainerpathstrip@docker',
-						`traefik.http.routers.portainer.entrypoints=${entryPoint}`,
-						'traefik.http.routers.portainer.tls=true',
-						'traefik.http.routers.portainer.service=portainer',
-						'traefik.http.services.portainer.loadbalancer.server.port=9000'
-					]
-				}
-			},
 			postgres: {
 				image: `ghcr.io/osi4iot/postgres:${serviceImageVersion['postgres']}`,
 				networks: [
@@ -379,7 +308,7 @@ export default function (osi4iotState) {
 						}
 					}
 				}
-			},			
+			},
 			timescaledb: {
 				image: `ghcr.io/osi4iot/timescaledb:${serviceImageVersion['timescaledb']}`,
 				networks: [
@@ -441,7 +370,7 @@ export default function (osi4iotState) {
 				],
 				environment: [
 					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
-				],				
+				],
 				volumes: [
 					's3_storage_data:/data'
 				],
@@ -479,7 +408,7 @@ export default function (osi4iotState) {
 						}
 					}
 				}
-			},			
+			},
 			dev2pdb: {
 				image: `ghcr.io/osi4iot/dev2pdb:${serviceImageVersion['dev2pdb']}`,
 				networks: [
@@ -640,7 +569,7 @@ export default function (osi4iotState) {
 						source: 'admin_api_main_org_floor',
 						target: '/run/configs/main_org_floor.geojson',
 						mode: 0o444
-					}					
+					}
 				],
 				ports: [
 					'3200:3200'
@@ -771,9 +700,6 @@ export default function (osi4iotState) {
 			timescaledb_data: {
 				driver: 'local'
 			},
-			portainer_data: {
-				driver: 'local'
-			},
 			grafana_data: {
 				driver: 'local'
 			},
@@ -809,7 +735,7 @@ export default function (osi4iotState) {
 			},
 			postgres_grafana: {
 				file: './secrets/postgres_grafana.txt'
-			},			
+			},
 			timescaledb_user: {
 				file: './secrets/timescaledb_user.txt'
 			},
@@ -854,7 +780,7 @@ export default function (osi4iotState) {
 			},
 			admin_api_main_org_floor: {
 				file: './config/admin_api/main_org_floor.geojson'
-			},				
+			},
 			frontend_conf: {
 				file: './config/frontend/frontend.conf',
 			},
@@ -865,7 +791,85 @@ export default function (osi4iotState) {
 	}
 
 	if (deploymentMode === "development") {
-		osi4iotStackObj.services['pgadmin4'] =  {
+		if (numSwarmNodes > 1) {
+			osi4iotStackObj.services['agent'] = {
+				image: `ghcr.io/osi4iot/portainer_agent:${serviceImageVersion['agent']}`,
+				environment: [
+					"AGENT_CLUSTER_ADDR=tasks.agent",
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
+				volumes: [
+					'/var/run/docker.sock:/var/run/docker.sock',
+					'/var/lib/docker/volumes:/var/lib/docker/volumes'
+				],
+				networks: [
+					'agent_network'
+				],
+				deploy: {
+					mode: 'global',
+					placement: {
+						constraints: ["node.platform.os==linux"]
+					},
+					resources: {
+						limits: {
+							cpus: '0.1',
+							memory: "100M"
+						},
+						reservations: {
+							cpus: '0.1',
+							memory: "100M"
+						}
+					}
+				}
+			};
+
+			osi4iotStackObj.services['portainer'] = {
+				image: `ghcr.io/osi4iot/portainer:${serviceImageVersion['portainer']}`,
+				command: '-H tcp://tasks.agent:9001 --tlsskipverify',
+				environment: [
+					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+				],
+				volumes: [
+					'portainer_data:/data'
+				],
+				networks: [
+					'traefik_public',
+					'agent_network'
+				],
+				deploy: {
+					mode: 'replicated',
+					replicas: 1,
+					placement: {
+						constraints: ["node.role==manager"]
+					},
+					resources: {
+						limits: {
+							cpus: '0.1',
+							memory: "100M"
+						},
+						reservations: {
+							cpus: '0.1',
+							memory: "100M"
+						}
+					},
+					labels: [
+						'traefik.enable=true',
+						`traefik.http.routers.portainer.rule=Host(\`${domainName}\`) && PathPrefix(\`/portainer/\`)`,
+						'traefik.http.middlewares.portainerpathstrip.stripprefix.prefixes=/portainer',
+						'traefik.http.routers.portainer.middlewares=portainerpathstrip@docker',
+						`traefik.http.routers.portainer.entrypoints=${entryPoint}`,
+						'traefik.http.routers.portainer.tls=true',
+						'traefik.http.routers.portainer.service=portainer',
+						'traefik.http.services.portainer.loadbalancer.server.port=9000'
+					]
+				}
+			}
+			osi4iotStackObj.volumes.portainer_data = {
+				driver: 'local',
+			}
+		}
+
+		osi4iotStackObj.services['pgadmin4'] = {
 			image: `ghcr.io/osi4iot/pgadmin4:${serviceImageVersion['pgadmin4']}`,
 			user: '${UID}:${GID}',
 			environment: [
@@ -1015,9 +1019,12 @@ export default function (osi4iotState) {
 	}
 
 	if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {
-		osi4iotStackObj.services['portainer'].deploy.labels = osi4iotStackObj.services['portainer'].deploy.labels.filter(elm => elm !== 'traefik.http.routers.portainer.tls=true');
-
 		if (deploymentMode === "development") {
+			if (numSwarmNodes > 1) {
+				osi4iotStackObj.services['portainer'].deploy.labels = osi4iotStackObj.services['portainer'].deploy.labels.filter(elm =>
+					elm !== 'traefik.http.routers.portainer.tls=true'
+				);
+			}
 			osi4iotStackObj.services['pgadmin4'].deploy.labels = [
 				'traefik.enable=true',
 				`traefik.http.routers.pgadmin4.rule=Host(\`${domainName}\`) && PathPrefix(\`/pgadmin4/\`)`,
@@ -1029,6 +1036,7 @@ export default function (osi4iotState) {
 				'traefik.http.routers.pgadmin4.service=pgadmin4',
 				'traefik.http.services.pgadmin4.loadbalancer.server.port=80'
 			];
+
 		}
 
 		osi4iotStackObj.services['grafana'].deploy.labels = [
@@ -1246,15 +1254,6 @@ export default function (osi4iotState) {
 				}
 			}
 
-			osi4iotStackObj.volumes['portainer_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs_osi4iot/portainer_data'
-				}
-			}
-
 			osi4iotStackObj.volumes['grafana_data'] = {
 				driver: 'local',
 				driver_opts: {
@@ -1283,6 +1282,17 @@ export default function (osi4iotState) {
 			}
 
 			if (deploymentMode === "development") {
+				if (numSwarmNodes > 1) {
+					osi4iotStackObj.volumes['portainer_data'] = {
+						driver: 'local',
+						driver_opts: {
+							type: 'nfs',
+							o: `nfsvers=4,addr=${nfsServerIP},rw`,
+							device: ':/var/nfs_osi4iot/portainer_data'
+						}
+					}
+				}
+
 				osi4iotStackObj.volumes['pgadmin4_data'] = {
 					driver: 'local',
 					driver_opts: {
@@ -1330,15 +1340,6 @@ export default function (osi4iotState) {
 				}
 			}
 
-			osi4iotStackObj.volumes['portainer_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/portainer_data`
-				}
-			}
-
 			osi4iotStackObj.volumes['grafana_data'] = {
 				driver: 'local',
 				driver_opts: {
@@ -1364,9 +1365,20 @@ export default function (osi4iotState) {
 					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
 					device: `${efs_dns}:/s3_storage_data`
 				}
-			}			
+			}
 
 			if (deploymentMode === "development") {
+				if (numSwarmNodes > 1) {
+					osi4iotStackObj.volumes['portainer_data'] = {
+						driver: 'local',
+						driver_opts: {
+							type: 'nfs',
+							o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+							device: `${efs_dns}:/portainer_data`
+						}
+					}
+				}
+
 				osi4iotStackObj.volumes['pgadmin4_data'] = {
 					driver: 'local',
 					driver_opts: {
@@ -1428,11 +1440,11 @@ export default function (osi4iotState) {
 					resources: {
 						limits: {
 							cpus: '0.15',
-							memory: "1250M"
+							memory: "1500M"
 						},
 						reservations: {
 							cpus: '0.15',
-							memory: "1250M"
+							memory: "1500M"
 						}
 					},
 					placement: {
