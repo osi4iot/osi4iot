@@ -21,15 +21,19 @@ export default async function () {
 			if (networks.toString().indexOf("traefik_public") === -1) {
 				execSync(`docker ${dockerHost} network rm traefik_public`);
 			}
-	
-			if (networks.toString().indexOf("agent_network") === -1) {
+
+			if (
+				networks.toString().indexOf("agent_network") === -1 &&
+				numSwarmNodes > 1 &&
+				deploymentMode === "development"
+			) {
 				execSync(`docker ${dockerHost} network rm agent_network`);
 			}
-	
+
 			if (networks.toString().indexOf("internal_net") === -1) {
 				execSync(`docker ${dockerHost} network rm internal_net`);
 			}
-	
+
 		} else {
 			clearScreen();
 		}
