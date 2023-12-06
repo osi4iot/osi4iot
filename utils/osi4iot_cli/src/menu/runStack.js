@@ -89,6 +89,7 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 	if (osi4iotState.platformInfo.NODES_DATA && osi4iotState.platformInfo.NODES_DATA.length !== 0) {
 		const nodesData = osi4iotState.platformInfo.NODES_DATA
 		const numSwarmNodes = nodesData.length;
+		const deploymentMode = osi4iotState.platformInfo.DEPLOYMENT_MODE;
 		let encryption = "";
 		if (osi4iotState.platformInfo.DEPLOYMENT_LOCATION === "On-premise cluster deployment") {
 			encryption = "-o encrypted=true";
@@ -99,7 +100,11 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 			execSync(`docker ${dockerHost} network create -d overlay ${encryption} traefik_public`);
 		}
 
-		if (networks.toString().indexOf("agent_network") === -1 && numSwarmNodes > 1) {
+		if (
+			networks.toString().indexOf("agent_network") === -1 &&
+			numSwarmNodes > 1 &&
+			deploymentMode === "development"
+		) {
 			execSync(`docker ${dockerHost} network create -d overlay ${encryption} agent_network`);
 		}
 
