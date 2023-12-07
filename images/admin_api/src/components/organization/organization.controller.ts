@@ -81,7 +81,7 @@ import {
 	getNodeRedInstancesByOrgsIdArray
 } from "../nodeRedInstance/nodeRedInstanceDAL";
 import { createTimescaledbOrgDataSource } from "../group/datasourceDAL";
-import { createNewAsset, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
+import { createNewAsset, createNewAssetType, getAssetTypeByTypeAndOrgId } from "../asset/assetDAL";
 import { createNewSensorType } from "../sensor/sensorDAL";
 import { nanoid } from "nanoid";
 import infoLogger from "../../utils/logger/infoLogger";
@@ -90,6 +90,8 @@ import ISensorType from "../sensor/sensorType.interface";
 import pointOnFeature from "@turf/point-on-feature";
 import rhumbDestination from "@turf/rhumb-destination";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
+import { predefinedAssetTypes } from "../../initialization/predefinedAssetTypes";
+import IAssetType from "../asset/assetType.interface";
 
 class OrganizationController implements IController {
 	public path = "/organization";
@@ -435,9 +437,24 @@ class OrganizationController implements IController {
 					sensorTypes.push(newSensorType);
 				}
 
-				const assetType = await getAssetTypeByTypeAndOrgId(orgId, "Mobile");
+				for (const assetType of predefinedAssetTypes as IAssetType[]) {
+					const defaultAssetTypeData = {
+						orgId,
+						type: assetType.type,
+						iconSvgFileName: assetType.iconSvgFileName,
+						iconSvgString: assetType.iconSvgString,
+						geolocationMode: assetType.geolocationMode,
+						markerSvgFileName: assetType.markerSvgFileName,
+						markerSvgString: assetType.markerSvgString,
+						assetStateFormat: "{}",
+						isPredefined: true,
+					}
+					await createNewAssetType(defaultAssetTypeData);
+				}
+
+				const mobileAssetType = await getAssetTypeByTypeAndOrgId(orgId, "Mobile");
 				const defaultAssetData = {
-					assetTypeId: assetType.id,
+					assetTypeId: mobileAssetType.id,
 					description: `Mobile for group ${group.acronym}`,
 					type: "Mobile",
 					iconRadio: 1.0,

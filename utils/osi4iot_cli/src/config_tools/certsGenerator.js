@@ -117,7 +117,6 @@ export default async function (osi4iotState) {
 
 	const nodeRedInstanceCertsPromises = []
 	for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
-		const org_acronym = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym;
 		const num_nodeRedInstances = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances.length;
 		for (let idev = 1; idev <= num_nodeRedInstances; idev++) {
 			const nri_client_crt = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_crt;
@@ -127,7 +126,6 @@ export default async function (osi4iotState) {
 
 			if ((nri_client_crt === "" && nri_client_key === "") || nri_exp_timestamp < limitTimestamp) {
 				const promise = mkcert.createCert({
-					// domains: [`org_${org_acronym}_nri_${nri_hash}`],
 					domains: [`nri_${nri_hash}`],
 					validityDays: defaultValidityDays,
 					caKey: mqttCa.key,
