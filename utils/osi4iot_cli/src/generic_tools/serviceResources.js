@@ -155,65 +155,65 @@ export const giveCPUs = (service, numSwarmNodes, numCpuPerNode) => {
 }
 
 export const giveMemory = (service, memoryPerNode) => {
-    let memory = '100M';
+    let memory = "100M";
     switch (service) {
         case 'system_prune':
-            memory = '50M';
+            memory = "50M";
             break;
         case 'traefik':
-            memory = '250M';
+            memory = "250M";
             break;
         case 'mosquitto_go_auth':
-            memory = '500M';
+            memory = "500M";
             break;
         case 'postgres':
-            memory = '500M';
+            memory = "500M";
             break;
         case 'timescaledb':
-            memory = '500M';
+            memory = "500M";
             break;
         case 's3_storage':
-            memory = '250M';
+            memory = "250M";
             break;
         case 'dev2pdb':
-            memory = '500M';
+            memory = "500M";
             break;
         case 'grafana':
-            memory = '500M';
+            memory = "500M";
             break;
         case 'admin_api':
-            memory = '1000M';
+            memory = "1000M";
             break;
         case 'frontend':
-            memory = '500M';
+            memory = "500M";
             break;
         case 'agent':
-            memory = '100M';
+            memory = "100M";
             break;
         case 'portainer':
-            memory = '100M';
+            memory = "100M";
             break;
         case 'pgadmin4':
-            memory = '500M';
+            memory = "500M";
             break;
         case 'minio':
-            memory = '500M';
+            memory = "500M";
             break;
         case 'grafana_renderer':
-            memory = '500M';
+            memory = "500M";
             break;
         case 'keepalived':
-            memory = '10M';
+            memory = "10M";
             break;
         case 'nodered_instance':
             if (memoryPerNode === "4 GiB" || memoryPerNode === "8 GiB") {
-                memory = '2048M';
+                memory = "2048M";
             } else if (memoryPerNode === "16 GiB" || memoryPerNode === "32 GiB"){
-                memory = '4096M';
+                memory = "4096M";
             }
             break;
         default:
-            memory = '100M';
+            memory = "100M";
     }
     return memory;
 }
