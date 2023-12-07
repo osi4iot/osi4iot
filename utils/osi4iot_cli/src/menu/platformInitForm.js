@@ -36,7 +36,7 @@ const platformInitiation = () => {
 	let mainOrgAdminPassword;
 
 	inquirer
-		.prompt([	
+		.prompt([
 			{
 				name: 'PLATFORM_NAME',
 				message: 'Platform name:',
@@ -149,6 +149,48 @@ const platformInitiation = () => {
 						return true;
 					} else {
 						return "Please type an integer number greater or equal to one";
+					}
+				}
+			},
+			{
+				name: 'NUMBER_OF_CPUS_PER_NODE',
+				message: 'Select the number of CPUs per cluster node:',
+				default: '4',
+				type: 'list',
+				choices: [
+					"2",
+					"4",
+					"8",
+					"16"
+				],
+				validate: function (numCpus) {
+					if (numCpus === "2") {
+						if (deploymentLocation === "Local deployment") {
+							return "For local deployment at least 4 CPUs are required";
+						} else {
+							return true;
+						}
+					}
+				}
+			},
+			{
+				name: 'RAM_MEMORY_PER_NODE',
+				message: 'Select the amount of RAM memory in GiB per cluster node:',
+				default: '4',
+				type: 'list',
+				choices: [
+					"4 GiB",
+					"8 GiB",
+					"16 GiB",
+					"32 GiB",
+				],
+				validate: function (numCpus) {
+					if (numCpus === "4 GiB") {
+						if (deploymentLocation === "Local deployment") {
+							return "For local deployment at least 8 GiB of RAM memory are required";
+						} else {
+							return true;
+						}
 					}
 				}
 			},
@@ -385,7 +427,7 @@ const finalQuestions = (
 				name: 'MAIN_ORGANIZATION_FLOOR',
 				message: 'Main organization floor:',
 				type: 'editor',
-			},			
+			},
 			{
 				name: 'TELEGRAM_BOTTOKEN',
 				message: 'Telegram boottoken for main organization default group:',
@@ -460,13 +502,13 @@ const finalQuestions = (
 						return "Please type a password with 8 to 20 characters which contain only characters, numeric digits, underscore and first character must be a letter";
 					}
 				}
-			},			
+			},
 			{
 				name: 'S3_BUCKET_NAME',
 				message: 'S3 storage bucket name:',
 				default: defaultS3BucketName,
 				validate: (s3BucketName) => checkIfBucketNameIsValid(s3BucketName, deploymentLocation)
-			},	
+			},
 			{
 				name: 'DOMAIN_CERTS_TYPE',
 				message: 'Choose the type of domain ssl certs to be used:',
@@ -607,7 +649,7 @@ const finalQuestions = (
 						return "Please type an integer number greater or equal to 1";
 					}
 				}
-			},			
+			},
 			{
 				name: 'FLOATING_IP_ADDRES',
 				message: 'Floating IP address:',
@@ -688,6 +730,8 @@ const finalQuestions = (
 								PLATFORM_ADMIN_USER_NAME: answers.PLATFORM_ADMIN_USER_NAME,
 								PLATFORM_ADMIN_EMAIL: answers.PLATFORM_ADMIN_EMAIL,
 								PLATFORM_ADMIN_PASSWORD: answers.PLATFORM_ADMIN_PASSWORD,
+								RAM_MEMORY_PER_NODE: answers.RAM_MEMORY_PER_NODE,
+								NUMBER_OF_CPUS_PER_NODE: answers.NUMBER_OF_CPUS_PER_NODE,
 								NODES_DATA: answers.NODES_DATA,
 								MIN_LONGITUDE: answers.MIN_LONGITUDE,
 								MAX_LONGITUDE: answers.MAX_LONGITUDE,

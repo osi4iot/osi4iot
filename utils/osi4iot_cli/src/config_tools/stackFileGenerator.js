@@ -1,5 +1,6 @@
 import yaml from 'js-yaml';
 import fs from 'fs';
+import { giveCPUs, giveMemory } from '../generic_tools/serviceResources';
 
 export default function (osi4iotState) {
 	const defaultVersion = osi4iotState.platformInfo.DOCKER_IMAGES_VERSION;
@@ -40,6 +41,8 @@ export default function (osi4iotState) {
 	if (deploymentLocation === "AWS cluster deployment") {
 		storageSystem = "AWS EFS";
 	}
+	const numCpuPerNode = osi4iotState.platformInfo.NUMBER_OF_CPUS_PER_NODE || "4";
+	const memoryPerNode = osi4iotState.platformInfo.RAM_MEMORY_PER_NODE || "4 GiB";
 
 	const domainCertsType = osi4iotState.platformInfo.DOMAIN_CERTS_TYPE;
 	let entryPoint = "websecure";
@@ -144,12 +147,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.01',
-							memory: "50M"
+							cpus: giveCPUs('system_prune', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('system_prune', memoryPerNode)
 						},
 						reservations: {
-							cpus: '0.01',
-							memory: "50M"
+							cpus: giveCPUs('system_prune', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('system_prune', memoryPerNode)
 						}
 					}
 				}
@@ -178,12 +181,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
-							memory: "250M"
+							cpus: giveCPUs('traefik', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('traefik', memoryPerNode)
 						},
 						reservations: {
-							cpus: '0.15',
-							memory: "250M"
+							cpus: giveCPUs('traefik', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('traefik', memoryPerNode)
 						}
 					}
 				},
@@ -249,12 +252,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('mosquitto_go_auth', memoryPerNode)
 						},
 						reservations: {
-							cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('mosquitto_go_auth', memoryPerNode)
 						}
 					}
 				},
@@ -299,12 +302,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('postgres', memoryPerNode)
 						},
 						reservations: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('postgres', memoryPerNode)
 						}
 					}
 				}
@@ -353,12 +356,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('timescaledb', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('timescaledb', memoryPerNode)
 						},
 						reservations: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('timescaledb', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('timescaledb', memoryPerNode)
 						}
 					}
 				}
@@ -399,12 +402,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
-							memory: "250M"
+							cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('s3_storage', memoryPerNode)
 						},
 						reservations: {
-							cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
-							memory: "250M"
+							cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('s3_storage', memoryPerNode)
 						}
 					}
 				}
@@ -441,12 +444,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('dev2pdb', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('dev2pdb', memoryPerNode)
 						},
 						reservations: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('dev2pdb', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('dev2pdb', memoryPerNode)
 						}
 					}
 				}
@@ -496,12 +499,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('grafana', memoryPerNode)
 						},
 						reservations: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('grafana', memoryPerNode)
 						}
 					},
 					labels: [
@@ -592,12 +595,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
-							memory: "1000M"
+							cpus: giveCPUs('admin_api', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('admin_api', memoryPerNode)
 						},
 						reservations: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "1000M"
+							cpus: giveCPUs('admin_api', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('admin_api', memoryPerNode)
 						}
 					},
 					labels: [
@@ -654,12 +657,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('frontend', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('frontend', memoryPerNode)
 						},
 						reservations: {
-							cpus: numSwarmNodes === 1 ? '0.25' : '0.50',
-							memory: "500M"
+							cpus: giveCPUs('frontend', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('frontend', memoryPerNode)
 						}
 					},
 					labels: [
@@ -812,12 +815,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.1',
-							memory: "100M"
+							cpus: giveCPUs('agent', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('agent', memoryPerNode)
 						},
 						reservations: {
-							cpus: '0.1',
-							memory: "100M"
+							cpus: giveCPUs('agent', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('agent', memoryPerNode)
 						}
 					}
 				}
@@ -844,12 +847,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.1',
-							memory: "100M"
+							cpus: giveCPUs('portainer', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('portainer', memoryPerNode)
 						},
 						reservations: {
-							cpus: '0.1',
-							memory: "100M"
+							cpus: giveCPUs('portainer', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('portainer', memoryPerNode)
 						}
 					},
 					labels: [
@@ -895,12 +898,12 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
-						memory: "500M"
+						cpus: giveCPUs('pgadmin4', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('pgadmin4', memoryPerNode)
 					},
 					reservations: {
-						cpus: numSwarmNodes === 1 ? '0.15' : '0.25',
-						memory: "500M"
+						cpus: giveCPUs('pgadmin4', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('pgadmin4', memoryPerNode)
 					}
 				},
 				labels: [
@@ -972,12 +975,12 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
-						memory: "500M"
+						cpus: giveCPUs('minio', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('minio', memoryPerNode)
 					},
 					reservations: {
-						cpus: numSwarmNodes === 1 ? '0.30' : '0.50',
-						memory: "500M"
+						cpus: giveCPUs('minio', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('minio', memoryPerNode)
 					}
 				},
 				labels: [
@@ -1170,12 +1173,12 @@ export default function (osi4iotState) {
 				},
 				resources: {
 					limits: {
-						cpus: '0.25',
-						memory: "500M"
+						cpus: giveCPUs('grafana_renderer', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('grafana_renderer', memoryPerNode)
 					},
 					reservations: {
-						cpus: '0.25',
-						memory: "500M"
+						cpus: giveCPUs('grafana_renderer', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('grafana_renderer', memoryPerNode)
 					}
 				}
 			}
@@ -1205,12 +1208,12 @@ export default function (osi4iotState) {
 					},
 					resources: {
 						limits: {
-							cpus: '0.05',
-							memory: "10M"
+							cpus: giveCPUs('keepalived', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('keepalived', memoryPerNode)
 						},
 						reservations: {
-							cpus: '0.05',
-							memory: "10M"
+							cpus: giveCPUs('keepalived', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('keepalived', memoryPerNode)
 						}
 					}
 				}
@@ -1460,12 +1463,12 @@ export default function (osi4iotState) {
 			if (platformArch === "x86_64") {
 				osi4iotStackObj.services[serviceName].deploy.resources = {
 					limits: {
-						cpus: '0.50',
-						memory: "2048M"
+						cpus: giveCPUs('nodered_instance', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('nodered_instance', memoryPerNode)
 					},
 					reservations: {
-						cpus: '0.50',
-						memory: "2048M"
+						cpus: giveCPUs('nodered_instance', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('nodered_instance', memoryPerNode)
 					}
 				}
 			}
