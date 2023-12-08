@@ -59,7 +59,7 @@ export default async function () {
 					clc.cyanBright('Mqtt acc'),
 					clc.cyanBright('Num nodered instances'),
 				],
-				colWidths: [5, 30, 10, 10, 15, 12, 13],
+				colWidths: [5, 30, 15, 10, 20, 12, 13],
 				wordWrap: true,
 				style: { 'padding-left': 1, 'padding-right': 1 }
 			});

@@ -50,7 +50,7 @@ export default async function () {
 					clc.cyanBright('Mqtt acc'),
 					clc.cyanBright('Num nodered instances'),
 				],
-				colWidths: [5, 30, 10, 10, 15, 12, 13],
+				colWidths: [5, 30, 15, 10, 20, 12, 13],
 				wordWrap: true,
 				style: { 'padding-left': 1, 'padding-right': 1 }
 			});
@@ -63,12 +63,10 @@ export default async function () {
 					orgs[iorg].id,
 					orgs[iorg].name,
 					orgs[iorg].acronym,
-					orgs[iorg].city,
-					orgs[iorg].country,
 					orgs[iorg].buildingId,
 					orgs[iorg].orgHash,
+					orgs[iorg].mqttAccessControl,
 					numNodeRedInstancesInOrg,
-					orgs[iorg].mqttAccessControl
 				];
 				table.push(row);
 			}
