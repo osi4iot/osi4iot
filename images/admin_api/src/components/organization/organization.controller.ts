@@ -564,7 +564,7 @@ class OrganizationController implements IController {
 					sensorsRef: ["sensor_3"]
 				}
 				const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
-				const keyBase = `org_${newOrg.id}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
+				const keyBase = `org_${newOrg.orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
 				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
 				await uploadMobilePhoneGltfFile(gltfFileName);
 			}

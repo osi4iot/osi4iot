@@ -41,6 +41,7 @@ export default function (osi4iotState) {
 	if (deploymentLocation === "AWS cluster deployment") {
 		storageSystem = "AWS EFS";
 	}
+	const s3BucketType = osi4iotState.platformInfo.S3_BUCKET_TYPE;
 	const numCpuPerNode = osi4iotState.platformInfo.NUMBER_OF_CPUS_PER_NODE || "4";
 	const memoryPerNode = osi4iotState.platformInfo.RAM_MEMORY_PER_NODE || "4 GiB";
 
@@ -932,7 +933,7 @@ export default function (osi4iotState) {
 		}
 	}
 
-	if (deploymentLocation !== "AWS cluster deployment") {
+	if (s3BucketType === "Local Minio" ) {
 		let minioConstraintsArray = [
 			`node.role==worker`,
 			'node.labels.nfs_server==true'
