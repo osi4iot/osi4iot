@@ -19,10 +19,11 @@ export const giveCPUs = (service, numSwarmNodes, numCpuPerNode) => {
             if (numSwarmNodes === 1) {
                 if (numCpuPerNode === "4") {
                     //cpus = '0.30';
-                    cpus = '0.50';
+                    //cpus = '1.0';
+                    cpus = '2.0';
                 } else {
                     //cpus = '0.50';
-                    cpus = '1.0';
+                    cpus = '2.0';
                 }
             } else {
                 cpus = '0.50';
