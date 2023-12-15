@@ -251,16 +251,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: workerConstraintsArray
 					},
-					resources: {
-						limits: {
-							cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
-							memory: giveMemory('mosquitto_go_auth', memoryPerNode)
-						},
-						reservations: {
-							cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
-							memory: giveMemory('mosquitto_go_auth', memoryPerNode)
-						}
-					}
+					// resources: {
+					// 	limits: {
+					// 		cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
+					// 		memory: giveMemory('mosquitto_go_auth', memoryPerNode)
+					// 	},
+					// 	reservations: {
+					// 		cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
+					// 		memory: giveMemory('mosquitto_go_auth', memoryPerNode)
+					// 	}
+					// }
 				},
 			},
 			postgres: {
