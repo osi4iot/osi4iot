@@ -220,7 +220,6 @@ const CreateTopic: FC<CreateTopicProps> = ({
     }
 
     const validationSchema = Yup.object().shape({
-        groupId: Yup.number().required('Required'),
         topicType: Yup.string().max(40, "The maximum number of characters allowed is 40").required('Required'),
         description: Yup.string().max(190, "The maximum number of characters allowed is 190").required('Required'),
         payloadJsonSchema: Yup.string().required('Required'),

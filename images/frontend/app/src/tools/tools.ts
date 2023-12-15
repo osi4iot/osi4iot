@@ -23,8 +23,8 @@ export const getDomainName = (): string => {
     // if (domainName === "localhost:3000") domainName = "localhost";  //Development case
     //if (domainName === "localhost:3000") domainName = "iot.eebe.upc.edu";
     // if (domainName === "localhost:3000") domainName = "dicapuaiot.com";
-    if (domainName === "localhost:3000") domainName = "iot-fibre4yards.com";
-    //if (domainName === "localhost:3000") domainName = "osi4iot.com";
+    //if (domainName === "localhost:3000") domainName = "iot-fibre4yards.com";
+    if (domainName === "localhost:3000") domainName = "osi4iot.com";
     // if (domainName === "localhost:3000") domainName = "dev.iot-rafa.tk";
     return domainName;
 }

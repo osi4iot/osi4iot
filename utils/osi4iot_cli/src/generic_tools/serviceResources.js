@@ -18,9 +18,11 @@ export const giveCPUs = (service, numSwarmNodes, numCpuPerNode) => {
         case 'mosquitto_go_auth':
             if (numSwarmNodes === 1) {
                 if (numCpuPerNode === "4") {
-                    cpus = '0.30';
-                } else {
+                    //cpus = '0.30';
                     cpus = '0.50';
+                } else {
+                    //cpus = '0.50';
+                    cpus = '1.0';
                 }
             } else {
                 cpus = '0.50';
@@ -164,7 +166,13 @@ export const giveMemory = (service, memoryPerNode) => {
             memory = "250M";
             break;
         case 'mosquitto_go_auth':
-            memory = "500M";
+            // memory = "500M";
+            // break;
+            if (memoryPerNode === "4 GiB" || memoryPerNode === "8 GiB") {
+                memory = "1024M";
+            } else if (memoryPerNode === "16 GiB" || memoryPerNode === "32 GiB"){
+                memory = "2048M";
+            }
             break;
         case 'postgres':
             memory = "500M";
