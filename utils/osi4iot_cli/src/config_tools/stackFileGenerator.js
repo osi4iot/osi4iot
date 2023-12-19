@@ -498,16 +498,16 @@ export default function (osi4iotState) {
 						max_replicas_per_node: 2,
 						constraints: ["node.role==manager"]
 					},
-					resources: {
-						limits: {
-							cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
-							memory: giveMemory('grafana', memoryPerNode)
-						},
-						reservations: {
-							cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
-							memory: giveMemory('grafana', memoryPerNode)
-						}
-					},
+					// resources: {
+					// 	limits: {
+					// 		cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
+					// 		memory: giveMemory('grafana', memoryPerNode)
+					// 	},
+					// 	reservations: {
+					// 		cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
+					// 		memory: giveMemory('grafana', memoryPerNode)
+					// 	}
+					// },
 					labels: [
 						'traefik.enable=true',
 						`traefik.http.routers.grafana.rule=Host(\`${domainName}\`) && PathPrefix(\`/grafana/\`)`,
