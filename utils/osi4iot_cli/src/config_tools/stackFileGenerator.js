@@ -367,52 +367,52 @@ export default function (osi4iotState) {
 					}
 				}
 			},
-			s3_storage: {
-				image: `ghcr.io/osi4iot/s3_storage:${serviceImageVersion['s3_storage']}`,
-				networks: [
-					'internal_net',
-				],
-				environment: [
-					`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
-				],
-				volumes: [
-					's3_storage_data:/data'
-				],
-				working_dir: '/app',
-				secrets: [
-					{
-						source: 's3_storage',
-						target: 's3_storage.txt',
-						mode: 0o444
-					}
-				],
-				configs: [
-					{
-						source: 's3_storage_conf',
-						target: '/run/configs/s3_storage.conf',
-						mode: 0o444
-					}
+			// s3_storage: {
+			// 	image: `ghcr.io/osi4iot/s3_storage:${serviceImageVersion['s3_storage']}`,
+			// 	networks: [
+			// 		'internal_net',
+			// 	],
+			// 	environment: [
+			// 		`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`
+			// 	],
+			// 	volumes: [
+			// 		's3_storage_data:/data'
+			// 	],
+			// 	working_dir: '/app',
+			// 	secrets: [
+			// 		{
+			// 			source: 's3_storage',
+			// 			target: 's3_storage.txt',
+			// 			mode: 0o444
+			// 		}
+			// 	],
+			// 	configs: [
+			// 		{
+			// 			source: 's3_storage_conf',
+			// 			target: '/run/configs/s3_storage.conf',
+			// 			mode: 0o444
+			// 		}
 
-				],
-				ports: [
-					'3500:3500'
-				],
-				deploy: {
-					placement: {
-						constraints: workerConstraintsArray
-					},
-					resources: {
-						limits: {
-							cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
-							memory: giveMemory('s3_storage', memoryPerNode)
-						},
-						reservations: {
-							cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
-							memory: giveMemory('s3_storage', memoryPerNode)
-						}
-					}
-				}
-			},
+			// 	],
+			// 	ports: [
+			// 		'3500:3500'
+			// 	],
+			// 	deploy: {
+			// 		placement: {
+			// 			constraints: workerConstraintsArray
+			// 		},
+			// 		resources: {
+			// 			limits: {
+			// 				cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
+			// 				memory: giveMemory('s3_storage', memoryPerNode)
+			// 			},
+			// 			reservations: {
+			// 				cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
+			// 				memory: giveMemory('s3_storage', memoryPerNode)
+			// 			}
+			// 		}
+			// 	}
+			// },
 			dev2pdb: {
 				image: `ghcr.io/osi4iot/dev2pdb:${serviceImageVersion['dev2pdb']}`,
 				networks: [
@@ -707,9 +707,9 @@ export default function (osi4iotState) {
 			admin_api_log: {
 				driver: 'local'
 			},
-			s3_storage_data: {
-				driver: 'local'
-			}
+			// s3_storage_data: {
+			// 	driver: 'local'
+			// }
 		},
 		secrets: {
 			mqtt_certs_ca_cert: {
@@ -759,9 +759,9 @@ export default function (osi4iotState) {
 				file: './secrets/admin_api.txt',
 				name: osi4iotState.admin_api_secret_name
 			},
-			s3_storage: {
-				file: './secrets/s3_storage.txt',
-			}
+			// s3_storage: {
+			// 	file: './secrets/s3_storage.txt',
+			// }
 		},
 		configs: {
 			mosquitto_conf: {
@@ -785,9 +785,9 @@ export default function (osi4iotState) {
 			frontend_conf: {
 				file: './config/frontend/frontend.conf',
 			},
-			s3_storage_conf: {
-				file: './config/s3_storage/s3_storage.conf',
-			}
+			// s3_storage_conf: {
+			// 	file: './config/s3_storage/s3_storage.conf',
+			// }
 		}
 	}
 
@@ -1276,14 +1276,14 @@ export default function (osi4iotState) {
 				}
 			}
 
-			osi4iotStackObj.volumes['s3_storage_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `nfsvers=4,addr=${nfsServerIP},rw`,
-					device: ':/var/nfs_osi4iot/s3_storage_data'
-				}
-			}
+			// osi4iotStackObj.volumes['s3_storage_data'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `nfsvers=4,addr=${nfsServerIP},rw`,
+			// 		device: ':/var/nfs_osi4iot/s3_storage_data'
+			// 	}
+			// }
 
 			if (deploymentMode === "development") {
 				if (numSwarmNodes > 1) {
@@ -1362,14 +1362,14 @@ export default function (osi4iotState) {
 				}
 			}
 
-			osi4iotStackObj.volumes['s3_storage_data'] = {
-				driver: 'local',
-				driver_opts: {
-					type: 'nfs',
-					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
-					device: `${efs_dns}:/s3_storage_data`
-				}
-			}
+			// osi4iotStackObj.volumes['s3_storage_data'] = {
+			// 	driver: 'local',
+			// 	driver_opts: {
+			// 		type: 'nfs',
+			// 		o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+			// 		device: `${efs_dns}:/s3_storage_data`
+			// 	}
+			// }
 
 			if (deploymentMode === "development") {
 				if (numSwarmNodes > 1) {
