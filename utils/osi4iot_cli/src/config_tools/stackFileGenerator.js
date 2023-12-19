@@ -146,16 +146,16 @@ export default function (osi4iotState) {
 					restart_policy: {
 						delay: "24h"
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('system_prune', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('system_prune', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('system_prune', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('system_prune', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('system_prune', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('system_prune', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('system_prune', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('system_prune', memoryPerNode)
+						}
+					}
 				}
 			},
 			traefik: {
@@ -180,16 +180,16 @@ export default function (osi4iotState) {
 						max_replicas_per_node: 2,
 						constraints: ["node.role==manager"]
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('traefik', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('traefik', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('traefik', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('traefik', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('traefik', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('traefik', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('traefik', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('traefik', memoryPerNode)
+						}
+					}
 				},
 				ports: traefik_ports,
 				networks: [
@@ -251,16 +251,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: workerConstraintsArray
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('mosquitto_go_auth', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('mosquitto_go_auth', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('mosquitto_go_auth', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('mosquitto_go_auth', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('mosquitto_go_auth', memoryPerNode)
+						}
+					}
 				},
 			},
 			postgres: {
@@ -301,16 +301,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: workerConstraintsArray
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('postgres', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('postgres', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('postgres', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('postgres', memoryPerNode)
+						}
+					}
 				}
 			},
 			timescaledb: {
@@ -355,16 +355,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: workerConstraintsArray
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('timescaledb', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('timescaledb', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('timescaledb', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('timescaledb', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('timescaledb', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('timescaledb', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('timescaledb', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('timescaledb', memoryPerNode)
+						}
+					}
 				}
 			},
 			s3_storage: {
@@ -401,16 +401,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: workerConstraintsArray
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('s3_storage', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('s3_storage', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('s3_storage', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('s3_storage', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('s3_storage', memoryPerNode)
+						}
+					}
 				}
 			},
 			dev2pdb: {
@@ -443,16 +443,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: workerConstraintsArray
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('dev2pdb', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('dev2pdb', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('dev2pdb', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('dev2pdb', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('dev2pdb', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('dev2pdb', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('dev2pdb', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('dev2pdb', memoryPerNode)
+						}
+					}
 				}
 			},
 			grafana: {
@@ -498,16 +498,16 @@ export default function (osi4iotState) {
 						max_replicas_per_node: 2,
 						constraints: ["node.role==manager"]
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('grafana', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('grafana', memoryPerNode)
-					// 	}
-					// },
+					resources: {
+						limits: {
+							cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('grafana', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('grafana', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('grafana', memoryPerNode)
+						}
+					},
 					labels: [
 						'traefik.enable=true',
 						`traefik.http.routers.grafana.rule=Host(\`${domainName}\`) && PathPrefix(\`/grafana/\`)`,
@@ -594,16 +594,16 @@ export default function (osi4iotState) {
 						max_replicas_per_node: 2,
 						constraints: workerConstraintsArray
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('admin_api', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('admin_api', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('admin_api', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('admin_api', memoryPerNode)
-					// 	}
-					// },
+					resources: {
+						limits: {
+							cpus: giveCPUs('admin_api', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('admin_api', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('admin_api', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('admin_api', memoryPerNode)
+						}
+					},
 					labels: [
 						'traefik.enable=true',
 						`traefik.http.routers.admin_api.rule=Host(\`${domainName}\`) && PathPrefix(\`/admin_api/\`)`,
@@ -656,16 +656,16 @@ export default function (osi4iotState) {
 						max_replicas_per_node: 2,
 						constraints: workerConstraintsArray
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('frontend', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('frontend', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('frontend', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('frontend', memoryPerNode)
-					// 	}
-					// },
+					resources: {
+						limits: {
+							cpus: giveCPUs('frontend', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('frontend', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('frontend', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('frontend', memoryPerNode)
+						}
+					},
 					labels: [
 						'traefik.enable=true',
 						`traefik.http.routers.frontend.rule=Host(\`${domainName}\`)`,
@@ -814,16 +814,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: ["node.platform.os==linux"]
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('agent', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('agent', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('agent', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('agent', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('agent', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('agent', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('agent', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('agent', memoryPerNode)
+						}
+					}
 				}
 			};
 
@@ -846,16 +846,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: ["node.role==manager"]
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('portainer', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('portainer', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('portainer', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('portainer', memoryPerNode)
-					// 	}
-					// },
+					resources: {
+						limits: {
+							cpus: giveCPUs('portainer', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('portainer', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('portainer', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('portainer', memoryPerNode)
+						}
+					},
 					labels: [
 						'traefik.enable=true',
 						`traefik.http.routers.portainer.rule=Host(\`${domainName}\`) && PathPrefix(\`/portainer/\`)`,
@@ -897,16 +897,16 @@ export default function (osi4iotState) {
 				placement: {
 					constraints: workerConstraintsArray
 				},
-				// resources: {
-				// 	limits: {
-				// 		cpus: giveCPUs('pgadmin4', numSwarmNodes, numCpuPerNode),
-				// 		memory: giveMemory('pgadmin4', memoryPerNode)
-				// 	},
-				// 	reservations: {
-				// 		cpus: giveCPUs('pgadmin4', numSwarmNodes, numCpuPerNode),
-				// 		memory: giveMemory('pgadmin4', memoryPerNode)
-				// 	}
-				// },
+				resources: {
+					limits: {
+						cpus: giveCPUs('pgadmin4', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('pgadmin4', memoryPerNode)
+					},
+					reservations: {
+						cpus: giveCPUs('pgadmin4', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('pgadmin4', memoryPerNode)
+					}
+				},
 				labels: [
 					'traefik.enable=true',
 					`traefik.http.routers.pgadmin4.rule=Host(\`${domainName}\`) && PathPrefix(\`/pgadmin4/\`)`,
@@ -974,16 +974,16 @@ export default function (osi4iotState) {
 				placement: {
 					constraints: minioConstraintsArray
 				},
-				// resources: {
-				// 	limits: {
-				// 		cpus: giveCPUs('minio', numSwarmNodes, numCpuPerNode),
-				// 		memory: giveMemory('minio', memoryPerNode)
-				// 	},
-				// 	reservations: {
-				// 		cpus: giveCPUs('minio', numSwarmNodes, numCpuPerNode),
-				// 		memory: giveMemory('minio', memoryPerNode)
-				// 	}
-				// },
+				resources: {
+					limits: {
+						cpus: giveCPUs('minio', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('minio', memoryPerNode)
+					},
+					reservations: {
+						cpus: giveCPUs('minio', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('minio', memoryPerNode)
+					}
+				},
 				labels: [
 					// MINIO API
 					'traefik.enable=true',
@@ -1172,16 +1172,16 @@ export default function (osi4iotState) {
 				placement: {
 					constraints: [...workerConstraintsArray, 'node.platform.arch==x86_64']
 				},
-				// resources: {
-				// 	limits: {
-				// 		cpus: giveCPUs('grafana_renderer', numSwarmNodes, numCpuPerNode),
-				// 		memory: giveMemory('grafana_renderer', memoryPerNode)
-				// 	},
-				// 	reservations: {
-				// 		cpus: giveCPUs('grafana_renderer', numSwarmNodes, numCpuPerNode),
-				// 		memory: giveMemory('grafana_renderer', memoryPerNode)
-				// 	}
-				// }
+				resources: {
+					limits: {
+						cpus: giveCPUs('grafana_renderer', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('grafana_renderer', memoryPerNode)
+					},
+					reservations: {
+						cpus: giveCPUs('grafana_renderer', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('grafana_renderer', memoryPerNode)
+					}
+				}
 			}
 		}
 	}
@@ -1207,16 +1207,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: ["node.role==manager"]
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('keepalived', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('keepalived', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('keepalived', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('keepalived', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('keepalived', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('keepalived', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('keepalived', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('keepalived', memoryPerNode)
+						}
+					}
 				}
 			}
 		}
@@ -1462,16 +1462,16 @@ export default function (osi4iotState) {
 			}
 
 			if (platformArch === "x86_64") {
-				// osi4iotStackObj.services[serviceName].deploy.resources = {
-				// 	limits: {
-				// 		cpus: giveCPUs('nodered_instance', numSwarmNodes, numCpuPerNode),
-				// 		memory: giveMemory('nodered_instance', memoryPerNode)
-				// 	},
-				// 	reservations: {
-				// 		cpus: giveCPUs('nodered_instance', numSwarmNodes, numCpuPerNode),
-				// 		memory: giveMemory('nodered_instance', memoryPerNode)
-				// 	}
-				// }
+				osi4iotStackObj.services[serviceName].deploy.resources = {
+					limits: {
+						cpus: giveCPUs('nodered_instance', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('nodered_instance', memoryPerNode)
+					},
+					reservations: {
+						cpus: giveCPUs('nodered_instance', numSwarmNodes, numCpuPerNode),
+						memory: giveMemory('nodered_instance', memoryPerNode)
+					}
+				}
 			}
 
 			if (domainCertsType === "No certs" || domainCertsType === "AWS Certificate Manager") {

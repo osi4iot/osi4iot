@@ -143,7 +143,7 @@ export const giveCPUs = (service, numSwarmNodes, numCpuPerNode) => {
             }
             break;
         case 'keepalived':
-            cpus = '0.05';
+            cpus = '0.25';
             break;
         case 'nodered_instance':
             cpus = '0.50';
@@ -204,7 +204,7 @@ export const giveMemory = (service, memoryPerNode) => {
             memory = "500M";
             break;
         case 'keepalived':
-            memory = "10M";
+            memory = "50M";
             break;
         case 'nodered_instance':
             if (memoryPerNode === "4 GiB" || memoryPerNode === "8 GiB") {
