@@ -301,16 +301,16 @@ export default function (osi4iotState) {
 					placement: {
 						constraints: workerConstraintsArray
 					},
-					// resources: {
-					// 	limits: {
-					// 		cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('postgres', memoryPerNode)
-					// 	},
-					// 	reservations: {
-					// 		cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
-					// 		memory: giveMemory('postgres', memoryPerNode)
-					// 	}
-					// }
+					resources: {
+						limits: {
+							cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('postgres', memoryPerNode)
+						},
+						reservations: {
+							cpus: giveCPUs('postgres', numSwarmNodes, numCpuPerNode),
+							memory: giveMemory('postgres', memoryPerNode)
+						}
+					}
 				}
 			},
 			timescaledb: {
