@@ -28,7 +28,7 @@ const FormContainer = styled.div`
 `;
 
 const ControlsContainer = styled.div`
-    height: calc(100vh - 510px);
+    height: calc(100vh - 500px);
     width: 100%;
     padding: 0px 5px;
     overflow-y: auto;
