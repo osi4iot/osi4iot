@@ -59,6 +59,7 @@ export default async function () {
             }
         } else {
             clearScreen();
+            chooseOption();
         }
 
     }

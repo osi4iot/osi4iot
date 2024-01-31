@@ -53,7 +53,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     const geometryRef = useRef<THREE.Mesh>();
     const defOpacity = defaultOpacity(femSimulationObject.node);
     const material = femSimulationResult === "None result" ?
-        Object.assign(femSimulationObject.node.material) :
+        Object.assign(femSimulationObject.originalMaterial) :
         Object.assign(femSimulationObject.femResultMaterial);
 
     material.transparent = (defOpacity * opacity) === 1 ? false : true;

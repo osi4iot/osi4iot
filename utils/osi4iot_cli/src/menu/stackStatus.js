@@ -40,6 +40,7 @@ export default async function () {
 			chooseOption();
 		} else {
 			clearScreen();
+			chooseOption();
 		}
 	}
 }

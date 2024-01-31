@@ -808,7 +808,8 @@ const finalQuestions = (
 									},
 									organizations: []
 								}
-							}
+							},
+							custom_services: []
 						}
 
 						osi4iotState.certs.mqtt_certs.organizations[0] = {

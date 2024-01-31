@@ -260,14 +260,15 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
         setAssetDescription(assetDescription);
         const mobileSensorsForAssetSelected = mobileSensorArray[assetName];
-        const mobileSensor = mobileSensorsForAssetSelected[0];
-        formik.setFieldValue("mobileSensor", mobileSensor);
+        const mobileSensorDescription = mobileSensorsForAssetSelected[0];
+        setMobileSensorOptions(convertArrayToOptions(mobileSensorsForAssetSelected));
+        formik.setFieldValue("mobileSensorDescription", mobileSensorDescription);
         const mobileTopicSelected = findMobileTopicSelected(
             mobileTopicsManaged,
             orgAcronym,
             groupAcronym,
             assetName,
-            mobileSensor
+            mobileSensorDescription
         );
         setMobileTopicSelected(mobileTopicSelected);
     }
@@ -283,14 +284,15 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
         setAssetDescription(assetDescription);
         const mobileSensorsForAssetSelected = mobileSensorArray[assetName];
-        const mobileSensor = mobileSensorsForAssetSelected[0];
-        formik.setFieldValue("mobileSensor", mobileSensor);
+        setMobileSensorOptions(convertArrayToOptions(mobileSensorsForAssetSelected));
+        const mobileSensorDescription = mobileSensorsForAssetSelected[0];
+        formik.setFieldValue("mobileSensorDescription", mobileSensorDescription);
         const mobileTopicSelected = findMobileTopicSelected(
             mobileTopicsManaged,
             orgAcronym,
             groupAcronym,
             assetName,
-            mobileSensor
+            mobileSensorDescription
         );
         setMobileTopicSelected(mobileTopicSelected);
     }
@@ -303,14 +305,15 @@ const MobileSensorSelectForm: FC<MobileSensorSelectFormProps> = (
         const assetDescription = findAssetDescription(mobileTopicsManaged, assetName);
         setAssetDescription(assetDescription);
         const mobileSensorsForAssetSelected = mobileSensorArray[assetName];
-        const mobileSensor = mobileSensorsForAssetSelected[0];
-        formik.setFieldValue("mobileSensor", mobileSensor);
+        setMobileSensorOptions(convertArrayToOptions(mobileSensorsForAssetSelected));
+        const mobileSensorDescription = mobileSensorsForAssetSelected[0];
+        formik.setFieldValue("mobileSensorDescription", mobileSensorDescription);
         const mobileTopicSelected = findMobileTopicSelected(
             mobileTopicsManaged,
             orgAcronym,
             groupAcronym,
             assetName,
-            mobileSensor
+            mobileSensorDescription
         );
         setMobileTopicSelected(mobileTopicSelected);
     }

@@ -330,17 +330,17 @@ class OrganizationController implements IController {
 				}
 				const newOrg = await this.grafanaRepository.createOrganization(orgGrafanaDTO);
 				const orgId = newOrg.orgId;
-				await grafanaApi.createOrgApiAdminUser(newOrg.orgId);
-				await updateOrganizationByProp("id", newOrg.orgId, organizationData);
+				await grafanaApi.createOrgApiAdminUser(orgId);
+				await updateOrganizationByProp("id", orgId, organizationData);
 				const apyKeyName = `ApiKey_${organizationData.acronym.replace(/"/g, "")}`
 				const apiKeyData = { name: apyKeyName, role: "Admin" };
-				await grafanaApi.switchOrgContextForAdmin(newOrg.orgId);
+				await grafanaApi.switchOrgContextForAdmin(orgId);
 				const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
 				const hashedApiKey = encrypt(apiKeyObj.key);
 				const apiKeyId = await getApiKeyIdByName(apyKeyName);
-				await insertOrganizationToken(newOrg.orgId, apiKeyId, hashedApiKey);
-				await grafanaApi.changeUserRoleInOrganization(newOrg.orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
-				await createTimescaledbOrgDataSource(newOrg.orgId, apiKeyObj.key);
+				await insertOrganizationToken(orgId, apiKeyId, hashedApiKey);
+				await grafanaApi.changeUserRoleInOrganization(orgId, 1, "Admin"); // Giving org. admin permissions to Grafana Admin
+				await createTimescaledbOrgDataSource(orgId, apiKeyObj.key);
 				const groupAdminDataArray: CreateGroupAdminDto[] = [];
 				const platformAdminEmail = process_env.PLATFORM_ADMIN_EMAIL;
 				const orgAdminArrayFiltered = organizationData.orgAdminArray.filter(orgAdmin => orgAdmin.email === platformAdminEmail);
@@ -377,12 +377,12 @@ class OrganizationController implements IController {
 					featureIndex: 1,
 					mqttAccessControl: "Pub & Sub"
 				}
-				const adminIdArray = await addAdminToOrganization(newOrg.orgId, organizationData.orgAdminArray);
+				const adminIdArray = await addAdminToOrganization(orgId, organizationData.orgAdminArray);
 				defaultOrgGroup.groupAdminDataArray.forEach((admin, index) => admin.userId = adminIdArray[index]);
-				const group = await createGroup(newOrg.orgId, defaultOrgGroup, organizationData.name, true);
-				await addOrgUsersToDefaultOrgGroup(newOrg.orgId, organizationData.orgAdminArray);
+				const group = await createGroup(orgId, defaultOrgGroup, organizationData.name, true);
+				await addOrgUsersToDefaultOrgGroup(orgId, organizationData.orgAdminArray);
 				await createHomeDashboard(
-					newOrg.orgId,
+					orgId,
 					organizationData.acronym,
 					organizationData.name,
 					group.folderId
@@ -413,7 +413,7 @@ class OrganizationController implements IController {
 
 				const noredInstances = await createNodeRedInstancesInOrg(
 					organizationData.nriHashes,
-					newOrg.orgId,
+					orgId,
 					nriLongitude,
 					nriLatitude
 				);
@@ -564,7 +564,7 @@ class OrganizationController implements IController {
 					sensorsRef: ["sensor_3"]
 				}
 				const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
-				const keyBase = `org_${newOrg.orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
+				const keyBase = `org_${orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;
 				const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
 				await uploadMobilePhoneGltfFile(gltfFileName);
 			}

@@ -284,7 +284,7 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 			const osi4iotStateFile = JSON.stringify(osi4iotState);
 			fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 
-			console.log(clc.green('Creating stack file...\n'))
+			console.log(clc.green('Creating stack file...\n'));
 			stackFileGenerator(osi4iotState);
 
 			const nodesData = osi4iotState.platformInfo.NODES_DATA;

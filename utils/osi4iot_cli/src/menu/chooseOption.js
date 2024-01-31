@@ -4,11 +4,10 @@ import runStack from './runStack.js';
 import stopStack from './stopStack.js';
 import stackStatus from './stackStatus.js';
 import deletePlatform from './deletePlatform.js';
-import createOrganization from '../organizations/createOrganization.js';
-import getOrganizations from '../organizations/getOrganizations.js';
-import updateOrganization from '../organizations/updateOrganization.js';
-import removeOrganization from '../organizations/removeOrganization.js';
+import organizationsManagment from '../organizations/organizationsManagment.js';
+import customServicesManagment from '../custom_services/customServicesManagment.js'
 import recoverNodeRedInstancesDeleted from '../organizations/recoverNodeRedInstancesDeleted.js';
+import getCustomServices from '../custom_services/listCustomServices.js';
 import listNodes from '../nodes/listNodes.js';
 import addNodes from '../nodes/addNodes.js';
 import updateDomainCerts from './updateDomainCerts.js';
@@ -29,10 +28,8 @@ export const chooseOption = () => {
 					'Init platform',
 					'Run platform',
 					'Clear screen',
-					'List organizations',
-					'Create organization',
-					'Update organization',
-					'Remove organization',
+					'Organizations management',
+					'Custom services management',
 					'Recover nodered instances',
 					'List nodes',
 					'Add nodes',
@@ -56,21 +53,21 @@ export const chooseOption = () => {
 					break;
 				case 'Clear screen':
 					clearScreen();
+					chooseOption();
 					break;
-				case 'List organizations':
-					await getOrganizations();
+				case 'Organizations management':
+					clearScreen();
+					organizationsManagment();
 					break;
-				case 'Create organization':
-					await createOrganization();
-					break;
-				case 'Update organization':
-					await updateOrganization();
-					break;
-				case 'Remove organization':
-					await removeOrganization();
+				case 'Custom services management':
+					clearScreen();
+					customServicesManagment();
 					break;
 				case 'Recover nodered instances':
 					await recoverNodeRedInstancesDeleted();
+					break;
+				case 'List custom services':
+					await getCustomServices();
 					break;
 				case 'List nodes':
 					await listNodes();

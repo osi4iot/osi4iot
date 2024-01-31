@@ -352,6 +352,9 @@ const CreateAsset: FC<CreateAssetProps> = ({
         const topicsRef = JSON.parse(values.topicsRef);
         for (const topicRef of topicsRef) {
             topicRef.payloadJsonSchema = JSON.stringify(topicRef.payloadJsonSchema);
+            if (typeof topicRef.parquetSchema === "object") {
+                topicRef.parquetSchema = JSON.stringify(topicRef.parquetSchema);
+            }
         }
 
         const sensorsRef = JSON.parse(values.sensorsRef);

@@ -249,7 +249,7 @@ export const createSensorDashboard = async (
 
 	const dataSourceName = generateGrafanaDataSourceName(group.orgId, "timescaledb");
 	const orgKey = await getOrganizationKey(group.orgId);
-	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;;
+	const dataSource = await grafanaApi.getDataSourceByName(dataSourceName, orgKey) as IDataSource;
 	const dashboard = JSON.parse(defaultDashboard);
 	dashboard.uid = uuidv4();
 	dashboard.title = `Sensor_${sensorsUid}`;

@@ -201,6 +201,9 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 				throw new Error(errorMessage);
 			})
 	} else {
-		if(!runInBackground) clearScreen();
+		if (!runInBackground) {
+			clearScreen();
+			chooseOption();
+		}
 	}
 }

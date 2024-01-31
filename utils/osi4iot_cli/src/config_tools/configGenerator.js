@@ -213,5 +213,4 @@ export default function (osi4iotState) {
 	for (let iline = 0; iline < s3StorageConfig.length; iline++) {
 		fs.appendFileSync('./config/s3_storage/s3_storage.conf', s3StorageConfig[iline]);
 	}
-
 };

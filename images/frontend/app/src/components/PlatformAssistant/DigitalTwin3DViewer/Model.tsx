@@ -58,6 +58,7 @@ export interface IFemSimulationObject {
 	wireFrameMesh: THREE.LineSegments;
 	collectionName: string;
 	femResultMaterial: THREE.MeshLambertMaterial;
+	originalMaterial: THREE.MeshStandardMaterial;
 }
 
 export interface IMeasurement {

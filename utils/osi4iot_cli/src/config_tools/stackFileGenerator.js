@@ -933,7 +933,7 @@ export default function (osi4iotState) {
 		}
 	}
 
-	if (s3BucketType === "Local Minio" ) {
+	if (s3BucketType === "Local Minio") {
 		let minioConstraintsArray = [
 			`node.role==worker`,
 			'node.labels.nfs_server==true'
@@ -1530,6 +1530,120 @@ export default function (osi4iotState) {
 			osi4iotStackObj.secrets[`${serviceName}_mqtt_client_key`] = {
 				file: `./certs/mqtt_certs/${serviceName}/client.key`,
 				name: osi4iotState.certs.mqtt_certs.organizations[iorg - 1].nodered_instances[idev - 1].client_key_name
+			}
+		}
+	}
+
+	for (let icsv = 0; icsv < osi4iotState.custom_services.length; icsv++) {
+		const customService = osi4iotState.custom_services[icsv];
+		const orgAcronym = customService.orgAcronym;
+		let hasExclusiveOrgWorkerNodes = false;
+		let orgHash = "";
+		for (let iorg = 1; iorg <= osi4iotState.certs.mqtt_certs.organizations.length; iorg++) {
+			if (osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_acronym === orgAcronym) {
+				hasExclusiveOrgWorkerNodes = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].exclusiveWorkerNodes.length !== 0;
+				orgHash = osi4iotState.certs.mqtt_certs.organizations[iorg - 1].org_hash;
+			}
+		}
+
+		const serviceName = customService.serviceName;
+		osi4iotStackObj.services[serviceName] = {
+			image: customService.dockerImage,
+			user: "${UID}:${GID}",
+			networks: [
+				"internal_net",
+			],
+			volumes: [
+				`${customService.volumeName}:${customService.volumePath}`,
+			],
+			environment: [
+				`TZ=${osi4iotState.platformInfo.DEFAULT_TIME_ZONE}`,
+				`SERVICE_NAME=${serviceName}`
+			],
+			deploy: {
+				placement: {
+					constraints: []
+				},
+				labels: []
+			}
+		}
+
+		if (platformArch === "x86_64") {
+			osi4iotStackObj.services[serviceName].deploy.resources = {
+				limits: {
+					cpus: `${customService.cpuRequired}`,
+					memory: `${customService.memRequired}M`
+				},
+				reservations: {
+					cpus: `${customService.cpuRequired}`,
+					memory: `${customService.memRequired}M`
+				}
+			}
+		}
+
+		const volumeName = customService.volumeName;
+		if (storageSystem === "NFS Server") {
+			osi4iotStackObj.volumes[volumeName] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `nfsvers=4,addr=${nfsServerIP},rw`,
+					device: `:/var/nfs_osi4iot/${volumeName}`
+				}
+			}
+		} else if (storageSystem === "AWS EFS") {
+			const efs_dns = osi4iotState.platformInfo.AWS_EFS_DNS;
+			osi4iotStackObj.volumes[volumeName] = {
+				driver: 'local',
+				driver_opts: {
+					type: 'nfs',
+					o: `addr=${efs_dns},nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport`,
+					device: `${efs_dns}:/${volumeName}`
+				}
+			}
+		} else if (storageSystem === "Local storage") {
+			osi4iotStackObj.volumes[volumeName] = {
+				driver: "local"
+			};
+		}
+
+		if (numSwarmNodes > 1) {
+			if (hasExclusiveOrgWorkerNodes) {
+				osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.org_hash==${orgHash}`);
+			} else {
+				osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.generic_org_worker==true`)
+			}
+		}
+
+		const serviceRef = customService.serviceRef;
+		if (customService.configData !== "") {
+			osi4iotStackObj.services[serviceName].configs = [
+				{
+					source: `${serviceName}_config`,
+					target: `/run/configs/${serviceName}.conf`,
+					mode: 0o444
+				}
+			];
+
+			const csvc_config_dir = `./config/${serviceRef}`;
+			const configFilePath = `${csvc_config_dir}/${serviceRef}.conf`;
+			osi4iotStackObj.configs[`${serviceName}_config`] = {
+				file: configFilePath,
+			}
+		}
+
+		if (customService.secretData !== "") {
+			osi4iotStackObj.services[serviceName].secrets = [
+				{
+					source: `${serviceName}_secret`,
+					target: `/run/secrets/${serviceName}.txt`,
+					mode: 0o444
+				}
+			];
+
+			const secretFilePath = `./secrets/${serviceRef}.txt`;
+			osi4iotStackObj.secrets[`${serviceName}_secret`] = {
+				file: secretFilePath,
 			}
 		}
 	}

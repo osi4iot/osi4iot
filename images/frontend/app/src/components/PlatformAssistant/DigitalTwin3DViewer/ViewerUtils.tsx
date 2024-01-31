@@ -803,6 +803,7 @@ export const sortObjects: (
 					wireFrameMesh.rotation.set(obj.rotation.x, obj.rotation.y, obj.rotation.z);
 					wireFrameMesh.position.set(obj.position.x, obj.position.y, obj.position.z);
 					const materialColor = new THREE.Color("#F5F5F5");
+					const originalMaterial = Object.assign(obj.material);
 					const femResultMaterial = new THREE.MeshLambertMaterial({
 						side: THREE.DoubleSide,
 						color: materialColor,
@@ -815,7 +816,8 @@ export const sortObjects: (
 						originalGeometry,
 						wireFrameMesh,
 						collectionName,
-						femResultMaterial
+						femResultMaterial,
+						originalMaterial
 					}
 					femSimulationObjects.push(femSimulationObject);
 					break;

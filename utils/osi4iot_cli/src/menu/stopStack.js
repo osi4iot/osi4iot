@@ -4,6 +4,7 @@ import { execSync } from 'child_process';
 import execShellCommand from '../generic_tools/execShellCommand.js';
 import findManagerDockerHost from './findManagerDockerHost.js';;
 import clearScreen from './clearScreen.js';
+import chooseOption from './chooseOption.js';
 
 export default async function () {
 	if (!fs.existsSync('./osi4iot_state.json')) {
@@ -37,6 +38,7 @@ export default async function () {
 
 		} else {
 			clearScreen();
+			chooseOption();
 		}
 	}
 }
