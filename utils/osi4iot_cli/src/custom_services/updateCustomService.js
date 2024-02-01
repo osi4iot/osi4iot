@@ -96,7 +96,6 @@ export default async function () {
 }
 
 const updateCustomServiceQuestions = (osi4iotState, customServiceToUpdate) => {
-    console.log("customServiceToUpdate=", customServiceToUpdate)
     const currenServiceRef = customServiceToUpdate.serviceRef;
 	inquirer
 		.prompt([
@@ -220,9 +219,11 @@ const updateCustomServiceQuestions = (osi4iotState, customServiceToUpdate) => {
                 memRequired: answers.MEMORY_REQ,
                 volumeName: answers.VOLUME_NAME,
                 volumePath: answers.VOLUME_PATH,
-                configData: answers.UPDATE_CONFIG_FILE === "Yes" ? answers.CONFIG_DATA : customServiceToUpdate.CONFIG_DATA,
-                secretData: answers.UPDATE_SECRET_FILE === "Yes" ? answers.SECRETS_DATA : customServiceToUpdate.SECRETS_DATA,
+                configData: answers.UPDATE_CONFIG_FILE === "Yes" ? answers.CONFIG_DATA : customServiceToUpdate.CONFIG_DATA ?? "",
+                secretData: answers.UPDATE_SECRET_FILE === "Yes" ? answers.SECRETS_DATA : customServiceToUpdate.SECRETS_DATA ?? "",
             }
+            
+            console.log("updatedCustomService=", updatedCustomService)
 
             osi4iotState.custom_services = osi4iotState.custom_services.map(
                 csvc => csvc.serviceRef === currenServiceRef ? updatedCustomService : csvc
