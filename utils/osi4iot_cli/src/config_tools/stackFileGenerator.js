@@ -1536,7 +1536,12 @@ export default function (osi4iotState) {
 		}
 	}
 
-	for (let icsv = 0; icsv < osi4iotState.custom_services.length; icsv++) {
+	let numCustomServices = 0;
+	if (osi4iotState.custom_services && osi4iotState.custom_services.length !== 0) {
+		numCustomServices = osi4iotState.custom_services.length;
+	}
+
+	for (let icsv = 0; icsv < numCustomServices; icsv++) {
 		const customService = osi4iotState.custom_services[icsv];
 		const orgAcronym = customService.orgAcronym;
 		let hasExclusiveOrgWorkerNodes = false;
