@@ -96,6 +96,7 @@ export default async function () {
 }
 
 const updateCustomServiceQuestions = (osi4iotState, customServiceToUpdate) => {
+    console.log("customServiceToUpdate=", customServiceToUpdate)
     const currenServiceRef = customServiceToUpdate.serviceRef;
 	inquirer
 		.prompt([
