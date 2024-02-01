@@ -143,7 +143,7 @@ export default async function () {
 				])
 				.then(async (answers) => {
 					const newCustomService = {
-						orgId: orgs.fiter(org => org.acronym === answers.ORG_ACRONYM)[0].id,
+						orgId: orgs.filter(org => org.acronym === answers.ORG_ACRONYM)[0].id,
 						orgAcronym: answers.ORG_ACRONYM,
 						serviceName: answers.SERVICE_NAME,
 						serviceRef: `csvc_${csvsUid}`,
