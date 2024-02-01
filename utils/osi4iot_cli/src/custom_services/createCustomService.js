@@ -170,6 +170,8 @@ export default async function () {
 					console.log(clc.green('\nCreating stack file...\n'));
 					stackFileGenerator(osi4iotState);
 
+					const nodesData = osi4iotState.platformInfo.NODES_DATA;
+					const dockerHost = findManagerDockerHost(nodesData);
 					await runStack(osi4iotState, dockerHost);
 
 				})
