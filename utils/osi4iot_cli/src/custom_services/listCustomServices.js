@@ -44,6 +44,9 @@ export default async function () {
             const services = osi4iotState.custom_services;
 
             for (let isvc = 0; isvc < services.length; isvc++) {
+                const configData = services[isvc].configData !== "" ? "Yes" : "No";
+                const secretData = services[isvc].secretData !== "" ? "Yes" : "No";
+
                 const row = [
                     services[isvc].serviceRef,
                     services[isvc].serviceName,
@@ -53,8 +56,8 @@ export default async function () {
                     services[isvc].memRequired,
                     services[isvc].volumeName,
                     services[isvc].volumePath,
-                    services[isvc].configData !== "" ? "Yes" : "No",
-                    services[isvc].secretData !== "" ? "Yes" : "No",
+                    configData,
+                    secretData,
                 ];
                 table.push(row);
             }

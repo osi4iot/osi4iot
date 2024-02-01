@@ -7,6 +7,7 @@ import runStack from '../menu/runStack.js';
 import stackFileGenerator from '../config_tools/stackFileGenerator.js';
 import customServiceConfigFile from './customServiceConfigFile.js';
 import customServiceSecretFile from './customServiceSecretFile.js';
+import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 
 export default async function () {
     if (!fs.existsSync('./osi4iot_state.json')) {
@@ -48,6 +49,9 @@ export default async function () {
             const services = osi4iotState.custom_services;
 
             for (let isvc = 0; isvc < services.length; isvc++) {
+                const configData = services[isvc].configData !== "" ? "Yes" : "No";
+                const secretData = services[isvc].secretData !== "" ? "Yes" : "No";
+
                 const row = [
                     services[isvc].serviceRef,
                     services[isvc].serviceName,
@@ -57,8 +61,8 @@ export default async function () {
                     services[isvc].memRequired,
                     services[isvc].volumeName,
                     services[isvc].volumePath,
-                    services[isvc].configData !== "" ? "Yes" : "No",
-                    services[isvc].secretData !== "" ? "Yes" : "No",
+                    configData,
+                    secretData,
                 ];
                 table.push(row);
             }
@@ -226,11 +230,11 @@ const updateCustomServiceQuestions = (osi4iotState, customServiceToUpdate) => {
             fs.writeFileSync('./osi4iot_state.json', osi4iotStateFile);
 
             if (updatedCustomService.configData !== customServiceToUpdate.configData) {
-                customServiceConfigFile("CREATE_OR_UPDATE", newCustomService);
+                customServiceConfigFile("CREATE_OR_UPDATE", updatedCustomService);
             }
 
             if (updatedCustomService.secretData !== customServiceToUpdate.secretData) {
-                customServiceSecretFile("CREATE_OR_UPDATE", newCustomService);
+                customServiceSecretFile("CREATE_OR_UPDATE", updatedCustomService);
             }
 
             console.log(clc.green('\nCreating stack file...\n'));

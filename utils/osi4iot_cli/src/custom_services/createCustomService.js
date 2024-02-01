@@ -8,6 +8,7 @@ import stackFileGenerator from '../config_tools/stackFileGenerator.js';
 import customServiceConfigFile from './customServiceConfigFile.js';
 import customServiceSecretFile from './customServiceSecretFile.js';
 import runStack from '../menu/runStack.js';
+import findManagerDockerHost from '../menu/findManagerDockerHost.js';
 
 export default async function () {
 	if (!fs.existsSync('./osi4iot_state.json')) {
