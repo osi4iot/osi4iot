@@ -53,7 +53,7 @@ export default async function () {
                     services[isvc].orgAcronym,
                     services[isvc].dockerImage,
                     services[isvc].cpuRequired,
-                    services[isvc].memRequired,
+                    `${services[isvc].memRequired}Mb` ,
                     services[isvc].volumeName,
                     services[isvc].volumePath,
                     configData,

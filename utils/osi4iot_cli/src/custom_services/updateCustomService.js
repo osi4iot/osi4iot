@@ -223,8 +223,6 @@ const updateCustomServiceQuestions = (osi4iotState, customServiceToUpdate) => {
                 secretData: answers.UPDATE_SECRET_FILE === "Yes" ? answers.SECRETS_DATA : customServiceToUpdate.SECRETS_DATA ?? "",
             }
             
-            console.log("updatedCustomService=", updatedCustomService)
-
             osi4iotState.custom_services = osi4iotState.custom_services.map(
                 csvc => csvc.serviceRef === currenServiceRef ? updatedCustomService : csvc
             );
