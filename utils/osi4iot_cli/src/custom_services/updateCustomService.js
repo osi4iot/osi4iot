@@ -41,7 +41,7 @@ export default async function () {
                     clc.cyanBright('Config file'),
                     clc.cyanBright('Secret file'),
                 ],
-                colWidths: [25, 20, 10, 20, 7, 7, 25, 20, 9, 9],
+                colWidths: [25, 20, 10, 20, 7, 9, 25, 20, 9, 9],
                 wordWrap: true,
                 style: { 'padding-left': 1, 'padding-right': 1 }
             });
@@ -58,7 +58,7 @@ export default async function () {
                     services[isvc].orgAcronym,
                     services[isvc].dockerImage,
                     services[isvc].cpuRequired,
-                    services[isvc].memRequired,
+                    `${services[isvc].memRequired}Mb` ,
                     services[isvc].volumeName,
                     services[isvc].volumePath,
                     configData,
