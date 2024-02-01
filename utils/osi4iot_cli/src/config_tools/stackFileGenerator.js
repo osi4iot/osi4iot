@@ -1520,6 +1520,8 @@ export default function (osi4iotState) {
 				} else {
 					osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.generic_org_worker==true`)
 				}
+			} else {
+				osi4iotStackObj.services[serviceName].deploy.placement.constraints.push("node.role==manager");
 			}
 
 			osi4iotStackObj.secrets[`${serviceName}_mqtt_client_cert`] = {
@@ -1613,6 +1615,8 @@ export default function (osi4iotState) {
 			} else {
 				osi4iotStackObj.services[serviceName].deploy.placement.constraints.push(`node.labels.generic_org_worker==true`)
 			}
+		} else {
+			osi4iotStackObj.services[serviceName].deploy.placement.constraints.push("node.role==manager");
 		}
 
 		const serviceRef = customService.serviceRef;
