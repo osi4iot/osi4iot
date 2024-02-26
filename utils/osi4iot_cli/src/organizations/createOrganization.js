@@ -245,7 +245,6 @@ const requestCreateOrg = async (accessToken, osi4iotState, orgData) => {
 		newOrg.nodered_instances[idev - 1].client_crt_name = "";
 		newOrg.nodered_instances[idev - 1].client_key_name = "";
 	}
-	osi4iotState.certs.mqtt_certs.organizations.push(newOrg);
 
 	const domainName = osi4iotState.platformInfo.DOMAIN_NAME;
 	let protocol = "https";
