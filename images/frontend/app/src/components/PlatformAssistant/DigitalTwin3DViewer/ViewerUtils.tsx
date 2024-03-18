@@ -1129,6 +1129,7 @@ export const defaultOpacity = (
 
 
 export const readFemSimulationInfo = (
+	legendRenderer: THREE.WebGLRenderer,
 	femResultData: any,
 	setFemSimulationGeneralInfo: (femSimulationGeneralInfo: Record<string, IResultRenderInfo>) => void,
 ) => {
@@ -1176,7 +1177,6 @@ export const readFemSimulationInfo = (
 			}
 		}
 
-		const legendRenderer = new THREE.WebGLRenderer({ antialias: true });
 		legendRenderer.autoClear = false;
 		legendRenderer.setPixelRatio(window.devicePixelRatio);
 		legendRenderer.setSize(180, 360);

@@ -48,7 +48,9 @@ const SimulationLegend: FC<SimulationLegendProps> = ({
 
         animate();
 
-        return () => currentRef.removeChild(legendRenderer.domElement);
+        return () => {
+            currentRef.removeChild(legendRenderer.domElement);
+        }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [resultRenderInfo])

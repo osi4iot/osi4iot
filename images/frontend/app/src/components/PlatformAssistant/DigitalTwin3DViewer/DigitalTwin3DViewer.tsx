@@ -413,6 +413,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	digitalTwinGltfData,
 	close3DViewer
 }) => {
+	const [legendRenderer, setLegendRenderer] = useState<THREE.WebGLRenderer | null>(null);
 	const { accessToken, refreshToken } = useAuthState();
 	const plaformAssistantDispatch = usePlatformAssitantDispatch();
 	const windowObjectReferences = useWindowObjectReferences();
@@ -603,6 +604,17 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	});
 
 	useEffect(() => {
+		const legendRenderer = new THREE.WebGLRenderer({ antialias: true });
+		setLegendRenderer(legendRenderer);
+	
+	  return () => {
+		  legendRenderer.dispose();
+		  legendRenderer.forceContextLoss();
+	  }
+	}, [])
+	
+
+	useEffect(() => {
 		if (initialGenericObjectsVisibilityState) {
 			setOpts((prevOpts) => {
 				const newOpts = { ...prevOpts };
@@ -650,13 +662,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			setFemResultNames(femResultNames);
 		}
 
-		return () => {
-			if (femSimulationObjects.length !== 0 && femSimulationGeneralInfo) {
-				for (let resulName of femResultNames) {
-					femSimulationGeneralInfo[resulName].legendRenderer.forceContextLoss();
-				}
-			}
-		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [femSimulationGeneralInfo, femSimulationObjects])
 
@@ -724,6 +729,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						const femResData = response.data;
 						setFemResultData(femResData);
 						readFemSimulationInfo(
+							legendRenderer as THREE.WebGLRenderer,
 							femResData,
 							setFemSimulationGeneralInfo
 						)
