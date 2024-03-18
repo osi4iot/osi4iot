@@ -28,6 +28,7 @@ type Props = JSX.IntrinsicElements['group'] & {
     ambience?: number
     controls?: React.MutableRefObject<ControlsProto>
     shadowBias?: number
+    femResultLoaded: boolean
 }
 
 
@@ -46,6 +47,7 @@ export function Stage({
     showPointLightHelper = false,
     showAxes = false,
     shadowBias = 0,
+    femResultLoaded,
     ...props
 }: Props) {
     const camera = useThree((state) => state.camera);
@@ -66,6 +68,7 @@ export function Stage({
     useHelper(pointLightRef  as React.MutableRefObject<any>, THREE.PointLightHelper, 0.2, 'cyan');
     const [axisLength, setAxisLength] = useState(1);
 
+
     useLayoutEffect(() => {
         const box3 = new THREE.Box3().setFromObject(childrenGroup.current);
         const center = new THREE.Vector3();
@@ -85,12 +88,11 @@ export function Stage({
         camera.zoom = zoom_fact;
         camera.updateProjectionMatrix();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [sceneWidth, sceneHeigth])
+    }, [femResultLoaded, sceneWidth, sceneHeigth])
 
     useLayoutEffect(() => {
         setAxisLength(radius / 3.0);
     }, [radius])
-
 
 
     useLayoutEffect(() => {

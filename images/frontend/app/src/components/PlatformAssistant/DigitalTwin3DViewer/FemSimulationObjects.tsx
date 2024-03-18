@@ -26,6 +26,8 @@ interface FemSimulationObjectProps {
     femSimulationDefScale: number;
     setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
     setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
+    setFemResultLoaded: (femResultLoaded: boolean) => void;
+    onlyFemObjects: boolean;
 }
 
 const highlightColor = new THREE.Color(0x00ff00);
@@ -46,7 +48,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     showFemSimulationDeformation,
     femSimulationDefScale,
     setFemMinValues,
-    setFemMaxValues
+    setFemMaxValues,
+    setFemResultLoaded,
+    onlyFemObjects
 }) => {
     const objectRef = useRef<THREE.Group>();
     const meshRef = useRef<THREE.LineSegments>();
@@ -140,6 +144,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         let color: THREE.Color;
         let resultColors: Float32Array;
         let currentPositions: Float32Array;
+        if (onlyFemObjects && meshResult) {
+            setFemResultLoaded(true);
+        }
         if (femSimulationResult === "None result" || meshResult === null) {
             currentPositions = femSimulationObject.originalGeometry;
         } else {
@@ -312,6 +319,8 @@ interface FemSimulationObjectsProps {
     femSimulationObjectsVisibilityState: Record<string, FemSimObjectVisibilityState>;
     setFemMinValues: React.Dispatch<React.SetStateAction<number[]>>;
     setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
+    setFemResultLoaded: (femResultLoaded: boolean) => void;
+    onlyFemObjects: boolean;
 }
 
 
@@ -330,7 +339,9 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     femSimulationDefScale,
     femSimulationObjectsVisibilityState,
     setFemMinValues,
-    setFemMaxValues
+    setFemMaxValues,
+    setFemResultLoaded,
+    onlyFemObjects = false
 }) => {
 
     return (
@@ -361,6 +372,8 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
                         femSimulationDefScale={femSimulationDefScale}
                         setFemMinValues={setFemMinValues}
                         setFemMaxValues={setFemMaxValues}
+                        setFemResultLoaded={setFemResultLoaded}
+                        onlyFemObjects={onlyFemObjects}
                     />
                 })
             }

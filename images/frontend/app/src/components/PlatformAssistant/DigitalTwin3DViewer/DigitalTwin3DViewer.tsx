@@ -458,6 +458,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femResultFileNames, setFemResultFileNames] = useState<string[]>([]);
 	const [femResultNames, setFemResultNames] = useState<string[]>([]);
 	const [femResultData, setFemResultData] = useState<null | any>(null);
+	const [femResultLoaded, setFemResultLoaded] = useState(false);
+
 	const [femResFilesLastUpdate, setFemResFilesLastUpdate] = useState<Date>(new Date());
 
 	const mqttOptions = {
@@ -476,6 +478,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			setWindowObjectReferences
 		);
 	}, [plaformAssistantDispatch, windowObjectReferences]);
+	
 
 	const handleGetLastMeasurementsButton = () => {
 		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
@@ -876,6 +879,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						showPointLightHelper={opts.showPointLightHelper}
 						shadows={opts.showShadows}
 						showAxes={opts.showAxes}
+						femResultLoaded={femResultLoaded}
 					>
 						<MqttConnector hostname={domainName} options={mqttOptions} >
 							<Model
@@ -930,6 +934,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								setFemResFilesLastUpdate={setFemResFilesLastUpdate}
 								initialDigitalTwinSimulatorState={initialDigitalTwinSimulatorState}
 								openDashboardTab={openDashboardTab}
+								setFemResultLoaded={setFemResultLoaded}
 							/>
 						</MqttConnector>
 					</Stage>

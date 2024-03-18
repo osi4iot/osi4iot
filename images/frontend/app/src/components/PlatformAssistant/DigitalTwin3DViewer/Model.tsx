@@ -127,6 +127,7 @@ interface ModelProps {
 	setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void;
 	initialDigitalTwinSimulatorState: Record<string, number>;
 	openDashboardTab: (url: string) => void;
+	setFemResultLoaded: (femResultLoaded: boolean) => void;
 }
 
 
@@ -178,7 +179,8 @@ const Model: FC<ModelProps> = (
 		setFemMaxValues,
 		setFemResFilesLastUpdate,
 		initialDigitalTwinSimulatorState,
-		openDashboardTab
+		openDashboardTab,
+		setFemResultLoaded
 	}) => {
 	const camera = useThree((state) => state.camera);
 	const container = canvasRef.current as HTMLCanvasElement | null;
@@ -412,6 +414,8 @@ const Model: FC<ModelProps> = (
 					femSimulationObjectsVisibilityState={femSimulationObjectsVisibilityState}
 					setFemMaxValues={setFemMaxValues}
 					setFemMinValues={setFemMinValues}
+					setFemResultLoaded={setFemResultLoaded}
+					onlyFemObjects={sensorObjects.length === 0 && assetObjects.length === 0 && genericObjects.length === 0}
 				/>
 			}
 		</group>

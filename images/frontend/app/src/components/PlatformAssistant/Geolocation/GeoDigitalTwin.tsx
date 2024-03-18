@@ -178,7 +178,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             digitalTwinOuterRadio
         ), [centerLongitude, centerLatitude, digitalTwinOuterRadio]);
 
-    const clickHandler = () => {
+    const clickHandler = async () => {
         selectDigitalTwin(digitalTwinData);
         selectSensor(null);
         if (digitalTwinData.type === "Gltf 3D model") {
@@ -189,7 +189,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${digitalTwinData.id}`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwinGltfData, config)
-                .then((response) => {
+                .then(async (response) => {
                     const digitalTwinGltfData = response.data;
                     const gltfData = digitalTwinGltfData.gltfData;
                     if (gltfData !== '{}') {
@@ -203,7 +203,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                         toast.warning(warningMessage);
                     }
                     setGlftDataLoading(false);
-                    let isGroupDTDemo = true;
+                    let isGroupDTDemo = false;
                     if (assetData.assetType === "Mobile" &&
                         assetData.description.slice(0, 16) === "Mobile for group"
                     ) {

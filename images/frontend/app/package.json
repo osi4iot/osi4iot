@@ -52,7 +52,7 @@
   },
   "scripts": {
     "start": "react-scripts --openssl-legacy-provider start",
-    "dev": " (chmod +x ./env_dev.sh && ./env_dev.sh) || env_dev.sh && react-scripts react-scripts --openssl-legacy-provider start",
+    "dev": " (chmod +x ./env_dev.sh && ./env_dev.sh) || env_dev.sh && react-scripts --openssl-legacy-provider start",
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
