@@ -105,6 +105,7 @@ interface GeolocationContainerProps {
     setDigitalTwinsState: (digitalTwinsState: IDigitalTwinState[]) => void;
     sensorsState: ISensorState[];
     setSensorsState: (sensorsState: ISensorState[]) => void;
+    fetchGltfFileWorker: Worker;
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
@@ -149,7 +150,8 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         digitalTwinsState,
         setDigitalTwinsState,
         sensorsState,
-        setSensorsState
+        setSensorsState,
+        fetchGltfFileWorker
     }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -321,6 +323,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     sensorsState={sensorsState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
+                    fetchGltfFileWorker={fetchGltfFileWorker}
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_ORG &&

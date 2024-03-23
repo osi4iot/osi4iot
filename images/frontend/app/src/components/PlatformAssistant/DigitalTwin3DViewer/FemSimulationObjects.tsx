@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import React, { FC, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { FC, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber';
 import {
     defaultOpacity,
@@ -9,6 +9,8 @@ import {
     IDigitalTwinGltfData
 } from './ViewerUtils';
 import { IResultRenderInfo, IFemSimulationObject } from './Model';
+import calcFemResultCode from '../../../webWorkers/calcFemResultCode';
+import { toast } from 'react-toastify';
 
 interface FemSimulationObjectProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
@@ -52,6 +54,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     setFemResultLoaded,
     onlyFemObjects
 }) => {
+    const calcRemResultWorker: Worker = useMemo(
+        () => new Worker(calcFemResultCode),
+        []
+    );
     const objectRef = useRef<THREE.Group>();
     const meshRef = useRef<THREE.LineSegments>();
     const geometryRef = useRef<THREE.Mesh>();
@@ -90,6 +96,16 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [femSimulationObject.node.animations, objectRef]);
+
+    useEffect(() => {
+        if (meshRef.current) {
+            meshRef.current.visible = false;
+        };
+        const size = femSimulationObject.node.geometry.attributes.position.count * 3;
+        const resultColors = new Float32Array(size).fill(255);
+        femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(resultColors, 3));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     useEffect(() => {
         if (mixer &&
@@ -141,121 +157,258 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     })
 
     useLayoutEffect(() => {
-        let color: THREE.Color;
-        let resultColors: Float32Array;
-        let currentPositions: Float32Array;
-        if (onlyFemObjects && meshResult) {
-            setFemResultLoaded(true);
-        }
-        if (femSimulationResult === "None result" || meshResult === null) {
-            currentPositions = femSimulationObject.originalGeometry;
-        } else {
-            const numberOfModes = meshResult.resultFields[femSimulationResult].numberOfModes;
-            let lutColors = [];
-            let femMinValue: any;
-            let femMaxValue: any;
+        if (window.Worker) {
+            if (onlyFemObjects && meshResult) {
+                setFemResultLoaded(true);
+            }
+            if (femSimulationResult === "None result" || meshResult === null) {
+                const currentPositions = new Float32Array(femSimulationObject.originalGeometry);
+                femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
 
-            for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
-                let totalcolorValue = 0;
+                if (meshRef.current) {
+                    if (showFemMesh) {
+                        const wireframeGeometry = new THREE.WireframeGeometry(femSimulationObject.node.geometry);
+                        meshRef.current.geometry = wireframeGeometry;
+                        meshRef.current.visible = true;
+                    } else meshRef.current.visible = false;
+                }
+            } else {
+                const count = femSimulationObject.node.geometry.attributes.position.count;
+                let showFemDeformation = 0.0;
+                if (showFemSimulationDeformation && deformationFields.length === 3) showFemDeformation = 1.0;
+                let resultLocation = 0.0;
+                if (meshResult.resultFields[femSimulationResult].resultLocation === "OnNodes") {
+                    resultLocation = 0.0;
+                } else if (meshResult.resultFields[femSimulationResult].resultLocation === "OnGaussPoints") {
+                    resultLocation = 1.0;
+                }
+                const paramsArray = [
+                    count,
+                    showFemDeformation,
+                    femSimulationDefScale,
+                    resultLocation,
+                    ...femSimulationGeneralInfo[femSimulationResult].resultLut.giveLutParams(),
+                ]
+                const numberOfModes = meshResult.resultFields[femSimulationResult].numberOfModes;
+                const arrayBuffer1 = new Float32Array(paramsArray);
+                const arrayBuffer2 = new Float32Array(femSimulationGeneralInfo[femSimulationResult].resultLut.giveLutRgbArray());
+
+                const arrayBuffer3 = new Float32Array(femSimulationObject.originalGeometry);
+                const arrayBuffer4 = new Float32Array(meshResult.elemConnectivities.array);
+                const arrayBuffer5 = new Float32Array(femSimulationObjectState.resultFieldModalValues[femSimulationResult]);
+
+                const arrayBuffer6 = new Float32Array(numberOfModes); //ModalValues Disp_x
+                const arrayBuffer7 = new Float32Array(numberOfModes); //ModalValues Disp_y
+                const arrayBuffer8 = new Float32Array(numberOfModes); //ModalValues Disp_y
+
+                if (showFemDeformation !== 0) {
+                    arrayBuffer6.set(femSimulationObjectState.resultFieldModalValues[deformationFields[0]]);
+                    arrayBuffer7.set(femSimulationObjectState.resultFieldModalValues[deformationFields[1]]);
+                    arrayBuffer8.set(femSimulationObjectState.resultFieldModalValues[deformationFields[2]]);
+                }
+
+                const size = femSimulationObject.node.geometry.attributes.position.count * numberOfModes;
+                const arrayBuffer9 = new Float32Array(size);  // resultNodalValues
+                const arrayBuffer10 = new Float32Array(size); // dispXNodalValues
+                const arrayBuffer11 = new Float32Array(size); // dispYNodalValues
+                const arrayBuffer12 = new Float32Array(size); // dispZNodalValues
                 for (let imode = 1; imode <= numberOfModes; imode++) {
-                    let resultpath = `${femSimulationResult}__${imode}`;
-                    let modalValue = 0.0;
-                    if (
-                        femSimulationObjectState.resultFieldModalValues[femSimulationResult] !== undefined &&
-                        femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1] !== undefined
-                    ) {
-                        modalValue = femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1];
-                    }
-                    if (modalValue === 0.0) continue;
-                    if (meshResult.resultFields[femSimulationResult].resultLocation === "OnNodes") {
-                        const resultValues = meshResult.resultFields[femSimulationResult].modalValues[resultpath];
-                        const inode = meshResult.elemConnectivities.array[i] - 1;
-                        totalcolorValue += resultValues.array[inode] * modalValue;
-                    } else if (meshResult.resultFields[femSimulationResult].resultLocation === "OnGaussPoints") {
-                        const resultValues = meshResult.resultFields[femSimulationResult].modalValues[resultpath];
-                        totalcolorValue += resultValues.array[i] * modalValue;
+                    const ipos = (imode - 1) * count;
+                    const resultpath = `${femSimulationResult}__${imode}`;
+                    arrayBuffer9.set(meshResult.resultFields[femSimulationResult].modalValues[resultpath].array, ipos);
+                    if (showFemDeformation !== 0) {
+                        const dispXPath = `${deformationFields[0]}__${imode}`;
+                        arrayBuffer10.set(meshResult.resultFields[deformationFields[0]].modalValues[dispXPath].array, ipos);
+
+                        const dispYPath = `${deformationFields[1]}__${imode}`;
+                        arrayBuffer11.set(meshResult.resultFields[deformationFields[1]].modalValues[dispYPath].array, ipos);
+
+                        const dispZPath = `${deformationFields[2]}__${imode}`;
+                        arrayBuffer12.set(meshResult.resultFields[deformationFields[2]].modalValues[dispZPath].array, ipos);
                     }
                 }
 
-                if (femMinValue === undefined) femMinValue = totalcolorValue;
-                if (totalcolorValue < femMinValue) femMinValue = totalcolorValue;
-                if (femMaxValue === undefined) femMaxValue = totalcolorValue;
-                if (totalcolorValue > femMaxValue) femMaxValue = totalcolorValue;
+                const message = {
+                    arrayBuffer1,
+                    arrayBuffer2,
+                    arrayBuffer3,
+                    arrayBuffer4,
+                    arrayBuffer5,
+                    arrayBuffer6,
+                    arrayBuffer7,
+                    arrayBuffer8,
+                    arrayBuffer9,
+                    arrayBuffer10,
+                    arrayBuffer11,
+                    arrayBuffer12,
+                };
 
-                color = femSimulationGeneralInfo[femSimulationResult].resultLut.getColor(totalcolorValue);
-                if (color === undefined) {
-                    console.log("ERROR: " + totalcolorValue);
-                } else {
-                    lutColors[3 * i] = color.r;
-                    lutColors[3 * i + 1] = color.g;
-                    lutColors[3 * i + 2] = color.b;
+                calcRemResultWorker.postMessage(message,
+                    [
+                        arrayBuffer1.buffer,
+                        arrayBuffer2.buffer,
+                        arrayBuffer3.buffer,
+                        arrayBuffer4.buffer,
+                        arrayBuffer5.buffer,
+                        arrayBuffer6.buffer,
+                        arrayBuffer7.buffer,
+                        arrayBuffer8.buffer,
+                        arrayBuffer9.buffer,
+                        arrayBuffer10.buffer,
+                        arrayBuffer11.buffer,
+                        arrayBuffer12.buffer,
+                    ]
+                );
+                calcRemResultWorker.onmessage = (e: MessageEvent<string>) => {
+                    const { buffer1, buffer2, buffer3 } = (e.data as any);
+                    const MinMaxValues = new Float32Array(buffer1);
+                    setFemMinValues((prevFemMinValues: number[]) => {
+                        const newFemMinValues = [...prevFemMinValues];
+                        newFemMinValues[meshIndex] = MinMaxValues[0];
+                        return newFemMinValues;
+                    });
+
+                    setFemMaxValues((prevFemMaxValues: number[]) => {
+                        const newFemMaxValues = [...prevFemMaxValues];
+                        newFemMaxValues[meshIndex] = MinMaxValues[1];
+                        return newFemMaxValues;
+                    });
+
+                    const resultColors = new Float32Array(buffer2);
+                    femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(resultColors, 3));
+
+                    const currentPositions = new Float32Array(buffer3);
+                    femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+
+                    if (meshRef.current) {
+                        if (showFemMesh) {
+                            const wireframeGeometry = new THREE.WireframeGeometry(femSimulationObject.node.geometry);
+                            meshRef.current.geometry = wireframeGeometry;
+                            meshRef.current.visible = true;
+                        } else meshRef.current.visible = false;
+                    }
+                };
+                calcRemResultWorker.onerror = (event: ErrorEvent) => {
+                    const errorMessage = "Error calculating fem result";
+                    toast.warning(errorMessage);
                 }
             }
-
-            setFemMinValues((prevFemMinValues: number[]) => {
-                const newFemMinValues = [...prevFemMinValues];
-                newFemMinValues[meshIndex] = femMinValue;
-                return newFemMinValues;
-            });
-
-            setFemMaxValues((prevFemMaxValues: number[]) => {
-                const newFemMaxValues = [...prevFemMaxValues];
-                newFemMaxValues[meshIndex] = femMaxValue;
-                return newFemMaxValues;
-            });
-
-            resultColors = new Float32Array(lutColors);
-            femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(resultColors), 3));
-        }
-
-        if (showFemSimulationDeformation && deformationFields.length === 3) {
-            const currentPositionArray = [];
-            const deformationScale = Math.pow(10.0, femSimulationDefScale);
-            for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
-                let currentCoordX = femSimulationObject.originalGeometry[i * 3];
-                let currentCoordY = femSimulationObject.originalGeometry[i * 3 + 1];
-                let currentCoordZ = femSimulationObject.originalGeometry[i * 3 + 2];
-                const inode = meshResult.elemConnectivities.array[i] - 1;
-
-                const numberOfModesDispX = meshResult.resultFields[deformationFields[0]].numberOfModes;
-                for (let imode = 1; imode <= numberOfModesDispX; imode++) {
-                    let dispXPath = `${deformationFields[0]}__${imode}`;
-                    const modalDispX = meshResult.resultFields[deformationFields[0]].modalValues[dispXPath];
-                    const modalValueX = femSimulationObjectState.resultFieldModalValues[deformationFields[0]][imode - 1];
-                    currentCoordX += modalDispX.array[inode] * modalValueX * deformationScale;
-                }
-
-                const numberOfModesDispY = meshResult.resultFields[deformationFields[1]].numberOfModes;
-                for (let imode = 1; imode <= numberOfModesDispY; imode++) {
-                    let dispYPath = `${deformationFields[1]}__${imode}`;
-                    const modalDispY = meshResult.resultFields[deformationFields[1]].modalValues[dispYPath];
-                    const modalValueY = femSimulationObjectState.resultFieldModalValues[deformationFields[1]][imode - 1];
-                    currentCoordZ += modalDispY.array[inode] * modalValueY * deformationScale;
-                }
-
-                const numberOfModesDispZ = meshResult.resultFields[deformationFields[2]].numberOfModes;
-                for (let imode = 1; imode <= numberOfModesDispZ; imode++) {
-                    let dispZPath = `${deformationFields[2]}__${imode}`;
-                    const modalDispZ = meshResult.resultFields[deformationFields[2]].modalValues[dispZPath];
-                    const modalValueZ = femSimulationObjectState.resultFieldModalValues[deformationFields[2]][imode - 1];
-                    currentCoordY += modalDispZ.array[inode] * modalValueZ * deformationScale;
-                }
-
-                currentPositionArray.push(currentCoordX, currentCoordY, currentCoordZ);
-            }
-            currentPositions = new Float32Array(currentPositionArray);
         } else {
-            currentPositions = femSimulationObject.originalGeometry;
-        }
+            let color: THREE.Color;
+            let resultColors: Float32Array;
+            let currentPositions: Float32Array;
+            if (onlyFemObjects && meshResult) {
+                setFemResultLoaded(true);
+            }
+            if (femSimulationResult === "None result" || meshResult === null) {
+                currentPositions = femSimulationObject.originalGeometry;
+            } else {
+                const numberOfModes = meshResult.resultFields[femSimulationResult].numberOfModes;
+                let lutColors = [];
+                let femMinValue: any;
+                let femMaxValue: any;
 
-        femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(currentPositions), 3));
+                for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
+                    let totalcolorValue = 0;
+                    for (let imode = 1; imode <= numberOfModes; imode++) {
+                        let resultpath = `${femSimulationResult}__${imode}`;
+                        let modalValue = 0.0;
+                        if (
+                            femSimulationObjectState.resultFieldModalValues[femSimulationResult] !== undefined &&
+                            femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1] !== undefined
+                        ) {
+                            modalValue = femSimulationObjectState.resultFieldModalValues[femSimulationResult][imode - 1];
+                        }
+                        if (modalValue === 0.0) continue;
+                        if (meshResult.resultFields[femSimulationResult].resultLocation === "OnNodes") {
+                            const resultValues = meshResult.resultFields[femSimulationResult].modalValues[resultpath];
+                            const inode = meshResult.elemConnectivities.array[i] - 1;
+                            totalcolorValue += resultValues.array[inode] * modalValue;
+                        } else if (meshResult.resultFields[femSimulationResult].resultLocation === "OnGaussPoints") {
+                            const resultValues = meshResult.resultFields[femSimulationResult].modalValues[resultpath];
+                            totalcolorValue += resultValues.array[i] * modalValue;
+                        }
+                    }
 
-        if (meshRef.current) {
-            if (showFemMesh) {
-                const wireframeGeometry = new THREE.WireframeGeometry(femSimulationObject.node.geometry);
-                meshRef.current.geometry = wireframeGeometry;
-                meshRef.current.visible = true;
-            } else meshRef.current.visible = false;
+                    if (femMinValue === undefined) femMinValue = totalcolorValue;
+                    if (totalcolorValue < femMinValue) femMinValue = totalcolorValue;
+                    if (femMaxValue === undefined) femMaxValue = totalcolorValue;
+                    if (totalcolorValue > femMaxValue) femMaxValue = totalcolorValue;
+
+                    color = femSimulationGeneralInfo[femSimulationResult].resultLut.getColor(totalcolorValue);
+                    if (color === undefined) {
+                        console.log("ERROR: " + totalcolorValue);
+                    } else {
+                        lutColors[3 * i] = color.r;
+                        lutColors[3 * i + 1] = color.g;
+                        lutColors[3 * i + 2] = color.b;
+                    }
+                }
+
+                setFemMinValues((prevFemMinValues: number[]) => {
+                    const newFemMinValues = [...prevFemMinValues];
+                    newFemMinValues[meshIndex] = femMinValue;
+                    return newFemMinValues;
+                });
+
+                setFemMaxValues((prevFemMaxValues: number[]) => {
+                    const newFemMaxValues = [...prevFemMaxValues];
+                    newFemMaxValues[meshIndex] = femMaxValue;
+                    return newFemMaxValues;
+                });
+                resultColors = new Float32Array(lutColors);
+                femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(resultColors), 3));
+            }
+
+            if (showFemSimulationDeformation && deformationFields.length === 3) {
+                const currentPositionArray = [];
+                const deformationScale = Math.pow(10.0, femSimulationDefScale);
+                for (let i = 0; i < femSimulationObject.node.geometry.attributes.position.count; i++) {
+                    let currentCoordX = femSimulationObject.originalGeometry[i * 3];
+                    let currentCoordY = femSimulationObject.originalGeometry[i * 3 + 1];
+                    let currentCoordZ = femSimulationObject.originalGeometry[i * 3 + 2];
+                    const inode = meshResult.elemConnectivities.array[i] - 1;
+
+                    const numberOfModesDispX = meshResult.resultFields[deformationFields[0]].numberOfModes;
+                    for (let imode = 1; imode <= numberOfModesDispX; imode++) {
+                        let dispXPath = `${deformationFields[0]}__${imode}`;
+                        const modalDispX = meshResult.resultFields[deformationFields[0]].modalValues[dispXPath];
+                        const modalValueX = femSimulationObjectState.resultFieldModalValues[deformationFields[0]][imode - 1];
+                        currentCoordX += modalDispX.array[inode] * modalValueX * deformationScale;
+                    }
+
+                    const numberOfModesDispY = meshResult.resultFields[deformationFields[1]].numberOfModes;
+                    for (let imode = 1; imode <= numberOfModesDispY; imode++) {
+                        let dispYPath = `${deformationFields[1]}__${imode}`;
+                        const modalDispY = meshResult.resultFields[deformationFields[1]].modalValues[dispYPath];
+                        const modalValueY = femSimulationObjectState.resultFieldModalValues[deformationFields[1]][imode - 1];
+                        currentCoordZ += modalDispY.array[inode] * modalValueY * deformationScale;
+                    }
+
+                    const numberOfModesDispZ = meshResult.resultFields[deformationFields[2]].numberOfModes;
+                    for (let imode = 1; imode <= numberOfModesDispZ; imode++) {
+                        let dispZPath = `${deformationFields[2]}__${imode}`;
+                        const modalDispZ = meshResult.resultFields[deformationFields[2]].modalValues[dispZPath];
+                        const modalValueZ = femSimulationObjectState.resultFieldModalValues[deformationFields[2]][imode - 1];
+                        currentCoordY += modalDispZ.array[inode] * modalValueZ * deformationScale;
+                    }
+
+                    currentPositionArray.push(currentCoordX, currentCoordY, currentCoordZ);
+                }
+                currentPositions = new Float32Array(currentPositionArray);
+            } else {
+                currentPositions = femSimulationObject.originalGeometry;
+            }
+
+            femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(currentPositions), 3));
+
+            if (meshRef.current) {
+                if (showFemMesh) {
+                    const wireframeGeometry = new THREE.WireframeGeometry(femSimulationObject.node.geometry);
+                    meshRef.current.geometry = wireframeGeometry;
+                    meshRef.current.visible = true;
+                } else meshRef.current.visible = false;
+            }
         }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps

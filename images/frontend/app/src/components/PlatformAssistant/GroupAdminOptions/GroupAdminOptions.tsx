@@ -85,6 +85,7 @@ import { IAssetType } from '../TableColumns/assetTypesColumns';
 import { ITopic } from '../TableColumns/topicsColumns';
 import S3StorageForm from '../../Tools/S3StorageForm';
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
+import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from '../../../tools/fileSystem';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -719,9 +720,23 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwins, config)
-                .then((response) => {
+                .then(async (response) => {
                     const digitalTwins = response.data as IDigitalTwin[];
-                    digitalTwins.forEach(dt => dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`);
+                    digitalTwins.forEach(dt => {
+						dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`;
+						dt.numGltfFilesLocallyStored = 0;
+						dt.numFemResFilesLocallyStored = 0;
+					});
+					await syncDigitalTwinsLocalStorage(digitalTwins);
+					const dtStorageInfo = await getDTStorageInfo();
+					const digitalTwinUidArray = dtStorageInfo.map(dt => dt.digitalTwinUid);
+					digitalTwins.forEach(dt => {
+						const dtIndex = digitalTwinUidArray.indexOf(dt.digitalTwinUid);
+						if (dtIndex !== -1) {
+							dt.numGltfFilesLocallyStored = dtStorageInfo[dtIndex].numGltfFiles;
+							dt.numFemResFilesLocallyStored = dtStorageInfo[dtIndex].numFemResFiles;
+						}
+					});
                     setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
                     setDigitalTwinsLoading(false);
                     const reloadDigitalTwinsTable = false;

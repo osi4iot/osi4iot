@@ -1,4 +1,4 @@
-import { FC, useEffect, useState, useCallback, Suspense } from 'react'
+import { FC, useEffect, useState, useCallback, Suspense, useMemo } from 'react'
 import styled from "styled-components";
 import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
@@ -64,6 +64,9 @@ import { ISensor } from '../TableColumns/sensorsColumns';
 import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
+import fetchFemResFileCode from '../../../webWorkers/fetchFemResFileCode';
+import fetchGltfFileCode from '../../../webWorkers/fetchGltfFileCode';
+import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from '../../../tools/fileSystem';
 
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
@@ -225,6 +228,15 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
 	const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
 	const [sensorsState, setSensorsState] = useState<ISensorState[]>([]);
+	const fetchFemResFileWorker: Worker = useMemo(
+		() => new Worker(fetchFemResFileCode),
+		[]
+	);
+
+	const fetchGltfFileWorker: Worker = useMemo(
+		() => new Worker(fetchGltfFileCode),
+		[]
+	);
 
 	const refreshBuildings = useCallback(() => {
 		setBuildingsLoading(true);
@@ -279,7 +291,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		digitalTwinGltfData: IDigitalTwinGltfData,
 		isGroupDTDemo: boolean
 	) => {
-		digitalTwinGltfData.gltfData = JSON.parse(digitalTwinGltfData.gltfData);
+		if (typeof digitalTwinGltfData.gltfData === 'string') {
+			digitalTwinGltfData.gltfData = JSON.parse(digitalTwinGltfData.gltfData);
+		}
 		digitalTwinGltfData.isGroupDTDemo = isGroupDTDemo;
 		setDigitalTwinGltfData(digitalTwinGltfData)
 		setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)
@@ -557,10 +571,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 				.then((response) => {
 					const sensorTypes = response.data;
 					sensorTypes.map((sensorType: ISensorType) => {
-                        sensorType.isPredefinedString = "No";
-                        if (sensorType.isPredefined) sensorType.isPredefinedString = "Yes";
-                        return sensorType;
-                    })
+						sensorType.isPredefinedString = "No";
+						if (sensorType.isPredefined) sensorType.isPredefinedString = "Yes";
+						return sensorType;
+					})
 					setSensorTypesTable(plaformAssistantDispatch, { sensorTypes });
 					setSensorTypesLoading(false);
 					const reloadSensorTypesTable = false;
@@ -579,7 +593,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		plaformAssistantDispatch,
 		sensorTypesTable.length,
 		reloadSensorTypesTable
-	]);	
+	]);
 
 	useEffect(() => {
 		if (sensorsTable.length === 0 || reloadSensorsTable) {
@@ -615,9 +629,23 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlDigitalTwins, config)
-				.then((response) => {
+				.then(async (response) => {
 					const digitalTwins = response.data as IDigitalTwin[];
-					digitalTwins.forEach(dt => dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`);
+					digitalTwins.forEach(dt => {
+						dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`;
+						dt.numGltfFilesLocallyStored = 0;
+						dt.numFemResFilesLocallyStored = 0;
+					});
+					await syncDigitalTwinsLocalStorage(digitalTwins);
+					const dtStorageInfo = await getDTStorageInfo();
+					const digitalTwinUidArray = dtStorageInfo.map(dt => dt.digitalTwinUid);
+					digitalTwins.forEach(dt => {
+						const dtIndex = digitalTwinUidArray.indexOf(dt.digitalTwinUid);
+						if (dtIndex !== -1) {
+							dt.numGltfFilesLocallyStored = dtStorageInfo[dtIndex].numGltfFiles;
+							dt.numFemResFilesLocallyStored = dtStorageInfo[dtIndex].numFemResFiles;
+						}
+					});
 					setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
 					setDigitalTwinsLoading(false);
 					const inexistentDashboards = digitalTwins.filter((dt: IDigitalTwin) => dt.dashboardUrl.slice(0, 7) === "Warning");
@@ -730,6 +758,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									setDigitalTwinsState={setDigitalTwinsState}
 									sensorsState={sensorsState}
 									setSensorsState={setSensorsState}
+									fetchGltfFileWorker={fetchGltfFileWorker}
 								/>
 							}
 							{(optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData) &&
@@ -738,6 +767,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 										digitalTwinSelected={digitalTwinSelected}
 										digitalTwinGltfData={digitalTwinGltfData}
 										close3DViewer={handleCloseViewer}
+										fetchFemResFileWorker={fetchFemResFileWorker}
 									/>
 								</Suspense>
 							}

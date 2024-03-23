@@ -32,6 +32,7 @@ interface GeoAssetProps {
     sensorsState: ISensorState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
+    fetchGltfFileWorker: Worker;
 }
 
 const GeoAsset: FC<GeoAssetProps> = ({
@@ -49,7 +50,8 @@ const GeoAsset: FC<GeoAssetProps> = ({
     digitalTwinsState,
     sensorsState,
     openDigitalTwin3DViewer,
-    setGlftDataLoading
+    setGlftDataLoading,
+    fetchGltfFileWorker
 }) => {
     const [status, setStatus] = useState("unknown");
     const [fillColor, setFillColor] = useState(STATUS_OK);
@@ -135,6 +137,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
                     sensorsState={sensorStateFiltered}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
+                    fetchGltfFileWorker={fetchGltfFileWorker}
                 />
 
             }

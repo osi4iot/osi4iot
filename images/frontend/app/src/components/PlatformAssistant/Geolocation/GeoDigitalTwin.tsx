@@ -10,13 +10,15 @@ import { IDigitalTwinState } from "./GeolocationContainer";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { axiosAuth, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
-import { createUrl, IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { toast } from "react-toastify";
-import { IMqttTopicData } from "../DigitalTwin3DViewer/Model";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
+import { existGltfDataLocallyStored, readGltfData } from "../../../tools/fileSystem";
+import loadGltfData from "../../../tools/loadGltfData";
+import { setReloadDigitalTwinsTable, usePlatformAssitantDispatch } from "../../../contexts/platformAssistantContext";
 
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
@@ -123,6 +125,7 @@ interface GeoDigitalTwinProps {
     digitalTwinState: IDigitalTwinState | null;
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
+    fetchGltfFileWorker: Worker;
 }
 
 
@@ -144,10 +147,12 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     selectSensor,
     digitalTwinState,
     openDigitalTwin3DViewer,
-    setGlftDataLoading
+    setGlftDataLoading,
+    fetchGltfFileWorker
 }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
+    const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const angle = 0.0;
     const positionRadius = 0.00074 * assetData.iconRadio;
     const [centerLongitude, centerLatitude] = calcGeoPointPosition(assetData.longitude, assetData.latitude, positionRadius, angle);
@@ -187,33 +192,72 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
             const groupId = digitalTwinData.groupId;
             let urlDigitalTwinGltfData = `${protocol}://${domainName}/admin_api/digital_twin_gltfdata`;
             urlDigitalTwinGltfData = `${urlDigitalTwinGltfData}/${groupId}/${digitalTwinData.id}`;
-            getAxiosInstance(refreshToken, authDispatch)
-                .get(urlDigitalTwinGltfData, config)
-                .then(async (response) => {
-                    const digitalTwinGltfData = response.data;
-                    const gltfData = digitalTwinGltfData.gltfData;
-                    if (gltfData !== '{}') {
-                        digitalTwinGltfData.digitalTwinGltfUrl = createUrl(gltfData);
-                    } else digitalTwinGltfData.digitalTwinGltfUrl = null;
-
-                    const mqttTopics = digitalTwinGltfData.mqttTopicsData.map((topicData: IMqttTopicData) => topicData.mqttTopic);
-                    const inexistentMqttTopics = mqttTopics.filter((topic: string) => topic.slice(0, 7) === "Warning");
-                    if (inexistentMqttTopics.length !== 0) {
-                        const warningMessage = "Some mqtt topics no longer exist"
-                        toast.warning(warningMessage);
+            const digitalTwinUid = digitalTwinData.digitalTwinUid;
+            const gltfFileName = digitalTwinData.gltfFileName;
+            const glttFileDate = digitalTwinData.gltfFileLastModifDateString;
+            const istGltfDataLocallyStored = await existGltfDataLocallyStored(
+                digitalTwinUid,
+                gltfFileName,
+                glttFileDate
+            );
+            if (istGltfDataLocallyStored) {
+                const digitalTwinGltfData = await readGltfData(digitalTwinUid);
+                loadGltfData(
+                    null,
+                    digitalTwinGltfData,
+                    setGlftDataLoading,
+                    openDigitalTwin3DViewer,
+                    assetData,
+                    gltfFileName,
+                    glttFileDate
+                );
+            } else {
+                if (window.Worker) {
+                    const message = {
+                        urlDigitalTwinGltfData,
+                        accessToken
+                    };
+                    fetchGltfFileWorker.postMessage(message);
+                    fetchGltfFileWorker.onmessage = (e: MessageEvent<string>) => {
+                        const digitalTwinGltfData = (e.data as any);
+                        loadGltfData(
+                            digitalTwinUid,
+                            digitalTwinGltfData,
+                            setGlftDataLoading,
+                            openDigitalTwin3DViewer,
+                            assetData,
+                            gltfFileName,
+                            glttFileDate
+                        );
+                        const reloadDigitalTwinsTable = true;
+                        setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
+                    };
+                    fetchGltfFileWorker.onerror = (event: ErrorEvent) => {
+                        const errorMessage = "Gltf file can not be downloaded";
+                        toast.warning(errorMessage);
                     }
-                    setGlftDataLoading(false);
-                    let isGroupDTDemo = false;
-                    if (assetData.assetType === "Mobile" &&
-                        assetData.description.slice(0, 16) === "Mobile for group"
-                    ) {
-                        isGroupDTDemo = true;
-                    }
-                    openDigitalTwin3DViewer(digitalTwinGltfData, isGroupDTDemo);
-                })
-                .catch((error) => {
-                    axiosErrorHandler(error, authDispatch);
-                });
+                } else {
+                    getAxiosInstance(refreshToken, authDispatch)
+                        .get(urlDigitalTwinGltfData, config)
+                        .then(async (response) => {
+                            const digitalTwinGltfData = response.data;
+                            loadGltfData(
+                                digitalTwinUid,
+                                digitalTwinGltfData,
+                                setGlftDataLoading,
+                                openDigitalTwin3DViewer,
+                                assetData,
+                                gltfFileName,
+                                glttFileDate
+                            );
+                            const reloadDigitalTwinsTable = true;
+                            setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
+                        })
+                        .catch((error) => {
+                            axiosErrorHandler(error, authDispatch);
+                        });
+                }
+            }
 
         } else if (digitalTwinData.type === "Grafana dashboard") {
             const url = (digitalTwinData.dashboardUrl as string);

@@ -24,6 +24,7 @@ interface GeoSensorsProps {
     sensorsState: ISensorState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
+    fetchGltfFileWorker: Worker;
 }
 
 
@@ -39,7 +40,8 @@ const GeoSensors: FC<GeoSensorsProps> = ({
     digitalTwinState,
     sensorsState,
     openDigitalTwin3DViewer,
-    setGlftDataLoading
+    setGlftDataLoading,
+    fetchGltfFileWorker
 }) => {
     const arrayLength = sensors.length;
     const [sensorsArray, setSensorsArray] = useState(sensors.slice(0, 10));
@@ -106,6 +108,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                     digitalTwinState={digitalTwinState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
+                    fetchGltfFileWorker={fetchGltfFileWorker}
                 />
             }
             {
@@ -133,7 +136,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                         key={sensor.id}
                         sensorLabel={`${(sensorsSetIndex - 1) * 10 + index + 1}/${sensors.length}`}
                         assetData={assetSelected}
-                        sensorType={sensorTypes.filter(sensorType=> sensorType.type === sensor.sensorType)[0]}
+                        sensorType={sensorTypes.filter(sensorType => sensorType.type === sensor.sensorType)[0]}
                         sensorData={sensor}
                         sensorIndex={index}
                         sensorSelected={sensorSelected}

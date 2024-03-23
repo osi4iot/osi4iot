@@ -20,5 +20,5 @@
 		"src", 
 		"src/tools/ReadingAccelerations.ts", 
 		"src/contexts/orgsOptions/index.ts"
-, "src/tools/worker.js"	]
+, "src/webWorkers/fetchFemResFileCode.ts"	]
 }

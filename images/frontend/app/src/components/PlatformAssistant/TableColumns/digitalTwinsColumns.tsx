@@ -22,6 +22,8 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import RemoveDTLocalStorageIcon from '../Utils/RemoveDTLocalStorageIcon';
+import { removeDTStoragebyUid } from '../../../tools/fileSystem';
 
 export interface IDigitalTwin {
     id: number;
@@ -41,6 +43,8 @@ export interface IDigitalTwin {
     dashboardUrl: string;
     digitalTwinRef: string;
     sensorsRef: string[];
+    numGltfFilesLocallyStored: number;
+    numFemResFilesLocallyStored: number;
 }
 
 export interface IDigitalTwinSimulator {
@@ -60,6 +64,7 @@ export interface IDigitalTwinSimulator {
 
 
 interface IDigitalTwinColumn extends IDigitalTwin {
+    removeLocalStorage: string;
     edit: string;
     delete: string;
 }
@@ -156,6 +161,74 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ rowIndex, digitalTwinId }) 
 }
 
 
+interface RemoveDTLocalStorageModalProps {
+    rowIndex: number;
+    digitalTwinUid: string;
+    numGltfFilesLocallyStored: number;
+    numFemResFilesLocallyStored: number;
+    refreshDigitalTwins: () => void;
+}
+
+const RemoveDTLocalStorageModal: FC<RemoveDTLocalStorageModalProps> = ({
+    rowIndex,
+    digitalTwinUid,
+    numGltfFilesLocallyStored,
+    numFemResFilesLocallyStored,
+    refreshDigitalTwins
+}) => {
+    const [isDigitalTwinDeleted, setIsDigitalTwinDeleted] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const title = "DELETE LOCALLY STORED DT DATA";
+    const question = "Are you sure to delete this data";
+    const consequences = "The digital twin data need to be reload and it can take time.";
+    const width = 400;
+
+    const showLoader = () => {
+        setIsSubmitting(true);
+    }
+
+    useEffect(() => {
+        if (isDigitalTwinDeleted) {
+            refreshDigitalTwins();
+        }
+    }, [isDigitalTwinDeleted, refreshDigitalTwins]);
+
+    const action = (hideModal: () => void) => {
+        removeDTStoragebyUid(digitalTwinUid)
+            .then((response) => {
+                setIsDigitalTwinDeleted(true);
+                setIsSubmitting(false);
+                toast.success(response);
+                hideModal();
+
+            })
+            .catch((error) => {
+                setIsSubmitting(false);
+                hideModal();
+            })
+    }
+
+    const [showModal] = DeleteModal(
+        title,
+        question,
+        consequences,
+        action,
+        isSubmitting,
+        showLoader,
+        width,
+    );
+
+    return (
+        <RemoveDTLocalStorageIcon
+            action={showModal}
+            rowIndex={rowIndex}
+            numGltfFilesLocallyStored={numGltfFilesLocallyStored}
+            numFemResFilesLocallyStored={numFemResFilesLocallyStored}
+        />
+    )
+}
+
+
 export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): Column<IDigitalTwinColumn>[] => {
     return [
         {
@@ -226,6 +299,37 @@ export const Create_DIGITAL_TWINS_COLUMNS = (refreshDigitalTwins: () => void): C
             Header: "digitalTwinSimulationFormat",
             accessor: "digitalTwinSimulationFormat",
             disableFilters: true
+        },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Nº 3D files<br />locally <br />stored</div>,
+            accessor: "numGltfFilesLocallyStored",
+            disableFilters: true
+        },
+        {
+            Header: () => <div style={{ backgroundColor: '#202226' }}>Nº res files<br />locally <br />stored</div>,
+            accessor: "numFemResFilesLocallyStored",
+            disableFilters: true
+        },
+        {
+            Header: "",
+            accessor: "removeLocalStorage",
+            disableFilters: true,
+            disableSortBy: true,
+            Cell: props => {
+                const rowIndex = parseInt(props.row.id, 10);
+                const row = props.rows.filter(row => row.index === rowIndex)[0];
+                const dtReference = row?.cells[4]?.value;
+                const digitalTwinUid = dtReference.split("_")[1];
+                const numGltfFilesLocallyStored = row?.cells[7]?.value;
+                const numFemResFilesLocallyStored = row?.cells[8]?.value;
+                return <RemoveDTLocalStorageModal
+                    digitalTwinUid={digitalTwinUid}
+                    numGltfFilesLocallyStored={numGltfFilesLocallyStored}
+                    numFemResFilesLocallyStored={numFemResFilesLocallyStored}
+                    rowIndex={rowIndex}
+                    refreshDigitalTwins={refreshDigitalTwins}
+                />
+            }
         },
         {
             Header: "",

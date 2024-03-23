@@ -71,6 +71,7 @@ interface GeoGroupProps {
     sensorsState: ISensorState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
+    fetchGltfFileWorker: Worker;
 }
 
 const GeoGroup: FC<GeoGroupProps> = (
@@ -93,7 +94,8 @@ const GeoGroup: FC<GeoGroupProps> = (
         digitalTwinsState,
         sensorsState,
         openDigitalTwin3DViewer,
-        setGlftDataLoading
+        setGlftDataLoading,
+        fetchGltfFileWorker
     }) => {
     const map = useMap();
     const geoJsonLayerGroupRef = useRef(null);
@@ -164,6 +166,7 @@ const GeoGroup: FC<GeoGroupProps> = (
                             sensorsState={sensorsState}
                             openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                             setGlftDataLoading={setGlftDataLoading}
+                            fetchGltfFileWorker={fetchGltfFileWorker}
                         />
                     </LayerGroup >
                     :

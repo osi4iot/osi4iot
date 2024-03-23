@@ -21,8 +21,6 @@ const StyledLoader = styled(Spinner)`
 	background-color: #202226;
 `
 
-
-
 const SceneLoader: FC<{}> = () => {
     return (
         <SceneLoaderContainer>

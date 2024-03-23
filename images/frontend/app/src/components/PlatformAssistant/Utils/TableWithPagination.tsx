@@ -125,6 +125,14 @@ const TableStyles = styled.div<TableStylesProps>`
             max-width: ${(props) => props.columnsMaxWidth[9]};
             word-wrap: break-word;
         } 
+
+        tr td:nth-child(11),
+        th td:nth-child(11) {
+            width: ${(props) => props.columnsWidth[10]};
+            min-width: ${(props) => props.columnsWidth[10]};
+            max-width: ${(props) => props.columnsMaxWidth[10]};
+            word-wrap: break-word;
+        } 
   }
 `
 

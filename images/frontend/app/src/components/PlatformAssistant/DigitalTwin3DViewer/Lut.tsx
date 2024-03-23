@@ -115,6 +115,24 @@ class Lut {
         return this;
     }
 
+    giveLutParams() {
+        const lutParams = [
+            this.minV,
+            this.maxV,
+            this.n,
+        ]
+        return lutParams;
+    }
+
+    giveLutRgbArray() {
+        const rgbArray = [];
+        for (const lut_i of this.lut) {
+            rgbArray.push(lut_i.r, lut_i.g, lut_i.b);
+        }
+        return rgbArray;
+    }
+
+
     getColor(alpha: number) {
         if (alpha <= this.minV) {
             alpha = this.minV;

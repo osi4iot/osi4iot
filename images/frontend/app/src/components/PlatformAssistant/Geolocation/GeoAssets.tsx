@@ -24,6 +24,7 @@ interface GeoAssetsProps {
     sensorsState: ISensorState[];
     openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
+    fetchGltfFileWorker: Worker;
 }
 
 
@@ -43,7 +44,8 @@ const GeoAssets: FC<GeoAssetsProps> = (
         digitalTwinsState,
         sensorsState,
         openDigitalTwin3DViewer,
-        setGlftDataLoading
+        setGlftDataLoading,
+        fetchGltfFileWorker
     }) => {
 
     return (
@@ -67,6 +69,7 @@ const GeoAssets: FC<GeoAssetsProps> = (
                         sensorsState={sensorsState}
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                         setGlftDataLoading={setGlftDataLoading}
+                        fetchGltfFileWorker={fetchGltfFileWorker}
                     />
                 })
             }

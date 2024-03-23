@@ -42,10 +42,12 @@ import { toast } from 'react-toastify';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import {
+	setReloadDigitalTwinsTable,
 	setWindowObjectReferences,
 	usePlatformAssitantDispatch,
 	useWindowObjectReferences
 } from '../../../contexts/platformAssistantContext';
+import { existFemResFileLocallyStored, readFemResFile, writeFemResFile } from '../../../tools/fileSystem';
 
 const CanvasContainer = styled.div`
 	background-color: #212121;
@@ -406,12 +408,14 @@ interface Viewer3DProps {
 	digitalTwinSelected: IDigitalTwin | null;
 	digitalTwinGltfData: IDigitalTwinGltfData;
 	close3DViewer: () => void;
+	fetchFemResFileWorker: Worker;
 }
 
 const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	digitalTwinSelected,
 	digitalTwinGltfData,
-	close3DViewer
+	close3DViewer,
+	fetchFemResFileWorker
 }) => {
 	const [legendRenderer, setLegendRenderer] = useState<THREE.WebGLRenderer | null>(null);
 	const { accessToken, refreshToken } = useAuthState();
@@ -460,7 +464,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femResultNames, setFemResultNames] = useState<string[]>([]);
 	const [femResultData, setFemResultData] = useState<null | any>(null);
 	const [femResultLoaded, setFemResultLoaded] = useState(false);
-
 	const [femResFilesLastUpdate, setFemResFilesLastUpdate] = useState<Date>(new Date());
 
 	const mqttOptions = {
@@ -479,7 +482,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			setWindowObjectReferences
 		);
 	}, [plaformAssistantDispatch, windowObjectReferences]);
-	
+
 
 	const handleGetLastMeasurementsButton = () => {
 		const digitalTwinSimulationFormat = digitalTwinGltfData.digitalTwinSimulationFormat;
@@ -606,13 +609,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	useEffect(() => {
 		const legendRenderer = new THREE.WebGLRenderer({ antialias: true });
 		setLegendRenderer(legendRenderer);
-	
-	  return () => {
-		  legendRenderer.dispose();
-		  legendRenderer.forceContextLoss();
-	  }
+
+		return () => {
+			legendRenderer.dispose();
+			legendRenderer.forceContextLoss();
+		}
 	}, [])
-	
+
 
 	useEffect(() => {
 		if (initialGenericObjectsVisibilityState) {
@@ -717,34 +720,81 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			if (femResultDate !== undefined) {
 				const fileDateIndex = femResultDates.indexOf(femResultDate);
 				const femResultFileName = femResultFileNames[fileDateIndex];
-				const config = axiosAuth(accessToken);
 				const groupId = digitalTwinSelected.groupId;
 				const digitalTwinId = digitalTwinSelected.id;
 				let urlBase = `${protocol}://${domainName}/admin_api/digital_twin_download_file`;
 				const urlFemResFileBase = `${urlBase}/${groupId}/${digitalTwinId}`;
 				const urlFemResFile = `${urlFemResFileBase}/femResFiles/${femResultFileName}`;
-				getAxiosInstance(refreshToken, authDispatch)
-					.get(urlFemResFile, config)
-					.then((response) => {
-						const femResData = response.data;
+				const config = axiosAuth(accessToken);
+				const digitalTwinUid = digitalTwinSelected.digitalTwinUid;
+
+				existFemResFileLocallyStored(
+					digitalTwinUid,
+					femResultFileName,
+					femResultDates,
+					femResultFileNames
+				).then(async (exists: boolean) => {
+					if (exists) {
+						const femResData = await readFemResFile(digitalTwinUid, femResultFileName);
 						setFemResultData(femResData);
 						readFemSimulationInfo(
 							legendRenderer as THREE.WebGLRenderer,
 							femResData,
 							setFemSimulationGeneralInfo
 						)
-					})
-					.catch((error) => {
-						const errorMessage = "FEM results file can not be downloaded";
-						toast.warning(errorMessage);
-					});
+					} else {
+						if (window.Worker) {
+							const message = {
+								urlFemResFile,
+								accessToken,
+								digitalTwinUid: digitalTwinSelected.digitalTwinUid
+							};
+							fetchFemResFileWorker.postMessage(message);
+							fetchFemResFileWorker.onmessage = (e: MessageEvent<string>) => {
+								const femResData = (e.data as any);
+								setFemResultData(femResData);
+								readFemSimulationInfo(
+									legendRenderer as THREE.WebGLRenderer,
+									femResData,
+									setFemSimulationGeneralInfo
+								)
+								writeFemResFile(digitalTwinUid, femResultFileName, femResData, femResultDate);
+								const reloadDigitalTwinsTable = true;
+								setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
+							};
+							fetchFemResFileWorker.onerror = (event: ErrorEvent) => {
+								const errorMessage = "FEM results file can not be downloaded";
+								toast.warning(errorMessage);
+							}
+						} else {
+							getAxiosInstance(refreshToken, authDispatch)
+								.get(urlFemResFile, config)
+								.then((response) => {
+									const femResData = response.data;
+									setFemResultData(femResData);
+									readFemSimulationInfo(
+										legendRenderer as THREE.WebGLRenderer,
+										femResData,
+										setFemSimulationGeneralInfo
+									);
+									writeFemResFile(digitalTwinUid, femResultFileName, femResData, femResultDate);
+								})
+								.catch((error) => {
+									const errorMessage = "FEM results file can not be downloaded";
+									toast.warning(errorMessage);
+								});
+						}
+					}
+				})
+
 			}
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
 		femResultDates,
 		femResultFileNames,
-		opts.femResultDate
+		opts.femResultDate,
+		fetchFemResFileWorker
 	]);
 
 	useEffect(() => {
@@ -1046,7 +1096,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 											<StyledDatBoolean
 												label="Sensor marker"
 												path={`sensorsVisibilityState[${collecionName}].showSensorMarker`}
-											/>											
+											/>
 											<StyledDatBoolean
 												label="Hide"
 												path={`sensorsVisibilityState[${collecionName}].hide`}

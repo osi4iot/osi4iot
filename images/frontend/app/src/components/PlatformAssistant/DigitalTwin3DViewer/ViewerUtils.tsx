@@ -731,7 +731,6 @@ export const sortObjects: (
 	femSimObjectCollectionNames: string[],
 
 } = function (nodes: any, materials: Record<string, THREE.MeshStandardMaterial>, animations: THREE.AnimationClip[]) {
-	setMeshList(nodes);
 	const sensorObjects: ISensorObject[] = [];
 	const assetObjects: IAssetObject[] = [];
 	const genericObjects: IGenericObject[] = [];
@@ -741,6 +740,7 @@ export const sortObjects: (
 	const assetsCollectionNames: string[] = [];
 	const femSimObjectCollectionNames: string[] = [];
 
+	setMeshList(nodes);
 	let sceneName = "Scene";
 	for (const prop in nodes) {
 		const obj = nodes[prop];
@@ -792,12 +792,12 @@ export const sortObjects: (
 						originalGeometryArray.push(coordX, coordY, coordZ);
 					}
 					const originalGeometry = new Float32Array(originalGeometryArray);
+					const wireframeGeometry = new THREE.WireframeGeometry(obj.geometry);
 
 					const wireFrameMaterial = new THREE.LineBasicMaterial({
 						color: 0xffffff,
 						linewidth: 1.5,
 					});
-					const wireframeGeometry = new THREE.WireframeGeometry(obj.geometry);
 					const wireFrameMesh = new THREE.LineSegments(wireframeGeometry, wireFrameMaterial);
 					wireFrameMesh.scale.set(obj.scale.x, obj.scale.y, obj.scale.z);
 					wireFrameMesh.rotation.set(obj.rotation.x, obj.rotation.y, obj.rotation.z);
@@ -1072,7 +1072,8 @@ export const onMouseClick = (event: any) => {
 	if (mouse.type === "sensor" && mouse.objName !== "" && mouse.objSelectable) {
 		if (mouse.sensorDashboardUrl === "") {
 			toast.warning("Sensor dashboard url not defined");
-		} else {;
+		} else {
+			;
 			openDashboardTab(mouse.sensorDashboardUrl);
 		}
 	}
