@@ -37,13 +37,14 @@ const calcFemResult = () => {
 
         //arrayBuffer1
         const paramsArray = new Float32Array(arrayBuffer1);
-        const count: number = paramsArray[0];
-        const showFemDeformation = paramsArray[1];
-        const femSimulationDefScale: number = paramsArray[2];
-        const resultLocation: number = paramsArray[3]; //0:  "OnNodes", 1: "OnGaussPoints"
-        const minV: number = paramsArray[4];
-        const maxV: number = paramsArray[5];
-        const n: number = paramsArray[6];
+        const femSimulationResultValue = paramsArray[0];
+        const count: number = paramsArray[1];
+        const showFemDeformation = paramsArray[2];
+        const femSimulationDefScale: number = paramsArray[3];
+        const resultLocation: number = paramsArray[4]; //0:  "OnNodes", 1: "OnGaussPoints"
+        const minV: number = paramsArray[5];
+        const maxV: number = paramsArray[6];
+        const n: number = paramsArray[7];
 
         const rgbArray = new Float32Array(arrayBuffer2);
         const originalGeometry = new Float32Array(arrayBuffer3);
@@ -68,31 +69,33 @@ const calcFemResult = () => {
         const currentPositionArray: number[] = [];
 
         for (let i = 0; i < count; i++) {
-            let totalcolorValue = 0;
-            for (let imode = 1; imode <= numberOfModes; imode++) {
-                const modalValue = resultFieldModalValues[imode - 1];
-                if (modalValue === 0.0) continue;
-                if (resultLocation === 0) { //"OnNodes"
-                    const inode = elemConnectivities[i] - 1;
-                    const resultValue = resultNodalValues[inode + (imode - 1) * count];
-                    totalcolorValue += resultValue * modalValue;
-                } else if (resultLocation === 1) { //"OnGaussPoints"
-                    totalcolorValue += resultNodalValues[i] * modalValue;
+            if (femSimulationResultValue !== 0) {
+                let totalcolorValue = 0;
+                for (let imode = 1; imode <= numberOfModes; imode++) {
+                    const modalValue = resultFieldModalValues[imode - 1];
+                    if (modalValue === 0.0) continue;
+                    if (resultLocation === 0) { //"OnNodes"
+                        const inode = elemConnectivities[i] - 1;
+                        const resultValue = resultNodalValues[inode + (imode - 1) * count];
+                        totalcolorValue += resultValue * modalValue;
+                    } else if (resultLocation === 1) { //"OnGaussPoints"
+                        totalcolorValue += resultNodalValues[i] * modalValue;
+                    }
                 }
-            }
-
-            if (femMinValue === undefined) femMinValue = totalcolorValue;
-            if (totalcolorValue < femMinValue) femMinValue = totalcolorValue;
-            if (femMaxValue === undefined) femMaxValue = totalcolorValue;
-            if (totalcolorValue > femMaxValue) femMaxValue = totalcolorValue;
-
-            const { r, g, b } = getColorRGB(totalcolorValue, minV, maxV, n, rgbArray);
-            if (r === undefined || g === undefined || b === undefined) {
-                console.log("ERROR: " + totalcolorValue);
-            } else {
-                lutColors[3 * i] = r;
-                lutColors[3 * i + 1] = g;
-                lutColors[3 * i + 2] = b;
+    
+                if (femMinValue === undefined) femMinValue = totalcolorValue;
+                if (totalcolorValue < femMinValue) femMinValue = totalcolorValue;
+                if (femMaxValue === undefined) femMaxValue = totalcolorValue;
+                if (totalcolorValue > femMaxValue) femMaxValue = totalcolorValue;
+    
+                const { r, g, b } = getColorRGB(totalcolorValue, minV, maxV, n, rgbArray);
+                if (r === undefined || g === undefined || b === undefined) {
+                    console.log("ERROR: " + totalcolorValue);
+                } else {
+                    lutColors[3 * i] = r;
+                    lutColors[3 * i + 1] = g;
+                    lutColors[3 * i + 2] = b;
+                }
             }
 
             if (showFemDeformation !== 0) {
