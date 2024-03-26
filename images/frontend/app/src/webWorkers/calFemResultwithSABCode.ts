@@ -1,6 +1,6 @@
 declare function postMessage(message: any, transfer?: Transferable[] | undefined): void;
 
-const calcFemResult = () => {
+const calFemResultwithSAB = () => {
 
     const getColorRGB = (alpha: number, minV: number, maxV: number, n: number, rgbArray: Float32Array) => {
         if (alpha <= minV) {
@@ -20,56 +20,60 @@ const calcFemResult = () => {
     // eslint-disable-next-line no-restricted-globals
     self.onmessage = (event: MessageEvent<any>) => {
         const {
-            arrayBuffer1,
-            arrayBuffer2,
-            arrayBuffer3,
-            arrayBuffer4,
-            arrayBuffer5,
-            arrayBuffer6,
-            arrayBuffer7,
-            arrayBuffer8,
-            arrayBuffer9,
-            arrayBuffer10,
-            arrayBuffer11,
-            arrayBuffer12,
+            generalData,
+            paramsBuffer,
+            lutRgbBuffer,
+            originalGeometryBuffer,
+            elemConnectivitiesBuffer,
+            resultFieldModalValuesBuffer,
+            dispXModalValuesBuffer,
+            dispYModalValuesBuffer,
+            dispZModalValuesBuffer,
+            resultNodalValuesBuffer,
+            dispXNodalValuesBuffer,
+            dispYNodalValuesBuffer,
+            dispZNodalValuesBuffer,
         } = event.data;
 
+        const initialIndex = generalData.initialIndex;
+        const finalIndex = generalData.finalIndex;
+        const femSimulationDefScale = generalData.femSimulationDefScale;
+        const resultType = generalData.resultType;
+        const count = generalData.count;
+        const paramsArray = new Float32Array(paramsBuffer);
+        const resultLocation: number = paramsArray[0]; //0:  "OnNodes", 1: "OnGaussPoints"
+        const minV: number = paramsArray[1];
+        const maxV: number = paramsArray[2];
+        const n: number = paramsArray[3];
 
-        //arrayBuffer1
-        const paramsArray = new Float32Array(arrayBuffer1);
-        const femSimulationResultValue = paramsArray[0];
-        const count: number = paramsArray[1];
-        const showFemDeformation = paramsArray[2];
-        const femSimulationDefScale: number = paramsArray[3];
-        const resultLocation: number = paramsArray[4]; //0:  "OnNodes", 1: "OnGaussPoints"
-        const minV: number = paramsArray[5];
-        const maxV: number = paramsArray[6];
-        const n: number = paramsArray[7];
-
-        const rgbArray = new Float32Array(arrayBuffer2);
-        const originalGeometry = new Float32Array(arrayBuffer3);
-        const elemConnectivities = new Float32Array(arrayBuffer4);
-        const resultFieldModalValues = new Float32Array(arrayBuffer5);
-        const dispXModalValues = new Float32Array(arrayBuffer6);
-        const dispYModalValues = new Float32Array(arrayBuffer7);
-        const dispZModalValues = new Float32Array(arrayBuffer8);
-        const resultNodalValues = new Float32Array(arrayBuffer9);
-        const dispXNodalValues = new Float32Array(arrayBuffer10);
-        const dispYNodalValues = new Float32Array(arrayBuffer11);
-        const dispZNodalValues = new Float32Array(arrayBuffer12);
+        const rgbArray = new Float32Array(lutRgbBuffer);
+        const originalGeometry = new Float32Array(originalGeometryBuffer);
+        const elemConnectivities = new Float32Array(elemConnectivitiesBuffer);
+        const resultFieldModalValues = new Float32Array(resultFieldModalValuesBuffer);
+        const dispXModalValues = new Float32Array(dispXModalValuesBuffer);
+        const dispYModalValues = new Float32Array(dispYModalValuesBuffer);
+        const dispZModalValues = new Float32Array(dispZModalValuesBuffer);
+        const resultNodalValues = new Float32Array(resultNodalValuesBuffer);
+        const dispXNodalValues = new Float32Array(dispXNodalValuesBuffer);
+        const dispYNodalValues = new Float32Array(dispYNodalValuesBuffer);
+        const dispZNodalValues = new Float32Array(dispZNodalValuesBuffer);
 
         let resultColors: Float32Array;
-        let currentPositions = new Float32Array(originalGeometry);
+        let currentPositions = new Float32Array((finalIndex - initialIndex) * 3);
         let MinMaxValues: Float32Array;
 
         let lutColors: number[] = [];
         let femMinValue: any;
         let femMaxValue: any;
-        const numberOfModes = resultFieldModalValues.length;
+        let numberOfModes = resultFieldModalValues.length;
+        if (resultType === 2) {
+            numberOfModes = dispXModalValues.length;
+        }
         const currentPositionArray: number[] = [];
 
-        for (let i = 0; i < count; i++) {
-            if (femSimulationResultValue !== 0) {
+        let ipos = 0;
+        for (let i = initialIndex; i < finalIndex; i++) {
+            if (resultType === 1 || resultType === 3) {
                 let totalcolorValue = 0;
                 for (let imode = 1; imode <= numberOfModes; imode++) {
                     const modalValue = resultFieldModalValues[imode - 1];
@@ -92,13 +96,13 @@ const calcFemResult = () => {
                 if (r === undefined || g === undefined || b === undefined) {
                     console.log("ERROR: " + totalcolorValue);
                 } else {
-                    lutColors[3 * i] = r;
-                    lutColors[3 * i + 1] = g;
-                    lutColors[3 * i + 2] = b;
+                    lutColors[3 * ipos] = r;
+                    lutColors[3 * ipos + 1] = g;
+                    lutColors[3 * ipos + 2] = b;
                 }
             }
 
-            if (showFemDeformation !== 0) {
+            if (resultType === 2 || resultType === 3) {
                 const deformationScale = Math.pow(10.0, femSimulationDefScale);
                 let currentCoordX = originalGeometry[i * 3];
                 let currentCoordY = originalGeometry[i * 3 + 1];
@@ -106,24 +110,25 @@ const calcFemResult = () => {
                 const inode = elemConnectivities[i] - 1;
 
                 for (let imode = 1; imode <= numberOfModes; imode++) {
-                    const nodalDispX = dispXNodalValues[inode + (imode - 1) * count];
+                    const nodalDispX = dispXNodalValues[(imode - 1) * count + inode];
                     const modalValueX = dispXModalValues[imode - 1];
                     currentCoordX += nodalDispX * modalValueX * deformationScale;
 
-                    const nodalDispY = dispYNodalValues[inode + (imode - 1) * count];
+                    const nodalDispY = dispYNodalValues[(imode - 1) * count + inode];
                     const modalValueY = dispYModalValues[imode - 1];
                     currentCoordZ += nodalDispY * modalValueY * deformationScale;
 
-                    const nodalDispZ = dispZNodalValues[inode + (imode - 1) * count];
+                    const nodalDispZ = dispZNodalValues[(imode - 1) * count + inode];
                     const modalValueZ = dispZModalValues[imode - 1];
                     currentCoordY += nodalDispZ * modalValueZ * deformationScale;
                 }
 
                 currentPositionArray.push(currentCoordX, currentCoordY, currentCoordZ);
-                if (i === (count - 1)) {
-                    currentPositions = new Float32Array(currentPositionArray);
+                if (i === (finalIndex - 1)) {
+                    currentPositions.set(currentPositionArray);
                 }
             }
+            ++ipos;
         }
 
         MinMaxValues = new Float32Array([femMinValue, femMaxValue]);
@@ -145,10 +150,10 @@ const calcFemResult = () => {
     };
 };
 
-let code = calcFemResult.toString();
+let code = calFemResultwithSAB.toString();
 code = code.substring(code.indexOf("{") + 1, code.lastIndexOf("}"));
 
 const blob = new Blob([code], { type: "application/javascript" });
-const calcFemResultCode = URL.createObjectURL(blob);
+const calFemResultwithSABCode = URL.createObjectURL(blob);
 
-export default calcFemResultCode;
+export default calFemResultwithSABCode;

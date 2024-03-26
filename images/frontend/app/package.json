@@ -19,8 +19,10 @@
     "@types/react-html5-camera-photo": "^1.5.1",
     "@types/react-router-dom": "^5.1.7",
     "axios": "^1.2.3",
+    "express": "^4.19.1",
     "file-saver": "^2.0.5",
     "formik": "^2.2.8",
+    "http-proxy-middleware": "^2.0.6",
     "jimp": "^0.16.1",
     "jszip": "^3.6.0",
     "leaflet": "^1.7.1",
@@ -51,7 +53,9 @@
     "yup": "^0.32.9"
   },
   "scripts": {
-    "start": "react-scripts --openssl-legacy-provider start",
+    "start": "PORT=3001 react-scripts --openssl-legacy-provider start",
+    "proxy": "node server.js",
+    "start_old": "react-scripts --openssl-legacy-provider start",
     "dev": " (chmod +x ./env_dev.sh && ./env_dev.sh) || env_dev.sh && react-scripts --openssl-legacy-provider start",
     "build": "react-scripts build",
     "test": "react-scripts test",

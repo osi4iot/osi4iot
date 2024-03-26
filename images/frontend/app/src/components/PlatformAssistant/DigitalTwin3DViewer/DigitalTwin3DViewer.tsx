@@ -31,7 +31,7 @@ import {
 	generateInitialGenericObjectsState,
 } from './ViewerUtils';
 import { IDigitalTwin } from '../TableColumns/digitalTwinsColumns';
-import { axiosAuth, getDomainName, getProtocol, openWindowTab } from '../../../tools/tools';
+import { axiosAuth, getDomainName, getProtocol, giveDefaultNumWebWorkers, openWindowTab } from '../../../tools/tools';
 import SimulationLegend from './SimulationLegend';
 import SetGltfObjects from './SetGlftOjbects';
 import { useAuthDispatch, useAuthState } from '../../../contexts/authContext';
@@ -604,6 +604,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		showAllFemSimulationMeshes: false,
 		legendToShow: "None result",
 		digitalTwinSimulatorState: undefined as unknown as Record<string, number>,
+		numWebWorkers: giveDefaultNumWebWorkers(),
+		logElapsedTime: false
 	});
 
 	useEffect(() => {
@@ -991,6 +993,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								initialDigitalTwinSimulatorState={initialDigitalTwinSimulatorState}
 								openDashboardTab={openDashboardTab}
 								setFemResultLoaded={setFemResultLoaded}
+								femResultNames={femResultNames}
+								numWebWorkers={opts.numWebWorkers}
+								logElapsedTime={opts.logElapsedTime}
 							/>
 						</MqttConnector>
 					</Stage>
@@ -1061,6 +1066,15 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						</DatFolder>
 						<DatFolder title='Axes' closed={true}>
 							<StyledDatBoolean label="Show" path="showAxes" />
+						</DatFolder>
+						<DatFolder title='Web workers preferences' closed={true}>
+							<StyledDatNumber
+								label="Num workers"
+								path="numWebWorkers"
+								min={1}
+								max={window.navigator.hardwareConcurrency || 1}
+								step={1} />
+							<StyledDatBoolean label="Log time" path="logElapsedTime" />
 						</DatFolder>
 						{
 							sensorObjects.length !== 0 &&

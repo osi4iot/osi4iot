@@ -436,3 +436,13 @@ export const convertArrayToOptions = (vector: string[]): IOption[] => {
     return options;
 }
 
+export const giveDefaultNumWebWorkers = () => {
+    let numWebWorkers = 1;
+    if (window.navigator.hardwareConcurrency) {
+        if (window.navigator.hardwareConcurrency >= 4) {
+            numWebWorkers = 4;
+        }
+    }
+    return numWebWorkers;
+}
+

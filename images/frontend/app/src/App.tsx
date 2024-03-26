@@ -6,6 +6,7 @@ import { PlatformAssitantProvider } from "./contexts/platformAssistantContext"
 declare global {
 	interface Window {
 		_env_: any;
+		crossOriginIsolated: boolean;
 	}
 }
 
