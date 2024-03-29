@@ -129,6 +129,7 @@ interface ModelProps {
 	openDashboardTab: (url: string) => void;
 	setFemResultLoaded: (femResultLoaded: boolean) => void;
 	femResultNames: string[];
+	enableWebWorkes: boolean;
 	numWebWorkers: number;
 	logElapsedTime: boolean;
 }
@@ -185,6 +186,7 @@ const Model: FC<ModelProps> = (
 		openDashboardTab,
 		setFemResultLoaded,
 		femResultNames,
+		enableWebWorkes,
 		numWebWorkers,
 		logElapsedTime,
 	}) => {
@@ -422,6 +424,7 @@ const Model: FC<ModelProps> = (
 					setFemMinValues={setFemMinValues}
 					setFemResultLoaded={setFemResultLoaded}
 					femResultNames={femResultNames}
+					enableWebWorkes={enableWebWorkes}
 					numWebWorkers={numWebWorkers}
 					logElapsedTime={logElapsedTime}
 					onlyFemObjects={sensorObjects.length === 0 && assetObjects.length === 0 && genericObjects.length === 0}

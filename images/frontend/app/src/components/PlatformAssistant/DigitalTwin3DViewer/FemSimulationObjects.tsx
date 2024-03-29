@@ -31,6 +31,7 @@ interface FemSimulationObjectProps {
     setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
     setFemResultLoaded: (femResultLoaded: boolean) => void;
     femResultNames: string[];
+    enableWebWorkes: boolean;
     numWebWorkers: number;
 	logElapsedTime: boolean;
     onlyFemObjects: boolean;
@@ -57,6 +58,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     setFemMaxValues,
     setFemResultLoaded,
     femResultNames,
+    enableWebWorkes,
     numWebWorkers,
 	logElapsedTime,
     onlyFemObjects
@@ -109,7 +111,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 setElemConnectivitiesSAB,
                 setLutRgbArraySABMap,
                 setFemResultModalValueSABMap,
-                setFemResultNodalValueSABMap
+                setFemResultNodalValueSABMap,
             );
         }
     }, [
@@ -213,7 +215,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     })
 
     useLayoutEffect(() => {
-        if (window.Worker) {
+        if (window.Worker && enableWebWorkes) {
             const times: number[] = [];
             times[0] = performance.now();
             if (onlyFemObjects && meshResult) {
@@ -334,6 +336,10 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                 // }
             }
         } else {
+            let startTime = 0;
+            if (logElapsedTime) {
+                startTime = Date.now();
+            }
             let color: THREE.Color;
             let resultColors: Float32Array;
             let currentPositions: Float32Array;
@@ -449,6 +455,11 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     meshRef.current.visible = true;
                 } else meshRef.current.visible = false;
             }
+
+            if (logElapsedTime) {
+                const endTime = Date.now();
+                console.log(`Elapsed time using main thread: ${(endTime - startTime)}ms`);
+            }
         }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -466,6 +477,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         lutRgbArraySABMap,
         femResultModalValueSABMap,
         femResultNodalValueSABMap,
+        enableWebWorkes,
         numWebWorkers,
         logElapsedTime,
     ]);
@@ -523,6 +535,7 @@ interface FemSimulationObjectsProps {
     setFemMaxValues: React.Dispatch<React.SetStateAction<number[]>>;
     setFemResultLoaded: (femResultLoaded: boolean) => void;
     femResultNames: string[];
+    enableWebWorkes: boolean;
     numWebWorkers: number;
 	logElapsedTime: boolean;
     onlyFemObjects: boolean;
@@ -547,6 +560,7 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
     setFemMaxValues,
     setFemResultLoaded,
     femResultNames,
+    enableWebWorkes,
     numWebWorkers,
 	logElapsedTime,
     onlyFemObjects = false,
@@ -582,6 +596,7 @@ const FemSimulationObjects: FC<FemSimulationObjectsProps> = ({
                         setFemMaxValues={setFemMaxValues}
                         setFemResultLoaded={setFemResultLoaded}
                         femResultNames={femResultNames}
+                        enableWebWorkes={enableWebWorkes}
                         numWebWorkers={numWebWorkers}
                         logElapsedTime={logElapsedTime}
                         onlyFemObjects={onlyFemObjects}

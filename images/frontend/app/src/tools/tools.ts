@@ -446,3 +446,11 @@ export const giveDefaultNumWebWorkers = () => {
     return numWebWorkers;
 }
 
+export const giveMaxNumWebWorkers = () => {
+    let maxNumWebWorkers = 1;
+    if (window.navigator.hardwareConcurrency) {
+        maxNumWebWorkers = window.navigator.hardwareConcurrency;
+    }
+    return maxNumWebWorkers;
+}
+

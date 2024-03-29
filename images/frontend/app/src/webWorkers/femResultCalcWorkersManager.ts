@@ -26,7 +26,7 @@ const femResultCalcWorkersManager = (
     meshRefCurrent: any,
     meshResult: any,
 ) => {
-    let startTime: number;
+    let startTime: number = 0;
     if(logElapsedTime) startTime = Date.now();
     const paramsBuffer = paramsSABMap.get(femSimulationResult);
     const lutRgbBuffer = lutRgbArraySABMap.get(femSimulationResult);
@@ -47,7 +47,7 @@ const femResultCalcWorkersManager = (
     const MaxValuesArray: number[] = [];
     const resultColors = new Float32Array(count * 3);
     const originalGeometry = new Float32Array(originalGeometryBuffer);
-    const currentPositions = new Float32Array(originalGeometry);
+    let currentPositions = new Float32Array(originalGeometry);
     let resultType = 1;
     if (femSimulationResult !== "None result" && meshResult) {
         resultType = 1;
@@ -82,7 +82,8 @@ const femResultCalcWorkersManager = (
             finalIndex,
             femSimulationDefScale,
             resultType,
-            count
+            count,
+            iworker
         };
 
         const message = {
@@ -98,7 +99,7 @@ const femResultCalcWorkersManager = (
             resultNodalValuesBuffer,
             dispXNodalValuesBuffer,
             dispYNodalValuesBuffer,
-            dispZNodalValuesBuffer
+            dispZNodalValuesBuffer,
         }
 
         workers[iworker - 1].postMessage(message);
@@ -139,21 +140,22 @@ const femResultCalcWorkersManager = (
             if (resultType === 2 || resultType === 3) {
                 const currentPositions_i = new Float32Array(buffer3);
                 currentPositions.set(currentPositions_i, initialIndex * 3);
-                if (numWorkerCompleted === numWorkers) {
-                    femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
-                    if (meshRefCurrent) {
-                        if (showFemMesh) {
-                            const wireframeGeometry = new THREE.WireframeGeometry(femSimulationObject.node.geometry);
-                            meshRefCurrent.geometry = wireframeGeometry;
-                            meshRefCurrent.visible = true;
-                        } else meshRefCurrent.visible = false;
-                    }
+            }
+
+            if (numWorkerCompleted === numWorkers) {
+                femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+                if (meshRefCurrent) {
+                    if (showFemMesh) {
+                        const wireframeGeometry = new THREE.WireframeGeometry(femSimulationObject.node.geometry);
+                        meshRefCurrent.geometry = wireframeGeometry;
+                        meshRefCurrent.visible = true;
+                    } else meshRefCurrent.visible = false;
                 }
             }
 
             if (logElapsedTime && numWorkerCompleted === numWorkers) {
                 const endTime = Date.now();
-                console.log(`Elapsed time: ${endTime - startTime}ms`)
+                console.log(`Elapsed time with ${numWorkers} workers: ${endTime - startTime}ms`)
             }
 
         };

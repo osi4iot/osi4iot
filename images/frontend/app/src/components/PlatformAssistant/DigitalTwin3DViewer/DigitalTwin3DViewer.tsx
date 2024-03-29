@@ -605,6 +605,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		legendToShow: "None result",
 		digitalTwinSimulatorState: undefined as unknown as Record<string, number>,
 		numWebWorkers: giveDefaultNumWebWorkers(),
+		enableWebWorkes: true,
 		logElapsedTime: false
 	});
 
@@ -994,6 +995,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								openDashboardTab={openDashboardTab}
 								setFemResultLoaded={setFemResultLoaded}
 								femResultNames={femResultNames}
+								enableWebWorkes={opts.enableWebWorkes}
 								numWebWorkers={opts.numWebWorkers}
 								logElapsedTime={opts.logElapsedTime}
 							/>
@@ -1068,6 +1070,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							<StyledDatBoolean label="Show" path="showAxes" />
 						</DatFolder>
 						<DatFolder title='Web workers preferences' closed={true}>
+							<StyledDatBoolean label="Switch on/off" path="enableWebWorkes" />
 							<StyledDatNumber
 								label="Num workers"
 								path="numWebWorkers"

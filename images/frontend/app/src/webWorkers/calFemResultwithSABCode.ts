@@ -34,7 +34,6 @@ const calFemResultwithSAB = () => {
             dispYNodalValuesBuffer,
             dispZNodalValuesBuffer,
         } = event.data;
-
         const initialIndex = generalData.initialIndex;
         const finalIndex = generalData.finalIndex;
         const femSimulationDefScale = generalData.femSimulationDefScale;
