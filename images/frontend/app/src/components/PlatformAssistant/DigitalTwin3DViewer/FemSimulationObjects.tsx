@@ -12,6 +12,7 @@ import { IResultRenderInfo, IFemSimulationObject } from './Model';
 import createSharedArrayBuffersForFemResults from '../../../webWorkers/createSharedArrayBuffersForFemResults';
 import calFemResultwithSABCode from '../../../webWorkers/calFemResultwithSABCode';
 import femResultCalcWorkersManager from '../../../webWorkers/femResultCalcWorkersManager';
+import { toast } from 'react-toastify';
 
 interface FemSimulationObjectProps {
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>;
@@ -100,19 +101,23 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
 
     useEffect(() => {
         if (meshResult && femResultNames.length !== 0) {
-            createSharedArrayBuffersForFemResults(
-                femResultNames,
-                meshResult,
-                femSimulationObject,
-                femSimulationGeneralInfo,
-                femSimulationObjectState,
-                setParamsSABMap,
-                setOriginaGeometrySAB,
-                setElemConnectivitiesSAB,
-                setLutRgbArraySABMap,
-                setFemResultModalValueSABMap,
-                setFemResultNodalValueSABMap,
-            );
+            try {
+                createSharedArrayBuffersForFemResults(
+                    femResultNames,
+                    meshResult,
+                    femSimulationObject,
+                    femSimulationGeneralInfo,
+                    femSimulationObjectState,
+                    setParamsSABMap,
+                    setOriginaGeometrySAB,
+                    setElemConnectivitiesSAB,
+                    setLutRgbArraySABMap,
+                    setFemResultModalValueSABMap,
+                    setFemResultNodalValueSABMap,
+                );
+            } catch (e: any) {
+                toast.error("Error setting SharedArrayBuffer for FEM results. Check results bounds.");
+            }
         }
     }, [
         femResultNames,
@@ -242,29 +247,33 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     femResultModalValueSABMap &&
                     femResultNodalValueSABMap
                 ) {
-                    femResultCalcWorkersManager(
-                        numWebWorkers,
-                        logElapsedTime,
-                        workers,
-                        femSimulationResult,
-                        deformationFields,
-                        showFemSimulationDeformation,
-                        femSimulationDefScale,
-                        showFemMesh,
-                        paramsSABMap as Map<string, SharedArrayBuffer>,
-                        originaGeometrySAB as SharedArrayBuffer,
-                        elemConnectivitiesSAB as SharedArrayBuffer,
-                        lutRgbArraySABMap as Map<string, SharedArrayBuffer>,
-                        femResultModalValueSABMap as Map<string, SharedArrayBuffer>,
-                        femResultNodalValueSABMap as Map<string, SharedArrayBuffer>,
-                        setFemMinValues,
-                        setFemMaxValues,
-                        femSimulationObject,
-                        femSimulationObjectState,
-                        meshIndex,
-                        meshRef.current,
-                        meshResult,
-                    )
+                    try {
+                        femResultCalcWorkersManager(
+                            numWebWorkers,
+                            logElapsedTime,
+                            workers,
+                            femSimulationResult,
+                            deformationFields,
+                            showFemSimulationDeformation,
+                            femSimulationDefScale,
+                            showFemMesh,
+                            paramsSABMap as Map<string, SharedArrayBuffer>,
+                            originaGeometrySAB as SharedArrayBuffer,
+                            elemConnectivitiesSAB as SharedArrayBuffer,
+                            lutRgbArraySABMap as Map<string, SharedArrayBuffer>,
+                            femResultModalValueSABMap as Map<string, SharedArrayBuffer>,
+                            femResultNodalValueSABMap as Map<string, SharedArrayBuffer>,
+                            setFemMinValues,
+                            setFemMaxValues,
+                            femSimulationObject,
+                            femSimulationObjectState,
+                            meshIndex,
+                            meshRef.current,
+                            meshResult,
+                        )
+                    } catch (e: any) {
+                        toast.error("Error calculating FEM results in web workers")
+                    }
                 }
 
                 // const startTime = Date.now();

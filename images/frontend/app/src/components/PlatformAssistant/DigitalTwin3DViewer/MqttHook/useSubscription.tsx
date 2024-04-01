@@ -453,7 +453,8 @@ const updateObjectsState = (
                             for (let imesh = 0; imesh < femSimulationObjectsState.length; imesh++) {
                                 for (let ires = 0; ires < femResultNames.length; ires++) {
                                     const resultName = femResultNames[ires];
-                                    const femResultsModalValue = mqttMessage.femResultsModalValues[imesh][ires];
+                                    let femResultsModalValue = mqttMessage.femResultsModalValues[imesh][ires];
+                                    if (femResultsModalValue === undefined) femResultsModalValue = 0;
                                     femSimulationObjectsNewState[imesh].resultFieldModalValues[resultName] = femResultsModalValue;
                                     isfemSimulationObjectsStateChanged = true
                                 }

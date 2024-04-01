@@ -700,7 +700,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				.get(urlFemResFolder, config)
 				.then((response) => {
 					const femResFilesInfo: { fileName: string; lastModified: string }[] = response.data;
-					const femResultDates = femResFilesInfo.map(fileInfo => formatDateString(fileInfo.lastModified))
+					const femResultDates = femResFilesInfo.map(fileInfo => formatDateString(fileInfo.lastModified));
 					setFemResultDates(femResultDates);
 					const femResultFileNames = femResFilesInfo.map(fileInfo => fileInfo.fileName.split("/")[4]);
 					setFemResultFileNames(femResultFileNames)
@@ -715,7 +715,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
 
 	useEffect(() => {
-		if (digitalTwinSelected && femResultDates.length !== 0 && femResultFileNames.length !== 0) {
+		if (
+			legendRenderer &&
+			digitalTwinSelected &&
+			femResultDates.length !== 0 &&
+			femResultFileNames.length !== 0
+		) {
 			let femResultDate = opts.femResultDate;
 			if (femResultDate === undefined || femResultDate === "-") {
 				femResultDate = femResultDates[0];
@@ -794,6 +799,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		}
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [
+		legendRenderer,
 		femResultDates,
 		femResultFileNames,
 		opts.femResultDate,
