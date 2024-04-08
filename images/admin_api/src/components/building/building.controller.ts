@@ -209,7 +209,7 @@ class BuildingController implements IController {
 				);
 			}
 			if (floorData.geoJsonData) {
-				floorData.outerBounds = findFloorBounds(floorData);
+				floorData.outerBounds = findFloorBounds(floorData.geoJsonData);
 			}
 			const Floor = await createFloor(floorData);
 			if (!Floor) throw new HttpException(req, res, 500, "Could not be created a new building floor");
@@ -269,7 +269,7 @@ class BuildingController implements IController {
 					[updatedFloor.buildingId.toString(), updatedFloor.floorNumber.toString()]
 				);
 			}
-			updatedFloor.outerBounds = findFloorBounds(updatedFloor);
+			updatedFloor.outerBounds = findFloorBounds(updatedFloor.geoJsonData);
 			const response = await updateFloorById(parseInt(floorId, 10), updatedFloor);
 			if (!response) throw new HttpException(req, res, 500, "The building floor could not be updated");
 			const message = { message: `Building floor updated succesfully.` }

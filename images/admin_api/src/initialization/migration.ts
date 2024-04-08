@@ -46,6 +46,7 @@ import { emptyBucket } from "./emptyS3Bucket";
 import IFloor from "../components/building/floor.interface";
 import {
 	findBuildingBounds,
+	findFloorBounds,
 	findGeographicCoordinates,
 	findGroupGeojsonData
 } from "../utils/geolocation.ts/geolocation";
@@ -264,9 +265,11 @@ export const dataBaseInitialization = async () => {
 
 				const mainOrgFloorGeoJson = "/run/configs/main_org_floor.geojson";
 				let geodataFloor = "{}";
+				let floorOuterBounds: number[][];
 				if (fs.existsSync(mainOrgFloorGeoJson)) {
 					try {
 						geodataFloor = fs.readFileSync(mainOrgFloorGeoJson, { encoding: 'utf8', flag: 'r' });
+						floorOuterBounds = findFloorBounds(geodataFloor);
 					} catch (err) {
 						logger.log("error", `An error occurred while trying to read the file: ${mainOrgFloorGeoJson}:  %s`, err.message);
 					}
@@ -274,9 +277,9 @@ export const dataBaseInitialization = async () => {
 
 				const queryStringInsertFloor =
 					`INSERT INTO ${tableFloor} 
-					(building_id, floor_number, geodata, floor_file_name, 
+					(building_id, floor_number, geodata, outer_bounds, floor_file_name, 
 					floor_file_last_modif_date, created, updated)
-					VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+					VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 					RETURNING  id, 
 					building_id AS "buildingId",
 					floor_number AS "floorNumber",
@@ -290,6 +293,7 @@ export const dataBaseInitialization = async () => {
 					1,
 					0,
 					geodataFloor,
+					floorOuterBounds,
 					"Floor_0_of_building_1.geojson",
 					(new Date()).toISOString(),
 				];

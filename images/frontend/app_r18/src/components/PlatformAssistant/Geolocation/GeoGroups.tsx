@@ -86,7 +86,9 @@ const GeoGroups: FC<GeoGroupsProps> = (
     }
 
     const clickHandler = () => {
-        map.fitBounds(floorData.outerBounds as LatLngTuple[]);
+        if (floorData.outerBounds) {
+            map.fitBounds(floorData.outerBounds as LatLngTuple[]);
+        }
         if (orgSelected) selectOrg(orgSelected);
     }
 

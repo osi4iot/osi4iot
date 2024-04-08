@@ -72,11 +72,6 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     const [femResultNodalValueSABMap, setFemResultNodalValueSABMap] = useState<Map<string, SharedArrayBuffer> | null>(null);
     const [workers, setWorkers] = useState<Worker[]>([]);
 
-    // const calcRemResultWorker: Worker = useMemo(
-    //     () => new Worker(calcFemResultCode),
-    //     []
-    // );
-
     const objectRef = useRef<THREE.Group>();
     const meshRef = useRef<THREE.LineSegments>();
     const geometryRef = useRef<THREE.Mesh>();
@@ -275,74 +270,6 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                         toast.error("Error calculating FEM results in web workers")
                     }
                 }
-
-                // const startTime = Date.now();
-                // const message = createArrayBuffersForCalcFemRes(
-                //     femSimulationResult,
-                //     meshResult,
-                //     showFemSimulationDeformation,
-                //     femSimulationObject,
-                //     deformationFields,
-                //     femSimulationDefScale,
-                //     femSimulationGeneralInfo,
-                //     femSimulationObjectState
-                // )
-
-                // calcRemResultWorker.postMessage(message,
-                //     [
-                //         message.arrayBuffer1.buffer,
-                //         message.arrayBuffer2.buffer,
-                //         message.arrayBuffer3.buffer,
-                //         message.arrayBuffer4.buffer,
-                //         message.arrayBuffer5.buffer,
-                //         message.arrayBuffer6.buffer,
-                //         message.arrayBuffer7.buffer,
-                //         message.arrayBuffer8.buffer,
-                //         message.arrayBuffer9.buffer,
-                //         message.arrayBuffer10.buffer,
-                //         message.arrayBuffer11.buffer,
-                //         message.arrayBuffer12.buffer,
-                //     ]
-                // );
-
-                // calcRemResultWorker.onmessage = (e: MessageEvent<string>) => {
-                //     const { buffer1, buffer2, buffer3 } = (e.data as any);
-
-                //     if (femSimulationResult !== "None result" && meshResult) {
-                //         const MinMaxValues = new Float32Array(buffer1);
-                //         setFemMinValues((prevFemMinValues: number[]) => {
-                //             const newFemMinValues = [...prevFemMinValues];
-                //             newFemMinValues[meshIndex] = MinMaxValues[0];
-                //             return newFemMinValues;
-                //         });
-
-                //         setFemMaxValues((prevFemMaxValues: number[]) => {
-                //             const newFemMaxValues = [...prevFemMaxValues];
-                //             newFemMaxValues[meshIndex] = MinMaxValues[1];
-                //             return newFemMaxValues;
-                //         });
-
-                //         const resultColors = new Float32Array(buffer2);
-                //         femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(resultColors, 3));
-                //     }
-
-                //     const currentPositions = new Float32Array(buffer3);
-                //     femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
-
-                //     if (meshRef.current) {
-                //         if (showFemMesh) {
-                //             const wireframeGeometry = new THREE.WireframeGeometry(femSimulationObject.node.geometry);
-                //             meshRef.current.geometry = wireframeGeometry;
-                //             meshRef.current.visible = true;
-                //         } else meshRef.current.visible = false;
-                //     }
-                //     const endTime = Date.now();
-                //     console.log(`Elapsed time: ${endTime - startTime}ms`)
-                // };
-                // calcRemResultWorker.onerror = (event: ErrorEvent) => {
-                //     const errorMessage = "Error calculating fem result";
-                //     toast.warning(errorMessage);
-                // }
             }
         } else {
             let startTime = 0;

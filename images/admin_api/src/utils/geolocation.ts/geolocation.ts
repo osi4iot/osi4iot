@@ -1,6 +1,5 @@
 import pointOnFeature from '@turf/point-on-feature';
 import { polygon } from '@turf/helpers';
-import CreateFloorDto from "../../components/building/floor.dto";
 import IFloor from "../../components/building/floor.interface";
 
 export const giveGeolocationPoint = (longitude: number, latitude: number): string => {
@@ -63,13 +62,13 @@ export const findGroupBounds = (geoJsonDataString: string,  floorData: IFloor): 
 	return outerBounds;
 }
 
-export const findFloorBounds = (floorData: IFloor | CreateFloorDto): number[][] => {
+export const findFloorBounds = (floorGeoJsonData: string): number[][] => {
 	let maxLongitude = -180;
 	let minLongitude = 180;
 	let maxLatitude = -90;
 	let minLatitude = 90;
 	let outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
-	const geoJsonData = JSON.parse(floorData.geoJsonData);
+	const geoJsonData = JSON.parse(floorGeoJsonData);
 	const features = geoJsonData.features;
 	if (features && features.length !== 0) {
 		features.forEach((feature: any) => {
