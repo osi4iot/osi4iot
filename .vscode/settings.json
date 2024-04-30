@@ -1,3 +1,6 @@
 {
-    "livePreview.defaultPreviewPath": "/index.html"
+    "livePreview.defaultPreviewPath": "/index.html",
+    "CodeGPT.apiKey": "Ollama",
+    "CodeGPT.Autocomplete.enabled": false,
+    "CodeGPT.Autocomplete.provider": "Ollama - llama3:8b-instruct"
 }

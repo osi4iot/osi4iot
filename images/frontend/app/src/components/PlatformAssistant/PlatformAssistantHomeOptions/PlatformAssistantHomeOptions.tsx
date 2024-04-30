@@ -68,7 +68,6 @@ import fetchFemResFileCode from '../../../webWorkers/fetchFemResFileCode';
 import fetchGltfFileCode from '../../../webWorkers/fetchGltfFileCode';
 import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from '../../../tools/fileSystem';
 
-
 const PlatformAssistantHomeOptionsContainer = styled.div`
 	display: flex;
 	flex-direction: row;
@@ -625,6 +624,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 	useEffect(() => {
 		if (digitalTwinsTable.length === 0 || reloadDigitalTwins) {
+			setDigitalTwinsLoading(false);
 			const config = axiosAuth(accessToken);
 			const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
 			getAxiosInstance(refreshToken, authDispatch)
@@ -636,23 +636,24 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 						dt.numGltfFilesLocallyStored = 0;
 						dt.numFemResFilesLocallyStored = 0;
 					});
-					await syncDigitalTwinsLocalStorage(digitalTwins);
-					const dtStorageInfo = await getDTStorageInfo();
-					const digitalTwinUidArray = dtStorageInfo.map(dt => dt.digitalTwinUid);
-					digitalTwins.forEach(dt => {
-						const dtIndex = digitalTwinUidArray.indexOf(dt.digitalTwinUid);
-						if (dtIndex !== -1) {
-							dt.numGltfFilesLocallyStored = dtStorageInfo[dtIndex].numGltfFiles;
-							dt.numFemResFilesLocallyStored = dtStorageInfo[dtIndex].numFemResFiles;
+					setDigitalTwinsLoading(false);
+					syncDigitalTwinsLocalStorage(digitalTwins).then(async () => {
+						const dtStorageInfo = await getDTStorageInfo();
+						const digitalTwinUidArray = dtStorageInfo.map(dt => dt.digitalTwinUid);
+						digitalTwins.forEach(dt => {
+							const dtIndex = digitalTwinUidArray.indexOf(dt.digitalTwinUid);
+							if (dtIndex !== -1) {
+								dt.numGltfFilesLocallyStored = dtStorageInfo[dtIndex].numGltfFiles;
+								dt.numFemResFilesLocallyStored = dtStorageInfo[dtIndex].numFemResFiles;
+							}
+						});
+						setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
+						const inexistentDashboards = digitalTwins.filter((dt: IDigitalTwin) => dt.dashboardUrl.slice(0, 7) === "Warning");
+						if (inexistentDashboards.length !== 0) {
+							const warningMessage = "Some dashboards no longer exist"
+							toast.warning(warningMessage);
 						}
 					});
-					setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
-					setDigitalTwinsLoading(false);
-					const inexistentDashboards = digitalTwins.filter((dt: IDigitalTwin) => dt.dashboardUrl.slice(0, 7) === "Warning");
-					if (inexistentDashboards.length !== 0) {
-						const warningMessage = "Some dashboards no longer exist"
-						toast.warning(warningMessage);
-					}
 				})
 				.catch((error) => {
 					const digitalTwins: never[] = [];

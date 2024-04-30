@@ -16,6 +16,7 @@ import { useFilePicker } from 'use-file-picker';
 import { setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../contexts/assetTypesOptions';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
+import { generateAssetTypeMarker, cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -163,6 +164,7 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
     const [iconSvgFileName, setIconSvgFileName] = useState("-");
     const [markerSvgString, setMarkerSvgString] = useState("");
     const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(false);
+    const [generateMarker, setGenerateMarker] = useState(false);
     const [markerSvgFileName, setMarkerSvgFileName] = useState("-");
     const initialOrg = orgsManagedTable[0];
     const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
@@ -200,7 +202,8 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
             setIconSvgFileLoaded(true)
             try {
                 const assetSvgString = iconSvgFileParams.filesContent[0].content;
-                setIconSvgString(assetSvgString);
+                const newAssetSvgString = cleanSvgString(assetSvgString);
+                setIconSvgString(newAssetSvgString);
                 const iconSvgFileName = iconSvgFileParams.plainFiles[0].name;
                 setIconSvgFileName(iconSvgFileName);
                 iconSvgFileParams.clear();
@@ -232,7 +235,8 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
             setMarkerSvgFileLoaded(true)
             try {
                 const markerSvgString = markerSvgFileParams.filesContent[0].content;
-                setMarkerSvgString(markerSvgString);
+                const newMarkerSvgString = cleanSvgString(markerSvgString);
+                setMarkerSvgString(newMarkerSvgString);
                 const markerSvgFileName = markerSvgFileParams.plainFiles[0].name;
                 setMarkerSvgFileName(markerSvgFileName);
                 markerSvgFileParams.clear();
@@ -255,17 +259,44 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
         markerSvgFileParams,
     ])
 
+    useEffect(() => {
+        if (
+            generateMarker &&
+            geolocationMode === "dynamic" &&
+            iconSvgFileName !== "-" &&
+            iconSvgString !== "" &&
+            markerSvgFileName === "-" &&
+            markerSvgString === ""
+        ) {
+            const newMarkerSvgFileName = `marker_${iconSvgFileName}`;
+            setMarkerSvgFileName(newMarkerSvgFileName);
+            const newMarkerSvgString = generateAssetTypeMarker(iconSvgString);
+            setMarkerSvgString(newMarkerSvgString);
+            setMarkerSvgFileLoaded(true);
+            setGenerateMarker(false);
+        }
+    }, [
+        generateMarker,
+        geolocationMode,
+        iconSvgFileName,
+        iconSvgString,
+        markerSvgFileName,
+        markerSvgString,
+    ]);
+
+
     const onSubmit = (values: any, actions: any) => {
         const orgAcronym = values.orgAcronym;
         const orgId = orgsManagedTable.filter(org => org.acronym === orgAcronym)[0].id;
         const url = `${protocol}://${domainName}/admin_api/asset_type/${orgId}`;
         const config = axiosAuth(accessToken);
+        const geolocationMode = values.geolocationMode;
 
         const assetTypeData = {
             type: values.type,
             iconSvgFileName,
             iconSvgString,
-            geolocationMode: values.geolocationMode,
+            geolocationMode,
             markerSvgFileName,
             markerSvgString,
             assetStateFormat: values.assetStateFormat
@@ -304,7 +335,8 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
 
     const onGeolocationModeSelectChange = (e: { value: string }, formik: FormikType) => {
         setGeolocationMode(e.value);
-        formik.setFieldValue("geolocationMode", e.value)
+        formik.setFieldValue("geolocationMode", e.value);
+        if(e.value === "dynamic") setGenerateMarker(true);
     }
 
     const onCancel = (e: SyntheticEvent) => {
@@ -425,7 +457,7 @@ const CreateAssetType: FC<CreateAssetTypeProps> = ({
                                                                     svgString={markerSvgString}
                                                                     imgWidth="100"
                                                                     imgHeight="100"
-                                                                    backgroundColor="#202226"
+                                                                    backgroundColor="#2A81CB"
                                                                 />
                                                             </SvgComponentContainerDiv>
                                                         </SvgIconPreviewContainerDiv>

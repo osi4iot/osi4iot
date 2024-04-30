@@ -17,6 +17,7 @@ import { setAssetTypesOptionToShow, useAssetTypeIdToEdit, useAssetTypeRowIndexTo
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
+import { cleanSvgString, generateAssetTypeMarker } from '../../../tools/generateAssetTypeMarker';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -175,6 +176,7 @@ const EditAssetType: FC<EditAssetTypeProps> = ({
     const [markerSvgFileLoaded, setMarkerSvgFileLoaded] = useState(storedMarkerSvgString !== "");
     const storedMarkerSvgFileName = assetTypes[assetTypeRowIndex].markerSvgFileName;
     const [markerSvgFileName, setMarkerSvgFileName] = useState(storedMarkerSvgFileName);
+    const [generateMarker, setGenerateMarker] = useState(false);
 
     const [openIconSvgFileSelector, iconSvgFileParams] = useFilePicker({
         readAs: 'Text',
@@ -197,7 +199,8 @@ const EditAssetType: FC<EditAssetTypeProps> = ({
             setIconSvgFileLoaded(true)
             try {
                 const assetSvgString = iconSvgFileParams.filesContent[0].content;
-                setIconSvgString(assetSvgString);
+                const newAssetSvgString = cleanSvgString(assetSvgString);
+                setIconSvgString(newAssetSvgString);
                 const iconSvgFileName = iconSvgFileParams.plainFiles[0].name;
                 setIconSvgFileName(iconSvgFileName);
                 iconSvgFileParams.clear();
@@ -229,7 +232,8 @@ const EditAssetType: FC<EditAssetTypeProps> = ({
             setMarkerSvgFileLoaded(true)
             try {
                 const markerSvgString = markerSvgFileParams.filesContent[0].content;
-                setMarkerSvgString(markerSvgString);
+                const newMarkerSvgString = cleanSvgString(markerSvgString);
+                setMarkerSvgString(newMarkerSvgString);
                 const markerSvgFileName = markerSvgFileParams.plainFiles[0].name;
                 setMarkerSvgFileName(markerSvgFileName);
                 markerSvgFileParams.clear();
@@ -251,6 +255,32 @@ const EditAssetType: FC<EditAssetTypeProps> = ({
         markerSvgFileParams.plainFiles,
         markerSvgFileParams,
     ])
+
+    useEffect(() => {
+        if (
+            generateMarker &&
+            geolocationMode === "dynamic" &&
+            iconSvgFileName !== "-" &&
+            iconSvgString !== "" &&
+            markerSvgFileName === "-" &&
+            markerSvgString === ""
+        ) {
+            const newMarkerSvgFileName = `marker_${iconSvgFileName}`;
+            setMarkerSvgFileName(newMarkerSvgFileName);
+            const newMarkerSvgString = generateAssetTypeMarker(iconSvgString);
+            setMarkerSvgString(newMarkerSvgString);
+            setMarkerSvgFileLoaded(true);
+            setGenerateMarker(false);
+        }
+    }, [
+        generateMarker,
+        geolocationMode,
+        iconSvgFileName,
+        iconSvgString,
+        markerSvgFileName,
+        markerSvgString,
+    ]);
+
 
     const onSubmit = (values: any, actions: any) => {
         const url = `${protocol}://${domainName}/admin_api/asset_type/${orgId}/id/${assetTypeId}`;
@@ -298,7 +328,8 @@ const EditAssetType: FC<EditAssetTypeProps> = ({
 
     const onGeolocationModeSelectChange = (e: { value: string }, formik: FormikType) => {
         setGeolocationMode(e.value);
-        formik.setFieldValue("geolocationMode", e.value)
+        formik.setFieldValue("geolocationMode", e.value);
+        if(e.value === "dynamic") setGenerateMarker(true);
     }
 
     const onCancel = (e: SyntheticEvent) => {
@@ -415,7 +446,7 @@ const EditAssetType: FC<EditAssetTypeProps> = ({
                                                                     svgString={markerSvgString}
                                                                     imgWidth="100"
                                                                     imgHeight="100"
-                                                                    backgroundColor="#202226"
+                                                                    backgroundColor="#2A81CB"
                                                                 />
                                                             </SvgComponentContainerDiv>
                                                         </SvgIconPreviewContainerDiv>

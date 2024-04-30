@@ -1,14 +1,14 @@
 import { FC, useEffect, useRef } from "react";
-import { GeoJSON, Marker, useMap } from 'react-leaflet';
+import { GeoJSON, useMap } from 'react-leaflet';
 import { LatLngTuple } from 'leaflet';
 import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
-import { IconAlertingMarker, IconMarker, IconPendingMarker } from "./IconMarker";
 import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IBuilding } from "../TableColumns/buildingsColumns";
 import BuildingTooltip, { IOrgManagedWithStatus } from "./BuildingTooltip";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
+import BuildingMarker from "./BuildingMarker";
 
 
 const SELECTED = "#3274d9";
@@ -25,7 +25,6 @@ const setOrgStyle = (isSelected: boolean) => {
         fillOpacity: 0.2
     }
 }
-
 
 interface GeoBuildingWithStateProps {
     buildingData: IBuilding;
@@ -81,12 +80,12 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
                 item.orgId === org.id && item.state === "alerting"
             ).length !== 0;
 
-            const sensorsWithAlertingState = digitalTwinsStateFiltered.filter(item =>
+            const sensorsWithAlertingState = sensorsStateFiltered.filter(item =>
                 item.orgId === org.id && item.state === "alerting"
             ).length !== 0;
 
-            if(dtWithAlertingState || sensorsWithAlertingState) orgStatus = "alerting"
-            else orgStatus="pending"
+            if (dtWithAlertingState || sensorsWithAlertingState) orgStatus = "alerting"
+            else orgStatus = "pending"
         }
         return { ...org, orgStatus };
     });
@@ -105,7 +104,7 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
             const groupsFiltered = groupsManaged.filter(group => group.orgId === orgsInBuilding[0].id);
             const floorNumbersArray = Array.from(new Set(groupsFiltered.map(group => group.floorNumber)));
             if (floorNumbersArray.length === 1) {
-                const floorsFiltered = floorsData.filter(floor => floor.floorNumber ===  floorNumbersArray[0])
+                const floorsFiltered = floorsData.filter(floor => floor.floorNumber === floorNumbersArray[0])
                 selectFloor(floorsFiltered[0]);
                 if (groupsFiltered.length === 1) {
                     selectGroup(groupsFiltered[0]);
@@ -124,26 +123,19 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
         <GeoJSON ref={geoJsonLayer} data={buildingData.geoJsonData} style={styleGeoJson} eventHandlers={{ click: clickHandler }}>
             {
                 (orgsInBuilding.length !== 0 && !floorSelected) &&
-                <>
-                    {buildingStatus === "ok" &&
-                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconMarker(orgsInBuilding)} >
-                        <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
-                        </Marker>
-                    }
-                    {buildingStatus === "pending" &&
-                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconPendingMarker(orgsInBuilding)} >
-                        <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
-                        </Marker>
-                    }
-                    {buildingStatus === "alerting" &&
-                        <Marker position={[buildingData.latitude, buildingData.longitude]} eventHandlers={{ click: clickHandler }} icon={IconAlertingMarker(orgsInBuilding)} >
-                            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
-                        </Marker>
-                    }
-                </>
+                <BuildingMarker
+                    key={`${buildingData}-${buildingStatus}`}
+                    buildingStatus={buildingStatus}
+                    clickHandler={clickHandler}
+                    buildingLatitude={buildingData.latitude}
+                    buildingLongitude={buildingData.longitude}
+                    buildingName={buildingData.name}
+                    orgsInBuilding={orgsInBuilding}
+                    orgsInBuildingWithStatus={orgsInBuildingWithStatus}
+                    orgSelected={orgSelected}
+                />
             }
-
-            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected}/>
+            <BuildingTooltip buildingName={buildingData.name} orgsInBuilding={orgsInBuildingWithStatus} orgSelected={orgSelected} />
         </GeoJSON >
     )
 }
