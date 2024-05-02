@@ -346,7 +346,6 @@ const AssetsControl: FC< AssetsControlProps> = ({ assetSelected, selectAssetOpti
     )
 }
 
-
 interface MapEventProps {
     setNewOuterBounds: (outerBounds: number[][]) => void;
 }
@@ -374,6 +373,7 @@ interface MapProps {
     groupsManaged: IGroupManaged[];
     assetTypes: IAssetType[];
     assets: IAsset[];
+    assetsWithMarker: IAsset[];
     sensorTypes: ISensorType[];
     sensors: ISensor[];
     digitalTwins: IDigitalTwin[];
@@ -386,7 +386,9 @@ interface MapProps {
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     assetSelected: IAsset | null;
+    assetMarkerSelected: boolean;
     selectAsset: (assetSelected: IAsset | null) => void;
+    selectAssetMarker: (select: boolean) => void;
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor | null) => void;    
     digitalTwinSelected: IDigitalTwin | null;
@@ -423,6 +425,7 @@ const Map: FC<MapProps> = (
         groupsManaged,
         assetTypes,
         assets,
+        assetsWithMarker,
         sensorTypes,
         sensors,
         digitalTwins,
@@ -435,7 +438,9 @@ const Map: FC<MapProps> = (
         groupSelected,
         selectGroup,
         assetSelected,
+        assetMarkerSelected,
         selectAsset,
+        selectAssetMarker,
         sensorSelected,
         selectSensor,
         digitalTwinSelected,
@@ -508,6 +513,11 @@ const Map: FC<MapProps> = (
                 selectGroup={selectGroup}
                 digitalTwinsState={digitalTwinsState}
                 sensorsState={sensorsState}
+                assetTypes={assetTypes}
+                assetsWithMarker={assetsWithMarker}
+                selectAsset={selectAsset}
+                assetMarkerSelected={assetMarkerSelected}
+                selectAssetMarker={selectAssetMarker}
             />
             {
                 (buildingSelected && orgSelected && floorSelected) &&
@@ -521,7 +531,9 @@ const Map: FC<MapProps> = (
                     assetTypes={assetTypes}
                     assetDataArray={assets}
                     assetSelected={assetSelected}
+                    assetMarkerSelected={assetMarkerSelected}
                     selectAsset={selectAsset}
+                    selectAssetMarker={selectAssetMarker}
                     sensorTypes={sensorTypes}
                     sensorDataArray={sensors}
                     sensorSelected={sensorSelected}

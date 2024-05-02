@@ -70,6 +70,7 @@ interface GeolocationContainerProps {
     groupsManaged: IGroupManaged[];
     assetTypes: IAssetType[];
     assets: IAsset[];
+    assetsWithMarker: IAsset[];
     sensorTypes: ISensorType[];
     sensors: ISensor[];
     digitalTwins: IDigitalTwin[];
@@ -82,7 +83,9 @@ interface GeolocationContainerProps {
     groupSelected: IGroupManaged | null;
     selectGroup: (groupSelected: IGroupManaged) => void;
     assetSelected: IAsset | null;
+    assetMarkerSelected: boolean;
     selectAsset: (assetSelected: IAsset | null) => void;
+    selectAssetMarker: (select: boolean) => void;
     sensorSelected: ISensor | null;
     selectSensor: (sensorSelected: ISensor | null) => void;
     digitalTwinSelected: IDigitalTwin | null;
@@ -116,6 +119,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         groupsManaged,
         assetTypes,
         assets,
+        assetsWithMarker,
         sensorTypes,
         sensors,
         digitalTwins,
@@ -128,7 +132,9 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         groupSelected,
         selectGroup,
         assetSelected,
+        assetMarkerSelected,
         selectAsset,
+        selectAssetMarker,
         sensorSelected,
         selectSensor,
         selectDigitalTwin,
@@ -286,6 +292,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     groupsManaged={groupsManaged}
                     assetTypes={assetTypes}
                     assets={assets}
+                    assetsWithMarker={assetsWithMarker}
                     sensorTypes={sensorTypes}
                     sensors={sensors}
                     digitalTwins={digitalTwins}
@@ -298,7 +305,9 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     groupSelected={groupSelected}
                     selectGroup={selectGroup}
                     assetSelected={assetSelected}
+                    assetMarkerSelected={assetMarkerSelected}
                     selectAsset={selectAsset}
+                    selectAssetMarker={selectAssetMarker}
                     sensorSelected={sensorSelected}
                     selectSensor={selectSensor}
                     selectDigitalTwin={selectDigitalTwin}

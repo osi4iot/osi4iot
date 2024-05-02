@@ -7,6 +7,9 @@ import { IBuilding } from "../TableColumns/buildingsColumns";
 import { IFloor } from "../TableColumns/floorsColumns";
 import GeoBuildingWithState from "./GeoBuildingWithState";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
+import { IAssetType } from "../TableColumns/assetTypesColumns";
+import { IAsset } from "../TableColumns/assetsColumns";
+import GeoAssetMarker from "./GeoAssetMarker";
 
 
 interface GeoBuildingsProps {
@@ -25,6 +28,11 @@ interface GeoBuildingsProps {
     selectGroup: (groupSelected: IGroupManaged) => void;
     digitalTwinsState: IDigitalTwinState[];
     sensorsState: ISensorState[];
+    assetTypes: IAssetType[];
+    assetsWithMarker: IAsset[];
+    selectAsset: (assetSelected: IAsset | null) => void;
+    assetMarkerSelected: boolean;
+    selectAssetMarker: (select: boolean) => void;
 }
 
 const GeoBuildings: FC<GeoBuildingsProps> = ({
@@ -42,7 +50,12 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
     groupsManaged,
     selectGroup,
     digitalTwinsState,
-    sensorsState
+    sensorsState,
+    assetTypes,
+    assetsWithMarker,
+    selectAsset,
+    assetMarkerSelected,
+    selectAssetMarker
 }) => {
     const map = useMap();
 
@@ -53,9 +66,9 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
     }, [map, outerBounds, buildingSelected])
 
     return (
-        <LayerGroup>          
+        <LayerGroup>
             {
-                buildings.map(building => 
+                buildings.map(building =>
                     <GeoBuildingWithState
                         key={building.id}
                         orgsInBuilding={orgsData.filter(org => org.buildingId === building.id)}
@@ -66,6 +79,29 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
                         buildingSelected={buildingSelected}
                         selectBuilding={selectBuilding}
                         orgSelected={orgSelected}
+                        selectOrg={selectOrg}
+                        groupsManaged={groupsManaged}
+                        groupSelected={groupSelected}
+                        selectGroup={selectGroup}
+                        digitalTwinsState={digitalTwinsState}
+                        sensorsState={sensorsState}
+                    />
+                )
+            }
+            {
+                assetsWithMarker.map(asset =>
+                    !assetMarkerSelected &&
+                    <GeoAssetMarker
+                        key={asset.id}
+                        asset={asset}
+                        selectAsset={selectAsset}
+                        selectAssetMarker={selectAssetMarker}
+                        assetTypes={assetTypes}
+                        buildings={buildings}
+                        selectBuilding={selectBuilding}
+                        floors={floors}
+                        selectFloor={selectFloor}
+                        orgsData={orgsData}
                         selectOrg={selectOrg}
                         groupsManaged={groupsManaged}
                         groupSelected={groupSelected}

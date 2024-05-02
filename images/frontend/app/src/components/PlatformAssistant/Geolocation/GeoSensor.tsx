@@ -120,8 +120,7 @@ const GeoSensor: FC<GeoSensorProps> = ({
                 outerBounds={outerBoundsSensor as LatLngTuple[]}
             />
             <Tooltip sticky>
-                <span style={{ fontWeight: 'bold' }}>Sensor</span><br />
-                Name: {`Sensor_${sensorData.sensorUid}`}<br />
+                <span style={{ fontWeight: 'bold' }}>{`Sensor_${sensorData.sensorUid}`}</span><br />
                 Type: {sensorData.sensorType}<br />
                 Description: {sensorData.description}<br />
                 Recieve data from topicId: {sensorData.topicId}<br />

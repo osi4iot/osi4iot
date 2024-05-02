@@ -114,8 +114,7 @@ const GeoAsset: FC<GeoAssetProps> = ({
             {
                 (!assetSelected || !(assetSelected?.id === assetData.id)) &&
                 <Tooltip sticky>
-                    <span style={{ fontWeight: 'bold' }}>Asset</span><br />
-                    Name: {`Asset_${assetData.assetUid}`}<br />
+                    <span style={{ fontWeight: 'bold' }}>{`Asset_${assetData.assetUid}`}</span><br />
                     Description: {assetData.description}<br />
                     Type: {assetData.assetType}<br />
                     Status: <span style={{ fontWeight: 'bold' }}>{status.charAt(0).toUpperCase() + status.slice(1)}</span>

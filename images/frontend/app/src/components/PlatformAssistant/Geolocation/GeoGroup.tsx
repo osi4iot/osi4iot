@@ -60,6 +60,8 @@ interface GeoGroupProps {
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
     selectAsset: (assetSelected: IAsset | null) => void;
+    assetMarkerSelected: boolean;
+    selectAssetMarker: (select: boolean) => void;
     sensorTypeDataArray: ISensorType[];
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
@@ -84,6 +86,8 @@ const GeoGroup: FC<GeoGroupProps> = (
         assetDataArray,
         assetSelected,
         selectAsset,
+        assetMarkerSelected,
+        selectAssetMarker,
         sensorTypeDataArray,
         sensorDataArray,
         sensorSelected,
@@ -116,11 +120,12 @@ const GeoGroup: FC<GeoGroupProps> = (
         if (groupSelected &&
             groupSelected.id === groupData.id &&
             !assetSelected &&
+            !assetMarkerSelected &&
             groupSelected.outerBounds
         ) {
             map.fitBounds(groupSelected.outerBounds as LatLngTuple[]);
         }
-    }, [groupSelected, groupData, assetSelected, map]);
+    }, [groupSelected, groupData, assetSelected, assetMarkerSelected, map]);
 
     const clickHandler = () => {
         selectGroup(groupData);
@@ -129,6 +134,7 @@ const GeoGroup: FC<GeoGroupProps> = (
             groupOuterBounds = floorData.outerBounds;
         }
         map.fitBounds(groupOuterBounds as LatLngTuple[]);
+        selectAssetMarker(false);
     }
 
     return (

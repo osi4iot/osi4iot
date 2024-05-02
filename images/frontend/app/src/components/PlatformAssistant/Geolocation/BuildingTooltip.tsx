@@ -40,6 +40,9 @@ const BuildingTooltip: FC<BuildingTooltipProps> = ({ buildingName, orgsInBuildin
                 (orgsInBuilding.length === 1 || orgSelected) ?
                     <Tooltip sticky opacity={1}>
                         <div>
+                            <span style={{ fontWeight: 600 }}>Building:</span>{` ${buildingName}`}
+                        </div>
+                        <div>
                             <span style={{ fontWeight: 'bold' }}>Org:</span>
                             {` ${orgAcronym} ${orgRole}`}<StatusLed status={orgStatus} size="8px" />
                         </div>

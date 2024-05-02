@@ -10,7 +10,6 @@ import { IFloor } from "../TableColumns/floorsColumns";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import BuildingMarker from "./BuildingMarker";
 
-
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
 
@@ -58,7 +57,7 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
         groupSelected,
         selectGroup,
         digitalTwinsState,
-        sensorsState
+        sensorsState,
     }) => {
     const geoJsonLayer = useRef(null);
     const map = useMap();

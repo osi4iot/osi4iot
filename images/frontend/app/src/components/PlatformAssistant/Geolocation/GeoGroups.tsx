@@ -40,7 +40,9 @@ interface GeoGroupsProps {
     assetTypes: IAssetType[];
     assetDataArray: IAsset[];
     assetSelected: IAsset | null;
+    assetMarkerSelected: boolean;
     selectAsset: (assetSelected: IAsset | null) => void;
+    selectAssetMarker: (select: boolean) => void;
     sensorTypes: ISensorType[];
     sensorDataArray: ISensor[];
     sensorSelected: ISensor | null;
@@ -67,7 +69,9 @@ const GeoGroups: FC<GeoGroupsProps> = (
         assetTypes,
         assetDataArray,
         assetSelected,
+        assetMarkerSelected,
         selectAsset,
+        selectAssetMarker,
         sensorTypes,
         sensorDataArray,
         sensorSelected,
@@ -96,6 +100,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
             map.fitBounds(floorData.outerBounds as LatLngTuple[]);
         }
         if (orgSelected) selectOrg(orgSelected);
+        selectAssetMarker(false);
     }
 
     return (
@@ -116,6 +121,8 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         assetDataArray={assetDataArray}
                         assetSelected={assetSelected}
                         selectAsset={selectAsset}
+                        assetMarkerSelected={assetMarkerSelected}
+                        selectAssetMarker={selectAssetMarker}
                         sensorTypeDataArray={sensorTypeDataArray}
                         sensorDataArray={sensorDataArray}
                         sensorSelected={sensorSelected}

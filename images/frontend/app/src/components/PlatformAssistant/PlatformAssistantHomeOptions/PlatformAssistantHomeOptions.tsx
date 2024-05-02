@@ -138,7 +138,37 @@ const ContentContainer = styled.div`
 
 `;
 
-const findBounds = (buildings: IBuilding[]) => {
+const findAssetsWithMarker = (
+	assetTypes: IAssetType[],
+	assets: IAsset[],
+	buildings: IBuilding[],
+	orgsOfGroupsManagedTable: IOrgOfGroupsManaged[]
+) => {
+	const assetTypesWithMarker = assetTypes.filter(item =>
+		item.geolocationMode === "dynamic" && item.markerSvgString !== ""
+	);
+	const assetTypesIdArray = assetTypesWithMarker.map(item => item.id);
+	const assetsWithMarker = assets.filter(asset => assetTypesIdArray.includes(asset.assetTypeId));
+	const assetsWithMarkerFiltered = assetsWithMarker.filter(asset => {
+		const assetOrg = orgsOfGroupsManagedTable.filter(org => org.id === asset.orgId)[0];
+		const assetBuilding = buildings.filter(building => building.id === assetOrg.buildingId)[0];
+		const assetBuildingOuterBounds = assetBuilding.outerBounds;
+		if (
+			asset.latitude < assetBuildingOuterBounds[0][0] ||
+			asset.latitude > assetBuildingOuterBounds[1][0] ||
+			asset.longitude < assetBuildingOuterBounds[0][1] ||
+			asset.longitude > assetBuildingOuterBounds[1][1]
+		) return true
+		else return false;
+	});
+	return assetsWithMarkerFiltered;
+}
+
+
+const findBounds = (
+	buildings: IBuilding[],
+	assetsWithMarker: IAsset[]
+) => {
 	let outerBounds: number[][] = [[35.55010533588552, -10.56884765625], [44.134913443750726, 1.42822265625]];
 	let maxLongitude = -180;
 	let minLongitude = 180;
@@ -151,8 +181,17 @@ const findBounds = (buildings: IBuilding[]) => {
 			if (buildingOuterBounds[0][1] < minLongitude) minLongitude = buildingOuterBounds[0][1];
 			if (buildingOuterBounds[1][0] > maxLatitude) maxLatitude = buildingOuterBounds[1][0];
 			if (buildingOuterBounds[0][0] < minLatitude) minLatitude = buildingOuterBounds[0][0];
-			outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
 		})
+
+		if (assetsWithMarker.length !== 0) {
+			assetsWithMarker.forEach(asset => {
+				if (asset.longitude > maxLongitude) maxLongitude = asset.longitude;
+				if (asset.longitude < minLongitude) minLongitude = asset.longitude;
+				if (asset.latitude > maxLatitude) maxLatitude = asset.latitude;
+				if (asset.latitude < minLatitude) minLatitude = asset.latitude;
+			})
+		}
+		outerBounds = [[minLatitude, minLongitude], [maxLatitude, maxLongitude]];
 	} else {
 		let minMapLatitude = 35.55010533588552;
 		let maxMapLatitude = 44.134913443750726;
@@ -227,6 +266,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
 	const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
 	const [sensorsState, setSensorsState] = useState<ISensorState[]>([]);
+	const [assetsWithMarker, setAssetsWithMarker] = useState<IAsset[]>([]);
+	const [assetMarkerSelected, setAssetMarkerSelected] = useState(false);
 	const fetchFemResFileWorker: Worker = useMemo(
 		() => new Worker(fetchFemResFileCode),
 		[]
@@ -322,6 +363,10 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setAssetSelected(null);
 	}
 
+	const selectAssetMarker = (select: boolean) => {
+		setAssetMarkerSelected(select);
+	}
+
 	const selectAsset = (asset: IAsset | null) => {
 		setAssetSelected(asset);
 	}
@@ -339,6 +384,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setFloorSelected(null);
 		setOrgSelected(null);;
 		setGroupSelected(null);
+		selectAssetMarker(false);
 	}
 
 	const handleCloseViewer = () => {
@@ -348,14 +394,21 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 
 	useEffect(() => {
-		if (buildingsTable.length !== 0) {
+		if (
+			buildingsTable.length !== 0 &&
+			orgsOfGroupsManagedTable.length !== 0 &&
+			assetTypesTable.length !== 0 &&
+			assetsTable.length !== 0
+		) {
 			const buildingsFiltered = filterBuildings(buildingsTable);
 			setBuildingsFiltered(buildingsFiltered);
-			const outerBounds = findBounds(buildingsFiltered);
+			const assetsWithMarker = findAssetsWithMarker(assetTypesTable, assetsTable, buildingsTable, orgsOfGroupsManagedTable);
+			setAssetsWithMarker(assetsWithMarker);
+			const outerBounds = findBounds(buildingsFiltered, assetsWithMarker);
 			setOuterBounds(outerBounds);
 			setInitialOuterBounds(outerBounds);
 		}
-	}, [buildingsTable]);
+	}, [buildingsTable, orgsOfGroupsManagedTable, assetTypesTable, assetsTable]);
 
 	useEffect(() => {
 		if (floorsTable.length !== 0) {
@@ -382,7 +435,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setBuildingsLoading(false);
 					const buildingsFiltered = filterBuildings(buildings);
 					setBuildingsFiltered(buildingsFiltered);
-					const outerBounds = findBounds(buildingsFiltered);
+					const outerBounds = findBounds(buildingsFiltered, []);
 					setOuterBounds(outerBounds);
 					setInitialOuterBounds(outerBounds);
 					const reloadBuildingsTable = false;
@@ -724,6 +777,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									groupsManaged={groupsManagedTable}
 									assetTypes={assetTypesTable}
 									assets={assetsTable}
+									assetsWithMarker={assetsWithMarker}
 									sensorTypes={sensorTypesTable}
 									sensors={sensorsTable}
 									digitalTwins={digitalTwinsTable}
@@ -736,7 +790,9 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									groupSelected={groupSelected}
 									selectGroup={selectGroup}
 									assetSelected={assetSelected}
+									assetMarkerSelected={assetMarkerSelected}
 									selectAsset={selectAsset}
+									selectAssetMarker={selectAssetMarker}
 									sensorSelected={sensorSelected}
 									selectSensor={selectSensor}
 									digitalTwinSelected={digitalTwinSelected}
