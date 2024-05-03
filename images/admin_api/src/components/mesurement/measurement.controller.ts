@@ -1,7 +1,7 @@
 import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
-import { groupAdminAuth } from "../../middleware/auth.middleware";
+import { groupAdminAuth, userAuth } from "../../middleware/auth.middleware";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
 import groupExists from "../../middleware/groupExists.middleware";
 import UpdateMeasurementDto from "./measurementUpdate.dto";
@@ -18,7 +18,8 @@ import {
 	getTotalRowsDuringSensorMeasurements,
 	getTotalRowsDuringMeasurements,
 	getSensorMeasurementsBeforeDate,
-	deleteSensorMeasurementsBeforeSomeDate
+	deleteSensorMeasurementsBeforeSomeDate,
+	getLastGeolocationMeasurementsFromSensorsArray
 } from "./measurementDAL";
 import HttpException from "../../exceptions/HttpException";
 import MeasurementRequestBodyDto from "./measurementRequestBody.dto";
@@ -29,9 +30,13 @@ import LastMeasurementsForTopicsIdArrayDto from "./lastMeasurmentsForTopicsIdArr
 import { getMqttTopicsInfoFromIdArray } from "../topic/topicDAL";
 import { generateSqlTopic } from "../digitalTwin/digitalTwinDAL";
 import SensorMeasurementsWithPaginationDto from "./sensorMeasurementsWithPagination.dto";
-import { getSensorByPropName } from "../sensor/sensorDAL";
+import { getAllGeolocationSensors, getGeolocationSensorsByGroupsIdArray, getSensorByPropName } from "../sensor/sensorDAL";
 import SensorMeasurementRequestBodyDto from "./sensorMeasurementRequestBody.dto";
 import DeleteSensorMeasurementsBeforeDateDto from "./deleteSensorMeasurementsBeforeDate.dto";
+import IRequestWithUser from "../../interfaces/requestWithUser.interface";
+import ISensor from "../sensor/sensor.interface";
+import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../group/groupDAL";
+import { getOrganizationsManagedByUserId } from "../organization/organizationDAL";
 
 class MeasurementController implements IController {
 	public path = "/measurement";
@@ -64,6 +69,11 @@ class MeasurementController implements IController {
 				groupAdminAuth,
 				validationMiddleware<LastMeasurementsForTopicsIdArrayDto>(LastMeasurementsForTopicsIdArrayDto),
 				this.getLastMeasurementsFromTopicsIdArray
+			)
+			.get(
+				`${this.path}_last_of_assets_geolocation/user_managed/`,
+				userAuth,
+				this.getLastMeasurementOfAssetsGeolocation
 			)
 			.post(
 				`${this.path}s_pagination/:groupId`,
@@ -169,6 +179,37 @@ class MeasurementController implements IController {
 		}
 	};
 
+	private getLastMeasurementOfAssetsGeolocation = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let sensors: ISensor[] = [];
+			if (req.user.isGrafanaAdmin) {
+				sensors = await getAllGeolocationSensors();
+			} else {
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map(org => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
+					const groupsIdArray = groups.map(group => group.id);
+					groupsInOrgs.forEach(groupInOrg => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					})
+				}
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map(group => group.id);
+					sensors = await getGeolocationSensorsByGroupsIdArray(groupsIdArray);
+				}
+			}
+			const lastGeolocationMeasurements = await getLastGeolocationMeasurementsFromSensorsArray(sensors);
+			res.status(200).send(lastGeolocationMeasurements);
+		} catch (error) {
+			next(error);
+		}
+	};
 
 	private getMeasurementsWithPagination = async (
 		req: IRequestWithGroup,
@@ -324,7 +365,7 @@ class MeasurementController implements IController {
 			const groupUid = req.group.groupUid;
 			const { topic, payloadKey, deleteDate } = req.body;
 			const measurements = await getSensorMeasurementsBeforeDate(groupUid, topic, deleteDate);
-			if(measurements.length === 0) throw new HttpException(req, res, 500, "None one measurement has been founded");
+			if (measurements.length === 0) throw new HttpException(req, res, 500, "None one measurement has been founded");
 			const numMeasurementsDeleted = await deleteSensorMeasurementsBeforeSomeDate(measurements, payloadKey, groupUid, topic);
 			const message = { message: `Have been deleted ${numMeasurementsDeleted} measurements succesfully` }
 			res.status(200).json(message);

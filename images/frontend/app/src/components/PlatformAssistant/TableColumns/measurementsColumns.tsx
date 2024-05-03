@@ -22,6 +22,13 @@ export interface IMeasurement {
     payload: any;
 }
 
+export interface IGeolocationMeasurement {
+	timestamp: string;
+	assetUid: string;
+	longitude: number;
+	latitude: number;
+}
+
 interface IMeasurementColumn extends IMeasurement {
     edit: string;
     delete: string;

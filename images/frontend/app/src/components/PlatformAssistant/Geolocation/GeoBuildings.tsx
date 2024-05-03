@@ -63,7 +63,7 @@ const GeoBuildings: FC<GeoBuildingsProps> = ({
         if (!buildingSelected) {
             map.fitBounds(outerBounds as LatLngTuple[]);
         }
-    }, [map, outerBounds, buildingSelected])
+    }, [map, outerBounds, buildingSelected]);
 
     return (
         <LayerGroup>

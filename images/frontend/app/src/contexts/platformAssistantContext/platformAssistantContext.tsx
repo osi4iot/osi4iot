@@ -298,6 +298,23 @@ export const useReloadAssetsTable = (): boolean => {
 	return context.reloadAssetsTable;
 }
 
+export const useAssetsWithMarkerTable = (): IAsset[] => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useAssetsWithMarkerTable must be used within a PlatformAssitantProvider');
+	}
+	return context.assetsWithMarker;
+}
+
+export const useReloadAssetsWithMarkerTable = (): boolean => {
+	const context = useContext(PlatformAssitantStateContext);
+	if (context === undefined) {
+		throw new Error('useReloadAssetsWithMarkerTable must be used within a PlatformAssitantProvider');
+	}
+	return context.reloadAssetsWithMarkerTable;
+}
+
+
 export const useAssetTopicsTable = (): IAssetTopic[] => {
 	const context = useContext(PlatformAssitantStateContext);
 	if (context === undefined) {

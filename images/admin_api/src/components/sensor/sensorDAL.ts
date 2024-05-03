@@ -265,7 +265,9 @@ export const getSensorByPropName = async (propName: string, propValue: (string |
 	const response = await pool.query(`SELECT grafanadb.sensor.id, 
 	                                grafanadb.group.org_id AS "orgId",
 	                                grafanadb.group.id AS "groupId", 
+									grafanadb.group.group_uid AS "groupUid", 
 									grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
 									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor_type.type AS "sensorType",
@@ -293,7 +295,9 @@ export const getAllSensors = async (): Promise<ISensor[]> => {
 	const response = await pool.query(`SELECT grafanadb.sensor.id, 
 									grafanadb.group.org_id AS "orgId",
 									grafanadb.group.id AS "groupId", 
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
 									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor_type.type AS "sensorType",
@@ -325,8 +329,10 @@ export const getNumSensors = async (): Promise<number> => {
 export const getSensorsByGroupId = async (groupId: number): Promise<ISensor[]> => {
 	const response = await pool.query(`SELECT grafanadb.sensor.id, 
 									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId", 
+									grafanadb.group.id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
 									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor_type.type AS "sensorType",
@@ -354,8 +360,10 @@ export const getSensorsByGroupId = async (groupId: number): Promise<ISensor[]> =
 export const getSensorsByAssetId = async (assetId: number): Promise<ISensor[]> => {
 	const response = await pool.query(`SELECT grafanadb.sensor.id, 
 									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId", 
+									grafanadb.group.id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
 									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor_type.type AS "sensorType",
@@ -399,8 +407,10 @@ export const getSensorDashboardByAssetId = async (
 export const getSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ISensor[]> => {
 	const response = await pool.query(`SELECT grafanadb.sensor.id, 
 									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId", 
+									grafanadb.group.id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid", 
 									grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
 									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor_type.type AS "sensorType",
@@ -428,8 +438,10 @@ export const getSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promis
 export const getSensorsByOrgId = async (orgId: number): Promise<ISensor[]> => {
 	const response = await pool.query(`SELECT grafanadb.sensor.id, 
 									grafanadb.group.org_id AS "orgId",
-									grafanadb.group.id AS "groupId", 
+									grafanadb.group.id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.sensor.sensor_uid AS "sensorUid",
 									grafanadb.sensor.sensor_ref AS "sensorRef",
 									grafanadb.sensor_type.type AS "sensorType",
@@ -451,6 +463,73 @@ export const getSensorsByOrgId = async (orgId: number): Promise<ISensor[]> => {
 									WHERE grafanadb.group.org_id = $1
 									ORDER BY grafanadb.sensor.asset_id ASC,
 								    grafanadb.sensor.sensor_ref ASC;`, [orgId]);
+	return response.rows as ISensor[];
+};
+
+export const getAllGeolocationSensors = async (): Promise<ISensor[]> => {
+	const response = await pool.query(`SELECT grafanadb.sensor.id, 
+									grafanadb.group.org_id AS "orgId",
+									grafanadb.group.id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
+									grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.asset.asset_uid AS "assetUid",
+									grafanadb.sensor.sensor_uid AS "sensorUid",
+									grafanadb.sensor.sensor_ref AS "sensorRef",
+									grafanadb.sensor_type.type AS "sensorType",
+									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+									grafanadb.sensor.topic_id AS "topicId",
+									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.asset_topic.topic_ref AS "topicRef",
+									grafanadb.sensor.description,
+									grafanadb.sensor.dashboard_id AS "dashboardId",
+									grafanadb.sensor.dashboard_url AS "dashboardUrl",
+									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor.created, grafanadb.sensor.updated
+									FROM grafanadb.sensor
+									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
+									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+									WHERE grafanadb.asset_type.geolocation_mode = $1 AND 
+									(grafanadb.sensor_type.type = $2 OR grafanadb.sensor_type.type = $3)
+									ORDER BY grafanadb.sensor.asset_id ASC,
+									grafanadb.sensor.sensor_ref ASC;`, ['dynamic', 'Mobile geolocation', 'Geolocation']);
+	return response.rows as ISensor[];
+}
+
+export const getGeolocationSensorsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ISensor[]> => {
+	const response = await pool.query(`SELECT grafanadb.sensor.id, 
+									grafanadb.group.org_id AS "orgId",
+									grafanadb.group.id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
+									grafanadb.sensor.asset_id AS "assetId",
+									grafanadb.asset.asset_uid AS "assetUid",
+									grafanadb.sensor.sensor_uid AS "sensorUid",
+									grafanadb.sensor.sensor_ref AS "sensorRef",
+									grafanadb.sensor_type.type AS "sensorType",
+									grafanadb.sensor.sensor_type_id AS "sensorTypeId",
+									grafanadb.sensor.topic_id AS "topicId",
+									grafanadb.topic.topic_uid AS "topicUid",
+									grafanadb.asset_topic.topic_ref AS "topicRef",
+									grafanadb.sensor.description,
+									grafanadb.sensor.dashboard_id AS "dashboardId",
+									grafanadb.sensor.dashboard_url AS "dashboardUrl",
+									grafanadb.sensor.payload_json_schema AS "payloadJsonSchema",
+									grafanadb.sensor.created, grafanadb.sensor.updated
+									FROM grafanadb.sensor
+									INNER JOIN grafanadb.asset ON grafanadb.sensor.asset_id = grafanadb.asset.id
+									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
+									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
+									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.sensor.topic_id
+									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
+									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
+									WHERE grafanadb.asset.group_id = ANY($1::bigint[]) AND
+									WHERE grafanadb.asset_type.geolocation_mode = $1 AND 
+									(grafanadb.sensor_type.type = $2 OR grafanadb.sensor_type.type = $3)
+									ORDER BY grafanadb.sensor.asset_id ASC,
+								    grafanadb.sensor.sensor_ref ASC;`, [groupsIdArray, 'Mobile geolocation', 'Geolocation']);
 	return response.rows as ISensor[];
 };
 

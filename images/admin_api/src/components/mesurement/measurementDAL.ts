@@ -1,6 +1,8 @@
 import timescaledb_pool from "../../config/timescaledb_config";
 import IGroup from "../group/interfaces/Group.interface";
-import ITopic from "../topic/topic.interface";;
+import ISensor from "../sensor/sensor.interface";
+import ITopic from "../topic/topic.interface";import IGeolocationMeasurement from "./geolocation_measurement.interface";
+;
 import IMeasurement from "./measurement.interface";
 
 const timestampAsString = 'to_char(timestamp, \'YYYY-MM-DD HH24:MI:SS.USOF\') AS "timestamp"';
@@ -87,6 +89,41 @@ export const getLastMeasurementInChunk = async (groupUid: string, topic: string)
 									LIMIT $3;`, [groupUid, topic, 1]);
 	return response.rows[0] as IMeasurement;
 };
+
+export const getLastGeolocationMeasurementsFromSensorsArray = async (sensors: ISensor[]): Promise<IGeolocationMeasurement[]> => {
+	const lastMeasurementQueries = [];
+	for (const sensor of sensors) {
+		const sqlTopic = `Topic_${sensor.topicUid}`;
+		const query = getLastGeolocationMeasurementInChunk(sensor.groupUid, sensor.assetUid, sqlTopic);
+		lastMeasurementQueries.push(query);
+	}
+	const responses = await Promise.all(lastMeasurementQueries);
+	const lastGeolocationMeasurements = responses.filter(lastMeasurement =>
+		lastMeasurement !== undefined &&
+		lastMeasurement.longitude !== null &&
+		lastMeasurement.latitude !== null
+	);
+	return lastGeolocationMeasurements;
+};
+
+
+export const getLastGeolocationMeasurementInChunk = async (
+	groupUid: string,
+	assetUid: string,
+	topic: string
+): Promise<IGeolocationMeasurement> => {
+	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, $1 AS "assetUid", 
+									CAST(payload->>'longitude' AS DOUBLE PRECISION) AS "longitude",
+									CAST(payload->>'latitude' AS DOUBLE PRECISION) AS "latitude"
+									FROM iot_data.thingData
+									WHERE timestamp > now() - interval '1day' AND
+									group_uid = $2 AND
+									topic = $3
+									ORDER BY timestamp DESC
+									LIMIT $4;`, [assetUid, groupUid, topic, 1]);
+	return response.rows[0] as IGeolocationMeasurement;
+};
+
 
 export const getLastMeasurement = async (groupUid: string, topic: string): Promise<IMeasurement> => {
 	const response = await timescaledb_pool.query(`SELECT ${timestampAsString}, topic, payload

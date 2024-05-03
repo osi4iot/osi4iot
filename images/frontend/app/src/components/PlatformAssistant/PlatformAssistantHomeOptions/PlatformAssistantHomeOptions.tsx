@@ -32,6 +32,8 @@ import {
 	setReloadAssetTypesTable,
 	setSensorTypesTable,
 	setReloadSensorTypesTable,
+	setReloadAssetsWithMarkerTable,
+	setAssetsWithMarkerTable,
 } from '../../../contexts/platformAssistantContext';
 import Tutorial from './Tutorial';
 import GeolocationContainer, { IDigitalTwinState, ISensorState } from '../Geolocation/GeolocationContainer';
@@ -52,8 +54,10 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import {
 	useAssetTypesTable,
 	useAssetsTable,
+	useAssetsWithMarkerTable,
 	useReloadAssetTypesTable,
 	useReloadAssetsTable,
+	useReloadAssetsWithMarkerTable,
 	useReloadSensorTypesTable,
 	useReloadSensorsTable,
 	useSensorTypesTable,
@@ -67,6 +71,7 @@ import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import fetchFemResFileCode from '../../../webWorkers/fetchFemResFileCode';
 import fetchGltfFileCode from '../../../webWorkers/fetchGltfFileCode';
 import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from '../../../tools/fileSystem';
+import { IGeolocationMeasurement } from '../TableColumns/measurementsColumns';
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
 	display: flex;
@@ -141,14 +146,20 @@ const ContentContainer = styled.div`
 const findAssetsWithMarker = (
 	assetTypes: IAssetType[],
 	assets: IAsset[],
-	buildings: IBuilding[],
-	orgsOfGroupsManagedTable: IOrgOfGroupsManaged[]
 ) => {
 	const assetTypesWithMarker = assetTypes.filter(item =>
 		item.geolocationMode === "dynamic" && item.markerSvgString !== ""
 	);
 	const assetTypesIdArray = assetTypesWithMarker.map(item => item.id);
 	const assetsWithMarker = assets.filter(asset => assetTypesIdArray.includes(asset.assetTypeId));
+	return assetsWithMarker;
+}
+
+const filterAssetWithMarker = (
+	assetsWithMarker: IAsset[],
+	buildings: IBuilding[],
+	orgsOfGroupsManagedTable: IOrgOfGroupsManaged[]
+) => {
 	const assetsWithMarkerFiltered = assetsWithMarker.filter(asset => {
 		const assetOrg = orgsOfGroupsManagedTable.filter(org => org.id === asset.orgId)[0];
 		const assetBuilding = buildings.filter(building => building.id === assetOrg.buildingId)[0];
@@ -229,6 +240,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const groupsManagedTable = useGroupsManagedTable();
 	const assetTypesTable = useAssetTypesTable();
 	const assetsTable = useAssetsTable();
+	const assetsWithMarker = useAssetsWithMarkerTable();
 	const sensorTypesTable = useSensorTypesTable();
 	const sensorsTable = useSensorsTable();
 	const digitalTwinsTable = useDigitalTwinsTable();
@@ -238,6 +250,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [groupsManagedLoading, setGroupsManagedLoading] = useState(true);
 	const [assetTypesLoading, setAssetTypesLoading] = useState(true);
 	const [assetsLoading, setAssetsLoading] = useState(true);
+	const [assetsWithMarkerLoading, setAssetsWithMarkerLoading] = useState(true);
 	const [sensorTypesLoading, setSensorTypesLoading] = useState(true);
 	const [sensorsLoading, setSensorsLoading] = useState(true);
 	const [digitalTwinLoading, setDigitalTwinsLoading] = useState(true);
@@ -249,12 +262,15 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const reloadGroupsManagedTable = useReloadGroupsManagedTable();
 	const reloadAssetTypesTable = useReloadAssetTypesTable();
 	const reloadAssetsTable = useReloadAssetsTable();
+	const reloadAssetsWithMarkerTable = useReloadAssetsWithMarkerTable();
 	const reloadSensorsTable = useReloadSensorsTable();
 	const reloadSensorTypesTable = useReloadSensorTypesTable();
 	const [reloadDigitalTwins, setReloadDigitalTwins] = useState(false);
-	const [initialOuterBounds, setInitialOuterBounds] = useState([[0, 0], [0, 0]]);
-	const [outerBounds, setOuterBounds] = useState([[0, 0], [0, 0]]);
-	const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>([]);
+	const initialBuildingsFiltered = filterBuildings(buildingsTable);
+	const [buildingsFiltered, setBuildingsFiltered] = useState<IBuilding[]>(initialBuildingsFiltered);
+	const initOuterBounds = findBounds(buildingsFiltered, assetsWithMarker);
+	const [outerBounds, setOuterBounds] = useState(initOuterBounds);
+	const [initialOuterBounds, setInitialOuterBounds] = useState(initOuterBounds);
 	const [floorsFiltered, setFloorsFiltered] = useState<IFloor[]>([]);
 	const [buildingSelected, setBuildingSelected] = useState<IBuilding | null>(null);
 	const [floorSelected, setFloorSelected] = useState<IFloor | null>(null);
@@ -266,7 +282,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
 	const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
 	const [sensorsState, setSensorsState] = useState<ISensorState[]>([]);
-	const [assetsWithMarker, setAssetsWithMarker] = useState<IAsset[]>([]);
 	const [assetMarkerSelected, setAssetMarkerSelected] = useState(false);
 	const fetchFemResFileWorker: Worker = useMemo(
 		() => new Worker(fetchFemResFileCode),
@@ -313,6 +328,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setAssetsLoading(true);
 		const reloadAssetsTable = true;
 		setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
+	}, [plaformAssistantDispatch])
+
+	const refreshAssetsWithMarker = useCallback(() => {
+		setAssetsWithMarkerLoading(true);
+		const reloadAssetsWithMarkerTable = true;
+		setReloadAssetsWithMarkerTable(plaformAssistantDispatch, { reloadAssetsWithMarkerTable });
 	}, [plaformAssistantDispatch])
 
 	const refreshSensors = useCallback(() => {
@@ -392,24 +413,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION);
 	}
 
-
-	useEffect(() => {
-		if (
-			buildingsTable.length !== 0 &&
-			orgsOfGroupsManagedTable.length !== 0 &&
-			assetTypesTable.length !== 0 &&
-			assetsTable.length !== 0
-		) {
-			const buildingsFiltered = filterBuildings(buildingsTable);
-			setBuildingsFiltered(buildingsFiltered);
-			const assetsWithMarker = findAssetsWithMarker(assetTypesTable, assetsTable, buildingsTable, orgsOfGroupsManagedTable);
-			setAssetsWithMarker(assetsWithMarker);
-			const outerBounds = findBounds(buildingsFiltered, assetsWithMarker);
-			setOuterBounds(outerBounds);
-			setInitialOuterBounds(outerBounds);
-		}
-	}, [buildingsTable, orgsOfGroupsManagedTable, assetTypesTable, assetsTable]);
-
 	useEffect(() => {
 		if (floorsTable.length !== 0) {
 			const floorsFiltered = filterFloors(floorsTable);
@@ -435,9 +438,6 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					setBuildingsLoading(false);
 					const buildingsFiltered = filterBuildings(buildings);
 					setBuildingsFiltered(buildingsFiltered);
-					const outerBounds = findBounds(buildingsFiltered, []);
-					setOuterBounds(outerBounds);
-					setInitialOuterBounds(outerBounds);
 					const reloadBuildingsTable = false;
 					setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
 				})
@@ -726,6 +726,65 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		digitalTwinsTable.length
 	]);
 
+	useEffect(() => {
+		const initialAssetsWithMarker = findAssetsWithMarker(assetTypesTable, assetsTable);
+		if (
+			initialAssetsWithMarker.length !== 0 &&
+			buildingsFiltered.length !== 0 &&
+			orgsOfGroupsManagedTable.length !== 0 &&
+			!(assetsLoading || assetTypesLoading || buildingsLoading || orgsOfGroupsManagedLoading)
+		) {
+			const urlBuildings = `${protocol}://${domainName}/admin_api/measurement_last_of_assets_geolocation/user_managed/`;
+			const config = axiosAuth(accessToken);
+			if (assetsWithMarker.length === 0 || reloadAssetsWithMarkerTable) {
+				getAxiosInstance(refreshToken, authDispatch)
+					.get(urlBuildings, config)
+					.then((response) => {
+						const lastGeolocationMeasurements = response.data as IGeolocationMeasurement[];
+						initialAssetsWithMarker.forEach(asset => {
+							const lastGeolocation = lastGeolocationMeasurements.filter(item => item.assetUid === asset.assetUid)[0];
+							if (lastGeolocation) {
+								asset.longitude = lastGeolocation.latitude;
+								asset.latitude = lastGeolocation.longitude;
+							}
+						});
+						const assetsWithMarkerFiltered = filterAssetWithMarker(
+							initialAssetsWithMarker,
+							buildingsFiltered,
+							orgsOfGroupsManagedTable
+						);
+						setAssetsWithMarkerTable(plaformAssistantDispatch, { assetsWithMarker: assetsWithMarkerFiltered });
+						const outerBounds = findBounds(buildingsFiltered, assetsWithMarkerFiltered);
+						setOuterBounds(outerBounds);
+						setInitialOuterBounds(outerBounds);
+						setAssetsWithMarkerLoading(false);
+						const reloadAssetsWithMarkerTable = false;
+						setReloadAssetsWithMarkerTable(plaformAssistantDispatch, { reloadAssetsWithMarkerTable });
+					})
+					.catch((error) => {
+						axiosErrorHandler(error, authDispatch);
+					});
+			} else {
+				setAssetsWithMarkerLoading(false);
+			}
+		}
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [
+		assetsTable,
+		assetsLoading,
+		assetTypesTable,
+		assetTypesLoading,
+		buildingsFiltered,
+		buildingsLoading,
+		orgsOfGroupsManagedTable,
+		orgsOfGroupsManagedLoading,
+		reloadAssetsWithMarkerTable,
+		accessToken,
+		refreshToken,
+		authDispatch,
+		plaformAssistantDispatch,
+	]);
+
 	const clickHandler = (optionToShow: string) => {
 		setOptionToShow(optionToShow);
 	}
@@ -762,6 +821,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 						assetTypesLoading ||
 						sensorTypesLoading ||
 						assetsLoading ||
+						assetsWithMarkerLoading ||
 						sensorsLoading ||
 						digitalTwinLoading ||
 						glftDataLoading
@@ -803,6 +863,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									refreshGroupsManaged={refreshGroupsManaged}
 									refreshAssetTypes={refreshAssetTypes}
 									refreshAssets={refreshAssets}
+									refreshAssetsWithMarker={refreshAssetsWithMarker}
 									refreshSensors={refreshSensors}
 									refreshDigitalTwins={refreshDigitalTwins}
 									initialOuterBounds={initialOuterBounds}

@@ -272,7 +272,6 @@ class SensorController implements IController {
 		}
 	};
 
-
 	private getSensorsManagedByUser = async (
 		req: IRequestWithUser,
 		res: Response,

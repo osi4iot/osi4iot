@@ -117,7 +117,6 @@ const GeoBuildingWithState: FC<GeoBuildingWithStateProps> = (
         return setOrgStyle(isSelected);
     }
 
-
     return (
         <GeoJSON ref={geoJsonLayer} data={buildingData.geoJsonData} style={styleGeoJson} eventHandlers={{ click: clickHandler }}>
             {

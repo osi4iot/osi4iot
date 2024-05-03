@@ -2,7 +2,9 @@ export default interface ISensor {
 	id?: number;
 	orgId?: number;
 	groupId?: number;
+	groupUid: string;
 	assetId: number;
+	assetUid: string;
 	sensorUid: string;
 	sensorRef: string;
 	sensorType?: string;

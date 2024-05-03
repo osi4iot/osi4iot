@@ -51,7 +51,9 @@ import {
 	ISensorTypesTable,
 	IReloadSensorTypesTable,
 	IAssetTopicsTable,
-	IReloadAssetTopicsTable
+	IReloadAssetTopicsTable,
+	IAssetsWithMarkerTable,
+	IReloadAssetsWithMarkerTable
 
 } from "./interfaces";
 
@@ -181,6 +183,14 @@ export function setAssetsTable(plaformAssistantDispatch: PlatformAssistantDispat
 
 export function setReloadAssetsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadAssetsTable) {
 	plaformAssistantDispatch({ type: 'RELOAD_ASSETS_TABLE', payload: data });
+}
+
+export function setAssetsWithMarkerTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IAssetsWithMarkerTable) {
+	plaformAssistantDispatch({ type: 'ASSETS_WITH_MARKER_TABLE', payload: data });
+}
+
+export function setReloadAssetsWithMarkerTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IReloadAssetsWithMarkerTable) {
+	plaformAssistantDispatch({ type: 'RELOAD_ASSETS_WITH_MARKER_TABLE', payload: data });
 }
 
 export function setAssetTopicsTable(plaformAssistantDispatch: PlatformAssistantDispatch, data: IAssetTopicsTable) {

@@ -399,6 +399,7 @@ interface MapProps {
     refreshGroupsManaged: () => void;
     refreshAssetTypes: () => void;
     refreshAssets: () => void;
+    refreshAssetsWithMarker: () => void;
     refreshSensors: () => void;
     refreshDigitalTwins: () => void;
     initialOuterBounds: number[][];
@@ -451,6 +452,7 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged,
         refreshAssetTypes,
         refreshAssets,
+        refreshAssetsWithMarker,
         refreshSensors,
         refreshDigitalTwins,
         initialOuterBounds,
@@ -477,6 +479,7 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged();
         refreshAssetTypes();
         refreshAssets();
+        refreshAssetsWithMarker();
         refreshSensors();
         refreshDigitalTwins();
     }, [
@@ -486,6 +489,7 @@ const Map: FC<MapProps> = (
         refreshGroupsManaged,
         refreshAssetTypes,
         refreshAssets,
+        refreshAssetsWithMarker,
         refreshSensors,
         refreshDigitalTwins
     ])

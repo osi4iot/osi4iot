@@ -67,6 +67,8 @@ export interface PlatformAssistantContextProps {
 	reloadAssetTypesTable: boolean;
 	assets: IAsset[];
 	reloadAssetsTable: boolean;
+	assetsWithMarker: IAsset[];
+	reloadAssetsWithMarkerTable: boolean;
 	assetTopics: IAssetTopic[];
 	reloadAssetTopicsTable: boolean;
 	assetS3Folders: IAssetS3Folder[];
@@ -129,6 +131,8 @@ export interface PlatformAssistantActionPayload {
 	reloadAssetTypesTable: boolean;
 	assets: IAsset[];
 	reloadAssetsTable: boolean;
+	assetsWithMarker: IAsset[];
+	reloadAssetsWithMarkerTable: boolean;
 	assetTopics: IAssetTopic[];
 	reloadAssetTopicsTable: boolean;
 	assetS3Folders: IAssetS3Folder[];
@@ -284,6 +288,14 @@ export interface IAssetsTable {
 
 export interface IReloadAssetsTable {
 	reloadAssetsTable: boolean;
+}
+
+export interface IAssetsWithMarkerTable {
+	assetsWithMarker: IAsset[];
+}
+
+export interface IReloadAssetsWithMarkerTable {
+	reloadAssetsWithMarkerTable: boolean;
 }
 
 export interface IAssetTopicsTable {
