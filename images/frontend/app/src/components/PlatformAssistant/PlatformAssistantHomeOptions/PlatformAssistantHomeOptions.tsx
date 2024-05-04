@@ -744,8 +744,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 						initialAssetsWithMarker.forEach(asset => {
 							const lastGeolocation = lastGeolocationMeasurements.filter(item => item.assetUid === asset.assetUid)[0];
 							if (lastGeolocation) {
-								asset.longitude = lastGeolocation.latitude;
-								asset.latitude = lastGeolocation.longitude;
+								asset.longitude = lastGeolocation.longitude;
+								asset.latitude = lastGeolocation.latitude;
 							}
 						});
 						const assetsWithMarkerFiltered = filterAssetWithMarker(
