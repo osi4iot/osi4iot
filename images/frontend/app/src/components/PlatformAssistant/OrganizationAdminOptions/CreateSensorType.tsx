@@ -16,6 +16,7 @@ import { useFilePicker } from 'use-file-picker';
 import { setSensorTypesOptionToShow, useSensorTypesDispatch } from '../../../contexts/sensorTypesOptions';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
+import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 
 
 const SvgIconPreviewContainerDiv = styled.div`
@@ -250,8 +251,9 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
         ) {
             setIconSvgFileLoaded(true)
             try {
-                const assetSvgString = iconSvgFileParams.filesContent[0].content;
-                setIconSvgString(assetSvgString);
+                const sensorTypeSvgString = iconSvgFileParams.filesContent[0].content;
+                const newSensorTypeSvgString = cleanSvgString(sensorTypeSvgString);
+                setIconSvgString(newSensorTypeSvgString);
                 const iconSvgFileName = iconSvgFileParams.plainFiles[0].name;
                 setIconSvgFileName(iconSvgFileName);
                 iconSvgFileParams.clear();
@@ -283,7 +285,8 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
             setMarkerSvgFileLoaded(true)
             try {
                 const markerSvgString = markerSvgFileParams.filesContent[0].content;
-                setMarkerSvgString(markerSvgString);
+                const newMarkerSvgString  = cleanSvgString(markerSvgString);
+                setMarkerSvgString(newMarkerSvgString);
                 const markerSvgFileName = markerSvgFileParams.plainFiles[0].name;
                 setMarkerSvgFileName(markerSvgFileName);
                 markerSvgFileParams.clear();

@@ -22,6 +22,7 @@ import {
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
+import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -233,7 +234,8 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
             setIconSvgFileLoaded(true)
             try {
                 const sensorTypeSvgString = iconSvgFileParams.filesContent[0].content;
-                setIconSvgString(sensorTypeSvgString);
+                const newSensorTypeSvgString = cleanSvgString(sensorTypeSvgString);
+                setIconSvgString(newSensorTypeSvgString);
                 const iconSvgFileName = iconSvgFileParams.plainFiles[0].name;
                 setIconSvgFileName(iconSvgFileName);
                 iconSvgFileParams.clear();
@@ -265,7 +267,8 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
             setMarkerSvgFileLoaded(true)
             try {
                 const markerSvgString = markerSvgFileParams.filesContent[0].content;
-                setMarkerSvgString(markerSvgString);
+                const newMarkerSvgString  = cleanSvgString(markerSvgString);
+                setMarkerSvgString(newMarkerSvgString);
                 const markerSvgFileName = markerSvgFileParams.plainFiles[0].name;
                 setMarkerSvgFileName(markerSvgFileName);
                 markerSvgFileParams.clear();
