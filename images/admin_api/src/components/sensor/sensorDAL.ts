@@ -526,10 +526,10 @@ export const getGeolocationSensorsByGroupsIdArray = async (groupsIdArray: number
 									INNER JOIN grafanadb.asset_topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
 									INNER JOIN grafanadb.sensor_type ON grafanadb.sensor_type.id = grafanadb.sensor.sensor_type_id
 									WHERE grafanadb.asset.group_id = ANY($1::bigint[]) AND
-									WHERE grafanadb.asset_type.geolocation_mode = $1 AND 
-									(grafanadb.sensor_type.type = $2 OR grafanadb.sensor_type.type = $3)
+									grafanadb.asset_type.geolocation_mode = $2 AND 
+									(grafanadb.sensor_type.type = $3 OR grafanadb.sensor_type.type = $4)
 									ORDER BY grafanadb.sensor.asset_id ASC,
-								    grafanadb.sensor.sensor_ref ASC;`, [groupsIdArray, 'Mobile geolocation', 'Geolocation']);
+								    grafanadb.sensor.sensor_ref ASC;`, [groupsIdArray, 'dynamic', 'Mobile geolocation', 'Geolocation']);
 	return response.rows as ISensor[];
 };
 
