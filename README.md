@@ -21,7 +21,7 @@ OSI4IOT is an IOT platform based on the integration and extension with custom co
 
 ## Description
 
-The OSI4IOT platform is a web-based IOT platform for monitoring in real time industrial assets and structures. Besides, the platform allows the implementation of Digital Twins Models (DTM) of those assests. A 3D representation of these DTM can be visualized in the web viewer of the platform. The different objects of the DTM are animated in function of the values received from the sensors. Results provided by Finite Elements Method (FEM) models can also be integrated in the DTM. <br/><br/>
+The OSI4IOT platform is a web-based IOT platform for monitoring in real time industrial assets and structures. Besides, the platform allows the implementation of Digital Twins Models (DTM) of those assests. A 3D representation of these DTM can be visualized in the web viewer of the platform. The different objects of the DTM are animated in function of the values received from the sensors. Results provided by Finite Elements Method (FEM) models can also be integrated in the DTMx. <br/><br/>
 
 ![img:description_tank](./docs/img/description_tank.png)
 
