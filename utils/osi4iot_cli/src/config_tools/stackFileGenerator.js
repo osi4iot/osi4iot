@@ -88,7 +88,7 @@ export default function (osi4iotState) {
 		protocol = "https";
 	}
 
-	let numReplicas = 2;
+	let numReplicas = 3;
 	if (numSwarmNodes === 1) {
 		const nodeArch = nodesData[0].nodeArch;
 		numReplicas = 1;
