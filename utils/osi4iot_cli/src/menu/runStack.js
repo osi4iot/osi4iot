@@ -121,7 +121,7 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 				AWS_SECRET_ACCESS_KEY: osi4iotState.platformInfo.AWS_SECRET_ACCESS_KEY,
 			}
 		}
-		execShellCommand(`docker ${dockerHost} stack deploy --with-registry-auth --resolve-image changed --prune -c osi4iot_stack.yml osi4iot`, options)
+		execShellCommand(`docker ${dockerHost} stack deploy --detach=false --with-registry-auth --resolve-image changed --prune -c osi4iot_stack.yml osi4iot`, options)
 			.then(() => {
 				return new Promise(function (resolve, reject) {
 					let index = 0
@@ -163,7 +163,7 @@ export default async function (osi4iotState = null, dockerHost = null, runInBack
 			.then((command) => {
 				if (command === "Redeploy stack") {
 					console.log(clc.green("\n\nRedeploy stack for early created volumes"));
-					execShellCommand(`docker ${dockerHost} stack deploy --with-registry-auth --resolve-image changed --prune -c osi4iot_stack.yml osi4iot`, options)
+					execShellCommand(`docker ${dockerHost} stack deploy --detach=false --with-registry-auth --resolve-image changed --prune -c osi4iot_stack.yml osi4iot`, options)
 						.then((exitCode) => {
 							if (exitCode === 0) {
 								let index = 0;
