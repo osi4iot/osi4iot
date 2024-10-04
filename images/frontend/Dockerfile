@@ -1,5 +1,5 @@
 # => Build container
-FROM node:lts-alpine as builder
+FROM node:lts-alpine AS builder
 # FROM node:16-alpine3.16 as builder
 WORKDIR /app
 COPY ./app/package.json .

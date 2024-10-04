@@ -1,6 +1,6 @@
 # => Build container
 # FROM node:lts as builder
-FROM arm64v8/node:lts as builder
+FROM arm64v8/node:lts AS builder
 WORKDIR /app
 COPY ./app/package.json .
 COPY ./app/yarn.lock .
