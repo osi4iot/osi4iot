@@ -135,7 +135,7 @@ const MobileMotionForm: FC<MobileMotionSelectFormProps> = (
     }, [isSensorReading, gravitySensor, accelerationSensor]);
 
     const validationSchema = Yup.object().shape({
-        totalReadingTime: Yup.number().min(20, "The minimum reading time is 20 seconds").max(60, "The maximum reading time is 60 seconds").required('Required'),
+        totalReadingTime: Yup.number().min(20, "The minimum reading time is 20 seconds").max(300, "The maximum reading time is 300 seconds").required('Required'),
         samplingFrequency: Yup.number().min(25, "The minimum sampling frequency is 25Hz").max(50, "The maximum sampling frequency is 50Hz").required('Required'),
     });
 
