@@ -12,6 +12,7 @@ interface GenericObjectProps {
     obj: IThreeMesh;
     blinking: boolean;
     opacity: number;
+    showDeepObjects: boolean;
     visible: boolean;
     genericObjectState: GenericObjectState;
     genericObjectStateString: string;
@@ -25,6 +26,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     blinking,
     opacity = 1,
     visible = true,
+    showDeepObjects = false,
     genericObjectState,
     genericObjectStateString
 }) => {
@@ -34,6 +36,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     const recursiveTransparency = obj.userData.recursiveTransparency;
     if (recursiveTransparency === undefined || recursiveTransparency === "true") {
         changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+        changeMaterialPropRecursively(obj, 'depthWrite', !showDeepObjects);
     }
 
     let lastIntervalTime = 0;
@@ -129,6 +132,9 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                     if (meshRef.current) meshRef.current.visible = defaultVisibility(obj);
                     changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
                     changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
+
+                    changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+                    changeMaterialPropRecursively(obj, 'depthWrite', !showDeepObjects);
                 }
             }
         } else {
@@ -173,6 +179,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
 const areEqual = (prevProps: GenericObjectProps, nextProps: GenericObjectProps) => {
     return (prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
+        prevProps.showDeepObjects === nextProps.showDeepObjects &&
         prevProps.visible === nextProps.visible) &&
         prevProps.genericObjectState.clipValue === nextProps.genericObjectState.clipValue &&
         prevProps.genericObjectStateString === nextProps.genericObjectStateString;
@@ -183,6 +190,7 @@ const GenericObject = React.memo(GenericObjectBase, areEqual);
 interface GenericObjectsProps {
     genericObjects: IGenericObject[];
     genericObjectsOpacity: number;
+    genericObjectsShowDeepObjects: boolean;
     highlightAllGenericObjects: boolean;
     hideAllGenericObjects: boolean;
     genericObjectsState: Record<string, GenericObjectState>;
@@ -193,6 +201,7 @@ interface GenericObjectsProps {
 const GenericObjects: FC<GenericObjectsProps> = ({
     genericObjects,
     genericObjectsOpacity = 1,
+    genericObjectsShowDeepObjects = false,
     highlightAllGenericObjects,
     hideAllGenericObjects,
     genericObjectsState,
@@ -203,12 +212,21 @@ const GenericObjects: FC<GenericObjectsProps> = ({
         <>
             {
                 genericObjects.map((obj, index) => {
+                    let showDeepObjects = false;
+                    if(genericObjectsShowDeepObjects) {
+                        showDeepObjects = true;
+                    } else {
+                        if(genericObjectsVisibilityState[obj.collectionName].showDeepObjects ?? false) {
+                            showDeepObjects= true;
+                        }
+                    }
                     return <GenericObject
                         key={obj.node.uuid}
                         obj={obj.node}
                         blinking={highlightAllGenericObjects || genericObjectsVisibilityState[obj.collectionName].highlight}
                         opacity={genericObjectsOpacity * genericObjectsVisibilityState[obj.collectionName].opacity}
                         visible={!(genericObjectsVisibilityState[obj.collectionName].hide || hideAllGenericObjects)}
+                        showDeepObjects={showDeepObjects}
                         genericObjectState={genericObjectsState[obj.node.name]}
                         genericObjectStateString={JSON.stringify(genericObjectsState[obj.node.name])}
                     />

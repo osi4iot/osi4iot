@@ -108,7 +108,8 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
                 initialGenericObjectsVisibilityState[collectionName] = {
                     hide: false,
                     highlight: false,
-                    opacity: 1.0
+                    opacity: 1.0,
+                    showDeepObjects: false
                 };
             }
             setInitialGenericObjectsVisibilityState(initialGenericObjectsVisibilityState);;

@@ -110,6 +110,7 @@ interface ModelProps {
 	highlightAllFemSimulationObjects: boolean;
 	showAllFemSimulationMeshes: boolean;
 	genericObjectsOpacity: number;
+	genericObjectsShowDeepObjects: boolean;
 	highlightAllGenericObjects: boolean;
 	hideAllGenericObjects: boolean;
 	setIsMqttConnected: (isMqttConnected: boolean) => void;
@@ -132,6 +133,7 @@ interface ModelProps {
 	enableWebWorkes: boolean;
 	numWebWorkers: number;
 	logElapsedTime: boolean;
+	setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>;
 }
 
 
@@ -167,6 +169,7 @@ const Model: FC<ModelProps> = (
 		highlightAllFemSimulationObjects,
 		showAllFemSimulationMeshes,
 		genericObjectsOpacity,
+		genericObjectsShowDeepObjects,
 		highlightAllGenericObjects,
 		hideAllGenericObjects,
 		setIsMqttConnected,
@@ -189,6 +192,7 @@ const Model: FC<ModelProps> = (
 		enableWebWorkes,
 		numWebWorkers,
 		logElapsedTime,
+		setDigitalTwinState,
 	}) => {
 	const camera = useThree((state) => state.camera);
 	const container = canvasRef.current as HTMLCanvasElement | null;
@@ -241,7 +245,8 @@ const Model: FC<ModelProps> = (
 		setFemSimulationObjectsState,
 		femResultData,
 		setFemResFilesLastUpdate,
-		digitalTwinGltfData.isGroupDTDemo
+		digitalTwinGltfData.isGroupDTDemo,
+		setDigitalTwinState
 	)
 
 	useLayoutEffect(() => {
@@ -398,6 +403,7 @@ const Model: FC<ModelProps> = (
 				<GenericObjects
 					genericObjects={genericObjects}
 					genericObjectsOpacity={genericObjectsOpacity}
+					genericObjectsShowDeepObjects={genericObjectsShowDeepObjects}
 					highlightAllGenericObjects={highlightAllGenericObjects}
 					hideAllGenericObjects={hideAllGenericObjects}
 					genericObjectsState={genericObjectsState}
