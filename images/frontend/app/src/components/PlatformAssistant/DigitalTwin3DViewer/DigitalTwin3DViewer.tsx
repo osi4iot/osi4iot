@@ -2,6 +2,7 @@ import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import styled from "styled-components";
 import { nanoid } from "nanoid";
 import { FaShareSquare, FaFolderOpen, FaFolderMinus, FaChartLine } from "react-icons/fa";
+import { HiShieldCheck, HiShieldExclamation } from "react-icons/hi";
 import { RiWifiLine, RiWifiOffLine } from "react-icons/ri";
 import { Canvas } from '@react-three/fiber';
 import * as THREE from 'three'
@@ -334,6 +335,37 @@ const DashboardIcon = styled(FaChartLine)`
 	}
 `;
 
+const HiShieldCheckIcon = styled(HiShieldCheck)`
+  	background-color: #141619;
+	font-size: 35px;
+	color: #62f700;
+  	margin: 10px;
+
+	&:hover {
+		color: white;
+		cursor: pointer;
+	}
+`;
+
+const HiShieldExclamationIcon = styled(HiShieldExclamation)`
+  	background-color: #141619;
+	font-size: 35px;
+	color: #ff4040;
+  	margin: 10px;
+	animation: blinker 0.8s step-start infinite;
+
+	@keyframes blinker {
+  		50% {
+    		opacity: 0;
+  		}
+	}
+
+	&:hover {
+		color: white;
+		cursor: pointer;
+	}
+`;
+
 const OpenFolderIcon = styled(FaFolderOpen)`
 	background-color: #141619;
 	font-size: 30px;
@@ -465,6 +497,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femResultData, setFemResultData] = useState<null | any>(null);
 	const [femResultLoaded, setFemResultLoaded] = useState(false);
 	const [femResFilesLastUpdate, setFemResFilesLastUpdate] = useState<Date>(new Date());
+	const [digitalTwinState, setDigitalTwinState] = useState("OK");
+	const [generalTransparencyIndex, setGeneralTransparencyIndex] = useState(1);
+
 
 	const mqttOptions = {
 		keepalive: 0,
@@ -589,6 +624,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		hideAllAnimatedObjects: false,
 		animatedObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
 		genericObjectsOpacity: 1,
+		genericObjectsShowDeepObjects: false,
 		highlightAllGenericObjects: false,
 		hideAllGenericObjects: false,
 		genericObjectsVisibilityState: undefined as unknown as Record<string, ObjectVisibilityState>,
@@ -608,6 +644,24 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 		enableWebWorkes: true,
 		logElapsedTime: false
 	});
+
+	const handleDigitalTwinStateShield = () => {
+		if (digitalTwinSelected) {
+			let currentGeneralTransparencyIndex = generalTransparencyIndex + 1;
+			if (currentGeneralTransparencyIndex > 3) {
+				currentGeneralTransparencyIndex = 1;
+			}
+			setGeneralTransparencyIndex(currentGeneralTransparencyIndex);
+			const opacity = currentGeneralTransparencyIndex === 1 ? 1 : 0.15;
+			const showDeepObjects = currentGeneralTransparencyIndex === 2 ? true : false;
+			setOpts((prevOpts) => {
+				const newOpts = { ...prevOpts };
+				newOpts.genericObjectsOpacity = opacity;
+				newOpts.genericObjectsShowDeepObjects = showDeepObjects;
+				return newOpts;
+			})
+		}
+	}
 
 	useEffect(() => {
 		const legendRenderer = new THREE.WebGLRenderer({ antialias: true });
@@ -928,7 +982,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 					dpr={window.devicePixelRatio}
 					orthographic
 					shadows
-					onCreated={canvasCtx => { canvasCtx.gl.physicallyCorrectLights = true; }}
+					onCreated={canvasCtx => {
+						canvasCtx.gl.physicallyCorrectLights = true;
+					}}
 					camera={{ position: [4, 4, 0], zoom: 300 }}
 				>
 					<Stage
@@ -983,6 +1039,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								highlightAllFemSimulationObjects={opts.highlightAllFemSimulationObjects}
 								showAllFemSimulationMeshes={opts.showAllFemSimulationMeshes}
 								genericObjectsOpacity={opts.genericObjectsOpacity}
+								genericObjectsShowDeepObjects={opts.genericObjectsShowDeepObjects}
 								highlightAllGenericObjects={opts.highlightAllGenericObjects}
 								hideAllGenericObjects={opts.hideAllGenericObjects}
 								setIsMqttConnected={isMqttConnected => setIsMqttConnected(isMqttConnected)}
@@ -1004,6 +1061,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 								enableWebWorkes={opts.enableWebWorkes}
 								numWebWorkers={opts.numWebWorkers}
 								logElapsedTime={opts.logElapsedTime}
+								setDigitalTwinState={setDigitalTwinState}
 							/>
 						</MqttConnector>
 					</Stage>
@@ -1041,6 +1099,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 							{isMqttConnected ? <WifiIcon /> : <NoWifiIcon />}
 						</MqttConnectionDiv>
 						<DashboardIcon onClick={(e) => handleOpenGrafanaDashboard()} />
+						{
+							digitalTwinState === "OK" ?
+								<HiShieldCheckIcon onClick={(e) => handleDigitalTwinStateShield()}/>
+								:
+								<HiShieldExclamationIcon onClick={(e) => handleDigitalTwinStateShield()}/>
+						}
 						<ExitIcon onClick={(e) => close3DViewer()} />
 					</HeaderOptionsContainer>
 				</HeaderContainer>
@@ -1180,6 +1244,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 									closed={true}
 								>
 									<StyledDatNumber label="Opacity" path="genericObjectsOpacity" min={0} max={1} step={0.05} />
+									<StyledDatBoolean label="Show deep obj" path="genericObjectsShowDeepObjects" />
 									<StyledDatBoolean label="Highlight" path="highlightAllGenericObjects" />
 									<StyledDatBoolean label="Hide" path="hideAllGenericObjects" />
 								</DatFolder>
@@ -1193,6 +1258,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 												min={0}
 												max={1}
 												step={0.05}
+											/>
+											<StyledDatBoolean
+												label="Show deep obj"
+												path={`genericObjectsVisibilityState[${collecionName}].showDeepObjects`}
 											/>
 											<StyledDatBoolean
 												label="Highlight"

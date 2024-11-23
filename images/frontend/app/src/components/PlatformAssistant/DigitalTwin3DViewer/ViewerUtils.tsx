@@ -37,6 +37,7 @@ export interface ObjectVisibilityState {
 	highlight: boolean;
 	showSensorMarker?: boolean;
 	opacity: number;
+	showDeepObjects?: boolean;
 }
 
 export interface FemSimObjectVisibilityState {
@@ -952,6 +953,18 @@ function sendCustomEvent(eventName: string, data: any) {
 	window.dispatchEvent(event);
 }
 
+function findSelectableObject(intersects: THREE.Intersection<THREE.Object3D<THREE.Event>>[]) {
+	for(let i = 0; i < intersects.length; i++) {
+		const obj = intersects[i].object;
+		if(obj.parent && obj.parent.userData.selectable === "false") {
+			continue
+		}
+		if (obj.userData.selectable === undefined || obj.userData.selectable === "true") {
+			return obj;
+		}
+	}
+}
+
 export const get_mesh_intersect = (lx: number, ly: number) => {
 	let objName = "";
 	let type = "";
@@ -967,26 +980,27 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 		camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
 		raycaster.setFromCamera(pointer, camera);
 		const intersects = raycaster.intersectObjects(meshList);
-		if (intersects.length > 0) {
-			objName = intersects[0].object.name;
-			if (intersects[0].object.userData.type) {
-				type = intersects[0].object.userData.type;
+		const selectedObj = findSelectableObject(intersects);
+		if (selectedObj !== undefined) {
+			objName = selectedObj.name;
+			if (selectedObj.userData.type) {
+				type = selectedObj.userData.type;
 			} else {
 				type = "generic";
 			}
 			if (type === "femObject") collectionName = objName;
 			else {
-				if (intersects[0].object.userData.collectionName) {
-					collectionName = intersects[0].object.userData.collectionName;
+				if (selectedObj.userData.collectionName) {
+					collectionName = selectedObj.userData.collectionName;
 				} else collectionName = "General";
 			}
 
-			const isSelectable = intersects[0].object.userData.selectable;
+			const isSelectable = selectedObj.userData.selectable;
 			if (isSelectable !== undefined && isSelectable === "false") {
 				selectable = false;
 			}
 			if (type === "sensor") {
-				const sensorRef = intersects[0].object.userData.sensorRef;
+				const sensorRef = selectedObj.userData.sensorRef;
 				if (sensorRef && sensorsDashboards.length !== 0) {
 					const sensorDashboard = sensorsDashboards.filter(sensor => sensor.sensorRef === sensorRef)[0];
 					sensorDashboardUrl = sensorDashboard.dashboardUrl;
@@ -996,6 +1010,7 @@ export const get_mesh_intersect = (lx: number, ly: number) => {
 	}
 	return [objName, type, collectionName, selectable, sensorDashboardUrl];
 }
+
 
 const processMouseEvent = (
 	event_name: string,

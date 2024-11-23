@@ -39,6 +39,7 @@ const useSubscription = (
     femResultData: any,
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
     isGroupDTDemo: boolean,
+    setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
     options: SubscribeOptions = {} as SubscribeOptions,
 ) => {
     const { client } = useContext<Context>(MqttContext);
@@ -91,7 +92,8 @@ const useSubscription = (
                         setFemSimulationObjectsState,
                         femResultNames,
                         setFemResFilesLastUpdate,
-                        isGroupDTDemo
+                        isGroupDTDemo,
+                        setDigitalTwinState
                     )
 
                 }
@@ -126,7 +128,8 @@ const updateObjectsState = (
     setFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>,
     femResultNames: string[],
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
-    isGroupDTDemo: boolean
+    isGroupDTDemo: boolean,
+    setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
 ) => {
     const mqttTopics = mqttTopicsData.map(topicData => topicData.mqttTopic).filter(topic => topic !== "");
     const sim2dtmTopicId = mqttTopicsData.filter(topic => topic.topicRef === "sim2dtm")[0].topicId;
@@ -147,6 +150,7 @@ const updateObjectsState = (
             let isGenericObjectsStateChanged = false;
             let isfemSimulationObjectsStateChanged = false;
             const femSimulationObjectsNewState = [...femSimulationObjectsState];
+            let digitalTwinState = "OK";
 
             if (isGroupDTDemo && messageTopicRef === "dev2pdb_3") {
                 genericObjects.forEach((obj) => {
@@ -369,6 +373,7 @@ const updateObjectsState = (
                             const stateNumber = parseInt(mqttMessage.assetPartsState[assetPartIndex - 1], 10);
                             if (stateNumber === 1) {
                                 assestsNewState[objName] = { ...assestsNewState[objName], stateString: "alerting" };
+                                digitalTwinState = "Alerting";
                             } else if (stateNumber === 0) {
                                 assestsNewState[objName] = { ...assestsNewState[objName], stateString: "ok" };
                             }
@@ -471,7 +476,10 @@ const updateObjectsState = (
             }
 
             if (isSensorStateChanged) setSensorsState(sensorsNewState);
-            if (isAssetStateChanged) setAssetsState(assestsNewState);
+            if (isAssetStateChanged) {
+                setAssetsState(assestsNewState);
+                setDigitalTwinState(digitalTwinState);
+            }
             if (isGenericObjectsStateChanged) setGenericObjectsState(genericObjectNewState);
             if (isfemSimulationObjectsStateChanged) setFemSimulationObjectsState(femSimulationObjectsNewState);
         }
