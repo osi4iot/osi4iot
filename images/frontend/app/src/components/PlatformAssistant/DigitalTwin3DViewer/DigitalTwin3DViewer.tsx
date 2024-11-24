@@ -436,6 +436,8 @@ const datGuiStyle = {
 	}
 };
 
+const opacitySerie = [1, 0.15, 0.1, 0.05, 0.0];
+
 interface Viewer3DProps {
 	digitalTwinSelected: IDigitalTwin | null;
 	digitalTwinGltfData: IDigitalTwinGltfData;
@@ -498,8 +500,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const [femResultLoaded, setFemResultLoaded] = useState(false);
 	const [femResFilesLastUpdate, setFemResFilesLastUpdate] = useState<Date>(new Date());
 	const [digitalTwinState, setDigitalTwinState] = useState("OK");
-	const [generalTransparencyIndex, setGeneralTransparencyIndex] = useState(1);
-
+	const [generalTransparencyIndex, setGeneralTransparencyIndex] = useState(0);
 
 	const mqttOptions = {
 		keepalive: 0,
@@ -648,12 +649,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 	const handleDigitalTwinStateShield = () => {
 		if (digitalTwinSelected) {
 			let currentGeneralTransparencyIndex = generalTransparencyIndex + 1;
-			if (currentGeneralTransparencyIndex > 3) {
-				currentGeneralTransparencyIndex = 1;
+			if (currentGeneralTransparencyIndex === opacitySerie.length) {
+				currentGeneralTransparencyIndex = 0;
 			}
 			setGeneralTransparencyIndex(currentGeneralTransparencyIndex);
-			const opacity = currentGeneralTransparencyIndex === 1 ? 1 : 0.15;
-			const showDeepObjects = currentGeneralTransparencyIndex === 2 ? true : false;
+			let opacity = opacitySerie[currentGeneralTransparencyIndex];
+			const showDeepObjects = currentGeneralTransparencyIndex >= 1 ? true : false;
 			setOpts((prevOpts) => {
 				const newOpts = { ...prevOpts };
 				newOpts.genericObjectsOpacity = opacity;
@@ -1101,9 +1102,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						<DashboardIcon onClick={(e) => handleOpenGrafanaDashboard()} />
 						{
 							digitalTwinState === "OK" ?
-								<HiShieldCheckIcon onClick={(e) => handleDigitalTwinStateShield()}/>
+								<HiShieldCheckIcon onClick={(e) => handleDigitalTwinStateShield()} />
 								:
-								<HiShieldExclamationIcon onClick={(e) => handleDigitalTwinStateShield()}/>
+								<HiShieldExclamationIcon onClick={(e) => handleDigitalTwinStateShield()} />
 						}
 						<ExitIcon onClick={(e) => close3DViewer()} />
 					</HeaderOptionsContainer>
