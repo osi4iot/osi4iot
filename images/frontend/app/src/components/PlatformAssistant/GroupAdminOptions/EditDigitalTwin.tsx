@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { useFilePicker } from 'use-file-picker';
+import { GLTFLoader } from 'three-stdlib';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import { axiosAuth, checkGltfFile, digitalTwinFormatValidation, getDomainName, getProtocol } from "../../../tools/tools";
 import { toast } from "react-toastify";
@@ -29,7 +30,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { getSensorsRefFromDigitalTwinGltfData } from './CreateDigitalTwin';
+import { getSensorsRef, getSensorsRefFromDigitalTwinGltfData } from './CreateDigitalTwin';
 import { FieldContainer } from './EditAsset';
 import { ControlsContainer, FormContainer } from './CreateAsset';
 
@@ -94,6 +95,10 @@ const digitalTwinTypeOptions = [
         value: "Grafana dashboard"
     },
     {
+        label: "Glb 3D model",
+        value: "Glb 3D model"
+    },
+    {
         label: "Gltf 3D model",
         value: "Gltf 3D model"
     }
@@ -133,11 +138,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [digitalTwinGltfDataLoading, setDigitalTwinGltfDataLoading] = useState(true);
     const [localGltfFileLoaded, setLocalGltfFileLoaded] = useState(false);
     const [gltfFile, setGltfFile] = useState<File>();
+    const [isValidGltfFile, setIsValidGltfFile] = useState<boolean>(false);
+    const [gltfFileContent, setGltfFileContent] = useState<string>();
     const [storedGltfFileName, setStoredGltfFileName] = useState("-");
     const [storedGltfFileLastModif, setStoredGltfFileLastModif] = useState("-");
     const [gltfFileName, setGltfFileName] = useState("-");
     const [gltfFileLastModif, setGltfFileLastModif] = useState("-");
-    const [digitalTwinGltfData, setDigitalTwinGltfData] = useState({});
     const [localFemResFileLoaded, setLocalFemResFileLoaded] = useState(false);
     const [digitalTwinFemResData, setDigitalTwiFemResData] = useState({});
     const [femResFile, setFemResFile] = useState<File>();
@@ -151,9 +157,9 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const digitalTwinUid = digitalTwins[digitalTwinRowIndex].digitalTwinUid;
 
     const [openGlftFileSelector, gltfFileParams] = useFilePicker({
-        readAs: 'Text',
+        readAs: digitalTwinType === "Gltf 3D model" ? 'Text' : 'DataURL',
         multiple: false,
-        accept: '.gltf',
+        accept: digitalTwinType === "Gltf 3D model" ? '.gltf' : '.glb',
     });
 
     const [openFemResFileSelector, femResFileParams] = useFilePicker({
@@ -163,7 +169,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     });
 
     useEffect(() => {
-        if (storedDigitalTwinType === "Gltf 3D model") {
+        if (storedDigitalTwinType === "Gltf 3D model" || storedDigitalTwinType === "Glb 3D model") {
             const config = axiosAuth(accessToken);
             const urlDigitalTwinFileListBase0 = `${protocol}://${domainName}/admin_api/digital_twin_file_list`;
             const urlDigitalTwinFileListBase = `${urlDigitalTwinFileListBase0}/${groupId}/${digitalTwinId}`;
@@ -222,6 +228,44 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     ])
 
     useEffect(() => {
+        if (gltfFileContent === undefined || gltfFileName === "-") return;
+        if (gltfFileName.slice(-3) === "glb") {
+            const loader = new GLTFLoader();
+            loader.loadAsync(gltfFileContent)
+                .then((gltf) => {
+                    const sensorsRef = getSensorsRef(gltf.scene);
+                    setSensorsRef(sensorsRef);
+                    setIsValidGltfFile(true);
+                })
+                .catch((error) => {
+                    if (error instanceof Error) {
+                        toast.error(`Invalid gltffile. ${error.message}`);
+                    } else {
+                        toast.error("Invalid gltffile");
+                    }
+                    setGltfFileContent(undefined);
+                    setLocalGltfFileLoaded(false);
+                    setIsValidGltfFile(false);
+                    gltfFileParams.clear();
+                })
+        } else if (gltfFileName.slice(-4) === "gltf") {
+            const gltfData = JSON.parse(gltfFileContent);
+            const message = checkGltfFile(gltfData);
+            if (message !== "OK") {
+                setIsValidGltfFile(false);
+                throw new Error(message);
+            }
+            const sensorsRef = getSensorsRefFromDigitalTwinGltfData(gltfData);
+            setSensorsRef(sensorsRef);
+            setIsValidGltfFile(true);
+        }
+    },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [gltfFileContent]
+    );
+
+
+    useEffect(() => {
         if (
             !gltfFileParams.loading &&
             gltfFileParams.filesContent.length !== 0 &&
@@ -229,15 +273,9 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         ) {
             setLocalGltfFileLoaded(true)
             try {
+
                 const fileContent = gltfFileParams.filesContent[0].content
-                const gltfData = JSON.parse(fileContent);
-                const sensorsRef = getSensorsRefFromDigitalTwinGltfData(gltfData);
-                setSensorsRef(sensorsRef);
-                const message = checkGltfFile(gltfData);
-                if (message !== "OK") {
-                    throw new Error(message);
-                }
-                setDigitalTwinGltfData(gltfData);
+                setGltfFileContent(fileContent);
                 setGltfFile(gltfFileParams.plainFiles[0]);
                 const gltfFileName = gltfFileParams.plainFiles[0].name;
                 setGltfFileName(gltfFileName);
@@ -308,7 +346,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         let isGltfFileModified = false;
         const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
 
-        if (values.type === "Gltf 3D model") {
+        if (isValidGltfFile && (values.type === "Gltf 3D model" || values.type === "Glb 3D model")) {
             if (
                 Object.keys(digitalTwinFemResData).length !== 0 &&
                 (femResFileNames[0] !== femResFileName ||
@@ -336,7 +374,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             }
 
             if (
-                Object.keys(digitalTwinGltfData).length !== 0 &&
+                gltfFile !== undefined &&
                 (storedGltfFileName !== gltfFileName ||
                     formatDateString(storedGltfFileLastModif) !== formatDateString(gltfFileLastModif))
             ) {
@@ -429,7 +467,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const clearGltfDataFile = () => {
         setGltfFileName("-");
         setGltfFileLastModif("-");
-        setDigitalTwinGltfData({});
         setLocalGltfFileLoaded(false);
         gltfFileParams.clear();
         setIsGlftDataReady(false);
@@ -501,7 +538,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                         onChange={(e) => onDigitalTwinTypeSelectChange(e, formik)}
                                                     />
                                                     {
-                                                        digitalTwinType === "Gltf 3D model" &&
+                                                        (digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model") &&
                                                         <>
                                                             <DataFileTitle>Gltf data file</DataFileTitle>
                                                             <DataFileContainer>

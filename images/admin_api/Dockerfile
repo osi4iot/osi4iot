@@ -20,7 +20,7 @@ RUN apk add --no-cache curl
 RUN npm install --only=production
 USER node
 COPY --from=0 /app/build ./build
-CMD npm start
+CMD ["npm", "start"]
 HEALTHCHECK --interval=10s --timeout=300s --retries=30 \
   CMD curl --fail --insecure http://localhost:3200/health || exit 1
 EXPOSE 3200

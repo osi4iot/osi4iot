@@ -35,7 +35,7 @@ export const writeGltfData = async (
     digitalTwinUid: string,
     gltfData: any,
     gltfFileName: string,
-    glttFileDate: string
+    gltfFileDate: string
 ) => {
     const dtFolder = await getDTFolder(digitalTwinUid);
     const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
@@ -46,7 +46,7 @@ export const writeGltfData = async (
         .getFileHandle('metadata.txt', { create: true });
     const gltfMetadata = {
         fileName: gltfFileName,
-        fileDate: glttFileDate
+        fileDate: gltfFileDate
     };
     const writableMetadata = await gltfMetadataHandler.createWritable();
     await writableMetadata.write(JSON.stringify(gltfMetadata));
@@ -54,6 +54,32 @@ export const writeGltfData = async (
 
     const writable = await glftFileHandler.createWritable();
     await writable.write(JSON.stringify(gltfData));
+    await writable.close();
+}
+
+export const write3DModelFile = async (
+    digitalTwinUid: string,
+    gltfFile: any,
+    gltfFileName: string,
+    gltfFileDate: string
+) => {
+    const dtFolder = await getDTFolder(digitalTwinUid);
+    const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
+    const glftFileHandler = await gltfFolderHandler
+        .getFileHandle(gltfFileName, { create: true });
+
+    const gltfMetadataHandler = await gltfFolderHandler
+        .getFileHandle('metadata.txt', { create: true });
+    const gltfMetadata = {
+        fileName: gltfFileName,
+        fileDate: gltfFileDate
+    };
+    const writableMetadata = await gltfMetadataHandler.createWritable();
+    await writableMetadata.write(JSON.stringify(gltfMetadata));
+    await writableMetadata.close();
+
+    const writable = await glftFileHandler.createWritable();
+    await writable.write(gltfFile);
     await writable.close();
 }
 
@@ -80,7 +106,7 @@ export const existsDTFolderFun = async (
 export const existGltfDataLocallyStored = async (
     digitalTwinUid: string,
     gltfFileName: string,
-    glttFileDate: string
+    gltfFileDate: string
 ) => {
     const existDTFolder = await existsDTFolderFun(digitalTwinUid);
     if (!existDTFolder) return false;
@@ -88,9 +114,17 @@ export const existGltfDataLocallyStored = async (
     const existGltfFolder = await existFolderOrFile(dtFolder.keys(), 'gltfFile');
     if (!existGltfFolder) return false;
     const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile');
-    const existDTFile = await existFolderOrFile(gltfFolderHandler.keys(), 'digital_twin_data.txt');
-    if (!existDTFile) return false;
-
+    const existDTFile = await existFolderOrFile(gltfFolderHandler.keys(), gltfFileName);
+    if (!existDTFile) {
+        //Remove another gltf or glb file in the folder
+        for await (let fileName of gltfFolderHandler.keys()) {
+            if(fileName.slice(-4) === "gltf" || fileName.slice(-3) === "glb") {
+                await gltfFolderHandler.removeEntry(fileName);
+            }
+        }
+        return false;
+    }
+    
     const existMetadataFile = await existFolderOrFile(gltfFolderHandler.keys(), 'metadata.txt');
     if (existMetadataFile) {
         const gltfMetadataHandler = await gltfFolderHandler.getFileHandle('metadata.txt', { create: true });
@@ -98,8 +132,8 @@ export const existGltfDataLocallyStored = async (
         const metadataText = await metadataFile.text();
         if (metadataText !== "") {
             const metadata = JSON.parse(metadataText) as IResFileMetadata;
-            if (metadata.fileName !== gltfFileName || metadata.fileDate !== glttFileDate) {
-                await gltfFolderHandler.removeEntry('digital_twin_data.txt');
+            if (metadata.fileName !== gltfFileName || metadata.fileDate !== gltfFileDate) {
+                await gltfFolderHandler.removeEntry(metadata.fileName);
                 await gltfFolderHandler.removeEntry('metadata.txt');
                 return false;
             }
@@ -114,6 +148,18 @@ export const readGltfData = async (digitalTwinUid: string) => {
     const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
     const glftFileHandler = await gltfFolderHandler.getFileHandle('digital_twin_data.txt');
     const file = await glftFileHandler.getFile();
+    const text = await file.text();
+    return JSON.parse(text);
+}
+
+export const read3DModelFile = async (digitalTwinUid: string, gltfFileName: string) => {
+    const dtFolder = await getDTFolder(digitalTwinUid);
+    const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
+    const glftFileHandler = await gltfFolderHandler.getFileHandle(gltfFileName);
+    const file = await glftFileHandler.getFile();
+    if(gltfFileName.slice(-3) === "glb") {
+        return file;
+    }
     const text = await file.text();
     return JSON.parse(text);
 }
@@ -285,9 +331,10 @@ export const getDTStorageInfo = async () => {
             const existGltfFolder = await existFolderOrFile(dtFolder.keys(), 'gltfFile');
             if (existGltfFolder) {
                 const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile');
-                const existDTFile = await existFolderOrFile(gltfFolderHandler.keys(), 'digital_twin_data.txt');
-                if (existDTFile) {
-                    item.numGltfFiles = 1;
+                for await (let fileName of gltfFolderHandler.keys()) {
+                    if(fileName.slice(-4) === "gltf" || fileName.slice(-3) === "glb") {
+                        item.numGltfFiles += 1;
+                    }
                 }
             }
 

@@ -352,8 +352,8 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 		digitalTwinGltfData: IDigitalTwinGltfData,
 		isGroupDTDemo: boolean
 	) => {
-		if (typeof digitalTwinGltfData.gltfData === 'string') {
-			digitalTwinGltfData.gltfData = JSON.parse(digitalTwinGltfData.gltfData);
+		if (typeof digitalTwinGltfData.gltfFile === 'string') {
+			digitalTwinGltfData.gltfFile = JSON.parse(digitalTwinGltfData.gltfFile);
 		}
 		digitalTwinGltfData.isGroupDTDemo = isGroupDTDemo;
 		setDigitalTwinGltfData(digitalTwinGltfData)

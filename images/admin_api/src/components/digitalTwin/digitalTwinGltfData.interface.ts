@@ -17,9 +17,8 @@ export interface IMqttTopicDataShort {
 	lastMeasurement: IMeasurement | null;
 }
 
-export default interface IDigitalTwinGltfData {
+export interface IDigitalTwinData {
 	id?: number;
-	gltfData: string;
 	digitalTwinSimulationFormat: string;
 	mqttTopicsData: IMqttTopicDataShort[];
 	topicIdBySensorRef: Record<string, number>;

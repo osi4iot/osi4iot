@@ -62,6 +62,12 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     const { nodes, materials, animations } = useGLTF(digitalTwinGltfData.digitalTwinGltfUrl as string) as any;
 
     useEffect(() => {
+        // const loader = new GLTFLoader();
+        // loader.parse(gltfFileContent, "", (gltf) => {
+        //     console.log("gltf", gltf);
+        // }, (error) => {
+        //     toast.error("Error cargando el archivo gltf");
+        // });
         if (nodes && materials) {
             const {
                 sensorObjects,
@@ -149,7 +155,10 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
             setInitialFemSimObjectsVisibilityState(initialFemSimObjectsVisibilityState);
         }
 
-        return () => URL.revokeObjectURL(digitalTwinGltfData.digitalTwinGltfUrl as string);
+        return () => {
+            useGLTF.clear(digitalTwinGltfData.digitalTwinGltfUrl as string);
+            URL.revokeObjectURL(digitalTwinGltfData.digitalTwinGltfUrl as string);
+        }
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [])
