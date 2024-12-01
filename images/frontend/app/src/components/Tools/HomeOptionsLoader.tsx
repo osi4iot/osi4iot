@@ -35,7 +35,8 @@ const ProgressLabel = styled.div`
 `;
 
 const ProgressPercentage = styled.div`
-    align-self: end;
+    position: relative;
+    bottom: -13px;
 `;
 
 const ProgressBar = styled.div`
@@ -43,25 +44,30 @@ const ProgressBar = styled.div`
     margin: 0 5px;
     display: flex;
     flex-direction: column;
-	progress[value] {
-        width: 100%;
-        appearance: none;
-        height: 10px;
-        border-radius: 20px;
-        overflow: hidden;
+`;
 
-		::-webkit-progress-bar {
-            background-color: #4d525c;
-		}
+const ProgressBarWrapper = styled.div`
+    width: 100%;
+    background-color: #4d525c;
+    border-radius: 20px;
+    overflow: hidden;
+    height: 10px;
+    background-color: #808080;
+`;
 
-        ::-moz-progress-bar {
-            background-color: #4d525c;
-        }
+const StyledProgress = styled.progress`
+    width: 100%;
+    appearance: none;
+    background-color: #808080;
+    border: none;
 
-        ::-webkit-progress-value {
-			background-color: #65ff00;
-		}
-	}
+    ::-webkit-progress-value {
+        background-color: #65ff00;
+    }
+
+    ::-moz-progress-bar {
+        background-color: #65ff00;
+    }
 `;
 
 
@@ -82,7 +88,9 @@ const HomeOptionsLoader: FC<HomeOptionsLoaderProp> = (
                         <ProgressBarContainer>
                             <ProgressBar>
                                 <ProgressLabel>Gltf file loading progress:</ProgressLabel>
-                                <progress max={100} value={gltfFileDownloadProgress} />
+                                <ProgressBarWrapper>
+                                    <StyledProgress max={100} value={gltfFileDownloadProgress} />
+                                </ProgressBarWrapper>
                             </ProgressBar>
                             <ProgressPercentage>{gltfFileDownloadProgress}%</ProgressPercentage>
                         </ProgressBarContainer>
