@@ -37,6 +37,7 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosError, AxiosResponse } from 'axios';
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -523,7 +524,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, digitalTwinData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const digitalTwinsOptionToShow = { digitalTwinsOptionToShow: DIGITAL_TWINS_OPTIONS.TABLE };
@@ -535,23 +536,16 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
                 if (isValidGltfFile && (values.type === "Gltf 3D model" || values.type === "Glb 3D model")) {
                     let file = gltfFile as File;
-                    // if (values.type === "Gltf 3D model" || values.type === "Glb 3D model") {
-                    //     if (gltfFileName.slice(-4) === "gltf") {
-                    //         const str = JSON.stringify(digitalTwinGltfData);
-                    //         const bytes = new TextEncoder().encode(str);
-                    //         file = new File([bytes], (gltfFile as File).name);
-                    //     }
-                    // }
                     const gltfData = new FormData();
                     gltfData.append("file", file, gltfFileName);
 
                     const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadGltfFile, gltfData, configMultipart)
-                        .then((response) => {
+                        .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
                         })
-                        .catch((error) => {
+                        .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
                         })
@@ -563,10 +557,10 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                     const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadFemResFile, femResData, configMultipart)
-                        .then((response) => {
+                        .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
                         })
-                        .catch((error) => {
+                        .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
                         })
@@ -574,7 +568,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
 
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

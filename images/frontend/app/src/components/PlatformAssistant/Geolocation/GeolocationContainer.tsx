@@ -19,6 +19,7 @@ import { ISensor } from '../TableColumns/sensorsColumns';
 import SelectAsset from './SelectAsset';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
+import { AxiosError, AxiosResponse } from 'axios';
 
 
 const objectsEqual = (o1: any, o2: any): boolean => {
@@ -103,13 +104,13 @@ interface GeolocationContainerProps {
     outerBounds: number[][];
     setNewOuterBounds: (outerBounds: number[][]) => void;
     resetBuildingSelection: () => void;
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
     digitalTwinsState: IDigitalTwinState[];
     setDigitalTwinsState: (digitalTwinsState: IDigitalTwinState[]) => void;
     sensorsState: ISensorState[];
     setSensorsState: (sensorsState: ISensorState[]) => void;
-    fetchGltfFileWorker: Worker;
+    setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
 }
 
 const GeolocationContainer: FC<GeolocationContainerProps> = (
@@ -159,7 +160,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         setDigitalTwinsState,
         sensorsState,
         setSensorsState,
-        fetchGltfFileWorker
+        setGltfFileDownloadProgress,
     }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -169,7 +170,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .get(urlDigitalTwinsState, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const digitalTwinsState = response.data;
                 digitalTwinsState.map((digitalTwinState: IDigitalTwinState) => {
                     if (digitalTwinState.state === null) digitalTwinState.state = "ok";
@@ -177,13 +178,13 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                 })
                 setDigitalTwinsState(digitalTwinsState);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
             });
 
         getAxiosInstance(refreshToken, authDispatch)
             .get(urlSensorsState, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const sensorsState = response.data;
                 sensorsState.map((sensorState: ISensorState) => {
                     if (sensorState.state === null) sensorState.state = "ok";
@@ -191,7 +192,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                 })
                 setSensorsState(sensorsState);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
             });
     },
@@ -207,7 +208,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .get(urlDigitalTwinsState, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const newDigitalTwinsState = response.data;
                 newDigitalTwinsState.map((digitalTwinState: IDigitalTwinState) => {
                     if (digitalTwinState.state === null) digitalTwinState.state = "ok";
@@ -217,13 +218,13 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     setDigitalTwinsState(newDigitalTwinsState);
                 }
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
             });
 
         getAxiosInstance(refreshToken, authDispatch)
             .get(urlSensorsState, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const newSensorsState = response.data;
                 newSensorsState.map((sensorState: ISensorState) => {
                     if (sensorState.state === null) sensorState.state = "ok";
@@ -233,7 +234,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     setSensorsState(newSensorsState);
                 }
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
             });
 
@@ -335,7 +336,7 @@ const GeolocationContainer: FC<GeolocationContainerProps> = (
                     sensorsState={sensorsState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
-                    fetchGltfFileWorker={fetchGltfFileWorker}
+                    setGltfFileDownloadProgress={setGltfFileDownloadProgress}
                 />
             }
             {geolocationOptionToShow === GEOLOCATION_OPTIONS.SELECT_ORG &&

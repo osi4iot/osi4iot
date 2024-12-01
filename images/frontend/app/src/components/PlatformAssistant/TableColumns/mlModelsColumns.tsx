@@ -10,6 +10,7 @@ import { ML_MODELS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { setMlModelIdToEdit, setMlModelRowIndexToEdit, setMlModelsOptionToShow, useMlModelsDispatch } from '../../../contexts/mlModelsOptions';
+import { AxiosResponse, AxiosError } from 'axios';
 
 export interface IMlModel {
     id: number;
@@ -66,7 +67,7 @@ const DeleteMlModelModal: FC<DeleteMlModelModalProps> = ({ rowIndex, groupId, ml
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsMlModelDeleted(true);
                 setIsSubmitting(false);
 
@@ -75,7 +76,7 @@ const DeleteMlModelModal: FC<DeleteMlModelModalProps> = ({ rowIndex, groupId, ml
                 hideModal();
 
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

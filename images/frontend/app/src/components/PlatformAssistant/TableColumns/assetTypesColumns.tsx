@@ -11,6 +11,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 import { setAssetTypeIdToEdit, setAssetTypeRowIndexToEdit, setAssetTypesOptionToShow, useAssetTypesDispatch } from '../../../contexts/assetTypesOptions';
 import { ASSET_TYPES_OPTIONS } from '../Utils/platformAssistantOptions';
+import { AxiosResponse, AxiosError } from 'axios';
 
 export interface IAssetType {
     id: number;
@@ -67,7 +68,7 @@ const DeleteAssetTypeModal: FC<DeleteAssetTypeModalProps> = ({ rowIndex, orgId, 
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsAssetTypeDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
@@ -75,7 +76,7 @@ const DeleteAssetTypeModal: FC<DeleteAssetTypeModalProps> = ({ rowIndex, orgId, 
                 hideModal();
 
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

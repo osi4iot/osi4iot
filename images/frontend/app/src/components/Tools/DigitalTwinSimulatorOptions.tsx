@@ -9,6 +9,7 @@ import { IDigitalTwinSimulator } from "../PlatformAssistant/TableColumns/digital
 import ServerError from "./ServerError";
 import Slider from "./Slider";
 import { useWindowWidth } from "@react-hook/window-size";
+import { AxiosResponse, AxiosError } from "axios";
 
 
 const Title = styled.h2`
@@ -221,7 +222,7 @@ const DigitalTwinSimulatorOptions: FC<DigitalTwinSimulatorOptionsProps> = ({
                 const topicsIdArrayObj = { topicsIdArray }
                 getAxiosInstance(refreshToken, authDispatch)
                     .post(urlLastMeasurements, topicsIdArrayObj, config)
-                    .then((response) => {
+                    .then((response: AxiosResponse<any, any>) => {
                         const lastMeasurements = response.data;
                         const newParamValues = { ...paramValues };
                         lastMeasurements.forEach((measurement: { payload: Record<string, number> }) => {
@@ -236,7 +237,7 @@ const DigitalTwinSimulatorOptions: FC<DigitalTwinSimulatorOptionsProps> = ({
                         setParamValues(newParamValues);
                         setGetLastMeasurementsButtomLabel("Get last measurement");
                     })
-                    .catch((error) => {
+                    .catch((error: AxiosError) => {
                         axiosErrorHandler(error, authDispatch);
                         setGetLastMeasurementsButtomLabel("Get last measurement");
                     });

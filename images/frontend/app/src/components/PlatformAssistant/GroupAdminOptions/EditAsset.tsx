@@ -25,6 +25,7 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import SvgComponent from '../../Tools/SvgComponent';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 export const FieldContainer = styled.div`
@@ -215,14 +216,14 @@ const EditAsset: FC<EditAssetProps> = ({
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, assetEditData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const assetsOptionToShow = { assetsOptionToShow: ASSETS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setAssetsOptionToShow(assetsDispatch, assetsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

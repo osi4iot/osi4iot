@@ -11,6 +11,7 @@ import { useAuthDispatch, useAuthState } from '../../contexts/authContext';
 import axiosErrorHandler from '../../tools/axiosErrorHandler';
 import { toast } from 'react-toastify';
 import FormTitle from './FormTitle';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -359,7 +360,7 @@ const S3StorageForm: FC<S3StorageFormProps> = (
 
         getAxiosInstance(refreshToken, authDispatch)
             .get(urlGetToken, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsSubmitting(true);
                 const token = response.data;
                 const urlBaseDownload = `${urlBase}/asset_s3_storage_download`;
@@ -379,7 +380,7 @@ const S3StorageForm: FC<S3StorageFormProps> = (
                 const message = "Asset data in S3 bucket download successfully.";
                 toast.success(message);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
             })
             .finally(() => {

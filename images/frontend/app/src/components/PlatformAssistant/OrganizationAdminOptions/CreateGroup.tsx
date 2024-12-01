@@ -38,6 +38,7 @@ import { IBuilding } from '../TableColumns/buildingsColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
+import { AxiosError, AxiosResponse } from 'axios';
 
 const GroupLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -237,14 +238,14 @@ const CreateGroup: FC<CreateGroupProps> = ({
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, groupData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 setIsSubmitting(false);
                 const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
                 setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
                 toast.success(data.message);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

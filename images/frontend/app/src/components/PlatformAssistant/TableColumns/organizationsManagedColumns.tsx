@@ -15,6 +15,7 @@ import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import DeleteModalWithSelect from '../../Tools/DeleteModalWithSelect';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 interface AddOrgUsersProps {
     rowIndex: number;
@@ -83,14 +84,14 @@ const RemoveAllOrgUsersModal: FC<RemoveAllOrgUsersModalProps> = ({ rowIndex, org
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsGroupMembersRemoved(true);
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

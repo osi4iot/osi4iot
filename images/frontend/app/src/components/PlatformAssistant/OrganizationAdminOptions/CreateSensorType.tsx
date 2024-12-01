@@ -17,6 +17,7 @@ import { setSensorTypesOptionToShow, useSensorTypesDispatch } from '../../../con
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 const SvgIconPreviewContainerDiv = styled.div`
@@ -329,14 +330,14 @@ const CreateSensorType: FC<CreateSensorTypeProps> = ({
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, sensorTypeData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const sensorTypesOptionToShow = { sensorTypesOptionToShow: SENSOR_TYPES_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setSensorTypesOptionToShow(sensorTypesDispatch, sensorTypesOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

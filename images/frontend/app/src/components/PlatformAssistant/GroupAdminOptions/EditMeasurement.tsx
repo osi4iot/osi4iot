@@ -13,6 +13,7 @@ import { IMeasurement } from '../TableColumns/measurementsColumns';
 import { setMeasurementsOptionToShow, useMeasurementRowIndexToEdit, useMeasurementsDispatch, useMeasurementTimestampToEdit } from '../../../contexts/measurementsOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 const FormContainer = styled.div`
@@ -88,7 +89,7 @@ const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, back
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, updatedMesurement, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const measurementsOptionToShow = { measurementsOptionToShow: MEASUREMENTS_OPTIONS.TABLE };
@@ -98,7 +99,7 @@ const EditMeasurement: FC<EditMeasurementProps> = ({ groupId, measurements, back
                 newMesurementsTable[measurementRowIndex].payload = data.payload;
                 updateMeasurementsTable(newMesurementsTable);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

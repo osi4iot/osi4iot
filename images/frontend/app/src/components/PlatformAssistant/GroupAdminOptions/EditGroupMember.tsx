@@ -20,6 +20,7 @@ import { IGroupMember } from '../TableColumns/groupMemberColumns';
 import { setReloadGroupsMembershipTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 const FormContainer = styled.div`
@@ -112,7 +113,7 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupM
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 setIsSubmitting(false);
@@ -120,7 +121,7 @@ const EditGroupMember: FC<EditGroupMemberProps> = ({ groupMembers, refreshGroupM
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

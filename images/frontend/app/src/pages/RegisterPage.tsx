@@ -1,6 +1,6 @@
 import { FC, SyntheticEvent, useState, useEffect } from "react";
 import { useHistory } from "react-router-dom";
-import axios from "axios";
+import axios, { AxiosError, AxiosResponse } from "axios";
 import styled from "styled-components";
 import * as Yup from 'yup';
 import Header from "../components/Layout/Header";
@@ -75,7 +75,7 @@ const RegisterPage: FC<{}> = () => {
 		setIsSubmitting(true);
 		axios
 			.patch(url, values, config)
-			.then((response) => {
+			.then((response: AxiosResponse<any, any>) => {
 				setIsSubmitting(false);
 				const data = response.data;
 				toast.success(data.message);
@@ -83,8 +83,12 @@ const RegisterPage: FC<{}> = () => {
 					history.push("/");
 				}
 			})
-			.catch((error) => {
-				const errorMessage = error.response.data.message;
+			.catch((error: AxiosError) => {
+				const errorResponse = error.response;
+				let errorMessage = "An error occurred";
+				if (errorResponse) {
+					errorMessage = (errorResponse.data as any).message;
+				}
 				if(errorMessage !== "jwt expired") toast.error(errorMessage);
 			})
 	}
@@ -97,7 +101,7 @@ const RegisterPage: FC<{}> = () => {
 			const config = axiosAuth(token as string);
 			axios
 				.get(url, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const data = response.data;
 					const changedFormValues = {
 						...initialFormValues,
@@ -107,7 +111,7 @@ const RegisterPage: FC<{}> = () => {
 					};
 					setInitialRegistrationValues(changedFormValues);
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					setIsValidToken(false);
 					console.log(error.response);
 				});

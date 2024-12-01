@@ -18,6 +18,7 @@ import SelectOrgUsers from '../OrganizationAdminOptions/SelectOrgUsers';
 import { setReloadGroupsMembershipTable, useGroupsManagedTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosError, AxiosResponse } from 'axios';
 
 
 const FormContainer = styled.div`
@@ -153,14 +154,14 @@ const CreateGroupMember: FC<CreateGroupMemberProps> = ({ refreshGroupMembers, ba
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 backToTable();
                 const reloadGroupsMembershipTable = true;
                 setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

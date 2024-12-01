@@ -24,6 +24,7 @@ import { IGroupManagedData } from '../../../contexts/groupsManagedOptions/interf
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const NriLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -177,14 +178,14 @@ const EditGroupManaged: FC<EditGroupManagedProps> = ({
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, groupManagedUpdateData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const groupsManagedOptionToShow = { groupsManagedOptionToShow: GROUPS_MANAGED_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setGroupsManagedOptionToShow(groupsManagedDispatch, groupsManagedOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

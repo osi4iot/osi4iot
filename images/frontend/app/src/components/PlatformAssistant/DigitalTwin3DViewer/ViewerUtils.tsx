@@ -403,7 +403,6 @@ export const generateInitialFemSimObjectsState = (
 ) => {
 	const highlight = false;
 	const initialFemSimObjectsState: FemSimulationObjectState[] = [];
-	console.log("digitalTwinGltfData=", digitalTwinGltfData);
 	const femResultModalValuesTopic = digitalTwinGltfData.mqttTopicsData.filter(topic => topic.topicRef === "dtm2sim")[0].topicId;
 	const lastMeasurement = findLastMeasurement(femResultModalValuesTopic, digitalTwinGltfData);
 	const lastDtm2pdbMessage = findLastDtm2pdbMessage(digitalTwinGltfData);
@@ -1123,7 +1122,6 @@ export const onMeshMouseExit = (e: any) => {
 
 export const createUrl = (gltfData: any) => {
 	let gltfUrl: string;
-
 	if (typeof gltfData === 'string') {
 		const binaryDataGltf = [];
 		binaryDataGltf.push(gltfData);

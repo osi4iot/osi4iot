@@ -28,6 +28,7 @@ import { IAssetInputData } from '../../../contexts/assetsOptions/interfaces';
 import { IAssetType } from './assetTypesColumns';
 import { IGroupManaged } from './groupsManagedColumns';
 import { IOrgOfGroupsManaged } from './orgsOfGroupsManagedColumns';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 export interface IAsset {
@@ -94,7 +95,7 @@ const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetI
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsAssetDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
@@ -102,7 +103,7 @@ const DeleteAssetModal: FC<DeleteAssetModalProps> = ({ rowIndex, groupId, assetI
                 hideModal();
 
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

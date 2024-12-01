@@ -52,9 +52,9 @@ interface GeoGroupsProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     digitalTwinsState: IDigitalTwinState[];
     sensorsState: ISensorState[];
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
-    fetchGltfFileWorker: Worker;
+    setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
 }
 
 
@@ -83,7 +83,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
         sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading,
-        fetchGltfFileWorker
+        setGltfFileDownloadProgress,   
     }
 ) => {
     const map = useMap();
@@ -134,7 +134,7 @@ const GeoGroups: FC<GeoGroupsProps> = (
                         sensorsState={sensorsState}
                         openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                         setGlftDataLoading={setGlftDataLoading}
-                        fetchGltfFileWorker={fetchGltfFileWorker}
+                        setGltfFileDownloadProgress={setGltfFileDownloadProgress}
                     />
                 )
 

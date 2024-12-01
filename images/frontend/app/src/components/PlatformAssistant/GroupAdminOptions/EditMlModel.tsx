@@ -20,6 +20,7 @@ import { setMlModelsOptionToShow, useMlModelIdToEdit, useMlModelRowIndexToEdit, 
 import { MlModelFileName } from './CreateMlModel';
 import { FieldContainer } from './EditAsset';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -168,7 +169,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
         const urlMlModelFileList = `${urlMlModelFileListBase0}/${groupId}/${mLModelId}`;
         getAxiosInstance(refreshToken, authDispatch)
             .get(urlMlModelFileList, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const mlModelFilesInfo = response.data;
                 if (mlModelFilesInfo.length !== 0) {
                     const modelBinFileNames: string[] = [];
@@ -198,7 +199,7 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                     setIsSubmitting(false);
                 }
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setMlModelDataLoading(false);
             })
@@ -410,10 +411,10 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                     const urlUploadTensorflowJsonFile = `${urlUploadMlModelBase}/${tensorflowJsonFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadTensorflowJsonFile, tensorflowJsonFileData, configMultipart)
-                        .then((response) => {
+                        .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
                         })
-                        .catch((error) => {
+                        .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
                         })
@@ -428,10 +429,10 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                         const urlUploadModelBinFile = `${urlUploadMlModelBase}/${tensorflowBinFileNames[ifile]}`;
                         getAxiosInstance(refreshToken, authDispatch)
                             .post(urlUploadModelBinFile, modelBinFileData, configMultipart)
-                            .then((response) => {
+                            .then((response: AxiosResponse<any, any>) => {
                                 toast.success(response.data.message);
                             })
-                            .catch((error) => {
+                            .catch((error: AxiosError) => {
                                 axiosErrorHandler(error, authDispatch);
                                 backToTable();
                             })
@@ -448,10 +449,10 @@ const EditMlModel: FC<EditMlModelProps> = ({ mlModels, backToTable, refreshMlMod
                     const urlUploadPickleFile = `${urlUploadMlModelBase}/${scikitLearnPickleFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadPickleFile, pickleFileData, configMultipart)
-                        .then((response) => {
+                        .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
                         })
-                        .catch((error) => {
+                        .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
                         })

@@ -25,6 +25,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import DownloadFileIcon from '../Utils/DownloadFileIcon';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 interface AddGroupMembersProps {
@@ -87,14 +88,14 @@ const RemoveAllGroupMembersModal: FC<RemoveAllGroupMembersModalProps> = ({ rowIn
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsGroupMembersRemoved(true);
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
@@ -140,14 +141,14 @@ const ChangeGroupHashModal: FC<ChangeGroupHashModalProps> = ({ rowIndex, groupId
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, null, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsGroupHashChanged(true);
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
@@ -205,7 +206,7 @@ const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .get(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 const validityDays = data.validityDays;
                 const message = `Ssl certs created successfully. These are valid for ${validityDays} days`;
@@ -223,7 +224,7 @@ const DownLoadSslCerts: FC<DownLoadSslCertsProps> = ({ rowIndex, groupId }) => {
                     });
                 toast.success(message);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
             })
     };

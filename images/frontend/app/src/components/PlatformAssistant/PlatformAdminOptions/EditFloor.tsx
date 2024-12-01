@@ -23,6 +23,7 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import formatDateString from '../../../tools/formatDate';
 import { IBuilding } from '../TableColumns/buildingsColumns';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -272,14 +273,14 @@ const EditFloor: FC<EditFloorProps> = ({ buildingsTable, floors, backToTable, re
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, floorData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const floorsOptionToShow = { floorsOptionToShow: FLOORS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setFloorsOptionToShow(floorsDispatch, floorsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

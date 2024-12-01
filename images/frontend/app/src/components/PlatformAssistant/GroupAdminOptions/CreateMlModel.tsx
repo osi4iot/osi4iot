@@ -24,6 +24,7 @@ import { setMlModelsOptionToShow, useMlModelsDispatch } from '../../../contexts/
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosError, AxiosResponse } from 'axios';
 
 
 const DataFileTitle = styled.div`
@@ -372,7 +373,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, mlModelData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const mlModelsOptionToShow = { mlModelsOptionToShow: ML_MODELS_OPTIONS.TABLE };
@@ -390,10 +391,10 @@ const CreateMlModel: FC<CreateMlModelProps> = ({
                         const urlUploadTensorflowJsonFile = `${urlUploadMlModelBase}/${tensorflowJsonFileName}`;
                         getAxiosInstance(refreshToken, authDispatch)
                             .post(urlUploadTensorflowJsonFile, tensorflowJsonFileData, configMultipart)
-                            .then((response) => {
+                            .then((response: AxiosResponse<any, any>) => {
                                 toast.success(response.data.message);
                             })
-                            .catch((error) => {
+                            .catch((error: AxiosError) => {
                                 axiosErrorHandler(error, authDispatch);
                                 backToTable();
                             })
@@ -408,10 +409,10 @@ const CreateMlModel: FC<CreateMlModelProps> = ({
                             const urlUploadModelBinFile = `${urlUploadMlModelBase}/${tensorflowBinFileNames[ifile]}`;
                             getAxiosInstance(refreshToken, authDispatch)
                                 .post(urlUploadModelBinFile, modelBinFileData, configMultipart)
-                                .then((response) => {
+                                .then((response: AxiosResponse<any, any>) => {
                                     toast.success(response.data.message);
                                 })
-                                .catch((error) => {
+                                .catch((error: AxiosError) => {
                                     axiosErrorHandler(error, authDispatch);
                                     backToTable();
                                 })
@@ -428,10 +429,10 @@ const CreateMlModel: FC<CreateMlModelProps> = ({
                         const urlUploadPickleFile = `${urlUploadMlModelBase}/${scikitLearnPickleFileName}`;
                         getAxiosInstance(refreshToken, authDispatch)
                             .post(urlUploadPickleFile, pickleFileData, configMultipart)
-                            .then((response) => {
+                            .then((response: AxiosResponse<any, any>) => {
                                 toast.success(response.data.message);
                             })
-                            .catch((error) => {
+                            .catch((error: AxiosError) => {
                                 axiosErrorHandler(error, authDispatch);
                                 backToTable();
                             })
@@ -439,7 +440,7 @@ const CreateMlModel: FC<CreateMlModelProps> = ({
 
                 }
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

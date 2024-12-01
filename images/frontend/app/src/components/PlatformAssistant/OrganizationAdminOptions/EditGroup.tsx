@@ -36,6 +36,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { FieldContainer } from '../GroupAdminOptions/EditAsset';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 import { IFloor } from '../TableColumns/floorsColumns';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const GroupLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -182,14 +183,14 @@ const EditGroup: FC<EditGroupProps> = ({
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, groupData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 const groupsOptionToShow = { groupsOptionToShow: GROUPS_OPTIONS.TABLE };
                 setGroupsOptionToShow(groupsDispatch, groupsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

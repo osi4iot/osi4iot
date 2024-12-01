@@ -3,6 +3,8 @@ import { IDigitalTwinGltfData, createUrl } from "../components/PlatformAssistant
 import { IAsset } from "../components/PlatformAssistant/TableColumns/assetsColumns";
 import { write3DModelFile } from "./fileSystem";
 import { IMqttTopicData } from "../components/PlatformAssistant/DigitalTwin3DViewer/Model";
+import { loadAndParseGltfFile } from "./loadAndParseGltfFile";
+import { giveBrowserType } from "./tools";
 
 const load3DModelData = (
     digitalTwinUid: string | null,
@@ -10,7 +12,7 @@ const load3DModelData = (
     digitalTwin3DModelData: any,
     digitalTwin3DModelFile: any,
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void,
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void,
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void,
     assetData: IAsset,
     gltfFileName: string,
     gltfFileDate: string,
@@ -45,17 +47,34 @@ const load3DModelData = (
         const warningMessage = "Some mqtt topics no longer exist"
         toast.warning(warningMessage);
     }
-    setGlftDataLoading(false);
     let isGroupDTDemo = false;
     if (assetData.assetType === "Mobile" &&
         assetData.description.slice(0, 16) === "Mobile for group"
     ) {
         isGroupDTDemo = true;
     }
-    openDigitalTwin3DViewer(digitalTwinGltfData, isGroupDTDemo);
-    if (digitalTwinUid) {
-        write3DModelFile(digitalTwinUid, gltfFile, gltfFileName, gltfFileDate);
-    }
+
+    loadAndParseGltfFile(digitalTwinGltfData.digitalTwinGltfUrl as string).then((data) => {
+        digitalTwinGltfData.gltfFile = data;
+        digitalTwinGltfData.isGroupDTDemo = isGroupDTDemo;
+        setGlftDataLoading(false);
+        openDigitalTwin3DViewer(digitalTwinGltfData);
+        if (digitalTwinUid) {
+            write3DModelFile(digitalTwinUid, gltfFile, gltfFileName, gltfFileDate);
+        }
+    }).catch((error) => {
+        URL.revokeObjectURL(digitalTwinGltfData.digitalTwinGltfUrl as string);
+        setGlftDataLoading(false);
+        let errorMessage = "Error loading GLTF file";
+        if (digitalTwinDataType === 'Gb 3D model') {
+            errorMessage = "Error loading GLB file";
+        }
+        const browserType = giveBrowserType();
+        if (browserType === "Firefox" && digitalTwinDataType === 'Gltf 3D model') {
+            errorMessage = "Error loading GLTF file. GLTF files are not fully supported by Firefox. Please try using GLB files instead.";
+        }
+        toast.error(errorMessage);
+    });
 }
 
 export default load3DModelData;

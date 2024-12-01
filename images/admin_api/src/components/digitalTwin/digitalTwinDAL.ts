@@ -773,7 +773,7 @@ export const getDigitalTwinData = async (digitalTwin: IDigitalTwin): Promise<IDi
 	const sensorsDashboards = await getSensorDashboardByAssetId(digitalTwin.assetId);
 	const topicIdBySensorRef = await getTopicIdBySensorRef(digitalTwinId);
 
-	const { gltfFileName , gltfFileDate } = await getGltfFileInfo(digitalTwin);
+	const { gltfFileName, gltfFileDate, gltfFileSize } = await getGltfFileInfo(digitalTwin);
 
 	const gltfData = {
 		id: digitalTwinId,
@@ -781,6 +781,7 @@ export const getDigitalTwinData = async (digitalTwin: IDigitalTwin): Promise<IDi
 		digitalTwinType: digitalTwin.type,
 		gltfFileName,
 		gltfFileDate,
+		gltfFileSize,
 		digitalTwinSimulationFormat: digitalTwin.digitalTwinSimulationFormat,
 		mqttTopicsData,
 		topicIdBySensorRef,
@@ -956,6 +957,7 @@ const getBucketFolderFileList = async (folderPath: string): Promise<string[]> =>
 export interface IBucketFileInfoList {
 	fileName: string;
 	lastModified: string
+	size: number;
 }
 
 export const getBucketFolderInfoFileList = async (folderPath: string): Promise<IBucketFileInfoList[]> => {
@@ -969,7 +971,8 @@ export const getBucketFolderInfoFileList = async (folderPath: string): Promise<I
 		fileInfoList = data.Contents.map(fileinfo => {
 			const fileData = {
 				fileName: fileinfo.Key,
-				lastModified: fileinfo.LastModified.toString()
+				lastModified: fileinfo.LastModified.toString(),
+				size: fileinfo.Size
 			}
 			return fileData;
 		});
@@ -1014,7 +1017,7 @@ export const checkNumberOfGltfFiles = async (digitalTwin: IDigitalTwin) => {
 	}
 }
 
-export const getGltfFileInfo = async (digitalTwin: IDigitalTwin): Promise<{gltfFileName: string, gltfFileDate: string}> => {
+export const getGltfFileInfo = async (digitalTwin: IDigitalTwin): Promise<{ gltfFileName: string, gltfFileDate: string, gltfFileSize: number }> => {
 	const orgId = digitalTwin.orgId;
 	const groupId = digitalTwin.groupId;
 	const digitalTwinId = digitalTwin.id;
@@ -1024,11 +1027,13 @@ export const getGltfFileInfo = async (digitalTwin: IDigitalTwin): Promise<{gltfF
 	const gltfFileInfoList = await getBucketFolderInfoFileList(folderPath);
 	let gltfFileName = "";
 	let gltfFileDate = "";
+	let gltfFileSize = 0;
 	if (gltfFileInfoList.length !== 0) {
 		gltfFileName = gltfFileInfoList[0].fileName;
 		gltfFileDate = gltfFileInfoList[0].lastModified;
+		gltfFileSize = gltfFileInfoList[0].size;
 	}
-	return { gltfFileName, gltfFileDate };
+	return { gltfFileName, gltfFileDate, gltfFileSize };
 }
 
 

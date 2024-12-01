@@ -33,6 +33,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { getSensorsRef, getSensorsRefFromDigitalTwinGltfData } from './CreateDigitalTwin';
 import { FieldContainer } from './EditAsset';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -176,7 +177,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             const urlGltfFileList = `${urlDigitalTwinFileListBase}/gltfFile`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGltfFileList, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const gltfFileInfo = response.data;
                     if (gltfFileInfo.length !== 0) {
                         const gltfFileName = gltfFileInfo[0].fileName.split("/")[4];
@@ -189,7 +190,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         const urlfemResFileList = `${urlDigitalTwinFileListBase}/femResFiles`;
                         getAxiosInstance(refreshToken, authDispatch)
                             .get(urlfemResFileList, config)
-                            .then((response) => {
+                            .then((response: AxiosResponse<any, any>) => {
                                 const femResFileList: { fileName: string, lastModified: string }[] = response.data;
                                 if (femResFileList.length !== 0) {
                                     const femResFileNames = femResFileList.map(femResFile => femResFile.fileName.split("/")[4]);
@@ -202,7 +203,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                 setDigitalTwinGltfDataLoading(false);
                                 setIsSubmitting(false);
                             })
-                            .catch((error) => {
+                            .catch((error: AxiosError) => {
                                 axiosErrorHandler(error, authDispatch);
                                 setDigitalTwinGltfDataLoading(false);
                             })
@@ -212,7 +213,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     }
 
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                     setDigitalTwinGltfDataLoading(false);
                 })
@@ -408,7 +409,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, digitalTwinData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 if (response.data) {
                     toast.success(response.data.message);
                 }
@@ -416,7 +417,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                 setIsSubmitting(false);
                 setDigitalTwinsOptionToShow(digitalTwinsDispatch, digitalTwinsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

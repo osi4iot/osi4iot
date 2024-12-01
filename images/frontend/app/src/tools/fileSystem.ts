@@ -30,33 +30,6 @@ export const getDTFolder = async (digitalTwinUid: string) => {
     return dtFolder;
 }
 
-
-export const writeGltfData = async (
-    digitalTwinUid: string,
-    gltfData: any,
-    gltfFileName: string,
-    gltfFileDate: string
-) => {
-    const dtFolder = await getDTFolder(digitalTwinUid);
-    const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
-    const glftFileHandler = await gltfFolderHandler
-        .getFileHandle('digital_twin_data.txt', { create: true });
-
-    const gltfMetadataHandler = await gltfFolderHandler
-        .getFileHandle('metadata.txt', { create: true });
-    const gltfMetadata = {
-        fileName: gltfFileName,
-        fileDate: gltfFileDate
-    };
-    const writableMetadata = await gltfMetadataHandler.createWritable();
-    await writableMetadata.write(JSON.stringify(gltfMetadata));
-    await writableMetadata.close();
-
-    const writable = await glftFileHandler.createWritable();
-    await writable.write(JSON.stringify(gltfData));
-    await writable.close();
-}
-
 export const write3DModelFile = async (
     digitalTwinUid: string,
     gltfFile: any,
@@ -143,16 +116,10 @@ export const existGltfDataLocallyStored = async (
     return true;
 }
 
-export const readGltfData = async (digitalTwinUid: string) => {
-    const dtFolder = await getDTFolder(digitalTwinUid);
-    const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
-    const glftFileHandler = await gltfFolderHandler.getFileHandle('digital_twin_data.txt');
-    const file = await glftFileHandler.getFile();
-    const text = await file.text();
-    return JSON.parse(text);
-}
-
-export const read3DModelFile = async (digitalTwinUid: string, gltfFileName: string) => {
+export const read3DModelFile = async (
+    digitalTwinUid: string, 
+    gltfFileName: string
+) => {
     const dtFolder = await getDTFolder(digitalTwinUid);
     const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
     const glftFileHandler = await gltfFolderHandler.getFileHandle(gltfFileName);
@@ -277,11 +244,39 @@ export const readFemResFile = async (digitalTwinUid: string, femResFileName: Str
 }
 
 export const removeDTStoragebyUid = async (digitalTwinUid: string) => {
-    const dtFolder = await getDTFolder(digitalTwinUid);
-    await dtFolder.remove({ recursive: true });
-    return "Current DT locally stored data succefully removed"
+    const existDTFolder = await existsDTFolderFun(digitalTwinUid);
+    const dtRootFolder = await getDtRootFolder();
+    if (existDTFolder) {
+        const dtFolder = await getDTFolder(digitalTwinUid);
+        const existGltfFolder = await existFolderOrFile(dtFolder.keys(), 'gltfFile');
+        if (existGltfFolder) {
+            const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile');
+            for await (let fileName of gltfFolderHandler.keys()) {
+                if(fileName.slice(-4) === "gltf" || fileName.slice(-3) === "glb" || fileName === "metadata.txt") {
+                    await gltfFolderHandler.removeEntry(fileName);
+                }
+            }
+            await dtFolder.removeEntry('gltfFile');
+        }
+
+        const existFemResFilesFolder = await existFolderOrFile(dtFolder.keys(), 'femResFiles');
+        if (existFemResFilesFolder) {
+            const femResFilesFolderHandler = await dtFolder.getDirectoryHandle('femResFiles');
+            for await (let fileName of femResFilesFolderHandler.keys()) {
+                if (fileName === "metadata.txt" || fileName.slice(-4) === "json") {
+                    await femResFilesFolderHandler.removeEntry(fileName);
+                }
+            }
+            await dtFolder.removeEntry('femResFiles');
+        }
+        await dtRootFolder.removeEntry(`dt_${digitalTwinUid}`);
+        return "Current DT locally stored data succefully removed"
+    } else {
+        return "No DT locally stored data to remove"
+    }
 }
 
+// Not supported in Safari
 export const removeAllDTStorage = async () => {
     const dtRootFolder = await getDtRootFolder();
     await dtRootFolder.remove({ recursive: true });

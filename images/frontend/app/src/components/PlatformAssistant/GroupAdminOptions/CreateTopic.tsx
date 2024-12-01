@@ -15,6 +15,7 @@ import { setReloadAssetTopicsTable, usePlatformAssitantDispatch } from '../../..
 import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosError, AxiosResponse } from 'axios';
 
 const topicTypeOptions = [
     {
@@ -188,14 +189,14 @@ const CreateTopic: FC<CreateTopicProps> = ({
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, topicData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const topicsOptionToShow = { topicsOptionToShow: TOPICS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setTopicsOptionToShow(topicsDispatch, topicsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

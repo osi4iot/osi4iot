@@ -23,6 +23,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 const UserOptionsContainer = styled.div`
@@ -140,12 +141,12 @@ const UserOptions: FC<{}> = () => {
             const urlUserProfile = `${protocol}://${domainName}/admin_api/auth/user_profile`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlUserProfile, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const userProfile = response.data;
                     setUserProfileTable(plaformAssistantDispatch, { userProfile });
                     setUserProfileLoading(false);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -161,14 +162,14 @@ const UserOptions: FC<{}> = () => {
             const urlMembershipInOrgs = `${protocol}://${domainName}/admin_api/organizations/which_the_logged_user_is_user/`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInOrgs, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const orgsMembership = response.data;
                     setOrgsMembershipTable(plaformAssistantDispatch, { orgsMembership });
                     setLoadingOrgsMembership(false);
                     const reloadOrgsMembershipTable = false;
                     setReloadOrgsMembershipTable(plaformAssistantDispatch, { reloadOrgsMembershipTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -189,14 +190,14 @@ const UserOptions: FC<{}> = () => {
             const urlMembershipInGroups = `${protocol}://${domainName}/admin_api/groups/which_the_logged_user_is_member/`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlMembershipInGroups, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const groupsMembership = response.data;
                     setGroupsMembershipTable(plaformAssistantDispatch, { groupsMembership });
                     setLoadinGroupsMembership(false);
                     const reloadGroupsMembershipTable = false;
                     setReloadGroupsMembershipTable(plaformAssistantDispatch, { reloadGroupsMembershipTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {

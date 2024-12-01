@@ -17,6 +17,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { ISensor } from '../TableColumns/sensorsColumns';
 import SelectSensor from './SelectSensor';
 import { ISelectSensor } from '../TableColumns/selectSensorColumns';
+import { AxiosError, AxiosResponse } from 'axios';
 
 const giveMeasurementSensor = (selectedSensor: ISensor) => {
     const topicUid = selectedSensor.topicUid;
@@ -67,7 +68,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
             setMeasurementsLoading(true);
             getAxiosInstance(refreshToken, authDispatch)
                 .post(urlMeasurements, paginationData, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const measurements = response.data;
                     const payloadKey = selectedSensor.payloadJsonSchema;
                     measurements.map((measurement: any) => {
@@ -86,7 +87,7 @@ const MeasurementsContainer: FC<MeasurementsContainerProps> = ({ sensors, topics
                     }
                     setMeasurementsLoading(false);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         },

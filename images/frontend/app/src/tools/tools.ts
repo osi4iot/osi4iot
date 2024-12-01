@@ -1,3 +1,4 @@
+import { AxiosProgressEvent } from "axios";
 import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/threeInterfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 import { IWindowObjectReferences, PlatformAssistantDispatch } from "../contexts/platformAssistantContext/interfaces";
@@ -77,7 +78,22 @@ export const axiosAuth = (token: string, contentType: string = 'application/json
     return config;
 };
 
-export const axiosAuthDigitalTwinFile = (token: string, digitalTwinType: string) => {
+const progressFun = (
+    progressEvent: AxiosProgressEvent, 
+    totalFileSize: number, 
+    setGltfFileDownloadProgress: (progress: number) => void
+) => {
+    const current = progressEvent.loaded as number;
+    let percentCompleted = Math.floor(current / totalFileSize * 100);
+    setGltfFileDownloadProgress(percentCompleted);
+  }
+
+export const axiosAuthDigitalTwinFile = (
+    token: string, 
+    digitalTwinType: string, 
+    gltfFileSize: number,
+    setGltfFileDownloadProgress: (progress: number) => void
+) => {
     let config = {};
 
     if (digitalTwinType === "Gltf 3D model") {
@@ -88,6 +104,11 @@ export const axiosAuthDigitalTwinFile = (token: string, digitalTwinType: string)
                 "Content-Type": "application/json"
             },
             responseType: "json" as ResponseType,
+            onDownloadProgress: (progressEvent: AxiosProgressEvent) => progressFun(
+                progressEvent, 
+                gltfFileSize, 
+                setGltfFileDownloadProgress
+            )
         };
     } else if (digitalTwinType === "Glb 3D model") {
         config = {
@@ -96,6 +117,11 @@ export const axiosAuthDigitalTwinFile = (token: string, digitalTwinType: string)
                 "Content-Type": "model/gltf-binary"
             },
             responseType: "blob" as ResponseType,
+            onDownloadProgress: (progressEvent: AxiosProgressEvent) => progressFun(
+                progressEvent, 
+                gltfFileSize, 
+                setGltfFileDownloadProgress
+            )
         };
     }
     return config;
@@ -488,7 +514,7 @@ export const giveMaxNumWebWorkers = () => {
 }
 
 export const giveBrowserType = () => {
-    let browserType = "chrome";
+    let browserType = "Chrome";
     if ((navigator.userAgent.indexOf("Opera") || navigator.userAgent.indexOf('OPR')) !== -1) {
         browserType ='Opera';
       } else if (navigator.userAgent.indexOf("Edg") !== -1) {

@@ -22,6 +22,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -161,12 +162,12 @@ const CreateOrgUser: FC<CreateOrgUserProps> = ({ refreshOrgUsers, backToTable, o
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 backToTable();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

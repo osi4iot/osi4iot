@@ -20,6 +20,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 export interface IBuilding {
@@ -79,7 +80,7 @@ const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingI
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsBuildingDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
@@ -88,7 +89,7 @@ const DeleteBuildingModal: FC<DeleteBuildingModalProps> = ({ rowIndex, buildingI
                 setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

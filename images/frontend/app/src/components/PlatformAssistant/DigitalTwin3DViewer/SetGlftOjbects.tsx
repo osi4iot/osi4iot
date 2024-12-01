@@ -19,6 +19,7 @@ import {
     FemSimObjectVisibilityState,
 } from './ViewerUtils';
 
+
 interface SetGltfObjectsProps {
     digitalTwinGltfData: IDigitalTwinGltfData;
     setSensorObjects: (sensorObjects: ISensorObject[]) => void;
@@ -59,15 +60,12 @@ const SetGltfObjects: FC<SetGltfObjectsProps> = ({
     setInitialFemSimObjectsVisibilityState,
     setInitialDigitalTwinSimulatorState
 }) => {
-    const { nodes, materials, animations } = useGLTF(digitalTwinGltfData.digitalTwinGltfUrl as string) as any;
+    //const { nodes, materials, animations } = useGLTF(digitalTwinGltfData.digitalTwinGltfUrl as string) as any;
 
     useEffect(() => {
-        // const loader = new GLTFLoader();
-        // loader.parse(gltfFileContent, "", (gltf) => {
-        //     console.log("gltf", gltf);
-        // }, (error) => {
-        //     toast.error("Error cargando el archivo gltf");
-        // });
+        const nodes =digitalTwinGltfData.gltfFile.nodes;
+        const materials = digitalTwinGltfData.gltfFile.materials;
+        const animations = digitalTwinGltfData.gltfFile.animations;
         if (nodes && materials) {
             const {
                 sensorObjects,

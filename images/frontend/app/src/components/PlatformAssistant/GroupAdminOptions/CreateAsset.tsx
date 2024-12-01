@@ -25,6 +25,7 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import SvgComponent from '../../Tools/SvgComponent';
 import { setReloadAssetTopicsTable, setReloadDashboardsTable, setReloadSensorsTable, setReloadTopicsTable, usePlatformAssitantDispatch } from '../../../contexts/platformAssistantContext';
+import { AxiosError, AxiosResponse } from 'axios';
 
 export const FormContainer = styled.div`
 	font-size: 12px;
@@ -377,14 +378,14 @@ const CreateAsset: FC<CreateAssetProps> = ({
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, assetData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const assetsOptionToShow = { assetsOptionToShow: ASSETS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setAssetsOptionToShow(assetsDispatch, assetsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

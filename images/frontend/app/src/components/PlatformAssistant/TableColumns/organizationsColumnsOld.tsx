@@ -24,6 +24,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 export interface IOrganization {
@@ -103,7 +104,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsOrgDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
@@ -111,7 +112,7 @@ const DeleteOrgModal: FC<DeleteOrgModalProps> = ({ rowIndex, orgId, refreshOrgs 
                 
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

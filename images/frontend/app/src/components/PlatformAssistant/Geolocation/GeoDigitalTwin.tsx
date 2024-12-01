@@ -8,7 +8,7 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { findOuDigitalTwinStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import { IDigitalTwinState } from "./GeolocationContainer";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
-import { axiosAuth, axiosAuthDigitalTwinFile, getDomainName, getProtocol, giveBrowserType } from "../../../tools/tools";
+import { axiosAuth, axiosAuthDigitalTwinFile, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
 import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
 import { toast } from "react-toastify";
@@ -20,6 +20,7 @@ import { existGltfDataLocallyStored, read3DModelFile } from "../../../tools/file
 import { setReloadDigitalTwinsTable, usePlatformAssitantDispatch } from "../../../contexts/platformAssistantContext";
 import load3DModelData from "../../../tools/load3DModelData";
 import formatDateString from "../../../tools/formatDate";
+import { AxiosError, AxiosResponse } from "axios";
 
 const SELECTED = "#3274d9";
 const NON_SELECTED = "#9c9a9a";
@@ -124,9 +125,9 @@ interface GeoDigitalTwinProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     selectSensor: (sensorSelected: ISensor | null) => void;
     digitalTwinState: IDigitalTwinState | null;
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
-    fetchGltfFileWorker: Worker;
+    setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
 }
 
 
@@ -149,7 +150,7 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
     digitalTwinState,
     openDigitalTwin3DViewer,
     setGlftDataLoading,
-    fetchGltfFileWorker
+    setGltfFileDownloadProgress,
 }) => {
     const { accessToken, refreshToken } = useAuthState();
     const authDispatch = useAuthDispatch();
@@ -188,15 +189,11 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
         selectDigitalTwin(digitalTwinData);
         selectSensor(null);
         const digitalTwinDataType = digitalTwinData.type;
-        const browserType = giveBrowserType();
-        if (browserType === "Firefox" && digitalTwinDataType === "Gltf 3D model") {
-            toast.warning("Gltf files are not supported in Firefox browser, try with glb file type");
-            return;
-        }
+
         if (digitalTwinDataType === "Gltf 3D model" || digitalTwinDataType === "Glb 3D model") {
             setGlftDataLoading(true);
+            setGltfFileDownloadProgress(0);
             const config = axiosAuth(accessToken);
-            const config3DModelFile = axiosAuthDigitalTwinFile(accessToken, digitalTwinDataType);
             const groupId = digitalTwinData.groupId;
             let urlDigitalTwin3DModelData = `${protocol}://${domainName}/admin_api/digital_twin_data`;
             urlDigitalTwin3DModelData = `${urlDigitalTwin3DModelData}/${groupId}/${digitalTwinData.id}`;
@@ -217,6 +214,13 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                     const digitalTwinUid = digitalTwinData.digitalTwinUid;
                     const gltfFileName = digitalTwin3DModelData.gltfFileName.split("/")[4];
                     const gltfFileDate = formatDateString(digitalTwin3DModelData.gltfFileDate);
+                    const gltfFileSize = digitalTwin3DModelData.gltfFileSize;
+                    const config3DModelFile = axiosAuthDigitalTwinFile(
+                        accessToken, 
+                        digitalTwinDataType, 
+                        gltfFileSize,
+                        setGltfFileDownloadProgress
+                    );
 
                     const istGltfDataLocallyStored = await existGltfDataLocallyStored(
                         digitalTwinUid,
@@ -225,7 +229,11 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                     );
 
                     if (istGltfDataLocallyStored) {
-                        const digitalTwin3DModelFile = await read3DModelFile(digitalTwinUid, gltfFileName);
+                        setGltfFileDownloadProgress(100);
+                        const digitalTwin3DModelFile = await read3DModelFile(
+                            digitalTwinUid, 
+                            gltfFileName, 
+                        );
                         load3DModelData(
                             null,
                             digitalTwinDataType,
@@ -238,80 +246,51 @@ const GeoDigitalTwin: FC<GeoDigitalTwinProps> = ({
                             gltfFileDate
                         );
                     } else {
-                        if (window.Worker) {
-                            const message = {
-                                digitalTwinDataType,
-                                urlDigitalTwinGltfFile,
-                                urlDigitalTwinGlbFile,
-                                accessToken
-                            };
-                            fetchGltfFileWorker.postMessage(message);
-                            fetchGltfFileWorker.onmessage = (e: MessageEvent<string>) => {
-                                const digital3DModelFile = (e.data as any);
-                                load3DModelData(
-                                    digitalTwinUid,
-                                    digitalTwinDataType,
-                                    digitalTwin3DModelData,
-                                    digital3DModelFile,
-                                    setGlftDataLoading,
-                                    openDigitalTwin3DViewer,
-                                    assetData,
-                                    gltfFileName,
-                                    gltfFileDate
-                                );
-                                const reloadDigitalTwinsTable = true;
-                                setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
-                            };
-                            fetchGltfFileWorker.onerror = (event: ErrorEvent) => {
-                                const errorMessage = "Gltf file can not be downloaded";
-                                toast.warning(errorMessage);
-                            }
-                        } else {
-                            if (digitalTwinDataType === "Gltf 3D model") {
-                                getAxiosInstance(refreshToken, authDispatch)
-                                    .get(urlDigitalTwinGltfFile, config3DModelFile as any)
-                                    .then((response) => {
-                                        const digitalTwin3DModelFile = response.data;
-                                        load3DModelData(
-                                            digitalTwinUid,
-                                            digitalTwinDataType,
-                                            digitalTwin3DModelData,
-                                            digitalTwin3DModelFile,
-                                            setGlftDataLoading,
-                                            openDigitalTwin3DViewer,
-                                            assetData,
-                                            gltfFileName,
-                                            gltfFileDate
-                                        );
-                                        const reloadDigitalTwinsTable = true;
-                                        setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
-                                    })
-                                    .catch((error) => {
-                                        axiosErrorHandler(error, authDispatch);
-                                    });
-                            } else if (digitalTwinDataType === "Glb 3D model") {
-                                getAxiosInstance(refreshToken, authDispatch)
-                                    .get(urlDigitalTwinGlbFile, config3DModelFile as any)
-                                    .then((response) => {
-                                        const digitalTwin3DModelFile = response.data;
-                                        load3DModelData(
-                                            digitalTwinUid,
-                                            digitalTwinDataType,
-                                            digitalTwin3DModelData,
-                                            digitalTwin3DModelFile,
-                                            setGlftDataLoading,
-                                            openDigitalTwin3DViewer,
-                                            assetData,
-                                            gltfFileName,
-                                            gltfFileDate
-                                        );
-                                        const reloadDigitalTwinsTable = true;
-                                        setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
-                                    })
-                                    .catch((error) => {
-                                        axiosErrorHandler(error, authDispatch);
-                                    });
-                            }
+                        if (digitalTwinDataType === "Gltf 3D model") {
+                            setGltfFileDownloadProgress(0);
+                            getAxiosInstance(refreshToken, authDispatch)
+                                .get(urlDigitalTwinGltfFile, config3DModelFile as any)
+                                .then((response: AxiosResponse<any, any>) => {
+                                    const digitalTwin3DModelFile = response.data;
+                                    load3DModelData(
+                                        digitalTwinUid,
+                                        digitalTwinDataType,
+                                        digitalTwin3DModelData,
+                                        digitalTwin3DModelFile,
+                                        setGlftDataLoading,
+                                        openDigitalTwin3DViewer,
+                                        assetData,
+                                        gltfFileName,
+                                        gltfFileDate
+                                    );
+                                    const reloadDigitalTwinsTable = true;
+                                    setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
+                                })
+                                .catch((error: AxiosError) => {
+                                    axiosErrorHandler(error, authDispatch);
+                                });
+                        } else if (digitalTwinDataType === "Glb 3D model") {
+                            getAxiosInstance(refreshToken, authDispatch)
+                                .get(urlDigitalTwinGlbFile, config3DModelFile as any)
+                                .then((response: AxiosResponse<any, any>) => {
+                                    const digitalTwin3DModelFile = response.data;
+                                    load3DModelData(
+                                        digitalTwinUid,
+                                        digitalTwinDataType,
+                                        digitalTwin3DModelData,
+                                        digitalTwin3DModelFile,
+                                        setGlftDataLoading,
+                                        openDigitalTwin3DViewer,
+                                        assetData,
+                                        gltfFileName,
+                                        gltfFileDate
+                                    );
+                                    const reloadDigitalTwinsTable = true;
+                                    setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable })
+                                })
+                                .catch((error: AxiosError) => {
+                                    axiosErrorHandler(error, authDispatch);
+                                });
                         }
                     }
 
