@@ -3,7 +3,7 @@ import TableWithPagination from '../Utils/TableWithPagination';
 import { ORGS_MANAGED_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { CREATE_ORGS_MANAGED_COLUMNS } from '../TableColumns/organizationsManagedColumns';
-import CreateOrgUser from '../OrganizationAdminOptions/CreateOrgUser';
+import CreateOrgUser from './CreateOrgUser';
 import {
     useOrgsManagedDispatch,
     useOrgsManagedOptionToShow,

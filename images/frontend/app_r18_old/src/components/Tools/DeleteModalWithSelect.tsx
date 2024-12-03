@@ -2,7 +2,7 @@ import { useState } from 'react';
 import ReactModal from "react-modal";
 import { useModal } from "react-modal-hook";
 import styled from "styled-components";
-import MiniLoader from '../Tools/MiniLoader';
+import MiniLoader from './MiniLoader';
 import Select from "react-select";
 
 const SelectContainer = styled.div`

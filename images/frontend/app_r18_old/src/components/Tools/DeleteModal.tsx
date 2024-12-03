@@ -1,7 +1,7 @@
 import ReactModal from "react-modal";
 import { useModal } from "react-modal-hook";
 import styled from "styled-components";
-import MiniLoader from '../Tools/MiniLoader';
+import MiniLoader from './MiniLoader';
 
 const TitleContainer = styled.div`
 	display: flex;
@@ -71,7 +71,7 @@ const CancelButton = styled.button`
     }
 `;
 
-const ChangeButton = styled.button`
+const DeleteButton = styled.button`
     font-size: 14px;
     background-color: #e02f44;
     padding: 10px 20px;
@@ -95,7 +95,7 @@ const ChangeButton = styled.button`
     }
 `;
 
-const ChangeModal =
+const DeleteModal =
     (
         title: string,
         question: string,
@@ -135,12 +135,12 @@ const ChangeModal =
                 </ConsequencesContainer>
                 <ButtonContainer>
                     <CancelButton onClick={hideModal}>CANCEL</CancelButton>
-                    <ChangeButton onClick={changeHandler}>CHANGE</ChangeButton>
+                    <DeleteButton onClick={deleteHandler}>DELETE</DeleteButton>
                 </ButtonContainer>
             </ReactModal>
         ), [isSubmitting]);
 
-        const changeHandler = () => {
+        const deleteHandler = () => {
             if (showLoader) showLoader();
             action(hideModal);
         }
@@ -148,4 +148,4 @@ const ChangeModal =
         return [showModal, hideModal];
     }
 
-export default ChangeModal;
+export default DeleteModal;

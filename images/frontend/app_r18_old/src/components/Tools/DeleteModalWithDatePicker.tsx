@@ -1,7 +1,7 @@
 import ReactModal from "react-modal";
 import { useModal } from "react-modal-hook";
 import styled from "styled-components";
-import MiniLoader from '../Tools/MiniLoader';
+import MiniLoader from './MiniLoader';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 
