@@ -39,7 +39,6 @@ images/frontend/app_r18/.env
 images/frontend/app_r18/node_modules
 images/frontend/app_r18/build
 images/frontend/app_r18/public/env-config.js
-!images/frontend/app_r18/.env
 images/frontend/app_r18_old/.env
 images/frontend/app_r18_old/node_modules
 images/frontend/app_r18_old/build
