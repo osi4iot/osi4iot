@@ -1,4 +1,5 @@
 import { IDigitalTwin } from "../components/PlatformAssistant/TableColumns/digitalTwinsColumns";
+import { giveBrowserType } from "./tools";
 
 const existFolderOrFile = async (interator: any, folderOrFileName: string) => {
     let exists = false;
@@ -9,26 +10,45 @@ const existFolderOrFile = async (interator: any, folderOrFileName: string) => {
         }
     }
     return exists;
-}
+};
+
+export const checkOpfsSupport = async () => {
+    let isSupported = false;
+    const browserType = giveBrowserType();
+    if (browserType === "Safari") return false;
+
+    if (navigator.storage) {
+        try {
+            await (navigator.storage as any).getDirectory();
+            isSupported = true;
+        } catch (error) {
+            isSupported = false;
+        }
+    }
+    return isSupported;
+};
 
 export const fileSystemRoot = async () => {
     const opfsRoot = await (navigator.storage as any).getDirectory();
     return opfsRoot;
-}
+};
 
 export const getDtRootFolder = async () => {
     const opfsRoot = await fileSystemRoot();
-    const dtRootFolder = await opfsRoot
-        .getDirectoryHandle('digital_twin', { create: true });
+    const dtRootFolder = await opfsRoot.getDirectoryHandle("digital_twin", {
+        create: true,
+    });
     return dtRootFolder;
-}
+};
 
 export const getDTFolder = async (digitalTwinUid: string) => {
     const dtRootFolder = await getDtRootFolder();
     const dtFolderName = `dt_${digitalTwinUid}`;
-    const dtFolder = await dtRootFolder.getDirectoryHandle(dtFolderName, { create: true });
+    const dtFolder = await dtRootFolder.getDirectoryHandle(dtFolderName, {
+        create: true,
+    });
     return dtFolder;
-}
+};
 
 export const write3DModelFile = async (
     digitalTwinUid: string,
@@ -36,16 +56,26 @@ export const write3DModelFile = async (
     gltfFileName: string,
     gltfFileDate: string
 ) => {
+    const isOpfsSuppported = await checkOpfsSupport();
+    if (!isOpfsSuppported) return;
     const dtFolder = await getDTFolder(digitalTwinUid);
-    const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
-    const glftFileHandler = await gltfFolderHandler
-        .getFileHandle(gltfFileName, { create: true });
+    const gltfFolderHandler = await dtFolder.getDirectoryHandle("gltfFile", {
+        create: true,
+    });
+    const glftFileHandler = await gltfFolderHandler.getFileHandle(
+        gltfFileName,
+        {
+            create: true,
+        }
+    );
 
-    const gltfMetadataHandler = await gltfFolderHandler
-        .getFileHandle('metadata.txt', { create: true });
+    const gltfMetadataHandler = await gltfFolderHandler.getFileHandle(
+        "metadata.txt",
+        { create: true }
+    );
     const gltfMetadata = {
         fileName: gltfFileName,
-        fileDate: gltfFileDate
+        fileDate: gltfFileDate,
     };
     const writableMetadata = await gltfMetadataHandler.createWritable();
     await writableMetadata.write(JSON.stringify(gltfMetadata));
@@ -54,18 +84,20 @@ export const write3DModelFile = async (
     const writable = await glftFileHandler.createWritable();
     await writable.write(gltfFile);
     await writable.close();
-}
+};
 
 export const existsDTRootFolderFun = async () => {
+    const isOpfsSuppported = await checkOpfsSupport();
+    if (!isOpfsSuppported) return false;
     const opfsRoot = await (navigator.storage as any).getDirectory();
     const existDTRootFolder = await existFolderOrFile(opfsRoot.keys(), 'digital_twin');
     if (!existDTRootFolder) return false;
     return true;
-}
+};
 
-export const existsDTFolderFun = async (
-    digitalTwinUid: string,
-) => {
+export const existsDTFolderFun = async (digitalTwinUid: string) => {
+    const isOpfsSuppported = await checkOpfsSupport();
+    if (!isOpfsSuppported) return false;
     const opfsRoot = await (navigator.storage as any).getDirectory();
     const existDTRootFolder = await existFolderOrFile(opfsRoot.keys(), 'digital_twin');
     if (!existDTRootFolder) return false;
@@ -74,7 +106,7 @@ export const existsDTFolderFun = async (
     const existDTFolder = await existFolderOrFile(dtRootFolder.keys(), dtFolderName);
     if (!existDTFolder) return false;
     return true;
-}
+};
 
 export const existGltfDataLocallyStored = async (
     digitalTwinUid: string,
@@ -84,71 +116,102 @@ export const existGltfDataLocallyStored = async (
     const existDTFolder = await existsDTFolderFun(digitalTwinUid);
     if (!existDTFolder) return false;
     const dtFolder = await getDTFolder(digitalTwinUid);
-    const existGltfFolder = await existFolderOrFile(dtFolder.keys(), 'gltfFile');
+    const existGltfFolder = await existFolderOrFile(
+        dtFolder.keys(),
+        "gltfFile"
+    );
     if (!existGltfFolder) return false;
-    const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile');
-    const existDTFile = await existFolderOrFile(gltfFolderHandler.keys(), gltfFileName);
+    const gltfFolderHandler = await dtFolder.getDirectoryHandle("gltfFile");
+    const existDTFile = await existFolderOrFile(
+        gltfFolderHandler.keys(),
+        gltfFileName
+    );
     if (!existDTFile) {
         //Remove another gltf or glb file in the folder
         for await (let fileName of gltfFolderHandler.keys()) {
-            if(fileName.slice(-4) === "gltf" || fileName.slice(-3) === "glb") {
+            if (fileName.slice(-4) === "gltf" || fileName.slice(-3) === "glb") {
                 await gltfFolderHandler.removeEntry(fileName);
             }
         }
         return false;
     }
-    
-    const existMetadataFile = await existFolderOrFile(gltfFolderHandler.keys(), 'metadata.txt');
+
+    const existMetadataFile = await existFolderOrFile(
+        gltfFolderHandler.keys(),
+        "metadata.txt"
+    );
     if (existMetadataFile) {
-        const gltfMetadataHandler = await gltfFolderHandler.getFileHandle('metadata.txt', { create: true });
+        const gltfMetadataHandler = await gltfFolderHandler.getFileHandle(
+            "metadata.txt",
+            { create: true }
+        );
         const metadataFile = await gltfMetadataHandler.getFile();
         const metadataText = await metadataFile.text();
         if (metadataText !== "") {
             const metadata = JSON.parse(metadataText) as IResFileMetadata;
-            if (metadata.fileName !== gltfFileName || metadata.fileDate !== gltfFileDate) {
+            if (
+                metadata.fileName !== gltfFileName ||
+                metadata.fileDate !== gltfFileDate
+            ) {
                 await gltfFolderHandler.removeEntry(metadata.fileName);
-                await gltfFolderHandler.removeEntry('metadata.txt');
+                await gltfFolderHandler.removeEntry("metadata.txt");
                 return false;
             }
         }
     }
 
     return true;
-}
+};
 
 export const read3DModelFile = async (
-    digitalTwinUid: string, 
+    digitalTwinUid: string,
     gltfFileName: string
 ) => {
     const dtFolder = await getDTFolder(digitalTwinUid);
-    const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile', { create: true });
+    const gltfFolderHandler = await dtFolder.getDirectoryHandle("gltfFile", {
+        create: true,
+    });
     const glftFileHandler = await gltfFolderHandler.getFileHandle(gltfFileName);
     const file = await glftFileHandler.getFile();
-    if(gltfFileName.slice(-3) === "glb") {
+    if (gltfFileName.slice(-3) === "glb") {
         return file;
     }
     const text = await file.text();
     return JSON.parse(text);
-}
+};
 
 export const existFemResFileLocallyStored = async (
     digitalTwinUid: string,
     fileName: string,
     femResultDates: string[],
-    femResultFileNames: string[],
+    femResultFileNames: string[]
 ) => {
+    const isOpfsSuppported = await checkOpfsSupport();
+    if (!isOpfsSuppported) return false;
     const existDTFolder = await existsDTFolderFun(digitalTwinUid);
     if (!existDTFolder) return false;
     const dtFolder = await getDTFolder(digitalTwinUid);
-    const existFemResFilesFolder = await existFolderOrFile(dtFolder.keys(), 'femResFiles');
+    const existFemResFilesFolder = await existFolderOrFile(
+        dtFolder.keys(),
+        "femResFiles"
+    );
     if (!existFemResFilesFolder) return false;
-    const femResFilesFolderHandler = await dtFolder.getDirectoryHandle('femResFiles');
-    const existFemResFile = await existFolderOrFile(femResFilesFolderHandler.keys(), fileName);
+    const femResFilesFolderHandler = await dtFolder.getDirectoryHandle(
+        "femResFiles"
+    );
+    const existFemResFile = await existFolderOrFile(
+        femResFilesFolderHandler.keys(),
+        fileName
+    );
     if (!existFemResFile) return false;
 
-    const existMetadataFile = await existFolderOrFile(femResFilesFolderHandler.keys(), 'metadata.txt');
+    const existMetadataFile = await existFolderOrFile(
+        femResFilesFolderHandler.keys(),
+        "metadata.txt"
+    );
     if (existMetadataFile) {
-        const femResMetadataHandler = await femResFilesFolderHandler.getFileHandle('metadata.txt');
+        const femResMetadataHandler =
+            await femResFilesFolderHandler.getFileHandle("metadata.txt");
         const metadataFile = await femResMetadataHandler.getFile();
         const metadataText = await metadataFile.text();
         let metadata: IResFileMetadata[] = [];
@@ -165,34 +228,39 @@ export const existFemResFileLocallyStored = async (
 
         if (metadataToRemove.length !== 0) {
             const removeQueries = [];
-            const fileNamesToRemove: string[] = []
+            const fileNamesToRemove: string[] = [];
             for (const metadataItem of metadataToRemove) {
-                const query = femResFilesFolderHandler.removeEntry(metadataItem.fileName);
+                const query = femResFilesFolderHandler.removeEntry(
+                    metadataItem.fileName
+                );
                 removeQueries.push(query);
                 fileNamesToRemove.push(metadataItem.fileName);
             }
             await Promise.all(removeQueries);
 
-            const filteredMetadata = metadata.filter((item: IResFileMetadata) =>
-                !fileNamesToRemove.includes(item.fileName)
+            const filteredMetadata = metadata.filter(
+                (item: IResFileMetadata) =>
+                    !fileNamesToRemove.includes(item.fileName)
             );
-            const writableMetadata = await femResMetadataHandler.createWritable();
+            const writableMetadata =
+                await femResMetadataHandler.createWritable();
             await writableMetadata.write(JSON.stringify(filteredMetadata));
             await writableMetadata.close();
 
-            const removeCurrentResFile = metadataToRemove.filter((item: IResFileMetadata) =>
-                item.fileName === fileName
-            ).length !== 0;
+            const removeCurrentResFile =
+                metadataToRemove.filter(
+                    (item: IResFileMetadata) => item.fileName === fileName
+                ).length !== 0;
             if (removeCurrentResFile) return false;
         }
     }
 
     return true;
-}
+};
 
 interface IResFileMetadata {
-    fileName: string,
-    fileDate: string
+    fileName: string;
+    fileDate: string;
 }
 
 export const writeFemResFile = async (
@@ -201,26 +269,36 @@ export const writeFemResFile = async (
     femResData: any,
     femResultDate: string
 ) => {
+    const isOpfsSuppported = await checkOpfsSupport();
+    if (!isOpfsSuppported) return;
     const dtFolder = await getDTFolder(digitalTwinUid);
-    const femResFilesFolderHandler = await dtFolder.getDirectoryHandle('femResFiles', { create: true });
-    const femResFileHandler = await femResFilesFolderHandler
-        .getFileHandle(femResFileName, { create: true });
+    const femResFilesFolderHandler = await dtFolder.getDirectoryHandle(
+        "femResFiles",
+        { create: true }
+    );
+    const femResFileHandler = await femResFilesFolderHandler.getFileHandle(
+        femResFileName,
+        { create: true }
+    );
 
-    const femResMetadataHandler = await femResFilesFolderHandler
-        .getFileHandle('metadata.txt', { create: true });
+    const femResMetadataHandler = await femResFilesFolderHandler.getFileHandle(
+        "metadata.txt",
+        { create: true }
+    );
     const metadataFile = await femResMetadataHandler.getFile();
     const metadataText = await metadataFile.text();
     let metadata: IResFileMetadata[] = [];
     if (metadataText !== "") {
         metadata = JSON.parse(metadataText) as IResFileMetadata[];
     }
-    const filteredMetadata = metadata.filter((item: { fileName: string, fileDate: string }) =>
-        item.fileName === femResFileName && item.fileDate === femResultDate
+    const filteredMetadata = metadata.filter(
+        (item: { fileName: string; fileDate: string }) =>
+            item.fileName === femResFileName && item.fileDate === femResultDate
     );
     if (filteredMetadata.length === 0) {
         const newResFileMetadata = {
             fileName: femResFileName,
-            fileDate: femResultDate
+            fileDate: femResultDate,
         };
         metadata.push(newResFileMetadata);
         const writableMetadata = await femResMetadataHandler.createWritable();
@@ -231,61 +309,90 @@ export const writeFemResFile = async (
     const writable = await femResFileHandler.createWritable();
     await writable.write(JSON.stringify(femResData));
     await writable.close();
-}
+};
 
-export const readFemResFile = async (digitalTwinUid: string, femResFileName: String) => {
+export const readFemResFile = async (
+    digitalTwinUid: string,
+    femResFileName: String
+) => {
     const dtFolder = await getDTFolder(digitalTwinUid);
-    const femResFilesFolderHandler = await dtFolder.getDirectoryHandle('femResFiles', { create: true });
-    const femResFileHandler = await femResFilesFolderHandler
-        .getFileHandle(femResFileName, { create: true });
+    const femResFilesFolderHandler = await dtFolder.getDirectoryHandle(
+        "femResFiles",
+        { create: true }
+    );
+    const femResFileHandler = await femResFilesFolderHandler.getFileHandle(
+        femResFileName,
+        { create: true }
+    );
     const file = await femResFileHandler.getFile();
     const text = await file.text();
     return JSON.parse(text);
-}
+};
 
 export const removeDTStoragebyUid = async (digitalTwinUid: string) => {
     const existDTFolder = await existsDTFolderFun(digitalTwinUid);
     const dtRootFolder = await getDtRootFolder();
     if (existDTFolder) {
         const dtFolder = await getDTFolder(digitalTwinUid);
-        const existGltfFolder = await existFolderOrFile(dtFolder.keys(), 'gltfFile');
+        const existGltfFolder = await existFolderOrFile(
+            dtFolder.keys(),
+            "gltfFile"
+        );
         if (existGltfFolder) {
-            const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile');
+            const gltfFolderHandler = await dtFolder.getDirectoryHandle(
+                "gltfFile"
+            );
             for await (let fileName of gltfFolderHandler.keys()) {
-                if(fileName.slice(-4) === "gltf" || fileName.slice(-3) === "glb" || fileName === "metadata.txt") {
+                if (
+                    fileName.slice(-4) === "gltf" ||
+                    fileName.slice(-3) === "glb" ||
+                    fileName === "metadata.txt"
+                ) {
                     await gltfFolderHandler.removeEntry(fileName);
                 }
             }
-            await dtFolder.removeEntry('gltfFile');
+            await dtFolder.removeEntry("gltfFile");
         }
 
-        const existFemResFilesFolder = await existFolderOrFile(dtFolder.keys(), 'femResFiles');
+        const existFemResFilesFolder = await existFolderOrFile(
+            dtFolder.keys(),
+            "femResFiles"
+        );
         if (existFemResFilesFolder) {
-            const femResFilesFolderHandler = await dtFolder.getDirectoryHandle('femResFiles');
+            const femResFilesFolderHandler = await dtFolder.getDirectoryHandle(
+                "femResFiles"
+            );
             for await (let fileName of femResFilesFolderHandler.keys()) {
-                if (fileName === "metadata.txt" || fileName.slice(-4) === "json") {
+                if (
+                    fileName === "metadata.txt" ||
+                    fileName.slice(-4) === "json"
+                ) {
                     await femResFilesFolderHandler.removeEntry(fileName);
                 }
             }
-            await dtFolder.removeEntry('femResFiles');
+            await dtFolder.removeEntry("femResFiles");
         }
         await dtRootFolder.removeEntry(`dt_${digitalTwinUid}`);
-        return "Current DT locally stored data succefully removed"
+        return "Current DT locally stored data succefully removed";
     } else {
-        return "No DT locally stored data to remove"
+        return "No DT locally stored data to remove";
     }
-}
+};
 
 // Not supported in Safari
 export const removeAllDTStorage = async () => {
     const dtRootFolder = await getDtRootFolder();
     await dtRootFolder.remove({ recursive: true });
-    return "All DT locally stored data succefully removed"
-}
+    return "All DT locally stored data succefully removed";
+};
 
-export const syncDigitalTwinsLocalStorage = async (digitalTwins: IDigitalTwin[]) => {
+export const syncDigitalTwinsLocalStorage = async (
+    digitalTwins: IDigitalTwin[]
+) => {
+    const isOpfsSuppported = await checkOpfsSupport();
+    if (!isOpfsSuppported) return;
     if (digitalTwins.length === 0) return;
-    const digitalTwinUidArray = digitalTwins.map(dt => dt.digitalTwinUid);
+    const digitalTwinUidArray = digitalTwins.map((dt) => dt.digitalTwinUid);
     const existsDTRootFolder = await existsDTRootFolderFun();
     if (existsDTRootFolder) {
         const dtRootFolder = await getDtRootFolder();
@@ -301,12 +408,12 @@ export const syncDigitalTwinsLocalStorage = async (digitalTwins: IDigitalTwin[])
             await Promise.all(removeFolderQueries);
         }
     }
-}
+};
 
 interface IDTStorageInfo {
     digitalTwinUid: string;
-    numGltfFiles: number,
-    numFemResFiles: number
+    numGltfFiles: number;
+    numFemResFiles: number;
 }
 
 export const getDTStorageInfo = async () => {
@@ -315,27 +422,41 @@ export const getDTStorageInfo = async () => {
     if (existsDTRootFolder) {
         const dtRootFolder = await getDtRootFolder();
         for await (let dtFolderName of dtRootFolder.keys()) {
-            const dtFolder = await dtRootFolder.getDirectoryHandle(dtFolderName);
+            const dtFolder = await dtRootFolder.getDirectoryHandle(
+                dtFolderName
+            );
             const digitalTwinUid = dtFolderName.split("_")[1];
             const item: IDTStorageInfo = {
                 digitalTwinUid,
                 numGltfFiles: 0,
-                numFemResFiles: 0
+                numFemResFiles: 0,
             };
 
-            const existGltfFolder = await existFolderOrFile(dtFolder.keys(), 'gltfFile');
+            const existGltfFolder = await existFolderOrFile(
+                dtFolder.keys(),
+                "gltfFile"
+            );
             if (existGltfFolder) {
-                const gltfFolderHandler = await dtFolder.getDirectoryHandle('gltfFile');
+                const gltfFolderHandler = await dtFolder.getDirectoryHandle(
+                    "gltfFile"
+                );
                 for await (let fileName of gltfFolderHandler.keys()) {
-                    if(fileName.slice(-4) === "gltf" || fileName.slice(-3) === "glb") {
+                    if (
+                        fileName.slice(-4) === "gltf" ||
+                        fileName.slice(-3) === "glb"
+                    ) {
                         item.numGltfFiles += 1;
                     }
                 }
             }
 
-            const existFemResFilesFolder = await existFolderOrFile(dtFolder.keys(), 'femResFiles');
+            const existFemResFilesFolder = await existFolderOrFile(
+                dtFolder.keys(),
+                "femResFiles"
+            );
             if (existFemResFilesFolder) {
-                const femResFilesFolderHandler = await dtFolder.getDirectoryHandle('femResFiles');
+                const femResFilesFolderHandler =
+                    await dtFolder.getDirectoryHandle("femResFiles");
                 for await (let femResFilesName of femResFilesFolderHandler.keys()) {
                     if (femResFilesName !== "metadata.txt") {
                         item.numFemResFiles += 1;
@@ -343,12 +464,7 @@ export const getDTStorageInfo = async () => {
                 }
             }
             dtStorageInfo.push(item);
-
         }
     }
     return dtStorageInfo;
-}
-
-
-
-
+};

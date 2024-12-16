@@ -54,13 +54,13 @@ const load3DModelData = (
         isGroupDTDemo = true;
     }
 
-    loadAndParseGltfFile(digitalTwinGltfData.digitalTwinGltfUrl as string).then((data) => {
+    loadAndParseGltfFile(digitalTwinGltfData.digitalTwinGltfUrl as string).then(async (data) => {
         digitalTwinGltfData.gltfFile = data;
         digitalTwinGltfData.isGroupDTDemo = isGroupDTDemo;
         setGlftDataLoading(false);
         openDigitalTwin3DViewer(digitalTwinGltfData);
         if (digitalTwinUid) {
-            write3DModelFile(digitalTwinUid, gltfFile, gltfFileName, gltfFileDate);
+            await write3DModelFile(digitalTwinUid, gltfFile, gltfFileName, gltfFileDate);
         }
     }).catch((error) => {
         URL.revokeObjectURL(digitalTwinGltfData.digitalTwinGltfUrl as string);
