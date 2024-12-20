@@ -1,8 +1,10 @@
 package main
 
-import "fmt"
+import (
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/cmd"
+)
 
 
 func main() {
-	fmt.Println("Hello, World!")
+	cmd.Execute()
 }
