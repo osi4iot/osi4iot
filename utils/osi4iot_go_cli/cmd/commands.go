@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/initPlatform"
 	"github.com/spf13/cobra"
 )
 
@@ -22,7 +23,7 @@ var cmdInit = &cobra.Command{
 	Short: "Init a new platform",
 	Long:  "Init a new platform",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Init a new platform")
+		initPlatform.Create()
 	},
 }
 
@@ -128,7 +129,7 @@ var subCmdRemoveCS = &cobra.Command{
 var cmdNodes = &cobra.Command{
 	Use:   "nodes",
 	Short: "Nodes management",
-	Long:  "Nodes management large",
+	Long:  "Add, update, list and remove nodes from the platform",
 	// Run: func(cmd *cobra.Command, args []string) {
 	// 	fmt.Println("Nodes management")
 	// },
