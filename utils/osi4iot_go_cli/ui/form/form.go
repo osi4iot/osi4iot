@@ -5,7 +5,6 @@ import (
 	"math"
 	"runtime"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -17,17 +16,17 @@ import (
 )
 
 type Question struct {
-	Key            string
-	QuestionType   string //generic, list, label,  password, fileSelect
-	Prompt         string
-	Answer         string
-	DefaultAnswer  string
-	Choices        []string
-	ChoiceFocus    int
-	ErrorMessage   string
-	Rules          []string
-	ActionRequired bool
-	Margin         int
+	Key           string
+	QuestionType  string //generic, list, label,  password, fileSelect
+	Prompt        string
+	Answer        string
+	DefaultAnswer string
+	Choices       []string
+	ChoiceFocus   int
+	ErrorMessage  string
+	Rules         []string
+	ActionKey     string
+	Margin        int
 }
 
 type Model struct {
@@ -59,13 +58,17 @@ func (m *Model) validateAnswer(qIdx int) (bool, string) {
 			data["previousValue"] = m.Questions[qIdx-1].Answer
 		}
 
-		if slices.Contains(m.Questions[qIdx].Rules, "s3Bucket") {
-			data["s3Bucket"] = m.Questions[qIdx-1].Answer
-			deployLocationQIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
-			data["deployLocation"] = m.Questions[deployLocationQIdx].Answer
+		if slices.Contains(m.Questions[qIdx].Rules, "s3BucketName") {
+			data["s3BucketName"] = m.Questions[qIdx-1].Answer
+			bucketTypeIdx := m.FindQuestionIdByKey("S3_BUCKET_TYPE")
+			data["s3BucketType"] = m.Questions[bucketTypeIdx].Answer
+		}
+
+		if slices.Contains(m.Questions[qIdx].Rules, "domainCertsType") {
+			deployLocIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
+			data["deploymentLocation"] = m.Questions[deployLocIdx].Answer
 		}
 	}
-
 	return validation.Run(q.Answer, q.Prompt, q.Rules, data)
 }
 
@@ -75,6 +78,13 @@ func (m *Model) addQuestions(idx int, qs ...Question) {
 
 func (m *Model) removeQuestions(initialIndex, finalIndex int) {
 	m.Questions = append(m.Questions[:initialIndex], m.Questions[finalIndex:]...)
+}
+
+func (m *Model) removeQuestionByKey(key string) {
+	idx := m.FindQuestionIdByKey(key)
+	if idx != -1 {
+		m.Questions = append(m.Questions[:idx], m.Questions[idx+1:]...)
+	}
 }
 
 func (m Model) Init() tea.Cmd {
@@ -91,11 +101,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlQ, tea.KeyCtrlD:
 			return m, tea.Quit
-		case tea.KeyCtrlRight:
-			m.PageSize++
+		case tea.KeyCtrlDown:
+			if m.PageSize < len(m.Questions) {
+				m.PageSize++
+			}
 			m.Focus = 0
 			m.Cursor = len(m.Questions[m.Focus].Answer)
-		case tea.KeyCtrlLeft:
+		case tea.KeyCtrlUp:
 			if m.PageSize > 10 {
 				m.PageSize--
 			}
@@ -111,8 +123,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			isValid, errorMessage := m.validateAnswer(m.Focus)
 			if isValid {
-				if m.Questions[m.Focus].ActionRequired {
-					actionKey := m.Questions[m.Focus].Key
+				actionKey := m.Questions[m.Focus].ActionKey
+				if actionKey != "" {
 					m.Loading = true
 					response := runActionMsg(actionKey)
 					return m, sendMessage(response)
@@ -222,11 +234,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case submissionResultMsg:
 		m.Loading = false
 		m.RecievedMsg = string(msg)
-		m.updateFocus("down")
-	case addNodeMsg:
-		m.Loading = false
-		m.RecievedMsg = string(msg)
-		m.updateFocus("down")
+		if m.RecievedMsg[:5] != "Error" {
+			m.updateFocus("down")
+		}
 	}
 
 	return m, nil
@@ -307,7 +317,12 @@ func (m Model) View() string {
 				if m.Questions[i].Margin != 0 {
 					CursorAndMargin = margin + style.Render(Cursor)
 				}
-				output += fmt.Sprintf("%s %s %s\n", CursorAndMargin, questionPrompt, m.Questions[i].Answer)
+				output += fmt.Sprintf("%s %s %s %s\n",
+					CursorAndMargin,
+					questionPrompt,
+					m.Questions[i].Answer,
+					styleErrMsg.Render(m.Questions[i].ErrorMessage),
+				)
 				if m.Focus == i {
 					for j, choice := range m.Questions[i].Choices {
 						CursorChoice := " "
@@ -335,9 +350,13 @@ func (m Model) View() string {
 
 	message := ""
 	if m.Loading {
-		message = m.SubmitMsgMap[m.Questions[m.Focus].Key]
+		message = m.SubmitMsgMap[m.Questions[m.Focus].ActionKey]
 	} else {
-		message = m.RecievedMsg
+		if len(m.RecievedMsg) >= 5 && m.RecievedMsg[:5] == "Error" {
+			message = styleErrMsg.Render(m.RecievedMsg)
+		} else {
+			message = styleOKMsg.Render(m.RecievedMsg)
+		}
 	}
 	output += fmt.Sprintf("\n%s: %s", style.Render("Message"), message)
 
@@ -352,7 +371,7 @@ func (m Model) View() string {
 	)
 	output += styleSend.Render(footer)
 	output += styleSend.Render("\nPress Enter to submit and Ctrl+D or Ctrl+Q to exit.")
-	output += styleSend.Render("\nScroll with ↑ ↓ PgUp PgDn. Scale page with Ctrl+← Ctrl+→\n")
+	output += styleSend.Render("\nScroll with ↑ ↓ PgUp PgDn. Scale page with Ctrl+↑ Ctrl+↓\n")
 	return output
 }
 
@@ -408,7 +427,6 @@ func (m *Model) updateChoiceFocus(dir string) {
 }
 
 type runActionMsg string
-type addNodeMsg string
 type submissionResultMsg string
 type tickMsg time.Time
 
@@ -431,8 +449,23 @@ func runAction(actionKey string, m *Model) tea.Msg {
 	case "telephone":
 		response, _ := sendRequest(actionKey, m)
 		return response
-	case "NUMBER_OF_SWARM_NODES":
-		response, _ := manageSwarmNodes(actionKey, m)
+	case "deploymentLocation":
+		response, _ := deployLocationQuestions(m)
+		return response
+	case "creatingNodeQuestions":
+		response, _ := creatingNodeQuestions(m)
+		return response
+	case "awsKeyQuestions":
+		response, _ := awsKeyQuestions(m)
+		return response
+	case "domainCertsQuestions":
+		response, _ := domainCertsQuestions(m)
+		return response
+	case "copyKeyInNode":
+		response, err := copyKeyInNode(m)
+		if err != nil {
+			return submissionResultMsg("Error copying key to node: " + err.Error())
+		}
 		return response
 	}
 	return nil
@@ -455,6 +488,10 @@ var styleErrMsg = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.Color("9"))
 
+var styleOKMsg = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("#00FF00"))
+
 var styleSend = lipgloss.NewStyle().
 	Foreground(lipgloss.Color("#595757"))
 
@@ -466,100 +503,3 @@ var styleCaret = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.NoColor{}).
 	Background(lipgloss.Color("#ffffff"))
-
-func sendRequest(_ string, _ *Model) (submissionResultMsg, error) {
-	time.Sleep(2 * time.Second) // Simula retraso
-	return submissionResultMsg("Datos enviados a la API"), nil
-}
-
-func manageSwarmNodes(actionKey string, m *Model) (addNodeMsg, error) {
-	questionIdx := m.FindQuestionIdByKey(actionKey)
-	numNodes, _ := strconv.Atoi(m.Questions[questionIdx].Answer)
-	newQuestions := []Question{}
-	iniNode := 1
-	currentNumNodes := m.Data["numNodes"].(int)
-	if currentNumNodes < numNodes {
-		if currentNumNodes != 0 {
-			iniNode = currentNumNodes + 1
-		}
-		for inode := iniNode; inode <= numNodes; inode++ {
-			nodeQuestions := []Question{
-				{
-					Key:            "Node_" + strconv.Itoa(inode),
-					QuestionType:   "label",
-					Prompt:         "Node " + strconv.Itoa(inode),
-					Answer:         "",
-					Choices:        []string{},
-					ChoiceFocus:    0,
-					ErrorMessage:   "",
-					Rules:          []string{},
-					ActionRequired: false,
-					Margin:         0,
-				},
-				{
-					Key:            "Node_" + strconv.Itoa(inode) + "_HostName",
-					QuestionType:   "generic",
-					Prompt:         "Host name",
-					Answer:         "",
-					Choices:        []string{},
-					ChoiceFocus:    0,
-					ErrorMessage:   "",
-					Rules:          []string{"required", "string", "minlen:3", "maxlen:20"},
-					ActionRequired: false,
-					Margin:         2,
-				},
-				{
-					Key:            "Node_" + strconv.Itoa(inode) + "_IP",
-					QuestionType:   "generic",
-					Prompt:         "IP",
-					Answer:         "",
-					Choices:        []string{},
-					ChoiceFocus:    0,
-					ErrorMessage:   "",
-					Rules:          []string{"required", "string", "ip"},
-					ActionRequired: false,
-					Margin:         2,
-				},
-				{
-					Key:            "Node_" + strconv.Itoa(inode) + "_UserName",
-					QuestionType:   "generic",
-					Prompt:         "User name",
-					Answer:         "",
-					Choices:        []string{},
-					ChoiceFocus:    0,
-					ErrorMessage:   "",
-					Rules:          []string{"required", "string"},
-					ActionRequired: false,
-					Margin:         2,
-				},
-				{
-					Key:            "Node_" + strconv.Itoa(inode) + "_Role",
-					QuestionType:   "list",
-					Prompt:         "Role",
-					Answer:         "",
-					Choices:        []string{"Manager", "Platform worker", "Generic org worker", "Exclusive org worker", "NFS server"},
-					ChoiceFocus:    0,
-					ErrorMessage:   "",
-					Rules:          []string{"required", "string"},
-					ActionRequired: false,
-					Margin:         2,
-				},
-			}
-			newQuestions = append(newQuestions, nodeQuestions...)
-		}
-	}
-	initialIndex := m.Focus + 1
-	if currentNumNodes < numNodes {
-		if currentNumNodes != 0 {
-			initialIndex = initialIndex + 5*currentNumNodes
-		}
-		m.addQuestions(initialIndex, newQuestions...)
-	} else {
-		initialIndex2 := initialIndex + 5*numNodes
-		finalIndex := initialIndex + 5*currentNumNodes
-		m.removeQuestions(initialIndex2, finalIndex)
-	}
-	m.Data["numNodes"] = numNodes
-	time.Sleep(2 * time.Second) // Simula retraso
-	return addNodeMsg("Nodes added succesfully"), nil
-}

@@ -66,4 +66,8 @@ utils/osi4iot_cli/secrets
 utils/osi4iot_cli/.osi4iot_keys
 !utils/osi4iot_cli/dist
 utils/osi4iot_cli/lib
+utils/osi4iot_go_cli/.osi4iot_keys
+utils/osi4iot_go_cli/certs
+utils/osi4iot_go_cli/geojson
+utils/osi4iot_go_cli/osi4iot_state.json
 !README.md

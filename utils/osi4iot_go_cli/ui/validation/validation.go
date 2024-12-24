@@ -205,11 +205,11 @@ func isValidBucketName(s3BucketName string) (bool, string) {
 	}
 }
 
-func checkIfAwsS3BucketNameIsValid(s3BucketName, deploymentLocation string) (bool, string) {
+func checkIfAwsS3BucketNameIsValid(s3BucketName, s3BucketType string) (bool, string) {
 	isValid, errMsg := isValidBucketName(s3BucketName)
 	if isValid {
-		if deploymentLocation == "AWS cluster deployment" || deploymentLocation != "" {
-			urlAwsS3Bucket := fmt.Sprintf("http://%s.s3.amazonaws.com", s3BucketName)
+		if s3BucketType == "Cloud AWS S3" {
+			urlAwsS3Bucket := fmt.Sprintf("https://%s.s3.amazonaws.com", s3BucketName)
 			existBucket, err := existsUrl(urlAwsS3Bucket)
 			if err != nil {
 				return false, fmt.Sprintf("cannot find out if bucket exists: %v", err)
@@ -369,8 +369,8 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 			}
 		}
 
-		if rule == "s3Bucket" {
-			isValid, errMsg = checkIfAwsS3BucketNameIsValid(value, data["deploymentLocation"])
+		if rule == "s3BucketName" {
+			isValid, errMsg = checkIfAwsS3BucketNameIsValid(value, data["s3BucketType"])
 			if !isValid {
 				break
 			}
@@ -379,6 +379,54 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 		if rule == "fileExists" {
 			isValid, errMsg = fileExists(value)
 			if !isValid {
+				break
+			}
+		}
+
+		if rule == "domainCertsType" {
+			isValid = false
+			deploymentLocation := data["deploymentLocation"]
+
+			if value == "No certs" {
+				if deploymentLocation == "Local deployment" {
+					isValid = true
+				} else {
+					errMsg = "No certs case is only allowed for local deployments"
+					break
+				}
+			} else if value == "Let's encrypt certs and AWS Route 53" {
+				if deploymentLocation == "AWS cluster deployment" {
+					isValid = true
+				} else {
+					errMsg = "Let's encrypt certs option is only available for AWS cluster deployment"
+					break
+				}
+			} else if value == "AWS Certificate Manager" {
+				if deploymentLocation == "AWS cluster deployment" {
+					isValid = true
+				} else {
+					errMsg = "AWS Certificate Manager option is only available for AWS cluster deployment"
+					break
+				}
+			} else if value == "Certs provided by an CA" {
+				isValid = true
+			}
+		}
+
+		if rule == "confirmAnswers" {
+			isValid = false
+			if value == "yes" ||
+				value == "no" ||
+				value == "y" ||
+				value == "n" ||
+				value == "YES" ||
+				value == "NO" ||
+				value == "Y" ||
+				value == "N" {
+				isValid = true
+			}
+			if !isValid {
+				errMsg = fmt.Sprintf("Error: '%s' must be 'yes' or 'no'", prompt)
 				break
 			}
 		}

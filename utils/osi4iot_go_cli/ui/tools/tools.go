@@ -1,6 +1,9 @@
 package tools
 
-import "bytes"
+import (
+	"bytes"
+	"os"
+)
 
 func AltCtrlCharWindows(character string) string {
 	byteString := []byte(character)
@@ -24,4 +27,14 @@ func AltCtrlCharWindows(character string) string {
 		character = "}"
 	}
 	return character
+}
+
+func CreateDirectoryIfNotExists(dirPath string) error {
+	if _, err := os.Stat(dirPath); os.IsNotExist(err) {
+		err := os.MkdirAll(dirPath, os.ModePerm)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
