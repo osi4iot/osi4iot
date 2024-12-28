@@ -38,3 +38,4 @@ func CreateDirectoryIfNotExists(dirPath string) error {
 	}
 	return nil
 }
+

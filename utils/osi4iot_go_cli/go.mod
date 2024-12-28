@@ -8,6 +8,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/tiagomelo/go-clipboard v0.1.1
 	golang.org/x/crypto v0.31.0
+	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
 )
 
 require (

@@ -2,17 +2,17 @@ package form
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"os/user"
 	"strconv"
 	"strings"
 	"time"
 
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 )
-
-func sendRequest(_ string, _ *Model) (submissionResultMsg, error) {
-	time.Sleep(2 * time.Second) // Simula retraso
-	return submissionResultMsg("Datos enviados a la API"), nil
-}
 
 func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 	err := tools.CreateKeyPair()
@@ -23,8 +23,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 	newQuestions := []Question{}
 	iniNode := 1
 	currentNumNodes := m.Data["numNodes"].(int)
-	deployLocIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
-	deployLocation := m.Questions[deployLocIdx].Answer
+	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodeQuestions := 5
 	if currentNumNodes < numNodes {
 		if currentNumNodes != 0 {
@@ -129,8 +128,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 
 func removingNodeQuestions(m *Model) {
 	numNodes := m.Data["numNodes"].(int)
-	deployLocIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
-	deployLocation := m.Questions[deployLocIdx].Answer
+	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodeQuestions := 5
 	if deployLocation == "On-premise cluster deployment" {
 		numNodeQuestions = 6
@@ -283,9 +281,37 @@ func addAwsEFSQuestion(index int, m *Model) {
 	}
 }
 
+func GetLocalNodeData() (data.NodeData, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return data.NodeData{}, err
+	}
+
+	usr, err := user.Current()
+	if err != nil {
+		return data.NodeData{}, err
+	}
+
+	cmd := exec.Command("uname", "-m")
+	output, err := cmd.Output()
+	if err != nil {
+		return data.NodeData{}, err
+	}
+	nodeArch := strings.TrimSpace(string(output))
+
+	nodeData := data.NodeData{
+		NodeHostName: hostname,
+		NodeIP:       "localhost",
+		NodeUserName: usr.Username,
+		NodeRole:     "Manager",
+		NodeArch:     nodeArch,
+	}
+	return nodeData, nil
+}
+
+
 func addNetworkInterfaceQuestions(index int, m *Model) {
-	deployLocIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
-	deployLocation := m.Questions[deployLocIdx].Answer
+	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodes := m.Data["numNodes"].(int)
 	if deployLocation == "On-premise cluster deployment" && numNodes > 1 {
 		netInterfQuestions := []Question{
@@ -347,43 +373,43 @@ func deployLocationQuestions(m *Model) (submissionResultMsg, error) {
 func addDomainCertsQuestions(index int, m *Model) {
 	domainCertsQuestions := []Question{
 		{
-			Key:          "DOMAIN_SSL_PRIVATE_KEY_PATH",
-			QuestionType: "generic",
-			Prompt:       "Domain SSL private key path",
+			Key:           "DOMAIN_SSL_PRIVATE_KEY_PATH",
+			QuestionType:  "generic",
+			Prompt:        "Domain SSL private key path",
 			Answer:        "",
 			DefaultAnswer: "./certs/domain_certs/iot_platform.key",
-			Choices:      []string{},
-			ChoiceFocus:  0,
-			ErrorMessage: "",
-			Rules:        []string{"required", "string", "fileExists"},
-			ActionKey:    "",
-			Margin:       0,
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			ErrorMessage:  "",
+			Rules:         []string{"required", "string", "fileExists"},
+			ActionKey:     "",
+			Margin:        0,
 		},
 		{
-			Key:          "DOMAIN_SSL_CA_CERT_PATH",
-			QuestionType: "generic",
-			Prompt:       "Domain SSL CA certificate path",
-			Answer:       "",
+			Key:           "DOMAIN_SSL_CA_CERT_PATH",
+			QuestionType:  "generic",
+			Prompt:        "Domain SSL CA certificate path",
+			Answer:        "",
 			DefaultAnswer: "./certs/domain_certs/iot_platform_ca.pem",
-			Choices:      []string{},
-			ChoiceFocus:  0,
-			ErrorMessage: "",
-			Rules:        []string{"required", "string", "fileExists"},
-			ActionKey:    "",
-			Margin:       0,
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			ErrorMessage:  "",
+			Rules:         []string{"required", "string", "fileExists"},
+			ActionKey:     "",
+			Margin:        0,
 		},
 		{
-			Key:          "DOMAIN_SSL_CERTICATE_PATH",
-			QuestionType: "generic",
-			Prompt:       "Domain SSL certificate path",
-			Answer:       "",
+			Key:           "DOMAIN_SSL_CERTICATE_PATH",
+			QuestionType:  "generic",
+			Prompt:        "Domain SSL certificate path",
+			Answer:        "",
 			DefaultAnswer: "./certs/domain_certs/iot_platform_cert.cer",
-			Choices:      []string{},
-			ChoiceFocus:  0,
-			ErrorMessage: "",
-			Rules:        []string{"required", "string", "fileExists"},
-			ActionKey:    "",
-			Margin:       0,
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			ErrorMessage:  "",
+			Rules:         []string{"required", "string", "fileExists"},
+			ActionKey:     "",
+			Margin:        0,
 		},
 	}
 	m.addQuestions(index, domainCertsQuestions...)
@@ -402,8 +428,7 @@ func domainCertsQuestions(m *Model) (submissionResultMsg, error) {
 }
 
 func copyKeyInNode(m *Model) (submissionResultMsg, error) {
-	deployLocIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
-	deployLocation := m.Questions[deployLocIdx].Answer
+	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	if deployLocation == "On-premise cluster deployment" {
 		passwordKey := m.Questions[m.Focus].Key
 		password := m.Questions[m.Focus].Answer
@@ -412,13 +437,13 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		nodeKey := pkSlice[0] + "_" + pkSlice[1]
 
 		hostNameKey := nodeKey + "_HostName"
-		hostName := m.Questions[m.FindQuestionIdByKey(hostNameKey)].Answer
+		hostName := m.FindAnswerByKey(hostNameKey)
 		ipKey := nodeKey + "_IP"
-		ip := m.Questions[m.FindQuestionIdByKey(ipKey)].Answer
+		ip := m.FindAnswerByKey(ipKey)
 		userNameKey := nodeKey + "_UserName"
-		userName := m.Questions[m.FindQuestionIdByKey(userNameKey)].Answer
+		userName :=  m.FindAnswerByKey(userNameKey)
 		roleKey := nodeKey + "_Role"
-		role := m.Questions[m.FindQuestionIdByKey(roleKey)].Answer
+		role := m.FindAnswerByKey(roleKey)
 
 		nodeData := tools.NodeData{
 			HostName: hostName,
@@ -435,4 +460,95 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		return submissionResultMsg(msg), nil
 	}
 	return submissionResultMsg(""), nil
+}
+
+func initPlatform(m *Model) (submissionResultMsg, error) {
+	areAllQuestionsOK := true
+	for idx := 0; idx < len(m.Questions); idx++ {
+		if m.Questions[idx].Answer == "" {
+			isValid, errorMessage := m.validateAnswer(idx)
+			if !isValid {
+				areAllQuestionsOK = false
+				m.Questions[idx].ErrorMessage = errorMessage
+			}
+		}
+	}
+	if !areAllQuestionsOK {
+		return submissionResultMsg("Error: Some questions are not answered correctly"), nil
+	}
+
+	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+	if deployLocation == "Local deployment" {
+		localNodeData, err := GetLocalNodeData()
+		if err != nil {
+			return submissionResultMsg("Error: getting local node data"), err
+		}
+		nodesData := []data.NodeData{localNodeData}
+		data.SetNodesData(nodesData)
+	}
+
+	notificationsEmailAddress := m.FindAnswerByKey("NOTIFICATIONS_EMAIL_ADDRESS")
+	data.SetData("NOTIFICATIONS_EMAIL_USER", notificationsEmailAddress)
+
+	refreshTokenSecret := utils.GeneratePassword(20)
+	data.SetData("REFRESH_TOKEN_SECRET", refreshTokenSecret)
+
+	accessTokenSecret := utils.GeneratePassword(20)
+	data.SetData("ACCESS_TOKEN_SECRET", accessTokenSecret)
+
+	encryptionSecretKey := utils.GeneratePassword(20)
+	data.SetData("ENCRYPTION_SECRET_KEY", encryptionSecretKey)
+
+	grafanaAdminPassword := utils.GeneratePassword(20)
+	data.SetData("GRAFANA_ADMIN_PASSWORD", grafanaAdminPassword)
+
+	platformAdminUserName := m.FindAnswerByKey("PLATFORM_ADMIN_USER_NAME")
+	data.SetData("POSTGRES_USER", platformAdminUserName)
+
+	platformAdminPassword := m.FindAnswerByKey("PLATFORM_ADMIN_PASSWORD")
+	data.SetData("POSTGRES_PASSWORD", platformAdminPassword)
+
+	postgresDB := "iot_platform_db"
+	data.SetData("POSTGRES_DB", postgresDB)
+
+	data.SetData("TIMESCALE_USER", platformAdminUserName)
+	data.SetData("TIMESCALE_PASSWORD", platformAdminPassword)
+
+	timescaleDB := "iot_data_db"
+	data.SetData("TIMESCALE_DB", timescaleDB)
+
+	grafanaDBPassword := utils.GeneratePassword(20)
+	data.SetData("GRAFANA_DB_PASSWORD", grafanaDBPassword)
+
+	grafanaDatasourcePassword := utils.GeneratePassword(20)
+	data.SetData("GRAFANA_DATASOURCE_PASSWORD", grafanaDatasourcePassword)
+
+	dev2PDBPassword := platformAdminPassword
+	data.SetData("DEV2PDB_PASSWORD", dev2PDBPassword)
+
+	nodeRedAdmin := platformAdminUserName
+	data.SetData("NODE_RED_ADMIN", nodeRedAdmin)
+
+	nodeRedAdminHash, err := utils.HashPassword(platformAdminPassword)
+	if err != nil {
+		return submissionResultMsg("Error: hashing NodeRed admin password"), err
+	}
+	data.SetData("NODE_RED_ADMIN_HASH", nodeRedAdminHash)
+
+	pgAdminDefaultEmail := m.FindAnswerByKey(".PLATFORM_ADMIN_EMAIL")
+	data.SetData("PGADMIN_DEFAULT_EMAIL", pgAdminDefaultEmail)
+
+	pgAdminDefaultPassword := platformAdminPassword
+	data.SetData("PGADMIN_DEFAULT_PASSWORD", pgAdminDefaultPassword)
+
+	data.SetCertsData()
+	data.MqttTLSCredentials()
+
+	err = data.WritePlatformDataToFile()
+	if err != nil {
+		return submissionResultMsg("Error: writing state file"), err
+	}
+
+	time.Sleep(2 * time.Second) // Simula retraso
+	return submissionResultMsg("osi4iot_state.json file create successfully"), nil
 }

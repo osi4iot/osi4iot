@@ -10,6 +10,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/validation"
 	clipboard "github.com/tiagomelo/go-clipboard/clipboard"
@@ -60,13 +61,11 @@ func (m *Model) validateAnswer(qIdx int) (bool, string) {
 
 		if slices.Contains(m.Questions[qIdx].Rules, "s3BucketName") {
 			data["s3BucketName"] = m.Questions[qIdx-1].Answer
-			bucketTypeIdx := m.FindQuestionIdByKey("S3_BUCKET_TYPE")
-			data["s3BucketType"] = m.Questions[bucketTypeIdx].Answer
+			data["s3BucketType"] = m.FindAnswerByKey("S3_BUCKET_TYPE")
 		}
 
 		if slices.Contains(m.Questions[qIdx].Rules, "domainCertsType") {
-			deployLocIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
-			data["deploymentLocation"] = m.Questions[deployLocIdx].Answer
+			data["deploymentLocation"] =m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 		}
 	}
 	return validation.Run(q.Answer, q.Prompt, q.Rules, data)
@@ -123,6 +122,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 			isValid, errorMessage := m.validateAnswer(m.Focus)
 			if isValid {
+				data.SetData(m.Questions[m.Focus].Key, m.Questions[m.Focus].Answer)
 				actionKey := m.Questions[m.Focus].ActionKey
 				if actionKey != "" {
 					m.Loading = true
@@ -446,8 +446,8 @@ func sendMessage[T Message](response T) tea.Cmd {
 
 func runAction(actionKey string, m *Model) tea.Msg {
 	switch actionKey {
-	case "telephone":
-		response, _ := sendRequest(actionKey, m)
+	case "initPlatform":
+		response, _ := initPlatform(m)
 		return response
 	case "deploymentLocation":
 		response, _ := deployLocationQuestions(m)
@@ -478,6 +478,15 @@ func (m Model) FindQuestionIdByKey(key string) int {
 		}
 	}
 	return -1
+}
+
+func (m Model) FindAnswerByKey(key string) string {
+	for i := range m.Questions {
+		if m.Questions[i].Key == key {
+			return m.Questions[i].Answer
+		}
+	}
+	return ""
 }
 
 var style = lipgloss.NewStyle().
