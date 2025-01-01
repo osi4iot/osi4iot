@@ -231,6 +231,15 @@ func addAWSQuestions(m *Model) {
 }
 
 func awsKeyQuestions(m *Model) (submissionResultMsg, error) {
+	plaformName := m.FindAnswerByKey("PLATFORM_NAME")
+	if plaformName != "" {
+		plaformNameLower := strings.ToLower(plaformName)
+		qIdx := m.FindQuestionIdByKey("S3_BUCKET_NAME")
+		if m.Questions[qIdx].Answer == "" {
+			m.Questions[qIdx].DefaultAnswer = plaformNameLower
+		}
+	}
+
 	s3BucketType := m.Questions[m.Focus].Answer
 	if s3BucketType == "Local Minio" {
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID")
@@ -308,7 +317,6 @@ func GetLocalNodeData() (data.NodeData, error) {
 	}
 	return nodeData, nil
 }
-
 
 func addNetworkInterfaceQuestions(index int, m *Model) {
 	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
@@ -441,7 +449,7 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		ipKey := nodeKey + "_IP"
 		ip := m.FindAnswerByKey(ipKey)
 		userNameKey := nodeKey + "_UserName"
-		userName :=  m.FindAnswerByKey(userNameKey)
+		userName := m.FindAnswerByKey(userNameKey)
 		roleKey := nodeKey + "_Role"
 		role := m.FindAnswerByKey(roleKey)
 

@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
@@ -228,15 +229,38 @@ func checkIfAwsS3BucketNameIsValid(s3BucketName, s3BucketType string) (bool, str
 
 func fileExists(filePath string) (bool, string) {
 	_, err := os.Stat(filePath)
-	// Si no hay error, el archivo existe
 	if err == nil {
 		return true, ""
 	}
-	// Si el error es de tipo "archivo no encontrado", el archivo no existe
 	if os.IsNotExist(err) {
 		return false, "File does not exist"
 	}
 	return false, "Error checking if file exists"
+}
+
+func isValidPlatformName(platformName string) (bool, string) {
+	platformName = strings.ToLower(platformName)
+	if len(platformName) < 4 || len(platformName) > 15 {
+		return false, "Platform name must be between 4 and 15 characters long"
+	}
+
+	var re = regexp.MustCompile(`^[a-z0-9.-]+$`)
+	if !re.MatchString(platformName) {
+		return false, "Platform name must consist only of lowercase letters, numbers, and hyphens (-)"
+	}
+
+	if !unicode.IsLetter(rune(platformName[0])) && !unicode.IsNumber(rune(platformName[0])) {
+		return false, "Platform name must start with a letter or number"
+	}
+	if !unicode.IsLetter(rune(platformName[len(platformName)-1])) && !unicode.IsNumber(rune(platformName[len(platformName)-1])) {
+		return false, "Platform name must end with a letter or number"
+	}
+
+	if net.ParseIP(platformName) != nil {
+		return false, "Platform name must not be formatted as an IP address"
+	}
+
+	return true, ""
 }
 
 func Run(value string, prompt string, rules []string, data map[string]string) (bool, string) {
@@ -271,6 +295,13 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 
 		if rule == "bool" {
 			isValid, errMsg = isBool(value, prompt)
+			if !isValid {
+				break
+			}
+		}
+
+		if rule == "platformName" {
+			isValid, errMsg = isValidPlatformName(value)
 			if !isValid {
 				break
 			}

@@ -30,7 +30,7 @@ func initialModel() form.Model {
 				ErrorMessage:  "",
 				Choices:       []string{},
 				ChoiceFocus:   0,
-				Rules:         []string{"required", "isString", "minlen:4", "maxlen:15"},
+				Rules:         []string{"required", "isString", "platformName"},
 				ActionKey:     "",
 				Margin:        0,
 			},

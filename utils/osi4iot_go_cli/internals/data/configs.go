@@ -179,28 +179,5 @@ func GenerateConfigs() map[string]Config {
 		Data: s3StorageConfig,
 	}
 
-	traefikConfig := `
-tls:
-  certificates:
-    - certFile: /run/secrets/iot_platform_cert.cer
-      keyFile: /run/secrets/iot_platform.key
-  options:
-    default:
-      minVersion: VersionTLS12
-      cipherSuites:
-        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
-        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
-        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
-        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
-        - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
-        - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
-`
-	traefikConfigHash := GetMD5Hash(traefikConfig)
-	traefikConfigName := fmt.Sprintf("traefik_config_%s", traefikConfigHash)
-	Configs["traefik_config"] = Config{
-		Name: traefikConfigName,
-		Data: traefikConfig,
-	}
-
 	return Configs
 }
