@@ -250,6 +250,8 @@ func SetData(key string, value string) {
 	case "REFRESH_TOKEN_LIFETIME":
 		refreshTokenLifetime, _ := strconv.Atoi(value)
 		Data.PlatformInfo.RefreshTokenLifetime = refreshTokenLifetime
+	case "REFRESH_TOKEN_SECRET":
+		Data.PlatformInfo.RefreshTokenSecret = value
 	case "ACCESS_TOKEN_SECRET":
 		Data.PlatformInfo.AccessTokenSecret = value
 	case "MQTT_SSL_CERTS_VALIDITY_DAYS":
@@ -257,6 +259,8 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.MQTTSslCertsValidityDays = mqttCertsValidityDays
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
+	case "DEPLOYMENT_MODE":
+		Data.PlatformInfo.DeploymentMode = value
 	case "NUMBER_OF_SWARM_NODES":
 		numberOfNodes, _ := strconv.Atoi(value)
 		Data.PlatformInfo.NodesData = make([]NodeData, numberOfNodes)

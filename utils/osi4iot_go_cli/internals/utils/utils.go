@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"os"
 	"strings"
 
 	"golang.org/x/crypto/bcrypt"
@@ -280,4 +281,18 @@ func HashPassword(password string) (string, error) {
 	}
 
 	return string(hash), nil
+}
+
+func WriteToFile(path string, data []byte, mod os.FileMode) {
+	pathArray := strings.Split(path, "/")
+	parentPath := strings.Join(pathArray[:len(pathArray)-1], "/")
+	err := os.MkdirAll(parentPath, os.ModePerm)
+	if err != nil {
+	   panic(err)
+	}
+
+	err = os.WriteFile(path, data, mod)
+	if err != nil {
+		panic(err)
+	}
 }

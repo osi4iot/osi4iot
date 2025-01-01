@@ -10,6 +10,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"math/big"
+	"net"
+	"strings"
 	"time"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
@@ -43,9 +45,14 @@ func CreateCaCerts() (*rsa.PrivateKey, []byte) {
 		panic(fmt.Sprintf("Error generando la clave privada de la CA: %v", err))
 	}
 
+	serialNumber, err := rand.Int(rand.Reader, big.NewInt(1<<62))
+	if err != nil {
+		panic(fmt.Sprintf("error generating serial number for CA: %v", err))
+	}
+
 	// 1.b Crear la plantilla para el certificado de la CA
 	caTemplate := x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
 			CommonName:   domainName, // Nombre con el que identificarás tu CA
 			Organization: []string{mainOrgName},
@@ -76,6 +83,7 @@ func CreateCaCerts() (*rsa.PrivateKey, []byte) {
 		Bytes: x509.MarshalPKCS1PrivateKey(caKey),
 	})
 
+	utils.WriteToFile("./certs/mqtt_certs/ca.key", caKeyPEM, 0600)
 	caKeyString := string(caKeyPEM)
 	Data.Certs.MqttCerts.CaCerts.CaKey = caKeyString
 	mqttCertsCaKeyName := fmt.Sprintf("mqtt_certs_ca_cert_%s.pem", GetMD5Hash(caKeyString))
@@ -86,6 +94,7 @@ func CreateCaCerts() (*rsa.PrivateKey, []byte) {
 		Bytes: caDERBytes,
 	})
 
+	utils.WriteToFile("./certs/mqtt_certs/ca.cert", caCertPEM, 0600)
 	caCert := string(caCertPEM)
 	Data.Certs.MqttCerts.CaCerts.CaCrt = caCert
 	mqttCertsCaCertName := fmt.Sprintf("mqtt_certs_ca_cert_%s.pem", GetMD5Hash(caCert))
@@ -95,9 +104,9 @@ func CreateCaCerts() (*rsa.PrivateKey, []byte) {
 	return caKey, caDERBytes
 }
 
-func CreateCerts(usage string, validiyDays int, caKey *rsa.PrivateKey, caDERBytes []byte) (string, string) {
+func CreateCerts(usage string, commonName string, validiyDays int, caKey *rsa.PrivateKey, caDERBytes []byte) (string, string) {
 	domainName := Data.PlatformInfo.DomainName
-	mainOrgName := Data.PlatformInfo.MainOrganizationName
+	//mainOrgName := Data.PlatformInfo.MainOrganizationName
 
 	var keyUsage x509.ExtKeyUsage
 	if usage == "server" {
@@ -111,12 +120,17 @@ func CreateCerts(usage string, validiyDays int, caKey *rsa.PrivateKey, caDERByte
 		panic(fmt.Sprintf("Error generando la clave privada del servidor: %v", err))
 	}
 
+	serialNumber, err := rand.Int(rand.Reader, big.NewInt(1<<62))
+	if err != nil {
+		panic(fmt.Sprintf("error generating serial number for client %s: %v", commonName, err))
+	}
 	timeInHours := time.Duration(validiyDays) * 24 * time.Hour
+
 	serverTemplate := x509.Certificate{
-		SerialNumber: big.NewInt(time.Now().UnixNano()),
+		SerialNumber: serialNumber,
 		Subject: pkix.Name{
-			CommonName:   domainName, // Para retrocompatibilidad
-			Organization: []string{mainOrgName},
+			CommonName:   commonName,
+			//Organization: []string{mainOrgName},
 		},
 		NotBefore: time.Now(),
 		NotAfter:  time.Now().Add(timeInHours),
@@ -125,8 +139,10 @@ func CreateCerts(usage string, validiyDays int, caKey *rsa.PrivateKey, caDERByte
 			keyUsage,
 		},
 		BasicConstraintsValid: true,
+		IPAddresses:  []net.IP{net.IPv4(127, 0, 0, 1), net.IPv6loopback},
 		DNSNames:              []string{"localhost", domainName}, // SAN
 	}
+
 
 	// 2.c Parsear el certificado DER de la CA para reutilizarlo como "parent"
 	parsedCACert, err := x509.ParseCertificate(caDERBytes)
@@ -158,6 +174,14 @@ func CreateCerts(usage string, validiyDays int, caKey *rsa.PrivateKey, caDERByte
 		Bytes: x509.MarshalPKCS1PrivateKey(serverKey),
 	})
 
+	if usage == "client" {
+		utils.WriteToFile(fmt.Sprintf("./certs/mqtt_certs/client_%s.crt", commonName), serverCertPEM, 0600)
+		utils.WriteToFile(fmt.Sprintf("./certs/mqtt_certs/client_%s.key", commonName), serverKeyPEM, 0600)
+	} else if usage == "server" {
+		utils.WriteToFile("./certs/mqtt_certs/server.cert", serverCertPEM, 0600)
+		utils.WriteToFile("./certs/mqtt_certs/server.key", serverKeyPEM, 0600)
+	}
+
 	mqttCert := string(serverCertPEM)
 	mqttKey := string(serverKeyPEM)
 
@@ -173,43 +197,46 @@ func MqttTLSCredentials() {
 	/*******************************************************************
 	MQTT Broker Cert
 	*******************************************************************/
-	mqttBrokerCert, mqttBrokerKey := CreateCerts("server", 36500, caKey, caDERBytes)
+	mqttBrokerCert, mqttBrokerKey := CreateCerts("server", "mqtt_server", 36500, caKey, caDERBytes)
 	Data.Certs.MqttCerts.Broker.ServerCrt = mqttBrokerCert
-	mqttBrokerCertName := fmt.Sprintf("mqtt_broker_cert_%s.pem", GetMD5Hash(mqttBrokerCert))
+	mqttBrokerCertName := fmt.Sprintf("mqtt_broker_cert_%s", GetMD5Hash(mqttBrokerCert))
 	Data.Certs.MqttCerts.Broker.MqttBrokerCertName = mqttBrokerCertName
 	Data.Certs.MqttCerts.Broker.ExpirationTimestamp = GetCertExpirationTimestamp(mqttBrokerCert)
 
 	Data.Certs.MqttCerts.Broker.ServerKey = mqttBrokerKey
-	mqttBrokerKeyName := fmt.Sprintf("mqtt_broker_key_%s.pem", GetMD5Hash(mqttBrokerKey))
+	mqttBrokerKeyName := fmt.Sprintf("mqtt_broker_key_%s", GetMD5Hash(mqttBrokerKey))
 	Data.Certs.MqttCerts.Broker.MqttBrokerKeyName = mqttBrokerKeyName
 
 	/*******************************************************************
 	Node-Red MQTT Cert
 	*******************************************************************/
-	org_hash := utils.GeneratePassword(16)
-	org_acronym := Data.PlatformInfo.MainOrganizationAcronym
+	orgHash := utils.GeneratePassword(16)
+	orgAcronym := Data.PlatformInfo.MainOrganizationAcronym
 	exclusiveWorkerNodes := make([]string, 0)
 	nodered_instances := make([]NodeRedInstance, Data.PlatformInfo.NumberOfNodeRedInstancesInMainOrg)
 	organization := Organization{
-		OrgHash:              org_hash,
-		OrgAcronym:           org_acronym,
+		OrgHash:              orgHash,
+		OrgAcronym:           orgAcronym,
 		ExclusiveWorkerNodes: exclusiveWorkerNodes,
 		NodeRedInstances:     nodered_instances,
 	}
 	Data.Certs.MqttCerts.Organizations = append(Data.Certs.MqttCerts.Organizations, organization)
 
+	orgAcronymLower := strings.ToLower(orgAcronym)
 	for inri := 1; inri <= Data.PlatformInfo.NumberOfNodeRedInstancesInMainOrg; inri++ {
-		mqttClientCert, mqttClientKey := CreateCerts("client", 3650, caKey, caDERBytes)
+		nriHash := utils.GeneratePassword(10)
+		nriCommonName := fmt.Sprintf("nri_%s", nriHash)
+		mqttClientCert, mqttClientKey := CreateCerts("client", nriCommonName, 3650, caKey, caDERBytes)
 
 		Data.Certs.MqttCerts.Organizations[0].NodeRedInstances[inri-1].ClientCrt = mqttClientCert
-		mqttClientCertName := fmt.Sprintf("mqtt_client_cert_%s.pem", GetMD5Hash(mqttClientCert))
+		mqttClientCertName := fmt.Sprintf("%s_%s_cert_%s", orgAcronymLower, nriHash, GetMD5Hash(mqttClientCert))
 		Data.Certs.MqttCerts.Organizations[0].NodeRedInstances[inri-1].ClientCrtName = mqttClientCertName
 		Data.Certs.MqttCerts.Organizations[0].NodeRedInstances[inri-1].ExpirationTimestamp = GetCertExpirationTimestamp(mqttClientCert)
 
 		Data.Certs.MqttCerts.Organizations[0].NodeRedInstances[inri-1].ClientKey = mqttClientKey
-		mqttClientKeyName := fmt.Sprintf("mqtt_client_key_%s.pem", GetMD5Hash(mqttClientKey))
+		mqttClientKeyName := fmt.Sprintf("%s_%s_key_%s", orgAcronymLower, nriHash, GetMD5Hash(mqttClientKey))
 		Data.Certs.MqttCerts.Organizations[0].NodeRedInstances[inri-1].ClientKeyName = mqttClientKeyName
 		Data.Certs.MqttCerts.Organizations[0].NodeRedInstances[inri-1].IsVolumeCreated = "false"
-		Data.Certs.MqttCerts.Organizations[0].NodeRedInstances[inri-1].NriHash = utils.GeneratePassword(10)
+		Data.Certs.MqttCerts.Organizations[0].NodeRedInstances[inri-1].NriHash = nriHash
 	}
 }

@@ -496,16 +496,15 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 	accessTokenSecret := utils.GeneratePassword(20)
 	data.SetData("ACCESS_TOKEN_SECRET", accessTokenSecret)
 
-	encryptionSecretKey := utils.GeneratePassword(20)
+	encryptionSecretKey := utils.GeneratePassword(32)
 	data.SetData("ENCRYPTION_SECRET_KEY", encryptionSecretKey)
 
-	grafanaAdminPassword := utils.GeneratePassword(20)
-	data.SetData("GRAFANA_ADMIN_PASSWORD", grafanaAdminPassword)
+	platformAdminPassword := m.FindAnswerByKey("PLATFORM_ADMIN_PASSWORD")
+	data.SetData("GRAFANA_ADMIN_PASSWORD", platformAdminPassword)
 
 	platformAdminUserName := m.FindAnswerByKey("PLATFORM_ADMIN_USER_NAME")
 	data.SetData("POSTGRES_USER", platformAdminUserName)
 
-	platformAdminPassword := m.FindAnswerByKey("PLATFORM_ADMIN_PASSWORD")
 	data.SetData("POSTGRES_PASSWORD", platformAdminPassword)
 
 	postgresDB := "iot_platform_db"
@@ -535,7 +534,7 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 	}
 	data.SetData("NODE_RED_ADMIN_HASH", nodeRedAdminHash)
 
-	pgAdminDefaultEmail := m.FindAnswerByKey(".PLATFORM_ADMIN_EMAIL")
+	pgAdminDefaultEmail := m.FindAnswerByKey("PLATFORM_ADMIN_EMAIL")
 	data.SetData("PGADMIN_DEFAULT_EMAIL", pgAdminDefaultEmail)
 
 	pgAdminDefaultPassword := platformAdminPassword
@@ -547,6 +546,12 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 	err = data.WritePlatformDataToFile()
 	if err != nil {
 		return submissionResultMsg("Error: writing state file"), err
+	}
+
+	err = data.RunSwarm()
+	if err != nil {
+		errMsg := fmt.Sprintf("Error: running swarm %s", err.Error())
+		return submissionResultMsg(errMsg), err
 	}
 
 	time.Sleep(2 * time.Second) // Simula retraso
