@@ -47,11 +47,10 @@ var cmdRun = &cobra.Command{
 			errMsg := styleErrMsg.Render("Error: runing the platform ", err.Error())
 			fmt.Println(errMsg)
 		} else {
-			okMsg := styleOKMsg.Render("Platform has been started successfully")
-			fmt.Println(okMsg)
+			fmt.Println("Platform has been started successfully")
 			err = data.WaitUntilAllContainersAreHealthy()
 			if err != nil {
-				errMsg := styleErrMsg.Render("Error: waiting for the platform to be healthy ", err.Error())
+				errMsg := styleErrMsg.Render("error waiting for the platform to be healthy: ", err.Error())
 				fmt.Println(errMsg)
 			} else {
 				okMsg := styleOKMsg.Render("Platform is ready to be used")
