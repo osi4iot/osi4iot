@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/lipgloss"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/exp/rand"
 )
@@ -343,8 +344,18 @@ func GiveChoiceFocus(choice string, choices []string, defaultFocus int) int {
 	return defaultFocus
 }
 
+func HideCursor() {
+	fmt.Print("\033[?25l")
+}
+
+func ShowCursor() {
+	fmt.Print("\033[?25h")
+}
+
 func Spinner(spinnerMsg string, endMsg string, done chan bool) {
 	go func() {
+		HideCursor()
+		defer ShowCursor()
 		frames := []string{"|", "/", "-", "\\"} // Frames del spinner
 		for {
 			select {
@@ -354,10 +365,22 @@ func Spinner(spinnerMsg string, endMsg string, done chan bool) {
 				return
 			default:
 				for _, frame := range frames {
-					fmt.Printf("\r%s  %s   ", spinnerMsg, frame)
+					fmt.Printf("\r%s  %s", spinnerMsg, frame)
 					time.Sleep(100 * time.Millisecond)
 				}
 			}
 		}
 	}()
 }
+
+var StyleWarningMsg = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("227"))
+
+var StyleErrMsg = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("9"))
+
+var StyleOKMsg = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("#00FF00"))
