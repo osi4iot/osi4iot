@@ -4,9 +4,19 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/initPlatform"
 	"github.com/spf13/cobra"
 )
+
+var styleErrMsg = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("9"))
+
+var styleOKMsg = lipgloss.NewStyle().
+	Bold(true).
+	Foreground(lipgloss.Color("#00FF00"))
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -32,7 +42,22 @@ var cmdRun = &cobra.Command{
 	Short: "Start osi4iot platform",
 	Long:  "Start osi4iot platform",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Start osi4iot platform")
+		err := data.RunSwarm()
+		if err != nil {
+			errMsg := styleErrMsg.Render("Error: runing the platform ", err.Error())
+			fmt.Println(errMsg)
+		} else {
+			okMsg := styleOKMsg.Render("Platform has been started successfully")
+			fmt.Println(okMsg)
+			err = data.WaitUntilAllContainersAreHealthy()
+			if err != nil {
+				errMsg := styleErrMsg.Render("Error: waiting for the platform to be healthy ", err.Error())
+				fmt.Println(errMsg)
+			} else {
+				okMsg := styleOKMsg.Render("Platform is ready to be used")
+				fmt.Println(okMsg)
+			}
+		}
 	},
 }
 
@@ -194,7 +219,14 @@ var cmdStop = &cobra.Command{
 	Short: "Stop platform",
 	Long:  "Stop platform",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Stop platform")
+		err := data.StopPlatform()
+		if err != nil {
+			errMsg := styleErrMsg.Render("Error: stopping the platform ", err.Error())
+			fmt.Println(errMsg)
+		} else {
+			okMsg := styleOKMsg.Render("Platform has been sttoped successfully")
+			fmt.Println(okMsg)
+		}
 	},
 }
 
@@ -203,7 +235,14 @@ var cmdDelete = &cobra.Command{
 	Short: "Delete platform",
 	Long:  "Delete platform",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Delete platform")
+		err:= data.DeletePlatform()
+		if err != nil {
+			errMsg := styleErrMsg.Render("Error: deleting the platform ", err.Error())
+			fmt.Println(errMsg)
+		} else {
+			okMsg := styleOKMsg.Render("Platform has been deleted successfully")
+			fmt.Println(okMsg)
+		}
 	},
 }
 
@@ -215,8 +254,14 @@ func Execute() {
 }
 
 func init() {
+	err := data.ReadPlatformDataFromFile()
+	if err != nil {
+		panic(fmt.Sprintf("Error loading json file: %v", err))
+	}
+
 	rootCmd.AddCommand(cmdInit)
 	rootCmd.AddCommand(cmdRun)
+	rootCmd.AddCommand(cmdStop)
 
 	cmdOrgs.AddCommand(subCmdOrgsList)
 	cmdOrgs.AddCommand(subCmdUpdateOrg)

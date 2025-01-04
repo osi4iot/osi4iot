@@ -15,14 +15,16 @@ import (
 )
 
 func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
-	err := tools.CreateKeyPair()
-	if err != nil {
-		return submissionResultMsg("Error creating key pair"), err
+	if m.FindAnswerByKey("DEPLOYMENT_LOCATION") == "On-premise cluster deployment" {
+		err := tools.CreateKeyPair()
+		if err != nil {
+			return submissionResultMsg("Error creating key pair"), err
+		}
 	}
-	numNodes, _ := strconv.Atoi(m.Questions[m.Focus].Answer)
+	numNodes, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_SWARM_NODES"))
 	newQuestions := []Question{}
 	iniNode := 1
-	currentNumNodes := m.Data["numNodes"].(int)
+	currentNumNodes := m.NumNodesQuestions()
 	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodeQuestions := 5
 	if currentNumNodes < numNodes {
@@ -128,15 +130,16 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 
 func removingNodeQuestions(m *Model) {
 	numNodes := m.Data["numNodes"].(int)
-	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
-	numNodeQuestions := 5
-	if deployLocation == "On-premise cluster deployment" {
-		numNodeQuestions = 6
-	}
 	for inode := 1; inode <= numNodes; inode++ {
 		nodeKey := "Node_" + strconv.Itoa(inode)
 		initialIndex := m.FindQuestionIdByKey(nodeKey)
 		if initialIndex != -1 {
+			passwordKey := nodeKey + "_Password"
+			passwordIndex := m.FindQuestionIdByKey(passwordKey)
+			numNodeQuestions := 5
+			if passwordIndex != -1 {
+				numNodeQuestions = 6
+			}
 			finalIndex := initialIndex + numNodeQuestions
 			m.removeQuestions(initialIndex, finalIndex)
 		}
@@ -144,20 +147,48 @@ func removingNodeQuestions(m *Model) {
 }
 
 func addNumNodesQuestion(index int, m *Model) {
-	numNodesQuestion := Question{
-		Key:           "NUMBER_OF_SWARM_NODES",
-		QuestionType:  "generic",
-		Prompt:        "Number of nodes in the platform",
-		Answer:        "",
-		DefaultAnswer: "1",
-		ErrorMessage:  "",
-		Choices:       []string{},
-		ChoiceFocus:   0,
-		Rules:         []string{"required", "isInt", "minval:1", "maxval:100"},
-		ActionKey:     "creatingNodeQuestions",
-		Margin:        0,
+	idx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
+	if idx != -1 {
+		numNodesQuestion := Question{
+			Key:           "NUMBER_OF_SWARM_NODES",
+			QuestionType:  "generic",
+			Prompt:        "Number of nodes in the platform",
+			Answer:        utils.IntValueToStr(len(data.Data.PlatformInfo.NodesData)),
+			DefaultAnswer: "1",
+			ErrorMessage:  "",
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			Rules:         []string{"required", "isInt", "minval:1", "maxval:100"},
+			ActionKey:     "creatingNodeQuestions",
+			Margin:        0,
+		}
+		m.addQuestions(index, numNodesQuestion)
 	}
-	m.addQuestions(index, numNodesQuestion)
+}
+
+var awsRegions = []string{
+	"US East (N. Virginia)",
+	"US West (N. California)",
+	"US West (Oregon)",
+	"Africa (Cape Town)",
+	"Asia Pacific (Hong Kong)",
+	"Asia Pacific (Jakarta)",
+	"Asia Pacific (Mumbai)",
+	"Asia Pacific (Osaka)",
+	"Asia Pacific (Seoul)",
+	"Asia Pacific (Singapore)",
+	"Asia Pacific (Sydney)",
+	"Asia Pacific (Tokyo)",
+	"Canada (Central)",
+	"Europe (Frankfurt)",
+	"Europe (Ireland)",
+	"Europe (London)",
+	"Europe (Milan)",
+	"Europe (Paris)",
+	"Europe (Stockholm)",
+	"Middle East (Bahrain)",
+	"Middle East (UAE)",
+	"South America (São Paulo)",
 }
 
 func addAWSQuestions(m *Model) {
@@ -168,7 +199,7 @@ func addAWSQuestions(m *Model) {
 				Key:           "AWS_ACCESS_KEY_ID",
 				QuestionType:  "password",
 				Prompt:        "AWS access key id",
-				Answer:        "",
+				Answer:        data.Data.PlatformInfo.AWSAccessKeyID,
 				DefaultAnswer: "",
 				Choices:       []string{},
 				ChoiceFocus:   0,
@@ -181,7 +212,7 @@ func addAWSQuestions(m *Model) {
 				Key:          "AWS_SECRET_ACCESS_KEY",
 				QuestionType: "password",
 				Prompt:       "AWS secret access key",
-				Answer:       "",
+				Answer:       data.Data.PlatformInfo.AWSSecretAccessKey,
 				Choices:      []string{},
 				ChoiceFocus:  0,
 				ErrorMessage: "",
@@ -193,37 +224,14 @@ func addAWSQuestions(m *Model) {
 				Key:           "AWS_REGION",
 				QuestionType:  "list",
 				Prompt:        "AWS region",
-				Answer:        "",
+				Answer:        data.Data.PlatformInfo.AWSRegion,
 				DefaultAnswer: "",
-				Choices: []string{
-					"US East (N. Virginia)",
-					"US West (N. California)",
-					"US West (Oregon)",
-					"Africa (Cape Town)",
-					"Asia Pacific (Hong Kong)",
-					"Asia Pacific (Jakarta)",
-					"Asia Pacific (Mumbai)",
-					"Asia Pacific (Osaka)",
-					"Asia Pacific (Seoul)",
-					"Asia Pacific (Singapore)",
-					"Asia Pacific (Sydney)",
-					"Asia Pacific (Tokyo)",
-					"Canada (Central)",
-					"Europe (Frankfurt)",
-					"Europe (Ireland)",
-					"Europe (London)",
-					"Europe (Milan)",
-					"Europe (Paris)",
-					"Europe (Stockholm)",
-					"Middle East (Bahrain)",
-					"Middle East (UAE)",
-					"South America (São Paulo)",
-				},
-				ChoiceFocus:  17,
-				ErrorMessage: "",
-				Rules:        []string{"required", "string"},
-				ActionKey:    "",
-				Margin:       0,
+				Choices:       awsRegions,
+				ChoiceFocus:   utils.GiveChoiceFocus(data.Data.PlatformInfo.AWSRegion, awsRegions, 17),
+				ErrorMessage:  "",
+				Rules:         []string{"required", "string"},
+				ActionKey:     "",
+				Margin:        0,
 			},
 		}
 		m.addQuestions(m.Focus+1, awsQuestions...)
@@ -252,39 +260,45 @@ func awsKeyQuestions(m *Model) (submissionResultMsg, error) {
 }
 
 func addAwsSsHKeyQuestions(index int, m *Model) {
-	awsSSHKeyQuestion := Question{
-		Key:           "AWS_SSH_KEY_PATH",
-		QuestionType:  "generic",
-		Prompt:        "AWS SSH key path",
-		Answer:        "",
-		DefaultAnswer: "./.osi4iot_keys/aws_ssh_key.pem",
-		ErrorMessage:  "",
-		Choices:       []string{},
-		ChoiceFocus:   0,
-		Rules:         []string{"required", "string", "fileExists"},
-		ActionKey:     "",
-		Margin:        0,
+	idx := m.FindQuestionIdByKey("AWS_SSH_KEY_PATH")
+	if idx != -1 {
+		awsSSHKeyQuestion := Question{
+			Key:           "AWS_SSH_KEY_PATH",
+			QuestionType:  "generic",
+			Prompt:        "AWS SSH key path",
+			Answer:        data.Data.PlatformInfo.AwsSshKeyPath,
+			DefaultAnswer: "./.osi4iot_keys/aws_ssh_key.pem",
+			ErrorMessage:  "",
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			Rules:         []string{"required", "string", "fileExists"},
+			ActionKey:     "",
+			Margin:        0,
+		}
+		m.addQuestions(index, awsSSHKeyQuestion)
 	}
-	m.addQuestions(index, awsSSHKeyQuestion)
 }
 
 func addAwsEFSQuestion(index int, m *Model) {
 	numNodes := m.Data["numNodes"].(int)
 	if numNodes > 1 {
-		efsQuestion := Question{
-			Key:           "AWS_EFS_DNS",
-			QuestionType:  "generic",
-			Prompt:        "AWS Elastic File System DNS",
-			Answer:        "",
-			DefaultAnswer: "",
-			Choices:       []string{},
-			ChoiceFocus:   0,
-			ErrorMessage:  "",
-			Rules:         []string{"required", "string"},
-			ActionKey:     "",
-			Margin:        0,
+		idx := m.FindQuestionIdByKey("AWS_EFS_DNS")
+		if idx == -1 {
+			efsQuestion := Question{
+				Key:           "AWS_EFS_DNS",
+				QuestionType:  "generic",
+				Prompt:        "AWS Elastic File System DNS",
+				Answer:        data.Data.PlatformInfo.AwsEfsDNS,
+				DefaultAnswer: "",
+				Choices:       []string{},
+				ChoiceFocus:   0,
+				ErrorMessage:  "",
+				Rules:         []string{"required", "string"},
+				ActionKey:     "",
+				Margin:        0,
+			}
+			m.addQuestions(index, efsQuestion)
 		}
-		m.addQuestions(index, efsQuestion)
 	} else {
 		m.removeQuestionByKey("AWS_EFS_DNS")
 	}
@@ -322,39 +336,42 @@ func addNetworkInterfaceQuestions(index int, m *Model) {
 	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodes := m.Data["numNodes"].(int)
 	if deployLocation == "On-premise cluster deployment" && numNodes > 1 {
-		netInterfQuestions := []Question{
-			{
-				Key:           "FLOATING_IP_ADDRESS",
-				QuestionType:  "generic",
-				Prompt:        "Floating IP address",
-				Answer:        "",
-				DefaultAnswer: "",
-				Choices:       []string{},
-				ChoiceFocus:   0,
-				ErrorMessage:  "",
-				Rules:         []string{"required", "string", "ip"},
-				ActionKey:     "",
-				Margin:        0,
-			},
-			{
-				Key:           "NETWORK_INTERFACE",
-				QuestionType:  "generic",
-				Prompt:        "Manager nodes network interface",
-				Answer:        "",
-				DefaultAnswer: "eth0",
-				Choices:       []string{},
-				ChoiceFocus:   0,
-				ErrorMessage:  "",
-				Rules:         []string{"required", "string", "minlen:4"},
-				ActionKey:     "",
-				Margin:        0,
-			},
+		idx := m.FindQuestionIdByKey("FLOATING_IP_ADDRESS")
+		if idx != -1 {
+			netInterfQuestions := []Question{
+				{
+					Key:           "FLOATING_IP_ADDRESS",
+					QuestionType:  "generic",
+					Prompt:        "Floating IP address",
+					Answer:        data.Data.PlatformInfo.FloatingIPAddress,
+					DefaultAnswer: "",
+					Choices:       []string{},
+					ChoiceFocus:   0,
+					ErrorMessage:  "",
+					Rules:         []string{"required", "string", "ip"},
+					ActionKey:     "",
+					Margin:        0,
+				},
+				{
+					Key:           "NETWORK_INTERFACE",
+					QuestionType:  "generic",
+					Prompt:        "Manager nodes network interface",
+					Answer:        data.Data.PlatformInfo.NetworkInterface,
+					DefaultAnswer: "eth0",
+					Choices:       []string{},
+					ChoiceFocus:   0,
+					ErrorMessage:  "",
+					Rules:         []string{"required", "string", "minlen:4"},
+					ActionKey:     "",
+					Margin:        0,
+				},
+			}
+			m.addQuestions(index, netInterfQuestions...)
 		}
-		m.addQuestions(index, netInterfQuestions...)
 	}
 }
 
-func deployLocationQuestions(m *Model) (submissionResultMsg, error) {
+func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 	deployLocation := m.Questions[m.Focus].Answer
 	if deployLocation == "Local deployment" {
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
@@ -379,58 +396,62 @@ func deployLocationQuestions(m *Model) (submissionResultMsg, error) {
 }
 
 func addDomainCertsQuestions(index int, m *Model) {
-	domainCertsQuestions := []Question{
-		{
-			Key:           "DOMAIN_SSL_PRIVATE_KEY_PATH",
-			QuestionType:  "generic",
-			Prompt:        "Domain SSL private key path",
-			Answer:        "",
-			DefaultAnswer: "./certs/domain_certs/iot_platform.key",
-			Choices:       []string{},
-			ChoiceFocus:   0,
-			ErrorMessage:  "",
-			Rules:         []string{"required", "string", "fileExists"},
-			ActionKey:     "",
-			Margin:        0,
-		},
-		{
-			Key:           "DOMAIN_SSL_CA_CERT_PATH",
-			QuestionType:  "generic",
-			Prompt:        "Domain SSL CA certificate path",
-			Answer:        "",
-			DefaultAnswer: "./certs/domain_certs/iot_platform_ca.pem",
-			Choices:       []string{},
-			ChoiceFocus:   0,
-			ErrorMessage:  "",
-			Rules:         []string{"required", "string", "fileExists"},
-			ActionKey:     "",
-			Margin:        0,
-		},
-		{
-			Key:           "DOMAIN_SSL_CERTICATE_PATH",
-			QuestionType:  "generic",
-			Prompt:        "Domain SSL certificate path",
-			Answer:        "",
-			DefaultAnswer: "./certs/domain_certs/iot_platform_cert.cer",
-			Choices:       []string{},
-			ChoiceFocus:   0,
-			ErrorMessage:  "",
-			Rules:         []string{"required", "string", "fileExists"},
-			ActionKey:     "",
-			Margin:        0,
-		},
+	idx := m.FindQuestionIdByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
+	if idx == -1 {
+		domainCertsQuestions := []Question{
+			{
+				Key:           "DOMAIN_SSL_PRIVATE_KEY_PATH",
+				QuestionType:  "generic",
+				Prompt:        "Domain SSL private key path",
+				Answer:        data.Data.PlatformInfo.DOMAIN_SSL_PRIVATE_KEY_PATH,
+				DefaultAnswer: "./certs/domain_certs/iot_platform.key",
+				Choices:       []string{},
+				ChoiceFocus:   0,
+				ErrorMessage:  "",
+				Rules:         []string{"required", "string", "fileExists"},
+				ActionKey:     "",
+				Margin:        0,
+			},
+			{
+				Key:           "DOMAIN_SSL_CA_PEM_PATH",
+				QuestionType:  "generic",
+				Prompt:        "Domain SSL CA certificate path",
+				Answer:        data.Data.PlatformInfo.DOMAIN_SSL_CA_PEM_PATH,
+				DefaultAnswer: "./certs/domain_certs/iot_platform_ca.pem",
+				Choices:       []string{},
+				ChoiceFocus:   0,
+				ErrorMessage:  "",
+				Rules:         []string{"required", "string", "fileExists"},
+				ActionKey:     "",
+				Margin:        0,
+			},
+			{
+				Key:           "DOMAIN_SSL_CERT_CRT_PATH",
+				QuestionType:  "generic",
+				Prompt:        "Domain SSL certificate path",
+				Answer:        data.Data.PlatformInfo.DOMAIN_SSL_CERT_CRT_PATH,
+				DefaultAnswer: "./certs/domain_certs/iot_platform_cert.cer",
+				Choices:       []string{},
+				ChoiceFocus:   0,
+				ErrorMessage:  "",
+				Rules:         []string{"required", "string", "fileExists"},
+				ActionKey:     "",
+				Margin:        0,
+			},
+		}
+		m.addQuestions(index, domainCertsQuestions...)
 	}
-	m.addQuestions(index, domainCertsQuestions...)
 }
 
-func domainCertsQuestions(m *Model) (submissionResultMsg, error) {
-	certType := m.Questions[m.Focus].Answer
+func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
+	idx := m.FindQuestionIdByKey("DOMAIN_CERTS_TYPE")
+	certType := m.Questions[idx].Answer
 	if certType == "Certs provided by an CA" {
-		addDomainCertsQuestions(m.Focus+1, m)
+		addDomainCertsQuestions(idx+1, m)
 	} else {
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
-		m.removeQuestionByKey("DOMAIN_SSL_CA_CERT_PATH")
-		m.removeQuestionByKey("DOMAIN_SSL_CERTICATE_PATH")
+		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
+		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
 	}
 	return submissionResultMsg("Questions added succesfully"), nil
 }
@@ -483,6 +504,21 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 	}
 	if !areAllQuestionsOK {
 		return submissionResultMsg("Error: Some questions are not answered correctly"), nil
+	}
+
+	if len(data.Data.Certs.MqttCerts.Organizations) == 0 {
+		orgHash := utils.GeneratePassword(16)
+		orgAcronym := data.Data.PlatformInfo.MainOrganizationAcronym
+		numNriInMainOrg := data.Data.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
+		exclusiveWorkerNodes := make([]string, 0)
+		nodered_instances := make([]data.NodeRedInstance,numNriInMainOrg)
+		organization := data.Organization{
+			OrgHash:              orgHash,
+			OrgAcronym:           orgAcronym,
+			ExclusiveWorkerNodes: exclusiveWorkerNodes,
+			NodeRedInstances:     nodered_instances,
+		}
+		data.Data.Certs.MqttCerts.Organizations = append(data.Data.Certs.MqttCerts.Organizations, organization)
 	}
 
 	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
@@ -549,7 +585,10 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 	data.SetData("PGADMIN_DEFAULT_PASSWORD", pgAdminDefaultPassword)
 
 	data.SetCertsData()
-	data.MqttTLSCredentials()
+	err = data.MqttTLSCredentials()
+	if err != nil {
+		return submissionResultMsg("Error: creating mqtt certs"), err
+	}
 
 	err = data.WritePlatformDataToFile()
 	if err != nil {
@@ -562,6 +601,6 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 		return submissionResultMsg(errMsg), err
 	}
 
-	time.Sleep(2 * time.Second) // Simula retraso
+	time.Sleep(1 * time.Second) // Simula retraso
 	return submissionResultMsg("osi4iot_state.json file create successfully"), nil
 }

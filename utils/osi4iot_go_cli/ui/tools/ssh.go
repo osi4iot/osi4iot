@@ -7,6 +7,7 @@ import (
 	"encoding/pem"
 	"os"
 
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -52,34 +53,36 @@ func PublicKeyFile(file string) ssh.AuthMethod {
 }
 
 func CreateKeyPair() error {
-	err := CreateDirectoryIfNotExists("./.osi4iot_keys")
-	if err != nil {
-		return err
-	}
-	savePrivateFileTo := "./.osi4iot_keys/osi4iot_key"
-	savePublicFileTo := "./.osi4iot_keys/osi4iot_key.pub"
-	bitSize := 4096
+	if data.Data.PlatformInfo.SshPrivKey == "" && data.Data.PlatformInfo.SshPubKey == "" {
+		err := CreateDirectoryIfNotExists("./.osi4iot_keys")
+		if err != nil {
+			return err
+		}
+		savePrivateFileTo := "./.osi4iot_keys/osi4iot_key"
+		savePublicFileTo := "./.osi4iot_keys/osi4iot_key.pub"
+		bitSize := 4096
 
-	privateKey, err := generatePrivateKey(bitSize)
-	if err != nil {
-		return err
-	}
+		privateKey, err := generatePrivateKey(bitSize)
+		if err != nil {
+			return err
+		}
 
-	publicKeyBytes, err := generatePublicKey(&privateKey.PublicKey)
-	if err != nil {
-		return err
-	}
+		publicKeyBytes, err := generatePublicKey(&privateKey.PublicKey)
+		if err != nil {
+			return err
+		}
 
-	privateKeyBytes := encodePrivateKeyToPEM(privateKey)
+		privateKeyBytes := encodePrivateKeyToPEM(privateKey)
 
-	err = writeKeyToFile(privateKeyBytes, savePrivateFileTo)
-	if err != nil {
-		return err
-	}
+		err = writeKeyToFile(privateKeyBytes, savePrivateFileTo)
+		if err != nil {
+			return err
+		}
 
-	err = writeKeyToFile([]byte(publicKeyBytes), savePublicFileTo)
-	if err != nil {
-		return err
+		err = writeKeyToFile([]byte(publicKeyBytes), savePublicFileTo)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

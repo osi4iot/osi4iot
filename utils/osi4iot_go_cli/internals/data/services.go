@@ -41,10 +41,16 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 
 	systemPruneAnottations := swarm.Annotations{
 		Name: "system-prune",
+		Labels: map[string]string{
+			"app": "osi4iot",
+		},
 	}
 	systemPruneTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/system_prune:latest",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
 			},
@@ -96,9 +102,11 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		Networks:     systemPruneNetwork,
 	}
 
-	//traefikRule := fmt.Sprintf("Host(`%s`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))", Data.PlatformInfo.DomainName)
 	traefikAnottations := swarm.Annotations{
 		Name: "traefik",
+		Labels: map[string]string{
+			"app": "osi4iot",
+		},
 	}
 	traefikSecrets := []*swarm.SecretReference{}
 	traefikConfigs := []*swarm.ConfigReference{}
@@ -129,6 +137,9 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	traefikTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/traefik:v2.10",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
 			},
@@ -154,7 +165,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 				"--entrypoints.web.http.redirections.entrypoint.scheme=https",
 				"--entrypoints.web.http.redirections.entrypoint.permanent=true",
 				"--entrypoints.websecure.address=:443",
-				"--entrypoints.mqtt-tls.address=:1883",
+				"--entrypoints.mqtt.address=:1883",
+				"--entrypoints.mqtt-tls.address=:8884",
 				"--entrypoints.wss.address=:9001",
 				"--providers.file.directory=/etc/traefik/dynamic",
 				"--providers.file.watch=true",
@@ -208,6 +220,11 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			},
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    8884,
+				PublishedPort: 8884,
+			},
+			{
+				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    9001,
 				PublishedPort: 9001,
 			},
@@ -249,23 +266,24 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	}
 
 	mosquittoRule := fmt.Sprintf("Host(`%s`)", Data.PlatformInfo.DomainName)
-	mosquittoRule1883 := fmt.Sprintf("HostSNI(`%s`)", Data.PlatformInfo.DomainName)
+	mosquittoRule8884 := fmt.Sprintf("HostSNI(`%s`)", Data.PlatformInfo.DomainName)
 	mosquitoAnottations := swarm.Annotations{
 		Name: "mosquitto",
 		Labels: map[string]string{
+			"app":            "osi4iot",
 			"traefik.enable": "true",
-			// // MQTT without TLS (1883, TCP puro)
-			// "traefik.tcp.routers.mosquitto1883.rule":                      "HostSNI(`*`)",
-			// "traefik.tcp.routers.mosquitto1883.entrypoints":               "mqtt",
-			// "traefik.tcp.routers.mosquitto1883.service":                   "mosquitto1883",
-			// "traefik.tcp.services.mosquitto1883.loadbalancer.server.port": "1883",
-			// MQTT with TLS (1883, TCP)
-			"traefik.tcp.routers.mosquitto1883.rule":                      mosquittoRule1883,
-			"traefik.tcp.routers.mosquitto1883.entrypoints":               "mqtt-tls",
+			// MQTT without TLS (1883, TCP puro)
+			"traefik.tcp.routers.mosquitto1883.rule":                      "HostSNI(`*`)",
+			"traefik.tcp.routers.mosquitto1883.entrypoints":               "mqtt",
 			"traefik.tcp.routers.mosquitto1883.service":                   "mosquitto1883",
-			"traefik.tcp.routers.mosquitto1883.tls":                       "true",
 			"traefik.tcp.services.mosquitto1883.loadbalancer.server.port": "1883",
-			// MQTT over WebSockets (WSS) en puerto 9001
+			// MQTT with TLS (1883, TCP)
+			"traefik.tcp.routers.mosquitto8884.rule":                      mosquittoRule8884,
+			"traefik.tcp.routers.mosquitto8884.entrypoints":               "mqtt-tls",
+			"traefik.tcp.routers.mosquitto8884.service":                   "mosquitto8884",
+			"traefik.tcp.routers.mosquitto8884.tls":                       "true",
+			"traefik.tcp.services.mosquitto8884.loadbalancer.server.port": "8884",
+			// MQTT over WebSockets (WSS) Port 9001
 			"traefik.http.routers.mosquitto-wss.rule":                      mosquittoRule,
 			"traefik.http.routers.mosquitto-wss.entrypoints":               "wss",
 			"traefik.http.routers.mosquitto-wss.service":                   "mosquitto-wss",
@@ -276,6 +294,9 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	mosquitoTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/mosquitto_go_auth:2.1.0-mosquitto_2.0.15",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
 			},
@@ -409,10 +430,16 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 
 	postgresAnottations := swarm.Annotations{
 		Name: "postgres",
+		Labels: map[string]string{
+			"app": "osi4iot",
+		},
 	}
 	postgresTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/postgres:14.6-alpine",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				fmt.Sprintf("POSTGRES_DB=%s", Data.PlatformInfo.PostgresDB),
 				"POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password.txt",
@@ -514,10 +541,16 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 
 	timescaledbAnottations := swarm.Annotations{
 		Name: "timescaledb",
+		Labels: map[string]string{
+			"app": "osi4iot",
+		},
 	}
 	timescaledbTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/timescaledb:2.4.2-pg13",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				fmt.Sprintf("POSTGRES_DB=%s", Data.PlatformInfo.TimescaleDB),
 				"POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt",
@@ -628,10 +661,16 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 
 	s3StorageAnottations := swarm.Annotations{
 		Name: "s3_storage",
+		Labels: map[string]string{
+			"app": "osi4iot",
+		},
 	}
 	s3StorageTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/s3_storage:1.3.0",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
 			},
@@ -728,10 +767,16 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 
 	dev2pdbAnottations := swarm.Annotations{
 		Name: "dev2pdb",
+		Labels: map[string]string{
+			"app": "osi4iot",
+		},
 	}
 	dev2pdbTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/dev2pdb:1.3.0",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				"DATABASE_NAME=iot_data_db",
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
@@ -828,6 +873,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	grafanaAnottations := swarm.Annotations{
 		Name: "grafana",
 		Labels: map[string]string{
+			"app":                               "osi4iot",
 			"traefik.enable":                    "true",
 			"traefik.http.routers.grafana.rule": grafanaRule,
 			"traefik.http.middlewares.grafana-prefix.stripprefix.prefixes":                       "/grafana",
@@ -848,6 +894,9 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	grafanaTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/grafana:8.4.1-ubuntu",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
 			},
@@ -940,6 +989,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	adminApiAnottations := swarm.Annotations{
 		Name: "admin_api",
 		Labels: map[string]string{
+			"app":            "osi4iot",
 			"traefik.enable": "true",
 			"traefik.http.middlewares.admin_api-header.headers.customrequestheaders.X-Script-Name": "/admin_api/",
 			"traefik.http.middlewares.admin_api-prefix.stripprefix.prefixes":                       "/admin_api",
@@ -960,6 +1010,9 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	adminApiTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/admin_api:1.3.0",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				"REPLICA={{.Task.Slot}}",
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
@@ -1100,6 +1153,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	frontendAnottations := swarm.Annotations{
 		Name: "frontend",
 		Labels: map[string]string{
+			"app":                                                              "osi4iot",
 			"traefik.enable":                                                   "true",
 			"traefik.http.routers.frontend.rule":                               frontendRule,
 			"traefik.http.routers.frontend.entrypoints":                        "websecure",
@@ -1114,6 +1168,9 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	frontendTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/frontend:1.3.0",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
 			},
@@ -1185,10 +1242,16 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 
 	grafanaRendererAnottations := swarm.Annotations{
 		Name: "grafana_renderer",
+		Labels: map[string]string{
+			"app": "osi4iot",
+		},
 	}
 	grafanaRendererTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/grafana_renderer:3.8.4",
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 			Env: []string{
 				"ENABLE_METRICS=true",
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
@@ -1265,6 +1328,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		minioAnottations := swarm.Annotations{
 			Name: "minio",
 			Labels: map[string]string{
+				"app":                                                                                      "osi4iot",
 				"traefik.enable":                                                                           "true",
 				"traefik.http.routers.minio_api.rule":                                                      minioRule,
 				"traefik.http.routers.minio_api.entrypoints":                                               "websecure",
@@ -1290,6 +1354,9 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		minioTaskTemplate := swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Image:    "ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z",
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
 				Hostname: "minio",
 				Env: []string{
 					"MINIO_VOLUMES=/mnt/data",
@@ -1383,6 +1450,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		pgadmin4Anottations := swarm.Annotations{
 			Name: "pgadmin4",
 			Labels: map[string]string{
+				"app":                               "osi4iot",
 				"traefik.enable":                     "true",
 				"traefik.http.routers.pgadmin4.rule": pgadmin4Rule,
 				"traefik.http.middlewares.pgadmin4-prefix.stripprefix.prefixes":                       "/pgadmin4",
@@ -1400,6 +1468,9 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		pgadmin4TaskTemplate := swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Image: "ghcr.io/osi4iot/pgadmin4:2023-10-18-2",
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
 				User:  "0:0",
 				Env: []string{
 					fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),

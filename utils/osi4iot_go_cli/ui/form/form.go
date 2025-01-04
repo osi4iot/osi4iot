@@ -450,7 +450,7 @@ func runAction(actionKey string, m *Model) tea.Msg {
 		response, _ := initPlatform(m)
 		return response
 	case "deploymentLocation":
-		response, _ := deployLocationQuestions(m)
+		response, _ := DeployLocationQuestions(m)
 		return response
 	case "creatingNodeQuestions":
 		response, _ := creatingNodeQuestions(m)
@@ -459,7 +459,7 @@ func runAction(actionKey string, m *Model) tea.Msg {
 		response, _ := awsKeyQuestions(m)
 		return response
 	case "domainCertsQuestions":
-		response, _ := domainCertsQuestions(m)
+		response, _ := DomainCertsQuestions(m)
 		return response
 	case "copyKeyInNode":
 		response, err := copyKeyInNode(m)
@@ -487,6 +487,16 @@ func (m Model) FindAnswerByKey(key string) string {
 		}
 	}
 	return ""
+}
+
+func (m Model) NumNodesQuestions() int {
+	numNodes := 0
+	for i := range m.Questions {
+		if m.Questions[i].Key[:4] == "Node"  && m.Questions[i].QuestionType == "label" {
+			numNodes++
+		}
+	}
+	return numNodes
 }
 
 var style = lipgloss.NewStyle().

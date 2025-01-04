@@ -1,6 +1,7 @@
 package data
 
 type Network struct {
+	Id 	 string
 	Name string
 	Driver   string
 }

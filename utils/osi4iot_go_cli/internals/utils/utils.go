@@ -1,8 +1,11 @@
 package utils
 
 import (
+	"fmt"
 	"os"
+	"strconv"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/exp/rand"
@@ -263,12 +266,27 @@ func GiveCountryCode(countryName string) string {
 	return ""
 }
 
-func GeneratePassword(length int) string {
-	const charset = "abcdefghijklmnopqrstuvwxyz" +
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+func GeneratePassword(passwordLength int) string {
+	time.Sleep(1 * time.Microsecond)
+	source := rand.NewSource(uint64(time.Now().UnixMicro()))
+	rng := rand.New(source)
+	lowerCase := "abcdefghijklmnopqrstuvwxyz" // lowercase
+	upperCase := "ABCDEFGHIJKLMNOPQRSTUVWXYZ" // uppercase
+	numbers := "0123456789"
 	var password strings.Builder
-	for i := 0; i < length; i++ {
-		password.WriteByte(charset[rand.Intn(len(charset))])
+	for n := 0; n < passwordLength; n++ {
+		randNum := rng.Intn(3)
+		switch randNum {
+		case 0:
+			randCharNum := rng.Intn(len(lowerCase))
+			password.WriteByte(lowerCase[randCharNum])
+		case 1:
+			randCharNum := rng.Intn(len(upperCase))
+			password.WriteByte(upperCase[randCharNum])
+		case 2:
+			randCharNum := rng.Intn(len(numbers))
+			password.WriteByte(numbers[randCharNum])
+		}
 	}
 	return password.String()
 }
@@ -283,16 +301,63 @@ func HashPassword(password string) (string, error) {
 	return string(hash), nil
 }
 
-func WriteToFile(path string, data []byte, mod os.FileMode) {
+func WriteToFile(path string, data []byte, mod os.FileMode) error {
 	pathArray := strings.Split(path, "/")
 	parentPath := strings.Join(pathArray[:len(pathArray)-1], "/")
 	err := os.MkdirAll(parentPath, os.ModePerm)
 	if err != nil {
-	   panic(err)
+		return err
 	}
 
 	err = os.WriteFile(path, data, mod)
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
+}
+
+func FloatValueToStr(value float64) string {
+	if value == 0.0 {
+		return ""
+	}
+	return fmt.Sprintf("%f", value)
+}
+
+func IntValueToStr(value int) string {
+	if value == 0 {
+		return ""
+	}
+	return strconv.Itoa(value)
+}
+
+func GiveChoiceFocus(choice string, choices []string, defaultFocus int) int {
+	if choice == "" {
+		return defaultFocus
+	}
+	for i, c := range choices {
+		if c == choice {
+			return i
+		}
+	}
+	return defaultFocus
+}
+
+func Spinner(spinnerMsg string, endMsg string, done chan bool) {
+	go func() {
+		frames := []string{"|", "/", "-", "\\"} // Frames del spinner
+		for {
+			select {
+			case <-done:
+				spaces := strings.Repeat(" ", len(spinnerMsg)+10)
+				fmt.Printf("\r%s%s\n", endMsg, spaces)
+				return
+			default:
+				for _, frame := range frames {
+					fmt.Printf("\r%s  %s   ", spinnerMsg, frame)
+					time.Sleep(100 * time.Millisecond)
+				}
+			}
+		}
+	}()
 }

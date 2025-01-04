@@ -3,24 +3,28 @@ package data
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 type SwarmData struct {
-	Secrets map[string]Secret
-	Configs map[string]Config
-	Volumes map[string]Volume
+	Secrets  map[string]Secret
+	Configs  map[string]Config
+	Volumes  map[string]Volume
 	Networks map[string]Network
 }
 
 var swarmData SwarmData
 
-func RunSwarm() error {
+func InitSwarm() (*client.Client, context.Context, error) {
 	ctx := context.Background()
 
 	cli, err := client.NewClientWithOpts(
@@ -28,23 +32,30 @@ func RunSwarm() error {
 		client.WithAPIVersionNegotiation(),
 	)
 	if err != nil {
-		return fmt.Errorf("error creating docker client: %v", err)
+		return nil, nil, fmt.Errorf("error creating docker client: %v", err)
 	}
 
 	info, err := cli.Info(ctx)
 	if err != nil {
-		return fmt.Errorf("error getting docker info: %v", err)
+		return nil, nil, fmt.Errorf("error getting docker info: %v", err)
 	}
 
 	if !info.Swarm.ControlAvailable {
-		// inicializamos el swarm
 		_, err := cli.SwarmInit(ctx, swarm.InitRequest{
 			AdvertiseAddr: "127.0.0.1",    // tu IP local o la IP real de la interfaz
 			ListenAddr:    "0.0.0.0:2377", // por defecto Docker usa este puerto (2377)
 		})
 		if err != nil {
-			return fmt.Errorf("error initializing swarm: %v", err)
+			return nil, nil, fmt.Errorf("error initializing swarm: %v", err)
 		}
+	}
+	return cli, ctx, nil
+}
+
+func RunSwarm() error {
+	cli, ctx, err := InitSwarm()
+	if err != nil {
+		return fmt.Errorf("error initializing swarm: %v", err)
 	}
 
 	secrets, err := CreateSwarmSecrets(ctx, cli)
@@ -68,9 +79,9 @@ func RunSwarm() error {
 	}
 
 	swarmData = SwarmData{
-		Secrets: secrets,
-		Configs: configs,
-		Volumes: volumes,
+		Secrets:  secrets,
+		Configs:  configs,
+		Volumes:  volumes,
 		Networks: networks,
 	}
 
@@ -108,6 +119,9 @@ func createSecret(ctx context.Context, cli *client.Client, secretKey string, sec
 		secResp, err := cli.SecretCreate(ctx, swarm.SecretSpec{
 			Annotations: swarm.Annotations{
 				Name: secret.Name,
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
 			},
 			Data: []byte(secret.Data),
 		})
@@ -134,7 +148,11 @@ func CreateSwarmSecrets(ctx context.Context, cli *client.Client) (map[string]Sec
 }
 
 func RemoveSwarmSecrets(ctx context.Context, cli *client.Client) error {
-	existingSecrets, err := cli.SecretList(ctx, types.SecretListOptions{})
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingSecrets, err := cli.SecretList(ctx, types.SecretListOptions{
+		Filters: filterArgs,
+	})
 	if err != nil {
 		return fmt.Errorf("error listing secrets: %v", err)
 	}
@@ -175,6 +193,9 @@ func CreateConfig(ctx context.Context, cli *client.Client, configKey string, con
 		configResp, err := cli.ConfigCreate(ctx, swarm.ConfigSpec{
 			Annotations: swarm.Annotations{
 				Name: config.Name,
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
 			},
 			Data: []byte(config.Data),
 		})
@@ -201,7 +222,11 @@ func CreateSwarmConfigs(ctx context.Context, cli *client.Client) (map[string]Con
 }
 
 func RemoveSwarmConfigs(ctx context.Context, cli *client.Client) error {
-	existingConfigs, err := cli.ConfigList(ctx, types.ConfigListOptions{})
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingConfigs, err := cli.ConfigList(ctx, types.ConfigListOptions{
+		Filters: filterArgs,
+	})
 	if err != nil {
 		return fmt.Errorf("error listing configs: %v", err)
 	}
@@ -235,6 +260,9 @@ func CreateVolume(ctx context.Context, cli *client.Client, swarmVol *Volume) err
 			Name:       swarmVol.Name,
 			Driver:     swarmVol.Driver,
 			DriverOpts: swarmVol.DriverOpts,
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 		})
 		if err != nil {
 			return fmt.Errorf("error creating volume: %v", err)
@@ -259,7 +287,11 @@ func CreateSwarmVolumes(ctx context.Context, cli *client.Client) (map[string]Vol
 }
 
 func RemoveSwarmVolumes(ctx context.Context, cli *client.Client) error {
-	existingVolumes, err := cli.VolumeList(ctx, volume.ListOptions{})
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingVolumes, err := cli.VolumeList(ctx, volume.ListOptions{
+		Filters: filterArgs,
+	})
 	if err != nil {
 		return fmt.Errorf("error listing volumes: %v", err)
 	}
@@ -289,19 +321,23 @@ func CreateNetwork(ctx context.Context, cli *client.Client, swarmNetwork *Networ
 	}
 
 	if !networkExists {
-		_, err := cli.NetworkCreate(ctx, swarmNetwork.Name, network.CreateOptions{
-			Driver: swarmNetwork.Driver,
+		net, err := cli.NetworkCreate(ctx, swarmNetwork.Name, network.CreateOptions{
+			Driver:     swarmNetwork.Driver,
 			Attachable: true,
+			Labels: map[string]string{
+				"app": "osi4iot",
+			},
 		})
 		if err != nil {
 			return fmt.Errorf("error creating network: %v", err)
 		}
+		swarmNetwork.Id = net.ID
 	}
 
 	return nil
 }
 
-func CreateSwarmNetworks(ctx context.Context, cli *client.Client) (map[string]Network,error) {
+func CreateSwarmNetworks(ctx context.Context, cli *client.Client) (map[string]Network, error) {
 	networks := GenerateNetworks()
 	for _, network := range networks {
 		err := CreateNetwork(ctx, cli, &network)
@@ -314,7 +350,11 @@ func CreateSwarmNetworks(ctx context.Context, cli *client.Client) (map[string]Ne
 }
 
 func RemoveSwarmNetworks(ctx context.Context, cli *client.Client) error {
-	existingNetworks, err := cli.NetworkList(ctx, network.ListOptions{})
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingNetworks, err := cli.NetworkList(ctx, network.ListOptions{
+		Filters: filterArgs,
+	})
 	if err != nil {
 		return fmt.Errorf("error listing networks: %v", err)
 	}
@@ -345,11 +385,11 @@ func CreateService(ctx context.Context, cli *client.Client, swarmService Service
 
 	if !serviceExists {
 		_, err := cli.ServiceCreate(ctx, swarm.ServiceSpec{
-			Annotations: swarmService.Annotations,
+			Annotations:  swarmService.Annotations,
 			TaskTemplate: swarmService.TaskTemplate,
 			EndpointSpec: swarmService.EndpointSpec,
-			Mode: swarmService.Mode,
-			Networks: swarmService.Networks,
+			Mode:         swarmService.Mode,
+			Networks:     swarmService.Networks,
 		}, types.ServiceCreateOptions{})
 		if err != nil {
 			return fmt.Errorf("error creating service: %v", err)
@@ -357,7 +397,6 @@ func CreateService(ctx context.Context, cli *client.Client, swarmService Service
 	}
 	return nil
 }
-
 
 func CreateSwarmServices(ctx context.Context, cli *client.Client, swarmData SwarmData) error {
 	services := GenerateServices(swarmData)
@@ -367,5 +406,172 @@ func CreateSwarmServices(ctx context.Context, cli *client.Client, swarmData Swar
 			return fmt.Errorf("error creating service %s: %v", service.Name, err)
 		}
 	}
+	return nil
+}
+
+func RemoveSwarmServices(ctx context.Context, cli *client.Client) error {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingServices, err := cli.ServiceList(ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing services: %v", err)
+	}
+
+	for _, s := range existingServices {
+		err = cli.ServiceRemove(ctx, s.ID)
+		if err != nil {
+			return fmt.Errorf("error removing service: %v", err)
+		}
+	}
+
+	return nil
+}
+
+func StopPlatform() error {
+	cli, ctx, err := InitSwarm()
+	if err != nil {
+		return fmt.Errorf("error initializing swarm: %v", err)
+	}
+	err = RemoveSwarmServices(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("error removing services: %v", err)
+	}
+
+	return nil
+}
+
+func DeletePlatform() error {
+	cli, ctx, err := InitSwarm()
+	if err != nil {
+		return fmt.Errorf("error initializing swarm: %v", err)
+	}
+
+	done := make(chan bool)
+	spinnerMsg := "Waiting for all components to be deleted"
+	endMsg := "All components have been deleted successfully"
+	utils.Spinner(spinnerMsg ,endMsg, done)
+	err = RemoveSwarmServices(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("error removing services: %v", err)
+	}
+
+	err = RemoveSwarmSecrets(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("error removing secrets: %v", err)
+	}
+
+	err = RemoveSwarmConfigs(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("error removing configs: %v", err)
+	}
+
+	err = RemoveSwarmNetworks(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("error removing networks: %v", err)
+	}
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	containers, err := cli.ContainerList(context.Background(), container.ListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing containers: %v", err)
+	}
+
+	for {
+		if len(containers) == 0 {
+			break
+		}
+		containers, err = cli.ContainerList(context.Background(), container.ListOptions{
+			Filters: filterArgs,
+		})
+		if err != nil {
+			return fmt.Errorf("error listing containers: %v", err)
+		}
+	}
+
+	done <- true
+	time.Sleep(5 * time.Second) // wait for containers to stop completely
+
+	err = RemoveSwarmVolumes(ctx, cli)
+	if err != nil {
+		return fmt.Errorf("error removing volumes: %v", err)
+	}
+
+	return nil
+}
+
+func WaitUntilAllContainersAreHealthy() error {
+	cli, ctx, err := InitSwarm()
+	if err != nil {
+		return fmt.Errorf("error initializing swarm: %v", err)
+	}
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	services, err := cli.ServiceList(ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing services: %v", err)
+	}
+
+	done := make(chan bool)
+	spinnerMsg := "Waiting for all containers to be healthy"
+	endMsg := "All containers are healthy"
+	utils.Spinner(spinnerMsg, endMsg, done)
+	for {
+		allHealthy := true
+		for _, service := range services {
+			if service.Spec.Name == "system-prune" {
+				continue
+			}
+			serviceFilter := filters.NewArgs()
+			serviceFilter.Add("service", service.ID)
+			tasks, err := cli.TaskList(ctx, types.TaskListOptions{
+				Filters: serviceFilter,
+			})
+			if err != nil {
+				return fmt.Errorf("error listing tasks: %v", err)
+			}
+			numTasksRunning := 0
+			for _, task := range tasks {
+				if task.Status.State != swarm.TaskStateRunning {
+					continue
+				} else {
+					numTasksRunning++
+				}
+
+				containerID := task.Status.ContainerStatus.ContainerID
+				if containerID == "" {
+					return fmt.Errorf("error container %s does not have a container ID", task.ID[:10])
+				}
+
+				container, err := cli.ContainerInspect(ctx, containerID)
+				if err != nil {
+					return fmt.Errorf("error inspecting container %s: %v", containerID[:10], err)
+				}
+
+				if container.State.Health == nil {
+					return fmt.Errorf("error container %s does not have a health check configured", containerID[:10])
+				}
+				healthStatus := container.State.Health.Status
+				if healthStatus != "healthy" {
+					allHealthy = false
+				}
+			}
+			if numTasksRunning == 0 {
+				allHealthy = false
+			}
+		}
+		if allHealthy {
+			break
+		}
+	}
+	done <- true
+
 	return nil
 }

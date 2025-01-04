@@ -2,14 +2,11 @@ package data
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
 )
-
-var osi4iotStateFile = "osi4iot_state.json"
 
 type PlatformData struct {
 	PlatformInfo       PlatformInfo  `json:"platformInfo"`
@@ -53,7 +50,9 @@ type PlatformInfo struct {
 	MainOrganizationZipCode            string `json:"MAIN_ORGANIZATION_ZIP_CODE"`
 	MainOrganizationState              string `json:"MAIN_ORGANIZATION_STATE"`
 	MainOrganizationCountry            string `json:"MAIN_ORGANIZATION_COUNTRY"`
+	MainOrganizationBuildingPath       string `json:"MAIN_ORGANIZATION_BUILDING_PATH"`
 	MainOrganizationBuilding           string `json:"MAIN_ORGANIZATION_BUILDING"`
+	MainOrganizationFirstFloorPath     string `json:"MAIN_ORGANIZATION_FLOOR_PATH"`
 	MainOrganizationFirstFloor         string `json:"MAIN_ORGANIZATION_FLOOR"`
 	TelegramBotToken                   string `json:"TELEGRAM_BOTTOKEN"`
 	MainOrganizationTelegramChatID     string `json:"MAIN_ORGANIZATION_TELEGRAM_CHAT_ID"`
@@ -83,7 +82,7 @@ type PlatformInfo struct {
 	TimescaleUser                  string `json:"TIMESCALE_USER"`
 	TimescalePassword              string `json:"TIMESCALE_PASSWORD"`
 	TimescaleDB                    string `json:"TIMESCALE_DB"`
-	TimescaleDataRetentionInterval string `json:"TIMESCALE_DATA_RETENTION_INTERVAL"`
+	TimescaleDataRetentionInterval string `json:"TIMESCALE_DATA_RET_INT_DAYS"`
 	GrafanaDBPassword              string `json:"GRAFANA_DB_PASSWORD"`
 	GrafanaDatasourcePassword      string `json:"GRAFANA_DATASOURCE_PASSWORD"`
 	Dev2PDBPassword                string `json:"DEV2PDB_PASSWORD"`
@@ -92,8 +91,17 @@ type PlatformInfo struct {
 	PGAdminDefaultEmail            string `json:"PGADMIN_DEFAULT_EMAIL"`
 	PGAdminDefaultPassword         string `json:"PGADMIN_DEFAULT_PASSWORD"`
 
+	// Keys used for AWS Cluster deployment
 	AwsSshKeyPath string `json:"AWS_SSH_KEY_PATH"`
-	AwsEfsDNS     string `json:"AWS_EFS_DNS"`
+	AwsSshKey     string `json:"AWS_SSH_KEY"`
+
+	// Keys used for On-premise Cluster deployment
+	SshPrivKeyPath string `json:"SSH_PRIVATE_KEY_PATH"`
+	SshPrivKey     string `json:"SSH_PRIVATE_KEY"`
+	SshPubKeyPath string `json:"SSH_PUB_KEY_PATH"`
+	SshPubKey     string `json:"SSH_PUB_KEY"`
+
+	AwsEfsDNS string `json:"AWS_EFS_DNS"`
 
 	DOMAIN_SSL_PRIVATE_KEY_PATH string `json:"DOMAIN_SSL_PRIVATE_KEY_PATH"`
 	DOMAIN_SSL_CA_PEM_PATH      string `json:"DOMAIN_SSL_CA_PEM_PATH"`
@@ -163,7 +171,7 @@ type NodeRedInstance struct {
 	ClientKeyName       string `json:"client_key_name"`
 }
 
-func getFileData(filePath string) string {
+func GetFileData(filePath string) string {
 	file, _ := os.Open(filePath)
 	defer file.Close()
 
@@ -221,10 +229,12 @@ func SetData(key string, value string) {
 	case "MAIN_ORGANIZATION_COUNTRY":
 		Data.PlatformInfo.MainOrganizationCountry = value
 	case "MAIN_ORGANIZATION_BUILDING_PATH":
-		mainOrgBuilding := getFileData(value)
+		Data.PlatformInfo.MainOrganizationBuildingPath = value
+		mainOrgBuilding := GetFileData(value)
 		Data.PlatformInfo.MainOrganizationBuilding = mainOrgBuilding
 	case "MAIN_ORGANIZATION_FLOOR_PATH":
-		mainOrgFloor := getFileData(value)
+		Data.PlatformInfo.MainOrganizationFirstFloorPath = value
+		mainOrgFloor := GetFileData(value)
 		Data.PlatformInfo.MainOrganizationFirstFloor = mainOrgFloor
 	case "TELEGRAM_BOTTOKEN":
 		Data.PlatformInfo.TelegramBotToken = value
@@ -289,13 +299,16 @@ func SetData(key string, value string) {
 	case "NETWORK_INTERFACE":
 		Data.PlatformInfo.NetworkInterface = value
 	case "DOMAIN_SSL_PRIVATE_KEY_PATH":
-		domainSSLPrivateKey := getFileData(value)
+		Data.PlatformInfo.DOMAIN_SSL_PRIVATE_KEY_PATH = value
+		domainSSLPrivateKey := GetFileData(value)
 		Data.Certs.DomainCerts.PrivateKey = domainSSLPrivateKey
-	case "DOMAIN_SSL_CA_CERT_PATH":
-		domainSSLCaPem := getFileData(value)
+	case "DOMAIN_SSL_CA_PEM_PATH":
+		Data.PlatformInfo.DOMAIN_SSL_CA_PEM_PATH = value
+		domainSSLCaPem := GetFileData(value)
 		Data.Certs.DomainCerts.SslCaPem = domainSSLCaPem
-	case "DOMAIN_SSL_CERTICATE_PATH":
-		domainSSLCertCrt := getFileData(value)
+	case "DOMAIN_SSL_CERT_CRT_PATH":
+		Data.PlatformInfo.DOMAIN_SSL_CERT_CRT_PATH = value
+		domainSSLCertCrt := GetFileData(value)
 		Data.Certs.DomainCerts.SslCertCrt = domainSSLCertCrt
 	case "ENCRYPTION_SECRET_KEY":
 		Data.PlatformInfo.EncryptionSecretKey = value
@@ -336,6 +349,8 @@ func SetData(key string, value string) {
 		Data.Certs.DomainCerts.IotPlatformCaName = value
 	case "iot_platform_cert_name":
 		Data.Certs.DomainCerts.IotPlatformCertName = value
+	case "DOCKER_IMAGES_VERSION":
+		Data.PlatformInfo.DockerImagesVersion = value
 	}
 
 	firstWord := strings.Split(key, "_")[0]
@@ -360,7 +375,6 @@ func SetNodesData(nodesData []NodeData) {
 	Data.PlatformInfo.NodesData = nodesData
 }
 
-
 func SetCertsData() {
 	keyHash := GetMD5Hash(Data.Certs.DomainCerts.PrivateKey)
 	Data.Certs.DomainCerts.IotPlatformKeyName = fmt.Sprintf("iot_platform_key_%s", keyHash)
@@ -378,26 +392,4 @@ func SetCertsData() {
 
 func GetData() PlatformData {
 	return Data
-}
-
-func WritePlatformDataToFile() error {
-	file, _ := json.Marshal(Data)
-	err := os.WriteFile(osi4iotStateFile, file, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func ReadPlatformDataFromFile() error {
-	file, err := os.ReadFile(osi4iotStateFile)
-	if err != nil {
-		return err
-	}
-
-	err = json.Unmarshal(file, &Data)
-	if err != nil {
-		return err
-	}
-	return nil
 }
