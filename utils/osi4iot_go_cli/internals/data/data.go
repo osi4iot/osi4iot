@@ -98,8 +98,8 @@ type PlatformInfo struct {
 	// Keys used for On-premise Cluster deployment
 	SshPrivKeyPath string `json:"SSH_PRIVATE_KEY_PATH"`
 	SshPrivKey     string `json:"SSH_PRIVATE_KEY"`
-	SshPubKeyPath string `json:"SSH_PUB_KEY_PATH"`
-	SshPubKey     string `json:"SSH_PUB_KEY"`
+	SshPubKeyPath  string `json:"SSH_PUB_KEY_PATH"`
+	SshPubKey      string `json:"SSH_PUB_KEY"`
 
 	AwsEfsDNS string `json:"AWS_EFS_DNS"`
 
@@ -182,6 +182,18 @@ func GetFileData(filePath string) string {
 
 var Data PlatformData = PlatformData{}
 
+type PlatformStatus int
+
+const (
+	Unknown PlatformStatus = iota
+	Empty
+	Initiating
+	Running
+	Stopped
+)
+
+var PlatformState PlatformStatus = Empty
+
 func SetData(key string, value string) {
 	switch key {
 	case "PLATFORM_NAME":
@@ -261,9 +273,13 @@ func SetData(key string, value string) {
 		refreshTokenLifetime, _ := strconv.Atoi(value)
 		Data.PlatformInfo.RefreshTokenLifetime = refreshTokenLifetime
 	case "REFRESH_TOKEN_SECRET":
-		Data.PlatformInfo.RefreshTokenSecret = value
+		if Data.PlatformInfo.RefreshTokenSecret == "" {
+			Data.PlatformInfo.RefreshTokenSecret = value
+		}
 	case "ACCESS_TOKEN_SECRET":
-		Data.PlatformInfo.AccessTokenSecret = value
+		if Data.PlatformInfo.AccessTokenSecret == "" {
+			Data.PlatformInfo.AccessTokenSecret = value
+		}
 	case "MQTT_SSL_CERTS_VALIDITY_DAYS":
 		mqttCertsValidityDays, _ := strconv.Atoi(value)
 		Data.PlatformInfo.MQTTSslCertsValidityDays = mqttCertsValidityDays
@@ -311,7 +327,9 @@ func SetData(key string, value string) {
 		domainSSLCertCrt := GetFileData(value)
 		Data.Certs.DomainCerts.SslCertCrt = domainSSLCertCrt
 	case "ENCRYPTION_SECRET_KEY":
-		Data.PlatformInfo.EncryptionSecretKey = value
+		if Data.PlatformInfo.EncryptionSecretKey == "" {
+			Data.PlatformInfo.EncryptionSecretKey = value
+		}
 	case "GRAFANA_ADMIN_PASSWORD":
 		Data.PlatformInfo.GrafanaAdminPassword = value
 	case "POSTGRES_USER":
@@ -330,9 +348,13 @@ func SetData(key string, value string) {
 		timescaleDataRetentionInterval := value + " days"
 		Data.PlatformInfo.TimescaleDataRetentionInterval = timescaleDataRetentionInterval
 	case "GRAFANA_DB_PASSWORD":
-		Data.PlatformInfo.GrafanaDBPassword = value
+		if Data.PlatformInfo.GrafanaDBPassword == "" {
+			Data.PlatformInfo.GrafanaDBPassword = value
+		}
 	case "GRAFANA_DATASOURCE_PASSWORD":
-		Data.PlatformInfo.GrafanaDatasourcePassword = value
+		if Data.PlatformInfo.GrafanaDatasourcePassword == "" {
+			Data.PlatformInfo.GrafanaDatasourcePassword = value
+		}
 	case "DEV2PDB_PASSWORD":
 		Data.PlatformInfo.Dev2PDBPassword = value
 	case "NODE_RED_ADMIN":

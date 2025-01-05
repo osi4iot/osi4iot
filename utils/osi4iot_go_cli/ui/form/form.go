@@ -35,6 +35,7 @@ type Model struct {
 	Focus         int
 	Cursor        int
 	Loading       bool
+	Finished      bool
 	SubmitMsgMap  map[string]string
 	RecievedMsg   string
 	PageSize      int
@@ -65,7 +66,7 @@ func (m *Model) validateAnswer(qIdx int) (bool, string) {
 		}
 
 		if slices.Contains(m.Questions[qIdx].Rules, "domainCertsType") {
-			data["deploymentLocation"] =m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+			data["deploymentLocation"] = m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 		}
 	}
 	return validation.Run(q.Answer, q.Prompt, q.Rules, data)
@@ -100,17 +101,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlQ, tea.KeyCtrlD:
 			return m, tea.Quit
+		case tea.KeyCtrlPgDown:
+		case tea.KeyCtrlPgUp:
+			{
+			} // do nothing
 		case tea.KeyCtrlDown:
-			if m.PageSize < len(m.Questions) {
+			numPages := int(math.Ceil(float64(len(m.Questions)) / float64(m.PageSize+1)))
+			if m.PageSize < len(m.Questions) && m.CurrentPage <= numPages {
 				m.PageSize++
 			}
-			m.Focus = 0
+			m.Focus = (m.CurrentPage - 1) * m.PageSize
 			m.Cursor = len(m.Questions[m.Focus].Answer)
 		case tea.KeyCtrlUp:
 			if m.PageSize > 10 {
 				m.PageSize--
 			}
-			m.Focus = 0
+			m.Focus = (m.CurrentPage - 1) * m.PageSize
 			m.Cursor = len(m.Questions[m.Focus].Answer)
 		case tea.KeyEnter:
 			if m.Questions[m.Focus].QuestionType == "list" {
@@ -237,8 +243,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.RecievedMsg[:5] != "Error" {
 			m.updateFocus("down")
 		}
+	case platformInitiatedMsg:
+		m.Loading = false
+		m.RecievedMsg = string(msg)
+		if m.RecievedMsg[:5] != "Error" {
+			m.Finished = true
+			return m, tea.Quit
+		}
 	}
-
 	return m, nil
 }
 
@@ -360,18 +372,20 @@ func (m Model) View() string {
 	}
 	output += fmt.Sprintf("\n%s: %s", style.Render("Message"), message)
 
-	numPages := int(math.Ceil(float64(len(m.Questions)) / float64(m.PageSize)))
-	footer := fmt.Sprintf("\nQuestion: %d/%d, Page: %d/%d, Page size: %d, Cursor: %d, Focus: %d",
-		m.Focus+1,
-		len(m.Questions),
-		m.CurrentPage,
-		numPages, m.PageSize,
-		m.Cursor,
-		m.Focus,
-	)
-	output += styleSend.Render(footer)
-	output += styleSend.Render("\nPress Enter to submit and Ctrl+D or Ctrl+Q to exit.")
-	output += styleSend.Render("\nScroll with ↑ ↓ PgUp PgDn. Scale page with Ctrl+↑ Ctrl+↓\n")
+	if !m.Finished {
+		numPages := int(math.Ceil(float64(len(m.Questions)) / float64(m.PageSize)))
+		footer := fmt.Sprintf("\nQuestion: %d/%d, Page: %d/%d, Page size: %d, Cursor: %d, Focus: %d",
+			m.Focus+1, len(m.Questions),
+			m.CurrentPage, numPages,
+			m.PageSize,
+			m.Cursor,
+			m.Focus,
+		)
+		output += styleSend.Render(footer)
+		output += styleSend.Render("\nPress Enter to submit and Ctrl+D or Ctrl+Q to exit.")
+		output += styleSend.Render("\nScroll with ↑ ↓ PgUp PgDn. Scale page with Ctrl+↑ Ctrl+↓\n")
+	}
+
 	return output
 }
 
@@ -428,6 +442,7 @@ func (m *Model) updateChoiceFocus(dir string) {
 
 type runActionMsg string
 type submissionResultMsg string
+type platformInitiatedMsg string
 type tickMsg time.Time
 
 func tick(d time.Duration) tea.Cmd {
@@ -492,7 +507,7 @@ func (m Model) FindAnswerByKey(key string) string {
 func (m Model) NumNodesQuestions() int {
 	numNodes := 0
 	for i := range m.Questions {
-		if m.Questions[i].Key[:4] == "Node"  && m.Questions[i].QuestionType == "label" {
+		if m.Questions[i].Key[:4] == "Node" && m.Questions[i].QuestionType == "label" {
 			numNodes++
 		}
 	}

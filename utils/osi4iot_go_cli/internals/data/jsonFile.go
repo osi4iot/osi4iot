@@ -2,9 +2,12 @@ package data
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
@@ -36,6 +39,37 @@ func WritePlatformDataToFile() error {
 	return nil
 }
 
+func SetInitialPlatformState() error {
+	existFile := ExistStateFile()
+	if !existFile {
+		PlatformState = Empty
+	} else {
+		cli, ctx, err := InitSwarm()
+		if err != nil {
+			PlatformState = Unknown
+			return fmt.Errorf("error initializing swarm: %v", err)
+		}
+
+		filterArgs := filters.NewArgs()
+		filterArgs.Add("label", "app=osi4iot")
+		services, err := cli.ServiceList(ctx, types.ServiceListOptions{
+			Filters: filterArgs,
+		})
+		if err != nil {
+			PlatformState = Unknown
+			return fmt.Errorf("error listing services: %v", err)
+		}
+
+		if len(services) > 0 {
+			PlatformState = Running
+		} else {
+			PlatformState = Stopped
+		}
+	}
+
+	return nil
+}
+
 func ReadPlatformDataFromFile() error {
 	existFile := ExistStateFile()
 	if existFile {
@@ -64,7 +98,7 @@ func ReadPlatformDataFromFile() error {
 
 	err = CreateSSHKeysFile()
 	if err != nil {
-	   return err
+		return err
 	}
 
 	return nil

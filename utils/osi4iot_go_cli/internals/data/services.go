@@ -2,6 +2,7 @@ package data
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types/container"
@@ -49,7 +50,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/system_prune:latest",
 			Labels: map[string]string{
-				"app": "osi4iot",
+				"app":          "osi4iot",
+				"service_type": "system-prune",
 			},
 			Env: []string{
 				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
@@ -105,7 +107,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	traefikAnottations := swarm.Annotations{
 		Name: "traefik",
 		Labels: map[string]string{
-			"app": "osi4iot",
+			"app":          "osi4iot",
+			"service_type": "traefik",
 		},
 	}
 	traefikSecrets := []*swarm.SecretReference{}
@@ -271,6 +274,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		Name: "mosquitto",
 		Labels: map[string]string{
 			"app":            "osi4iot",
+			"service_type":   "mosquitto",
 			"traefik.enable": "true",
 			// MQTT without TLS (1883, TCP puro)
 			"traefik.tcp.routers.mosquitto1883.rule":                      "HostSNI(`*`)",
@@ -431,7 +435,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	postgresAnottations := swarm.Annotations{
 		Name: "postgres",
 		Labels: map[string]string{
-			"app": "osi4iot",
+			"app":          "osi4iot",
+			"service_type": "postgres",
 		},
 	}
 	postgresTaskTemplate := swarm.TaskSpec{
@@ -542,7 +547,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	timescaledbAnottations := swarm.Annotations{
 		Name: "timescaledb",
 		Labels: map[string]string{
-			"app": "osi4iot",
+			"app":          "osi4iot",
+			"service_type": "timescaledb",
 		},
 	}
 	timescaledbTaskTemplate := swarm.TaskSpec{
@@ -662,7 +668,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	s3StorageAnottations := swarm.Annotations{
 		Name: "s3_storage",
 		Labels: map[string]string{
-			"app": "osi4iot",
+			"app":          "osi4iot",
+			"service_type": "s3_storage",
 		},
 	}
 	s3StorageTaskTemplate := swarm.TaskSpec{
@@ -775,7 +782,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/dev2pdb:1.3.0",
 			Labels: map[string]string{
-				"app": "osi4iot",
+				"app":          "osi4iot",
+				"service_type": "dev2pdb",
 			},
 			Env: []string{
 				"DATABASE_NAME=iot_data_db",
@@ -875,6 +883,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		Labels: map[string]string{
 			"app":                               "osi4iot",
 			"traefik.enable":                    "true",
+			"service_type":                      "grafana",
 			"traefik.http.routers.grafana.rule": grafanaRule,
 			"traefik.http.middlewares.grafana-prefix.stripprefix.prefixes":                       "/grafana",
 			"traefik.http.routers.grafana.middlewares":                                           "grafana-prefix,grafana-header,grafana-redirectregex",
@@ -990,6 +999,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		Name: "admin_api",
 		Labels: map[string]string{
 			"app":            "osi4iot",
+			"service_type":   "admin_api",
 			"traefik.enable": "true",
 			"traefik.http.middlewares.admin_api-header.headers.customrequestheaders.X-Script-Name": "/admin_api/",
 			"traefik.http.middlewares.admin_api-prefix.stripprefix.prefixes":                       "/admin_api",
@@ -1153,9 +1163,10 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	frontendAnottations := swarm.Annotations{
 		Name: "frontend",
 		Labels: map[string]string{
-			"app":                                                              "osi4iot",
-			"traefik.enable":                                                   "true",
-			"traefik.http.routers.frontend.rule":                               frontendRule,
+			"app":                                "osi4iot",
+			"service_type":                       "frontend",
+			"traefik.enable":                     "true",
+			"traefik.http.routers.frontend.rule": frontendRule,
 			"traefik.http.routers.frontend.entrypoints":                        "websecure",
 			"traefik.http.routers.frontend.tls":                                "true",
 			"traefik.http.routers.frontend.service":                            "frontend",
@@ -1250,7 +1261,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/grafana_renderer:3.8.4",
 			Labels: map[string]string{
-				"app": "osi4iot",
+				"app":          "osi4iot",
+				"service_type": "grafana_renderer",
 			},
 			Env: []string{
 				"ENABLE_METRICS=true",
@@ -1328,9 +1340,10 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		minioAnottations := swarm.Annotations{
 			Name: "minio",
 			Labels: map[string]string{
-				"app":                                                                                      "osi4iot",
-				"traefik.enable":                                                                           "true",
-				"traefik.http.routers.minio_api.rule":                                                      minioRule,
+				"app":                                 "osi4iot",
+				"service_type":                        "minio",
+				"traefik.enable":                      "true",
+				"traefik.http.routers.minio_api.rule": minioRule,
 				"traefik.http.routers.minio_api.entrypoints":                                               "websecure",
 				"traefik.http.routers.minio_api.tls":                                                       "true",
 				"traefik.http.routers.minio_api.service":                                                   "minio",
@@ -1353,7 +1366,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		}
 		minioTaskTemplate := swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:    "ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z",
+				Image: "ghcr.io/osi4iot/minio:RELEASE.2023-10-16T04-13-43Z",
 				Labels: map[string]string{
 					"app": "osi4iot",
 				},
@@ -1450,7 +1463,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		pgadmin4Anottations := swarm.Annotations{
 			Name: "pgadmin4",
 			Labels: map[string]string{
-				"app":                               "osi4iot",
+				"app":                                "osi4iot",
+				"service_type":                       "pgadmin4",
 				"traefik.enable":                     "true",
 				"traefik.http.routers.pgadmin4.rule": pgadmin4Rule,
 				"traefik.http.middlewares.pgadmin4-prefix.stripprefix.prefixes":                       "/pgadmin4",
@@ -1471,7 +1485,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 				Labels: map[string]string{
 					"app": "osi4iot",
 				},
-				User:  "0:0",
+				User: "0:0",
 				Env: []string{
 					fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
 				},
@@ -1546,6 +1560,185 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			UpdateConfig:   pgadmin4UpdateConfig,
 			RollbackConfig: pgadmin4RollbackConfig,
 			Networks:       pgadmin4Network,
+		}
+	}
+
+	var nriConstraintsArray []string
+	for _, org := range Data.Certs.MqttCerts.Organizations {
+		orgAcronym := org.OrgAcronym
+		orgAcronymLower := strings.ToLower(orgAcronym)
+
+		if numSwarmNodes == 1 {
+			nriConstraintsArray = []string{
+				"node.role==manager",
+			}
+		} else {
+			if len(org.ExclusiveWorkerNodes) != 0 {
+				nriConstraintsArray = []string{
+					"node.role==worker",
+					fmt.Sprintf("node.labels.org_hash==%s", org.OrgHash),
+				}
+			} else {
+				nriConstraintsArray = []string{
+					"node.role==worker",
+					"node.labels.generic_org_worker==true",
+				}
+			}
+		}
+
+		for _, nri := range org.NodeRedInstances {
+			nriHash := nri.NriHash
+			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
+			nodeRedInstanceHashPath := fmt.Sprintf("nodered_%s", nriHash)
+			isVolumeCreated := nri.IsVolumeCreated
+			mqttClientCert := fmt.Sprintf("%s_%s_cert", orgAcronymLower, nriHash)
+			mqttClientKey := fmt.Sprintf("%s_%s_key", orgAcronymLower, nriHash)
+
+			domainName := Data.PlatformInfo.DomainName
+			nriAnottations := swarm.Annotations{
+				Name: serviceName,
+				Labels: map[string]string{
+					"app":            "osi4iot",
+					"service_type":   "nodered_instance",
+					"traefik.enable": "true",
+					fmt.Sprintf("traefik.http.routers.%s.rule", serviceName): fmt.Sprintf(
+						"Host(`%s`) && PathPrefix(`/%s/`)",
+						domainName,
+						nodeRedInstanceHashPath,
+					),
+					fmt.Sprintf("traefik.http.middlewares.%s-prefix.stripprefix.prefixes", serviceName): fmt.Sprintf(
+						"/%s",
+						nodeRedInstanceHashPath,
+					),
+					fmt.Sprintf("traefik.http.routers.%s.middlewares", serviceName): fmt.Sprintf(
+						"%s-prefix,%s-header,%s-redirectregex",
+						serviceName,
+						serviceName,
+						serviceName,
+					),
+					fmt.Sprintf("traefik.http.middlewares.%s-prefix.stripprefix.forceslash", serviceName): "false",
+					fmt.Sprintf("traefik.http.middlewares.%s-header.headers.customrequestheaders.X-Script-Name", serviceName): fmt.Sprintf(
+						"/%s/",
+						nodeRedInstanceHashPath,
+					),
+					fmt.Sprintf("traefik.http.middlewares.%s-redirectregex.redirectregex.regex", serviceName): fmt.Sprintf(
+						"%s/(%s*)",
+						domainName,
+						nodeRedInstanceHashPath,
+					),
+					fmt.Sprintf("traefik.http.middlewares.%s-redirectregex.redirectregex.replacement", serviceName): fmt.Sprintf(
+						"%s/$${1}",
+						domainName,
+					),
+					fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName):               "websecure",
+					fmt.Sprintf("traefik.http.routers.%s.tls", serviceName):                       "true",
+					fmt.Sprintf("traefik.http.routers.%s.service", serviceName):                   serviceName,
+					fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName): "1880",
+				},
+			}
+			nriTaskTemplate := swarm.TaskSpec{
+				ContainerSpec: &swarm.ContainerSpec{
+					Image: "ghcr.io/osi4iot/nodered_instance:1.3.0",
+					Labels: map[string]string{
+						"app": "osi4iot",
+					},
+					Env: []string{
+						fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
+						fmt.Sprintf("NODERED_INSTANCE_HASH=%s", nriHash),
+						fmt.Sprintf("IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=%s", isVolumeCreated),
+					},
+					Secrets: []*swarm.SecretReference{
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/data/certs/ca.crt",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
+							SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
+						},
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/data/certs/client.crt",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets[mqttClientCert].ID,
+							SecretName: swarmData.Secrets[mqttClientCert].Name,
+						},
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/data/certs/client.key",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets[mqttClientKey].ID,
+							SecretName: swarmData.Secrets[mqttClientKey].Name,
+						},
+					},
+					Mounts: []mount.Mount{
+						{
+							Type:   mount.TypeVolume,
+							Source: swarmData.Volumes[serviceName].Name,
+							Target: "/data",
+						},
+					},
+				},
+				Resources: &swarm.ResourceRequirements{
+					Limits: &swarm.Limit{
+						NanoCPUs:    giveCPUs("nodered_instance"),
+						MemoryBytes: giveMemory("nodered_instance"),
+					},
+					Reservations: &swarm.Resources{
+						NanoCPUs:    giveCPUs("nodered_instance"),
+						MemoryBytes: giveMemory("nodered_instance"),
+					},
+				},
+				Placement: &swarm.Placement{
+					Constraints: nriConstraintsArray,
+				},
+			}
+			nriEndpointSpec := &swarm.EndpointSpec{
+				Mode: swarm.ResolutionModeVIP,
+			}
+			nriMode := swarm.ServiceMode{
+				Replicated: &swarm.ReplicatedService{
+					Replicas: giveReplicsPtr("nodered_instance"),
+				},
+			}
+			nriUpdateConfig := &swarm.UpdateConfig{
+				Parallelism:     2,
+				Delay:           time.Duration(5 * time.Second),
+				FailureAction:   swarm.UpdateFailureActionRollback,
+				Monitor:         time.Duration(20 * time.Second),
+				MaxFailureRatio: 0.2,
+				Order:           "start-first",
+			}
+			nriRollbackConfig := &swarm.UpdateConfig{
+				Parallelism:     2,
+				Delay:           time.Duration(5 * time.Second),
+				FailureAction:   swarm.UpdateFailureActionRollback,
+				Monitor:         time.Duration(20 * time.Second),
+				MaxFailureRatio: 0.2,
+				Order:           "start-first",
+			}
+			nriNetwork := []swarm.NetworkAttachmentConfig{
+				{Target: swarmData.Networks["internal_net"].Name},
+				{Target: swarmData.Networks["traefik_public"].Name},
+			}
+			Services[serviceName] = Service{
+				Name:           serviceName,
+				Annotations:    nriAnottations,
+				TaskTemplate:   nriTaskTemplate,
+				EndpointSpec:   nriEndpointSpec,
+				Mode:           nriMode,
+				UpdateConfig:   nriUpdateConfig,
+				RollbackConfig: nriRollbackConfig,
+				Networks:       nriNetwork,
+			}
 		}
 	}
 

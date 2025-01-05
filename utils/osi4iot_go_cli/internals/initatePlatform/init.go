@@ -1,4 +1,4 @@
-package initPlatform
+package initiatePlatform
 
 import (
 	"log"
@@ -11,6 +11,7 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/form"
 	clipboard "github.com/tiagomelo/go-clipboard/clipboard"
 )
+
 
 func Create() {
 	p := tea.NewProgram(initialModel())
@@ -610,6 +611,7 @@ func initialModel() form.Model {
 		Focus:   0,
 		Cursor:  0,
 		Loading: false,
+		Finished: false,
 		SubmitMsgMap: map[string]string{
 			"initPlatform":          "Initializing platform",
 			"creatingNodeQuestions": "Adding node questions",
@@ -624,6 +626,8 @@ func initialModel() form.Model {
 		Clipboard:     newClipboard,
 		Data:          map[string]interface{}{"numNodes": 0},
 	}
+
+	model.Cursor = len(model.Questions[0].Answer)
 
 	if data.Data.PlatformInfo.MainOrganizationBuildingPath != "" {
 		value := data.Data.PlatformInfo.MainOrganizationBuildingPath

@@ -4,19 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/initPlatform"
+	initiatePlatform "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/initatePlatform"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/spf13/cobra"
 )
-
-var styleErrMsg = lipgloss.NewStyle().
-	Bold(true).
-	Foreground(lipgloss.Color("9"))
-
-var styleOKMsg = lipgloss.NewStyle().
-	Bold(true).
-	Foreground(lipgloss.Color("#00FF00"))
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -33,7 +25,21 @@ var cmdInit = &cobra.Command{
 	Short: "Init a new platform",
 	Long:  "Init a new platform",
 	Run: func(cmd *cobra.Command, args []string) {
-		initPlatform.Create()
+		platformState := data.GetPlatformState()
+		if platformState == data.Running {
+			errMsg := utils.StyleWarningMsg.Render("The platform is already running. Please stop it before initializing a new one")
+			fmt.Println(errMsg)
+		} else {
+			initiatePlatform.Create()
+			platformState = data.GetPlatformState()
+			if platformState == data.Initiating {
+				err := data.SwarmInitiationInfo()
+				if err != nil {
+					errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
+					fmt.Println(errMsg)
+				}
+			}
+		}
 	},
 }
 
@@ -44,17 +50,14 @@ var cmdRun = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		err := data.RunSwarm()
 		if err != nil {
-			errMsg := styleErrMsg.Render("Error: runing the platform ", err.Error())
+			errMsg := utils.StyleErrMsg.Render("Error: runing the platform ", err.Error())
 			fmt.Println(errMsg)
 		} else {
 			fmt.Println("Platform has been started successfully")
-			err = data.WaitUntilAllContainersAreHealthy()
+			err := data.SwarmInitiationInfo()
 			if err != nil {
-				errMsg := styleErrMsg.Render("error waiting for the platform to be healthy: ", err.Error())
+				errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
 				fmt.Println(errMsg)
-			} else {
-				okMsg := styleOKMsg.Render("Platform is ready to be used")
-				fmt.Println(okMsg)
 			}
 		}
 	},
@@ -220,10 +223,10 @@ var cmdStop = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		err := data.StopPlatform()
 		if err != nil {
-			errMsg := styleErrMsg.Render("Error: stopping the platform ", err.Error())
+			errMsg := utils.StyleErrMsg.Render("Error: stopping the platform ", err.Error())
 			fmt.Println(errMsg)
 		} else {
-			okMsg := styleOKMsg.Render("Platform has been sttoped successfully")
+			okMsg := utils.StyleOKMsg.Render("Platform has been sttoped successfully")
 			fmt.Println(okMsg)
 		}
 	},
@@ -234,12 +237,12 @@ var cmdDelete = &cobra.Command{
 	Short: "Delete platform",
 	Long:  "Delete platform",
 	Run: func(cmd *cobra.Command, args []string) {
-		err:= data.DeletePlatform()
+		err := data.DeletePlatform()
 		if err != nil {
-			errMsg := styleErrMsg.Render("Error: deleting the platform ", err.Error())
+			errMsg := utils.StyleErrMsg.Render("Error: deleting the platform ", err.Error())
 			fmt.Println(errMsg)
 		} else {
-			okMsg := styleOKMsg.Render("Platform has been deleted successfully")
+			okMsg := utils.StyleOKMsg.Render("Platform has been deleted successfully")
 			fmt.Println(okMsg)
 		}
 	},
@@ -256,6 +259,11 @@ func init() {
 	err := data.ReadPlatformDataFromFile()
 	if err != nil {
 		panic(fmt.Sprintf("Error loading json file: %v", err))
+	}
+
+	err = data.SetInitialPlatformState()
+	if err != nil {
+		panic(fmt.Sprintf("Error setting initial platform state: %v", err))
 	}
 
 	rootCmd.AddCommand(cmdInit)

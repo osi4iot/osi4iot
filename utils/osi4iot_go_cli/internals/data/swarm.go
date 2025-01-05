@@ -3,6 +3,7 @@ package data
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -451,7 +452,7 @@ func DeletePlatform() error {
 	done := make(chan bool)
 	spinnerMsg := "Waiting for all components to be deleted"
 	endMsg := "All components have been deleted successfully"
-	utils.Spinner(spinnerMsg ,endMsg, done)
+	utils.Spinner(spinnerMsg, endMsg, done)
 	err = RemoveSwarmServices(ctx, cli)
 	if err != nil {
 		return fmt.Errorf("error removing services: %v", err)
@@ -504,7 +505,7 @@ func DeletePlatform() error {
 	return nil
 }
 
-func WaitUntilAllContainersAreHealthy() error {
+func WaitUntilAllContainersAreHealthy(serviceType string) error {
 	cli, ctx, err := InitSwarm()
 	if err != nil {
 		return fmt.Errorf("error initializing swarm: %v", err)
@@ -519,13 +520,28 @@ func WaitUntilAllContainersAreHealthy() error {
 		return fmt.Errorf("error listing services: %v", err)
 	}
 
+	filteredServices := []swarm.Service{}
+	if serviceType != "all" {
+		for _, service := range services {
+			if val, ok := service.Spec.Labels["service_type"]; ok && val == serviceType {
+				filteredServices = append(filteredServices, service)
+			}
+		}
+	} else {
+		filteredServices = services
+	}
+
 	done := make(chan bool)
 	spinnerMsg := "Waiting for all containers to be healthy"
 	endMsg := "All containers are healthy"
+	if serviceType != "all" {
+		spinnerMsg = fmt.Sprintf("Waiting for containers of service %s to be healthy", serviceType)
+		endMsg = fmt.Sprintf("All containers of service %s are healthy", serviceType)
+	}
 	utils.Spinner(spinnerMsg, endMsg, done)
 	for {
 		allHealthy := true
-		for _, service := range services {
+		for _, service := range filteredServices {
 			if service.Spec.Name == "system-prune" {
 				continue
 			}
@@ -572,6 +588,132 @@ func WaitUntilAllContainersAreHealthy() error {
 		}
 	}
 	done <- true
+
+	return nil
+}
+
+func SetPlatformState(state PlatformStatus) {
+	PlatformState = state
+}
+
+func GetPlatformState() PlatformStatus {
+	return PlatformState
+}
+
+func findOrgAndNriIndex(orgAcronym string, nriHash string) (int, int) {
+	orgIndex := -1
+	nriIndex := -1
+	for orgIdx, org := range Data.Certs.MqttCerts.Organizations {
+		if strings.ToLower(org.OrgAcronym) == orgAcronym {
+			for nriIdx, nri := range org.NodeRedInstances {
+				if nri.NriHash == nriHash {
+					orgIndex = orgIdx
+					nriIndex = nriIdx
+					break
+				} else {
+					continue
+				}
+			}
+		} else {
+			continue
+		}
+	}
+	return orgIndex, nriIndex
+}
+
+func SetNriVolumesAsCreated() (bool, error) {
+	areNewNriVolumesCreated := false
+	cli, ctx, err := InitSwarm()
+	if err != nil {
+		return false, fmt.Errorf("error initializing swarm: %v", err)
+	}
+
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	services, err := cli.ServiceList(ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return false, fmt.Errorf("error listing services: %v", err)
+	}
+	filteredServices := []swarm.Service{}
+	for _, service := range services {
+		if val, ok := service.Spec.Labels["service_type"]; ok && val == "nodered_instance" {
+			filteredServices = append(filteredServices, service)
+		}
+	}
+
+	oldEnvVar := "IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=false"
+	newEnvVar := "IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=true"
+	for _, service := range filteredServices {
+		serviceSpec := service.Spec
+		envVars := serviceSpec.TaskTemplate.ContainerSpec.Env
+		serviceNameArray := strings.Split(serviceSpec.Name, "_")
+		orgAcronym := serviceNameArray[1]
+		nriHash := serviceNameArray[3]
+		orgIndex, nriIndex := findOrgAndNriIndex(orgAcronym, nriHash)
+		serviceEnvModified := false
+		for envIndex, envVar := range envVars {
+			if envVar == oldEnvVar {
+				envVars[envIndex] = newEnvVar
+				serviceEnvModified = true
+				break
+			}
+		}
+		if orgIndex != -1 && nriIndex != -1 && serviceEnvModified {
+			serviceSpec.TaskTemplate.ContainerSpec.Env = envVars
+			response, err := cli.ServiceUpdate(ctx, service.ID, service.Version, serviceSpec, types.ServiceUpdateOptions{})
+			if err != nil {
+				return false, fmt.Errorf("error updating service: %v", err)
+			} else {
+				if len(response.Warnings) > 0 {
+					fmt.Printf("Warnings at updating service %s: %v\n", service.Spec.Name, response.Warnings)
+				}
+				Data.Certs.MqttCerts.Organizations[orgIndex].NodeRedInstances[nriIndex].IsVolumeCreated = "true"
+				areNewNriVolumesCreated = true
+			}
+		}
+	}
+
+	return areNewNriVolumesCreated, nil
+}
+
+func SwarmInitiationInfo() error {
+	err := WaitUntilAllContainersAreHealthy("all")
+	if err != nil {
+		errMsg := utils.StyleErrMsg.Render("error waiting for the platform to be healthy: ", err.Error())
+		fmt.Println(errMsg)
+	} else {
+		areNewNriVolumesCreated, err := SetNriVolumesAsCreated()
+		if err != nil {
+			errMsg := utils.StyleErrMsg.Render("error setting nri volumes as created: ", err.Error())
+			fmt.Println(errMsg)
+		} else {
+			if areNewNriVolumesCreated {
+				fmt.Println("")
+				err := WaitUntilAllContainersAreHealthy("nodered_instances")
+				if err != nil {
+					errMsg := utils.StyleErrMsg.Render("error waiting nri is to be healthy: ", err.Error())
+					fmt.Println(errMsg)
+				} else {
+					err = WritePlatformDataToFile()
+					if err != nil {
+						return fmt.Errorf("error writing platform data to file: %v", err)
+					}
+					okMsg := utils.StyleOKMsg.Render("Platform is ready to be used")
+					fmt.Println(okMsg)
+				}
+			} else {
+				err = WritePlatformDataToFile()
+				if err != nil {
+					return fmt.Errorf("error writing platform data to file: %v", err)
+				}
+				okMsg := utils.StyleOKMsg.Render("Platform is ready to be used")
+				fmt.Println(okMsg)
+
+			}
+		}
+	}
 
 	return nil
 }

@@ -491,7 +491,7 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 	return submissionResultMsg(""), nil
 }
 
-func initPlatform(m *Model) (submissionResultMsg, error) {
+func initPlatform(m *Model) (platformInitiatedMsg, error) {
 	areAllQuestionsOK := true
 	for idx := 0; idx < len(m.Questions); idx++ {
 		if m.Questions[idx].Answer == "" {
@@ -503,7 +503,7 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 		}
 	}
 	if !areAllQuestionsOK {
-		return submissionResultMsg("Error: Some questions are not answered correctly"), nil
+		return platformInitiatedMsg("Error: Some questions are not answered correctly"), nil
 	}
 
 	if len(data.Data.Certs.MqttCerts.Organizations) == 0 {
@@ -525,7 +525,7 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 	if deployLocation == "Local deployment" {
 		localNodeData, err := GetLocalNodeData()
 		if err != nil {
-			return submissionResultMsg("Error: getting local node data"), err
+			return platformInitiatedMsg("Error: getting local node data"), err
 		}
 		nodesData := []data.NodeData{localNodeData}
 		data.SetNodesData(nodesData)
@@ -574,7 +574,7 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 
 	nodeRedAdminHash, err := utils.HashPassword(platformAdminPassword)
 	if err != nil {
-		return submissionResultMsg("Error: hashing NodeRed admin password"), err
+		return platformInitiatedMsg("Error: hashing NodeRed admin password"), err
 	}
 	data.SetData("NODE_RED_ADMIN_HASH", nodeRedAdminHash)
 
@@ -587,20 +587,16 @@ func initPlatform(m *Model) (submissionResultMsg, error) {
 	data.SetCertsData()
 	err = data.MqttTLSCredentials()
 	if err != nil {
-		return submissionResultMsg("Error: creating mqtt certs"), err
-	}
-
-	err = data.WritePlatformDataToFile()
-	if err != nil {
-		return submissionResultMsg("Error: writing state file"), err
+		return platformInitiatedMsg("Error: creating mqtt certs"), err
 	}
 
 	err = data.RunSwarm()
 	if err != nil {
 		errMsg := fmt.Sprintf("Error: running swarm %s", err.Error())
-		return submissionResultMsg(errMsg), err
+		return platformInitiatedMsg(errMsg), err
 	}
 
+	data.SetPlatformState(data.Initiating)
 	time.Sleep(1 * time.Second) // Simula retraso
-	return submissionResultMsg("osi4iot_state.json file create successfully"), nil
+	return platformInitiatedMsg("osi4iot_state.json file created and platform initiated successfully"), nil
 }
