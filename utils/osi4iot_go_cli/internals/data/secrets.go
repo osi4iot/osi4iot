@@ -20,6 +20,7 @@ func GenerateSecrets() map[string]Secret {
 		hashes = append(hashes, nri.NriHash)
 	}
 	mainOrgNodeRedInstanceHashes := strings.Join(hashes, ",")
+	domainCertsType := Data.PlatformInfo.DomainCertsType
 
 	adminApiSecretsDataArray := []string{
 		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(Data.PlatformInfo.RegistrationTokenLifetime)),
@@ -62,17 +63,19 @@ func GenerateSecrets() map[string]Secret {
 	}
 	Secrets["admin_api"] = adminApiSecret
 
-	iotPlatformCertSecret := Secret{
-		Name: Data.Certs.DomainCerts.IotPlatformCertName,
-		Data: Data.Certs.DomainCerts.SslCertCrt,
+	if domainCertsType == "Certs provided by an CA" {
+		iotPlatformCertSecret := Secret{
+			Name: Data.Certs.DomainCerts.IotPlatformCertName,
+			Data: Data.Certs.DomainCerts.SslCertCrt,
+		}
+		Secrets["iot_platform_cert"] = iotPlatformCertSecret
+
+		iotPlatformKeySecret := Secret{
+			Name: Data.Certs.DomainCerts.IotPlatformKeyName,
+			Data: Data.Certs.DomainCerts.PrivateKey,
+		}
+		Secrets["iot_platform_key"] = iotPlatformKeySecret
 	}
-	Secrets["iot_platform_cert"] = iotPlatformCertSecret
-	
-	iotPlatformKeySecret := Secret{
-		Name: Data.Certs.DomainCerts.IotPlatformKeyName,
-		Data: Data.Certs.DomainCerts.PrivateKey,
-	}
-	Secrets["iot_platform_key"] = iotPlatformKeySecret
 
 	mqttCaCertHash := GetMD5Hash(Data.Certs.MqttCerts.CaCerts.CaCrt)
 	mqttCaCertSecretName := fmt.Sprintf("mqtt_certs_ca_cert_%s", mqttCaCertHash)
@@ -80,6 +83,7 @@ func GenerateSecrets() map[string]Secret {
 		Name: mqttCaCertSecretName,
 		Data: Data.Certs.MqttCerts.CaCerts.CaCrt,
 	}
+
 	Secrets["mqtt_certs_ca_cert"] = mqttCaCertSecret
 
 	mqttCaKeyHash := GetMD5Hash(Data.Certs.MqttCerts.CaCerts.CaKey)
@@ -105,7 +109,6 @@ func GenerateSecrets() map[string]Secret {
 		Data: Data.Certs.MqttCerts.Broker.ServerKey,
 	}
 	Secrets["mqtt_broker_key"] = mqttBrokerKeySecret
-
 
 	grafanaSecretsDataArray := []string{
 		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", Data.PlatformInfo.GrafanaAdminPassword),
@@ -245,10 +248,10 @@ func GenerateSecrets() map[string]Secret {
 	}
 	Secrets["s3_storage"] = s3StorageSecret
 
-	for iorg:= 0; iorg < len(Data.Certs.MqttCerts.Organizations); iorg++ {
+	for iorg := 0; iorg < len(Data.Certs.MqttCerts.Organizations); iorg++ {
 		orgAcronym := strings.ToLower(Data.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
 		numNodeRedInstances := len(Data.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
-        for inri:=0; inri < numNodeRedInstances; inri++ {
+		for inri := 0; inri < numNodeRedInstances; inri++ {
 			nriHash := Data.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
 			mqttClientCertSecretKey := fmt.Sprintf("%s_%s_cert", orgAcronym, nriHash)
 			mqttClientCertSecret := Secret{

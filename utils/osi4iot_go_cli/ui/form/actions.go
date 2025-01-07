@@ -399,7 +399,6 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 }
 
 func addDomainCertsQuestions(index int, m *Model) {
-
 	idx := m.FindQuestionIdByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 	if idx == -1 {
 		domainCertsQuestions := []Question{

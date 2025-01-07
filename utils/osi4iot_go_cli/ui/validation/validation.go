@@ -432,7 +432,7 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 					errMsg = "AWS Certificate Manager option is only available for AWS cluster deployment"
 					break
 				}
-			} else if value == "Certs provided by an CA" {
+			} else {
 				isValid = true
 			}
 		}
