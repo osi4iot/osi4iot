@@ -113,34 +113,50 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	traefikSecrets := []*swarm.SecretReference{}
 	traefikConfigs := []*swarm.ConfigReference{}
 	acmeEmail := Data.PlatformInfo.NotificationsEmailAddress
-	if domainCertsType == "Certs provided by an CA" {
-		traefikSecrets = []*swarm.SecretReference{
+	if domainCertsType == "Certs provided by an CA" || domainCertsType[0:19] == "Let's encrypt certs" {
+		if domainCertsType == "Certs provided by an CA" {
+			traefikSecrets = []*swarm.SecretReference{
+				{
+					File: &swarm.SecretReferenceFileTarget{
+						Name: "iot_platform_cert.cer",
+						UID:  "0",
+						GID:  "0",
+						Mode: 0444,
+					},
+					SecretID:   swarmData.Secrets["iot_platform_cert"].ID,
+					SecretName: swarmData.Secrets["iot_platform_cert"].Name,
+				},
+				{
+					File: &swarm.SecretReferenceFileTarget{
+						Name: "iot_platform.key",
+						UID:  "0",
+						GID:  "0",
+						Mode: 0444,
+					},
+					SecretID:   swarmData.Secrets["iot_platform_key"].ID,
+					SecretName: swarmData.Secrets["iot_platform_key"].Name,
+				},
+			}
+		}
+
+		traefikConfigs = []*swarm.ConfigReference{
 			{
-				File: &swarm.SecretReferenceFileTarget{
-					Name: "iot_platform_cert.cer",
+				File: &swarm.ConfigReferenceFileTarget{
+					Name: "/etc/traefik/dynamic/traefik.yml",
 					UID:  "0",
 					GID:  "0",
 					Mode: 0444,
 				},
-				SecretID:   swarmData.Secrets["iot_platform_cert"].ID,
-				SecretName: swarmData.Secrets["iot_platform_cert"].Name,
-			},
-			{
-				File: &swarm.SecretReferenceFileTarget{
-					Name: "iot_platform.key",
-					UID:  "0",
-					GID:  "0",
-					Mode: 0444,
-				},
-				SecretID:   swarmData.Secrets["iot_platform_key"].ID,
-				SecretName: swarmData.Secrets["iot_platform_key"].Name,
+				ConfigID:   swarmData.Configs["traefik"].ID,
+				ConfigName: swarmData.Configs["traefik"].Name,
 			},
 		}
 	}
+
 	traefikTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			// Image: "ghcr.io/osi4iot/traefik:v2.10",
-			Image: "traefik:v2.10",
+			Image: "ghcr.io/osi4iot/traefik_go_cli:v2.10",
+			//Image: "traefik:v2.10",
 			Labels: map[string]string{
 				"app": "osi4iot",
 			},
@@ -172,8 +188,6 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 				"--entrypoints.mqtt.address=:1883",
 				"--entrypoints.mqtt-tls.address=:8884",
 				"--entrypoints.wss.address=:9001",
-				//"--providers.file.directory=/etc/traefik/dynamic",
-				//"--providers.file.watch=true",
 				"--providers.docker.network=traefik_public",
 				"--api",
 				"--accesslog",
@@ -205,7 +219,12 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		},
 	}
 	resolver := ""
-	if domainCertsType[0:19] == "Let's encrypt certs" {
+	if domainCertsType == "Certs provided by an CA" {
+		commandsArray := traefikTaskTemplate.ContainerSpec.Command
+		commandsArray = append(commandsArray, "--providers.file.filename=/etc/traefik/dynamic/traefik.yml")
+		commandsArray = append(commandsArray, "--providers.file.watch=true")
+		traefikTaskTemplate.ContainerSpec.Command = commandsArray
+	} else if domainCertsType[0:19] == "Let's encrypt certs" {
 		commandsArray := traefikTaskTemplate.ContainerSpec.Command
 		if domainCertsType == "Let's encrypt certs with HTTP-01 challenge" {
 			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.httpchallenge=true")
@@ -1372,7 +1391,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	}
 
 	if s3BucketType == "Local Minio" {
-		minioRule := fmt.Sprintf("Host(`minio.%s`)", Data.PlatformInfo.DomainName)
+		//minioRule := fmt.Sprintf("Host(`minio.%s`)", Data.PlatformInfo.DomainName)
+		minioRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/minio_api`)", Data.PlatformInfo.DomainName)
 		minioConsoleRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/minio`)", Data.PlatformInfo.DomainName)
 		minioRedirectRegex := fmt.Sprintf("%s/(minio*)", Data.PlatformInfo.DomainName)
 		minioRedirectReplacement := fmt.Sprintf("%s/$${1}", Data.PlatformInfo.DomainName)

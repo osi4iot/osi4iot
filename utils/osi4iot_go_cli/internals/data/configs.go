@@ -18,6 +18,8 @@ func GenerateConfigs() map[string]Config {
 	if Data.PlatformInfo.DomainCertsType == "No certs" {
 		protocol = "http"
 	}
+	domainCertsType := Data.PlatformInfo.DomainCertsType
+
 	adminAPIConfigArray := []string{
 		fmt.Sprintf("PLATFORM_NAME=%s", platformName),
 		fmt.Sprintf("DOMAIN_NAME=%s", Data.PlatformInfo.DomainName),
@@ -182,6 +184,53 @@ func GenerateConfigs() map[string]Config {
 	Configs["s3_storage"] = Config{
 		Name: s3StorageConfigName,
 		Data: s3StorageConfig,
+	}
+
+	if domainCertsType == "Certs provided by an CA" {
+		traefikConfig := `
+tls:
+  certificates:
+    - certFile: /run/secrets/iot_platform_cert.cer
+      keyFile: /run/secrets/iot_platform.key
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+`
+		traefikConfigHash := GetMD5Hash(traefikConfig)
+		traefikConfigName := fmt.Sprintf("traefik_%s", traefikConfigHash)
+		Configs["traefik"] = Config{
+			Name: traefikConfigName,
+			Data: traefikConfig,
+		}
+
+	} else if domainCertsType[:19] == "Let's encrypt certs" {
+		traefikConfig := `
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      cipherSuites:
+        - TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        - TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256
+        - TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256
+        - TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256
+`
+		traefikConfigHash := GetMD5Hash(traefikConfig)
+		traefikConfigName := fmt.Sprintf("traefik_%s", traefikConfigHash)
+		Configs["traefik"] = Config{
+			Name: traefikConfigName,
+			Data: traefikConfig,
+		}
+
 	}
 
 	return Configs
