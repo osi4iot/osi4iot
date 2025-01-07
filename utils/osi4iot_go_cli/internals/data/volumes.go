@@ -7,7 +7,6 @@ import (
 
 type Volume struct {
 	Name       string
-	TargetPath string
 	Driver     string
 	ID         string
 	DriverOpts map[string]string
@@ -19,46 +18,48 @@ func GenerateVolumes() map[string]Volume {
 	deploymentLocation := Data.PlatformInfo.DeploymentLocation
 	deploymentMode := Data.PlatformInfo.DeploymentMode
 	s3BucketType := Data.PlatformInfo.S3BucketType
+	domainCertsType := Data.PlatformInfo.DomainCertsType
+
+	if domainCertsType[0:20] == "Let's encrypt certs" {
+		Volumes["letsencrypt"] = Volume{
+			Name:       "letsencrypt",
+			Driver:     "local",
+			DriverOpts: map[string]string{},
+		}
+	}
 
 	Volumes["mosquitto_data"] = Volume{
 		Name:       "mosquitto_data",
-		TargetPath: "/mosquitto/data",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
 	Volumes["mosquitto_log"] = Volume{
 		Name:       "mosquitto_log",
-		TargetPath: "/mosquitto/log",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
 	Volumes["pgdata"] = Volume{
 		Name:       "pgdata",
-		TargetPath: "/var/lib/postgresql/data",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
 	Volumes["grafana_data"] = Volume{
 		Name:       "grafana_data",
-		TargetPath: "/var/lib/grafana",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
 	Volumes["timescaledb_data"] = Volume{
 		Name:       "timescaledb_data",
-		TargetPath: "/var/lib/postgresql/data",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
 	Volumes["s3_storage_data"] = Volume{
 		Name:       "s3_storage_data",
-		TargetPath: "/data",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
 	Volumes["admin_api_log"] = Volume{
 		Name:       "admin_api_log",
-		TargetPath: "/app/logs",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
@@ -66,13 +67,11 @@ func GenerateVolumes() map[string]Volume {
 	if deploymentMode == "development" {
 		Volumes["portainer_data"] = Volume{
 			Name:       "portainer_data",
-			TargetPath: "/data",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
 		}
 		Volumes["pgadmin4_data"] = Volume{
 			Name:       "pgadmin4_data",
-			TargetPath: "/var/lib/pgadmin",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
 		}
@@ -81,7 +80,6 @@ func GenerateVolumes() map[string]Volume {
 	if s3BucketType == "Local Minio" {
 		Volumes["minio_storage"] = Volume{
 			Name:       "minio_storage",
-			TargetPath: "/mnt/data",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
 		}
@@ -96,7 +94,6 @@ func GenerateVolumes() map[string]Volume {
 			volumeName := fmt.Sprintf("%s_data", serviceName)
 			Volumes[serviceName] = Volume{
 				Name:       volumeName,
-				TargetPath: "/data",
 				Driver:     "local",
 				DriverOpts: map[string]string{},
 			}

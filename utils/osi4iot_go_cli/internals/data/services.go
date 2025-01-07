@@ -23,7 +23,6 @@ type Service struct {
 
 func GenerateServices(swarmData SwarmData) map[string]Service {
 	Services := make(map[string]Service)
-	//deploymentLocation := Data.PlatformInfo.DeploymentLocation
 	deploymentMode := Data.PlatformInfo.DeploymentMode
 	s3BucketType := Data.PlatformInfo.S3BucketType
 	domainCertsType := Data.PlatformInfo.DomainCertsType
@@ -113,6 +112,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	}
 	traefikSecrets := []*swarm.SecretReference{}
 	traefikConfigs := []*swarm.ConfigReference{}
+	acmeEmail := Data.PlatformInfo.NotificationsEmailAddress
 	if domainCertsType == "Certs provided by an CA" {
 		traefikSecrets = []*swarm.SecretReference{
 			{
@@ -203,6 +203,39 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			Constraints: []string{"node.role == manager"},
 		},
 	}
+	resolver := ""
+	if domainCertsType[0:20] == "Let's encrypt certs" {
+		commandsArray := traefikTaskTemplate.ContainerSpec.Command
+		if domainCertsType == "Let's encrypt certs with HTTP-01 challenge" {
+			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.httpchallenge=true")
+			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.httpchallenge.entrypoint=web")
+			commandsArray = append(commandsArray, fmt.Sprintf("--certificatesresolvers.httpresolver.acme.email=%s", acmeEmail))
+			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.storage=/letsencrypt/acme.json")
+			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.dnschallenge=true")
+			resolver = "httpresolver"
+		} else if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+			commandsArray = append(commandsArray, "--certificatesresolvers.route53resolver.acme.dnschallenge=true")
+			commandsArray = append(commandsArray, "--certificatesresolvers.route53resolver.acme.dnschallenge.provider=route53")
+			commandsArray = append(commandsArray, fmt.Sprintf("--certificatesresolvers.route53resolver.acme.email=%s", acmeEmail))
+			commandsArray = append(commandsArray, "--certificatesresolvers.route53resolver.acme.storage=/letsencrypt/acme.json")
+			resolver = "route53resolver"
+		} else if domainCertsType == "Let's encrypt certs with DNS-01 challenge and Namecheap provider" {
+			commandsArray = append(commandsArray, "--certificatesresolvers.namecheapresolver.acme.dnschallenge=true")
+			commandsArray = append(commandsArray, "--certificatesresolvers.namecheapresolver.acme.dnschallenge.provider=namecheap")
+			commandsArray = append(commandsArray, fmt.Sprintf("--certificatesresolvers.namecheapresolver.acme.email=%s", acmeEmail))
+			commandsArray = append(commandsArray, "--certificatesresolvers.namecheapresolver.acme.storage=/letsencrypt/acme.json")
+			resolver = "namecheapresolver"
+		}
+		traefikTaskTemplate.ContainerSpec.Command = commandsArray
+		mountsArray := traefikTaskTemplate.ContainerSpec.Mounts
+		mountsArray = append(mountsArray, mount.Mount{
+			Type:   mount.TypeVolume,
+			Source: swarmData.Volumes["letsencrypt"].Name,
+			Target: "/letsencrypt",
+		})
+		traefikTaskTemplate.ContainerSpec.Mounts = mountsArray
+	}
+
 	traefikEndpointSpec := &swarm.EndpointSpec{
 		Mode: swarm.ResolutionModeVIP,
 		Ports: []swarm.PortConfig{
@@ -286,12 +319,14 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			"traefik.tcp.routers.mosquitto8884.entrypoints":               "mqtt-tls",
 			"traefik.tcp.routers.mosquitto8884.service":                   "mosquitto8884",
 			"traefik.tcp.routers.mosquitto8884.tls":                       "true",
+			"traefik.tcp.routers.mosquitto8884.tls.certresolver":          resolver,
 			"traefik.tcp.services.mosquitto8884.loadbalancer.server.port": "8884",
 			// MQTT over WebSockets (WSS) Port 9001
 			"traefik.http.routers.mosquitto-wss.rule":                      mosquittoRule,
 			"traefik.http.routers.mosquitto-wss.entrypoints":               "wss",
 			"traefik.http.routers.mosquitto-wss.service":                   "mosquitto-wss",
 			"traefik.http.routers.mosquitto-wss.tls":                       "true",
+			"traefik.http.routers.mosquitto-wss.tls.certresolver":          resolver,
 			"traefik.http.services.mosquitto-wss.loadbalancer.server.port": "9001",
 		},
 	}
@@ -893,6 +928,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			"traefik.http.middlewares.grafana-redirectregex.redirectregex.replacement":           grafanaRedirectReplacement,
 			"traefik.http.routers.grafana.entrypoints":                                           "websecure",
 			"traefik.http.routers.grafana.tls":                                                   "true",
+			"traefik.http.routers.grafana.tls.certresolver":                                      resolver,
 			"traefik.http.routers.grafana.service":                                               "grafana",
 			"traefik.http.services.grafana.loadbalancer.server.port":                             "5000",
 			"traefik.http.services.grafana.loadbalancer.healthCheck.path":                        "/api/health",
@@ -1009,6 +1045,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			"traefik.http.routers.admin_api.entrypoints":                                           "websecure",
 			"traefik.http.routers.admin_api.rule":                                                  adminApiRule,
 			"traefik.http.routers.admin_api.tls":                                                   "true",
+			"traefik.http.routers.admin_api.tls.certresolver":                                      resolver,
 			"traefik.http.routers.admin_api.middlewares":                                           "admin_api-redirectregex,admin_api-prefix,admin_api-header",
 			"traefik.http.routers.admin_api.service":                                               "admin_api",
 			"traefik.http.services.admin_api.loadbalancer.server.port":                             "3200",
@@ -1169,6 +1206,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			"traefik.http.routers.frontend.rule": frontendRule,
 			"traefik.http.routers.frontend.entrypoints":                        "websecure",
 			"traefik.http.routers.frontend.tls":                                "true",
+			"traefik.http.routers.frontend.tls.certresolver":                   resolver,
 			"traefik.http.routers.frontend.service":                            "frontend",
 			"traefik.http.services.frontend.loadbalancer.server.port":          "80",
 			"traefik.http.services.frontend.loadbalancer.healthCheck.path":     "/health",
@@ -1346,6 +1384,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 				"traefik.http.routers.minio_api.rule": minioRule,
 				"traefik.http.routers.minio_api.entrypoints":                                               "websecure",
 				"traefik.http.routers.minio_api.tls":                                                       "true",
+				"traefik.http.routers.minio_api.tls.certresolver":                                          resolver,
 				"traefik.http.routers.minio_api.service":                                                   "minio",
 				"traefik.http.services.minio.loadbalancer.server.port":                                     "9000",
 				"traefik.http.services.minio.loadbalancer.healthCheck.path":                                "/minio/health/live",
@@ -1360,6 +1399,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 				"traefik.http.middlewares.minio_console-redirectregex.redirectregex.replacement":           minioRedirectReplacement,
 				"traefik.http.routers.minio_console.entrypoints":                                           "websecure",
 				"traefik.http.routers.minio_console.tls":                                                   "true",
+				"traefik.http.routers.minio_console.tls.certresolver":                                      resolver,
 				"traefik.http.routers.minio_console.service":                                               "minio_console",
 				"traefik.http.services.minio_console.loadbalancer.server.port":                             "9090",
 			},
@@ -1475,6 +1515,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 				"traefik.http.middlewares.pgadmin4-redirectregex.redirectregex.replacement":           pgadmin4RedirectRepalcement,
 				"traefik.http.routers.pgadmin4.entrypoints":                                           "websecure",
 				"traefik.http.routers.pgadmin4.tls":                                                   "true",
+				"traefik.http.routers.pgadmin4.tls.certresolver":                                      resolver,
 				"traefik.http.routers.pgadmin4.service":                                               "pgadmin4",
 				"traefik.http.services.pgadmin4.loadbalancer.server.port":                             "80",
 			},
@@ -1632,6 +1673,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 					),
 					fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName):               "websecure",
 					fmt.Sprintf("traefik.http.routers.%s.tls", serviceName):                       "true",
+					fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", serviceName):          resolver,
 					fmt.Sprintf("traefik.http.routers.%s.service", serviceName):                   serviceName,
 					fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName): "1880",
 				},
