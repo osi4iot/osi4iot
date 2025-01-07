@@ -229,8 +229,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if runtime.GOOS == "windows" {
 				character = tools.AltCtrlCharWindows(character)
 			}
+			lenChar := len(character)
 			m.Questions[m.Focus].Answer = m.Questions[m.Focus].Answer[:m.Cursor] + character + m.Questions[m.Focus].Answer[m.Cursor:]
-			m.Cursor += len(character)
+			answer := m.Questions[m.Focus].Answer
+			if answer[0] == '[' && answer[len(answer)-1] == ']' {
+				m.Questions[m.Focus].Answer = answer[1 : len(answer)-1]
+				lenChar = lenChar - 2
+			}
+			m.Cursor += lenChar
 		}
 	case runActionMsg:
 		actionKey := string(msg)
