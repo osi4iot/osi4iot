@@ -20,7 +20,7 @@ func GenerateVolumes() map[string]Volume {
 	s3BucketType := Data.PlatformInfo.S3BucketType
 	domainCertsType := Data.PlatformInfo.DomainCertsType
 
-	if domainCertsType[0:20] == "Let's encrypt certs" {
+	if domainCertsType[0:19] == "Let's encrypt certs" {
 		Volumes["letsencrypt"] = Volume{
 			Name:       "letsencrypt",
 			Driver:     "local",

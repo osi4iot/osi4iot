@@ -205,7 +205,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		},
 	}
 	resolver := ""
-	if domainCertsType[0:20] == "Let's encrypt certs" {
+	if domainCertsType[0:19] == "Let's encrypt certs" {
 		commandsArray := traefikTaskTemplate.ContainerSpec.Command
 		if domainCertsType == "Let's encrypt certs with HTTP-01 challenge" {
 			commandsArray = append(commandsArray, "--certificatesresolvers.httpresolver.acme.httpchallenge=true")
