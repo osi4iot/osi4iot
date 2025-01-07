@@ -192,49 +192,52 @@ var awsRegions = []string{
 }
 
 func addAWSQuestions(m *Model) {
-	qIdx := m.FindQuestionIdByKey("AWS_ACCESS_KEY_ID")
-	if qIdx == -1 {
-		awsQuestions := []Question{
-			{
-				Key:           "AWS_ACCESS_KEY_ID",
-				QuestionType:  "password",
-				Prompt:        "AWS access key id",
-				Answer:        data.Data.PlatformInfo.AWSAccessKeyID,
-				DefaultAnswer: "",
-				Choices:       []string{},
-				ChoiceFocus:   0,
-				ErrorMessage:  "",
-				Rules:         []string{"required", "string"},
-				ActionKey:     "",
-				Margin:        0,
-			},
-			{
-				Key:          "AWS_SECRET_ACCESS_KEY",
-				QuestionType: "password",
-				Prompt:       "AWS secret access key",
-				Answer:       data.Data.PlatformInfo.AWSSecretAccessKey,
-				Choices:      []string{},
-				ChoiceFocus:  0,
-				ErrorMessage: "",
-				Rules:        []string{"required", "string"},
-				ActionKey:    "",
-				Margin:       0,
-			},
-			{
-				Key:           "AWS_REGION",
-				QuestionType:  "list",
-				Prompt:        "AWS region",
-				Answer:        data.Data.PlatformInfo.AWSRegion,
-				DefaultAnswer: "",
-				Choices:       awsRegions,
-				ChoiceFocus:   utils.GiveChoiceFocus(data.Data.PlatformInfo.AWSRegion, awsRegions, 17),
-				ErrorMessage:  "",
-				Rules:         []string{"required", "string"},
-				ActionKey:     "",
-				Margin:        0,
-			},
+	domainCertsType := m.FindAnswerByKey("DOMAIN_CERTS_TYPE")
+	if domainCertsType == "Certs provided by an CA" {
+		qIdx := m.FindQuestionIdByKey("AWS_ACCESS_KEY_ID")
+		if qIdx == -1 {
+			awsQuestions := []Question{
+				{
+					Key:           "AWS_ACCESS_KEY_ID",
+					QuestionType:  "password",
+					Prompt:        "AWS access key id",
+					Answer:        data.Data.PlatformInfo.AWSAccessKeyID,
+					DefaultAnswer: "",
+					Choices:       []string{},
+					ChoiceFocus:   0,
+					ErrorMessage:  "",
+					Rules:         []string{"required", "string"},
+					ActionKey:     "",
+					Margin:        0,
+				},
+				{
+					Key:          "AWS_SECRET_ACCESS_KEY",
+					QuestionType: "password",
+					Prompt:       "AWS secret access key",
+					Answer:       data.Data.PlatformInfo.AWSSecretAccessKey,
+					Choices:      []string{},
+					ChoiceFocus:  0,
+					ErrorMessage: "",
+					Rules:        []string{"required", "string"},
+					ActionKey:    "",
+					Margin:       0,
+				},
+				{
+					Key:           "AWS_REGION",
+					QuestionType:  "list",
+					Prompt:        "AWS region",
+					Answer:        data.Data.PlatformInfo.AWSRegion,
+					DefaultAnswer: "",
+					Choices:       awsRegions,
+					ChoiceFocus:   utils.GiveChoiceFocus(data.Data.PlatformInfo.AWSRegion, awsRegions, 17),
+					ErrorMessage:  "",
+					Rules:         []string{"required", "string"},
+					ActionKey:     "",
+					Margin:        0,
+				},
+			}
+			m.addQuestions(m.Focus+1, awsQuestions...)
 		}
-		m.addQuestions(m.Focus+1, awsQuestions...)
 	}
 }
 
@@ -396,6 +399,7 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 }
 
 func addDomainCertsQuestions(index int, m *Model) {
+
 	idx := m.FindQuestionIdByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 	if idx == -1 {
 		domainCertsQuestions := []Question{
@@ -511,7 +515,7 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 		orgAcronym := data.Data.PlatformInfo.MainOrganizationAcronym
 		numNriInMainOrg := data.Data.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
 		exclusiveWorkerNodes := make([]string, 0)
-		nodered_instances := make([]data.NodeRedInstance,numNriInMainOrg)
+		nodered_instances := make([]data.NodeRedInstance, numNriInMainOrg)
 		organization := data.Organization{
 			OrgHash:              orgHash,
 			OrgAcronym:           orgAcronym,
