@@ -139,7 +139,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	}
 	traefikTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/traefik:v2.10",
+			// Image: "ghcr.io/osi4iot/traefik:v2.10",
+			Image: "traefik:v2.10",
 			Labels: map[string]string{
 				"app": "osi4iot",
 			},
