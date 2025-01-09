@@ -495,11 +495,12 @@ func DeletePlatform() error {
 	}
 
 	done <- true
-	time.Sleep(5 * time.Second) // wait for containers to stop completely
-
-	err = RemoveSwarmVolumes(ctx, cli)
-	if err != nil {
-		return fmt.Errorf("error removing volumes: %v", err)
+	for i := 0; i < 60; i++ {
+		time.Sleep(1 * time.Second) // wait for containers to stop completely
+		err = RemoveSwarmVolumes(ctx, cli)
+		if err == nil {
+			break
+		}
 	}
 
 	return nil
