@@ -159,8 +159,8 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 	if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", Data.PlatformInfo.AWSAccessKeyIDRoute53))
 		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", Data.PlatformInfo.AWSSecretAccessKeyRoute53))
-		//traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_REGION=%s", Data.PlatformInfo.AWSRegionRoute53))
-		//traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_HOSTED_ZONE_ID=%s", Data.PlatformInfo.AWSAccessKeyIDS3Bucket))
+		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_REGION=%s", Data.PlatformInfo.AWSRegionRoute53))
+		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_HOSTED_ZONE_ID=%s", Data.PlatformInfo.AWSAccessKeyIDS3Bucket))
 	}
 	traefikTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
