@@ -49,8 +49,8 @@ func GenerateSecrets() map[string]Secret {
 		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", Data.PlatformInfo.MainOrganizationTelegramInviteLink),
 		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", Data.PlatformInfo.TelegramBotToken),
 		fmt.Sprintf("MAIN_ORG_HASH=%s", Data.Certs.MqttCerts.Organizations[0].OrgHash),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", Data.PlatformInfo.AWSAccessKeyID),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", Data.PlatformInfo.AWSSecretAccessKey),
+		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", Data.PlatformInfo.AWSAccessKeyIDS3Bucket),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", Data.PlatformInfo.AWSSecretAccessKeyS3Bucket),
 		fmt.Sprintf("MAIN_ORG_NODERED_INSTANCE_HASHES=%s", mainOrgNodeRedInstanceHashes),
 	}
 
@@ -236,8 +236,8 @@ func GenerateSecrets() map[string]Secret {
 		fmt.Sprintf("TIMESCALE_USER=%s", Data.PlatformInfo.TimescaleUser),
 		fmt.Sprintf("TIMESCALE_PASSWORD=%s", Data.PlatformInfo.TimescalePassword),
 		fmt.Sprintf("TIMESCALE_DB=%s", Data.PlatformInfo.TimescaleDB),
-		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", Data.PlatformInfo.AWSAccessKeyID),
-		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", Data.PlatformInfo.AWSSecretAccessKey),
+		fmt.Sprintf("AWS_ACCESS_KEY_ID_S3_BUCKET=%s", Data.PlatformInfo.AWSAccessKeyIDS3Bucket),
+		fmt.Sprintf("AWS_SECRET_ACCESS_KEY_S3_BUCKET=%s", Data.PlatformInfo.AWSSecretAccessKeyS3Bucket),
 	}
 	s3StorageSecretsData := strings.Join(s3StorageSecrets, "\n")
 	s3StorageSecretsHash := GetMD5Hash(s3StorageSecretsData)

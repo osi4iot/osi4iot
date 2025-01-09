@@ -148,7 +148,7 @@ func removingNodeQuestions(m *Model) {
 
 func addNumNodesQuestion(index int, m *Model) {
 	idx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
-	if idx != -1 {
+	if idx == -1 {
 		numNodesQuestion := Question{
 			Key:           "NUMBER_OF_SWARM_NODES",
 			QuestionType:  "generic",
@@ -166,42 +166,17 @@ func addNumNodesQuestion(index int, m *Model) {
 	}
 }
 
-var awsRegions = []string{
-	"US East (N. Virginia)",
-	"US West (N. California)",
-	"US West (Oregon)",
-	"Africa (Cape Town)",
-	"Asia Pacific (Hong Kong)",
-	"Asia Pacific (Jakarta)",
-	"Asia Pacific (Mumbai)",
-	"Asia Pacific (Osaka)",
-	"Asia Pacific (Seoul)",
-	"Asia Pacific (Singapore)",
-	"Asia Pacific (Sydney)",
-	"Asia Pacific (Tokyo)",
-	"Canada (Central)",
-	"Europe (Frankfurt)",
-	"Europe (Ireland)",
-	"Europe (London)",
-	"Europe (Milan)",
-	"Europe (Paris)",
-	"Europe (Stockholm)",
-	"Middle East (Bahrain)",
-	"Middle East (UAE)",
-	"South America (São Paulo)",
-}
-
-func addAWSQuestions(m *Model) {
+func addAWSRoute53Questions(m *Model) {
 	domainCertsType := m.FindAnswerByKey("DOMAIN_CERTS_TYPE")
-	if domainCertsType == "Certs provided by an CA" {
-		qIdx := m.FindQuestionIdByKey("AWS_ACCESS_KEY_ID")
+	if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+		qIdx := m.FindQuestionIdByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
 		if qIdx == -1 {
 			awsQuestions := []Question{
 				{
-					Key:           "AWS_ACCESS_KEY_ID",
+					Key:           "AWS_ACCESS_KEY_ID_ROUTE_53",
 					QuestionType:  "password",
-					Prompt:        "AWS access key id",
-					Answer:        data.Data.PlatformInfo.AWSAccessKeyID,
+					Prompt:        "AWS access key id for Route 53",
+					Answer:        data.Data.PlatformInfo.AWSAccessKeyIDRoute53,
 					DefaultAnswer: "",
 					Choices:       []string{},
 					ChoiceFocus:   0,
@@ -211,10 +186,34 @@ func addAWSQuestions(m *Model) {
 					Margin:        0,
 				},
 				{
-					Key:          "AWS_SECRET_ACCESS_KEY",
+					Key:          "AWS_SECRET_ACCESS_KEY_ROUTE_53",
 					QuestionType: "password",
-					Prompt:       "AWS secret access key",
-					Answer:       data.Data.PlatformInfo.AWSSecretAccessKey,
+					Prompt:       "AWS secret access key for Route 53",
+					Answer:       data.Data.PlatformInfo.AWSSecretAccessKeyRoute53,
+					Choices:      []string{},
+					ChoiceFocus:  0,
+					ErrorMessage: "",
+					Rules:        []string{"required", "string"},
+					ActionKey:    "",
+					Margin:       0,
+				},
+			}
+			m.addQuestions(m.Focus+1, awsQuestions...)
+		}
+	}
+}
+
+func addAwsS3BucketQuestions(m *Model) {
+	idx := m.FindQuestionIdByKey("S3_BUCKET_TYPE")
+	if m.Questions[idx].Answer == "Cloud AWS S3" {
+		indKey := m.FindQuestionIdByKey("AWS_ACCESS_KEY_ID_S3_BUCKET")
+		if indKey == -1 {
+			awsS3BucketQuestions := []Question{
+				{
+					Key:          "AWS_ACCESS_KEY_ID_S3_BUCKET",
+					QuestionType: "password",
+					Prompt:       "AWS access key id for S3 bucket",
+					Answer:       data.Data.PlatformInfo.AWSAccessKeyIDS3Bucket,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -223,25 +222,36 @@ func addAWSQuestions(m *Model) {
 					Margin:       0,
 				},
 				{
-					Key:           "AWS_REGION",
-					QuestionType:  "list",
-					Prompt:        "AWS region",
-					Answer:        data.Data.PlatformInfo.AWSRegion,
-					DefaultAnswer: "",
-					Choices:       awsRegions,
-					ChoiceFocus:   utils.GiveChoiceFocus(data.Data.PlatformInfo.AWSRegion, awsRegions, 17),
-					ErrorMessage:  "",
-					Rules:         []string{"required", "string"},
-					ActionKey:     "",
-					Margin:        0,
+					Key:          "AWS_SECRET_ACCESS_KEY_S3_BUCKET",
+					QuestionType: "password",
+					Prompt:       "AWS secret access key for S3 bucket",
+					Answer:       data.Data.PlatformInfo.AWSSecretAccessKeyS3Bucket,
+					Choices:      []string{},
+					ChoiceFocus:  0,
+					ErrorMessage: "",
+					Rules:        []string{"required", "string"},
+					ActionKey:    "",
+					Margin:       0,
+				},
+				{
+					Key:          "AWS_REGION_S3_BUCKET",
+					QuestionType: "list",
+					Prompt:       "AWS region for S3 bucket",
+					Answer:       data.Data.PlatformInfo.AWSRegionS3Bucket,
+					Choices:      utils.AwsRegions,
+					ChoiceFocus:  utils.GiveChoiceFocus(data.Data.PlatformInfo.AWSRegionS3Bucket, utils.AwsRegions, 17),
+					ErrorMessage: "",
+					Rules:        []string{"required", "string"},
+					ActionKey:    "",
+					Margin:       0,
 				},
 			}
-			m.addQuestions(m.Focus+1, awsQuestions...)
+			m.addQuestions(idx+1, awsS3BucketQuestions...)
 		}
 	}
 }
 
-func awsKeyQuestions(m *Model) (submissionResultMsg, error) {
+func awsS3BucketQuestions(m *Model) (submissionResultMsg, error) {
 	plaformName := m.FindAnswerByKey("PLATFORM_NAME")
 	if plaformName != "" {
 		plaformNameLower := strings.ToLower(plaformName)
@@ -251,20 +261,20 @@ func awsKeyQuestions(m *Model) (submissionResultMsg, error) {
 		}
 	}
 
-	s3BucketType := m.Questions[m.Focus].Answer
+	s3BucketType := m.FindAnswerByKey("S3_BUCKET_TYPE")
 	if s3BucketType == "Local Minio" {
-		m.removeQuestionByKey("AWS_ACCESS_KEY_ID")
-		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY")
-		m.removeQuestionByKey("AWS_REGION")
+		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_S3_BUCKET")
+		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_S3_BUCKET")
+		m.removeQuestionByKey("AWS_REGION_S3_BUCKET")
 	} else if s3BucketType == "Cloud AWS S3" {
-		addAWSQuestions(m)
+		addAwsS3BucketQuestions(m)
 	}
 	return submissionResultMsg("Questions added succesfully"), nil
 }
 
 func addAwsSsHKeyQuestions(index int, m *Model) {
 	idx := m.FindQuestionIdByKey("AWS_SSH_KEY_PATH")
-	if idx != -1 {
+	if idx == -1 {
 		awsSSHKeyQuestion := Question{
 			Key:           "AWS_SSH_KEY_PATH",
 			QuestionType:  "generic",
@@ -340,7 +350,7 @@ func addNetworkInterfaceQuestions(index int, m *Model) {
 	numNodes := m.Data["numNodes"].(int)
 	if deployLocation == "On-premise cluster deployment" && numNodes > 1 {
 		idx := m.FindQuestionIdByKey("FLOATING_IP_ADDRESS")
-		if idx != -1 {
+		if idx == -1 {
 			netInterfQuestions := []Question{
 				{
 					Key:           "FLOATING_IP_ADDRESS",
@@ -398,7 +408,7 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 	return submissionResultMsg("Questions added succesfully"), nil
 }
 
-func addDomainCertsQuestions(index int, m *Model) {
+func addDomainCertsProvidedByCAQuestions(index int, m *Model) {
 	idx := m.FindQuestionIdByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 	if idx == -1 {
 		domainCertsQuestions := []Question{
@@ -449,9 +459,24 @@ func addDomainCertsQuestions(index int, m *Model) {
 func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 	idx := m.FindQuestionIdByKey("DOMAIN_CERTS_TYPE")
 	certType := m.Questions[idx].Answer
-	if certType == "Certs provided by an CA" {
-		addDomainCertsQuestions(idx+1, m)
-	} else {
+	if certType == "No certs" {
+		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
+		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
+		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
+		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
+		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
+	} else if certType == "Certs provided by an CA" {
+		addDomainCertsProvidedByCAQuestions(idx+1, m)
+		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
+		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
+	} else if certType == "Let's encrypt certs with HTTP-01 challenge" {
+		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
+		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
+		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
+		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
+		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
+	} else if certType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+		addAWSRoute53Questions(m)
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")

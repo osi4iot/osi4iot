@@ -476,8 +476,8 @@ func runAction(actionKey string, m *Model) tea.Msg {
 	case "creatingNodeQuestions":
 		response, _ := creatingNodeQuestions(m)
 		return response
-	case "awsKeyQuestions":
-		response, _ := awsKeyQuestions(m)
+	case "awsS3BucketQuestions":
+		response, _ := awsS3BucketQuestions(m)
 		return response
 	case "domainCertsQuestions":
 		response, _ := DomainCertsQuestions(m)

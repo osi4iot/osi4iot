@@ -16,26 +16,28 @@ type PlatformData struct {
 }
 
 type PlatformInfo struct {
-	DockerImagesVersion    string     `json:"DOCKER_IMAGES_VERSION"`
-	DeploymentMode         string     `json:"DEPLOYMENT_MODE"`
-	DeploymentLocation     string     `json:"DEPLOYMENT_LOCATION"`
-	S3BucketType           string     `json:"S3_BUCKET_TYPE"`
-	AWSAccessKeyID         string     `json:"AWS_ACCESS_KEY_ID"`
-	AWSSecretAccessKey     string     `json:"AWS_SECRET_ACCESS_KEY"`
-	AWSRegion              string     `json:"AWS_REGION"`
-	S3BucketName           string     `json:"S3_BUCKET_NAME"`
-	PlatformName           string     `json:"PLATFORM_NAME"`
-	DomainName             string     `json:"DOMAIN_NAME"`
-	DomainCertsType        string     `json:"DOMAIN_CERTS_TYPE"`
-	PlatformPhrase         string     `json:"PLATFORM_PHRASE"`
-	PlatformAdminFirstName string     `json:"PLATFORM_ADMIN_FIRST_NAME"`
-	PlatformAdminSurname   string     `json:"PLATFORM_ADMIN_SURNAME"`
-	PlatformAdminUserName  string     `json:"PLATFORM_ADMIN_USER_NAME"`
-	PlatformAdminEmail     string     `json:"PLATFORM_ADMIN_EMAIL"`
-	PlatformAdminPassword  string     `json:"PLATFORM_ADMIN_PASSWORD"`
-	RAMMemoryPerNode       string     `json:"RAM_MEMORY_PER_NODE"`
-	NumberOfCPUsPerNode    string     `json:"NUMBER_OF_CPUS_PER_NODE"`
-	NodesData              []NodeData `json:"NODES_DATA"`
+	DockerImagesVersion        string     `json:"DOCKER_IMAGES_VERSION"`
+	DeploymentMode             string     `json:"DEPLOYMENT_MODE"`
+	DeploymentLocation         string     `json:"DEPLOYMENT_LOCATION"`
+	S3BucketType               string     `json:"S3_BUCKET_TYPE"`
+	AWSAccessKeyIDRoute53      string     `json:"AWS_ACCESS_KEY_ID_ROUTE_53"`
+	AWSSecretAccessKeyRoute53  string     `json:"AWS_SECRET_ACCESS_KEY_ROUTE_53"`
+	AWSAccessKeyIDS3Bucket     string     `json:"AWS_ACCESS_KEY_ID_S3_BUCKET"`
+	AWSSecretAccessKeyS3Bucket string     `json:"AWS_SECRET_ACCESS_KEY_S3_BUCKET"`
+	AWSRegionS3Bucket          string     `json:"AWS_REGION_S3_BUCKET"`
+	S3BucketName               string     `json:"S3_BUCKET_NAME"`
+	PlatformName               string     `json:"PLATFORM_NAME"`
+	DomainName                 string     `json:"DOMAIN_NAME"`
+	DomainCertsType            string     `json:"DOMAIN_CERTS_TYPE"`
+	PlatformPhrase             string     `json:"PLATFORM_PHRASE"`
+	PlatformAdminFirstName     string     `json:"PLATFORM_ADMIN_FIRST_NAME"`
+	PlatformAdminSurname       string     `json:"PLATFORM_ADMIN_SURNAME"`
+	PlatformAdminUserName      string     `json:"PLATFORM_ADMIN_USER_NAME"`
+	PlatformAdminEmail         string     `json:"PLATFORM_ADMIN_EMAIL"`
+	PlatformAdminPassword      string     `json:"PLATFORM_ADMIN_PASSWORD"`
+	RAMMemoryPerNode           string     `json:"RAM_MEMORY_PER_NODE"`
+	NumberOfCPUsPerNode        string     `json:"NUMBER_OF_CPUS_PER_NODE"`
+	NodesData                  []NodeData `json:"NODES_DATA"`
 
 	MinLongitude    float64 `json:"MIN_LONGITUDE"`
 	MaxLongitude    float64 `json:"MAX_LONGITUDE"`
@@ -92,8 +94,8 @@ type PlatformInfo struct {
 	PGAdminDefaultPassword         string `json:"PGADMIN_DEFAULT_PASSWORD"`
 
 	// Keys used for AWS Cluster deployment
-	AwsSshKeyPath string `json:"AWS_SSH_KEY_PATH"`
-	AwsSshKey     string `json:"AWS_SSH_KEY"`
+	AwsSshKeyPath string `json:"AWS_SSH_KEY_PATH_ROUTE_53"`
+	AwsSshKey     string `json:"AWS_SSH_KEY_ROUTE_53"`
 
 	// Keys used for On-premise Cluster deployment
 	SshPrivKeyPath string `json:"SSH_PRIVATE_KEY_PATH"`
@@ -300,12 +302,16 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.S3BucketName = value
 	case "DOMAIN_CERTS_TYPE":
 		Data.PlatformInfo.DomainCertsType = value
-	case "AWS_ACCESS_KEY_ID":
-		Data.PlatformInfo.AWSAccessKeyID = value
-	case "AWS_SECRET_ACCESS_KEY":
-		Data.PlatformInfo.AWSSecretAccessKey = value
-	case "AWS_REGION":
-		Data.PlatformInfo.AWSRegion = value
+	case "AWS_ACCESS_KEY_ID_ROUTE_53":
+		Data.PlatformInfo.AWSAccessKeyIDRoute53 = value
+	case "AWS_SECRET_ACCESS_KEY_ROUTE_53":
+		Data.PlatformInfo.AWSSecretAccessKeyRoute53 = value
+	case "AWS_ACCESS_KEY_ID_S3_BUCKET":
+		Data.PlatformInfo.AWSAccessKeyIDS3Bucket = value
+	case "AWS_SECRET_ACCESS_KEY_S3_BUCKET":
+		Data.PlatformInfo.AWSSecretAccessKeyS3Bucket = value
+	case "AWS_REGION_S3_BUCKET":
+		Data.PlatformInfo.AWSRegionS3Bucket = value
 	case "AWS_SSH_KEY_PATH":
 		Data.PlatformInfo.AwsSshKeyPath = value
 	case "AWS_EFS_DNS":

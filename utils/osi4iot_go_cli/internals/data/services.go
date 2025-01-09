@@ -153,16 +153,20 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 		}
 	}
 
+	traefikEnvVars := []string{
+		fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
+	}
+	if domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
+		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", Data.PlatformInfo.AWSAccessKeyIDRoute53))
+		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AAWS_SECRET_ACCESS_KEY=%s", Data.PlatformInfo.AWSSecretAccessKeyRoute53))
+	}
 	traefikTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/traefik_go_cli:v2.10",
-			//Image: "traefik:v2.10",
 			Labels: map[string]string{
 				"app": "osi4iot",
 			},
-			Env: []string{
-				fmt.Sprintf("TZ=%s", Data.PlatformInfo.DefaultTimeZone),
-			},
+			Env: traefikEnvVars,
 			Healthcheck: &container.HealthConfig{
 				Test: []string{
 					"CMD-SHELL",
@@ -239,12 +243,6 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			commandsArray = append(commandsArray, fmt.Sprintf("--certificatesresolvers.route53resolver.acme.email=%s", acmeEmail))
 			commandsArray = append(commandsArray, "--certificatesresolvers.route53resolver.acme.storage=/letsencrypt/acme.json")
 			resolver = "route53resolver"
-		} else if domainCertsType == "Let's encrypt certs with DNS-01 challenge and Namecheap provider" {
-			commandsArray = append(commandsArray, "--certificatesresolvers.namecheapresolver.acme.dnschallenge=true")
-			commandsArray = append(commandsArray, "--certificatesresolvers.namecheapresolver.acme.dnschallenge.provider=namecheap")
-			commandsArray = append(commandsArray, fmt.Sprintf("--certificatesresolvers.namecheapresolver.acme.email=%s", acmeEmail))
-			commandsArray = append(commandsArray, "--certificatesresolvers.namecheapresolver.acme.storage=/letsencrypt/acme.json")
-			resolver = "namecheapresolver"
 		}
 		traefikTaskTemplate.ContainerSpec.Command = commandsArray
 		mountsArray := traefikTaskTemplate.ContainerSpec.Mounts

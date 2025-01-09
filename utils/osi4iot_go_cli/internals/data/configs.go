@@ -3,6 +3,8 @@ package data
 import (
 	"fmt"
 	"strings"
+
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 type Config struct {
@@ -35,7 +37,7 @@ func GenerateConfigs() map[string]Config {
 		fmt.Sprintf("MAIN_ORGANIZATION_COUNTRY=\"%s\"", Data.PlatformInfo.MainOrganizationCountry),
 		fmt.Sprintf("S3_BUCKET_TYPE=\"%s\"", Data.PlatformInfo.S3BucketType),
 		fmt.Sprintf("S3_BUCKET_NAME=%s", Data.PlatformInfo.S3BucketName),
-		fmt.Sprintf("AWS_REGION=%s", Data.PlatformInfo.AWSRegion),
+		fmt.Sprintf("AWS_REGION=%s", utils.AwsRegionsMap[Data.PlatformInfo.AWSRegionS3Bucket]),
 	}
 	adminAPIConfig := strings.Join(adminAPIConfigArray, "\n")
 	adminAPIConfigHash := GetMD5Hash(adminAPIConfig)
@@ -176,7 +178,7 @@ func GenerateConfigs() map[string]Config {
 		fmt.Sprintf("DEFAULT_TIME_ZONE=%s", Data.PlatformInfo.DefaultTimeZone),
 		fmt.Sprintf("S3_BUCKET_TYPE=\"%s\"", Data.PlatformInfo.S3BucketType),
 		fmt.Sprintf("S3_BUCKET_NAME=%s", Data.PlatformInfo.S3BucketName),
-		fmt.Sprintf("AWS_REGION=%s", Data.PlatformInfo.AWSRegion),
+		fmt.Sprintf("AWS_REGION=%s", utils.AwsRegionsMap[Data.PlatformInfo.AWSRegionS3Bucket]),
 	}
 	s3StorageConfig := strings.Join(s3StorageConfigArray, "\n")
 	s3StorageConfigHash := GetMD5Hash(s3StorageConfig)
