@@ -22,6 +22,8 @@ type PlatformInfo struct {
 	S3BucketType               string     `json:"S3_BUCKET_TYPE"`
 	AWSAccessKeyIDRoute53      string     `json:"AWS_ACCESS_KEY_ID_ROUTE_53"`
 	AWSSecretAccessKeyRoute53  string     `json:"AWS_SECRET_ACCESS_KEY_ROUTE_53"`
+	AWSRegionRoute53           string     `json:"AWS_REGION_ROUTE_53"`
+	AWSHostedZoneIdRoute53     string     `json:"AWS_HOSTED_ZONE_ID_ROUTE_53"`
 	AWSAccessKeyIDS3Bucket     string     `json:"AWS_ACCESS_KEY_ID_S3_BUCKET"`
 	AWSSecretAccessKeyS3Bucket string     `json:"AWS_SECRET_ACCESS_KEY_S3_BUCKET"`
 	AWSRegionS3Bucket          string     `json:"AWS_REGION_S3_BUCKET"`
@@ -306,6 +308,10 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.AWSAccessKeyIDRoute53 = value
 	case "AWS_SECRET_ACCESS_KEY_ROUTE_53":
 		Data.PlatformInfo.AWSSecretAccessKeyRoute53 = value
+	case "AWS_REGION_ROUTE_53":
+		Data.PlatformInfo.AWSRegionRoute53 = value
+	case "AWS_HOSTED_ZONE_ID_ROUTE_53":
+		Data.PlatformInfo.AWSHostedZoneIdRoute53 = value
 	case "AWS_ACCESS_KEY_ID_S3_BUCKET":
 		Data.PlatformInfo.AWSAccessKeyIDS3Bucket = value
 	case "AWS_SECRET_ACCESS_KEY_S3_BUCKET":

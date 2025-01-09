@@ -197,6 +197,29 @@ func addAWSRoute53Questions(m *Model) {
 					ActionKey:    "",
 					Margin:       0,
 				},
+				{
+					Key:          "AWS_REGION_ROUTE_53",
+					QuestionType: "list",
+					Prompt:       "AWS region for Route 53",
+					Answer:       data.Data.PlatformInfo.AWSRegionRoute53,
+					Choices:      utils.AwsRegions,
+					ChoiceFocus:  utils.GiveChoiceFocus(data.Data.PlatformInfo.AWSRegionRoute53, utils.AwsRegions, 17),
+					Rules:        []string{"required", "string"},
+					ActionKey:    "",
+					Margin:       0,
+				},
+				{
+					Key:          "AWS_HOSTED_ZONE_ID_ROUTE_53",
+					QuestionType: "password",
+					Prompt:       "AWS hosted zone ID for Route 53",
+					Answer:       data.Data.PlatformInfo.AWSHostedZoneIdRoute53,
+					Choices:      []string{},
+					ChoiceFocus:  0,
+					ErrorMessage: "",
+					Rules:        []string{"required", "string"},
+					ActionKey:    "",
+					Margin:       0,
+				},
 			}
 			m.addQuestions(m.Focus+1, awsQuestions...)
 		}
@@ -465,6 +488,8 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
+		m.removeQuestionByKey("AWS_REGION_ROUTE_53")
+		m.removeQuestionByKey("AWS_HOSTED_ZONE_ID_ROUTE_53")
 	} else if certType == "Certs provided by an CA" {
 		addDomainCertsProvidedByCAQuestions(idx+1, m)
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
@@ -475,6 +500,8 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
 		m.removeQuestionByKey("AWS_ACCESS_KEY_ID_ROUTE_53")
 		m.removeQuestionByKey("AWS_SECRET_ACCESS_KEY_ROUTE_53")
+		m.removeQuestionByKey("AWS_REGION_ROUTE_53")
+		m.removeQuestionByKey("AWS_HOSTED_ZONE_ID_ROUTE_53")
 	} else if certType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		addAWSRoute53Questions(m)
 		m.removeQuestionByKey("DOMAIN_SSL_PRIVATE_KEY_PATH")
