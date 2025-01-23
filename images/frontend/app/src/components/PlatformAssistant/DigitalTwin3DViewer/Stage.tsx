@@ -1,7 +1,7 @@
-import React, { useState, useLayoutEffect, useRef } from 'react'
-import * as THREE from 'three'
-import { useThree } from '@react-three/fiber'
-import { useHelper, Environment } from '@react-three/drei';
+import React, { useState, useLayoutEffect, useRef } from "react";
+import * as THREE from "three";
+import { useThree } from "@react-three/fiber";
+import { useHelper, Environment } from "@react-three/drei";
 
 const dirX = new THREE.Vector3(1, 0, 0);
 const redColor = new THREE.Color("#FF0000");
@@ -11,26 +11,25 @@ const dirZ = new THREE.Vector3(0, 0, 1);
 const blueColor = new THREE.Color("#0000FF");
 const origin = new THREE.Vector3(0, 0, 0);
 
-type ControlsProto = { update(): void; target: THREE.Vector3 }
+type ControlsProto = { update(): void; target: THREE.Vector3 };
 
-type Props = JSX.IntrinsicElements['group'] & {
-    environment?: string
-    shadows?: boolean
-    ambientLight?: boolean
-    ambientLightIntensity?: number
-    spotLight?: boolean
-    spotLightPower?: number
-    showSpotLightHelper?: boolean
-    pointLight?: boolean
-    pointLightPower?: number
-    showPointLightHelper?: boolean
-    showAxes?: boolean
-    ambience?: number
-    controls?: React.MutableRefObject<ControlsProto>
-    shadowBias?: number
-    femResultLoaded: boolean
-}
-
+type Props = JSX.IntrinsicElements["group"] & {
+    environment?: string;
+    shadows?: boolean;
+    ambientLight?: boolean;
+    ambientLightIntensity?: number;
+    spotLight?: boolean;
+    spotLightPower?: number;
+    showSpotLightHelper?: boolean;
+    pointLight?: boolean;
+    pointLightPower?: number;
+    showPointLightHelper?: boolean;
+    showAxes?: boolean;
+    ambience?: number;
+    controls?: React.MutableRefObject<ControlsProto>;
+    shadowBias?: number;
+    femResultLoaded: boolean;
+};
 
 export function Stage({
     children,
@@ -54,20 +53,41 @@ export function Stage({
     const sceneWidth = useThree((state) => state.size.width);
     const sceneHeigth = useThree((state) => state.size.height);
     // @ts-expect-error new in @react-three/fiber@7.0.5
-    const defaultControls = useThree((state) => state.controls) as ControlsProto
-    const childrenGroup = React.useRef<THREE.Group>(null!)
-    const [{ radius, width, height }, set] = useState({ radius: 0, width: 0, height: 0, deep: 0 })
-    const [sceneCenter, setSceneCenter] = useState(new THREE.Vector3(0.0, 0.0, 0.0));
+    const defaultControls = useThree(
+        (state) => state.controls
+    ) as ControlsProto;
+    const childrenGroup = React.useRef<THREE.Group>(null!);
+    const [{ radius, width, height }, set] = useState({
+        radius: 0,
+        width: 0,
+        height: 0,
+        deep: 0,
+    });
+    const [sceneCenter, setSceneCenter] = useState(
+        new THREE.Vector3(0.0, 0.0, 0.0)
+    );
     const spotLightRefBase = useRef();
     const spotLightRefNull = useRef(undefined);
-    const spotLightRef = showSpotLightHelper ? spotLightRefBase : spotLightRefNull;
-    useHelper(spotLightRef as React.MutableRefObject<any>, THREE.SpotLightHelper, "teal");
+    const spotLightRef = showSpotLightHelper
+        ? spotLightRefBase
+        : spotLightRefNull;
+    useHelper(
+        spotLightRef as React.MutableRefObject<any>,
+        THREE.SpotLightHelper,
+        "teal"
+    );
     const pointLightRefBase = useRef();
     const pointLightRefNull = useRef(undefined);
-    const pointLightRef = showPointLightHelper ? pointLightRefBase : pointLightRefNull;
-    useHelper(pointLightRef  as React.MutableRefObject<any>, THREE.PointLightHelper, 0.2, 'cyan');
+    const pointLightRef = showPointLightHelper
+        ? pointLightRefBase
+        : pointLightRefNull;
+    useHelper(
+        pointLightRef as React.MutableRefObject<any>,
+        THREE.PointLightHelper,
+        0.2,
+        "cyan"
+    );
     const [axisLength, setAxisLength] = useState(1);
-
 
     useLayoutEffect(() => {
         const box3 = new THREE.Box3().setFromObject(childrenGroup.current);
@@ -81,26 +101,29 @@ export function Stage({
         set({ radius: sphere.radius, width, height, deep });
         setSceneCenter(sphere.center);
 
-        const zoom_fact_x = 0.6 * Math.min(sceneWidth, sceneHeigth) / width;
-        const zoom_fact_y = 0.6 * Math.min(sceneWidth, sceneHeigth) / height;
-        const zoom_fact_z = 1.25 * Math.min(sceneWidth, sceneHeigth) / deep;
+        const zoom_fact_x = (0.6 * Math.min(sceneWidth, sceneHeigth)) / width;
+        const zoom_fact_y = (0.6 * Math.min(sceneWidth, sceneHeigth)) / height;
+        const zoom_fact_z = (1.25 * Math.min(sceneWidth, sceneHeigth)) / deep;
         const zoom_fact = Math.min(zoom_fact_x, zoom_fact_y, zoom_fact_z);
         camera.zoom = zoom_fact;
         camera.updateProjectionMatrix();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [femResultLoaded, sceneWidth, sceneHeigth])
+    }, [femResultLoaded, sceneWidth, sceneHeigth]);
 
     useLayoutEffect(() => {
         setAxisLength(radius / 3.0);
-    }, [radius])
-
+    }, [radius]);
 
     useLayoutEffect(() => {
-        camera.position.set(sceneCenter.x + radius * 1.0, sceneCenter.y + radius * 1.0, sceneCenter.z + radius * 2.5);
+        camera.position.set(
+            sceneCenter.x + radius * 1.0,
+            sceneCenter.y + radius * 1.0,
+            sceneCenter.z + radius * 2.5
+        );
         camera.near = 0.1;
         camera.far = Math.max(5000, radius * 4);
         // camera.lookAt(center_x, center_y, 0);
-        camera.lookAt(sceneCenter)
+        camera.lookAt(sceneCenter);
         const ctrl = defaultControls || controls?.current;
         if (ctrl) {
             // ctrl.target.set(center_x, center_y, 0);
@@ -110,19 +133,32 @@ export function Stage({
         camera.updateProjectionMatrix();
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [defaultControls, radius, height, width])
+    }, [defaultControls, radius, height, width]);
 
     return (
         <group {...props}>
-            {environment !== "none" && <Environment preset={environment as any}/>}
+            {/* {environment !== "none" && <Environment preset={environment as any}/>} */}
+            {environment === "sunset" && (
+                <Environment files={"venice_sunset_1k.hdr"} />
+            )}
+            {environment === "dawn" && (
+                <Environment files={"kiara_1_dawn_1k.hdr"} />
+            )}
+            {environment === "night" && (
+                <Environment files={"dikhololo_night_1k.hdr"} />
+            )}
             <group ref={childrenGroup}>{children}</group>
             {ambientLight && <ambientLight intensity={ambientLightIntensity} />}
-            {spotLight &&
+            {spotLight && (
                 <>
                     <spotLight
                         ref={spotLightRefBase as React.MutableRefObject<any>}
                         penumbra={0.5}
-                        position={[sceneCenter.x + radius * 1.0, sceneCenter.y + radius * 2.0, sceneCenter.z + radius * 1.0]}
+                        position={[
+                            sceneCenter.x + radius * 1.0,
+                            sceneCenter.y + radius * 2.0,
+                            sceneCenter.z + radius * 1.0,
+                        ]}
                         power={spotLightPower}
                         castShadow={shadows}
                         shadow-bias={shadowBias}
@@ -130,24 +166,54 @@ export function Stage({
                         shadow-mapSize-width={2048}
                     />
                 </>
-            }
+            )}
 
-            {pointLight &&
+            {pointLight && (
                 <pointLight
                     ref={pointLightRefBase as React.MutableRefObject<any>}
                     // position={[-2.0 * radius, -0.5 * radius, -1.8 * radius]}
-                    position={[sceneCenter.x - radius * 1.0, sceneCenter.y - radius * 2.0, sceneCenter.z - radius * 1.0]}
+                    position={[
+                        sceneCenter.x - radius * 1.0,
+                        sceneCenter.y - radius * 2.0,
+                        sceneCenter.z - radius * 1.0,
+                    ]}
                     power={pointLightPower}
                 />
-            }
-            {
-                showAxes &&
+            )}
+            {showAxes && (
                 <>
-                    <primitive object={new THREE.ArrowHelper(dirX, origin, axisLength, redColor)} />
-                    <primitive object={new THREE.ArrowHelper(dirY, origin, axisLength, greenColor)} />
-                    <primitive object={new THREE.ArrowHelper(dirZ, origin, axisLength, blueColor)} />
+                    <primitive
+                        object={
+                            new THREE.ArrowHelper(
+                                dirX,
+                                origin,
+                                axisLength,
+                                redColor
+                            )
+                        }
+                    />
+                    <primitive
+                        object={
+                            new THREE.ArrowHelper(
+                                dirY,
+                                origin,
+                                axisLength,
+                                greenColor
+                            )
+                        }
+                    />
+                    <primitive
+                        object={
+                            new THREE.ArrowHelper(
+                                dirZ,
+                                origin,
+                                axisLength,
+                                blueColor
+                            )
+                        }
+                    />
                 </>
-            }
+            )}
         </group>
-    )
+    );
 }

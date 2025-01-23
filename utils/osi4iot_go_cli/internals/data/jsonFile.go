@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
@@ -61,7 +62,50 @@ func SetInitialPlatformState() error {
 		}
 
 		if len(services) > 0 {
-			PlatformState = Running
+			PlatformState = Initiating
+			allHealthy := true
+			for _, service := range services {
+				if service.Spec.Name == "system-prune" {
+					continue
+				}
+				serviceFilter := filters.NewArgs()
+				serviceFilter.Add("service", service.ID)
+				tasks, err := cli.TaskList(ctx, types.TaskListOptions{
+					Filters: serviceFilter,
+				})
+				if err != nil {
+					return fmt.Errorf("error listing tasks: %v", err)
+				}
+				numTasksRequired := int(*service.Spec.Mode.Replicated.Replicas)
+				numTasksRunning := 0 
+				for _, task := range tasks {
+					if task.Status.State == swarm.TaskStateRunning {
+						containerID := task.Status.ContainerStatus.ContainerID
+						if containerID == "" {
+							return fmt.Errorf("error container %s does not have a container ID", task.ID[:10])
+						}
+
+						container, err := cli.ContainerInspect(ctx, containerID)
+						if err != nil {
+							return fmt.Errorf("error inspecting container %s: %v", containerID[:10], err)
+						}
+
+						if container.State.Health == nil {
+							return fmt.Errorf("error container %s does not have a health check configured", containerID[:10])
+						}
+						healthStatus := container.State.Health.Status
+						if healthStatus == "healthy" {
+							numTasksRunning++
+						}
+					}
+				}
+				if numTasksRunning < numTasksRequired {
+					allHealthy = false
+				}
+			}
+			if allHealthy {
+				PlatformState = Running
+			}
 		} else {
 			PlatformState = Stopped
 		}

@@ -412,13 +412,13 @@ const environmentOptions = [
 	"sunset",
 	"dawn",
 	"night",
-	"warehouse",
-	"forest",
-	"apartment",
-	"studio",
-	"city",
-	"park",
-	"lobby"
+	// "warehouse",
+	// "forest",
+	// "apartment",
+	// "studio",
+	// "city",
+	// "park",
+	// "lobby"
 ]
 
 const domainName = getDomainName();

@@ -15,9 +15,7 @@ var rootCmd = &cobra.Command{
 	Use:   "osi4iot_go_cli",
 	Short: "osi4iot_go_cli is a CLI tool for OSI4IOT",
 	Long:  `osi4iot_go_cli is a CLI tool for OSI4IOT`,
-	// Run: func(cmd *cobra.Command, args []string) {
-	// 	fmt.Println("Hello World")
-	// },
+	// Run: func(cmd *cobra.Command, args []string) {},
 }
 
 var cmdInit = &cobra.Command{
@@ -25,19 +23,14 @@ var cmdInit = &cobra.Command{
 	Short: "Init a new platform",
 	Long:  "Init a new platform",
 	Run: func(cmd *cobra.Command, args []string) {
+		checkState("init")
+		initiatePlatform.Create()
 		platformState := data.GetPlatformState()
-		if platformState == data.Running {
-			errMsg := utils.StyleWarningMsg.Render("The platform is already running. Please stop it before initializing a new one")
-			fmt.Println(errMsg)
-		} else {
-			initiatePlatform.Create()
-			platformState = data.GetPlatformState()
-			if platformState == data.Initiating {
-				err := data.SwarmInitiationInfo()
-				if err != nil {
-					errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
-					fmt.Println(errMsg)
-				}
+		if platformState == data.Initiating {
+			err := data.SwarmInitiationInfo()
+			if err != nil {
+				errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
+				fmt.Println(errMsg)
 			}
 		}
 	},
@@ -48,6 +41,7 @@ var cmdRun = &cobra.Command{
 	Short: "Start osi4iot platform",
 	Long:  "Start osi4iot platform",
 	Run: func(cmd *cobra.Command, args []string) {
+		checkState("run")
 		err := data.RunSwarm()
 		if err != nil {
 			errMsg := utils.StyleErrMsg.Render("Error: runing the platform ", err.Error())
@@ -221,6 +215,7 @@ var cmdStop = &cobra.Command{
 	Short: "Stop platform",
 	Long:  "Stop platform",
 	Run: func(cmd *cobra.Command, args []string) {
+		checkState("stop")
 		err := data.StopPlatform()
 		if err != nil {
 			errMsg := utils.StyleErrMsg.Render("Error: stopping the platform ", err.Error())
@@ -237,6 +232,7 @@ var cmdDelete = &cobra.Command{
 	Short: "Delete platform",
 	Long:  "Delete platform",
 	Run: func(cmd *cobra.Command, args []string) {
+		checkState("delete")
 		err := data.DeletePlatform()
 		if err != nil {
 			errMsg := utils.StyleErrMsg.Render("Error: deleting the platform ", err.Error())

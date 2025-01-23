@@ -329,7 +329,7 @@ func GenerateServices(swarmData SwarmData) map[string]Service {
 			"app":            "osi4iot",
 			"service_type":   "mosquitto",
 			"traefik.enable": "true",
-			// MQTT without TLS (1883, TCP puro)
+			// MQTT without TLS (1883, TCP classic)
 			"traefik.tcp.routers.mosquitto1883.rule":                      "HostSNI(`*`)",
 			"traefik.tcp.routers.mosquitto1883.entrypoints":               "mqtt",
 			"traefik.tcp.routers.mosquitto1883.service":                   "mosquitto1883",
