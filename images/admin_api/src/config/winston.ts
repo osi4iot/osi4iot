@@ -11,7 +11,7 @@ const options = {
 		format: combine(format.splat(), format.simple()),
 		maxsize: 5242880, // 5MB
 		maxFiles: 5,
-		colorize: false
+		colorize: false,
 	},
 	error: {
 		level: "error",
@@ -20,31 +20,45 @@ const options = {
 		format: combine(format.splat(), format.simple()),
 		maxsize: 5242880, // 5MB
 		maxFiles: 5,
-		colorize: false
+		colorize: false,
 	},
 	console: {
 		level: "info",
 		format: combine(format.colorize(), format.splat(), format.simple()),
 		handleExceptions: true,
-		colorize: true
-	}
+		colorize: true,
+	},
 };
 
 // instantiate a new Winston Logger with the settings defined above
 export const logger = createLogger({
-	transports: [new transports.File(options.error), new transports.File(options.combined)],
-	exitOnError: false // do not exit on handled exceptions
+	transports: [
+		new transports.File(options.error),
+		new transports.File(options.combined),
+	],
+	exitOnError: false, // do not exit on handled exceptions
 });
 
-if (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "production") {
+if (
+	process.env.NODE_ENV === "development" ||
+	process.env.NODE_ENV === "production"
+) {
 	logger.add(new transports.Console(options.console));
+	logger.transports.forEach((transport) => {
+		transport.on("error", (err) => {
+			console.error(
+				`Error in the transport ${transport.constructor.name}:`,
+				err
+			);
+		});
+	});
 }
 
 export const stream = {
 	write: (message: string): void => {
 		logger.log({
 			level: "info",
-			message
+			message,
 		});
-	}
+	},
 };

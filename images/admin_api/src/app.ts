@@ -45,19 +45,28 @@ class App {
 	}
 
 	private initializeMiddlewares(): void {
-		this.app.use(bodyParser.json({ limit: '1000mb' }));
-		this.app.use(bodyParser.urlencoded({ limit: '1000mb', extended: true }));
+		this.app.use(bodyParser.json({ limit: "1000mb" }));
+		this.app.use(
+			bodyParser.urlencoded({ limit: "1000mb", extended: true })
+		);
 		this.app.set("json spaces", 4);
 		this.app.use(helmet());
 		this.app.use(compression());
 		this.app.use(cors());
-		this.app.set('trust proxy', true)
-		this.app.use(morgan(morganOption,
-			{
+		this.app.set("trust proxy", true);
+		this.app.use(
+			morgan(morganOption, {
 				stream,
-				skip: (req: any, res) => { return req.url === "/health" }
-			}
-		));
+				skip: (req: any, res) => {
+					return req.url === "/health";
+				},
+			})
+		);
+		// this.app.set('etag', 'strong');
+		// this.app.use((req, res, next) => {
+		// 	res.set("Cache-Control", "public, max-age=3600");
+		// 	next();
+		// });
 	}
 
 	private initializeErrorHandling(): void {
@@ -67,39 +76,68 @@ class App {
 	private initializeSwagger(): void {
 		const options = {
 			swaggerOptions: {
-				docExpansion: 'none'
-			}
+				docExpansion: "none",
+			},
 		};
-		const platformName = `${process_env.PLATFORM_NAME.replace(/_/g, " ").toUpperCase()} Platform`;
+		const platformName = `${process_env.PLATFORM_NAME.replace(
+			/_/g,
+			" "
+		).toUpperCase()} Platform`;
 		const platformPhrase = `${process_env.PLATFORM_PHRASE}`;
 		const serverUrl = `${getDomainUrl()}/admin_api/`;
-		this.app.use("/swagger", (req: IRequestWithSwaggerDoc, res: Response, next: NextFunction) => {
-			(swaggerDocument as any).info.title = platformName;
-			(swaggerDocument as any).info.description = platformPhrase;
-			(swaggerDocument as any).servers[0].url = serverUrl;
-			req.swaggerDoc = swaggerDocument;
-			next();
-		}, swaggerUi.serve, swaggerUi.setup(swaggerDocument, options));
+		this.app.use(
+			"/swagger",
+			(
+				req: IRequestWithSwaggerDoc,
+				res: Response,
+				next: NextFunction
+			) => {
+				(swaggerDocument as any).info.title = platformName;
+				(swaggerDocument as any).info.description = platformPhrase;
+				(swaggerDocument as any).servers[0].url = serverUrl;
+				req.swaggerDoc = swaggerDocument;
+				next();
+			},
+			swaggerUi.serve,
+			swaggerUi.setup(swaggerDocument, options)
+		);
 	}
 
 	private dbConnect() {
 		pool.connect((error, client, done) => {
-			if (error) return logger.log("error", "Database connection failed: %s ", error.message);
+			if (error)
+				return logger.log(
+					"error",
+					"Database connection failed: %s ",
+					error.message
+				);
 			logger.log("info", "Postgres database connected");
 		});
 
 		timescaledb_pool.connect((error, client, done) => {
-			if (error) return logger.log("error", "Database connection failed: %s ", error.message);
+			if (error)
+				return logger.log(
+					"error",
+					"Database connection failed: %s ",
+					error.message
+				);
 			logger.log("info", "Timecaledb database connected");
 		});
 	}
 
 	private mailerReady() {
-		transporter.verify().then(() => {
-			logger.log("info", "Ready for send emails");
-		}).catch((err) => {
-			logger.log("error", "Mailer connection has been failed:", err.message);
-		});
+		transporter
+			.verify()
+			.then(() => {
+				logger.log("info", "Ready for send emails");
+			})
+			.catch((err) => {
+				logger.log(
+					"error",
+					"Mailer connection has been failed:",
+					err.message
+				);
+			});
 	}
 
 	private initializeControllers(controllers: IController[]): void {

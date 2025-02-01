@@ -18,8 +18,8 @@ import IMqttTopicInfo from "../topic/mqttTopicInfo.interface";
 import getDomainUrl from "../../utils/helpers/getDomainUrl";
 import IDashboardInfo from "../dashboard/dashboardInfo.interfase";
 import { IDigitalTwinData, IMqttTopicData, IMqttTopicDataShort } from "./digitalTwinGltfData.interface";
-import { getLastMeasurement } from "../mesurement/measurementDAL";
-import IMeasurement from "../mesurement/measurement.interface";
+// import {  getLastMeasurementInChunk } from "../mesurement/measurementDAL";
+// import IMeasurement from "../mesurement/measurement.interface";
 import IDigitalTwinSimulator from "./digitalTwinSimulator.interface";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
 import { createDashboard, deleteDashboard } from "../group/dashboardDAL";
@@ -521,7 +521,7 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwinId: number
 		}
 	}
 
-	if (mqttTopicsData.length) {
+	if (mqttTopicsData.length !== 0) {
 		const topicsId = mqttTopicsData.map(topicData => topicData.topicId);
 		const markedTopicsId = await markInexistentTopics(topicsId);
 		markedTopicsId.forEach((topicId, index) => {
@@ -539,26 +539,26 @@ export const getMqttTopicsDataFromDigitalTwinData = async (digitalTwinId: number
 			}
 		});
 
-		const mesurementsQueries: any[] = [];
-		mqttTopicsData.forEach(mqttTopicData => {
-			if (
-				mqttTopicData.sqlTopic &&
-				(mqttTopicData.topicRef === "dev2pdb" || mqttTopicData.topicRef === "dtm2pdb")
-			) {
-				const query = getLastMeasurement(mqttTopicData.groupUid, mqttTopicData.sqlTopic);
-				mesurementsQueries.push(query);
-			}
-		});
-		const mesurements: IMeasurement[] = await Promise.all(mesurementsQueries).then(responses => responses as IMeasurement[]);
+		// const mesurementsQueries: any[] = [];
+		// mqttTopicsData.forEach(mqttTopicData => {
+		// 	if (
+		// 		mqttTopicData.sqlTopic &&
+		// 		(mqttTopicData.topicRef.slice(0, 7) === "dev2pdb" || mqttTopicData.topicRef.slice(0, 7) === "dtm2pdb")
+		// 	) {
+		// 		const query = getLastMeasurementInChunk(mqttTopicData.groupUid, mqttTopicData.sqlTopic);
+		// 		mesurementsQueries.push(query);
+		// 	}
+		// });
+		// const mesurements: IMeasurement[] = await Promise.all(mesurementsQueries).then(responses => responses as IMeasurement[]);
 
-		mesurements.forEach(mesurement => {
-			if (mesurement !== undefined) {
-				const topicDataIndex = mqttTopicsData.findIndex(topicData => topicData.sqlTopic === mesurement.topic);
-				if (topicDataIndex !== -1) {
-					mqttTopicsData[topicDataIndex].lastMeasurement = mesurement;
-				}
-			}
-		})
+		// mesurements.forEach(mesurement => {
+		// 	if (mesurement !== undefined) {
+		// 		const topicDataIndex = mqttTopicsData.findIndex(topicData => topicData.sqlTopic === mesurement.topic);
+		// 		if (topicDataIndex !== -1) {
+		// 			mqttTopicsData[topicDataIndex].lastMeasurement = mesurement;
+		// 		}
+		// 	}
+		// })
 
 		mqttTopicsData.sort((topicData1, topicData2) => {
 			if (topicData1.topicId > topicData2.topicId) {
@@ -768,7 +768,6 @@ export const getGltfFileData = async (digitalTwin: IDigitalTwin): Promise<IGltfF
 export const getDigitalTwinData = async (digitalTwin: IDigitalTwin): Promise<IDigitalTwinData> => {
 
 	const digitalTwinId = digitalTwin.id;
-
 	const mqttTopicsData = await getMqttTopicsData(digitalTwinId);
 	const sensorsDashboards = await getSensorDashboardByAssetId(digitalTwin.assetId);
 	const topicIdBySensorRef = await getTopicIdBySensorRef(digitalTwinId);
