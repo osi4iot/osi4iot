@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
@@ -31,21 +32,13 @@ func ExistStateFile() bool {
 	return ExistFile(osi4iotStateFile)
 }
 
-func WritePlatformDataToFile() error {
-	file, _ := json.Marshal(Data)
-	err := os.WriteFile(osi4iotStateFile, file, 0644)
-	if err != nil {
-		return err
-	}
-	return nil
-}
 
 func SetInitialPlatformState() error {
 	existFile := ExistStateFile()
 	if !existFile {
 		PlatformState = Empty
 	} else {
-		cli, ctx, err := InitSwarm()
+		docker, err := docker.InitSwarm(Data)
 		if err != nil {
 			PlatformState = Unknown
 			return fmt.Errorf("error initializing swarm: %v", err)
@@ -53,7 +46,7 @@ func SetInitialPlatformState() error {
 
 		filterArgs := filters.NewArgs()
 		filterArgs.Add("label", "app=osi4iot")
-		services, err := cli.ServiceList(ctx, types.ServiceListOptions{
+		services, err := docker.Cli.ServiceList(docker.Ctx, types.ServiceListOptions{
 			Filters: filterArgs,
 		})
 		if err != nil {
@@ -70,7 +63,7 @@ func SetInitialPlatformState() error {
 				}
 				serviceFilter := filters.NewArgs()
 				serviceFilter.Add("service", service.ID)
-				tasks, err := cli.TaskList(ctx, types.TaskListOptions{
+				tasks, err := docker.Cli.TaskList(docker.Ctx, types.TaskListOptions{
 					Filters: serviceFilter,
 				})
 				if err != nil {
@@ -85,7 +78,7 @@ func SetInitialPlatformState() error {
 							return fmt.Errorf("error container %s does not have a container ID", task.ID[:10])
 						}
 
-						container, err := cli.ContainerInspect(ctx, containerID)
+						container, err := docker.Cli.ContainerInspect(docker.Ctx, containerID)
 						if err != nil {
 							return fmt.Errorf("error inspecting container %s: %v", containerID[:10], err)
 						}
@@ -130,20 +123,20 @@ func ReadPlatformDataFromFile() error {
 		}
 	}
 
-	err := CreateGeoJsonFiles()
-	if err != nil {
-		return err
-	}
+	// err := CreateGeoJsonFiles()
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = CreateDomainCertsFiles()
-	if err != nil {
-		return err
-	}
+	// err = CreateDomainCertsFiles()
+	// if err != nil {
+	// 	return err
+	// }
 
-	err = CreateSSHKeysFile()
-	if err != nil {
-		return err
-	}
+	// err = CreateSSHKeysFile()
+	// if err != nil {
+	// 	return err
+	// }
 
 	return nil
 }

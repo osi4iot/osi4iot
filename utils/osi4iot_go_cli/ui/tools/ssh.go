@@ -5,19 +5,13 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
 	"os"
+	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"golang.org/x/crypto/ssh"
 )
-
-type NodeData struct {
-	HostName string
-	IP       string
-	UserName string
-	Role     string
-	Password string
-}
 
 func ConfigWithPassword(user, password string) *ssh.ClientConfig {
 	return &ssh.ClientConfig{
@@ -29,14 +23,28 @@ func ConfigWithPassword(user, password string) *ssh.ClientConfig {
 	}
 }
 
-func ConfigWithKey(user, keyPath string) *ssh.ClientConfig {
+func SshConfigWithKey(user, privateKey string) *ssh.ClientConfig {
 	return &ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{
-			PublicKeyFile(keyPath),
+			ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
+				signer, err := PrivateKeySigner(privateKey)
+				if err != nil {
+					return nil, err
+				}
+				return []ssh.Signer{signer}, nil
+			}),
 		},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	}
+}
+
+func PrivateKeySigner(privateKey string) (ssh.Signer, error) {
+	signer, err := ssh.ParsePrivateKey([]byte(privateKey))
+	if err != nil {
+		return nil, err
+	}
+	return signer, nil
 }
 
 func PublicKeyFile(file string) ssh.AuthMethod {
@@ -52,14 +60,14 @@ func PublicKeyFile(file string) ssh.AuthMethod {
 	return ssh.PublicKeys(key)
 }
 
-func CreateKeyPair() error {
-	if data.Data.PlatformInfo.SshPrivKey == "" && data.Data.PlatformInfo.SshPubKey == "" {
-		err := CreateDirectoryIfNotExists("./.osi4iot_keys")
-		if err != nil {
-			return err
-		}
-		savePrivateFileTo := "./.osi4iot_keys/osi4iot_key"
-		savePublicFileTo := "./.osi4iot_keys/osi4iot_key.pub"
+func CreateKeyPair(data *common.PlatformData) error {
+	if data.PlatformInfo.SshPrivKey == "" && data.PlatformInfo.SshPubKey == "" {
+		// err := CreateDirectoryIfNotExists("./.osi4iot_keys")
+		// if err != nil {
+		// 	return err
+		// }
+		// savePrivateFileTo := "./.osi4iot_keys/osi4iot_key"
+		// savePublicFileTo := "./.osi4iot_keys/osi4iot_key.pub"
 		bitSize := 4096
 
 		privateKey, err := generatePrivateKey(bitSize)
@@ -71,18 +79,20 @@ func CreateKeyPair() error {
 		if err != nil {
 			return err
 		}
+		data.PlatformInfo.SshPubKey = string(publicKeyBytes)
 
 		privateKeyBytes := encodePrivateKeyToPEM(privateKey)
+		data.PlatformInfo.SshPrivKey = string(privateKeyBytes)
 
-		err = writeKeyToFile(privateKeyBytes, savePrivateFileTo)
-		if err != nil {
-			return err
-		}
+		// err = writeKeyToFile(privateKeyBytes, savePrivateFileTo)
+		// if err != nil {
+		// 	return err
+		// }
 
-		err = writeKeyToFile([]byte(publicKeyBytes), savePublicFileTo)
-		if err != nil {
-			return err
-		}
+		// err = writeKeyToFile(publicKeyBytes, savePublicFileTo)
+		// if err != nil {
+		// 	return err
+		// }
 	}
 
 	return nil
@@ -137,7 +147,7 @@ func generatePublicKey(privatekey *rsa.PublicKey) ([]byte, error) {
 }
 
 // writePemToFile writes keys to a file
-func writeKeyToFile(keyBytes []byte, saveFileTo string) error {
+func WriteKeyToFile(keyBytes []byte, saveFileTo string) error {
 	err := os.WriteFile(saveFileTo, keyBytes, 0600)
 	if err != nil {
 		return err
@@ -146,31 +156,38 @@ func writeKeyToFile(keyBytes []byte, saveFileTo string) error {
 	return nil
 }
 
-func CopyKeyInNode(nodeData NodeData) error {
-	publicKeyPath := "./.osi4iot_keys/osi4iot_key.pub"
-	keyFile, err := os.Open(publicKeyPath)
+func CopyKeyInNode(nodeData common.NodeData, publicKey string) error {
+	sshConfig := ConfigWithPassword(nodeData.NodeUserName, nodeData.NodePassword)
+	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
 	if err != nil {
 		return err
 	}
-	defer keyFile.Close()
+	defer client.Close()
 
-	sshConfig := ConfigWithPassword(nodeData.UserName, nodeData.Password)
-	client, err := ssh.Dial("tcp", nodeData.IP+":22", sshConfig)
-	if err != nil {
-		return err
-	}
 	session, err := client.NewSession()
 	if err != nil {
 		return err
 	}
 	defer session.Close()
-	session.Stdin = keyFile
 
-	//Guardar la clave publica en el archivo authorized_keys
-	command := "cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+	session.Stdin = strings.NewReader(publicKey + "\n")
+
+	command := fmt.Sprintf(`
+if ! grep -Fxq "%s" ~/.ssh/authorized_keys; then
+	mkdir -p ~/.ssh
+	chmod 700 ~/.ssh
+	echo "%s" >> ~/.ssh/authorized_keys
+	chmod 600 ~/.ssh/authorized_keys
+	echo "Clave pública añadida."
+else
+	echo "The public key already exists in authorized_keys."
+fi
+`, strings.ReplaceAll(publicKey, `"`, `\"`), publicKey)
+
 	err = session.Run(command)
 	if err != nil {
 		return err
 	}
+
 	return nil
 }

@@ -10,7 +10,7 @@ import (
 
 func checkState(action string) {
 	platformState := data.GetPlatformState()
-	if platformState == data.Empty {
+	if platformState == data.Empty && action != "init" {
 		errMsg := utils.StyleWarningMsg.Render("The platform is not initialized. Please initialize it before any further action")
 		fmt.Println(errMsg)
 		os.Exit(1)

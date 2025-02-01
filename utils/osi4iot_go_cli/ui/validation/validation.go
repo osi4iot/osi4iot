@@ -227,6 +227,16 @@ func checkIfAwsS3BucketNameIsValid(s3BucketName, s3BucketType string) (bool, str
 	}
 }
 
+func fileOrFieldExists(field string, filePath string) (bool, string) {
+	if field == "" {
+		existFile, errMsg := fileExists(filePath)
+		if !existFile {
+			return false, errMsg
+		}
+	}
+	return true, ""
+}
+
 func fileExists(filePath string) (bool, string) {
 	_, err := os.Stat(filePath)
 	if err == nil {
@@ -409,6 +419,14 @@ func Run(value string, prompt string, rules []string, data map[string]string) (b
 
 		if rule == "fileExists" {
 			isValid, errMsg = fileExists(value)
+			if !isValid {
+				break
+			}
+		}
+
+		if rule == "fileOrFieldExists" {
+			field := data[prompt]
+			isValid, errMsg = fileOrFieldExists(field, value)
 			if !isValid {
 				break
 			}

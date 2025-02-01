@@ -9,14 +9,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 )
 
 func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
+	platformData := data.GetData()
 	if m.FindAnswerByKey("DEPLOYMENT_LOCATION") == "On-premise cluster deployment" {
-		err := tools.CreateKeyPair()
+		err := tools.CreateKeyPair(platformData)
 		if err != nil {
 			return submissionResultMsg("Error creating key pair"), err
 		}
@@ -49,7 +52,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_HostName",
 					QuestionType: "generic",
 					Prompt:       "Host name",
-					Answer:       "",
+					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodeHostName,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -61,7 +64,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_IP",
 					QuestionType: "generic",
 					Prompt:       "IP",
-					Answer:       "",
+					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodeIP,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -73,7 +76,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_UserName",
 					QuestionType: "generic",
 					Prompt:       "User name",
-					Answer:       "",
+					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodeUserName,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -85,7 +88,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_Role",
 					QuestionType: "list",
 					Prompt:       "Role",
-					Answer:       "",
+					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodeRole,
 					Choices:      []string{"Manager", "Platform worker", "Generic org worker", "Exclusive org worker", "NFS server"},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -100,7 +103,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_Password",
 					QuestionType: "password",
 					Prompt:       "Password",
-					Answer:       "",
+					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodePassword,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -292,7 +295,7 @@ func awsS3BucketQuestions(m *Model) (submissionResultMsg, error) {
 	} else if s3BucketType == "Cloud AWS S3" {
 		addAwsS3BucketQuestions(m)
 	}
-	return submissionResultMsg("Questions added succesfully"), nil
+	return submissionResultMsg("AWS S3 Bucket questions added succesfully"), nil
 }
 
 func addAwsSsHKeyQuestions(index int, m *Model) {
@@ -340,25 +343,25 @@ func addAwsEFSQuestion(index int, m *Model) {
 	}
 }
 
-func GetLocalNodeData() (data.NodeData, error) {
+func GetLocalNodeData() (common.NodeData, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
-		return data.NodeData{}, err
+		return common.NodeData{}, err
 	}
 
 	usr, err := user.Current()
 	if err != nil {
-		return data.NodeData{}, err
+		return common.NodeData{}, err
 	}
 
 	cmd := exec.Command("uname", "-m")
 	output, err := cmd.Output()
 	if err != nil {
-		return data.NodeData{}, err
+		return common.NodeData{}, err
 	}
 	nodeArch := strings.TrimSpace(string(output))
 
-	nodeData := data.NodeData{
+	nodeData := common.NodeData{
 		NodeHostName: hostname,
 		NodeIP:       "localhost",
 		NodeUserName: usr.Username,
@@ -428,7 +431,7 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 		addNumNodesQuestion(m.Focus+2, m)
 		addAwsEFSQuestion(m.Focus+3, m)
 	}
-	return submissionResultMsg("Questions added succesfully"), nil
+	return submissionResultMsg("Deploy location questions added succesfully"), nil
 }
 
 func addDomainCertsProvidedByCAQuestions(index int, m *Model) {
@@ -444,7 +447,7 @@ func addDomainCertsProvidedByCAQuestions(index int, m *Model) {
 				Choices:       []string{},
 				ChoiceFocus:   0,
 				ErrorMessage:  "",
-				Rules:         []string{"required", "string", "fileExists"},
+				Rules:         []string{"required", "string", "fileOrFieldExists"},
 				ActionKey:     "",
 				Margin:        0,
 			},
@@ -457,7 +460,7 @@ func addDomainCertsProvidedByCAQuestions(index int, m *Model) {
 				Choices:       []string{},
 				ChoiceFocus:   0,
 				ErrorMessage:  "",
-				Rules:         []string{"required", "string", "fileExists"},
+				Rules:         []string{"required", "string", "fileOrFieldExists"},
 				ActionKey:     "",
 				Margin:        0,
 			},
@@ -470,7 +473,7 @@ func addDomainCertsProvidedByCAQuestions(index int, m *Model) {
 				Choices:       []string{},
 				ChoiceFocus:   0,
 				ErrorMessage:  "",
-				Rules:         []string{"required", "string", "fileExists"},
+				Rules:         []string{"required", "string", "fileOrFieldExists"},
 				ActionKey:     "",
 				Margin:        0,
 			},
@@ -508,7 +511,7 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("DOMAIN_SSL_CA_PEM_PATH")
 		m.removeQuestionByKey("DOMAIN_SSL_CERT_CRT_PATH")
 	}
-	return submissionResultMsg("Questions added succesfully"), nil
+	return submissionResultMsg("Domain certs questions added succesfully"), nil
 }
 
 func copyKeyInNode(m *Model) (submissionResultMsg, error) {
@@ -529,14 +532,16 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		roleKey := nodeKey + "_Role"
 		role := m.FindAnswerByKey(roleKey)
 
-		nodeData := tools.NodeData{
-			HostName: hostName,
-			IP:       ip,
-			UserName: userName,
-			Role:     role,
-			Password: password,
+		nodeData := common.NodeData{
+			NodeHostName: hostName,
+			NodeIP:       ip,
+			NodeUserName: userName,
+			NodeRole:     role,
+			NodePassword: password,
 		}
-		err := tools.CopyKeyInNode(nodeData)
+		platformData := data.GetData()
+		publicKey := platformData.PlatformInfo.SshPubKey
+		err := tools.CopyKeyInNode(nodeData, publicKey)
 		if err != nil {
 			return submissionResultMsg("Error: copying key to node " + hostName), err
 		}
@@ -547,6 +552,7 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 }
 
 func initPlatform(m *Model) (platformInitiatedMsg, error) {
+	platformData := data.GetData()
 	areAllQuestionsOK := true
 	for idx := 0; idx < len(m.Questions); idx++ {
 		if m.Questions[idx].Answer == "" {
@@ -563,17 +569,17 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 
 	if len(data.Data.Certs.MqttCerts.Organizations) == 0 {
 		orgHash := utils.GeneratePassword(16)
-		orgAcronym := data.Data.PlatformInfo.MainOrganizationAcronym
-		numNriInMainOrg := data.Data.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
+		orgAcronym := platformData.PlatformInfo.MainOrganizationAcronym
+		numNriInMainOrg := platformData.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
 		exclusiveWorkerNodes := make([]string, 0)
-		nodered_instances := make([]data.NodeRedInstance, numNriInMainOrg)
-		organization := data.Organization{
+		nodered_instances := make([]common.NodeRedInstance, numNriInMainOrg)
+		organization := common.Organization{
 			OrgHash:              orgHash,
 			OrgAcronym:           orgAcronym,
 			ExclusiveWorkerNodes: exclusiveWorkerNodes,
 			NodeRedInstances:     nodered_instances,
 		}
-		data.Data.Certs.MqttCerts.Organizations = append(data.Data.Certs.MqttCerts.Organizations, organization)
+		platformData.Certs.MqttCerts.Organizations = append(platformData.Certs.MqttCerts.Organizations, organization)
 	}
 
 	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
@@ -582,7 +588,7 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 		if err != nil {
 			return platformInitiatedMsg("Error: getting local node data"), err
 		}
-		nodesData := []data.NodeData{localNodeData}
+		nodesData := []common.NodeData{localNodeData}
 		data.SetNodesData(nodesData)
 	}
 
@@ -640,18 +646,18 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 	data.SetData("PGADMIN_DEFAULT_PASSWORD", pgAdminDefaultPassword)
 
 	data.SetCertsData()
-	err = data.MqttTLSCredentials()
+	err = utils.MqttTLSCredentials(platformData)
 	if err != nil {
 		return platformInitiatedMsg("Error: creating mqtt certs"), err
 	}
 
-	err = data.RunSwarm()
+	err = docker.RunSwarm(platformData)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error: running swarm %s", err.Error())
 		return platformInitiatedMsg(errMsg), err
 	}
 
 	data.SetPlatformState(data.Initiating)
-	time.Sleep(1 * time.Second) // Simula retraso
+	time.Sleep(1 * time.Second)
 	return platformInitiatedMsg("osi4iot_state.json file created and platform initiated successfully"), nil
 }

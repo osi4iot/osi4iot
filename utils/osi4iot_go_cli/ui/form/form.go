@@ -53,23 +53,46 @@ type KeyMap struct {
 }
 
 func (m *Model) validateAnswer(qIdx int) (bool, string) {
+	platformData := data.GetData()
 	q := m.Questions[qIdx]
-	data := make(map[string]string)
+	dataMap := make(map[string]string)
 	if qIdx > 0 && len(m.Questions[qIdx-1].Rules) > 0 {
 		if slices.Contains(m.Questions[qIdx].Rules, "matchPrevious") {
-			data["previousValue"] = m.Questions[qIdx-1].Answer
+			dataMap["previousValue"] = m.Questions[qIdx-1].Answer
 		}
 
 		if slices.Contains(m.Questions[qIdx].Rules, "s3BucketName") {
-			data["s3BucketName"] = m.Questions[qIdx-1].Answer
-			data["s3BucketType"] = m.FindAnswerByKey("S3_BUCKET_TYPE")
+			dataMap["s3BucketName"] = m.Questions[qIdx-1].Answer
+			dataMap["s3BucketType"] = m.FindAnswerByKey("S3_BUCKET_TYPE")
 		}
 
 		if slices.Contains(m.Questions[qIdx].Rules, "domainCertsType") {
-			data["deploymentLocation"] = m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+			dataMap["deploymentLocation"] = m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+		}
+
+		if slices.Contains(m.Questions[qIdx].Rules, "fileOrFieldExists") {
+			key := m.Questions[qIdx].Key
+			if key == "MAIN_ORGANIZATION_BUILDING_PATH" {
+				mainOrgBuilding := platformData.PlatformInfo.MainOrganizationBuilding
+				dataMap[q.Prompt] = mainOrgBuilding
+			} else if key == "MAIN_ORGANIZATION_FLOOR_PATH" {
+				dataMap[q.Prompt] =  platformData.PlatformInfo.MainOrganizationFirstFloor
+			} else if key == "DOMAIN_SSL_PRIVATE_KEY_PATH" {
+				dataMap[q.Prompt] = platformData.Certs.DomainCerts.PrivateKey
+			} else if key == "DOMAIN_SSL_CA_PEM_PATH" {
+				dataMap[q.Prompt] = platformData.Certs.DomainCerts.SslCaPem
+			} else if key == "DOMAIN_SSL_CERT_CRT_PATH" {
+				dataMap[q.Prompt] = platformData.Certs.DomainCerts.SslCertCrt
+			} else if key == "AWS_SSH_KEY_PATH" {
+				dataMap[q.Prompt] = platformData.PlatformInfo.AwsSshKey
+			} else if key == "SSH_PRIVATE_KEY_PATH" {
+				dataMap[q.Prompt] = platformData.PlatformInfo.SshPrivKey
+			} else if key == "SSH_PUBLIC_KEY_PATH" {
+				dataMap[q.Prompt] = platformData.PlatformInfo.SshPubKey
+			}
 		}
 	}
-	return validation.Run(q.Answer, q.Prompt, q.Rules, data)
+	return validation.Run(q.Answer, q.Prompt, q.Rules, dataMap)
 }
 
 func (m *Model) addQuestions(idx int, qs ...Question) {

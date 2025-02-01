@@ -1,13 +1,16 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
+	"net"
 	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/exp/rand"
 )
@@ -440,6 +443,57 @@ var AwsRegionsMap = map[string]string{
 	"Middle East (UAE)":        "me-central-1",
 	"South America (São Paulo)": "sa-east-1",
 }
+
+func IsHostIP(ipStr string) (bool, error) {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false, fmt.Errorf("the IP: '%s' is not valid", ipStr)
+	}
+
+	if ipStr == "localhost" || ipStr == "127.0.0.1" {
+		return true, nil
+	}
+
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return false, fmt.Errorf("error al obtener las interfaces de red: %v", err)
+	}
+
+	for _, iface := range interfaces {
+		if iface.Flags&net.FlagUp == 0 {
+			continue
+		}
+		addrs, err := iface.Addrs()
+		if err != nil {
+			continue
+		}
+		for _, addr := range addrs {
+			var ipActual net.IP
+			switch v := addr.(type) {
+			case *net.IPNet:
+				ipActual = v.IP
+			case *net.IPAddr:
+				ipActual = v.IP
+			}
+			if ipActual.Equal(ip) {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
+}
+
+var osi4iotStateFile = "osi4iot_state.json"
+
+func WritePlatformDataToFile(platformData *common.PlatformData) error {
+	file, _ := json.Marshal(platformData)
+	err := os.WriteFile(osi4iotStateFile, file, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 
 var StyleWarningMsg = lipgloss.NewStyle().
 	Bold(true).

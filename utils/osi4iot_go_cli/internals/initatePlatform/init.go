@@ -12,7 +12,6 @@ import (
 	clipboard "github.com/tiagomelo/go-clipboard/clipboard"
 )
 
-
 func Create() {
 	p := tea.NewProgram(initialModel())
 
@@ -306,7 +305,7 @@ func initialModel() form.Model {
 				ErrorMessage:  "",
 				Choices:       []string{},
 				ChoiceFocus:   0,
-				Rules:         []string{"required", "string", "fileExists"},
+				Rules:         []string{"required", "string", "fileOrFieldExists"},
 				ActionKey:     "",
 				Margin:        0,
 			},
@@ -319,7 +318,7 @@ func initialModel() form.Model {
 				ErrorMessage:  "",
 				Choices:       []string{},
 				ChoiceFocus:   0,
-				Rules:         []string{"required", "string"},
+				Rules:         []string{"required", "string", "fileOrFieldExists"},
 				ActionKey:     "",
 				Margin:        0,
 			},
@@ -610,9 +609,9 @@ func initialModel() form.Model {
 				Margin:        0,
 			},
 		},
-		Focus:   0,
-		Cursor:  0,
-		Loading: false,
+		Focus:    0,
+		Cursor:   0,
+		Loading:  false,
 		Finished: false,
 		SubmitMsgMap: map[string]string{
 			"initPlatform":          "Initializing platform",
@@ -631,16 +630,20 @@ func initialModel() form.Model {
 
 	model.Cursor = len(model.Questions[0].Answer)
 
-	if data.Data.PlatformInfo.MainOrganizationBuildingPath != "" {
-		value := data.Data.PlatformInfo.MainOrganizationBuildingPath
-		mainOrgBuilding := data.GetFileData(value)
-		data.Data.PlatformInfo.MainOrganizationBuilding = mainOrgBuilding
+	if data.Data.PlatformInfo.MainOrganizationBuilding == "" {
+		if data.Data.PlatformInfo.MainOrganizationBuildingPath != "" {
+			value := data.Data.PlatformInfo.MainOrganizationBuildingPath
+			mainOrgBuilding := data.GetFileData(value)
+			data.Data.PlatformInfo.MainOrganizationBuilding = mainOrgBuilding
+		}
 	}
 
-	if data.Data.PlatformInfo.MainOrganizationFirstFloorPath != "" {
-		value := data.Data.PlatformInfo.MainOrganizationFirstFloorPath
-		mainOrgFirstFloor := data.GetFileData(value)
-		data.Data.PlatformInfo.MainOrganizationFirstFloor = mainOrgFirstFloor
+	if data.Data.PlatformInfo.MainOrganizationFirstFloor == "" {
+		if data.Data.PlatformInfo.MainOrganizationFirstFloorPath != "" {
+			value := data.Data.PlatformInfo.MainOrganizationFirstFloorPath
+			mainOrgFirstFloor := data.GetFileData(value)
+			data.Data.PlatformInfo.MainOrganizationFirstFloor = mainOrgFirstFloor
+		}
 	}
 
 	if data.Data.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
