@@ -67,7 +67,7 @@ func initialModel() form.Model {
 				Key:           "PLATFORM_ADMIN_FIRST_NAME",
 				QuestionType:  "generic",
 				Prompt:        "Platform admin first name",
-				Answer:        data.Data.PlatformInfo.PlatformAdminPassword,
+				Answer:        data.Data.PlatformInfo.PlatformAdminFirstName,
 				DefaultAnswer: "",
 				ErrorMessage:  "",
 				Choices:       []string{},
@@ -632,40 +632,44 @@ func initialModel() form.Model {
 
 	if data.Data.PlatformInfo.MainOrganizationBuilding == "" {
 		if data.Data.PlatformInfo.MainOrganizationBuildingPath != "" {
-			value := data.Data.PlatformInfo.MainOrganizationBuildingPath
-			mainOrgBuilding := data.GetFileData(value)
-			data.Data.PlatformInfo.MainOrganizationBuilding = mainOrgBuilding
+			path := data.Data.PlatformInfo.MainOrganizationBuildingPath
+			if utils.FileExists(path) {
+				mainOrgBuilding := utils.GetFileData(path)
+				data.Data.PlatformInfo.MainOrganizationBuilding = mainOrgBuilding
+			}
 		}
 	}
 
 	if data.Data.PlatformInfo.MainOrganizationFirstFloor == "" {
 		if data.Data.PlatformInfo.MainOrganizationFirstFloorPath != "" {
-			value := data.Data.PlatformInfo.MainOrganizationFirstFloorPath
-			mainOrgFirstFloor := data.GetFileData(value)
-			data.Data.PlatformInfo.MainOrganizationFirstFloor = mainOrgFirstFloor
+			path := data.Data.PlatformInfo.MainOrganizationFirstFloorPath
+			if utils.FileExists(path) {
+				mainOrgFirstFloor := utils.GetFileData(path)
+				data.Data.PlatformInfo.MainOrganizationFirstFloor = mainOrgFirstFloor
+			}
 		}
 	}
 
-	if data.Data.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
-		pathKey := data.Data.PlatformInfo.DOMAIN_SSL_PRIVATE_KEY_PATH
-		if pathKey != "" && data.Data.Certs.DomainCerts.PrivateKey == "" {
-			domainSSLPrivateKey := data.GetFileData(pathKey)
-			data.Data.Certs.DomainCerts.PrivateKey = domainSSLPrivateKey
-		}
+	// if data.Data.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
+	// 	pathKey := data.Data.PlatformInfo.DOMAIN_SSL_PRIVATE_KEY_PATH
+	// 	if pathKey != "" && data.Data.Certs.DomainCerts.PrivateKey == "" {
+	// 		domainSSLPrivateKey := utils.GetFileData(pathKey)
+	// 		data.Data.Certs.DomainCerts.PrivateKey = domainSSLPrivateKey
+	// 	}
 
-		pathCert := data.Data.PlatformInfo.DOMAIN_SSL_CERT_CRT_PATH
-		if pathCert != "" && data.Data.Certs.DomainCerts.SslCertCrt == "" {
-			domainSSLCertCrt := data.GetFileData(pathCert)
-			data.Data.Certs.DomainCerts.SslCertCrt = domainSSLCertCrt
-		}
+	// 	pathCert := data.Data.PlatformInfo.DOMAIN_SSL_CERT_CRT_PATH
+	// 	if pathCert != "" && data.Data.Certs.DomainCerts.SslCertCrt == "" {
+	// 		domainSSLCertCrt := utils.GetFileData(pathCert)
+	// 		data.Data.Certs.DomainCerts.SslCertCrt = domainSSLCertCrt
+	// 	}
 
-		pathCa := data.Data.PlatformInfo.DOMAIN_SSL_CA_PEM_PATH
-		if pathCa != "" && data.Data.Certs.DomainCerts.SslCaPem == "" {
-			domainSSLCaPem := data.GetFileData(pathCa)
-			data.Data.Certs.DomainCerts.SslCaPem = domainSSLCaPem
-		}
-		form.DomainCertsQuestions(&model)
-	}
+	// 	pathCa := data.Data.PlatformInfo.DOMAIN_SSL_CA_PEM_PATH
+	// 	if pathCa != "" && data.Data.Certs.DomainCerts.SslCaPem == "" {
+	// 		domainSSLCaPem := utils.GetFileData(pathCa)
+	// 		data.Data.Certs.DomainCerts.SslCaPem = domainSSLCaPem
+	// 	}
+	// 	form.DomainCertsQuestions(&model)
+	// }
 
 	if data.Data.PlatformInfo.DeploymentLocation != "Local deployment" {
 		form.DeployLocationQuestions(&model)

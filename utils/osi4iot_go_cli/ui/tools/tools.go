@@ -2,7 +2,10 @@ package tools
 
 import (
 	"bytes"
+	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 )
 
 func AltCtrlCharWindows(character string) string {
@@ -37,5 +40,17 @@ func CreateDirectoryIfNotExists(dirPath string) error {
 		}
 	}
 	return nil
+}
+
+func ExecutingLocalCommand(command string) (string, error) {
+	parts := strings.Fields(command)
+	if len(parts) == 0 {
+		return "", fmt.Errorf("empty command")
+	}
+
+	cmd := exec.Command(parts[0], parts[1:]...)
+
+	output, err := cmd.CombinedOutput()
+	return string(output), err
 }
 

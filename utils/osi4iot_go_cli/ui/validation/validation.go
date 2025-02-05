@@ -122,6 +122,9 @@ func maxValue(value string, max string, prompt string) (bool, string) {
 }
 
 func isIPAdress(ip string, prompt string) (bool, string) {
+	if ip == "localhost" || ip == "127.0.0.1" {
+		return true, ""
+	}
 	if net.ParseIP(ip) == nil {
 		errMsg := fmt.Sprintf("Error: '%s' is must be a valid IP adress", prompt)
 		return false, errMsg

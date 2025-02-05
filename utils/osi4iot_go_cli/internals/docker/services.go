@@ -28,6 +28,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	s3BucketType := platformData.PlatformInfo.S3BucketType
 	domainCertsType := platformData.PlatformInfo.DomainCertsType
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 
 	workerConstraintsArray := []string{
 		"node.role==worker",
@@ -1524,6 +1525,94 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			UpdateConfig:   minioUpdateConfig,
 			RollbackConfig: minioRollbackConfig,
 			Networks:       minioNetwork,
+		}
+	}
+
+	if numSwarmNodes > 1 && !existArmArchNodes && deploymentLocation == "On-premise cluster deployment" {
+		keepalivedAnottations := swarm.Annotations{
+			Name: "keepalived",
+			Labels: map[string]string{
+				"app":          "osi4iot",
+				"service_type": "keepalived",
+			},
+		}
+		keepalivedTaskTemplate := swarm.TaskSpec{
+			ContainerSpec: &swarm.ContainerSpec{
+				Image: "ghcr.io/osi4iot/keepalived:latest",
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
+				Env: []string{
+					fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
+					fmt.Sprintf("KEEPALIVED_VIRTUAL_IP=%s", platformData.PlatformInfo.FloatingIPAddress),
+					fmt.Sprintf("KEEPALIVED_INTERFACE=%s", platformData.PlatformInfo.NetworkInterface),
+				},
+				Mounts: []mount.Mount{
+					{
+						Target:   "/var/run/docker.sock",
+						Source:   "/var/run/docker.sock",
+						Type:     mount.TypeBind,
+						ReadOnly: true,
+					},
+					{
+						Target:   "/usr/bin/docker",
+						Source:   "/usr/bin/docker:ro",
+						Type:     mount.TypeBind,
+						ReadOnly: true,
+					},
+				},
+			},
+			Resources: &swarm.ResourceRequirements{
+				Limits: &swarm.Limit{
+					NanoCPUs:    giveCPUs(platformData, "keepalived"),
+					MemoryBytes: giveMemory(platformData, "keepalived"),
+				},
+				Reservations: &swarm.Resources{
+					NanoCPUs:    giveCPUs(platformData, "keepalived"),
+					MemoryBytes: giveMemory(platformData, "keepalived"),
+				},
+			},
+			Placement: &swarm.Placement{
+				Constraints: []string{
+					"node.role == manager",
+					"node.platform.arch==x86_64",
+				},
+			},
+		}
+		keepalivedEndpointSpec := &swarm.EndpointSpec{
+			Mode: swarm.ResolutionModeVIP,
+		}
+		keepalivedMode := swarm.ServiceMode{
+			Global: &swarm.GlobalService{},
+		}
+		keepalivedUpdateConfig := &swarm.UpdateConfig{
+			Parallelism:     2,
+			Delay:           time.Duration(5 * time.Second),
+			FailureAction:   swarm.UpdateFailureActionRollback,
+			Monitor:         time.Duration(20 * time.Second),
+			MaxFailureRatio: 0.2,
+			Order:           "start-first",
+		}
+		keepalivedRollbackConfig := &swarm.UpdateConfig{
+			Parallelism:     2,
+			Delay:           time.Duration(5 * time.Second),
+			FailureAction:   swarm.UpdateFailureActionRollback,
+			Monitor:         time.Duration(20 * time.Second),
+			MaxFailureRatio: 0.2,
+			Order:           "start-first",
+		}
+		keepalivedNetwork := []swarm.NetworkAttachmentConfig{
+			{Target: swarmData.Networks["internal_net"].Name},
+		}
+		Services["keepalived"] = Service{
+			Name:           "keepalived",
+			Annotations:    keepalivedAnottations,
+			TaskTemplate:   keepalivedTaskTemplate,
+			EndpointSpec:   keepalivedEndpointSpec,
+			Mode:           keepalivedMode,
+			UpdateConfig:   keepalivedUpdateConfig,
+			RollbackConfig: keepalivedRollbackConfig,
+			Networks:       keepalivedNetwork,
 		}
 	}
 

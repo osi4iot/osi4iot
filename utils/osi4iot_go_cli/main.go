@@ -27,24 +27,43 @@ func main() {
 	if existStateFile {
 		err := data.ReadPlatformDataFromFile()
 		if err != nil {
-			panic(fmt.Sprintf("Error loading json file: %v", err))
+			errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error loading json file: %v", err))
+			fmt.Println(errMsg)
+			os.Exit(1)
 		}
 
-		err = data.SetInitialPlatformState()
-		if err != nil {
-			panic(fmt.Sprintf("Error setting initial platform state: %v", err))
+		args := os.Args[1:]
+		action := "none"
+		if len(args) != 0 {
+			action = args[0]
 		}
 
 		platformData := data.GetData()
-		dockerClient, err := docker.InitSwarm(platformData)
-		if err != nil {
-			panic(fmt.Sprintf("Error initializing swarm: %v", err))
+		DCMap, dcMapErr := docker.SetDockerClientsMap(platformData)
+		if dcMapErr != nil {
+			err := docker.CheckDockerClientsMap(DCMap, action)
+			if err != nil {
+				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error checking Docker clients map: %v", dcMapErr))
+				fmt.Println(errMsg)
+				os.Exit(1)
+			}
 		}
 		defer func() {
-			if err := dockerClient.Close(); err != nil {
+			if err := docker.CloseDockerClientsMap(); err != nil {
 				fmt.Printf("Error closing resources: %v", err)
 			}
 		}()
+
+		if action != "none" && action != "init" {
+			err := data.SetInitialPlatformState()
+			if err != nil {
+				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error setting initial platform state: %v", err))
+				fmt.Println(errMsg)
+				os.Exit(1)
+			}
+		}
+	} else {
+		data.SetPlatformState(data.Empty)
 	}
 
 	cmd.Execute()

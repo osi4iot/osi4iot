@@ -89,7 +89,7 @@ func (m *Model) validateAnswer(qIdx int) (bool, string) {
 				dataMap[q.Prompt] = platformData.PlatformInfo.SshPrivKey
 			} else if key == "SSH_PUBLIC_KEY_PATH" {
 				dataMap[q.Prompt] = platformData.PlatformInfo.SshPubKey
-			}
+			} 
 		}
 	}
 	return validation.Run(q.Answer, q.Prompt, q.Rules, dataMap)
@@ -276,6 +276,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Loading = false
 		m.RecievedMsg = string(msg)
 		if m.RecievedMsg[:5] != "Error" {
+			data.SetPlatformState(data.Initiating)
 			m.Finished = true
 			return m, tea.Quit
 		}

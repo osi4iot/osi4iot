@@ -1,9 +1,7 @@
 package data
 
 import (
-	"bytes"
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
@@ -21,18 +19,10 @@ const (
 	Initiating
 	Running
 	Stopped
+	Deleted
 )
 
 var PlatformState PlatformStatus = Empty
-
-func GetFileData(filePath string) string {
-	file, _ := os.Open(filePath)
-	defer file.Close()
-
-	buf := new(bytes.Buffer)
-	buf.ReadFrom(file)
-	return buf.String()
-}
 
 func SetData(key string, value string) {
 	switch key {
@@ -82,14 +72,14 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.MainOrganizationCountry = value
 	case "MAIN_ORGANIZATION_BUILDING_PATH":
 		Data.PlatformInfo.MainOrganizationBuildingPath = value
-		if Data.PlatformInfo.MainOrganizationBuilding == "" {
-			mainOrgBuilding := GetFileData(value)
+		if utils.FileExists(value) {
+			mainOrgBuilding := utils.GetFileData(value)
 			Data.PlatformInfo.MainOrganizationBuilding = mainOrgBuilding
 		}
 	case "MAIN_ORGANIZATION_FLOOR_PATH":
 		Data.PlatformInfo.MainOrganizationFirstFloorPath = value
-		if Data.PlatformInfo.MainOrganizationFirstFloor == "" {
-			mainOrgFloor := GetFileData(value)
+		if utils.FileExists(value) {
+			mainOrgFloor := utils.GetFileData(value)
 			Data.PlatformInfo.MainOrganizationFirstFloor = mainOrgFloor
 		}
 	case "TELEGRAM_BOTTOKEN":
@@ -133,6 +123,7 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.DeploymentMode = value
 	case "NUMBER_OF_SWARM_NODES":
 		numberOfNodes, _ := strconv.Atoi(value)
+		Data.PlatformInfo.NumberOfSwarmNodes = numberOfNodes
 		if len(Data.PlatformInfo.NodesData) == 0 {
 			Data.PlatformInfo.NodesData = make([]common.NodeData, numberOfNodes)
 		}
@@ -162,6 +153,10 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.AWSRegionS3Bucket = value
 	case "AWS_SSH_KEY_PATH":
 		Data.PlatformInfo.AwsSshKeyPath = value
+		if utils.FileExists(value) {
+			awsSshKey := utils.GetFileData(value)
+			Data.PlatformInfo.AwsSshKey = awsSshKey
+		}
 	case "AWS_EFS_DNS":
 		Data.PlatformInfo.AwsEfsDNS = value
 	case "FLOATING_IP_ADDRES":
@@ -170,20 +165,20 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.NetworkInterface = value
 	case "DOMAIN_SSL_PRIVATE_KEY_PATH":
 		Data.PlatformInfo.DOMAIN_SSL_PRIVATE_KEY_PATH = value
-		if Data.Certs.DomainCerts.PrivateKey == "" {
-			domainSSLPrivateKey := GetFileData(value)
+		if utils.FileExists(value) {
+			domainSSLPrivateKey := utils.GetFileData(value)
 			Data.Certs.DomainCerts.PrivateKey = domainSSLPrivateKey
 		}
 	case "DOMAIN_SSL_CA_PEM_PATH":
 		Data.PlatformInfo.DOMAIN_SSL_CA_PEM_PATH = value
-		if Data.Certs.DomainCerts.SslCaPem == "" {
-			domainSSLCaPem := GetFileData(value)
+		if utils.FileExists(value) {
+			domainSSLCaPem := utils.GetFileData(value)
 			Data.Certs.DomainCerts.SslCaPem = domainSSLCaPem
 		}
 	case "DOMAIN_SSL_CERT_CRT_PATH":
 		Data.PlatformInfo.DOMAIN_SSL_CERT_CRT_PATH = value
-		if Data.Certs.DomainCerts.SslCertCrt == "" {
-			domainSSLCertCrt := GetFileData(value)
+		if utils.FileExists(value) {
+			domainSSLCertCrt := utils.GetFileData(value)
 			Data.Certs.DomainCerts.SslCertCrt = domainSSLCertCrt
 		}
 	case "ENCRYPTION_SECRET_KEY":
@@ -239,6 +234,10 @@ func SetData(key string, value string) {
 	firstWord := keyWords[0]
 	if firstWord == "Node" && len(keyWords) > 2 {
 		nodeIndex, _ := strconv.Atoi(keyWords[1])
+		nodeData := common.NodeData{}
+		if len(Data.PlatformInfo.NodesData) == nodeIndex {
+			Data.PlatformInfo.NodesData = append(Data.PlatformInfo.NodesData, nodeData)
+		}
 		switch keyWords[2] {
 		case "HostName":
 			Data.PlatformInfo.NodesData[nodeIndex-1].NodeHostName = value
@@ -250,8 +249,6 @@ func SetData(key string, value string) {
 			Data.PlatformInfo.NodesData[nodeIndex-1].NodeRole = value
 		case "Password":
 			Data.PlatformInfo.NodesData[nodeIndex-1].NodePassword = value
-		case "ARCH":
-			Data.PlatformInfo.NodesData[nodeIndex-1].NodeArch = value
 		}
 	}
 }

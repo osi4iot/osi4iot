@@ -29,17 +29,17 @@ var cmdInit = &cobra.Command{
 		platformState := data.GetPlatformState()
 		if platformState == data.Initiating {
 			platformData := data.GetData()
-			err := docker.SwarmInitiationInfo(platformData)
+			err := docker.InitPlatform(platformData)
+			if err != nil {
+				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error initializing platform: %v", err))
+				fmt.Println(errMsg)
+				os.Exit(1)
+			}
+			err = docker.SwarmInitiationInfo(platformData)
 			if err != nil {
 				errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
 				fmt.Println(errMsg)
 			}
-			dockerClient, _ := docker.InitSwarm(platformData)
-			defer func() {
-				if err := dockerClient.Close(); err != nil {
-					fmt.Printf("Error closing resources: %v", err)
-				}
-			}()
 		}
 	},
 }
@@ -51,7 +51,12 @@ var cmdRun = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("run")
 		platformData := data.GetData()
-		err := docker.RunSwarm(platformData)
+		dc, err :=  docker.GetManagerDC()
+		if err != nil {
+			errMsg := utils.StyleErrMsg.Render("Error: getting docker client ", err.Error())
+			fmt.Println(errMsg)
+		}
+		err = docker.RunSwarm(dc, platformData)
 		if err != nil {
 			errMsg := utils.StyleErrMsg.Render("Error: runing the platform ", err.Error())
 			fmt.Println(errMsg)

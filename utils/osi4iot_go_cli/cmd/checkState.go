@@ -23,7 +23,11 @@ func checkState(action string) {
 			os.Exit(1)
 		}
 	case "run":
-		if platformState == data.Initiating {
+		if platformState == data.Deleted {
+			errMsg := utils.StyleWarningMsg.Render("The platform is deleted. Please initialize it before running it")
+			fmt.Println(errMsg)
+			os.Exit(1)
+		} else if platformState == data.Initiating {
 			errMsg := utils.StyleWarningMsg.Render("The platform is initializing. Please wait until it is initialized")
 			fmt.Println(errMsg)
 			os.Exit(1)
@@ -33,13 +37,13 @@ func checkState(action string) {
 			os.Exit(1)
 		}
 	case "stop":
-		if platformState == data.Empty {
+		if platformState == data.Empty || platformState == data.Deleted {
 			errMsg := utils.StyleWarningMsg.Render("The platform can not be stopped because it has not been initialized yet.")
 			fmt.Println(errMsg)
 			os.Exit(1)
 		}
 	case "delete":
-		if platformState == data.Empty {
+		if platformState == data.Empty || platformState == data.Deleted {
 			errMsg := utils.StyleWarningMsg.Render("The platform can not be deleted because it has not been initialized yet.")
 			fmt.Println(errMsg)
 			os.Exit(1)

@@ -31,6 +31,7 @@ type PlatformInfo struct {
 	PlatformAdminPassword      string     `json:"PLATFORM_ADMIN_PASSWORD"`
 	RAMMemoryPerNode           string     `json:"RAM_MEMORY_PER_NODE"`
 	NumberOfCPUsPerNode        string     `json:"NUMBER_OF_CPUS_PER_NODE"`
+	NumberOfSwarmNodes         int        `json:"NUMBER_OF_SWARM_NODES"`
 	NodesData                  []NodeData `json:"NODES_DATA"`
 
 	MinLongitude    float64 `json:"MIN_LONGITUDE"`
@@ -160,6 +161,7 @@ type NodeRedInstance struct {
 }
 
 type NodeData struct {
+	NodeId       string `json:"nodeId"`
 	NodeHostName string `json:"nodeHostName"`
 	NodeIP       string `json:"nodeIP"`
 	NodeUserName string `json:"nodeUserName"`

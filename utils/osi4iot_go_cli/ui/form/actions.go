@@ -2,16 +2,12 @@ package form
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"os/user"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
+	//"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 )
@@ -24,17 +20,25 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 			return submissionResultMsg("Error creating key pair"), err
 		}
 	}
-	numNodes, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_SWARM_NODES"))
+	qIdx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
+	numNodes, _ := strconv.Atoi(m.Questions[qIdx].Answer)
 	newQuestions := []Question{}
 	iniNode := 1
 	currentNumNodes := m.NumNodesQuestions()
 	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodeQuestions := 5
+	if deployLocation == "On-premise cluster deployment" {
+		numNodeQuestions = 6
+	}
 	if currentNumNodes < numNodes {
 		if currentNumNodes != 0 {
 			iniNode = currentNumNodes + 1
 		}
+		defaultNodeData := common.NodeData{}
 		for inode := iniNode; inode <= numNodes; inode++ {
+			if len(platformData.PlatformInfo.NodesData) >= inode {
+				defaultNodeData = platformData.PlatformInfo.NodesData[inode-1]
+			}
 			nodeQuestions := []Question{
 				{
 					Key:          "Node_" + strconv.Itoa(inode),
@@ -52,7 +56,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_HostName",
 					QuestionType: "generic",
 					Prompt:       "Host name",
-					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodeHostName,
+					Answer:       defaultNodeData.NodeHostName,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -64,7 +68,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_IP",
 					QuestionType: "generic",
 					Prompt:       "IP",
-					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodeIP,
+					Answer:       defaultNodeData.NodeIP,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -76,7 +80,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_UserName",
 					QuestionType: "generic",
 					Prompt:       "User name",
-					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodeUserName,
+					Answer:       defaultNodeData.NodeUserName,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -88,7 +92,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_Role",
 					QuestionType: "list",
 					Prompt:       "Role",
-					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodeRole,
+					Answer:       defaultNodeData.NodeRole,
 					Choices:      []string{"Manager", "Platform worker", "Generic org worker", "Exclusive org worker", "NFS server"},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -103,7 +107,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Key:          "Node_" + strconv.Itoa(inode) + "_Password",
 					QuestionType: "password",
 					Prompt:       "Password",
-					Answer:       platformData.PlatformInfo.NodesData[inode-1].NodePassword,
+					Answer:       defaultNodeData.NodePassword,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",
@@ -112,11 +116,10 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Margin:       2,
 				}
 				newQuestions = append(newQuestions, passwordQuestion)
-				numNodeQuestions = 6
 			}
 		}
 	}
-	initialIndex := m.Focus + 1
+	initialIndex := qIdx + 1
 	if currentNumNodes < numNodes {
 		if currentNumNodes != 0 {
 			initialIndex = initialIndex + numNodeQuestions*currentNumNodes
@@ -310,7 +313,7 @@ func addAwsSsHKeyQuestions(index int, m *Model) {
 			ErrorMessage:  "",
 			Choices:       []string{},
 			ChoiceFocus:   0,
-			Rules:         []string{"required", "string", "fileExists"},
+			Rules:         []string{"required", "string", "fileOrFieldExists"},
 			ActionKey:     "",
 			Margin:        0,
 		}
@@ -343,40 +346,14 @@ func addAwsEFSQuestion(index int, m *Model) {
 	}
 }
 
-func GetLocalNodeData() (common.NodeData, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return common.NodeData{}, err
-	}
-
-	usr, err := user.Current()
-	if err != nil {
-		return common.NodeData{}, err
-	}
-
-	cmd := exec.Command("uname", "-m")
-	output, err := cmd.Output()
-	if err != nil {
-		return common.NodeData{}, err
-	}
-	nodeArch := strings.TrimSpace(string(output))
-
-	nodeData := common.NodeData{
-		NodeHostName: hostname,
-		NodeIP:       "localhost",
-		NodeUserName: usr.Username,
-		NodeRole:     "Manager",
-		NodeArch:     nodeArch,
-	}
-	return nodeData, nil
-}
-
-func addNetworkInterfaceQuestions(index int, m *Model) {
+func addNetworkInterfaceQuestions(m *Model) {
 	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodes := m.Data["numNodes"].(int)
 	if deployLocation == "On-premise cluster deployment" && numNodes > 1 {
 		idx := m.FindQuestionIdByKey("FLOATING_IP_ADDRESS")
 		if idx == -1 {
+			numNodesIdx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
+			initialIndex := numNodesIdx + numNodes*6 + 1
 			netInterfQuestions := []Question{
 				{
 					Key:           "FLOATING_IP_ADDRESS",
@@ -405,13 +382,14 @@ func addNetworkInterfaceQuestions(index int, m *Model) {
 					Margin:        0,
 				},
 			}
-			m.addQuestions(index, netInterfQuestions...)
+			m.addQuestions(initialIndex, netInterfQuestions...)
 		}
 	}
 }
 
 func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
-	deployLocation := m.Questions[m.Focus].Answer
+	qIdx := m.FindQuestionIdByKey("DEPLOYMENT_LOCATION")
+	deployLocation := m.Questions[qIdx].Answer
 	if deployLocation == "Local deployment" {
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
 		m.removeQuestionByKey("NUMBER_OF_SWARM_NODES")
@@ -422,16 +400,26 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 	} else if deployLocation == "On-premise cluster deployment" {
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
 		m.removeQuestionByKey("AWS_EFS_DNS")
-		addNumNodesQuestion(m.Focus+1, m)
-		addNetworkInterfaceQuestions(m.Focus+2, m)
+		addNumNodesQuestion(qIdx+1, m)
+		addNodesDataQuestions(m)
+		addNetworkInterfaceQuestions(m)
 	} else if deployLocation == "AWS cluster deployment" {
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
-		addAwsSsHKeyQuestions(m.Focus+1, m)
-		addNumNodesQuestion(m.Focus+2, m)
-		addAwsEFSQuestion(m.Focus+3, m)
+		addAwsSsHKeyQuestions(qIdx+1, m)
+		addAwsEFSQuestion(qIdx+2, m)
+		addNumNodesQuestion(qIdx+3, m)
+		addNodesDataQuestions(m)
 	}
 	return submissionResultMsg("Deploy location questions added succesfully"), nil
+}
+
+func addNodesDataQuestions(m *Model) (submissionResultMsg, error) {
+	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+	if deployLocation == "On-premise cluster deployment" || deployLocation == "AWS cluster deployment" {
+		creatingNodeQuestions(m)
+	}
+	return submissionResultMsg("Node data questions added succesfully"), nil
 }
 
 func addDomainCertsProvidedByCAQuestions(index int, m *Model) {
@@ -516,6 +504,7 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 
 func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+	msg := ""
 	if deployLocation == "On-premise cluster deployment" {
 		passwordKey := m.Questions[m.Focus].Key
 		password := m.Questions[m.Focus].Answer
@@ -532,6 +521,15 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		roleKey := nodeKey + "_Role"
 		role := m.FindAnswerByKey(roleKey)
 
+		runningInLocalHost, err := utils.IsHostIP(ip)
+		if err != nil {
+			return submissionResultMsg("Error: getting host IP of node " + hostName), err
+		}
+		if runningInLocalHost {
+			msg = fmt.Sprintf("Node %s is local node", hostName)
+			return submissionResultMsg(msg), nil
+		}
+
 		nodeData := common.NodeData{
 			NodeHostName: hostName,
 			NodeIP:       ip,
@@ -541,14 +539,13 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		}
 		platformData := data.GetData()
 		publicKey := platformData.PlatformInfo.SshPubKey
-		err := tools.CopyKeyInNode(nodeData, publicKey)
+		err = tools.CopyKeyInNode(nodeData, publicKey)
 		if err != nil {
 			return submissionResultMsg("Error: copying key to node " + hostName), err
 		}
-		msg := fmt.Sprintf("Public key copied to node %s successfully", hostName)
-		return submissionResultMsg(msg), nil
+		msg = fmt.Sprintf("Public key copied to node %s successfully", hostName)
 	}
-	return submissionResultMsg(""), nil
+	return submissionResultMsg(msg), nil
 }
 
 func initPlatform(m *Model) (platformInitiatedMsg, error) {
@@ -580,16 +577,6 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 			NodeRedInstances:     nodered_instances,
 		}
 		platformData.Certs.MqttCerts.Organizations = append(platformData.Certs.MqttCerts.Organizations, organization)
-	}
-
-	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
-	if deployLocation == "Local deployment" {
-		localNodeData, err := GetLocalNodeData()
-		if err != nil {
-			return platformInitiatedMsg("Error: getting local node data"), err
-		}
-		nodesData := []common.NodeData{localNodeData}
-		data.SetNodesData(nodesData)
 	}
 
 	notificationsEmailAddress := m.FindAnswerByKey("NOTIFICATIONS_EMAIL_ADDRESS")
@@ -651,13 +638,5 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 		return platformInitiatedMsg("Error: creating mqtt certs"), err
 	}
 
-	err = docker.RunSwarm(platformData)
-	if err != nil {
-		errMsg := fmt.Sprintf("Error: running swarm %s", err.Error())
-		return platformInitiatedMsg(errMsg), err
-	}
-
-	data.SetPlatformState(data.Initiating)
-	time.Sleep(1 * time.Second)
 	return platformInitiatedMsg("osi4iot_state.json file created and platform initiated successfully"), nil
 }

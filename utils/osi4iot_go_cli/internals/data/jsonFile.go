@@ -32,76 +32,80 @@ func ExistStateFile() bool {
 	return ExistFile(osi4iotStateFile)
 }
 
-
 func SetInitialPlatformState() error {
-	existFile := ExistStateFile()
-	if !existFile {
-		PlatformState = Empty
-	} else {
-		docker, err := docker.InitSwarm(Data)
-		if err != nil {
-			PlatformState = Unknown
-			return fmt.Errorf("error initializing swarm: %v", err)
-		}
+	platformData := GetData()
+	isSwarmInitialized, err := docker.CheckSwarmInitiation(platformData)
+	if err != nil {
+		return fmt.Errorf("error checking swarm initiation: %v", err)
+	}
+	if !isSwarmInitialized {
+		PlatformState = Deleted
+		return nil
+	}
 
-		filterArgs := filters.NewArgs()
-		filterArgs.Add("label", "app=osi4iot")
-		services, err := docker.Cli.ServiceList(docker.Ctx, types.ServiceListOptions{
-			Filters: filterArgs,
-		})
-		if err != nil {
-			PlatformState = Unknown
-			return fmt.Errorf("error listing services: %v", err)
-		}
+	dc, err := docker.GetManagerDC()
+	if err != nil {
+		PlatformState = Unknown
+		return fmt.Errorf("error getting docker client: %v", err)
+	}
 
-		if len(services) > 0 {
-			PlatformState = Initiating
-			allHealthy := true
-			for _, service := range services {
-				if service.Spec.Name == "system-prune" {
-					continue
-				}
-				serviceFilter := filters.NewArgs()
-				serviceFilter.Add("service", service.ID)
-				tasks, err := docker.Cli.TaskList(docker.Ctx, types.TaskListOptions{
-					Filters: serviceFilter,
-				})
-				if err != nil {
-					return fmt.Errorf("error listing tasks: %v", err)
-				}
-				numTasksRequired := int(*service.Spec.Mode.Replicated.Replicas)
-				numTasksRunning := 0 
-				for _, task := range tasks {
-					if task.Status.State == swarm.TaskStateRunning {
-						containerID := task.Status.ContainerStatus.ContainerID
-						if containerID == "" {
-							return fmt.Errorf("error container %s does not have a container ID", task.ID[:10])
-						}
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		PlatformState = Unknown
+		return fmt.Errorf("error listing services: %v", err)
+	}
 
-						container, err := docker.Cli.ContainerInspect(docker.Ctx, containerID)
-						if err != nil {
-							return fmt.Errorf("error inspecting container %s: %v", containerID[:10], err)
-						}
+	if len(services) > 0 {
+		PlatformState = Initiating
+		allHealthy := true
+		for _, service := range services {
+			if service.Spec.Name == "system-prune" {
+				continue
+			}
+			serviceFilter := filters.NewArgs()
+			serviceFilter.Add("service", service.ID)
+			tasks, err := dc.Cli.TaskList(dc.Ctx, types.TaskListOptions{
+				Filters: serviceFilter,
+			})
+			if err != nil {
+				return fmt.Errorf("error listing tasks: %v", err)
+			}
+			numTasksRequired := int(*service.Spec.Mode.Replicated.Replicas)
+			numTasksRunning := 0
+			for _, task := range tasks {
+				if task.Status.State == swarm.TaskStateRunning {
+					containerID := task.Status.ContainerStatus.ContainerID
+					if containerID == "" {
+						return fmt.Errorf("error container %s does not have a container ID", task.ID[:10])
+					}
 
-						if container.State.Health == nil {
-							return fmt.Errorf("error container %s does not have a health check configured", containerID[:10])
-						}
-						healthStatus := container.State.Health.Status
-						if healthStatus == "healthy" {
-							numTasksRunning++
-						}
+					container, err := dc.Cli.ContainerInspect(dc.Ctx, containerID)
+					if err != nil {
+						return fmt.Errorf("error inspecting container %s: %v", containerID[:10], err)
+					}
+
+					if container.State.Health == nil {
+						return fmt.Errorf("error container %s does not have a health check configured", containerID[:10])
+					}
+					healthStatus := container.State.Health.Status
+					if healthStatus == "healthy" {
+						numTasksRunning++
 					}
 				}
-				if numTasksRunning < numTasksRequired {
-					allHealthy = false
-				}
 			}
-			if allHealthy {
-				PlatformState = Running
+			if numTasksRunning < numTasksRequired {
+				allHealthy = false
 			}
-		} else {
-			PlatformState = Stopped
 		}
+		if allHealthy {
+			PlatformState = Running
+		}
+	} else {
+		PlatformState = Stopped
 	}
 
 	return nil
