@@ -33,6 +33,12 @@ func ExistStateFile() bool {
 }
 
 func SetInitialPlatformState() error {
+	existStateFile := ExistStateFile()
+	if !existStateFile {
+		PlatformState = Empty
+		return nil
+	}
+
 	platformData := GetData()
 	isSwarmInitialized, err := docker.CheckSwarmInitiation(platformData)
 	if err != nil {

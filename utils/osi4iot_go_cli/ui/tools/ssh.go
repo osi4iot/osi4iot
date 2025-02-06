@@ -14,7 +14,7 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-func ConfigWithPassword(user, password string) *ssh.ClientConfig {
+func configWithPassword(user, password string) *ssh.ClientConfig {
 	return &ssh.ClientConfig{
 		User: user,
 		Auth: []ssh.AuthMethod{
@@ -29,7 +29,7 @@ func SshConfigWithKey(user, privateKey string) *ssh.ClientConfig {
 		User: user,
 		Auth: []ssh.AuthMethod{
 			ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
-				signer, err := PrivateKeySigner(privateKey)
+				signer, err := privateKeySigner(privateKey)
 				if err != nil {
 					return nil, err
 				}
@@ -40,7 +40,7 @@ func SshConfigWithKey(user, privateKey string) *ssh.ClientConfig {
 	}
 }
 
-func PrivateKeySigner(privateKey string) (ssh.Signer, error) {
+func privateKeySigner(privateKey string) (ssh.Signer, error) {
 	signer, err := ssh.ParsePrivateKey([]byte(privateKey))
 	if err != nil {
 		return nil, err
@@ -86,13 +86,13 @@ func CreateKeyPair(platformData *common.PlatformData) error {
 		sshPublicKeyPath := giveSshPublicKeyPath(platformData)
 		existsSshPublicKeyFile := utils.FileExists(sshPublicKeyPath)
 		if existsSshPrivateKeyFile && existsSshPublicKeyFile {
-			sshPrivKey, err := ReadSshPrivateKeyFromFile(platformData)
+			sshPrivKey, err := readSshPrivateKeyFromFile(platformData)
 			if err != nil {
 				return fmt.Errorf("error reading SSH private key from file: %w", err)
 			}
 			platformData.PlatformInfo.SshPrivKey = sshPrivKey
 
-			sshPubKey, err := ReadSshPublicKeyFromFile(platformData)
+			sshPubKey, err := readSshPublicKeyFromFile(platformData)
 			if err != nil {
 				return fmt.Errorf("error reading SSH public key from file: %w", err)
 			}
@@ -159,17 +159,8 @@ func generatePublicKey(privatekey *rsa.PublicKey) ([]byte, error) {
 	return pubKeyBytes, nil
 }
 
-func WriteKeyToFile(keyBytes []byte, saveFileTo string) error {
-	err := os.WriteFile(saveFileTo, keyBytes, 0600)
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func CopyKeyInNode(nodeData common.NodeData, publicKey string) error {
-	sshConfig := ConfigWithPassword(nodeData.NodeUserName, nodeData.NodePassword)
+	sshConfig := configWithPassword(nodeData.NodeUserName, nodeData.NodePassword)
 	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
 	if err != nil {
 		return err
@@ -204,51 +195,74 @@ fi
 	return nil
 }
 
-func ExecuteRemoteCommand(nodeData common.NodeData, privateKey, command string) (string, error) {
-	sshConfig := SshConfigWithKey(nodeData.NodeUserName, privateKey)
-	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
-	if err != nil {
-		return "", fmt.Errorf("error connecting to remote host: %w", err)
-	}
-	defer client.Close()
+// func executeScriptOnRemoteHost(nodeData common.NodeData, privateKey, script string, args ...string) (string, error) {
+// 	sshConfig := SshConfigWithKey(nodeData.NodeUserName, privateKey)
+// 	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
+// 	if err != nil {
+// 		return "", fmt.Errorf("error connecting to remote host: %w", err)
+// 	}
+// 	defer client.Close()
 
-	session, err := client.NewSession()
-	if err != nil {
-		return "", fmt.Errorf("error creating SSH sesion: %w", err)
-	}
-	defer session.Close()
+// 	session, err := client.NewSession()
+// 	if err != nil {
+// 		return "", fmt.Errorf("error creating SSH sesion: %w", err)
+// 	}
+// 	defer session.Close()
 
-	output, err := session.Output(command)
-	if err != nil {
-		return "", fmt.Errorf("error executing remote command: %w", err)
-	}
+// 	stdin, err := session.StdinPipe()
+// 	if err != nil {
+// 		return "", fmt.Errorf("error obtaining stdin pipe: %w", err)
+// 	}
+	
+// 	var outputBuf bytes.Buffer
+// 	session.Stdout = &outputBuf
+// 	session.Stderr = &outputBuf
+	
+// 	cmdStr := fmt.Sprintf("bash -s %s", strings.Join(args, " "))
+// 	if err := session.Start(cmdStr); err != nil {
+// 		return "", fmt.Errorf("error starting bash: %w", err)
+// 	}
+	
+// 	_, err = io.WriteString(stdin, script)
+// 	if err != nil {
+// 		return "", fmt.Errorf("error writing script to stdin: %w", err)
+// 	}
+// 	stdin.Close()
+	
+// 	if err := session.Wait(); err != nil {
+// 		return "", fmt.Errorf("error executing remote script: %w\nOutput: %s", err, outputBuf.String())
+// 	}
+	
+// 	return outputBuf.String(), nil
+// }
 
-	return string(output), nil
+func executeScriptOnRemoteHost(nodeData common.NodeData, privateKey, script string, args ...string) (string, error) {
+    sshConfig := SshConfigWithKey(nodeData.NodeUserName, privateKey)
+    client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
+    if err != nil {
+        return "", fmt.Errorf("error connecting to remote host: %w", err)
+    }
+    defer client.Close()
+
+    session, err := client.NewSession()
+    if err != nil {
+        return "", fmt.Errorf("error creating SSH session: %w", err)
+    }
+    defer session.Close()
+
+    cmdStr := fmt.Sprintf("bash -s %s", strings.Join(args, " "))
+    
+    session.Stdin = strings.NewReader(script)
+    
+    output, err := session.CombinedOutput(cmdStr)
+    if err != nil {
+        return "", fmt.Errorf("error executing remote script: %w\nOutput: %s", err, output)
+    }
+    
+    return string(output), nil
 }
 
-func GetRemoteArch(nodeData common.NodeData, privateKey string) (string, error) {
-	sshConfig := SshConfigWithKey(nodeData.NodeUserName, privateKey)
-	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
-	if err != nil {
-		return "", fmt.Errorf("error connecting to remote host: %w", err)
-	}
-	defer client.Close()
-
-	session, err := client.NewSession()
-	if err != nil {
-		return "", fmt.Errorf("error creating SSH sesion: %w", err)
-	}
-	defer session.Close()
-
-	output, err := session.Output("uname -m")
-	if err != nil {
-		return "", fmt.Errorf("error executing remote command: %w", err)
-	}
-
-	return string(output), nil
-}
-
-func ReadSshPrivateKeyFromFile(platformData *common.PlatformData) (string,error) {
+func readSshPrivateKeyFromFile(platformData *common.PlatformData) (string,error) {
 	sshPrivateKeyPath := giveSshPrivateKeyPath(platformData)
 	keyBytes, err := os.ReadFile(sshPrivateKeyPath)
 	if err != nil {
@@ -258,7 +272,7 @@ func ReadSshPrivateKeyFromFile(platformData *common.PlatformData) (string,error)
 	return string(keyBytes), nil
 }
 
-func ReadSshPublicKeyFromFile(platformData *common.PlatformData) (string,error) {
+func readSshPublicKeyFromFile(platformData *common.PlatformData) (string,error) {
 	sshPublicKeyPath := giveSshPublicKeyPath(platformData)
 	keyBytes, err := os.ReadFile(sshPublicKeyPath)
 	if err != nil {
@@ -272,17 +286,26 @@ func ReadSshPublicKeyFromFile(platformData *common.PlatformData) (string,error) 
 func GetSshPrivKey(platformData *common.PlatformData) (string, error) {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	sshPrivKey := ""
-	if deploymentLocation == "Local deployment" || deploymentLocation == "On-premise cluster deployment" {
+	if deploymentLocation == "On-premise cluster deployment" {
 		if platformData.PlatformInfo.SshPrivKey != "" {
 			sshPrivKey = platformData.PlatformInfo.SshPrivKey
 		} else {
 			var err error
-			sshPrivKey, err = ReadSshPrivateKeyFromFile(platformData)
+			nodesData := platformData.PlatformInfo.NodesData
+			if len(nodesData) == 1 {
+				runningInLocalHost, err := utils.IsHostIP(nodesData[0].NodeIP)
+				if err != nil {
+					return "", fmt.Errorf("error checking if host is localhost: %w", err)
+				}
+				if runningInLocalHost {
+					return "", nil
+				}
+			}
+			sshPrivKey, err = readSshPrivateKeyFromFile(platformData)
 			if err != nil {
 				return "", err
 			}
 		}
-
 	} else if deploymentLocation == "AWS cluster deployment" {
 		sshPrivKey = platformData.PlatformInfo.AwsSshKey
 		if sshPrivKey == "" {

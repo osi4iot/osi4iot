@@ -25,9 +25,9 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 	newQuestions := []Question{}
 	iniNode := 1
 	currentNumNodes := m.NumNodesQuestions()
-	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+	deploymentLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodeQuestions := 5
-	if deployLocation == "On-premise cluster deployment" {
+	if deploymentLocation == "On-premise cluster deployment" {
 		numNodeQuestions = 6
 	}
 	if currentNumNodes < numNodes {
@@ -102,7 +102,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 				},
 			}
 			newQuestions = append(newQuestions, nodeQuestions...)
-			if deployLocation == "On-premise cluster deployment" {
+			if deploymentLocation == "On-premise cluster deployment" {
 				passwordQuestion := Question{
 					Key:          "Node_" + strconv.Itoa(inode) + "_Password",
 					QuestionType: "password",
@@ -347,9 +347,9 @@ func addAwsEFSQuestion(index int, m *Model) {
 }
 
 func addNetworkInterfaceQuestions(m *Model) {
-	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+	deploymentLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	numNodes := m.Data["numNodes"].(int)
-	if deployLocation == "On-premise cluster deployment" && numNodes > 1 {
+	if deploymentLocation == "On-premise cluster deployment" && numNodes > 1 {
 		idx := m.FindQuestionIdByKey("FLOATING_IP_ADDRESS")
 		if idx == -1 {
 			numNodesIdx := m.FindQuestionIdByKey("NUMBER_OF_SWARM_NODES")
@@ -415,8 +415,8 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 }
 
 func addNodesDataQuestions(m *Model) (submissionResultMsg, error) {
-	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
-	if deployLocation == "On-premise cluster deployment" || deployLocation == "AWS cluster deployment" {
+	deploymentLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+	if deploymentLocation == "On-premise cluster deployment" || deploymentLocation == "AWS cluster deployment" {
 		creatingNodeQuestions(m)
 	}
 	return submissionResultMsg("Node data questions added succesfully"), nil
@@ -503,9 +503,9 @@ func DomainCertsQuestions(m *Model) (submissionResultMsg, error) {
 }
 
 func copyKeyInNode(m *Model) (submissionResultMsg, error) {
-	deployLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
+	deploymentLocation := m.FindAnswerByKey("DEPLOYMENT_LOCATION")
 	msg := ""
-	if deployLocation == "On-premise cluster deployment" {
+	if deploymentLocation == "On-premise cluster deployment" {
 		passwordKey := m.Questions[m.Focus].Key
 		password := m.Questions[m.Focus].Answer
 

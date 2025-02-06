@@ -43,7 +43,8 @@ func main() {
 		if dcMapErr != nil {
 			err := docker.CheckDockerClientsMap(DCMap, action)
 			if err != nil {
-				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error checking Docker clients map: %v", dcMapErr))
+				combinedErr := fmt.Errorf("error setting Docker clients map: %w", dcMapErr)
+				errMsg := utils.StyleErrMsg.Render(combinedErr.Error())
 				fmt.Println(errMsg)
 				os.Exit(1)
 			}
@@ -54,7 +55,7 @@ func main() {
 			}
 		}()
 
-		if action != "none" && action != "init" {
+		if action != "none" {
 			err := data.SetInitialPlatformState()
 			if err != nil {
 				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error setting initial platform state: %v", err))

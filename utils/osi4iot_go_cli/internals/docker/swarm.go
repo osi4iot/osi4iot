@@ -46,7 +46,7 @@ func InitPlatform(platformData *common.PlatformData) error {
 	nodesData := []common.NodeData{}
 	numNodes := platformData.PlatformInfo.NumberOfSwarmNodes
 	if deployLocation == "Local deployment" {
-		localNodeData, err := GetLocalNodeData()
+		localNodeData, err := getLocalNodeData()
 		if err != nil {
 			return fmt.Errorf("error getting local node data: %v", err)
 		}
@@ -59,7 +59,7 @@ func InitPlatform(platformData *common.PlatformData) error {
 	}
 	platformData.PlatformInfo.NodesData = nodesData
 
-	err := InitSwarm(platformData)
+	err := initSwarm()
 	if err != nil {
 		return fmt.Errorf("error: initializing swarm %s", err.Error())
 	}
@@ -68,9 +68,20 @@ func InitPlatform(platformData *common.PlatformData) error {
 	if err != nil {
 		return fmt.Errorf("error: getting docker client %s", err.Error())
 	}
+    err = nodesConfiguration(platformData)
+	if err != nil {
+		return fmt.Errorf("error: configuring nodes %s", err.Error())
+	}
 
-	JoinAllNodesToSwarm(platformData, dc)
-	UpdateNodesData(dc, nodesData)
+	err = joinAllNodesToSwarm(dc)
+	if err != nil {
+		return fmt.Errorf("error: joining nodes to swarm %s", err.Error())
+	}
+
+	err = updateNodesData(dc, nodesData)
+	if err != nil {
+		return fmt.Errorf("error: updating nodes data %s", err.Error())
+	}
 	platformData.PlatformInfo.NodesData = nodesData
 
 	err = RunSwarm(dc, platformData)
@@ -100,22 +111,22 @@ func (dc *DockerClient) Close() error {
 }
 
 func RunSwarm(dc *DockerClient, platformData *common.PlatformData) error {
-	secrets, err := CreateSwarmSecrets(platformData, dc)
+	secrets, err := createSwarmSecrets(platformData, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm secrets: %v", err)
 	}
 
-	configs, err := CreateSwarmConfigs(platformData, dc)
+	configs, err := createSwarmConfigs(platformData, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm configs: %v", err)
 	}
 
-	volumes, err := CreateSwarmVolumes(platformData, dc)
+	volumes, err := createSwarmVolumes(platformData, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm volumes: %v", err)
 	}
 
-	networks, err := CreateSwarmNetworks(platformData, dc)
+	networks, err := createSwarmNetworks(platformData, dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm networks: %v", err)
 	}
@@ -127,7 +138,7 @@ func RunSwarm(dc *DockerClient, platformData *common.PlatformData) error {
 		Networks: networks,
 	}
 
-	err = CreateSwarmServices(platformData, dc, swarmData)
+	err = createSwarmServices(platformData, dc, swarmData)
 	if err != nil {
 		return fmt.Errorf("error creating swarm services: %v", err)
 	}
@@ -177,7 +188,7 @@ func createSecret(dc *DockerClient, secretKey string, secret *Secret) error {
 	return nil
 }
 
-func CreateSwarmSecrets(platformData *common.PlatformData, dc *DockerClient) (map[string]Secret, error) {
+func createSwarmSecrets(platformData *common.PlatformData, dc *DockerClient) (map[string]Secret, error) {
 	secrets := GenerateSecrets(platformData)
 	for key, secret := range secrets {
 		err := createSecret(dc, key, &secret)
@@ -190,7 +201,7 @@ func CreateSwarmSecrets(platformData *common.PlatformData, dc *DockerClient) (ma
 	return secrets, nil
 }
 
-func RemoveSwarmSecrets(dc *DockerClient) error {
+func removeSwarmSecrets(dc *DockerClient) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{
@@ -210,7 +221,7 @@ func RemoveSwarmSecrets(dc *DockerClient) error {
 	return nil
 }
 
-func CreateConfig(dc *DockerClient, configKey string, config *Config) error {
+func createConfig(dc *DockerClient, configKey string, config *Config) error {
 	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing configs: %v", err)
@@ -251,10 +262,10 @@ func CreateConfig(dc *DockerClient, configKey string, config *Config) error {
 	return nil
 }
 
-func CreateSwarmConfigs(platformData *common.PlatformData, dc *DockerClient) (map[string]Config, error) {
+func createSwarmConfigs(platformData *common.PlatformData, dc *DockerClient) (map[string]Config, error) {
 	configs := GenerateConfigs(platformData)
 	for key, config := range configs {
-		err := CreateConfig(dc, key, &config)
+		err := createConfig(dc, key, &config)
 		if err != nil {
 			return nil, fmt.Errorf("error creating config %s: %v", key, err)
 		}
@@ -264,7 +275,7 @@ func CreateSwarmConfigs(platformData *common.PlatformData, dc *DockerClient) (ma
 	return configs, nil
 }
 
-func RemoveSwarmConfigs(dc *DockerClient) error {
+func removeSwarmConfigs(dc *DockerClient) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{
@@ -284,7 +295,7 @@ func RemoveSwarmConfigs(dc *DockerClient) error {
 	return nil
 }
 
-func CreateVolume(dc *DockerClient, swarmVol *Volume) error {
+func createVolume(dc *DockerClient, swarmVol *Volume) error {
 	existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing volumes: %v", err)
@@ -316,10 +327,10 @@ func CreateVolume(dc *DockerClient, swarmVol *Volume) error {
 	return nil
 }
 
-func CreateSwarmVolumes(platformData *common.PlatformData, dc *DockerClient) (map[string]Volume, error) {
+func createSwarmVolumes(platformData *common.PlatformData, dc *DockerClient) (map[string]Volume, error) {
 	volumes := GenerateVolumes(platformData)
 	for key, volume := range volumes {
-		err := CreateVolume(dc, &volume)
+		err := createVolume(dc, &volume)
 		if err != nil {
 			return nil, fmt.Errorf("error creating volume %s: %v", volume.Name, err)
 		}
@@ -329,27 +340,35 @@ func CreateSwarmVolumes(platformData *common.PlatformData, dc *DockerClient) (ma
 	return volumes, nil
 }
 
-func RemoveSwarmVolumes(dc *DockerClient) error {
+func removeSwarmVolumes() error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
-	existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
-		Filters: filterArgs,
-	})
-	if err != nil {
-		return fmt.Errorf("error listing volumes: %v", err)
+
+	errors := []error{}
+	for _, dc := range DCMap {
+		existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
+			Filters: filterArgs,
+		})
+		if err != nil {
+			return fmt.Errorf("error listing volumes: %v", err)
+		}
+
+		for _, v := range existingVolumes.Volumes {
+			err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
+			if err != nil {
+				errors = append(errors, fmt.Errorf("error removing volume: %v", err))
+			}
+		}
 	}
 
-	for _, v := range existingVolumes.Volumes {
-		err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
-		if err != nil {
-			return fmt.Errorf("error removing volume: %v", err)
-		}
+	if len(errors) > 0 {
+		return fmt.Errorf("errors removing volumes: %v", errors)
 	}
 
 	return nil
 }
 
-func CreateNetwork(dc *DockerClient, swarmNetwork *Network) error {
+func createNetwork(dc *DockerClient, swarmNetwork *Network) error {
 	existingNetworks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing networks: %v", err)
@@ -380,10 +399,10 @@ func CreateNetwork(dc *DockerClient, swarmNetwork *Network) error {
 	return nil
 }
 
-func CreateSwarmNetworks(platformData *common.PlatformData, dc *DockerClient) (map[string]Network, error) {
+func createSwarmNetworks(platformData *common.PlatformData, dc *DockerClient) (map[string]Network, error) {
 	networks := GenerateNetworks(platformData)
 	for _, network := range networks {
-		err := CreateNetwork(dc, &network)
+		err := createNetwork(dc, &network)
 		if err != nil {
 			return nil, fmt.Errorf("error creating network %s: %v", network.Name, err)
 		}
@@ -392,7 +411,7 @@ func CreateSwarmNetworks(platformData *common.PlatformData, dc *DockerClient) (m
 	return networks, nil
 }
 
-func RemoveSwarmNetworks(dc *DockerClient) error {
+func removeSwarmNetworks(dc *DockerClient) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	existingNetworks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{
@@ -412,7 +431,7 @@ func RemoveSwarmNetworks(dc *DockerClient) error {
 	return nil
 }
 
-func CreateService(dc *DockerClient, swarmService Service) error {
+func createService(dc *DockerClient, swarmService Service) error {
 	existingServices, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing services: %v", err)
@@ -441,10 +460,10 @@ func CreateService(dc *DockerClient, swarmService Service) error {
 	return nil
 }
 
-func CreateSwarmServices(platformData *common.PlatformData, dc *DockerClient, swarmData SwarmData) error {
+func createSwarmServices(platformData *common.PlatformData, dc *DockerClient, swarmData SwarmData) error {
 	services := GenerateServices(platformData, swarmData)
 	for _, service := range services {
-		err := CreateService(dc, service)
+		err := createService(dc, service)
 		if err != nil {
 			return fmt.Errorf("error creating service %s: %v", service.Name, err)
 		}
@@ -452,7 +471,7 @@ func CreateSwarmServices(platformData *common.PlatformData, dc *DockerClient, sw
 	return nil
 }
 
-func RemoveSwarmServices(dc *DockerClient) error {
+func removeSwarmServices(dc *DockerClient) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	existingServices, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
@@ -477,7 +496,7 @@ func StopPlatform(platformData *common.PlatformData) error {
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
 	}
-	err = RemoveSwarmServices(docker)
+	err = removeSwarmServices(docker)
 	if err != nil {
 		return fmt.Errorf("error removing services: %v", err)
 	}
@@ -495,25 +514,25 @@ func DeletePlatform(platformData *common.PlatformData) error {
 	spinnerMsg := "Waiting for all components to be deleted"
 	endMsg := "All components have been deleted successfully"
 	utils.Spinner(spinnerMsg, endMsg, done)
-	err = RemoveSwarmServices(docker)
+	err = removeSwarmServices(docker)
 	if err != nil {
 		done <- false
 		return fmt.Errorf("error removing services: %v", err)
 	}
 
-	err = RemoveSwarmSecrets(docker)
+	err = removeSwarmSecrets(docker)
 	if err != nil {
 		done <- false
 		return fmt.Errorf("error removing secrets: %v", err)
 	}
 
-	err = RemoveSwarmConfigs(docker)
+	err = removeSwarmConfigs(docker)
 	if err != nil {
 		done <- false
 		return fmt.Errorf("error removing configs: %v", err)
 	}
 
-	err = RemoveSwarmNetworks(docker)
+	err = removeSwarmNetworks(docker)
 	if err != nil {
 		done <- false
 		return fmt.Errorf("error removing networks: %v", err)
@@ -545,7 +564,7 @@ func DeletePlatform(platformData *common.PlatformData) error {
 	done <- true
 	for i := 0; i < 60; i++ {
 		time.Sleep(1 * time.Second) // wait for containers to stop completely
-		err = RemoveSwarmVolumes(docker)
+		err = removeSwarmVolumes()
 		if err == nil {
 			break
 		}
@@ -564,7 +583,7 @@ func DeletePlatform(platformData *common.PlatformData) error {
 	return nil
 }
 
-func WaitUntilAllContainersAreHealthy(platformData *common.PlatformData, serviceType string) error {
+func waitUntilAllContainersAreHealthy(serviceType string) error {
 	docker, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error gettig docker client: %v", err)
@@ -676,7 +695,7 @@ func findOrgAndNriIndex(platformData *common.PlatformData, orgAcronym string, nr
 	return orgIndex, nriIndex
 }
 
-func SetNriVolumesAsCreated(platformData *common.PlatformData) (bool, error) {
+func setNriVolumesAsCreated(platformData *common.PlatformData) (bool, error) {
 	areNewNriVolumesCreated := false
 	docker, err := GetManagerDC()
 	if err != nil {
@@ -734,18 +753,18 @@ func SetNriVolumesAsCreated(platformData *common.PlatformData) (bool, error) {
 }
 
 func SwarmInitiationInfo(platformData *common.PlatformData) error {
-	err := WaitUntilAllContainersAreHealthy(platformData, "all")
+	err := waitUntilAllContainersAreHealthy("all")
 	if err != nil {
 		errMsg := utils.StyleErrMsg.Render("error waiting for the platform to be healthy: ", err.Error())
 		fmt.Println(errMsg)
 	} else {
-		areNewNriVolumesCreated, err := SetNriVolumesAsCreated(platformData)
+		areNewNriVolumesCreated, err := setNriVolumesAsCreated(platformData)
 		if err != nil {
 			errMsg := utils.StyleErrMsg.Render("error setting nri volumes as created: ", err.Error())
 			fmt.Println(errMsg)
 		} else {
 			if areNewNriVolumesCreated {
-				err := WaitUntilAllContainersAreHealthy(platformData, "nodered_instances")
+				err := waitUntilAllContainersAreHealthy("nodered_instances")
 				if err != nil {
 					errMsg := utils.StyleErrMsg.Render("error waiting nri is to be healthy: ", err.Error())
 					fmt.Println(errMsg)
@@ -836,7 +855,7 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 		return nil, fmt.Errorf("deployment location is not set")
 	}
 	nodesData := platformData.PlatformInfo.NodesData
-	
+
 	once.Do(func() {
 		sshPrivKey, err := tools.GetSshPrivKey(platformData)
 		if err != nil {
@@ -863,7 +882,7 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 		}
 		wg.Wait()
 		close(dcResponses)
-   
+
 		errorLines := []string{}
 		for resp := range dcResponses {
 			if resp.Err != nil {
@@ -885,6 +904,9 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 }
 
 func CheckDockerClientsMap(DCMap map[string]*DockerClient, action string) error {
+	if len(DCMap) == 0 {
+		return fmt.Errorf("error")
+	}
 	numManagers := 0
 	existNilMap := false
 	for _, dc := range DCMap {
@@ -899,11 +921,11 @@ func CheckDockerClientsMap(DCMap map[string]*DockerClient, action string) error 
 
 	if action == "init" {
 		if existNilMap {
-			return fmt.Errorf("error getting docker client for some nodes")
+			return fmt.Errorf("error")
 		}
 	} else {
 		if numManagers == 0 {
-			return fmt.Errorf("error no manager node found")
+			return fmt.Errorf("error")
 		}
 	}
 
@@ -930,6 +952,9 @@ func CheckSwarmInitiation(platformData *common.PlatformData) (bool, error) {
 	for _, node := range nodesData {
 		if node.NodeRole == "Manager" {
 			dc := DCMap[node.NodeIP]
+			if dc == nil {
+				return false, fmt.Errorf("error getting docker client for node %s", node.NodeIP)
+			}
 
 			info, err := dc.Cli.Info(dc.Ctx)
 			if err != nil {
@@ -972,7 +997,7 @@ func CheckSwarmInitiation(platformData *common.PlatformData) (bool, error) {
 	return true, nil
 }
 
-func InitSwarm(platformData *common.PlatformData) error {
+func initSwarm() error {
 	managerClient, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting manager docker client: %v", err)
@@ -995,7 +1020,7 @@ func InitSwarm(platformData *common.PlatformData) error {
 		}
 	}
 
-	err = JoinAllNodesToSwarm(platformData, managerClient)
+	err = joinAllNodesToSwarm(managerClient)
 	if err != nil {
 		return fmt.Errorf("error joining nodes to swarm: %v", err)
 	} else {

@@ -25,7 +25,7 @@ func getSwarmNodesMap(dc *DockerClient) (map[string]swarm.Node, error) {
 	return swarmNodesMap, nil
 }
 
-func UpdateNodesData(dc *DockerClient, nodesData []common.NodeData) error {
+func updateNodesData(dc *DockerClient, nodesData []common.NodeData) error {
 	swarmNodesMap, err := getSwarmNodesMap(dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
@@ -43,7 +43,7 @@ func UpdateNodesData(dc *DockerClient, nodesData []common.NodeData) error {
 	return nil
 }
 
-func GetLocalNodeData() (common.NodeData, error) {
+func getLocalNodeData() (common.NodeData, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
 		return common.NodeData{}, err
@@ -71,7 +71,17 @@ func GetLocalNodeData() (common.NodeData, error) {
 	return nodeData, nil
 }
 
-func JoinNodeToSwarm(dc *DockerClient, managerNode common.NodeData, joinToken string) error {
+func GetManagerDC() (*DockerClient, error) {
+	for _, dc := range DCMap {
+		if dc.Node.NodeRole == "Manager" {
+			return dc, nil
+		}
+	}
+
+	return nil, fmt.Errorf("error getting manager docker client")
+}
+
+func joinNodeToSwarm(dc *DockerClient, managerNode common.NodeData, joinToken string) error {
 	remoteAddr := fmt.Sprintf("%s:2377", managerNode.NodeIP)
 	joinRequest := swarm.JoinRequest{
 		ListenAddr: "0.0.0.0:2377",
@@ -87,17 +97,7 @@ func JoinNodeToSwarm(dc *DockerClient, managerNode common.NodeData, joinToken st
 	return nil
 }
 
-func GetManagerDC() (*DockerClient, error) {
-	for _, dc := range DCMap {
-		if dc.Node.NodeRole == "Manager" {
-			return dc, nil
-		}
-	}
-
-	return nil, fmt.Errorf("error getting manager docker client")
-}
-
-func JoinAllNodesToSwarm(platformData *common.PlatformData, managerClient *DockerClient) error {
+func joinAllNodesToSwarm(managerClient *DockerClient) error {
 	swarmInfo, err := managerClient.Cli.SwarmInspect(managerClient.Ctx)
 	if err != nil {
 		return fmt.Errorf("error inspecting the Swarm: %v", err)
@@ -122,7 +122,7 @@ func JoinAllNodesToSwarm(platformData *common.PlatformData, managerClient *Docke
 			token = tokenManager
 		}
 		fmt.Printf("Joining node with IP: %s to the swarm\n", node.NodeIP)
-		err := JoinNodeToSwarm(dc, managerClient.Node, token)
+		err := joinNodeToSwarm(dc, managerClient.Node, token)
 		if err != nil {
 			return fmt.Errorf("error joining node to swarm: %w", err)
 		}
@@ -130,7 +130,7 @@ func JoinAllNodesToSwarm(platformData *common.PlatformData, managerClient *Docke
 	return nil
 }
 
-func NodeLeaveSwarm(dc *DockerClient) error {
+func nodeLeaveSwarm(dc *DockerClient) error {
 	err := dc.Cli.SwarmLeave(dc.Ctx, true)
 	if err != nil {
 		return fmt.Errorf("error leaving swarm: %v", err)
@@ -154,7 +154,7 @@ func nodesLeaveSwarm() error {
 		node := dc.Node
 		_, ok := swarmNodesMap[ip]
 		if ok {
-			err := NodeLeaveSwarm(dc)
+			err := nodeLeaveSwarm(dc)
 			if err != nil {
 				return fmt.Errorf("error leaving swarm in node %s: %v", node.NodeIP, err)
 			}
@@ -163,4 +163,5 @@ func nodesLeaveSwarm() error {
 
 	return nil
 }
+
 

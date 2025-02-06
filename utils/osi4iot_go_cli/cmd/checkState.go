@@ -10,12 +10,18 @@ import (
 
 func checkState(action string) {
 	platformState := data.GetPlatformState()
-	if platformState == data.Empty && action != "init" {
-		errMsg := utils.StyleWarningMsg.Render("The platform is not initialized. Please initialize it before any further action")
+	if platformState == data.Empty && action != "create" {
+		errMsg := utils.StyleWarningMsg.Render("The platform configuration has not been defined yet. Please create a new platform to define it.")
 		fmt.Println(errMsg)
 		os.Exit(1)
 	}
 	switch action {
+	case "create":
+		if platformState > data.Empty {
+			errMsg := utils.StyleWarningMsg.Render("There is a current platform configuration. Please delete it before creating a new one.")
+			fmt.Println(errMsg)
+			os.Exit(1)
+		}
 	case "init":
 		if platformState == data.Running {
 			errMsg := utils.StyleWarningMsg.Render("The platform is already running. Please stop it before initializing a new one")

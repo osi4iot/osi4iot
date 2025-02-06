@@ -6,7 +6,7 @@ import (
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	initiatePlatform "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/initatePlatform"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/initatePlatform"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/spf13/cobra"
 )
@@ -19,12 +19,12 @@ var rootCmd = &cobra.Command{
 	// Run: func(cmd *cobra.Command, args []string) {},
 }
 
-var cmdInit = &cobra.Command{
-	Use:   "init",
-	Short: "Init a new platform",
-	Long:  "Init a new platform",
+var cmdCreate = &cobra.Command{
+	Use:   "create",
+	Short: "Create a new platform and start it",
+	Long:  "Create a new platform and start it",
 	Run: func(cmd *cobra.Command, args []string) {
-		checkState("init")
+		checkState("create")
 		initiatePlatform.Create()
 		platformState := data.GetPlatformState()
 		if platformState == data.Initiating {
@@ -40,6 +40,27 @@ var cmdInit = &cobra.Command{
 				errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
 				fmt.Println(errMsg)
 			}
+		}
+	},
+}
+
+var cmdInit = &cobra.Command{
+	Use:   "init",
+	Short: "Init a new osi4iot platform using the existing configuration",
+	Long:  "Init a new osi4iot platform using the existing configuration",
+	Run: func(cmd *cobra.Command, args []string) {
+		checkState("init")
+		platformData := data.GetData()
+		err := docker.InitPlatform(platformData)
+		if err != nil {
+			errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error starting platform: %v", err))
+			fmt.Println(errMsg)
+			os.Exit(1)
+		}
+		err = docker.SwarmInitiationInfo(platformData)
+		if err != nil {
+			errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
+			fmt.Println(errMsg)
 		}
 	},
 }
@@ -221,7 +242,7 @@ var cmdStatus = &cobra.Command{
 	Short: "Platform status",
 	Long:  "Platform status",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("UPlatform status")
+		fmt.Println("Platform status")
 	},
 }
 
@@ -269,9 +290,14 @@ func Execute() {
 }
 
 func init() {
+	rootCmd.AddCommand(cmdCreate)
 	rootCmd.AddCommand(cmdInit)
 	rootCmd.AddCommand(cmdRun)
 	rootCmd.AddCommand(cmdStop)
+	rootCmd.AddCommand(cmdDelete)
+	rootCmd.AddCommand(cmdNri)
+	rootCmd.AddCommand(cmdCerts)
+	rootCmd.AddCommand(cmdStatus)
 
 	cmdOrgs.AddCommand(subCmdOrgsList)
 	cmdOrgs.AddCommand(subCmdUpdateOrg)
@@ -289,10 +315,4 @@ func init() {
 	cmdNodes.AddCommand(subCmdAddNode)
 	cmdNodes.AddCommand(subCmdRemoveNode)
 	rootCmd.AddCommand(cmdNodes)
-
-	rootCmd.AddCommand(cmdNri)
-	rootCmd.AddCommand(cmdCerts)
-	rootCmd.AddCommand(cmdStatus)
-	rootCmd.AddCommand(cmdStop)
-	rootCmd.AddCommand(cmdDelete)
 }
