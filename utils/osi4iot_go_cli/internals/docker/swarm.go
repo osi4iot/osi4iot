@@ -690,7 +690,8 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 		return fmt.Errorf("error getting docker client: %v", err)
 	}
 
-	// Se filtran los servicios con la etiqueta "app=osi4iot"
+	deadline := time.Now().Add(10 * time.Minute)
+
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	services, err := docker.Cli.ServiceList(docker.Ctx, types.ServiceListOptions{
@@ -700,7 +701,6 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 		return fmt.Errorf("error listing services: %v", err)
 	}
 
-	// Se filtran los servicios según el parámetro serviceType (si no es "all")
 	var filteredServices []swarm.Service
 	if serviceType != "all" {
 		for _, service := range services {
@@ -712,7 +712,6 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 		filteredServices = services
 	}
 
-	// Se inicia un spinner para dar feedback visual (función externa)
 	done := make(chan bool)
 	spinnerMsg := "Waiting for all containers to be healthy"
 	endMsg := "All containers are healthy"
@@ -722,17 +721,18 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 	}
 	utils.Spinner(spinnerMsg, endMsg, done)
 
-	// Bucle que se repite hasta que todos los contenedores estén healthy
 	for {
+		if time.Now().After(deadline) {
+			return fmt.Errorf("timeout waiting for all containers to be healthy")
+		}
+
 		allHealthy := true
 
 		for _, service := range filteredServices {
-			// Se ignoran servicios especiales
 			if service.Spec.Name == "system-prune" {
 				continue
 			}
 
-			// Se listan las tareas asociadas al servicio
 			serviceFilter := filters.NewArgs()
 			serviceFilter.Add("service", service.ID)
 			tasks, err := docker.Cli.TaskList(docker.Ctx, types.TaskListOptions{
@@ -753,56 +753,38 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 
 				containerID := task.Status.ContainerStatus.ContainerID
 				if containerID == "" {
-					fmt.Printf("task %s does not have a container ID", task.ID[:10])
 					allHealthy = false
 					continue
 				}
 
-				// Se inspecciona el contenedor asociado
 				container, err := docker.Cli.ContainerInspect(docker.Ctx, containerID)
 				if err != nil {
-					// Si el error es "No such container", se marca como no saludable y se intenta de nuevo
-					if strings.Contains(err.Error(), "No such container") {
-						fmt.Printf("container %s not found, skipping and retrying later", containerID[:10])
-						allHealthy = false
-						continue
-					} else {
-						fmt.Printf("error inspecting container %s: %v", containerID[:10], err)
-						allHealthy = false
-						continue
-					}
-				}
-
-				// Se verifica que el contenedor tenga configurado un health check
-				if container.State.Health == nil {
-					fmt.Printf("container %s does not have a health check configured", containerID[:10])
 					allHealthy = false
 					continue
 				}
 
-				// Si el estado de salud no es "healthy", se marca la condición
+				if container.State.Health == nil {
+					done <- false
+					return fmt.Errorf("error container %s does not have a health check configured", containerID[:10])
+				}
+
 				if container.State.Health.Status != "healthy" {
 					allHealthy = false
 				}
 			}
 
-			// Si no hay tareas en estado running, se considera que el servicio no está saludable
 			if numTasksRunning == 0 {
-				fmt.Printf("service %s has no running tasks", service.Spec.Name)
 				allHealthy = false
 			}
 		}
 
-		// Si todos los contenedores están healthy, se rompe el bucle
 		if allHealthy {
 			break
 		}
 
-		// Pausa para evitar una consulta excesiva al daemon Docker
-		time.Sleep(2 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 
-	// Se notifica al spinner que finalizó correctamente
 	done <- true
 
 	return nil
