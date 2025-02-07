@@ -739,7 +739,6 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 				Filters: serviceFilter,
 			})
 			if err != nil {
-				fmt.Printf("error listing tasks for service %s: %v", service.ID, err)
 				allHealthy = false
 				continue
 			}
