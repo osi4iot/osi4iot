@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
@@ -758,6 +759,9 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 
 				container, err := docker.Cli.ContainerInspect(docker.Ctx, containerID)
 				if err != nil {
+					if errdefs.IsNotFound(err) {
+						continue
+					}
 					allHealthy = false
 					continue
 				}
