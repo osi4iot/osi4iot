@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 )
 
@@ -42,6 +43,10 @@ func installUFWOnNodes(platformData *common.PlatformData) error {
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
+		spinnerDone := make(chan bool)
+		spinnerMsg := "Intalling UFW on nodes..."
+		endMsg := "UFW installed on all nodes"
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
 		managerScript := `#!/bin/bash
 REQUIRED_PKG="ufw"
 if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
@@ -135,8 +140,10 @@ sudo ufw enable
 		}
 		_, err := tools.RunScriptInNodes(platformData, nodeSripts)
 		if err != nil {
+			spinnerDone <- false
 			return err
 		}
+		spinnerDone <- true
 	}
 
 	return nil
@@ -147,6 +154,10 @@ func installNFS(platformData *common.PlatformData) error {
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
+		spinnerDone := make(chan bool)
+		spinnerMsg := "Intalling NFS"
+		endMsg := "NFS installed successfully"
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
 		nodesData := platformData.PlatformInfo.NodesData
 		nfsNode := common.NodeData{}
 		for _, node := range nodesData {
@@ -242,8 +253,10 @@ sudo systemctl restart nfs-kernel-server
 			}
 			_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
 			if err != nil {
+				spinnerDone <- false
 				return err
 			}
+			spinnerDone <- true
 		}
 	}
 
@@ -255,6 +268,10 @@ func addNFSFolders(platformData *common.PlatformData) error {
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
+		spinnerDone := make(chan bool)
+		spinnerMsg := "Adding NFS folders."
+		endMsg := "NFS folders added successfully."
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
 		nodesData := platformData.PlatformInfo.NodesData
 		nfsNode := common.NodeData{}
 		for _, node := range nodesData {
@@ -297,8 +314,10 @@ sudo systemctl restart nfs-kernel-server
 		}
 		_, err := tools.RunScriptInNodes(platformData, nodeScripts)
 		if err != nil {
+			spinnerDone <- false
 			return err
 		}
+		spinnerDone <- true
 	}
 
 	return nil
@@ -309,6 +328,10 @@ func RemoveNfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
+		spinnerDone := make(chan bool)
+		spinnerMsg := fmt.Sprintf("Removing NFS folders for organization %s", orgAcronym)
+		endMsg := fmt.Sprintf("NFS folders removed successfully for organization %s", orgAcronym)
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
 		nodesData := platformData.PlatformInfo.NodesData
 		nfsNode := common.NodeData{}
 		for _, node := range nodesData {
@@ -354,8 +377,10 @@ sudo systemctl restart nfs-kernel-server
 			}
 			_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
 			if err != nil {
+				spinnerDone <- false
 				return err
 			}
+			spinnerDone <- true
 		}
 	}
 	return nil
@@ -363,8 +388,13 @@ sudo systemctl restart nfs-kernel-server
 
 func installEFS(platformData *common.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
-	if deploymentLocation == "AWS cluster deployment" {
+	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1{
+		spinnerDone := make(chan bool)
+		spinnerMsg := "Creating EFS folders for platform services"
+		endMsg := "EFS folders created successfully"
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)				
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		efsScript := `#!/bin/bash
 efs_dns=$1
@@ -424,8 +454,10 @@ fi
 		}
 		_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
 		if err != nil {
+			spinnerDone <- false
 			return err
 		}
+		spinnerDone <- true
 	}
 
 	return nil
@@ -433,8 +465,13 @@ fi
 
 func addEfsFolders(platformData *common.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
-	if deploymentLocation == "AWS cluster deployment" {
+	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
+		spinnerDone := make(chan bool)
+		spinnerMsg := "Adding EFS folders for organizations"
+		endMsg := "EFS folders added successfully"
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		organizations := platformData.Certs.MqttCerts.Organizations
 
@@ -467,8 +504,10 @@ done
 		}
 		_, err := tools.RunScriptInNodes(platformData, nodeScripts)
 		if err != nil {
+			spinnerDone <- false
 			return err
 		}
+		spinnerDone <- true
 	}
 
 	return nil
@@ -476,8 +515,13 @@ done
 
 func RemoveEfsFolders(platformData *common.PlatformData, orgAcronym string) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
-	if deploymentLocation == "AWS cluster deployment" {
+	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
+		spinnerDone := make(chan bool)
+		spinnerMsg := fmt.Sprintf("Removing EFS folders for organization %s", orgAcronym)
+		endMsg := fmt.Sprintf("EFS folders removed successfully for organization %s", orgAcronym)
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		organizations := platformData.Certs.MqttCerts.Organizations
 		orgToRemove := common.Organization{}

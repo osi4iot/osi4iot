@@ -298,7 +298,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	traefikMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "traefik"), // helper para puntero de uint64
+			Replicas: giveReplicsPtr(numSwarmNodes, "traefik"),
 		},
 	}
 	traefikUpdateConfig := &swarm.UpdateConfig{
