@@ -214,7 +214,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 				Volumes[volumeName] = nriVolume
 			}
 		}
-	} else if deploymentLocation == "AWS cluster deployment" {
+	} else if deploymentLocation == "AWS cluster deployment" && len(nodesData) > 1 {
 		awsEfsDNS := platformData.PlatformInfo.AwsEfsDNS
 		driverOptsO := fmt.Sprintf("addr=%s,nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport", awsEfsDNS)
 
