@@ -2113,7 +2113,11 @@ func giveReplicsPtr(numSwarmNodes int, serviceName string) *uint64 {
 	case "system_prune":
 		replics = uint64(1)
 	case "traefik":
-		replics = uint64(1)
+		if numSwarmNodes == 1 {
+			replics = uint64(1)
+		} else {
+			replics = uint64(3)
+		}
 	case "mosquitto_go_auth":
 		replics = uint64(1)
 	case "postgres":
