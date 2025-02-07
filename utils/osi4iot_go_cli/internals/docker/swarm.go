@@ -570,6 +570,16 @@ func DeletePlatform(platformData *common.PlatformData) error {
 		}
 	}
 
+	err = removeNfsRootFolder(platformData)
+	if err != nil {
+		return fmt.Errorf("error removing NFS root folder: %v", err)
+	}
+
+	err = removeEfsRootFolder(platformData)
+	if err != nil {
+		return fmt.Errorf("error removing EFS root folder: %v", err)
+	}
+
 	err = nodesLeaveSwarm()
 	if err != nil {
 		return fmt.Errorf("error leaving swarm: %v", err)

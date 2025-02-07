@@ -35,6 +35,11 @@ func nodesConfiguration(platformData *common.PlatformData) error {
 		return fmt.Errorf("error adding EFS folders on nodes: %w", err)
 	}
 
+	err = addNodesLabels(platformData)
+	if err != nil {
+		return fmt.Errorf("error adding labels to nodes: %w", err)
+	}
+
 	return nil
 }
 
@@ -46,7 +51,7 @@ func installUFWOnNodes(platformData *common.PlatformData) error {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Intalling UFW on nodes..."
 		endMsg := "UFW installed on all nodes"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		managerScript := `#!/bin/bash
 REQUIRED_PKG="ufw"
 if [ $(dpkg-query -W -f='${Status}' $REQUIRED_PKG 2>/dev/null | grep -c "ok installed") -eq 0 ];
@@ -157,7 +162,7 @@ func installNFS(platformData *common.PlatformData) error {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Intalling NFS"
 		endMsg := "NFS installed successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodesData := platformData.PlatformInfo.NodesData
 		nfsNode := common.NodeData{}
 		for _, node := range nodesData {
@@ -271,7 +276,7 @@ func addNFSFolders(platformData *common.PlatformData) error {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Adding NFS folders."
 		endMsg := "NFS folders added successfully."
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodesData := platformData.PlatformInfo.NodesData
 		nfsNode := common.NodeData{}
 		for _, node := range nodesData {
@@ -331,7 +336,7 @@ func RemoveNfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 		spinnerDone := make(chan bool)
 		spinnerMsg := fmt.Sprintf("Removing NFS folders for organization %s", orgAcronym)
 		endMsg := fmt.Sprintf("NFS folders removed successfully for organization %s", orgAcronym)
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodesData := platformData.PlatformInfo.NodesData
 		nfsNode := common.NodeData{}
 		for _, node := range nodesData {
@@ -390,11 +395,11 @@ func installEFS(platformData *common.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
-	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1{
+	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Creating EFS folders for platform services"
 		endMsg := "EFS folders created successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)				
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		efsScript := `#!/bin/bash
 efs_dns=$1
@@ -471,7 +476,7 @@ func addEfsFolders(platformData *common.PlatformData) error {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Adding EFS folders for organizations"
 		endMsg := "EFS folders added successfully"
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		organizations := platformData.Certs.MqttCerts.Organizations
 
@@ -521,7 +526,7 @@ func RemoveEfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 		spinnerDone := make(chan bool)
 		spinnerMsg := fmt.Sprintf("Removing EFS folders for organization %s", orgAcronym)
 		endMsg := fmt.Sprintf("EFS folders removed successfully for organization %s", orgAcronym)
-		utils.Spinner(spinnerMsg, endMsg, spinnerDone)		
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		organizations := platformData.Certs.MqttCerts.Organizations
 		orgToRemove := common.Organization{}
@@ -564,3 +569,156 @@ done
 	return nil
 }
 
+func filterOrganizations(organizations []common.Organization, nodeName string) *common.Organization {
+	for _, org := range organizations {
+		for _, node := range org.ExclusiveWorkerNodes {
+			if node == nodeName {
+				return &org
+			}
+		}
+	}
+	return nil
+}
+
+func addNodesLabels(platformData *common.PlatformData) error {
+	spinnerDone := make(chan bool)
+	spinnerMsg := "Adding node labels"
+	endMsg := "Node labels added successfully"
+	utils.Spinner(spinnerMsg, endMsg, spinnerDone)
+
+	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	docker, err := GetManagerDC()
+	if err != nil {
+		spinnerDone <- false
+		return fmt.Errorf("error getting docker client: %v", err)
+	}
+
+	swarmNodesMap, err := getSwarmNodesMap(docker)
+	if err != nil {
+		spinnerDone <- false
+		return fmt.Errorf("error creating swarm nodes map: %w", err)
+	}
+
+	nodesData := platformData.PlatformInfo.NodesData
+	numManagerNodes := 0
+	for _, node := range nodesData {
+		if node.NodeRole == "Manager" {
+			numManagerNodes++
+		}
+	}
+	priorities := []string{"300", "200", "100"}
+	priorityIndex := 0
+	for _, node := range nodesData {
+		swarmNode, ok := swarmNodesMap[node.NodeIP]
+		if !ok {
+			continue
+		}
+
+		spec := swarmNode.Spec
+		if spec.Labels == nil {
+			spec.Labels = make(map[string]string)
+		}
+
+		nodeName := node.NodeHostName
+		nodeRole := node.NodeRole
+		switch nodeRole {
+		case "Manager":
+			if deploymentLocation == "On-premise cluster deployment" && numManagerNodes > 0 {
+				spec.Labels["KEEPALIVED_PRIORITY"] = priorities[priorityIndex]
+				priorityIndex++
+			}
+			spec.Labels["KEEPALIVED_PRIORITY"] = "0"
+		case "Platform worker":
+			spec.Labels["platform_worker"] = "true"
+		case "Generic org worker":
+			spec.Labels["generic_org_worker"] = "true"
+		case "Exclusive org worker":
+			organizations := platformData.Certs.MqttCerts.Organizations
+			filteredOrg := filterOrganizations(organizations, nodeName)
+			if filteredOrg != nil {
+				spec.Labels["org_hash"] = filteredOrg.OrgHash
+			}
+		case "NFS server":
+			spec.Labels["nfs_server"] = "true"
+		}
+
+		err = docker.Cli.NodeUpdate(docker.Ctx, swarmNode.ID, swarmNode.Version, spec)
+		if err != nil {
+			spinnerDone <- false
+			return fmt.Errorf("error updating node %s: %w", node.NodeIP, err)
+		}
+	}
+
+	spinnerDone <- true
+	return nil
+}
+
+func removeEfsRootFolder(platformData *common.PlatformData) error {
+	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+
+	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
+		spinnerDone := make(chan bool)
+		spinnerMsg := "Removing EFS root folder"
+		endMsg := "EFS root folder removed successfully"
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
+		nodeData := platformData.PlatformInfo.NodesData[0]
+		efsScript := `#!/bin/bash
+if [ -d /home/ubuntu/efs_osi4iot ]; then
+	sudo rm -rf /home/ubuntu/efs_osi4iot
+fi
+`
+		nodeScript := tools.NodeScript{
+			Node:   nodeData,
+			Script: efsScript,
+			Args:   []string{},
+		}
+		_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
+		if err != nil {
+			spinnerDone <- false
+			return err
+		}
+		spinnerDone <- true
+	}
+	return nil
+}
+
+func removeNfsRootFolder(platformData *common.PlatformData) error {
+	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+
+	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
+		spinnerDone := make(chan bool)
+		spinnerMsg := "Removing NFS root folder"
+		endMsg := "NFS root folder removed successfully"
+		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
+		nodesData := platformData.PlatformInfo.NodesData
+		nfsNode := common.NodeData{}
+		for _, node := range nodesData {
+			if node.NodeRole == "NFS server" {
+				nfsNode = node
+				break
+			}
+		}
+		if nfsNode.NodeIP != "" {
+			nfsScript := `#!/bin/bash
+if [ -d /var/nfs_osi4iot ]; then
+	sudo rm -rf /var/nfs_osi4iot
+fi
+`
+			nodeScript := tools.NodeScript{
+				Node:   nfsNode,
+				Script: nfsScript,
+				Args:   []string{},
+			}
+			_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
+			if err != nil {
+				spinnerDone <- false
+				return err
+			}
+			spinnerDone <- true
+		}
+	}
+
+	return nil
+}
