@@ -132,22 +132,7 @@ func ReadPlatformDataFromFile() error {
 			return err
 		}
 	}
-
-	// err := CreateGeoJsonFiles()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = CreateDomainCertsFiles()
-	// if err != nil {
-	// 	return err
-	// }
-
-	// err = CreateSSHKeysFile()
-	// if err != nil {
-	// 	return err
-	// }
-
+	
 	return nil
 }
 
