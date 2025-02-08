@@ -7,7 +7,6 @@ import (
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
-	//"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 )
@@ -548,7 +547,7 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 	return submissionResultMsg(msg), nil
 }
 
-func initPlatform(m *Model) (platformInitiatedMsg, error) {
+func createPlatform(m *Model) (platformCreatingMsg, error) {
 	platformData := data.GetData()
 	areAllQuestionsOK := true
 	for idx := 0; idx < len(m.Questions); idx++ {
@@ -561,7 +560,7 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 		}
 	}
 	if !areAllQuestionsOK {
-		return platformInitiatedMsg("Error: Some questions are not answered correctly"), nil
+		return platformCreatingMsg("Error: Some questions are not answered correctly"), nil
 	}
 
 	if len(data.Data.Certs.MqttCerts.Organizations) == 0 {
@@ -622,7 +621,7 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 
 	nodeRedAdminHash, err := utils.HashPassword(platformAdminPassword)
 	if err != nil {
-		return platformInitiatedMsg("Error: hashing NodeRed admin password"), err
+		return platformCreatingMsg("Error: hashing NodeRed admin password"), err
 	}
 	data.SetData("NODE_RED_ADMIN_HASH", nodeRedAdminHash)
 
@@ -635,8 +634,13 @@ func initPlatform(m *Model) (platformInitiatedMsg, error) {
 	data.SetCertsData()
 	err = utils.MqttTLSCredentials(platformData)
 	if err != nil {
-		return platformInitiatedMsg("Error: creating mqtt certs"), err
+		return platformCreatingMsg("Error: creating mqtt certs"), err
 	}
 
-	return platformInitiatedMsg("osi4iot_state.json file created and platform initiated successfully"), nil
+	err = tools.WriteSshPrivateKeyToLocalFile(platformData)
+	if err != nil {
+		return platformCreatingMsg("Error: writing ssh private key to local file"), err
+	}
+
+	return platformCreatingMsg("osi4iot_state.json file created and platform initiated successfully"), nil
 }

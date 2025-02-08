@@ -605,7 +605,7 @@ func initialModel() form.Model {
 				Choices:       []string{},
 				ChoiceFocus:   0,
 				Rules:         []string{"required", "string", "confirmAnswers"},
-				ActionKey:     "initPlatform",
+				ActionKey:     "createPlatform",
 				Margin:        0,
 			},
 		},
@@ -614,7 +614,7 @@ func initialModel() form.Model {
 		Loading:  false,
 		Finished: false,
 		SubmitMsgMap: map[string]string{
-			"initPlatform":          "Initializing platform",
+			"createPlatform":          "Create platform",
 			"creatingNodeQuestions": "Adding node questions",
 			"copyKeyInNode":         "Copying public key in node",
 			"deploymentLocation":    "Setting questions for the deployment location selected",

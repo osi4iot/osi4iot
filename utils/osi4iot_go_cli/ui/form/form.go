@@ -272,7 +272,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.RecievedMsg[:5] != "Error" {
 			m.updateFocus("down")
 		}
-	case platformInitiatedMsg:
+	case platformCreatingMsg:
 		m.Loading = false
 		m.RecievedMsg = string(msg)
 		if m.RecievedMsg[:5] != "Error" {
@@ -472,7 +472,7 @@ func (m *Model) updateChoiceFocus(dir string) {
 
 type runActionMsg string
 type submissionResultMsg string
-type platformInitiatedMsg string
+type platformCreatingMsg string
 type tickMsg time.Time
 
 func tick(d time.Duration) tea.Cmd {
@@ -491,8 +491,8 @@ func sendMessage[T Message](response T) tea.Cmd {
 
 func runAction(actionKey string, m *Model) tea.Msg {
 	switch actionKey {
-	case "initPlatform":
-		response, _ := initPlatform(m)
+	case "createPlatform":
+		response, _ := createPlatform(m)
 		return response
 	case "deploymentLocation":
 		response, _ := DeployLocationQuestions(m)

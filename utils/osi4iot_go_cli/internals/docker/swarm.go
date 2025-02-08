@@ -3,7 +3,7 @@ package docker
 import (
 	"context"
 	"fmt"
-	"net"
+	"net/http"
 	"strings"
 	"sync"
 	"time"
@@ -910,7 +910,7 @@ func SwarmInitiationInfo(platformData *common.PlatformData) error {
 	return nil
 }
 
-func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPrivKey string) (*DockerClient, error) {
+func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPrivKeyPath string) (*DockerClient, error) {
 	var cli *client.Client
 	var sshConn *ssh.Client
 	runningInLocalHost, err := utils.IsHostIP(node.NodeIP)
@@ -927,26 +927,51 @@ func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPri
 			return nil, fmt.Errorf("error creating docker client in node %s: %v", node.NodeIP, err)
 		}
 	} else if deploymentLocation == "On-premise cluster deployment" || deploymentLocation == "AWS cluster deployment" {
-		sshConfig := tools.SshConfigWithKey(node.NodeUserName, sshPrivKey)
-		address := fmt.Sprintf("%s:%d", node.NodeIP, 22)
-		sshConn, err = ssh.Dial("tcp", address, sshConfig)
-		if err != nil {
-			if sshConn != nil {
-				sshConn.Close()
-			}
-			return nil, fmt.Errorf("error dialing SSH in node %s: %v", node.NodeIP, err)
-		}
-		dockerDaemon := "127.0.0.1:2375"
-		dialFunc := func(ctx context.Context, network, addr string) (net.Conn, error) {
-			return sshConn.Dial("tcp", dockerDaemon)
-		}
+		// sshConfig := tools.SshConfigWithKey(node.NodeUserName, sshPrivKey)
+		// address := fmt.Sprintf("%s:%d", node.NodeIP, 22)
+		// sshConn, err = ssh.Dial("tcp", address, sshConfig)
+		// if err != nil {
+		// 	if sshConn != nil {
+		// 		sshConn.Close()
+		// 	}
+		// 	return nil, fmt.Errorf("error dialing SSH in node %s: %v", node.NodeIP, err)
+		// }
+		// dockerDaemon := "127.0.0.1:2375"
+		// dialFunc := func(ctx context.Context, network, addr string) (net.Conn, error) {
+		// 	return sshConn.Dial("tcp", dockerDaemon)
+		// }
 
-		cli, err = client.NewClientWithOpts(
-			client.WithAPIVersionNegotiation(),
-			client.WithDialContext(dialFunc),
-		)
+		// cli, err = client.NewClientWithOpts(
+		// 	client.WithAPIVersionNegotiation(),
+		// 	client.WithDialContext(dialFunc),
+		// )
+		// if err != nil {
+		// 	sshConn.Close()
+		// 	return nil, fmt.Errorf("error creating docker client: %v", err)
+		// }
+
+		daemonUrl := fmt.Sprintf("ssh://%s@%s:22", node.NodeUserName, node.NodeIP)
+		helper, err := getConnectionHelper(daemonUrl, sshPrivKeyPath)
 		if err != nil {
-			sshConn.Close()
+			panic(fmt.Errorf("error obteniendo el helper SSH: %w", err))
+		}
+	
+		// Crea un HTTP client que utilice el dialer obtenido
+		httpClient := &http.Client{
+			Transport: &http.Transport{
+				DialContext: helper.Dialer,
+			},
+		}
+	
+		// Crea el cliente de Docker configurado para usar la conexión SSH.
+		cli, err = client.NewClientWithOpts(
+			client.WithHost(helper.Host),
+			client.WithHTTPClient(httpClient),
+			client.WithDialContext(helper.Dialer),
+			client.WithAPIVersionNegotiation(),
+		)
+
+		if err != nil {
 			return nil, fmt.Errorf("error creating docker client: %v", err)
 		}
 	}
@@ -976,13 +1001,14 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 	nodesData := platformData.PlatformInfo.NodesData
 
 	once.Do(func() {
-		sshPrivKey, err := tools.GetSshPrivKey(platformData)
-		if err != nil {
-			if deploymentLocation == "On-premise cluster deployment" || deploymentLocation == "AWS cluster deployment" {
-				swarmErr = fmt.Errorf("error getting SSH private key: %v", err)
-				return
-			}
-		}
+		// sshPrivKey, err := tools.GetSshPrivKey(platformData)
+		// if err != nil {
+		// 	if deploymentLocation == "On-premise cluster deployment" || deploymentLocation == "AWS cluster deployment" {
+		// 		swarmErr = fmt.Errorf("error getting SSH private key: %v", err)
+		// 		return
+		// 	}
+		// }
+		sshPrivatekeyPath := tools.GetSshPrivKeyLocalPath(platformData)
 
 		var wg sync.WaitGroup
 		dcResponses := make(chan DcResp, len(nodesData))
@@ -995,7 +1021,7 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 			wg.Add(1)
 			go func(node common.NodeData) {
 				defer wg.Done()
-				dc, err := getNodeDockerClient(node, deploymentLocation, sshPrivKey)
+				dc, err := getNodeDockerClient(node, deploymentLocation, sshPrivatekeyPath)
 				dcResponses <- DcResp{IP: node.NodeIP, DockerClient: dc, Err: err}
 			}(node)
 		}

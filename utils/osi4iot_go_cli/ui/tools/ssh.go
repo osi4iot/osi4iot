@@ -260,7 +260,6 @@ func readAwsSshKeyFromFile(platformData *common.PlatformData) (string,error) {
 	return string(keyBytes), nil
 }
 
-
 func GetSshPrivKey(platformData *common.PlatformData) (string, error) {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	sshPrivKey := ""
@@ -295,4 +294,31 @@ func GetSshPrivKey(platformData *common.PlatformData) (string, error) {
 	}
 
 	return sshPrivKey, nil
+}
+
+func GetSshPrivKeyLocalPath(platformData *common.PlatformData) string {
+	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	sshPrivKeyPath := ""
+	if deploymentLocation == "On-premise cluster deployment" {
+		sshPrivKeyPath = "./.osi4iot_keys/osi4iot_key"
+	} else if deploymentLocation == "AWS cluster deployment" {
+		sshPrivKeyPath = "./.osi4iot_keys/aws_ssh_key.pem"
+	}
+
+	return sshPrivKeyPath
+}
+
+func WriteSshPrivateKeyToLocalFile(platformData *common.PlatformData) error {
+	sshPrivateKeyPath := GetSshPrivKeyLocalPath(platformData)
+	sshPrivateKey, err := GetSshPrivKey(platformData)
+	if err != nil {
+		return fmt.Errorf("error getting SSH private key: %w", err)
+	}
+
+	err = utils.WriteToFile(sshPrivateKeyPath, []byte(sshPrivateKey), 0600)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
