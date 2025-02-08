@@ -17,7 +17,7 @@ func checkState(action string) {
 	}
 	switch action {
 	case "create":
-		if platformState > data.Empty {
+		if platformState > data.Empty && platformState < data.Deleted {
 			errMsg := utils.StyleWarningMsg.Render("There is a current platform configuration. Please delete it before creating a new one.")
 			fmt.Println(errMsg)
 			os.Exit(1)

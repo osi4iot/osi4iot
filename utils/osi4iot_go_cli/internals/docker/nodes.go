@@ -164,4 +164,32 @@ func nodesLeaveSwarm() error {
 	return nil
 }
 
+func getNodeRoleNumMap(platformData *common.PlatformData) map[string]int {
+	roleNumMap := make(map[string]int)
+	roleNumMap["Manager"] = 0
+	roleNumMap["Platform worker"] = 0
+	roleNumMap["Generic org worker"] = 0
+	roleNumMap["Exclusive org worker"] = 0
+	roleNumMap["NFS server"] = 0
+	nodesData := platformData.PlatformInfo.NodesData
+
+	for _, node := range nodesData {
+		nodeRole := node.NodeRole
+		switch nodeRole {
+		case "Manager":
+			roleNumMap["Manager"] += 1
+		case "Platform worker":
+			roleNumMap["Platform worker"] += 1
+		case "Generic org worker":
+			roleNumMap["Generic org worker"] += 1
+		case "ExclusiveOrgWorker":
+			roleNumMap["Exclusive org worker"] += 1
+		case "NfsWorker":
+			roleNumMap["NFS server"] += 1
+		}
+	}
+
+	return roleNumMap
+}
+
 

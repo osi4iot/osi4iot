@@ -29,6 +29,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	domainCertsType := platformData.PlatformInfo.DomainCertsType
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	nodeRoleNumMap := getNodeRoleNumMap(platformData)
 
 	workerConstraintsArray := []string{
 		"node.role==worker",
@@ -298,7 +299,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	traefikMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "traefik"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "traefik"),
 		},
 	}
 	traefikUpdateConfig := &swarm.UpdateConfig{
@@ -463,7 +464,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 
 	mosquitoMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "mosquitto"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "mosquitto"),
 		},
 	}
 	mosquitoUpdateConfig := &swarm.UpdateConfig{
@@ -576,7 +577,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 
 	postgresMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "postgres"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "postgres"),
 		},
 	}
 	postgresUpdateConfig := &swarm.UpdateConfig{
@@ -697,7 +698,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	timescaledbMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "timescaledb"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "timescaledb"),
 		},
 	}
 	timescaledbUpdateConfig := &swarm.UpdateConfig{
@@ -804,7 +805,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	s3StorageMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "s3_storage"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "s3_storage"),
 		},
 	}
 	s3StorageUpdateConfig := &swarm.UpdateConfig{
@@ -907,7 +908,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	dev2pdbMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "dev2pdb"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "dev2pdb"),
 		},
 	}
 	dev2pdbUpdateConfig := &swarm.UpdateConfig{
@@ -1026,7 +1027,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	grafanaMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "grafana"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "grafana"),
 		},
 	}
 	grafanaUpdateConfig := &swarm.UpdateConfig{
@@ -1192,7 +1193,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	adminApiMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "admin_api"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "admin_api"),
 		},
 	}
 	adminApiUpdateConfig := &swarm.UpdateConfig{
@@ -1286,7 +1287,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	frontendMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(numSwarmNodes, "frontend"),
+			Replicas: giveReplicsPtr(nodeRoleNumMap, "frontend"),
 		},
 	}
 	frontendUpdateConfig := &swarm.UpdateConfig{
@@ -1368,7 +1369,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		}
 		grafanaRendererMode := swarm.ServiceMode{
 			Replicated: &swarm.ReplicatedService{
-				Replicas: giveReplicsPtr(numSwarmNodes, "grafana_renderer"),
+				Replicas: giveReplicsPtr(nodeRoleNumMap, "grafana_renderer"),
 			},
 		}
 		grafanaRendererUpdateConfig := &swarm.UpdateConfig{
@@ -1493,7 +1494,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		}
 		minioMode := swarm.ServiceMode{
 			Replicated: &swarm.ReplicatedService{
-				Replicas: giveReplicsPtr(numSwarmNodes, "minio"),
+				Replicas: giveReplicsPtr(nodeRoleNumMap, "minio"),
 			},
 		}
 		minioUpdateConfig := &swarm.UpdateConfig{
@@ -1689,7 +1690,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		}
 		pgadmin4Mode := swarm.ServiceMode{
 			Replicated: &swarm.ReplicatedService{
-				Replicas: giveReplicsPtr(numSwarmNodes, "pgadmin4"),
+				Replicas: giveReplicsPtr(nodeRoleNumMap, "pgadmin4"),
 			},
 		}
 		pgadmin4UpdateConfig := &swarm.UpdateConfig{
@@ -1874,7 +1875,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			}
 			nriMode := swarm.ServiceMode{
 				Replicated: &swarm.ReplicatedService{
-					Replicas: giveReplicsPtr(numSwarmNodes, "nodered_instance"),
+					Replicas: giveReplicsPtr(nodeRoleNumMap, "nodered_instance"),
 				},
 			}
 			nriUpdateConfig := &swarm.UpdateConfig{
@@ -2107,17 +2108,13 @@ func giveMemory(platformData *common.PlatformData, serviceName string) int64 {
 	return int64(memory * 1024 * 1024)
 }
 
-func giveReplicsPtr(numSwarmNodes int, serviceName string) *uint64 {
+func giveReplicsPtr(nodeRoleNumMap map[string]int, serviceName string) *uint64 {
 	replics := uint64(1)
 	switch serviceName {
 	case "system_prune":
 		replics = uint64(1)
 	case "traefik":
-		if numSwarmNodes == 1 {
-			replics = uint64(1)
-		} else {
-			replics = uint64(3)
-		}
+		replics = uint64(nodeRoleNumMap["Manager"])
 	case "mosquitto_go_auth":
 		replics = uint64(1)
 	case "postgres":
@@ -2129,21 +2126,18 @@ func giveReplicsPtr(numSwarmNodes int, serviceName string) *uint64 {
 	case "dev2pdb":
 		replics = uint64(1)
 	case "grafana":
-		if numSwarmNodes == 1 {
-			replics = uint64(1)
-		} else {
+		replics = uint64(nodeRoleNumMap["Platform worker"])
+		if nodeRoleNumMap["Platform worker"] > 3 {
 			replics = uint64(3)
 		}
 	case "admin_api":
-		if numSwarmNodes == 1 {
-			replics = uint64(1)
-		} else {
+		replics = uint64(nodeRoleNumMap["Platform worker"])
+		if nodeRoleNumMap["Platform worker"] > 3 {
 			replics = uint64(3)
 		}
 	case "frontend":
-		if numSwarmNodes == 1 {
-			replics = uint64(1)
-		} else {
+		replics = uint64(nodeRoleNumMap["Platform worker"])
+		if nodeRoleNumMap["Platform worker"] > 3 {
 			replics = uint64(3)
 		}
 	case "agent":
