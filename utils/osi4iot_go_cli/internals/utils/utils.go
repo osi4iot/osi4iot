@@ -516,6 +516,18 @@ func WritePlatformDataToFile(platformData *common.PlatformData) error {
 	return nil
 }
 
+func GetLocalNodeIP() (string, error) {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		return "", fmt.Errorf("error dialing upd 8.8.8.8:80: %v", err)
+	}
+	defer conn.Close()
+
+	localAddr:= conn.LocalAddr().(*net.UDPAddr)
+	localIP := localAddr.IP.String()
+	return localIP, nil
+}
+
 var StyleWarningMsg = lipgloss.NewStyle().
 	Bold(true).
 	Foreground(lipgloss.Color("227"))

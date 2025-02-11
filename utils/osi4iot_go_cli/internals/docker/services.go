@@ -30,6 +30,8 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	nodeRoleNumMap := getNodeRoleNumMap(platformData)
+	roleMemoryBytesMap := getNodeMemoryBytesMap(platformData)
+	roleNanoCPUsMap := getNodeNanoCpusMap(platformData)
 
 	workerConstraintsArray := []string{
 		"node.role==worker",
@@ -83,12 +85,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "system_prune"),
-				MemoryBytes: giveMemory(platformData, "system_prune"),
+				NanoCPUs:    giveCPUs("system_prune", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("system_prune", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "system_prune"),
-				MemoryBytes: giveMemory(platformData, "system_prune"),
+				NanoCPUs:    giveCPUs("system_prune", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("system_prune", roleMemoryBytesMap),
 			},
 		},
 		RestartPolicy: &swarm.RestartPolicy{
@@ -223,12 +225,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "traefik"),
-				MemoryBytes: giveMemory(platformData, "traefik"),
+				NanoCPUs:    giveCPUs("traefik", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("traefik", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "traefik"),
-				MemoryBytes: giveMemory(platformData, "traefik"),
+				NanoCPUs:    giveCPUs("traefik", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("traefik", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -439,12 +441,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "mosquitto"),
-				MemoryBytes: giveMemory(platformData, "mosquitto"),
+				NanoCPUs:    giveCPUs("mosquitto", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("mosquitto", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "mosquitto"),
-				MemoryBytes: giveMemory(platformData, "mosquitto"),
+				NanoCPUs:    giveCPUs("mosquitto", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("mosquitto", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -559,12 +561,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "postgres"),
-				MemoryBytes: giveMemory(platformData, "postgres"),
+				NanoCPUs:    giveCPUs("postgres", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("postgres", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "postgres"),
-				MemoryBytes: giveMemory(platformData, "postgres"),
+				NanoCPUs:    giveCPUs("postgres", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("postgres", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -681,12 +683,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "timescaledb"),
-				MemoryBytes: giveMemory(platformData, "timescaledb"),
+				NanoCPUs:    giveCPUs("timescaledb", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("timescaledb", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "timescaledb"),
-				MemoryBytes: giveMemory(platformData, "timescaledb"),
+				NanoCPUs:    giveCPUs("timescaledb", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("timescaledb", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -781,12 +783,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "s3_storage"),
-				MemoryBytes: giveMemory(platformData, "s3_storage"),
+				NanoCPUs:    giveCPUs("s3_storage", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("s3_storage", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "s3_storage"),
-				MemoryBytes: giveMemory(platformData, "s3_storage"),
+				NanoCPUs:    giveCPUs("s3_storage", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("s3_storage", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -891,12 +893,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "dev2pdb"),
-				MemoryBytes: giveMemory(platformData, "dev2pdb"),
+				NanoCPUs:    giveCPUs("dev2pdb", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("dev2pdb", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "dev2pdb"),
-				MemoryBytes: giveMemory(platformData, "dev2pdb"),
+				NanoCPUs:    giveCPUs("dev2pdb", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("dev2pdb", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -1010,12 +1012,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "grafana"),
-				MemoryBytes: giveMemory(platformData, "grafana"),
+				NanoCPUs:    giveCPUs("grafana", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("grafana", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "grafana"),
-				MemoryBytes: giveMemory(platformData, "grafana"),
+				NanoCPUs:    giveCPUs("grafana", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("grafana", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -1169,12 +1171,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "admin_api"),
-				MemoryBytes: giveMemory(platformData, "admin_api"),
+				NanoCPUs:    giveCPUs("admin_api", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("admin_api", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "admin_api"),
-				MemoryBytes: giveMemory(platformData, "admin_api"),
+				NanoCPUs:    giveCPUs("admin_api", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("admin_api", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -1270,12 +1272,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 		Resources: &swarm.ResourceRequirements{
 			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs(platformData, "frontend"),
-				MemoryBytes: giveMemory(platformData, "frontend"),
+				NanoCPUs:    giveCPUs("frontend", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("frontend", roleMemoryBytesMap),
 			},
 			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs(platformData, "frontend"),
-				MemoryBytes: giveMemory(platformData, "frontend"),
+				NanoCPUs:    giveCPUs("frontend", nodeRoleNumMap, roleNanoCPUsMap),
+				MemoryBytes: giveMemory("frontend", roleMemoryBytesMap),
 			},
 		},
 		Placement: &swarm.Placement{
@@ -1342,12 +1344,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			},
 			Resources: &swarm.ResourceRequirements{
 				Limits: &swarm.Limit{
-					NanoCPUs:    giveCPUs(platformData, "grafana_renderer"),
-					MemoryBytes: giveMemory(platformData, "grafana_renderer"),
+					NanoCPUs:    giveCPUs("grafana_renderer", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("grafana_renderer", roleMemoryBytesMap),
 				},
 				Reservations: &swarm.Resources{
-					NanoCPUs:    giveCPUs(platformData, "grafana_renderer"),
-					MemoryBytes: giveMemory(platformData, "grafana_renderer"),
+					NanoCPUs:    giveCPUs("grafana_renderer", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("grafana_renderer", roleMemoryBytesMap),
 				},
 			},
 			Placement: &swarm.Placement{
@@ -1477,12 +1479,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			},
 			Resources: &swarm.ResourceRequirements{
 				Limits: &swarm.Limit{
-					NanoCPUs:    giveCPUs(platformData, "minio"),
-					MemoryBytes: giveMemory(platformData, "minio"),
+					NanoCPUs:    giveCPUs("minio", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("minio", roleMemoryBytesMap),
 				},
 				Reservations: &swarm.Resources{
-					NanoCPUs:    giveCPUs(platformData, "minio"),
-					MemoryBytes: giveMemory(platformData, "minio"),
+					NanoCPUs:    giveCPUs("minio", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("minio", roleMemoryBytesMap),
 				},
 			},
 			Placement: &swarm.Placement{
@@ -1565,12 +1567,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			},
 			Resources: &swarm.ResourceRequirements{
 				Limits: &swarm.Limit{
-					NanoCPUs:    giveCPUs(platformData, "keepalived"),
-					MemoryBytes: giveMemory(platformData, "keepalived"),
+					NanoCPUs:    giveCPUs("keepalived", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("keepalived", roleMemoryBytesMap),
 				},
 				Reservations: &swarm.Resources{
-					NanoCPUs:    giveCPUs(platformData, "keepalived"),
-					MemoryBytes: giveMemory(platformData, "keepalived"),
+					NanoCPUs:    giveCPUs("keepalived", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("keepalived", roleMemoryBytesMap),
 				},
 			},
 			Placement: &swarm.Placement{
@@ -1673,12 +1675,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			},
 			Resources: &swarm.ResourceRequirements{
 				Limits: &swarm.Limit{
-					NanoCPUs:    giveCPUs(platformData, "pgadmin4"),
-					MemoryBytes: giveMemory(platformData, "pgadmin4"),
+					NanoCPUs:    giveCPUs("pgadmin4", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("pgadmin4", roleMemoryBytesMap),
 				},
 				Reservations: &swarm.Resources{
-					NanoCPUs:    giveCPUs(platformData, "pgadmin4"),
-					MemoryBytes: giveMemory(platformData, "pgadmin4"),
+					NanoCPUs:    giveCPUs("pgadmin4", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("pgadmin4", roleMemoryBytesMap),
 				},
 			},
 			Placement: &swarm.Placement{
@@ -1728,12 +1730,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	var nriConstraintsArray []string
 	nriResources := &swarm.ResourceRequirements{
 		Limits: &swarm.Limit{
-			NanoCPUs:    giveCPUs(platformData, "nodered_instance"),
-			MemoryBytes: giveMemory(platformData, "nodered_instance"),
+			NanoCPUs:    giveCPUs("nodered_instance", nodeRoleNumMap, roleNanoCPUsMap),
+			MemoryBytes: giveMemory("nodered_instance", roleMemoryBytesMap),
 		},
 		Reservations: &swarm.Resources{
-			NanoCPUs:    giveCPUs(platformData, "nodered_instance"),
-			MemoryBytes: giveMemory(platformData, "nodered_instance"),
+			NanoCPUs:    giveCPUs("nodered_instance", nodeRoleNumMap, roleNanoCPUsMap),
+			MemoryBytes: giveMemory("nodered_instance", roleMemoryBytesMap),
 		},
 	}
 	if numSwarmNodes == 1 && existArmArchNodes {
@@ -1918,16 +1920,16 @@ func durationPtr(d time.Duration) *time.Duration {
 	return &d
 }
 
-func giveCPUs(platformData *common.PlatformData, serviceName string) int64 {
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
-	numCpuPerNode := platformData.PlatformInfo.NumberOfCPUsPerNode
+func giveCPUs(serviceName string,
+	nodeRoleNumMap map[string]int,
+	roleNanoCPUsMap map[string]int64) int64 {
 	cpus := 0.25 * 1e9
 	switch serviceName {
 	case "system_prune":
 		cpus = 0.25
 	case "traefik":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
+		if nodeRoleNumMap["Manager"] == 1 {
+			if roleNanoCPUsMap["Manager"] <= 2*1e9 {
 				cpus = 0.15
 			} else {
 				cpus = 0.25
@@ -1936,58 +1938,38 @@ func giveCPUs(platformData *common.PlatformData, serviceName string) int64 {
 			cpus = 0.50
 		}
 	case "mosquitto":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.30
-			} else {
-				cpus = 0.50
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.30
 		} else {
 			cpus = 0.50
 		}
 	case "postgres":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.25
-			} else {
-				cpus = 0.50
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.25
 		} else {
 			cpus = 0.50
 		}
 	case "timescaledb":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.25
-			} else {
-				cpus = 0.50
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.25
 		} else {
 			cpus = 0.50
 		}
 	case "s3_storage":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.15
-			} else {
-				cpus = 0.25
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.15
 		} else {
 			cpus = 0.50
 		}
 	case "dev2pdb":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.25
-			} else {
-				cpus = 0.25
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.15
 		} else {
 			cpus = 0.50
 		}
 	case "grafana":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
+		if nodeRoleNumMap["Manager"] == 1 {
+			if roleNanoCPUsMap["Manager"] <= 2*1e9 {
 				cpus = 0.2
 			} else {
 				cpus = 0.50
@@ -1996,22 +1978,14 @@ func giveCPUs(platformData *common.PlatformData, serviceName string) int64 {
 			cpus = 0.50
 		}
 	case "admin_api":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.30
-			} else {
-				cpus = 0.50
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.30
 		} else {
 			cpus = 0.50
 		}
 	case "frontend":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.25
-			} else {
-				cpus = 0.25
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.25
 		} else {
 			cpus = 0.50
 		}
@@ -2020,32 +1994,20 @@ func giveCPUs(platformData *common.PlatformData, serviceName string) int64 {
 	case "portainer":
 		cpus = 0.10
 	case "pgadmin4":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.15
-			} else {
-				cpus = 0.25
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.15
 		} else {
 			cpus = 0.25
 		}
 	case "minio":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.30
-			} else {
-				cpus = 0.50
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.30
 		} else {
 			cpus = 0.50
 		}
 	case "grafana_renderer":
-		if numSwarmNodes == 1 {
-			if numCpuPerNode == "4" {
-				cpus = 0.25
-			} else {
-				cpus = 0.50
-			}
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.25
 		} else {
 			cpus = 0.50
 		}
@@ -2059,8 +2021,7 @@ func giveCPUs(platformData *common.PlatformData, serviceName string) int64 {
 	return int64(cpus * 1e9)
 }
 
-func giveMemory(platformData *common.PlatformData, serviceName string) int64 {
-	memoryPerNode := platformData.PlatformInfo.RAMMemoryPerNode
+func giveMemory(serviceName string, roleMemoryBytesMap map[string]int64) int64 {
 	memory := 100
 	switch serviceName {
 	case "system_prune":
@@ -2096,9 +2057,10 @@ func giveMemory(platformData *common.PlatformData, serviceName string) int64 {
 	case "keepalived":
 		memory = 50
 	case "nodered_instance":
-		if memoryPerNode == "4 GiB" || memoryPerNode == "8 GiB" {
+		var gbytes int64 = 1024 * 1024 * 1024
+		if roleMemoryBytesMap["Generic org worker"] <= 2*gbytes || roleMemoryBytesMap["Exclusive org worker"] <= 2*gbytes {
 			memory = 2048
-		} else if memoryPerNode == "16 GiB" || memoryPerNode == "32 GiB" {
+		} else {
 			memory = 4096
 		}
 	default:
@@ -2126,19 +2088,28 @@ func giveReplicsPtr(nodeRoleNumMap map[string]int, serviceName string) *uint64 {
 	case "dev2pdb":
 		replics = uint64(1)
 	case "grafana":
-		replics = uint64(nodeRoleNumMap["Platform worker"])
-		if nodeRoleNumMap["Platform worker"] > 3 {
-			replics = uint64(3)
+		replics = uint64(1)
+		if nodeRoleNumMap["Manager"] >= 1 {
+			replics = uint64(nodeRoleNumMap["Manager"])
+			if nodeRoleNumMap["Manager"] > 3 {
+				replics = uint64(3)
+			}
 		}
 	case "admin_api":
-		replics = uint64(nodeRoleNumMap["Platform worker"])
-		if nodeRoleNumMap["Platform worker"] > 3 {
-			replics = uint64(3)
+		replics = uint64(1)
+		if nodeRoleNumMap["Platform worker"] >= 1 {
+			replics = uint64(nodeRoleNumMap["Platform worker"])
+			if nodeRoleNumMap["Platform worker"] > 3 {
+				replics = uint64(3)
+			}
 		}
 	case "frontend":
-		replics = uint64(nodeRoleNumMap["Platform worker"])
-		if nodeRoleNumMap["Platform worker"] > 3 {
-			replics = uint64(3)
+		replics = uint64(1)
+		if nodeRoleNumMap["Platform worker"] >= 1 {
+			replics = uint64(nodeRoleNumMap["Platform worker"])
+			if nodeRoleNumMap["Platform worker"] > 3 {
+				replics = uint64(3)
+			}
 		}
 	case "agent":
 		replics = uint64(1)

@@ -6,7 +6,6 @@ import (
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 )
 
 func nodesConfiguration(platformData *common.PlatformData) error {
@@ -112,30 +111,30 @@ sudo ufw enable
 `
 
 		nodesData := platformData.PlatformInfo.NodesData
-		nodeSripts := []tools.NodeScript{}
+		nodeSripts := []utils.NodeScript{}
 		for _, node := range nodesData {
-			var nodeScript tools.NodeScript
+			var nodeScript utils.NodeScript
 			nodeRole := node.NodeRole
 			if nodeRole == "Manager" {
-				nodeScript = tools.NodeScript{
+				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: managerScript,
 					Args:   []string{},
 				}
 			} else if nodeRole == "Platform worker" {
-				nodeScript = tools.NodeScript{
+				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: platformWorkerScript,
 					Args:   []string{},
 				}
 			} else if nodeRole == "Generic org worker" || nodeRole == "Exclusive org worker" {
-				nodeScript = tools.NodeScript{
+				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: genericWorkerScript,
 					Args:   []string{},
 				}
 			} else if nodeRole == "NFS server" {
-				nodeScript = tools.NodeScript{
+				nodeScript = utils.NodeScript{
 					Node:   node,
 					Script: nfsScript,
 					Args:   []string{},
@@ -143,7 +142,7 @@ sudo ufw enable
 			}
 			nodeSripts = append(nodeSripts, nodeScript)
 		}
-		_, err := tools.RunScriptInNodes(platformData, nodeSripts)
+		_, err := utils.RunScriptInNodes(platformData, nodeSripts)
 		if err != nil {
 			spinnerDone <- false
 			return err
@@ -251,12 +250,12 @@ sudo systemctl restart nfs-kernel-server
 			}
 			ipsString := strings.Join(ips, ",")
 
-			nodeScript := tools.NodeScript{
+			nodeScript := utils.NodeScript{
 				Node:   nfsNode,
 				Script: nfsScript,
 				Args:   []string{ipsString},
 			}
-			_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
+			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
 			if err != nil {
 				spinnerDone <- false
 				return err
@@ -302,7 +301,7 @@ done
 
 sudo systemctl restart nfs-kernel-server
 `
-		nodeScripts := []tools.NodeScript{}
+		nodeScripts := []utils.NodeScript{}
 		for _, org := range organizations {
 			orgAcronym := org.OrgAcronym
 			nriHashes := []string{}
@@ -310,14 +309,14 @@ sudo systemctl restart nfs-kernel-server
 				nriHashes = append(nriHashes, nri.NriHash)
 			}
 			nriHashesString := strings.Join(nriHashes, ",")
-			nodeScript := tools.NodeScript{
+			nodeScript := utils.NodeScript{
 				Node:   nfsNode,
 				Script: addNfsFoldersScript,
 				Args:   []string{orgAcronym, nriHashesString},
 			}
 			nodeScripts = append(nodeScripts, nodeScript)
 		}
-		_, err := tools.RunScriptInNodes(platformData, nodeScripts)
+		_, err := utils.RunScriptInNodes(platformData, nodeScripts)
 		if err != nil {
 			spinnerDone <- false
 			return err
@@ -375,12 +374,12 @@ done
 
 sudo systemctl restart nfs-kernel-server		
 `
-			nodeScript := tools.NodeScript{
+			nodeScript := utils.NodeScript{
 				Node:   nfsNode,
 				Script: removeNfsFoldersScript,
 				Args:   []string{orgAcronym, nriHashesString},
 			}
-			_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
+			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
 			if err != nil {
 				spinnerDone <- false
 				return err
@@ -397,18 +396,23 @@ func installEFS(platformData *common.PlatformData) error {
 
 	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
-		spinnerMsg := "Creating EFS folders for platform services"
-		endMsg := "EFS folders created successfully"
+		spinnerMsg := "Installing EFS client"
+		endMsg := "EFS client installed successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		efsScript := `#!/bin/bash
-efs_dns=$1
+export efs_dns=$1
+
+if ! command -v mount.nfs &>/dev/null; then
+    sudo apt-get update
+    sudo apt-get install -y nfs-common
+fi
 
 if [ ! -d /home/ubuntu/efs_osi4iot ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot
-    echo "$efs_dns:/ /home/ubuntu/efs_osi4iot nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" >> /etc/fstab
-    sudo mount -a
+    sudo mount -t nfs4 -o nfsvers=4.1 $efs_dns:/ /home/ubuntu/efs_osi4iot
+    sudo -E sh -c 'echo "$efs_dns:/ /home/ubuntu/efs_osi4iot nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" >> /etc/fstab'
 fi
 
 if [ ! -d /home/ubuntu/efs_osi4iot/admin_api_log ]; then
@@ -452,12 +456,12 @@ if [ ! -d  /home/ubuntu/efs_osi4iot/timescaledb_data ]; then
 fi
 `
 		efsDns := platformData.PlatformInfo.AwsEfsDNS
-		nodeScript := tools.NodeScript{
+		nodeScript := utils.NodeScript{
 			Node:   nodeData,
 			Script: efsScript,
 			Args:   []string{efsDns},
 		}
-		_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
+		_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
 		if err != nil {
 			spinnerDone <- false
 			return err
@@ -492,7 +496,7 @@ for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
     fi
 done
 `
-		nodeScripts := []tools.NodeScript{}
+		nodeScripts := []utils.NodeScript{}
 		for _, org := range organizations {
 			orgAcronym := org.OrgAcronym
 			nriHashes := []string{}
@@ -500,14 +504,14 @@ done
 				nriHashes = append(nriHashes, nri.NriHash)
 			}
 			nriHashesString := strings.Join(nriHashes, ",")
-			nodeScript := tools.NodeScript{
+			nodeScript := utils.NodeScript{
 				Node:   nodeData,
 				Script: addEfsFoldersScript,
 				Args:   []string{orgAcronym, nriHashesString},
 			}
 			nodeScripts = append(nodeScripts, nodeScript)
 		}
-		_, err := tools.RunScriptInNodes(platformData, nodeScripts)
+		_, err := utils.RunScriptInNodes(platformData, nodeScripts)
 		if err != nil {
 			spinnerDone <- false
 			return err
@@ -555,12 +559,12 @@ for (( i=0; i < ${#nri_hashes_array[@]}; i++ )); do
     fi
 done		
 `
-			nodeScript := tools.NodeScript{
+			nodeScript := utils.NodeScript{
 				Node:   nodeData,
 				Script: removeNfsFoldersScript,
 				Args:   []string{orgAcronym, nriHashesString},
 			}
-			_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
+			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
 			if err != nil {
 				return err
 			}
@@ -665,15 +669,18 @@ func removeEfsRootFolder(platformData *common.PlatformData) error {
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		efsScript := `#!/bin/bash
 if [ -d /home/ubuntu/efs_osi4iot ]; then
+	sudo rm -rf /home/ubuntu/efs_osi4iot/*
+    sudo umount /home/ubuntu/efs_osi4iot
 	sudo rm -rf /home/ubuntu/efs_osi4iot
+	sudo sed -i '/efs_osi4iot nfs4 nfsvers=4.1/d' /etc/fstab
 fi
 `
-		nodeScript := tools.NodeScript{
+		nodeScript := utils.NodeScript{
 			Node:   nodeData,
 			Script: efsScript,
 			Args:   []string{},
 		}
-		_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
+		_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
 		if err != nil {
 			spinnerDone <- false
 			return err
@@ -706,12 +713,12 @@ if [ -d /var/nfs_osi4iot ]; then
 	sudo rm -rf /var/nfs_osi4iot
 fi
 `
-			nodeScript := tools.NodeScript{
+			nodeScript := utils.NodeScript{
 				Node:   nfsNode,
 				Script: nfsScript,
 				Args:   []string{},
 			}
-			_, err := tools.RunScriptInNodes(platformData, []tools.NodeScript{nodeScript})
+			_, err := utils.RunScriptInNodes(platformData, []utils.NodeScript{nodeScript})
 			if err != nil {
 				spinnerDone <- false
 				return err

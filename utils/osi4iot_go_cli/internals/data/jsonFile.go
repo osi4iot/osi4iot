@@ -9,27 +9,16 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 var osi4iotStateFile = "osi4iot_state.json"
 
-func ExistFile(filePath string) bool {
-	existFile := false
-	_, err := os.Stat(filePath)
-	if err == nil {
-		existFile = true
-	} else {
-		if os.IsNotExist(err) {
-			existFile = false
-		}
-	}
-	return existFile
-}
-
 func ExistStateFile() bool {
-	return ExistFile(osi4iotStateFile)
+	return utils.ExistFile(osi4iotStateFile)
 }
 
 func SetInitialPlatformState() error {
@@ -91,6 +80,9 @@ func SetInitialPlatformState() error {
 
 					container, err := dc.Cli.ContainerInspect(dc.Ctx, containerID)
 					if err != nil {
+						if errdefs.IsNotFound(err) {
+							continue
+						}
 						return fmt.Errorf("error inspecting container %s: %v", containerID[:10], err)
 					}
 
@@ -111,9 +103,25 @@ func SetInitialPlatformState() error {
 			PlatformState = Running
 		}
 	} else {
-		PlatformState = Stopped
-	}
+		numVolumes :=0
+		for _, dc := range docker.DCMap {
+			existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
+				Filters: filterArgs,
+			})
+			if err != nil {
+				PlatformState = Unknown
+				return fmt.Errorf("error listing volumes: %v", err)
+			}
+			numVolumes += len(existingVolumes.Volumes)
+		}
 
+		if numVolumes > 0 {
+			PlatformState = Stopped
+		} else {
+			PlatformState = Deleted
+		}
+
+	}
 	return nil
 }
 
@@ -131,15 +139,38 @@ func ReadPlatformDataFromFile() error {
 		if err != nil {
 			return err
 		}
+
+		err = fixingPlatformData()
+		if err != nil {
+			return fmt.Errorf("error fixing platform data: %v", err)
+		}
 	}
-	
+
+	return nil
+}
+
+func fixingPlatformData() error{
+	platformData := GetData()
+	utils.WriteSshPrivateKeyToLocalFile(platformData)
+
+	nodeData := platformData.PlatformInfo.NodesData
+	for nodeIdx, node := range nodeData {
+		if node.NodeIP == "localhost" {
+			nodeIP, err := utils.GetLocalNodeIP()
+			if err != nil {
+				return fmt.Errorf("error getting local node IP: %v", err)
+			}
+			nodeData[nodeIdx].NodeIP = nodeIP
+		}
+	}
+
 	return nil
 }
 
 func CreateGeoJsonFiles() error {
 	mainOrgBuildingPath := Data.PlatformInfo.MainOrganizationBuildingPath
 	mainOrgBuildingData := Data.PlatformInfo.MainOrganizationBuilding
-	if mainOrgBuildingPath != "" && mainOrgBuildingData != "" && !ExistFile(mainOrgBuildingPath) {
+	if mainOrgBuildingPath != "" && mainOrgBuildingData != "" && !utils.ExistFile(mainOrgBuildingPath) {
 		err := utils.WriteToFile(mainOrgBuildingPath, []byte(mainOrgBuildingData), 0644)
 		if err != nil {
 			return err
@@ -148,7 +179,7 @@ func CreateGeoJsonFiles() error {
 
 	mainOrgFirstFloorPath := Data.PlatformInfo.MainOrganizationFirstFloorPath
 	mainOrgFirstFloorData := Data.PlatformInfo.MainOrganizationFirstFloor
-	if mainOrgFirstFloorPath != "" && mainOrgFirstFloorData != "" && !ExistFile(mainOrgFirstFloorPath) {
+	if mainOrgFirstFloorPath != "" && mainOrgFirstFloorData != "" && !utils.ExistFile(mainOrgFirstFloorPath) {
 		err := utils.WriteToFile(mainOrgFirstFloorPath, []byte(mainOrgFirstFloorData), 0644)
 		if err != nil {
 			return err
@@ -161,7 +192,7 @@ func CreateDomainCertsFiles() error {
 	if Data.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
 		privateKeyPath := Data.PlatformInfo.DOMAIN_SSL_PRIVATE_KEY_PATH
 		privateKey := Data.Certs.DomainCerts.PrivateKey
-		if privateKeyPath != "" && privateKey != "" && !ExistFile(privateKeyPath) {
+		if privateKeyPath != "" && privateKey != "" && !utils.ExistFile(privateKeyPath) {
 			err := utils.WriteToFile(privateKeyPath, []byte(privateKey), 0644)
 			if err != nil {
 				return err
@@ -170,7 +201,7 @@ func CreateDomainCertsFiles() error {
 
 		caPemPath := Data.PlatformInfo.DOMAIN_SSL_CA_PEM_PATH
 		caPem := Data.Certs.DomainCerts.SslCaPem
-		if caPemPath != "" && caPem != "" && !ExistFile(caPemPath) {
+		if caPemPath != "" && caPem != "" && !utils.ExistFile(caPemPath) {
 			err := utils.WriteToFile(caPemPath, []byte(caPem), 0644)
 			if err != nil {
 				return err
@@ -179,7 +210,7 @@ func CreateDomainCertsFiles() error {
 
 		certPath := Data.PlatformInfo.DOMAIN_SSL_CERT_CRT_PATH
 		cert := Data.Certs.DomainCerts.SslCertCrt
-		if certPath != "" && cert != "" && !ExistFile(certPath) {
+		if certPath != "" && cert != "" && !utils.ExistFile(certPath) {
 			err := utils.WriteToFile(certPath, []byte(cert), 0644)
 			if err != nil {
 				return err
@@ -192,8 +223,8 @@ func CreateDomainCertsFiles() error {
 func CreateSSHKeysFile() error {
 	awsKeyPath := Data.PlatformInfo.AwsSshKeyPath
 	awsKey := Data.PlatformInfo.AwsSshKey
-	if awsKeyPath != "" && awsKey != "" && !ExistFile(awsKeyPath) {
-		err := utils.WriteToFile(awsKeyPath, []byte(awsKey), 0644)
+	if awsKeyPath != "" && awsKey != "" && !utils.ExistFile(awsKeyPath) {
+		err := utils.WriteToFile(awsKeyPath, []byte(awsKey), 0600)
 		if err != nil {
 			return err
 		}
@@ -201,8 +232,8 @@ func CreateSSHKeysFile() error {
 
 	sshPrivKeyPath := Data.PlatformInfo.SshPrivKeyPath
 	sshPrivKey := Data.PlatformInfo.SshPrivKey
-	if sshPrivKeyPath != "" && sshPrivKey != "" && !ExistFile(sshPrivKeyPath) {
-		err := utils.WriteToFile(sshPrivKeyPath, []byte(sshPrivKey), 0644)
+	if sshPrivKeyPath != "" && sshPrivKey != "" && !utils.ExistFile(sshPrivKeyPath) {
+		err := utils.WriteToFile(sshPrivKeyPath, []byte(sshPrivKey), 0600)
 		if err != nil {
 			return err
 		}
@@ -210,8 +241,8 @@ func CreateSSHKeysFile() error {
 
 	sshPubKeyPath := Data.PlatformInfo.SshPubKeyPath
 	sshPubKey := Data.PlatformInfo.SshPubKey
-	if sshPubKeyPath != "" && sshPubKey != "" && !ExistFile(sshPubKeyPath) {
-		err := utils.WriteToFile(sshPubKeyPath, []byte(sshPubKey), 0644)
+	if sshPubKeyPath != "" && sshPubKey != "" && !utils.ExistFile(sshPubKeyPath) {
+		err := utils.WriteToFile(sshPubKeyPath, []byte(sshPubKey), 0600)
 		if err != nil {
 			return err
 		}

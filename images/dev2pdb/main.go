@@ -3,17 +3,18 @@ package main
 import (
 	"bufio"
 	"context"
-	"github.com/buger/jsonparser"
 	"fmt"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
-	"net/http"
-	"io"
+
+	"github.com/buger/jsonparser"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type config struct {
@@ -26,6 +27,22 @@ type config struct {
 	timescaledbPassword   string
 	timescaledbServiceUrl string
 	databaseName       string
+}
+
+func isSAdminApiHealthy() bool {
+    client := http.Client{
+        Timeout: 5 * time.Second,
+    }
+
+	url := "http://admin_api:3200/health"
+    resp, err := client.Get(url)
+    if err != nil {
+        fmt.Printf("Error connecting to Admin API: %v\n", err)
+        return false
+    }
+    defer resp.Body.Close()
+
+    return resp.StatusCode == http.StatusOK
 }
 
 func connectToMqttBroker(configData config) mqtt.Client {
@@ -250,6 +267,13 @@ func getParameterFromFileOrEnvVar(envVarName string, filePath string) string {
 }
 
 func main() {
+	// Check if the Admin API is healthy
+	if !isSAdminApiHealthy() {
+		log.Fatal("Admin API service is not healthy")
+	} else {
+		time.Sleep(10 * time.Second) // Wait until the user dev2pdb is created
+	}
+
 	configData := getConfigData()
 
 	databaseUrl := getDatabaseUrl(configData)

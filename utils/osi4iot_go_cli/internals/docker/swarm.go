@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -60,6 +59,15 @@ func InitPlatform(platformData *common.PlatformData) error {
 	}
 	platformData.PlatformInfo.NodesData = nodesData
 
+	organizations := platformData.Certs.MqttCerts.Organizations
+	for orgIdx, org := range organizations {
+		for nriIdx, nri := range org.NodeRedInstances {
+			if nri.IsVolumeCreated == "true" {
+				platformData.Certs.MqttCerts.Organizations[orgIdx].NodeRedInstances[nriIdx].IsVolumeCreated = "false"
+			}
+		}
+	}
+
 	err := initSwarm()
 	if err != nil {
 		return fmt.Errorf("error: initializing swarm %s", err.Error())
@@ -69,7 +77,7 @@ func InitPlatform(platformData *common.PlatformData) error {
 	if err != nil {
 		return fmt.Errorf("error: getting docker client %s", err.Error())
 	}
-    err = nodesConfiguration(platformData)
+	err = nodesConfiguration(platformData)
 	if err != nil {
 		return fmt.Errorf("error: configuring nodes %s", err.Error())
 	}
@@ -341,25 +349,46 @@ func createSwarmVolumes(platformData *common.PlatformData, dc *DockerClient) (ma
 	return volumes, nil
 }
 
-func removeSwarmVolumes() error {
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("label", "app=osi4iot")
-
+func removeSwarmVolumes(platformData *common.PlatformData) error {
 	errors := []error{}
+	filterByNames := getVolumeFilterByNames(platformData)
+
 	for _, dc := range DCMap {
-		existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
-			Filters: filterArgs,
+		existingVolumes := make(map[string]*volume.Volume)
+		volumesByNameResp, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
+			Filters: filterByNames,
 		})
 		if err != nil {
-			return fmt.Errorf("error listing volumes: %v", err)
+			return fmt.Errorf("error listing volumes by name: %v", err)
+		}
+		for _, v := range volumesByNameResp.Volumes {
+			existingVolumes[v.Name] = v
 		}
 
-		for _, v := range existingVolumes.Volumes {
+		filterByLabel := filters.NewArgs()
+		filterByLabel.Add("label", "app=osi4iot")
+		volumesByLabelResp, err := dc.Cli.VolumeList(dc.Ctx,volume.ListOptions{
+			Filters: filterByLabel,
+		})
+		if err != nil {
+			return fmt.Errorf("error listing volumes by label: %v", err)
+		}
+		for _, v := range volumesByLabelResp.Volumes {
+			if _, ok := existingVolumes[v.Name]; !ok {
+				existingVolumes[v.Name] = v
+			}
+		}
+
+		for _, v := range existingVolumes {
 			err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
 			if err != nil {
+				if errdefs.IsNotFound(err) {
+					continue
+				}
 				errors = append(errors, fmt.Errorf("error removing volume: %v", err))
 			}
 		}
+
 	}
 
 	if len(errors) > 0 {
@@ -367,6 +396,40 @@ func removeSwarmVolumes() error {
 	}
 
 	return nil
+}
+
+func getVolumeFilterByNames(platformData *common.PlatformData) filters.Args {
+	volumeNames := []string{
+		"letsencrypt",
+		"mosquitto_data",
+		"mosquitto_log",
+		"pgdata",
+		"grafana_data",
+		"timescaledb_data",
+		"s3_storage_data",
+		"admin_api_log",
+		"portainer_data",
+		"pgadmin4_data",
+		"minio_storage",
+	}
+
+	for iorg := 0; iorg < len(platformData.Certs.MqttCerts.Organizations); iorg++ {
+		orgAcronym := strings.ToLower(platformData.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
+		numNodeRedInstances := len(platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
+		for inri := 0; inri < numNodeRedInstances; inri++ {
+			nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
+			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
+			nriVolumeName := fmt.Sprintf("%s_data", serviceName)
+			volumeNames = append(volumeNames, nriVolumeName)
+		}
+	}
+
+	volumeFilters := filters.NewArgs()
+	for _, name := range volumeNames {
+		volumeFilters.Add("name", name)
+	}
+
+	return volumeFilters
 }
 
 func createNetwork(dc *DockerClient, swarmNetwork *Network) error {
@@ -541,7 +604,7 @@ func DeletePlatform(platformData *common.PlatformData) error {
 
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
-	containers, err := docker.Cli.ContainerList(context.Background(), container.ListOptions{
+	containers, err := docker.Cli.ContainerList(docker.Ctx, container.ListOptions{
 		Filters: filterArgs,
 	})
 	if err != nil {
@@ -553,23 +616,27 @@ func DeletePlatform(platformData *common.PlatformData) error {
 		if len(containers) == 0 {
 			break
 		}
-		containers, err = docker.Cli.ContainerList(context.Background(), container.ListOptions{
+		containers, err = docker.Cli.ContainerList(docker.Ctx, container.ListOptions{
 			Filters: filterArgs,
 		})
 		if err != nil {
+			if errdefs.IsNotFound(err) {
+				continue
+			}
 			done <- false
 			return fmt.Errorf("error listing containers: %v", err)
 		}
 	}
 
-	done <- true
 	for i := 0; i < 60; i++ {
 		time.Sleep(1 * time.Second) // wait for containers to stop completely
-		err = removeSwarmVolumes()
+		err = removeSwarmVolumes(platformData)
 		if err == nil {
 			break
 		}
 	}
+
+	done <- true
 
 	err = removeNfsRootFolder(platformData)
 	if err != nil {
@@ -593,97 +660,6 @@ func DeletePlatform(platformData *common.PlatformData) error {
 
 	return nil
 }
-
-// func waitUntilAllContainersAreHealthy(serviceType string) error {
-// 	docker, err := GetManagerDC()
-// 	if err != nil {
-// 		return fmt.Errorf("error gettig docker client: %v", err)
-// 	}
-
-// 	filterArgs := filters.NewArgs()
-// 	filterArgs.Add("label", "app=osi4iot")
-// 	services, err := docker.Cli.ServiceList(docker.Ctx, types.ServiceListOptions{
-// 		Filters: filterArgs,
-// 	})
-// 	if err != nil {
-// 		return fmt.Errorf("error listing services: %v", err)
-// 	}
-
-// 	filteredServices := []swarm.Service{}
-// 	if serviceType != "all" {
-// 		for _, service := range services {
-// 			if val, ok := service.Spec.Labels["service_type"]; ok && val == serviceType {
-// 				filteredServices = append(filteredServices, service)
-// 			}
-// 		}
-// 	} else {
-// 		filteredServices = services
-// 	}
-
-// 	done := make(chan bool)
-// 	spinnerMsg := "Waiting for all containers to be healthy"
-// 	endMsg := "All containers are healthy"
-// 	if serviceType != "all" {
-// 		spinnerMsg = fmt.Sprintf("Waiting for containers of service %s to be healthy", serviceType)
-// 		endMsg = fmt.Sprintf("All containers of service %s are healthy", serviceType)
-// 	}
-// 	utils.Spinner(spinnerMsg, endMsg, done)
-// 	for {
-// 		allHealthy := true
-// 		for _, service := range filteredServices {
-// 			if service.Spec.Name == "system-prune" {
-// 				continue
-// 			}
-// 			serviceFilter := filters.NewArgs()
-// 			serviceFilter.Add("service", service.ID)
-// 			tasks, err := docker.Cli.TaskList(docker.Ctx, types.TaskListOptions{
-// 				Filters: serviceFilter,
-// 			})
-// 			if err != nil {
-// 				done <- false
-// 				return fmt.Errorf("error listing tasks: %v", err)
-// 			}
-// 			numTasksRunning := 0
-// 			for _, task := range tasks {
-// 				if task.Status.State != swarm.TaskStateRunning {
-// 					continue
-// 				} else {
-// 					numTasksRunning++
-// 				}
-
-// 				containerID := task.Status.ContainerStatus.ContainerID
-// 				if containerID == "" {
-// 					done <- false
-// 					return fmt.Errorf("error container %s does not have a container ID", task.ID[:10])
-// 				}
-
-// 				container, err := docker.Cli.ContainerInspect(docker.Ctx, containerID)
-// 				if err != nil {
-// 					done <- false
-// 					return fmt.Errorf("error inspecting container %s: %v", containerID[:10], err)
-// 				}
-
-// 				if container.State.Health == nil {
-// 					done <- false
-// 					return fmt.Errorf("error container %s does not have a health check configured", containerID[:10])
-// 				}
-// 				healthStatus := container.State.Health.Status
-// 				if healthStatus != "healthy" {
-// 					allHealthy = false
-// 				}
-// 			}
-// 			if numTasksRunning == 0 {
-// 				allHealthy = false
-// 			}
-// 		}
-// 		if allHealthy {
-// 			break
-// 		}
-// 	}
-// 	done <- true
-
-// 	return nil
-// }
 
 func waitUntilAllContainersAreHealthy(serviceType string) error {
 	docker, err := GetManagerDC()
@@ -724,6 +700,7 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 
 	for {
 		if time.Now().After(deadline) {
+			done <- false
 			return fmt.Errorf("timeout waiting for all containers to be healthy")
 		}
 
@@ -927,43 +904,18 @@ func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPri
 			return nil, fmt.Errorf("error creating docker client in node %s: %v", node.NodeIP, err)
 		}
 	} else if deploymentLocation == "On-premise cluster deployment" || deploymentLocation == "AWS cluster deployment" {
-		// sshConfig := tools.SshConfigWithKey(node.NodeUserName, sshPrivKey)
-		// address := fmt.Sprintf("%s:%d", node.NodeIP, 22)
-		// sshConn, err = ssh.Dial("tcp", address, sshConfig)
-		// if err != nil {
-		// 	if sshConn != nil {
-		// 		sshConn.Close()
-		// 	}
-		// 	return nil, fmt.Errorf("error dialing SSH in node %s: %v", node.NodeIP, err)
-		// }
-		// dockerDaemon := "127.0.0.1:2375"
-		// dialFunc := func(ctx context.Context, network, addr string) (net.Conn, error) {
-		// 	return sshConn.Dial("tcp", dockerDaemon)
-		// }
-
-		// cli, err = client.NewClientWithOpts(
-		// 	client.WithAPIVersionNegotiation(),
-		// 	client.WithDialContext(dialFunc),
-		// )
-		// if err != nil {
-		// 	sshConn.Close()
-		// 	return nil, fmt.Errorf("error creating docker client: %v", err)
-		// }
-
 		daemonUrl := fmt.Sprintf("ssh://%s@%s:22", node.NodeUserName, node.NodeIP)
 		helper, err := getConnectionHelper(daemonUrl, sshPrivKeyPath)
 		if err != nil {
 			panic(fmt.Errorf("error obteniendo el helper SSH: %w", err))
 		}
-	
-		// Crea un HTTP client que utilice el dialer obtenido
+
 		httpClient := &http.Client{
 			Transport: &http.Transport{
 				DialContext: helper.Dialer,
 			},
 		}
-	
-		// Crea el cliente de Docker configurado para usar la conexión SSH.
+
 		cli, err = client.NewClientWithOpts(
 			client.WithHost(helper.Host),
 			client.WithHTTPClient(httpClient),
@@ -1001,14 +953,7 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 	nodesData := platformData.PlatformInfo.NodesData
 
 	once.Do(func() {
-		// sshPrivKey, err := tools.GetSshPrivKey(platformData)
-		// if err != nil {
-		// 	if deploymentLocation == "On-premise cluster deployment" || deploymentLocation == "AWS cluster deployment" {
-		// 		swarmErr = fmt.Errorf("error getting SSH private key: %v", err)
-		// 		return
-		// 	}
-		// }
-		sshPrivatekeyPath := tools.GetSshPrivKeyLocalPath(platformData)
+		sshPrivatekeyPath := utils.GetSshPrivKeyLocalPath(platformData)
 
 		var wg sync.WaitGroup
 		dcResponses := make(chan DcResp, len(nodesData))
@@ -1154,8 +1099,15 @@ func initSwarm() error {
 	}
 
 	node := managerClient.Node
+	nodeIP := node.NodeIP
+	if nodeIP == "localhost" {
+		nodeIP, err = utils.GetLocalNodeIP()
+		if err != nil {
+			return fmt.Errorf("error getting local node IP: %v", err)
+		}
+	}
 	if !info.Swarm.ControlAvailable {
-		advertiseAddr := fmt.Sprintf("%s:2377", node.NodeIP)
+		advertiseAddr := fmt.Sprintf("%s:2377", nodeIP)
 		_, err := managerClient.Cli.SwarmInit(managerClient.Ctx, swarm.InitRequest{
 			AdvertiseAddr: advertiseAddr,
 			ListenAddr:    "0.0.0.0:2377",

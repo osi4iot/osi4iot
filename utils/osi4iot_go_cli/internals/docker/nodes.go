@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func getSwarmNodesMap(dc *DockerClient) (map[string]swarm.Node, error) {
@@ -39,6 +40,8 @@ func updateNodesData(dc *DockerClient, nodesData []common.NodeData) error {
 		nodesData[i].NodeId = swarmNode.ID
 		nodesData[i].NodeHostName = swarmNode.Description.Hostname
 		nodesData[i].NodeArch = swarmNode.Description.Platform.Architecture
+		nodesData[i].NodeNanoCPUs = swarmNode.Description.Resources.NanoCPUs
+		nodesData[i].NodeMemoryBytes = swarmNode.Description.Resources.MemoryBytes
 	}
 	return nil
 }
@@ -61,9 +64,14 @@ func getLocalNodeData() (common.NodeData, error) {
 	}
 	nodeArch := strings.TrimSpace(string(output))
 
+	localIP, err := utils.GetLocalNodeIP()
+	if err != nil {
+		return common.NodeData{}, fmt.Errorf("error getting local node IP: %v", err)
+	}
+
 	nodeData := common.NodeData{
 		NodeHostName: hostname,
-		NodeIP:       "localhost",
+		NodeIP:       localIP,
 		NodeUserName: usr.Username,
 		NodeRole:     "Manager",
 		NodeArch:     nodeArch,
@@ -191,5 +199,113 @@ func getNodeRoleNumMap(platformData *common.PlatformData) map[string]int {
 
 	return roleNumMap
 }
+
+func getNodeNanoCpusMap(platformData *common.PlatformData) map[string]int64 {
+	roleNanoCpusMap := make(map[string]int64)
+	roleNanoCpusMap["Manager"] = 0
+	roleNanoCpusMap["Platform worker"] = 0
+	roleNanoCpusMap["Generic org worker"] = 0
+	roleNanoCpusMap["Exclusive org worker"] = 0
+	roleNanoCpusMap["NFS server"] = 0
+	nodesData := platformData.PlatformInfo.NodesData
+
+	for _, node := range nodesData {
+		nodeRole := node.NodeRole
+		switch nodeRole {
+		case "Manager":
+			if roleNanoCpusMap["Manager"] == 0 {
+				roleNanoCpusMap["Manager"] = node.NodeNanoCPUs
+			}
+			if node.NodeNanoCPUs < roleNanoCpusMap["Manager"] {
+				roleNanoCpusMap["Manager"] = node.NodeNanoCPUs
+			}
+		case "Platform worker":
+			if roleNanoCpusMap["Platform worker"] == 0 {
+				roleNanoCpusMap["Platform worker"] = node.NodeNanoCPUs
+			}
+			if node.NodeNanoCPUs < roleNanoCpusMap["Platform worker"] {
+				roleNanoCpusMap["Platform worker"] = node.NodeNanoCPUs
+			}
+		case "Generic org worker":
+			if roleNanoCpusMap["Generic org worker"] == 0 {
+				roleNanoCpusMap["Generic org worker"] = node.NodeNanoCPUs
+			}
+			if node.NodeNanoCPUs < roleNanoCpusMap["Generic org worker"] {
+				roleNanoCpusMap["Generic org worker"] = node.NodeNanoCPUs
+			}
+		case "ExclusiveOrgWorker":
+			if roleNanoCpusMap["Exclusive org worker"] == 0 {
+				roleNanoCpusMap["Exclusive org worker"] = node.NodeNanoCPUs
+			}
+			if node.NodeNanoCPUs < roleNanoCpusMap["Exclusive org worker"] {
+				roleNanoCpusMap["Exclusive org worker"] = node.NodeNanoCPUs
+			}
+		case "NfsWorker":
+			if roleNanoCpusMap["NFS server"] == 0 {
+				roleNanoCpusMap["NFS server"] = node.NodeNanoCPUs
+			}
+			if node.NodeNanoCPUs < roleNanoCpusMap["NFS server"] {
+				roleNanoCpusMap["NFS server"] = node.NodeNanoCPUs
+			}
+
+		}
+	}
+
+	return roleNanoCpusMap
+}
+
+func getNodeMemoryBytesMap(platformData *common.PlatformData) map[string]int64 {
+	roleMemoryBytesMap := make(map[string]int64)
+	roleMemoryBytesMap["Manager"] = 0
+	roleMemoryBytesMap["Platform worker"] = 0
+	roleMemoryBytesMap["Generic org worker"] = 0
+	roleMemoryBytesMap["Exclusive org worker"] = 0
+	roleMemoryBytesMap["NFS server"] = 0
+	nodesData := platformData.PlatformInfo.NodesData
+
+	for _, node := range nodesData {
+		nodeRole := node.NodeRole
+		switch nodeRole {
+		case "Manager":
+			if roleMemoryBytesMap["Manager"] == 0 {
+				roleMemoryBytesMap["Manager"] = node.NodeMemoryBytes
+			}
+			if node.NodeMemoryBytes < roleMemoryBytesMap["Manager"] {
+				roleMemoryBytesMap["Manager"] = node.NodeMemoryBytes
+			}
+		case "Platform worker":
+			if roleMemoryBytesMap["Platform worker"] == 0 {
+				roleMemoryBytesMap["Platform worker"] = node.NodeMemoryBytes
+			}
+			if node.NodeMemoryBytes < roleMemoryBytesMap["Platform worker"] {
+				roleMemoryBytesMap["Platform worker"] = node.NodeMemoryBytes
+			}
+		case "Generic org worker":
+			if roleMemoryBytesMap["Generic org worker"] == 0 {
+				roleMemoryBytesMap["Generic org worker"] = node.NodeMemoryBytes
+			}
+			if node.NodeMemoryBytes < roleMemoryBytesMap["Generic org worker"] {
+				roleMemoryBytesMap["Generic org worker"] = node.NodeMemoryBytes
+			}
+		case "ExclusiveOrgWorker":
+			if roleMemoryBytesMap["Exclusive org worker"] == 0 {
+				roleMemoryBytesMap["Exclusive org worker"] = node.NodeMemoryBytes
+			}
+			if node.NodeMemoryBytes < roleMemoryBytesMap["Exclusive org worker"] {
+				roleMemoryBytesMap["Exclusive org worker"] = node.NodeMemoryBytes
+			}
+		case "NfsWorker":
+			if roleMemoryBytesMap["NFS server"] == 0 {
+				roleMemoryBytesMap["NFS server"] = node.NodeMemoryBytes
+			}
+			if node.NodeMemoryBytes < roleMemoryBytesMap["NFS server"] {
+				roleMemoryBytesMap["NFS server"] = node.NodeMemoryBytes
+			}
+		}
+	}
+
+	return roleMemoryBytesMap
+}
+
 
 

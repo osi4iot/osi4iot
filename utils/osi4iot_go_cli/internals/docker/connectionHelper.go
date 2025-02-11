@@ -31,6 +31,8 @@ func getConnectionHelper(daemonURL, privateKeyPath string) (*connhelper.Connecti
 
 	sshFlags = addSSHTimeout(sshFlags)
 	sshFlags = disablePseudoTerminalAllocation(sshFlags)
+	sshFlags = append(sshFlags, "-o", "StrictHostKeyChecking=no")
+	sshFlags = append(sshFlags, "-o", "UserKnownHostsFile=/dev/null")
 	helper := &connhelper.ConnectionHelper{
 		Dialer: func(ctx context.Context, network, addr string) (net.Conn, error) {
 			args := []string{"docker"}

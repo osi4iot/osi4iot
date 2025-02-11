@@ -8,13 +8,12 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/tools"
 )
 
 func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 	platformData := data.GetData()
 	if m.FindAnswerByKey("DEPLOYMENT_LOCATION") == "On-premise cluster deployment" {
-		err := tools.CreateKeyPair(platformData)
+		err := utils.CreateKeyPair(platformData)
 		if err != nil {
 			return submissionResultMsg("Error creating key pair"), err
 		}
@@ -538,7 +537,7 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 		}
 		platformData := data.GetData()
 		publicKey := platformData.PlatformInfo.SshPubKey
-		err = tools.CopyKeyInNode(nodeData, publicKey)
+		err = utils.CopyKeyInNode(nodeData, publicKey)
 		if err != nil {
 			return submissionResultMsg("Error: copying key to node " + hostName), err
 		}
@@ -637,7 +636,7 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		return platformCreatingMsg("Error: creating mqtt certs"), err
 	}
 
-	err = tools.WriteSshPrivateKeyToLocalFile(platformData)
+	err = utils.WriteSshPrivateKeyToLocalFile(platformData)
 	if err != nil {
 		return platformCreatingMsg("Error: writing ssh private key to local file"), err
 	}
