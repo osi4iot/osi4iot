@@ -232,6 +232,10 @@ if [ ! -d  /var/nfs_osi4iot/portainer_data ]; then
 	sudo chown nobody:nogroup /var/nfs_osi4iot/portainer_data
 fi
 
+if [ ! -d  /home/ubuntu/efs_osi4iot/letsencrypt ]; then
+    sudo mkdir /home/ubuntu/efs_osi4iot/letsencrypt
+    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/letsencrypt
+fi
 
 for (( i=0; i<${#ips_array[@]}; i++ )); do
 	newline="/var/nfs_osi4iot ${ips_array[$i]}(rw,sync,no_root_squash,no_subtree_check)"
@@ -303,7 +307,7 @@ sudo systemctl restart nfs-kernel-server
 `
 		nodeScripts := []utils.NodeScript{}
 		for _, org := range organizations {
-			orgAcronym := org.OrgAcronym
+			orgAcronym := strings.ToLower(org.OrgAcronym)
 			nriHashes := []string{}
 			for _, nri := range org.NodeRedInstances {
 				nriHashes = append(nriHashes, nri.NriHash)
@@ -355,7 +359,7 @@ func RemoveNfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 		}
 
 		if orgToRemove.OrgAcronym != "" {
-			orgAcronym := orgToRemove.OrgAcronym
+			orgAcronym := strings.ToLower(orgToRemove.OrgAcronym)
 			nriHashes := []string{}
 			for _, nri := range orgToRemove.NodeRedInstances {
 				nriHashes = append(nriHashes, nri.NriHash)
@@ -411,7 +415,7 @@ fi
 if [ ! -d /home/ubuntu/efs_osi4iot ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot
-    sudo mount -t nfs4 -o nfsvers=4.1 $efs_dns:/ /home/ubuntu/efs_osi4iot
+    sudo mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport $efs_dns:/ /home/ubuntu/efs_osi4iot
     sudo -E sh -c 'echo "$efs_dns:/ /home/ubuntu/efs_osi4iot nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport,_netdev 0 0" >> /etc/fstab'
 fi
 
@@ -422,7 +426,8 @@ fi
 
 if [ ! -d /home/ubuntu/efs_osi4iot/grafana_data ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot/grafana_data
-    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/grafana_data
+    #sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/grafana_data
+	sudo chown 472:472 /home/ubuntu/efs_osi4iot/grafana_data
 fi
 
 if [ ! -d /home/ubuntu/efs_osi4iot/mosquitto_data ]; then
@@ -453,6 +458,21 @@ fi
 if [ ! -d  /home/ubuntu/efs_osi4iot/timescaledb_data ]; then
     sudo mkdir /home/ubuntu/efs_osi4iot/timescaledb_data
     sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/timescaledb_data
+fi
+
+if [ ! -d  /home/ubuntu/efs_osi4iot/s3_storage_data ]; then
+    sudo mkdir /home/ubuntu/efs_osi4iot/s3_storage_data
+    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/s3_storage_data
+fi
+
+if [ ! -d  /home/ubuntu/efs_osi4iot/minio_storage ]; then
+    sudo mkdir /home/ubuntu/efs_osi4iot/minio_storage
+    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/minio_storage
+fi
+
+if [ ! -d  /home/ubuntu/efs_osi4iot/letsencrypt ]; then
+    sudo mkdir /home/ubuntu/efs_osi4iot/letsencrypt
+    sudo chown ubuntu:ubuntu /home/ubuntu/efs_osi4iot/letsencrypt
 fi
 `
 		efsDns := platformData.PlatformInfo.AwsEfsDNS
@@ -498,7 +518,7 @@ done
 `
 		nodeScripts := []utils.NodeScript{}
 		for _, org := range organizations {
-			orgAcronym := org.OrgAcronym
+			orgAcronym := strings.ToLower(org.OrgAcronym)
 			nriHashes := []string{}
 			for _, nri := range org.NodeRedInstances {
 				nriHashes = append(nriHashes, nri.NriHash)

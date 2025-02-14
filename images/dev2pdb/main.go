@@ -29,21 +29,64 @@ type config struct {
 	databaseName       string
 }
 
-func isSAdminApiHealthy() bool {
-    client := http.Client{
-        Timeout: 5 * time.Second,
-    }
+func AdminApiQuery() bool {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
 
 	url := "http://admin_api:3200/health"
-    resp, err := client.Get(url)
-    if err != nil {
-        fmt.Printf("Error connecting to Admin API: %v\n", err)
-        return false
-    }
-    defer resp.Body.Close()
+	resp, err := client.Get(url)
+	if err != nil {
+		fmt.Printf("Error connecting to Admin API: %v\n", err)
+		return false
+	}
+	defer resp.Body.Close()
 
-    return resp.StatusCode == http.StatusOK
+	return resp.StatusCode == http.StatusOK
 }
+
+func isAdminApiHealthy() bool {
+	isHealthy := false
+	numTrials := 5
+	numMaxIterations := 60
+	numIter := 0
+	for {
+		numTrueTrials := 0
+		for i := 0; i < numTrials; i++ {
+			if AdminApiQuery() {
+				numTrueTrials++
+			}
+			time.Sleep(2 * time.Second)
+		}
+		if numTrueTrials == numTrials {
+			isHealthy = true
+			break
+		}
+		numIter++
+		if numIter == numMaxIterations {
+			break
+		}
+		fmt.Println("Admin API is not healthy yet. Retrying...")
+		time.Sleep(10 * time.Second)
+	}
+	return isHealthy
+}
+
+// func isAdminApiHealthy() bool {
+//     client := http.Client{
+//         Timeout: 5 * time.Second,
+//     }
+
+// 	url := "http://admin_api:3200/health"
+//     resp, err := client.Get(url)
+//     if err != nil {
+//         fmt.Printf("Error connecting to Admin API: %v\n", err)
+//         return false
+//     }
+//     defer resp.Body.Close()
+
+//     return resp.StatusCode == http.StatusOK
+// }
 
 func connectToMqttBroker(configData config) mqtt.Client {
 	opts := createClientOptions(configData)
@@ -54,6 +97,7 @@ func connectToMqttBroker(configData config) mqtt.Client {
 	}
 
 	if err := token.Error(); err != nil {
+		time.Sleep(70 * time.Second) //Wait until the mosquitto_gp_auth service clean the cache
 		log.Fatal("Dev2pdb service could not connect to mqtt broker: ", err)
 	} else {
 		fmt.Printf("Dev2pdb service connected to mqtt broker.\n")
@@ -268,7 +312,7 @@ func getParameterFromFileOrEnvVar(envVarName string, filePath string) string {
 
 func main() {
 	// Check if the Admin API is healthy
-	if !isSAdminApiHealthy() {
+	if !isAdminApiHealthy() {
 		log.Fatal("Admin API service is not healthy")
 	} else {
 		time.Sleep(10 * time.Second) // Wait until the user dev2pdb is created

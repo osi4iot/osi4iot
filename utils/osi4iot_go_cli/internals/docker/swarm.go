@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
-	"golang.org/x/crypto/ssh"
 )
 
 type SwarmData struct {
@@ -33,7 +32,6 @@ var swarmData SwarmData
 
 type DockerClient struct {
 	Cli  *client.Client
-	SSH  *ssh.Client
 	Ctx  context.Context
 	Node common.NodeData
 }
@@ -102,18 +100,12 @@ func InitPlatform(platformData *common.PlatformData) error {
 }
 
 func (dc *DockerClient) Close() error {
-	var errDocker, errSSH error
 
 	if dc.Cli != nil {
-		errDocker = dc.Cli.Close()
-	}
-
-	if dc.SSH != nil {
-		errSSH = dc.SSH.Close()
-	}
-
-	if errDocker != nil || errSSH != nil {
-		return fmt.Errorf("errors closing resources: Docker error: %v, SSH error: %v", errDocker, errSSH)
+		err := dc.Cli.Close()
+		if err != nil {
+			return fmt.Errorf("error closing docker client: %v", err)
+		}
 	}
 
 	return nil
@@ -130,7 +122,7 @@ func RunSwarm(dc *DockerClient, platformData *common.PlatformData) error {
 		return fmt.Errorf("error creating swarm configs: %v", err)
 	}
 
-	volumes, err := createSwarmVolumes(platformData, dc)
+	volumes, err := createSwarmVolumes(platformData)
 	if err != nil {
 		return fmt.Errorf("error creating swarm volumes: %v", err)
 	}
@@ -336,14 +328,21 @@ func createVolume(dc *DockerClient, swarmVol *Volume) error {
 	return nil
 }
 
-func createSwarmVolumes(platformData *common.PlatformData, dc *DockerClient) (map[string]Volume, error) {
+func createSwarmVolumes(platformData *common.PlatformData) (map[string]Volume, error) {
 	volumes := GenerateVolumes(platformData)
+	errors := []error{}
 	for key, volume := range volumes {
-		err := createVolume(dc, &volume)
-		if err != nil {
-			return nil, fmt.Errorf("error creating volume %s: %v", volume.Name, err)
+		for _, dc := range DCMap {
+			err := createVolume(dc, &volume)
+			if err != nil {
+				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err))
+			}
 		}
 		volumes[key] = volume
+	}
+
+	if len(errors) > 0 {
+		return nil, fmt.Errorf("errors creating volumes: %v", errors)
 	}
 
 	return volumes, nil
@@ -367,7 +366,7 @@ func removeSwarmVolumes(platformData *common.PlatformData) error {
 
 		filterByLabel := filters.NewArgs()
 		filterByLabel.Add("label", "app=osi4iot")
-		volumesByLabelResp, err := dc.Cli.VolumeList(dc.Ctx,volume.ListOptions{
+		volumesByLabelResp, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
 			Filters: filterByLabel,
 		})
 		if err != nil {
@@ -879,7 +878,6 @@ func SwarmInitiationInfo(platformData *common.PlatformData) error {
 				}
 				okMsg := utils.StyleOKMsg.Render("Platform is ready to be used")
 				fmt.Println(okMsg)
-
 			}
 		}
 	}
@@ -889,7 +887,6 @@ func SwarmInitiationInfo(platformData *common.PlatformData) error {
 
 func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPrivKeyPath string) (*DockerClient, error) {
 	var cli *client.Client
-	var sshConn *ssh.Client
 	runningInLocalHost, err := utils.IsHostIP(node.NodeIP)
 	if err != nil {
 		return nil, fmt.Errorf("error getting host IP: %v", err)
@@ -930,7 +927,6 @@ func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPri
 
 	dc := &DockerClient{
 		Cli:  cli,
-		SSH:  sshConn,
 		Ctx:  context.Background(),
 		Node: node,
 	}

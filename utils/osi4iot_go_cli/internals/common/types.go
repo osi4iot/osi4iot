@@ -161,13 +161,14 @@ type NodeRedInstance struct {
 }
 
 type NodeData struct {
+	NodeLabel       string `json:"nodeLabel"`
+	NodeIP          string `json:"nodeIP"`
+	NodeRole        string `json:"nodeRole"`
+	NodeUserName    string `json:"nodeUserName"`
+	NodePassword    string `json:"nodePassword"`
 	NodeId          string `json:"nodeId"`
 	NodeHostName    string `json:"nodeHostName"`
-	NodeIP          string `json:"nodeIP"`
-	NodeUserName    string `json:"nodeUserName"`
-	NodeRole        string `json:"nodeRole"`
 	NodeArch        string `json:"nodeArch"`
-	NodePassword    string `json:"nodePassword"`
 	NodeNanoCPUs    int64  `json:"nodeNanoCPUs"`
 	NodeMemoryBytes int64  `json:"nodeMemory"`
 }

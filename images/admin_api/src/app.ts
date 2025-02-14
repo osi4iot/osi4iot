@@ -62,11 +62,6 @@ class App {
 				},
 			})
 		);
-		// this.app.set('etag', 'strong');
-		// this.app.use((req, res, next) => {
-		// 	res.set("Cache-Control", "public, max-age=3600");
-		// 	next();
-		// });
 	}
 
 	private initializeErrorHandling(): void {

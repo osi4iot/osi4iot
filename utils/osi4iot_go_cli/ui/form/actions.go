@@ -51,10 +51,10 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 					Margin:       0,
 				},
 				{
-					Key:          "Node_" + strconv.Itoa(inode) + "_HostName",
+					Key:          "Node_" + strconv.Itoa(inode) + "_Label",
 					QuestionType: "generic",
-					Prompt:       "Host name",
-					Answer:       defaultNodeData.NodeHostName,
+					Prompt:       "Label",
+					Answer:       defaultNodeData.NodeLabel,
 					Choices:      []string{},
 					ChoiceFocus:  0,
 					ErrorMessage: "",

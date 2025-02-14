@@ -94,7 +94,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 			nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
 			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
 			volumeName := fmt.Sprintf("%s_data", serviceName)
-			Volumes[serviceName] = Volume{
+			Volumes[volumeName] = Volume{
 				Name:       volumeName,
 				Driver:     "local",
 				DriverOpts: map[string]string{},
@@ -114,6 +114,17 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 		//Atention verify case nfsServerIP := ""
 
 		driverOptsO := fmt.Sprintf("nfsvers=4,addr=%s,rw", nfsServerIP)
+
+		if domainCertsType[0:19] == "Let's encrypt certs" {
+			letsencryptData := Volumes["letsencrypt"]
+			letsencryptData.DriverOpts = map[string]string{
+				"type":   "nfs",
+				"o":      driverOptsO,
+				"device": ":/var/nfs_osi4iot/letsencrypt",
+			}
+			Volumes["letsencrypt"] = letsencryptData
+		}
+
 		mosquittoData := Volumes["mosquitto_data"]
 		mosquittoData.DriverOpts = map[string]string{
 			"type":   "nfs",
@@ -217,6 +228,16 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 	} else if deploymentLocation == "AWS cluster deployment" && len(nodesData) > 1 {
 		awsEfsDNS := platformData.PlatformInfo.AwsEfsDNS
 		driverOptsO := fmt.Sprintf("addr=%s,nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport", awsEfsDNS)
+
+		if domainCertsType[0:19] == "Let's encrypt certs" {
+			letsencryptData := Volumes["letsencrypt"]
+			letsencryptData.DriverOpts = map[string]string{
+				"type":   "nfs",
+				"o":      driverOptsO,
+				"device": fmt.Sprintf("%s:/letsencrypt", awsEfsDNS),
+			}
+			Volumes["letsencrypt"] = letsencryptData
+		}
 
 		mosquittoData := Volumes["mosquitto_data"]
 		mosquittoData.DriverOpts = map[string]string{

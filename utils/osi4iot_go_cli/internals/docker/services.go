@@ -173,7 +173,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", platformData.PlatformInfo.AWSAccessKeyIDRoute53))
 		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", platformData.PlatformInfo.AWSSecretAccessKeyRoute53))
 		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_REGION=%s", platformData.PlatformInfo.AWSRegionRoute53))
-		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_HOSTED_ZONE_ID=%s", platformData.PlatformInfo.AWSAccessKeyIDS3Bucket))
+		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_HOSTED_ZONE_ID=%s", platformData.PlatformInfo.AWSHostedZoneIdRoute53))
 	}
 	traefikTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
@@ -1353,10 +1353,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 				},
 			},
 			Placement: &swarm.Placement{
-				Constraints: []string{
-					"node.role == manager",
-					"node.platform.arch==x86_64",
-				},
+				Constraints: workerConstraintsArray,
 			},
 		}
 		grafanaRendererEndpointSpec := &swarm.EndpointSpec{
@@ -1767,6 +1764,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		for _, nri := range org.NodeRedInstances {
 			nriHash := nri.NriHash
 			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
+			volumeName := fmt.Sprintf("%s_data", serviceName)
 			nodeRedInstanceHashPath := fmt.Sprintf("nodered_%s", nriHash)
 			isVolumeCreated := nri.IsVolumeCreated
 			mqttClientCert := fmt.Sprintf("%s_%s_cert", orgAcronymLower, nriHash)
@@ -1862,7 +1860,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 					Mounts: []mount.Mount{
 						{
 							Type:   mount.TypeVolume,
-							Source: swarmData.Volumes[serviceName].Name,
+							Source: swarmData.Volumes[volumeName].Name,
 							Target: "/data",
 						},
 					},
@@ -1923,7 +1921,7 @@ func durationPtr(d time.Duration) *time.Duration {
 func giveCPUs(serviceName string,
 	nodeRoleNumMap map[string]int,
 	roleNanoCPUsMap map[string]int64) int64 {
-	cpus := 0.25 * 1e9
+	cpus := 0.25
 	switch serviceName {
 	case "system_prune":
 		cpus = 0.25
