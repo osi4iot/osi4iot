@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -37,6 +38,7 @@ type DockerClient struct {
 }
 
 var DCMap = make(map[string]*DockerClient)
+var sshPrivKeyTempFile *os.File
 var once sync.Once
 
 func InitPlatform(platformData *common.PlatformData) error {
@@ -869,7 +871,7 @@ func SwarmInitiationInfo(platformData *common.PlatformData) error {
 	return nil
 }
 
-func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPrivKeyPath string) (*DockerClient, error) {
+func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPrivKeyTempFile *os.File) (*DockerClient, error) {
 	var cli *client.Client
 	runningInLocalHost, err := utils.IsHostIP(node.NodeIP)
 	if err != nil {
@@ -886,7 +888,7 @@ func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPri
 		}
 	} else if deploymentLocation == "On-premise cluster deployment" || deploymentLocation == "AWS cluster deployment" {
 		daemonUrl := fmt.Sprintf("ssh://%s@%s:22", node.NodeUserName, node.NodeIP)
-		helper, err := getConnectionHelper(daemonUrl, sshPrivKeyPath)
+		helper, err := getConnectionHelper(daemonUrl, sshPrivKeyTempFile)
 		if err != nil {
 			panic(fmt.Errorf("error obteniendo el helper SSH: %w", err))
 		}
@@ -933,7 +935,12 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 	nodesData := platformData.PlatformInfo.NodesData
 
 	once.Do(func() {
-		sshPrivatekeyPath := utils.GetSshPrivKeyLocalPath(platformData)
+		var err error
+		sshPrivKeyTempFile, err = utils.CreateSshPrivKeyTempFile(platformData)
+		if err != nil {
+			swarmErr = fmt.Errorf("error creating ssh private key temp file: %v", err)
+			return
+		}
 
 		var wg sync.WaitGroup
 		dcResponses := make(chan DcResp, len(nodesData))
@@ -946,7 +953,7 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 			wg.Add(1)
 			go func(node common.NodeData) {
 				defer wg.Done()
-				dc, err := getNodeDockerClient(node, deploymentLocation, sshPrivatekeyPath)
+				dc, err := getNodeDockerClient(node, deploymentLocation, sshPrivKeyTempFile)
 				dcResponses <- DcResp{IP: node.NodeIP, DockerClient: dc, Err: err}
 			}(node)
 		}
@@ -975,7 +982,7 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 
 func CheckDockerClientsMap(DCMap map[string]*DockerClient, action string) error {
 	if len(DCMap) == 0 {
-		return fmt.Errorf("error")
+		return fmt.Errorf("error: failed to get any docker client")
 	}
 	numManagers := 0
 	existNilMap := false
@@ -996,6 +1003,18 @@ func CheckDockerClientsMap(DCMap map[string]*DockerClient, action string) error 
 	} else {
 		if numManagers == 0 {
 			return fmt.Errorf("error")
+		}
+	}
+
+	return nil
+}
+
+func RemoveSshPrivKeyTempFile() error {
+	existsSshPrivateKeyFile := utils.ExistFile(sshPrivKeyTempFile.Name())
+	if existsSshPrivateKeyFile {
+		err := os.Remove(sshPrivKeyTempFile.Name())
+		if err != nil {
+			return err
 		}
 	}
 
@@ -1117,5 +1136,16 @@ func GetImages(dc *DockerClient) error {
 		fmt.Println(image.ID)
 	}
 
+	return nil
+}
+
+func CleanResources() error {
+	if err := RemoveSshPrivKeyTempFile() ; err != nil {
+		return fmt.Errorf("error removing ssh private key temp file: %v", err)
+	}
+
+	if err := CloseDockerClientsMap(); err != nil {
+		return fmt.Errorf("error closing resources: %v", err)
+	}
 	return nil
 }

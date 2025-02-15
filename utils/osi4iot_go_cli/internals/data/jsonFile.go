@@ -151,7 +151,6 @@ func ReadPlatformDataFromFile() error {
 
 func fixingPlatformData() error{
 	platformData := GetData()
-	utils.WriteSshPrivateKeyToLocalFile(platformData)
 
 	nodeData := platformData.PlatformInfo.NodesData
 	for nodeIdx, node := range nodeData {

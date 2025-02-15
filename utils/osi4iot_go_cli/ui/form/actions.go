@@ -656,11 +656,6 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	}
 	platformData.PlatformInfo.NodesData = nodesData
 
-	err = utils.WriteSshPrivateKeyToLocalFile(platformData)
-	if err != nil {
-		return platformCreatingMsg("Error: writing ssh private key to local file"), err
-	}
-
 	err = utils.WritePlatformDataToFile(platformData)
 	if err != nil {
 		return  platformCreatingMsg("Error: writing platform data to file"), err

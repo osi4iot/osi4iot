@@ -29,29 +29,24 @@ var cmdCreate = &cobra.Command{
 		platformState := data.GetPlatformState()
 		if platformState == data.Initiating {
 			platformData := data.GetData()
-
 			_, err:= docker.SetDockerClientsMap(platformData)
 			if err != nil {
-				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error setting Docker clients map: %v", err))
-				fmt.Println(errMsg)
-				os.Exit(1)
+				errMsg := fmt.Sprintf("Error setting Docker clients map: %v", err)
+				exitWithError(errMsg)
 			}
 			defer func() {
-				if err := docker.CloseDockerClientsMap(); err != nil {
-					fmt.Printf("Error closing resources: %v", err)
-				}
+				docker.CleanResources()
 			}()
 
 			err = docker.InitPlatform(platformData)
 			if err != nil {
-				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error initializing platform: %v", err))
-				fmt.Println(errMsg)
-				os.Exit(1)
+				errMsg := fmt.Sprintf("Error initializing platform: %v", err)
+				exitWithError(errMsg)
 			}
 			err = docker.SwarmInitiationInfo(platformData)
 			if err != nil {
-				errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
-				fmt.Println(errMsg)
+				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
+				exitWithError(errMsg)
 			}
 		}
 	},
@@ -66,14 +61,13 @@ var cmdInit = &cobra.Command{
 		platformData := data.GetData()
 		err := docker.InitPlatform(platformData)
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error starting platform: %v", err))
-			fmt.Println(errMsg)
-			os.Exit(1)
+			errMsg := fmt.Sprintf("Error starting platform: %v", err)
+			exitWithError(errMsg)
 		}
 		err = docker.SwarmInitiationInfo(platformData)
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
-			fmt.Println(errMsg)
+			errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
+			exitWithError(errMsg)
 		}
 	},
 }
@@ -87,20 +81,20 @@ var cmdRun = &cobra.Command{
 		platformData := data.GetData()
 		dc, err :=  docker.GetManagerDC()
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render("Error: getting docker client ", err.Error())
-			fmt.Println(errMsg)
+			errMsg := fmt.Sprintf("Error: getting docker client %v", err)
+			exitWithError(errMsg)
 		}
 		err = docker.RunSwarm(dc, platformData)
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render("Error: runing the platform ", err.Error())
-			fmt.Println(errMsg)
+			errMsg := fmt.Sprintf("Error: runing the platform %v", err)
+			exitWithError(errMsg)
 		} else {
 			fmt.Println("Platform has been started successfully")
 			platformData := data.GetData()
 			err := docker.SwarmInitiationInfo(platformData)
 			if err != nil {
-				errMsg := utils.StyleErrMsg.Render("Error: initializing the platform ", err.Error())
-				fmt.Println(errMsg)
+				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
+				exitWithError(errMsg)
 			}
 		}
 	},
@@ -268,8 +262,8 @@ var cmdStop = &cobra.Command{
 		platformData := data.GetData()
 		err := docker.StopPlatform(platformData)
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render("Error: stopping the platform ", err.Error())
-			fmt.Println(errMsg)
+			errMsg := fmt.Sprintf("Error: stopping the platform %v", err)
+			exitWithError(errMsg)
 		} else {
 			okMsg := utils.StyleOKMsg.Render("Platform has been sttoped successfully")
 			fmt.Println(okMsg)
@@ -286,8 +280,8 @@ var cmdDelete = &cobra.Command{
 		platformData := data.GetData()
 		err := docker.DeletePlatform(platformData)
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render("Error: deleting the platform ", err.Error())
-			fmt.Println(errMsg)
+			errMsg := fmt.Sprintf("Error: deleting the platform %v", err)
+			exitWithError(errMsg)
 		} else {
 			okMsg := utils.StyleOKMsg.Render("Platform has been deleted successfully")
 			fmt.Println(okMsg)
@@ -328,4 +322,17 @@ func init() {
 	cmdNodes.AddCommand(subCmdAddNode)
 	cmdNodes.AddCommand(subCmdRemoveNode)
 	rootCmd.AddCommand(cmdNodes)
+}
+
+func exitWithWarning(errMsg string) {
+	docker.CleanResources()
+	fmt.Println(utils.StyleWarningMsg.Render(errMsg))
+	os.Exit(1)
+}
+
+
+func exitWithError(errMsg string) {
+	docker.CleanResources()
+	fmt.Println(utils.StyleErrMsg.Render(errMsg))
+	os.Exit(1)
 }

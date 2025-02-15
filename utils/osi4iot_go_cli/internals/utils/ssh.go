@@ -308,22 +308,26 @@ func GetSshPrivKeyLocalPath(platformData *common.PlatformData) string {
 	return sshPrivKeyPath
 }
 
-func WriteSshPrivateKeyToLocalFile(platformData *common.PlatformData) error {
-	sshPrivateKeyPath := GetSshPrivKeyLocalPath(platformData)
-	if FileExists(sshPrivateKeyPath) {
-		return nil
-	}
+func CreateSshPrivKeyTempFile(platformData *common.PlatformData) (*os.File, error) {
 	sshPrivateKey, err := GetSshPrivKey(platformData)
 	if err != nil {
-		return fmt.Errorf("error getting SSH private key: %w", err)
+		return nil, fmt.Errorf("error getting SSH private key: %w", err)
 	}
 
-	if sshPrivateKey != "" {
-		err = WriteToFile(sshPrivateKeyPath, []byte(sshPrivateKey), 0600)
-		if err != nil {
-			return err
-		}
+	tempFile, err := os.CreateTemp("", "osi4iot_ssh_priv_key_")
+	if err != nil {
+		return nil, fmt.Errorf("error creating temporary file: %w", err)
 	}
 
-	return nil
+	if _, err := tempFile.WriteString(sshPrivateKey); err != nil {
+		tempFile.Close()
+		return nil, fmt.Errorf("error writing to temporary file: %w", err)
+	}
+
+	if err := tempFile.Close(); err != nil {
+		return nil, fmt.Errorf("error closing temporary file: %w", err)
+	}
+
+
+	return tempFile, nil
 }

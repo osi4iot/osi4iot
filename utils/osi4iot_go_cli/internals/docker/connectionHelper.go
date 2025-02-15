@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/docker/cli/cli/connhelper"
@@ -12,8 +13,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-
-func getConnectionHelper(daemonURL, privateKeyPath string) (*connhelper.ConnectionHelper, error) {
+func getConnectionHelper(daemonURL string, sshPrivKeyTempFile *os.File) (*connhelper.ConnectionHelper, error) {
 	u, err := url.Parse(daemonURL)
 	if err != nil {
 		return nil, err
@@ -27,7 +27,7 @@ func getConnectionHelper(daemonURL, privateKeyPath string) (*connhelper.Connecti
 		return nil, errors.Wrap(err, "ssh host connection is not valid")
 	}
 
-	sshFlags := []string{"-i", privateKeyPath}
+	sshFlags := []string{"-i", sshPrivKeyTempFile.Name()}
 
 	sshFlags = addSSHTimeout(sshFlags)
 	sshFlags = disablePseudoTerminalAllocation(sshFlags)

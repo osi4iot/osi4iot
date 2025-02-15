@@ -28,8 +28,7 @@ func main() {
 		err := data.ReadPlatformDataFromFile()
 		if err != nil {
 			errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error loading json file: %v", err))
-			fmt.Println(errMsg)
-			os.Exit(1)
+			exitWithError(errMsg)
 		}
 
 		args := os.Args[1:]
@@ -45,22 +44,18 @@ func main() {
 			if err != nil {
 				combinedErr := fmt.Errorf("error setting Docker clients map: %w", dcMapErr)
 				errMsg := utils.StyleErrMsg.Render(combinedErr.Error())
-				fmt.Println(errMsg)
-				os.Exit(1)
+				exitWithError(errMsg)
 			}
 		}
 		defer func() {
-			if err := docker.CloseDockerClientsMap(); err != nil {
-				fmt.Printf("Error closing resources: %v", err)
-			}
+			docker.CleanResources()
 		}()
 
 		if action != "none" {
 			err := data.SetInitialPlatformState()
 			if err != nil {
 				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error setting initial platform state: %v", err))
-				fmt.Println(errMsg)
-				os.Exit(1)
+				exitWithError(errMsg)
 			}
 		}
 	} else {
@@ -68,4 +63,11 @@ func main() {
 	}
 
 	cmd.Execute()
+}
+
+func exitWithError(errMsg string) {
+	utils.ShowCursor()
+	docker.CleanResources()
+	fmt.Println(errMsg)
+	os.Exit(1)
 }
