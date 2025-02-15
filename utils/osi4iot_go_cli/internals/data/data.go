@@ -127,10 +127,6 @@ func SetData(key string, value string) {
 		if len(Data.PlatformInfo.NodesData) == 0 {
 			Data.PlatformInfo.NodesData = make([]common.NodeData, numberOfNodes)
 		}
-	case "NUMBER_OF_CPUS_PER_NODE":
-		Data.PlatformInfo.NumberOfCPUsPerNode = value
-	case "RAM_MEMORY_PER_NODE":
-		Data.PlatformInfo.RAMMemoryPerNode = value
 	case "S3_BUCKET_TYPE":
 		Data.PlatformInfo.S3BucketType = value
 	case "S3_BUCKET_NAME":
@@ -239,6 +235,8 @@ func SetData(key string, value string) {
 			Data.PlatformInfo.NodesData = append(Data.PlatformInfo.NodesData, nodeData)
 		}
 		switch keyWords[2] {
+		case "Label":
+			Data.PlatformInfo.NodesData[nodeIndex-1].NodeLabel = value			
 		case "HostName":
 			Data.PlatformInfo.NodesData[nodeIndex-1].NodeHostName = value
 		case "IP":

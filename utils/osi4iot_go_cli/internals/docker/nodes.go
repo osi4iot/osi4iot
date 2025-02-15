@@ -2,15 +2,10 @@ package docker
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"os/user"
-	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 func getSwarmNodesMap(dc *DockerClient) (map[string]swarm.Node, error) {
@@ -44,39 +39,6 @@ func updateNodesData(dc *DockerClient, nodesData []common.NodeData) error {
 		nodesData[i].NodeMemoryBytes = swarmNode.Description.Resources.MemoryBytes
 	}
 	return nil
-}
-
-func getLocalNodeData() (common.NodeData, error) {
-	hostname, err := os.Hostname()
-	if err != nil {
-		return common.NodeData{}, err
-	}
-
-	usr, err := user.Current()
-	if err != nil {
-		return common.NodeData{}, err
-	}
-
-	cmd := exec.Command("uname", "-m")
-	output, err := cmd.Output()
-	if err != nil {
-		return common.NodeData{}, err
-	}
-	nodeArch := strings.TrimSpace(string(output))
-
-	localIP, err := utils.GetLocalNodeIP()
-	if err != nil {
-		return common.NodeData{}, fmt.Errorf("error getting local node IP: %v", err)
-	}
-
-	nodeData := common.NodeData{
-		NodeHostName: hostname,
-		NodeIP:       localIP,
-		NodeUserName: usr.Username,
-		NodeRole:     "Manager",
-		NodeArch:     nodeArch,
-	}
-	return nodeData, nil
 }
 
 func GetManagerDC() (*DockerClient, error) {

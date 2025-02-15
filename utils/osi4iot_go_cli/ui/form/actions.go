@@ -2,6 +2,9 @@ package form
 
 import (
 	"fmt"
+	"os"
+	"os/exec"
+	"os/user"
 	"strconv"
 	"strings"
 
@@ -636,10 +639,65 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		return platformCreatingMsg("Error: creating mqtt certs"), err
 	}
 
+	deployLocation := platformData.PlatformInfo.DeploymentLocation
+	nodesData := []common.NodeData{}
+	numNodes := platformData.PlatformInfo.NumberOfSwarmNodes
+	if deployLocation == "Local deployment" {
+		localNodeData, err := GetLocalNodeData()
+		if err != nil {
+			return platformCreatingMsg("Error: getting local node data"), err
+		}
+		nodesData = append(nodesData, localNodeData)
+	} else {
+		for idx := 0; idx < numNodes; idx++ {
+			nodeData := platformData.PlatformInfo.NodesData[idx]
+			nodesData = append(nodesData, nodeData)
+		}
+	}
+	platformData.PlatformInfo.NodesData = nodesData
+
 	err = utils.WriteSshPrivateKeyToLocalFile(platformData)
 	if err != nil {
 		return platformCreatingMsg("Error: writing ssh private key to local file"), err
 	}
 
+	err = utils.WritePlatformDataToFile(platformData)
+	if err != nil {
+		return  platformCreatingMsg("Error: writing platform data to file"), err
+	}
+
 	return platformCreatingMsg("osi4iot_state.json file created and platform initiated successfully"), nil
+}
+
+func GetLocalNodeData() (common.NodeData, error) {
+	hostname, err := os.Hostname()
+	if err != nil {
+		return common.NodeData{}, err
+	}
+
+	usr, err := user.Current()
+	if err != nil {
+		return common.NodeData{}, err
+	}
+
+	cmd := exec.Command("uname", "-m")
+	output, err := cmd.Output()
+	if err != nil {
+		return common.NodeData{}, err
+	}
+	nodeArch := strings.TrimSpace(string(output))
+
+	localIP, err := utils.GetLocalNodeIP()
+	if err != nil {
+		return common.NodeData{}, fmt.Errorf("error getting local node IP: %v", err)
+	}
+
+	nodeData := common.NodeData{
+		NodeHostName: hostname,
+		NodeIP:       localIP,
+		NodeUserName: usr.Username,
+		NodeRole:     "Manager",
+		NodeArch:     nodeArch,
+	}
+	return nodeData, nil
 }

@@ -29,8 +29,6 @@ type PlatformInfo struct {
 	PlatformAdminUserName      string     `json:"PLATFORM_ADMIN_USER_NAME"`
 	PlatformAdminEmail         string     `json:"PLATFORM_ADMIN_EMAIL"`
 	PlatformAdminPassword      string     `json:"PLATFORM_ADMIN_PASSWORD"`
-	RAMMemoryPerNode           string     `json:"RAM_MEMORY_PER_NODE"`
-	NumberOfCPUsPerNode        string     `json:"NUMBER_OF_CPUS_PER_NODE"`
 	NumberOfSwarmNodes         int        `json:"NUMBER_OF_SWARM_NODES"`
 	NodesData                  []NodeData `json:"NODES_DATA"`
 

@@ -488,34 +488,6 @@ func initialModel() form.Model {
 				Margin:    0,
 			},
 			{
-				Key:           "NUMBER_OF_CPUS_PER_NODE",
-				QuestionType:  "list",
-				Prompt:        "Select the number of CPUs per cluster node",
-				Answer:        data.Data.PlatformInfo.NumberOfCPUsPerNode,
-				DefaultAnswer: "",
-				ErrorMessage:  "",
-				Choices:       []string{"2", "4", "8", "16", "32"},
-				ChoiceFocus: utils.GiveChoiceFocus(data.Data.PlatformInfo.NumberOfCPUsPerNode,
-					[]string{"2", "4", "8", "16", "32"}, 0),
-				Rules:     []string{"required"},
-				ActionKey: "",
-				Margin:    0,
-			},
-			{
-				Key:           "RAM_MEMORY_PER_NODE",
-				QuestionType:  "list",
-				Prompt:        "Select the amount of RAM memory in GiB per cluster node",
-				Answer:        data.Data.PlatformInfo.RAMMemoryPerNode,
-				DefaultAnswer: "",
-				ErrorMessage:  "",
-				Choices:       []string{"4 GiB", "8 GiB", "16 GiB", "32 GiB"},
-				ChoiceFocus: utils.GiveChoiceFocus(data.Data.PlatformInfo.RAMMemoryPerNode,
-					[]string{"4 GiB", "8 GiB", "16 GiB", "32 GiB"}, 0),
-				Rules:     []string{"required"},
-				ActionKey: "",
-				Margin:    0,
-			},
-			{
 				Key:           "S3_BUCKET_TYPE",
 				QuestionType:  "list",
 				Prompt:        "Choose the type of S3 bucket to be used",
@@ -650,26 +622,26 @@ func initialModel() form.Model {
 		}
 	}
 
-	// if data.Data.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
-	// 	pathKey := data.Data.PlatformInfo.DOMAIN_SSL_PRIVATE_KEY_PATH
-	// 	if pathKey != "" && data.Data.Certs.DomainCerts.PrivateKey == "" {
-	// 		domainSSLPrivateKey := utils.GetFileData(pathKey)
-	// 		data.Data.Certs.DomainCerts.PrivateKey = domainSSLPrivateKey
-	// 	}
+	if data.Data.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
+		// pathKey := data.Data.PlatformInfo.DOMAIN_SSL_PRIVATE_KEY_PATH
+		// if pathKey != "" && data.Data.Certs.DomainCerts.PrivateKey == "" {
+		// 	domainSSLPrivateKey := utils.GetFileData(pathKey)
+		// 	data.Data.Certs.DomainCerts.PrivateKey = domainSSLPrivateKey
+		// }
 
-	// 	pathCert := data.Data.PlatformInfo.DOMAIN_SSL_CERT_CRT_PATH
-	// 	if pathCert != "" && data.Data.Certs.DomainCerts.SslCertCrt == "" {
-	// 		domainSSLCertCrt := utils.GetFileData(pathCert)
-	// 		data.Data.Certs.DomainCerts.SslCertCrt = domainSSLCertCrt
-	// 	}
+		// pathCert := data.Data.PlatformInfo.DOMAIN_SSL_CERT_CRT_PATH
+		// if pathCert != "" && data.Data.Certs.DomainCerts.SslCertCrt == "" {
+		// 	domainSSLCertCrt := utils.GetFileData(pathCert)
+		// 	data.Data.Certs.DomainCerts.SslCertCrt = domainSSLCertCrt
+		// }
 
-	// 	pathCa := data.Data.PlatformInfo.DOMAIN_SSL_CA_PEM_PATH
-	// 	if pathCa != "" && data.Data.Certs.DomainCerts.SslCaPem == "" {
-	// 		domainSSLCaPem := utils.GetFileData(pathCa)
-	// 		data.Data.Certs.DomainCerts.SslCaPem = domainSSLCaPem
-	// 	}
-	// 	form.DomainCertsQuestions(&model)
-	// }
+		// pathCa := data.Data.PlatformInfo.DOMAIN_SSL_CA_PEM_PATH
+		// if pathCa != "" && data.Data.Certs.DomainCerts.SslCaPem == "" {
+		// 	domainSSLCaPem := utils.GetFileData(pathCa)
+		// 	data.Data.Certs.DomainCerts.SslCaPem = domainSSLCaPem
+		// }
+		form.DomainCertsQuestions(&model)
+	}
 
 	if data.Data.PlatformInfo.DeploymentLocation != "Local deployment" {
 		form.DeployLocationQuestions(&model)

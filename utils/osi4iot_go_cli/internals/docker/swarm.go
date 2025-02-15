@@ -40,23 +40,7 @@ var DCMap = make(map[string]*DockerClient)
 var once sync.Once
 
 func InitPlatform(platformData *common.PlatformData) error {
-	deployLocation := platformData.PlatformInfo.DeploymentLocation
-	nodesData := []common.NodeData{}
-	numNodes := platformData.PlatformInfo.NumberOfSwarmNodes
-	if deployLocation == "Local deployment" {
-		localNodeData, err := getLocalNodeData()
-		if err != nil {
-			return fmt.Errorf("error getting local node data: %v", err)
-		}
-		nodesData = append(nodesData, localNodeData)
-	} else {
-		for idx := 0; idx < numNodes; idx++ {
-			nodeData := platformData.PlatformInfo.NodesData[idx]
-			nodesData = append(nodesData, nodeData)
-		}
-	}
-	platformData.PlatformInfo.NodesData = nodesData
-
+	nodesData := platformData.PlatformInfo.NodesData
 	organizations := platformData.Certs.MqttCerts.Organizations
 	for orgIdx, org := range organizations {
 		for nriIdx, nri := range org.NodeRedInstances {

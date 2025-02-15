@@ -29,7 +29,20 @@ var cmdCreate = &cobra.Command{
 		platformState := data.GetPlatformState()
 		if platformState == data.Initiating {
 			platformData := data.GetData()
-			err := docker.InitPlatform(platformData)
+
+			_, err:= docker.SetDockerClientsMap(platformData)
+			if err != nil {
+				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error setting Docker clients map: %v", err))
+				fmt.Println(errMsg)
+				os.Exit(1)
+			}
+			defer func() {
+				if err := docker.CloseDockerClientsMap(); err != nil {
+					fmt.Printf("Error closing resources: %v", err)
+				}
+			}()
+
+			err = docker.InitPlatform(platformData)
 			if err != nil {
 				errMsg := utils.StyleErrMsg.Render(fmt.Sprintf("Error initializing platform: %v", err))
 				fmt.Println(errMsg)
