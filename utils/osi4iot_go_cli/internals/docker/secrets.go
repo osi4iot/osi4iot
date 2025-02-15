@@ -5,6 +5,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
@@ -273,4 +276,79 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 	}
 
 	return Secrets
+}
+
+func createSecret(dc *DockerClient, secretKey string, secret *Secret) error {
+	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{})
+	if err != nil {
+		fmt.Println("error listing secrets: ", err)
+		return fmt.Errorf("error listing secrets: %v", err)
+	}
+
+	secretExists := false
+	for _, s := range existingSecrets {
+		if s.Spec.Name == secret.Name {
+			secretExists = true
+			secret.ID = s.ID
+			break
+		} else if s.Spec.Name != secret.Name && s.Spec.Name[:len(secretKey)] == secretKey {
+			secretExists = false
+			err = dc.Cli.SecretRemove(dc.Ctx, s.ID)
+			if err != nil {
+				return fmt.Errorf("error removing secret: %v", err)
+			}
+			break
+		}
+	}
+
+	if !secretExists {
+		secResp, err := dc.Cli.SecretCreate(dc.Ctx, swarm.SecretSpec{
+			Annotations: swarm.Annotations{
+				Name: secret.Name,
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
+			},
+			Data: []byte(secret.Data),
+		})
+		if err != nil {
+			return fmt.Errorf("error creating secret: %v", err)
+		}
+		secret.ID = secResp.ID
+	}
+
+	return nil
+}
+
+func createSwarmSecrets(platformData *common.PlatformData, dc *DockerClient) (map[string]Secret, error) {
+	secrets := GenerateSecrets(platformData)
+	for key, secret := range secrets {
+		err := createSecret(dc, key, &secret)
+		if err != nil {
+			return nil, fmt.Errorf("error creating secret %s: %v", key, err)
+		}
+		secrets[key] = secret
+	}
+
+	return secrets, nil
+}
+
+func removeSwarmSecrets(dc *DockerClient) error {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing secrets: %v", err)
+	}
+
+	for _, s := range existingSecrets {
+		err = dc.Cli.SecretRemove(dc.Ctx, s.ID)
+		if err != nil {
+			return fmt.Errorf("error removing secret: %v", err)
+		}
+	}
+
+	return nil
 }

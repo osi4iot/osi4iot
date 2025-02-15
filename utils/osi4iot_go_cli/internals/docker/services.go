@@ -5,7 +5,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
@@ -2127,4 +2129,35 @@ func giveReplicsPtr(nodeRoleNumMap map[string]int, serviceName string) *uint64 {
 		replics = uint64(1)
 	}
 	return &replics
+}
+
+func createSwarmServices(platformData *common.PlatformData, dc *DockerClient, swarmData SwarmData) error {
+	services := GenerateServices(platformData, swarmData)
+	for _, service := range services {
+		err := createService(dc, service)
+		if err != nil {
+			return fmt.Errorf("error creating service %s: %v", service.Name, err)
+		}
+	}
+	return nil
+}
+
+func removeSwarmServices(dc *DockerClient) error {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingServices, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing services: %v", err)
+	}
+
+	for _, s := range existingServices {
+		err = dc.Cli.ServiceRemove(dc.Ctx, s.ID)
+		if err != nil {
+			return fmt.Errorf("error removing service: %v", err)
+		}
+	}
+
+	return nil
 }
