@@ -280,6 +280,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.Finished = true
 			return m, tea.Quit
 		}
+	case creatingOrgMsg:
+		m.Loading = false
+		m.RecievedMsg = string(msg)
+		if m.RecievedMsg[:5] != "Error" {
+			data.SetPlatformState(data.CreatingOrg)
+			m.Finished = true
+			return m, tea.Quit
+		}		
 	}
 	return m, nil
 }
@@ -474,6 +482,7 @@ type runActionMsg string
 type submissionResultMsg string
 type platformCreatingMsg string
 type tickMsg time.Time
+type creatingOrgMsg string
 
 func tick(d time.Duration) tea.Cmd {
 	return tea.Tick(d, func(t time.Time) tea.Msg {
@@ -511,6 +520,9 @@ func runAction(actionKey string, m *Model) tea.Msg {
 		if err != nil {
 			return submissionResultMsg("Error copying key to node: " + err.Error())
 		}
+		return response
+	case "createOrg":
+		response, _ := createOrg(m)
 		return response
 	}
 	return nil

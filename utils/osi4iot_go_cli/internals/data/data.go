@@ -20,6 +20,7 @@ const (
 	Running
 	Stopped
 	Deleted
+	CreatingOrg
 )
 
 var PlatformState PlatformStatus = Empty

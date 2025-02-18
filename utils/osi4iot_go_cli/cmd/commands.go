@@ -6,10 +6,13 @@ import (
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/initatePlatform"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/form"
 	"github.com/spf13/cobra"
 )
+
+var SwarmActions = []string{"create", "init", "run", "stop", "delete"}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -25,7 +28,7 @@ var cmdCreate = &cobra.Command{
 	Long:  "Create a new platform and start it",
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("create")
-		initiatePlatform.Create()
+		form.CreatePlatform()
 		platformState := data.GetPlatformState()
 		if platformState == data.Initiating {
 			platformData := data.GetData()
@@ -109,12 +112,17 @@ var cmdOrgs = &cobra.Command{
 	// },
 }
 
+
 var subCmdOrgsList = &cobra.Command{
 	Use:   "list",
 	Short: "List organizations",
 	Long:  "List organizations",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("List organizations")
+		err:= orgs.ListOrgs()
+		if err != nil {
+			errMsg := fmt.Sprintf("Error: listing organizations %v", err)
+			exitWithError(errMsg)
+		}
 	},
 }
 
@@ -132,7 +140,11 @@ var subCmdAddOrg = &cobra.Command{
 	Short: "Add organization",
 	Long:  "Add organization",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Add organization")
+		form.CreateOrgForm()
+		platformState := data.GetPlatformState()
+		if platformState == data.CreatingOrg {
+			exitWithOkMsg("Organization created successfully")
+		}
 	},
 }
 
@@ -324,9 +336,17 @@ func init() {
 	rootCmd.AddCommand(cmdNodes)
 }
 
+func exitWithOkMsg(okMsg string) {
+	docker.CleanResources()
+	fmt.Println(utils.StyleOKMsg.Render(okMsg))
+	fmt.Println()
+	os.Exit(0)
+}
+
 func exitWithWarning(errMsg string) {
 	docker.CleanResources()
 	fmt.Println(utils.StyleWarningMsg.Render(errMsg))
+	fmt.Println()
 	os.Exit(1)
 }
 
@@ -334,5 +354,6 @@ func exitWithWarning(errMsg string) {
 func exitWithError(errMsg string) {
 	docker.CleanResources()
 	fmt.Println(utils.StyleErrMsg.Render(errMsg))
+	fmt.Println()
 	os.Exit(1)
 }

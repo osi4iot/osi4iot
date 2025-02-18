@@ -10,6 +10,7 @@ import (
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
@@ -658,7 +659,7 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 
 	err = utils.WritePlatformDataToFile(platformData)
 	if err != nil {
-		return  platformCreatingMsg("Error: writing platform data to file"), err
+		return platformCreatingMsg("Error: writing platform data to file"), err
 	}
 
 	return platformCreatingMsg("osi4iot_state.json file created and platform initiated successfully"), nil
@@ -695,4 +696,51 @@ func GetLocalNodeData() (common.NodeData, error) {
 		NodeArch:     nodeArch,
 	}
 	return nodeData, nil
+}
+
+func createOrg(m *Model) (creatingOrgMsg, error) {
+	platformData := data.GetData()
+	orgHash := utils.GeneratePassword(16)
+	orgName := m.FindAnswerByKey("ORGANIZATION_NAME")
+	orgAcronym := m.FindAnswerByKey("ORGANIZATION_ACRONYM")
+	orgRole := m.FindAnswerByKey("ORGANIZATION_ROLE")
+	buildingId, _ := strconv.Atoi(m.FindAnswerByKey("BUILDING_ID"))
+	orgTelegramChatId := m.FindAnswerByKey("ORGANIZATION_TELEGRAM_CHAT_ID")
+	orgTelegramInvitationLink := m.FindAnswerByKey("ORGANIZATION_TELEGRAM_INVITATION_LINK")
+	mqttAccessControl := m.FindAnswerByKey("MQTT_ACCESS_CONTROL")
+	numNriInMainOrg, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_NODERED_INSTANCES_IN_ORG"))
+	nriHashes := make([]string, numNriInMainOrg)
+	for idx := 0; idx < numNriInMainOrg; idx++ {
+		nriHashes[idx] = utils.GeneratePassword(10)
+	}
+	orgAdminFirstName := m.FindAnswerByKey("ORG_ADMIN_FIRST_NAME")
+	orgAdminSurname := m.FindAnswerByKey("ORG_ADMIN_SURNAME")
+	orgAdminEmail := m.FindAnswerByKey("ORG_ADMIN_EMAIL")
+	orgAdminArray := []orgs.Admin{
+		{FirstName: orgAdminFirstName,
+			Surname: orgAdminSurname,
+			Email:   orgAdminEmail,
+		},
+	}
+
+	newOrgData := orgs.CreateOrgData{
+		Name:                   orgName,
+		Acronym:                orgAcronym,
+		Role:                   orgRole,
+		BuildingId:             buildingId,
+		OrgHash:                orgHash,
+		NriHashes:              nriHashes,
+		TelegramInvitationLink: orgTelegramInvitationLink,
+		TelegramChatId:         orgTelegramChatId,
+		MqttAccessControl:      mqttAccessControl,
+		OrgAdminArray:          orgAdminArray,
+	}
+
+	err := orgs.RequestCreateOrg(platformData, newOrgData)
+	if err != nil {
+		errMsg := fmt.Sprintf("Error: creating organization: %v", err)
+		return creatingOrgMsg(errMsg), err
+	}
+
+	return creatingOrgMsg("Organization created successfully"), nil
 }

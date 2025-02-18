@@ -475,6 +475,34 @@ func createSwarmVolumes(platformData *common.PlatformData) (map[string]Volume, e
 	return volumes, nil
 }
 
+func CreateSwarmVolumes(platformData *common.PlatformData) (map[string]Volume, error) {
+	volumesMap := GenerateVolumes(platformData)
+	numNodes := len(platformData.PlatformInfo.NodesData)
+	errors := []error{}
+	for _, dc := range DCMap {
+		var filteredVolumes map[string]Volume
+		if numNodes == 1 {
+			filteredVolumes = volumesMap
+		} else {
+			filteredVolumes = getVolumesMapByNodeRole(platformData, volumesMap, dc.Node.NodeRole)
+		}
+
+		for key, volume := range filteredVolumes {
+			err := createVolume(dc, &volume)
+			if err != nil {
+				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err))
+			}
+			volumesMap[key] = volume
+		}
+	}
+
+	if len(errors) > 0 {
+		return nil, fmt.Errorf("errors creating volumes: %v", errors)
+	}
+
+	return volumesMap, nil
+}
+
 func removeSwarmVolumes(platformData *common.PlatformData) error {
 	errors := []error{}
 	filterByNames := getVolumeFilterByNames(platformData)
@@ -556,6 +584,51 @@ func getVolumeFilterByNames(platformData *common.PlatformData) filters.Args {
 	}
 
 	return volumeFilters
+}
+
+func getVolumesMapByNodeRole(platformData *common.PlatformData, volumesMap map[string]Volume, nodeRole string) map[string]Volume {
+	volumeNames := []string{}
+	switch nodeRole {
+	case "Manager":
+		volumeNames = append(volumeNames,
+			"letsencrypt",
+			"grafana_data",
+		)
+	case "Platform worker":
+		volumeNames = append(volumeNames,
+			"mosquitto_data",
+			"mosquitto_log",
+			"pgdata",
+			"timescaledb_data",
+			"s3_storage_data",
+			"admin_api_log",
+			"portainer_data",
+			"pgadmin4_data",
+			"minio_storage",
+		)
+	case "Generic org worker":
+		for iorg := 0; iorg < len(platformData.Certs.MqttCerts.Organizations); iorg++ {
+			orgAcronym := strings.ToLower(platformData.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
+			numNodeRedInstances := len(platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
+			for inri := 0; inri < numNodeRedInstances; inri++ {
+				nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
+				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
+				nriVolumeName := fmt.Sprintf("%s_data", serviceName)
+				volumeNames = append(volumeNames, nriVolumeName)
+			}
+		}
+	case "ExclusiveOrgWorker":
+		//no code
+	case "NfsWorker":
+		//no code
+	}
+
+	filteredVolumes := make(map[string]Volume)
+	for _, name := range volumeNames {
+		filteredVolumes[name] = volumesMap[name]
+	}
+
+	return filteredVolumes
 }
 
 func setNriVolumesAsCreated(platformData *common.PlatformData) (bool, error) {

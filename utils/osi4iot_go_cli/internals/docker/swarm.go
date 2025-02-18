@@ -573,11 +573,13 @@ func CheckDockerClientsMap(DCMap map[string]*DockerClient, action string) error 
 }
 
 func RemoveSshPrivKeyTempFile() error {
-	existsSshPrivateKeyFile := utils.ExistFile(sshPrivKeyTempFile.Name())
-	if existsSshPrivateKeyFile {
-		err := os.Remove(sshPrivKeyTempFile.Name())
-		if err != nil {
-			return err
+	if sshPrivKeyTempFile != nil {
+		existsSshPrivateKeyFile := utils.ExistFile(sshPrivKeyTempFile.Name())
+		if existsSshPrivateKeyFile {
+			err := os.Remove(sshPrivKeyTempFile.Name())
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -703,7 +705,7 @@ func GetImages(dc *DockerClient) error {
 }
 
 func CleanResources() error {
-	if err := RemoveSshPrivKeyTempFile() ; err != nil {
+	if err := RemoveSshPrivKeyTempFile(); err != nil {
 		return fmt.Errorf("error removing ssh private key temp file: %v", err)
 	}
 
