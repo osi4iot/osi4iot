@@ -26,6 +26,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 const FormContainer = styled.div`
@@ -119,13 +120,13 @@ const EditOrgUser: FC<EditOrgUserProps> = ({ orgUsers, backToTable, refreshOrgUs
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 setIsSubmitting(false);
                 setOrgUsersOptionToShow(orgsUsersDispatch, { orgUsersOptionToShow: ORG_USERS_OPTIONS.TABLE });
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

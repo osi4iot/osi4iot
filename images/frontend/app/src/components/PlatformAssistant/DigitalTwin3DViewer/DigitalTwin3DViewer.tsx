@@ -49,6 +49,7 @@ import {
 	useWindowObjectReferences
 } from '../../../contexts/platformAssistantContext';
 import { existFemResFileLocallyStored, readFemResFile, writeFemResFile } from '../../../tools/fileSystem';
+import { AxiosError, AxiosResponse } from 'axios';
 
 const CanvasContainer = styled.div`
 	background-color: #212121;
@@ -411,13 +412,13 @@ const environmentOptions = [
 	"sunset",
 	"dawn",
 	"night",
-	"warehouse",
-	"forest",
-	"apartment",
-	"studio",
-	"city",
-	"park",
-	"lobby"
+	// "warehouse",
+	// "forest",
+	// "apartment",
+	// "studio",
+	// "city",
+	// "park",
+	// "lobby"
 ]
 
 const domainName = getDomainName();
@@ -534,7 +535,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 				const topicsIdArrayObj = { topicsIdArray }
 				getAxiosInstance(refreshToken, authDispatch)
 					.post(urlLastMeasurements, topicsIdArrayObj, config)
-					.then((response) => {
+					.then((response: AxiosResponse<any, any>) => {
 						const lastMeasurements = response.data;
 						const newInitialDigitalTwinSimulatorState = { ...initialDigitalTwinSimulatorState };
 						lastMeasurements.forEach((measurement: { payload: Record<string, number> }) => {
@@ -549,7 +550,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						setInitialDigitalTwinSimulatorState(newInitialDigitalTwinSimulatorState);
 						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
 					})
-					.catch((error) => {
+					.catch((error: AxiosError) => {
 						axiosErrorHandler(error, authDispatch);
 						setGetLastMeasurementsButtomLabel("GET LAST MEASUREMENTS");
 					});
@@ -753,14 +754,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 			const urlFemResFolder = `${urlFemResFolderBase}/femResFiles`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlFemResFolder, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const femResFilesInfo: { fileName: string; lastModified: string }[] = response.data;
 					const femResultDates = femResFilesInfo.map(fileInfo => formatDateString(fileInfo.lastModified));
 					setFemResultDates(femResultDates);
 					const femResultFileNames = femResFilesInfo.map(fileInfo => fileInfo.fileName.split("/")[4]);
 					setFemResultFileNames(femResultFileNames)
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					const warningMessage = "This model not have FEM results file.";
 					toast.warning(warningMessage);
 				});
@@ -832,7 +833,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 						} else {
 							getAxiosInstance(refreshToken, authDispatch)
 								.get(urlFemResFile, config)
-								.then((response) => {
+								.then((response: AxiosResponse<any, any>) => {
 									const femResData = response.data;
 									setFemResultData(femResData);
 									readFemSimulationInfo(
@@ -842,7 +843,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 									);
 									writeFemResFile(digitalTwinUid, femResultFileName, femResData, femResultDate);
 								})
-								.catch((error) => {
+								.catch((error: AxiosError) => {
 									const errorMessage = "FEM results file can not be downloaded";
 									toast.warning(errorMessage);
 								});

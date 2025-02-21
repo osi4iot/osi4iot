@@ -24,6 +24,7 @@ import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import IAssetTopic from '../TableColumns/assetTopics.interface';
 import { FieldContainer } from './EditAsset';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -138,14 +139,14 @@ const EditSensor: FC<EdiSensorProps> = ({ sensors, backToTable, refreshSensors }
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, sensorData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const sensorsOptionToShow = { sensorsOptionToShow: SENSORS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setSensorsOptionToShow(sensorsDispatch, sensorsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

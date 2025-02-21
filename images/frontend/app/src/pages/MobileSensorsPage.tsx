@@ -16,6 +16,7 @@ import axiosErrorHandler from '../tools/axiosErrorHandler';
 import MobileOrientationForm from '../components/Tools/MobileOrientationForm';
 import MobileMotionForm from '../components/Tools/MobileMotionForm';
 import styled from 'styled-components';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const LoadingItem = styled.div`
     background-color: #202226;
@@ -56,7 +57,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 		const config = axiosAuth(accessToken);
 		getAxiosInstance(refreshToken, authDispatch)
 			.get(urlTopics, config)
-			.then((response) => {
+			.then((response: AxiosResponse<any, any>) => {
 				const mobileTopicsData: IMobileTopic[] = response.data;
 				const mobileTopics = mobileTopicsData.filter(mobileTopic => mobileTopic.sensorType !== "geolocation");
 				if (mobileTopics.length !== 0) {
@@ -75,7 +76,7 @@ const MobileSensorsPage: FC<ChildrenProp> = ({ children }) => {
 					setLoadingLabel("No mobile sensor found");
 				}
 			})
-			.catch((error) => {
+			.catch((error: AxiosError) => {
 				axiosErrorHandler(error, authDispatch);
 			});
 	}, [accessToken, refreshToken, authDispatch]);

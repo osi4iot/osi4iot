@@ -1,3 +1,4 @@
+import { AxiosProgressEvent } from "axios";
 import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/threeInterfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 import { IWindowObjectReferences, PlatformAssistantDispatch } from "../contexts/platformAssistantContext/interfaces";
@@ -76,6 +77,56 @@ export const axiosAuth = (token: string, contentType: string = 'application/json
     };
     return config;
 };
+
+const progressFun = (
+    progressEvent: AxiosProgressEvent, 
+    totalFileSize: number, 
+    setGltfFileDownloadProgress: (progress: number) => void
+) => {
+    const current = progressEvent.loaded as number;
+    let percentCompleted = Math.floor(current / totalFileSize * 100);
+    setGltfFileDownloadProgress(percentCompleted);
+  }
+
+export const axiosAuthDigitalTwinFile = (
+    token: string, 
+    digitalTwinType: string, 
+    gltfFileSize: number,
+    setGltfFileDownloadProgress: (progress: number) => void
+) => {
+    let config = {};
+
+    if (digitalTwinType === "Gltf 3D model") {
+
+        config = {
+            headers: {
+                Authorization: "Bearer " + token,
+                "Content-Type": "application/json"
+            },
+            responseType: "json" as ResponseType,
+            onDownloadProgress: (progressEvent: AxiosProgressEvent) => progressFun(
+                progressEvent, 
+                gltfFileSize, 
+                setGltfFileDownloadProgress
+            )
+        };
+    } else if (digitalTwinType === "Glb 3D model") {
+        config = {
+            headers: {
+                Authorization: "Bearer " + token,
+                "Content-Type": "model/gltf-binary"
+            },
+            responseType: "blob" as ResponseType,
+            onDownloadProgress: (progressEvent: AxiosProgressEvent) => progressFun(
+                progressEvent, 
+                gltfFileSize, 
+                setGltfFileDownloadProgress
+            )
+        };
+    }
+    return config;
+};
+
 
 
 export const toFirstLetterUpperCase = (text: string) => {
@@ -290,7 +341,15 @@ const checkExtrasEntries = (
 }
 
 export const checkGltfFile = (gltfFileData: any): string => {
-    return "OK";
+    let message = "OK";
+    if (typeof gltfFileData === "string") gltfFileData = JSON.parse(gltfFileData);
+    if (Object.keys(gltfFileData).length === 0) {
+        return "ERROR";
+    }
+    if (gltfFileData.nodes?.length === 0) {
+        return "ERROR";
+    }
+    return message;
 }
 
 export const checkGltfFile_Old = (gltfFileData: any): string => {
@@ -452,5 +511,25 @@ export const giveMaxNumWebWorkers = () => {
         maxNumWebWorkers = window.navigator.hardwareConcurrency;
     }
     return maxNumWebWorkers;
+}
+
+export const giveBrowserType = () => {
+    let browserType = "Chrome";
+    if ((navigator.userAgent.indexOf("Opera") || navigator.userAgent.indexOf('OPR')) !== -1) {
+        browserType ='Opera';
+      } else if (navigator.userAgent.indexOf("Edg") !== -1) {
+        browserType = 'Edge';
+      } else if (navigator.userAgent.indexOf("Chrome") !== -1) {
+        browserType = 'Chrome';
+      } else if (navigator.userAgent.indexOf("Safari") !== -1) {
+        browserType = 'Safari';
+      } else if (navigator.userAgent.indexOf("Firefox") !== -1) {
+        browserType = 'Firefox';
+      } else if ((navigator.userAgent.indexOf("MSIE") !== -1)) {
+        browserType = 'IE';
+      } else {
+        browserType = 'unknown';
+      }
+    return browserType;
 }
 

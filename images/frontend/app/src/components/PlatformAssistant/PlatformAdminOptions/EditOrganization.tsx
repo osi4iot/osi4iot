@@ -25,6 +25,7 @@ import {
 } from '../../../contexts/platformAssistantContext';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -127,14 +128,14 @@ const EditOrganization: FC<EditOrganizationProps> = ({ organizations, refreshOrg
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const orgsOptionToShow = { orgsOptionToShow: ORGS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setOrgsOptionToShow(orgsDispatch, orgsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

@@ -3,6 +3,7 @@ import styled from "styled-components";
 import { Formik, Form, FormikProps } from 'formik';
 import * as Yup from 'yup';
 import { nanoid } from "nanoid";
+import { GLTFLoader } from 'three-stdlib';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
 import {
     axiosAuth,
@@ -11,7 +12,6 @@ import {
     digitalTwinFormatValidation,
     getDomainName,
     getProtocol,
-    IMeshNode,
     IOption
 } from "../../../tools/tools";
 import { toast } from "react-toastify";
@@ -37,6 +37,7 @@ import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
 import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosError, AxiosResponse } from 'axios';
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -115,42 +116,6 @@ const selectFile = (openFileSelector: () => void, clear: () => void) => {
     openFileSelector();
 }
 
-//Corregir
-export const getTopicSensorTypesFromDigitalTwin = (gltfData: any): {
-    sensorsRefList: string[],
-    topicsRefList: string[]
-} => {
-    const sensorsRefList: string[] = [];
-    const topicsRefList: string[] = [];
-    if (typeof gltfData === "string") gltfData = JSON.parse(gltfData);
-    if (Object.keys(gltfData).length && gltfData.nodes?.length !== 0) {
-        const meshNodes: IMeshNode[] = [];
-        gltfData.nodes.forEach((node: IMeshNode) => {
-            //node.mesh are not included for taking into account root nodes
-            if (node.extras !== undefined) meshNodes.push(node);
-        })
-        meshNodes.forEach((node: IMeshNode) => {
-            if (node.extras?.type !== undefined && node.extras?.type === "sensor") {
-                const topicType = node.extras?.topicType;
-                if (topicType && topicsRefList.findIndex(topicRefi => topicRefi === topicType) === -1) {
-                    topicsRefList.push(topicType);
-                }
-                const sensorRef = node.extras?.sensorRef;
-                if (sensorRef && sensorsRefList.findIndex(sensorRefi => sensorRefi === sensorRef) === -1) {
-                    sensorsRefList.push(sensorRef)
-                }
-            }
-            if (node.extras?.clipTopicType !== undefined) {
-                const topicType = node.extras?.clipTopicType;
-                if (topicType && topicsRefList.findIndex(topicRefi => topicRefi === topicType) === -1) {
-                    topicsRefList.push(topicType);
-                }
-            }
-        })
-    }
-    return { sensorsRefList, topicsRefList };
-}
-
 export interface ITopicRef {
     topicId: number;
     topicRef: string;
@@ -163,6 +128,10 @@ const digitalTwinTypeOptions = [
     {
         label: "Grafana dashboard",
         value: "Grafana dashboard"
+    },
+    {
+        label: "Glb 3D model",
+        value: "Glb 3D model"
     },
     {
         label: "Gltf 3D model",
@@ -275,6 +244,51 @@ interface IFormikValues {
     digitalTwinSimulationFormat: string;
 }
 
+export type ObjectMap = {
+    nodes: { [name: string]: THREE.Object3D }
+    materials: { [name: string]: THREE.Material }
+}
+
+export function buildGraph(object: THREE.Object3D) {
+    const data: ObjectMap = { nodes: {}, materials: {} }
+    if (object) {
+        object.traverse((obj: any) => {
+            if (obj.name) data.nodes[obj.name] = obj
+            if (obj.material && !data.materials[obj.material.name]) data.materials[obj.material.name] = obj.material
+        })
+    }
+    return data
+}
+
+export function getSensorsRef(object: THREE.Object3D) {
+    const sensorsRef: string[] = [];
+    if (object) {
+        object.traverse((node: any) => {
+            if (node.name) {
+                if (node.userData !== undefined) {
+                    if (node.userData.type && node.userData.type === "sensor") {
+                        const sensorRef = node.userData?.sensorRef;
+                        if (sensorRef) {
+                            if (sensorsRef.indexOf(sensorRef) === -1) {
+                                sensorsRef.push(sensorRef);
+                            }
+                        }
+                    }
+                    if (node.userData.clipSensorRef !== undefined) {
+                        const clipSensorRef = node.userData?.clipSensorRef;
+                        if (clipSensorRef) {
+                            if (sensorsRef.indexOf(clipSensorRef) === -1) {
+                                sensorsRef.push(clipSensorRef);
+                            }
+                        }
+                    }
+                }
+            }
+        })
+    }
+    return sensorsRef
+}
+
 type FormikType = FormikProps<IFormikValues>
 
 const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDigitalTwins }) => {
@@ -299,9 +313,11 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [assetDescription, setAssetDescription] = useState<string>("");
     const [localGltfFileLoaded, setLocalGltfFileLoaded] = useState(false);
     const [gltfFile, setGltfFile] = useState<File>();
+    const [isValidGltfFile, setIsValidGltfFile] = useState<boolean>(false);
+    const [gltfFileContent, setGltfFileContent] = useState<string>();
     const [gltfFileName, setGltfFileName] = useState("-");
-    const [gltfFileLastModifDateString, setGltfFileLastModifDateString] = useState("-");
-    const [digitalTwinGltfData, setDigitalTwinGltfData] = useState({});
+    const [gltfFileLastModif, setGltfFileLastModif] = useState("-");
+    //const [digitalTwinGltfData, setDigitalTwinGltfData] = useState({});
     const [localFemResFileLoaded, setLocalFemResFileLoaded] = useState(false);
     const [digitalTwinFemResData, setDigitalTwiFemResData] = useState({});
     const [femResFile, setFemResFile] = useState<File>();
@@ -310,7 +326,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
-
 
     useEffect(() => {
         const orgArray = orgsOfGroupManaged.map(org => org.acronym);
@@ -371,16 +386,55 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     }
 
     const [openGlftFileSelector, gltfFileParams] = useFilePicker({
-        readAs: 'Text',
+        readAs: digitalTwinType === "Gltf 3D model" ? 'Text' : 'DataURL',
         multiple: false,
-        accept: '.gltf',
+        accept: digitalTwinType === "Gltf 3D model" ? '.gltf' : '.glb',
     });
+
 
     const [openFemResFileSelector, femResFileParams] = useFilePicker({
         readAs: 'Text',
         multiple: false,
         accept: '.json',
     });
+
+    useEffect(() => {
+        if (gltfFileContent === undefined || gltfFileName === "-") return;
+        if (gltfFileName.slice(-3) === "glb") {
+            const loader = new GLTFLoader();
+            loader.loadAsync(gltfFileContent)
+                .then((gltf) => {
+                    const sensorsRef = getSensorsRef(gltf.scene);
+                    setSensorsRef(sensorsRef);
+                    setIsValidGltfFile(true);
+                })
+                .catch((error) => {
+                    if (error instanceof Error) {
+                        toast.error(`Invalid gltffile. ${error.message}`);
+                    } else {
+                        toast.error("Invalid gltffile");
+                    }
+                    setGltfFileContent(undefined);
+                    setLocalGltfFileLoaded(false);
+                    setIsValidGltfFile(false);
+                    gltfFileParams.clear();
+                })
+        } else if (gltfFileName.slice(-4) === "gltf") {
+            const gltfData = JSON.parse(gltfFileContent);
+            const message = checkGltfFile(gltfData);
+            if (message !== "OK") {
+                setIsValidGltfFile(false);
+                throw new Error(message);
+            }
+            const sensorsRef = getSensorsRefFromDigitalTwinGltfData(gltfData);
+            setSensorsRef(sensorsRef);
+            //setDigitalTwinGltfData(gltfData);
+            setIsValidGltfFile(true);
+        }
+    },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [gltfFileContent]
+    );
 
 
     useEffect(() => {
@@ -391,20 +445,14 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         ) {
             setLocalGltfFileLoaded(true)
             try {
+
                 const fileContent = gltfFileParams.filesContent[0].content
-                const gltfData = JSON.parse(fileContent);
-                const sensorsRef = getSensorsRefFromDigitalTwinGltfData(gltfData);
-                setSensorsRef(sensorsRef);
-                const message = checkGltfFile(gltfData);
-                if (message !== "OK") {
-                    throw new Error(message);
-                }
-                setDigitalTwinGltfData(gltfData);
+                setGltfFileContent(fileContent);
                 setGltfFile(gltfFileParams.plainFiles[0]);
                 const gltfFileName = gltfFileParams.plainFiles[0].name;
                 setGltfFileName(gltfFileName);
                 const dateString = (gltfFileParams.plainFiles[0] as any).lastModified;
-                setGltfFileLastModifDateString(formatDateString(dateString));
+                setGltfFileLastModif(formatDateString(dateString));
                 setLocalGltfFileLoaded(false);
                 gltfFileParams.clear();
                 setIsGlftDataReady(true);
@@ -476,7 +524,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, digitalTwinData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const digitalTwinsOptionToShow = { digitalTwinsOptionToShow: DIGITAL_TWINS_OPTIONS.TABLE };
@@ -486,22 +534,18 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 const urlUploadGltfBase0 = `${protocol}://${domainName}/admin_api/digital_twin_upload_file`;
                 const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${data.digitalTwinId}`;
 
-                if (Object.keys(digitalTwinGltfData).length !== 0) {
+                if (isValidGltfFile && (values.type === "Gltf 3D model" || values.type === "Glb 3D model")) {
                     let file = gltfFile as File;
-                    if (values.type === "Gltf 3D model") {
-                        const str = JSON.stringify(digitalTwinGltfData);
-                        const bytes = new TextEncoder().encode(str);
-                        file = new File([bytes], (gltfFile as File).name);
-                    }
                     const gltfData = new FormData();
                     gltfData.append("file", file, gltfFileName);
+
                     const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadGltfFile, gltfData, configMultipart)
-                        .then((response) => {
+                        .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
                         })
-                        .catch((error) => {
+                        .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
                         })
@@ -513,10 +557,10 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                     const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadFemResFile, femResData, configMultipart)
-                        .then((response) => {
+                        .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
                         })
-                        .catch((error) => {
+                        .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
                         })
@@ -524,7 +568,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
 
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })
@@ -543,12 +587,28 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         digitalTwinUid: Yup.string().length(20, "String must be 20 characters long").required('Required'),
         description: Yup.string().required('Required'),
         type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
-        maxNumResFemFiles: Yup.number().when("type", {
+        maxNumResFemFiles: Yup.number()
+            .when("type",
+                {
+                    is: "Gltf 3D model",
+                    then: Yup.number().min(1, "The minimum numer of FEM results files is 1").required("Must enter maxNumResFemFiles")
+                }
+            )
+            .when("type",
+                {
+                    is: "Glb 3D model",
+                    then: Yup.number().min(1, "The minimum numer of FEM results files is 1").required("Must enter maxNumResFemFiles")
+                }
+            ),
+        digitalTwinSimulationFormat: Yup.string()
+        .when("type", {
             is: "Gltf 3D model",
-            then: Yup.number().min(1, "The minimum numer of FEM results files is 1").required("Must enter maxNumResFemFiles")
-        }),
-        digitalTwinSimulationFormat: Yup.string().when("type", {
-            is: "Gltf 3D model",
+            then: Yup.string()
+                .test("test-name", "Wrong format for the json object", (value: any) => digitalTwinFormatValidation(value))
+                .required("Must enter Digital twin simulation format")
+        })        
+        .when("type", {
+            is: "Glb 3D model",
             then: Yup.string()
                 .test("test-name", "Wrong format for the json object", (value: any) => digitalTwinFormatValidation(value))
                 .required("Must enter Digital twin simulation format")
@@ -567,8 +627,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
     const clearGltfDataFile = () => {
         setGltfFileName("-");
-        setGltfFileLastModifDateString("-");
-        setDigitalTwinGltfData({});
+        setGltfFileLastModif("-");
+        //setDigitalTwinGltfData({});
         setLocalGltfFileLoaded(false);
         gltfFileParams.clear();
         setIsGlftDataReady(false);
@@ -668,7 +728,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                             onChange={(e) => onDigitalTwinTypeSelectChange(e, formik)}
                                         />
                                         {
-                                            digitalTwinType === "Gltf 3D model" &&
+                                            (digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model") &&
                                             <>
                                                 <DataFileTitle>Gltf data file</DataFileTitle>
                                                 <DataFileContainer>
@@ -678,7 +738,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </FieldContainer>
                                                     <FieldContainer>
                                                         <label>Last modification date</label>
-                                                        <div>{gltfFileLastModifDateString}</div>
+                                                        <div>{gltfFileLastModif}</div>
                                                     </FieldContainer>
                                                     <SelectDataFilenButtonContainer >
                                                         <FileButton

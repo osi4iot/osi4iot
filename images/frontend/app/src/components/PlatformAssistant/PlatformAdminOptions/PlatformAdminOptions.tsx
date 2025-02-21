@@ -40,6 +40,7 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const PlatformAdminOptionsContainer = styled.div`
 	display: flex;
@@ -173,12 +174,12 @@ const PlatformAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizations, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const organizations = response.data;
                     setOrganizationsTable(plaformAssistantDispatch, { organizations });
                     setOrgsLoading(false);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
 
@@ -201,7 +202,7 @@ const PlatformAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlBuildings, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const buildings = response.data;
                     buildings.map((building: IBuilding) => {
                         building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
@@ -213,7 +214,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     const reloadBuildingsTable = false;
                     setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
 
@@ -235,7 +236,7 @@ const PlatformAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlFloors, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const floors = response.data;
                     floors.map((floor: IFloor) => {
                         floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
@@ -247,7 +248,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     const reloadFloorsTable = false;
                     setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
 
@@ -269,7 +270,7 @@ const PlatformAdminOptions: FC<{}> = () => {
             const urlGlobalUsers = `${protocol}://${domainName}/admin_api/application/global_users`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const globalUsers = response.data.filter((user: IGlobalUser) => user.login.slice(-9) !== "api_admin");
                     globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
                         user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
@@ -281,7 +282,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     const reloadGlobalUsersTable = false;
                     setReloadGlobalUsersTable(plaformAssistantDispatch, { reloadGlobalUsersTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -303,7 +304,7 @@ const PlatformAdminOptions: FC<{}> = () => {
             const urlRefreshTokens = `${protocol}://${domainName}/admin_api/auth/refresh_tokens`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlRefreshTokens, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const refreshTokens = response.data;
                     refreshTokens.map((token: IRefreshToken) => {
                         token.createdAtAge = elaspsedTimeFormat(token.createdAtAge);
@@ -313,7 +314,7 @@ const PlatformAdminOptions: FC<{}> = () => {
                     setRefreshTokensTable(plaformAssistantDispatch, { refreshTokens });
                     setRefreshTokensLoading(false);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {

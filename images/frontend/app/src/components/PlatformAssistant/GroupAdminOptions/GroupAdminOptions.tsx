@@ -86,6 +86,7 @@ import { ITopic } from '../TableColumns/topicsColumns';
 import S3StorageForm from '../../Tools/S3StorageForm';
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from '../../../tools/fileSystem';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const GroupAdminOptionsContainer = styled.div`
 	display: flex;
@@ -288,7 +289,7 @@ const GroupAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlBuildings, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const buildings = response.data;
                     buildings.map((building: IBuilding) => {
                         building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
@@ -300,7 +301,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     const buildingsFiltered = filterBuildings(buildings);
                     setBuildingsFiltered(buildingsFiltered);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -321,7 +322,7 @@ const GroupAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlFloors, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const floors = response.data;
                     floors.map((floor: IFloor) => {
                         floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
@@ -333,7 +334,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     const floorsFiltered = filterFloors(floors);
                     setFloorsFiltered(floorsFiltered);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -369,12 +370,12 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlOrgsOfGroupsManaged = `${protocol}://${domainName}/admin_api/organizations/user_groups_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsOfGroupsManaged, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const orgsOfGroupsManaged = response.data;
                     setOrgsOfGroupsManagedTable(plaformAssistantDispatch, { orgsOfGroupsManaged });
                     setOrgsOfGroupsManagedLoading(false);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -388,7 +389,7 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlGroupsManaged = `${protocol}://${domainName}/admin_api/groups/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGroupsManaged, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const groupsManaged = response.data;
                     groupsManaged.map((group: { isOrgDefaultGroup: string; }) => {
                         group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
@@ -399,7 +400,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     const reloadGroupsManagedTable = false;
                     setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -420,14 +421,14 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlGroupMembers = `${protocol}://${domainName}/admin_api/group_members/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGroupMembers, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const groupMembers = response.data;
                     setGroupMembersTable(plaformAssistantDispatch, { groupMembers });
                     setGroupMembersLoading(false);
                     const reloadGroupMembersTable = false;
                     setReloadGroupMembersTable(plaformAssistantDispatch, { reloadGroupMembersTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -448,14 +449,14 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlGroupsManaged = `${protocol}://${domainName}/admin_api/organization_users/user_groups_managed/`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGroupsManaged, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const selectOrgUsers = response.data.filter((user: ISelectOrgUser) => user.login.slice(-9) !== "api_admin");
                     setSelectOrgUsersTable(plaformAssistantDispatch, { selectOrgUsers });
                     setSelectOrgUsersLoading(false);
                     const reloadSelectOrgUsersTable = false;
                     setReloadSelectOrgUsersTable(plaformAssistantDispatch, { reloadSelectOrgUsersTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -476,7 +477,7 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlSensorTypes = `${protocol}://${domainName}/admin_api/sensor_types/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlSensorTypes, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const sensorTypes = response.data;
                     sensorTypes.map((sensorType: ISensorType) => {
                         sensorType.isPredefinedString = "No";
@@ -488,7 +489,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     const reloadSensorTypesTable = false;
                     setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -509,7 +510,7 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlAssetTypes, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const assetTypes = response.data;
                     assetTypes.map((assetType: IAssetType) => {
                         assetType.isPredefinedString = "No";
@@ -521,7 +522,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     const reloadAssetTypesTable = false;
                     setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -543,14 +544,14 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlAssets = `${protocol}://${domainName}/admin_api/assets/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlAssets, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const assets = response.data;
                     setAssetsTable(plaformAssistantDispatch, { assets });
                     setAssetsLoading(false);
                     const reloadAssetsTable = false;
                     setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -571,14 +572,14 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlAssetTopics = `${protocol}://${domainName}/admin_api/asset_topics/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlAssetTopics, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const assetTopics = response.data;
                     setAssetTopicsTable(plaformAssistantDispatch, { assetTopics });
                     setAssetTopicsLoading(false);
                     const reloadAssetTopicsTable = false;
                     setReloadAssetTopicsTable(plaformAssistantDispatch, { reloadAssetTopicsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -600,14 +601,14 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlAssetS3Folders = `${protocol}://${domainName}/admin_api/asset_s3_folders/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlAssetS3Folders, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const assetS3Folders = response.data;
                     setAssetS3FoldersTable(plaformAssistantDispatch, { assetS3Folders });
                     setAssetS3FoldersLoading(false);
                     const reloadAssetS3FoldersTable = false;
                     setReloadAssetS3FoldersTable(plaformAssistantDispatch, { reloadAssetS3FoldersTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -629,14 +630,14 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlSensors = `${protocol}://${domainName}/admin_api/sensors/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlSensors, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const sensors = response.data;
                     setSensorsTable(plaformAssistantDispatch, { sensors });
                     setSensorsLoading(false);
                     const reloadSensorsTable = false;
                     setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -657,7 +658,7 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlTopics = `${protocol}://${domainName}/admin_api/topics/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlTopics, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const topics = response.data;
                     topics.map((topic: ITopic) => {
                         topic.payloadJsonSchema = JSON.stringify(topic.payloadJsonSchema);
@@ -670,7 +671,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     const reloadTopicsTable = false;
                     setReloadTopicsTable(plaformAssistantDispatch, { reloadTopicsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -691,14 +692,14 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlDashboards = `${protocol}://${domainName}/admin_api/dashboards/user_managed/`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlDashboards, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const dashboards = response.data;
                     setDashboardsTable(plaformAssistantDispatch, { dashboards });
                     setDashboardsLoading(false);
                     const reloadDashboardsTable = false;
                     setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -720,7 +721,7 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlDigitalTwins, config)
-                .then(async (response) => {
+                .then(async (response: AxiosResponse<any, any>) => {
                     const digitalTwins = response.data as IDigitalTwin[];
                     digitalTwins.forEach(dt => {
 						dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`;
@@ -742,7 +743,7 @@ const GroupAdminOptions: FC<{}> = () => {
                     const reloadDigitalTwinsTable = false;
                     setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     const digitalTwins: never[] = [];
                     setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
                     setDigitalTwinsLoading(false);
@@ -766,14 +767,14 @@ const GroupAdminOptions: FC<{}> = () => {
             const urlMlModels = `${protocol}://${domainName}/admin_api/ml_models/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlMlModels, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const mlModels = response.data;
                     setMlModelsTable(plaformAssistantDispatch, { mlModels });
                     setMlModelsLoading(false);
                     const reloadMlModelsTable = false;
                     setReloadMlModelsTable(plaformAssistantDispatch, { reloadMlModelsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     const mlModels: never[] = [];
                     setMlModelsTable(plaformAssistantDispatch, { mlModels });
                     setMlModelsLoading(false);

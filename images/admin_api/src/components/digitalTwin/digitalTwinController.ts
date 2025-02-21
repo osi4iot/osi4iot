@@ -31,7 +31,6 @@ import {
 	getDigitalTwinMqttTopicsInfoFromByDTIdsArray,
 	generateDigitalTwinMqttTopics,
 	verifyAndCorrectDigitalTwinReferences,
-	getDigitalTwinGltfData,
 	getBucketFolderInfoFileList,
 	deleteBucketFile,
 	removeFilesFromBucketFolder,
@@ -40,6 +39,9 @@ import {
 	checkDigitalTwinConstraint,
 	checkExistentSensorsRef,
 	addDashboardUrls,
+	getDigitalTwinGlbFile,
+	getDigitalTwinData,
+	getDigitalTwinGltfFile,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -56,6 +58,7 @@ import IRequestWithAssetAndGroup from "../group/interfaces/requestWithAssetAndGr
 import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigitalTwinAndGroup.interface";
 import infoLogger from "../../utils/logger/infoLogger";
 import { getAssetTopicsInfoFromByDTIdsArray } from "../asset/assetDAL";
+import type {Readable} from 'stream'
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -125,10 +128,22 @@ class DigitalTwinController implements IController {
 				this.getDigitalTwinByProp
 			)
 			.get(
-				`${this.path}_gltfdata/:groupId/:digitalTwinId`,
+				`${this.path}_data/:groupId/:digitalTwinId`,
 				groupExists,
 				groupAdminAuth,
-				this.getDigitalTwinGltfData
+				this.getDigitalTwinData
+			)
+			.get(
+				`${this.path}_glbfile/:groupId/:digitalTwinId`,
+				groupExists,
+				groupAdminAuth,
+				this.getDigitalTwinGlbFile
+			)
+			.get(
+				`${this.path}_gltffile/:groupId/:digitalTwinId`,
+				groupExists,
+				groupAdminAuth,
+				this.getDigitalTwinGltfFile
 			)
 			.delete(
 				`${this.path}/:groupId/:digitalTwinId`,
@@ -332,7 +347,7 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private getDigitalTwinGltfData = async (
+	private getDigitalTwinData = async (
 		req: Request,
 		res: Response,
 		next: NextFunction
@@ -341,8 +356,43 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
 			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
-			const digitalTwinGltfData = await getDigitalTwinGltfData(digitalTwin);
-			res.status(200).send(digitalTwinGltfData);
+			const digitalTwinData = await getDigitalTwinData(digitalTwin);
+			res.status(200).send(digitalTwinData);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getDigitalTwinGltfFile = async (
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { digitalTwinId } = req.params;
+			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
+			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
+			const digitalTwinGltfFile = await getDigitalTwinGltfFile(digitalTwin);
+			res.status(200).send(digitalTwinGltfFile);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getDigitalTwinGlbFile = async (
+		req: Request,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { digitalTwinId } = req.params;
+			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
+			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
+			const response = await getDigitalTwinGlbFile(digitalTwin);
+			if (!response) throw new HttpException(req, res, 500, "The glb file does not exist");
+			res.set('content-type', "model/gltf-binary");
+			const stream = response.Body as  Readable;
+			stream.pipe(res);
 		} catch (error) {
 			next(error);
 		}

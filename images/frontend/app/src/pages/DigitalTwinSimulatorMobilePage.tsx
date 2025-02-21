@@ -13,6 +13,7 @@ import { IDigitalTwinSimulator } from '../components/PlatformAssistant/TableColu
 import DigitalTwinSimulatorSelectForm from '../components/Tools/DigitalTwinSimulatorSelectForm';
 import DigitalTwinSimulatorOptions from '../components/Tools/DigitalTwinSimulatorOptions';
 import styled from 'styled-components';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const LoadingItem = styled.div`
     background-color: #202226;
@@ -55,7 +56,7 @@ const DigitalTwinSimulatorPage: FC<ChildrenProp> = ({ children }) => {
 		const config = axiosAuth(accessToken);
 		getAxiosInstance(refreshToken, authDispatch)
 			.get(urlTopics, config)
-			.then((response) => {
+			.then((response: AxiosResponse<any, any>) => {
 				const digitalTwinSimulatorsManaged: IDigitalTwinSimulator[] = response.data;
 				setDigitalTwinSimulatorsManaged(digitalTwinSimulatorsManaged);
 				if (digitalTwinSimulatorsManaged.length !== 0) {
@@ -72,7 +73,7 @@ const DigitalTwinSimulatorPage: FC<ChildrenProp> = ({ children }) => {
 					setLoadingLabel("No digital twin simulator found");
 				}
 			})
-			.catch((error) => {
+			.catch((error: AxiosError) => {
 				axiosErrorHandler(error, authDispatch);
 			});
 	}, [accessToken, refreshToken, authDispatch]);

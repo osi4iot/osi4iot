@@ -8,6 +8,7 @@ import DeleteModalWithDatePicker from "../../Tools/DeleteModalWithDatePicker";
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { ISensor } from "../TableColumns/sensorsColumns";
+import { AxiosResponse, AxiosError } from "axios";
 
 const domainName = getDomainName();
 const protocol = getProtocol();
@@ -73,14 +74,14 @@ const DeleteMeasurementsIcon: FC<DeleteMeasurementsIconProps> = ({ measurementTo
         const headers = config.headers;
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, { data: payload, headers })
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsSubmitting(false);
                 refreshMeasurements();
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

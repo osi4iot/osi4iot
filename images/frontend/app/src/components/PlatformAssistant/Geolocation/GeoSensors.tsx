@@ -22,9 +22,9 @@ interface GeoSensorsProps {
     selectDigitalTwin: (digitalTwinSelected: IDigitalTwin | null) => void;
     digitalTwinState: IDigitalTwinState | null;
     sensorsState: ISensorState[];
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
-    fetchGltfFileWorker: Worker;
+    setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
 }
 
 
@@ -41,7 +41,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
     sensorsState,
     openDigitalTwin3DViewer,
     setGlftDataLoading,
-    fetchGltfFileWorker
+    setGltfFileDownloadProgress,
 }) => {
     const arrayLength = sensors.length;
     const [sensorsArray, setSensorsArray] = useState(sensors.slice(0, 10));
@@ -108,7 +108,7 @@ const GeoSensors: FC<GeoSensorsProps> = ({
                     digitalTwinState={digitalTwinState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
-                    fetchGltfFileWorker={fetchGltfFileWorker}
+                    setGltfFileDownloadProgress={setGltfFileDownloadProgress}
                 />
             }
             {

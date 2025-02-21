@@ -79,7 +79,7 @@ export default interface IDigitalTwinSensorDashboard {
 
 export interface IDigitalTwinGltfData {
 	id: number;
-	gltfData: any;
+	gltfFile: any;
 	digitalTwinGltfUrl: string | null;
 	femResFileInfoList: IBucketFileInfoList[];
 	mqttTopicsData: IMqttTopicData[];
@@ -954,9 +954,9 @@ function sendCustomEvent(eventName: string, data: any) {
 }
 
 function findSelectableObject(intersects: THREE.Intersection<THREE.Object3D<THREE.Event>>[]) {
-	for(let i = 0; i < intersects.length; i++) {
+	for (let i = 0; i < intersects.length; i++) {
 		const obj = intersects[i].object;
-		if(obj.parent && obj.parent.userData.selectable === "false") {
+		if (obj.parent && obj.parent.userData.selectable === "false") {
 			continue
 		}
 		if (obj.userData.selectable === undefined || obj.userData.selectable === "true") {
@@ -1120,10 +1120,16 @@ export const onMeshMouseExit = (e: any) => {
 }
 
 
-export const createUrl = (gltfData: string) => {
-	const binaryDataGltf = [];
-	binaryDataGltf.push(gltfData);
-	const gltfUrl = URL.createObjectURL(new Blob(binaryDataGltf));
+export const createUrl = (gltfData: any) => {
+	let gltfUrl: string;
+	if (typeof gltfData === 'string') {
+		const binaryDataGltf = [];
+		binaryDataGltf.push(gltfData);
+		gltfUrl = URL.createObjectURL(new Blob(binaryDataGltf));
+	} else {
+		gltfUrl = URL.createObjectURL(gltfData);
+	}
+
 	return gltfUrl;
 }
 

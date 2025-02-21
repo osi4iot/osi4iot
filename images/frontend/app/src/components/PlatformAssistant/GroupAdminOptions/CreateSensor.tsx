@@ -29,6 +29,7 @@ import { setSensorsOptionToShow, useSensorsDispatch } from '../../../contexts/se
 import IAssetTopic from '../TableColumns/assetTopics.interface';
 import { ISensor } from '../TableColumns/sensorsColumns';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosError, AxiosResponse } from 'axios';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -396,14 +397,14 @@ const CreateSensor: FC<CreateSensorProps> = ({
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, sensorData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const sensorsOptionToShow = { sensorsOptionToShow: SENSORS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setSensorsOptionToShow(sensorsDispatch, sensorsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

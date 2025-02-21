@@ -23,6 +23,7 @@ import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import { IOrgManaged } from '../TableColumns/organizationsManagedColumns';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
 import { cleanSvgString } from '../../../tools/generateAssetTypeMarker';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const SvgIconPreviewContainerDiv = styled.div`
     margin: 5px 0;
@@ -309,14 +310,14 @@ const EditSensorType: FC<EditSensorTypeProps> = ({
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, sensorTypeData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const sensorTypesOptionToShow = { sensorTypesOptionToShow: SENSOR_TYPES_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setSensorTypesOptionToShow(sensorTypesDispatch, sensorTypesOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

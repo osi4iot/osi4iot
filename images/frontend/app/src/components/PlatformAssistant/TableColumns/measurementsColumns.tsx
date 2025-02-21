@@ -15,6 +15,7 @@ import {
 } from '../../../contexts/measurementsOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 export interface IMeasurement {
     timestamp: number;
@@ -83,14 +84,14 @@ const DeleteMeasurementModal: FC<DeleteMeasurementModalProps> = ({
         const headers = config.headers;
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, { data: payload, headers })
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsMeasurementDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

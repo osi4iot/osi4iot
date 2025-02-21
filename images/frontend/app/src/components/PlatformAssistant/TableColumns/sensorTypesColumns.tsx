@@ -16,6 +16,7 @@ import {
     setSensorTypesOptionToShow,
     useSensorTypesDispatch
 } from '../../../contexts/sensorTypesOptions';
+import { AxiosResponse, AxiosError } from 'axios';
 
 export interface ISensorType {
 	id: number;
@@ -73,7 +74,7 @@ const DeleteSensorTypeModal: FC<DeleteSensorTypeModalProps> = ({ rowIndex, orgId
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsSensorTypeDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
@@ -81,7 +82,7 @@ const DeleteSensorTypeModal: FC<DeleteSensorTypeModalProps> = ({ rowIndex, orgId
                 hideModal();
 
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

@@ -10,6 +10,7 @@ import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from "axios";
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -51,13 +52,13 @@ const ChangePassword: FC<ChangePasswordProps> = ({ backToUserProfile }) => {
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, passwordData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 setIsSubmitting(false);
                 backToUserProfile();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToUserProfile();
             })

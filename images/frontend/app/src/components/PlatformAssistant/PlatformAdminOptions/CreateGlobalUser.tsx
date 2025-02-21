@@ -10,6 +10,7 @@ import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 const FormContainer = styled.div`
@@ -105,12 +106,12 @@ const CreateGlobalUser: FC<CreateGlobalUserProps> = ({ backToTable, refreshGloba
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .post(url, values, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 backToTable();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

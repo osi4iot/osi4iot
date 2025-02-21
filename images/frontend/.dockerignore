@@ -1,3 +1,9 @@
 ./app/node_modules
 ./app/build
 ./app/public/env-config.js
+./app_r18/node_modules
+./app_r18/build
+./app_r18/public/env-config.js
+./app_r18_old/node_modules
+./app_r18_old/build
+./app_r18_old/public/env-config.js

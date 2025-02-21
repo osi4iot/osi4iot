@@ -39,7 +39,9 @@ images/frontend/app_r18/.env
 images/frontend/app_r18/node_modules
 images/frontend/app_r18/build
 images/frontend/app_r18/public/env-config.js
-!images/frontend/app_r18/.env
+images/frontend/app_r18_old/.env
+images/frontend/app_r18_old/node_modules
+images/frontend/app_r18_old/build
 images/mobile_sensors/app/.env
 images/mobile_sensors/app/node_modules
 images/mobile_sensors/app/build
@@ -64,4 +66,8 @@ utils/osi4iot_cli/secrets
 utils/osi4iot_cli/.osi4iot_keys
 !utils/osi4iot_cli/dist
 utils/osi4iot_cli/lib
+utils/osi4iot_go_cli/.osi4iot_keys
+utils/osi4iot_go_cli/certs
+utils/osi4iot_go_cli/geojson
+utils/osi4iot_go_cli/osi4iot_state.json
 !README.md

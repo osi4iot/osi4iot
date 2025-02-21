@@ -11,6 +11,7 @@ import FormTitle from "../../Tools/FormTitle";
 import { IUserProfile } from "./UserProfile";
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from "axios";
 
 const FormContainer = styled.div`
 	font-size: 12px;
@@ -52,14 +53,14 @@ const EditUserProfile: FC<EditUserProfileProps> = ({  userProfileToEdit, refresh
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 setIsSubmitting(false);
                 setUserProfileUpdated(true);
                 backToUserProfile();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToUserProfile();
             })

@@ -20,6 +20,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { useGroupsManagedTable, useOrgsOfGroupsManagedTable } from '../../../contexts/platformAssistantContext';
 import { FieldContainer } from './EditAsset';
 import { ControlsContainer, FormContainer } from './CreateAsset';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const topicTypeOptions = [
     {
@@ -149,14 +150,14 @@ const EditTopic: FC<EdiTopicProps> = ({ topics, backToTable, refreshTopics }) =>
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, topicData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const topicsOptionToShow = { topicsOptionToShow: TOPICS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setTopicsOptionToShow(topicsDispatch, topicsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

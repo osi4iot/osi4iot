@@ -18,6 +18,7 @@ import { GLOBAL_USERS_OPTIONS } from '../Utils/platformAssistantOptions';
 import { IGlobalUser } from '../TableColumns/globalUsersColumns';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 const FormContainer = styled.div`
@@ -72,14 +73,14 @@ const EditGlobalUser: FC<EditGlobalUserProps> = ({ globalUsers, backToTable, ref
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, values, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const globalUsersOptionToShow = { globalUsersOptionToShow: GLOBAL_USERS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setGlobalUsersOptionToShow(globalUserDispatch, globalUsersOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

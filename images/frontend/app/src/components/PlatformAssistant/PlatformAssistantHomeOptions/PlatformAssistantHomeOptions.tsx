@@ -2,7 +2,7 @@ import { FC, useEffect, useState, useCallback, Suspense, useMemo } from 'react'
 import styled from "styled-components";
 import { axiosAuth, getDomainName, getProtocol } from '../../../tools/tools';
 import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
-import Loader from "../../Tools/Loader";
+//import Loader from "../../Tools/Loader";
 import { PLATFORM_ASSISTANT_HOME_OPTIONS } from '../Utils/platformAssistantOptions';
 import {
 	usePlatformAssitantDispatch,
@@ -69,9 +69,10 @@ import elaspsedTimeFormat from '../../../tools/elapsedTimeFormat';
 import { IAssetType } from '../TableColumns/assetTypesColumns';
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import fetchFemResFileCode from '../../../webWorkers/fetchFemResFileCode';
-import fetchGltfFileCode from '../../../webWorkers/fetchGltfFileCode';
 import { getDTStorageInfo, syncDigitalTwinsLocalStorage } from '../../../tools/fileSystem';
 import { IGeolocationMeasurement } from '../TableColumns/measurementsColumns';
+import HomeOptionsLoader from '../../Tools/HomeOptionsLoader';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const PlatformAssistantHomeOptionsContainer = styled.div`
 	display: flex;
@@ -280,16 +281,12 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 	const [sensorSelected, setSensorSelected] = useState<ISensor | null>(null);
 	const [digitalTwinSelected, setDigitalTwinSelected] = useState<IDigitalTwin | null>(null);
 	const [glftDataLoading, setGlftDataLoading] = useState(false);
+	const [gltfFileDownloadProgress, setGltfFileDownloadProgress] = useState(0);
 	const [digitalTwinsState, setDigitalTwinsState] = useState<IDigitalTwinState[]>([]);
 	const [sensorsState, setSensorsState] = useState<ISensorState[]>([]);
 	const [assetMarkerSelected, setAssetMarkerSelected] = useState(false);
 	const fetchFemResFileWorker: Worker = useMemo(
 		() => new Worker(fetchFemResFileCode),
-		[]
-	);
-
-	const fetchGltfFileWorker: Worker = useMemo(
-		() => new Worker(fetchGltfFileCode),
 		[]
 	);
 
@@ -350,12 +347,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 
 	const openDigitalTwin3DViewer = useCallback((
 		digitalTwinGltfData: IDigitalTwinGltfData,
-		isGroupDTDemo: boolean
 	) => {
-		if (typeof digitalTwinGltfData.gltfData === 'string') {
-			digitalTwinGltfData.gltfData = JSON.parse(digitalTwinGltfData.gltfData);
-		}
-		digitalTwinGltfData.isGroupDTDemo = isGroupDTDemo;
 		setDigitalTwinGltfData(digitalTwinGltfData)
 		setOptionToShow(PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS)
 	}, [])
@@ -427,7 +419,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const config = axiosAuth(accessToken);
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlBuildings, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const buildings = response.data;
 					buildings.map((building: IBuilding) => {
 						building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
@@ -441,7 +433,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const reloadBuildingsTable = false;
 					setReloadBuildingsTable(plaformAssistantDispatch, { reloadBuildingsTable });
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
@@ -463,7 +455,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const config = axiosAuth(accessToken);
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlFloors, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const floors = response.data;
 					floors.map((floor: IFloor) => {
 						floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
@@ -477,7 +469,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const reloadFloorsTable = false;
 					setReloadFloorsTable(plaformAssistantDispatch, { reloadFloorsTable });
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
@@ -498,14 +490,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const config = axiosAuth(accessToken);
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlOrgsManaged, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const orgsOfGroupsManaged = response.data;
 					setOrgsOfGroupsManagedTable(plaformAssistantDispatch, { orgsOfGroupsManaged });
 					setOrgsOfGroupsManagedLoading(false);
 					const reloadOrgsOfGroupsManagedTable = false;
 					setReloadOrgsOfGroupsManagedTable(plaformAssistantDispatch, { reloadOrgsOfGroupsManagedTable });
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
@@ -526,7 +518,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const urlGroupsManaged = `${protocol}://${domainName}/admin_api/groups/user_managed`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlGroupsManaged, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const groupsManaged = response.data;
 					groupsManaged.map((group: { isOrgDefaultGroup: string; }) => {
 						group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
@@ -537,7 +529,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const reloadGroupsManagedTable = false;
 					setReloadGroupsManagedTable(plaformAssistantDispatch, { reloadGroupsManagedTable })
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
@@ -559,7 +551,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlAssetTypes, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const assetTypes = response.data;
 					assetTypes.map((assetType: IAssetType) => {
 						assetType.isPredefinedString = "No";
@@ -571,7 +563,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const reloadAssetTypesTable = false;
 					setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
@@ -592,14 +584,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const urlAssets = `${protocol}://${domainName}/admin_api/assets/user_managed`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlAssets, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const assets = response.data;
 					setAssetsTable(plaformAssistantDispatch, { assets });
 					setAssetsLoading(false);
 					const reloadAssetsTable = false;
 					setReloadAssetsTable(plaformAssistantDispatch, { reloadAssetsTable });
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
@@ -620,7 +612,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const urlSensorTypes = `${protocol}://${domainName}/admin_api/sensor_types/user_managed`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlSensorTypes, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const sensorTypes = response.data;
 					sensorTypes.map((sensorType: ISensorType) => {
 						sensorType.isPredefinedString = "No";
@@ -632,7 +624,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 					const reloadSensorTypesTable = false;
 					setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
@@ -653,14 +645,14 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const urlSensors = `${protocol}://${domainName}/admin_api/sensors/user_managed`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlSensors, config)
-				.then((response) => {
+				.then((response: AxiosResponse<any, any>) => {
 					const sensors = response.data;
 					setSensorsTable(plaformAssistantDispatch, { sensors });
 					setSensorsLoading(false);
 					const reloadSensorsTable = false;
 					setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					axiosErrorHandler(error, authDispatch);
 				});
 		} else {
@@ -682,7 +674,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			const urlDigitalTwins = `${protocol}://${domainName}/admin_api/digital_twins/user_managed`;
 			getAxiosInstance(refreshToken, authDispatch)
 				.get(urlDigitalTwins, config)
-				.then(async (response) => {
+				.then(async (response: AxiosResponse<any, any>) => {
 					const digitalTwins = response.data as IDigitalTwin[];
 					digitalTwins.forEach(dt => {
 						dt.digitalTwinRef = `DT_${dt.digitalTwinUid}`;
@@ -708,7 +700,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 						}
 					});
 				})
-				.catch((error) => {
+				.catch((error: AxiosError) => {
 					const digitalTwins: never[] = [];
 					setDigitalTwinsTable(plaformAssistantDispatch, { digitalTwins });
 					setDigitalTwinsLoading(false);
@@ -739,7 +731,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 			if (assetsWithMarker.length === 0 || reloadAssetsWithMarkerTable) {
 				getAxiosInstance(refreshToken, authDispatch)
 					.get(urlBuildings, config)
-					.then((response) => {
+					.then((response: AxiosResponse<any, any>) => {
 						const lastGeolocationMeasurements = response.data as IGeolocationMeasurement[];
 						initialAssetsWithMarker.forEach(asset => {
 							const lastGeolocation = lastGeolocationMeasurements.filter(item => item.assetUid === asset.assetUid)[0];
@@ -761,7 +753,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 						const reloadAssetsWithMarkerTable = false;
 						setReloadAssetsWithMarkerTable(plaformAssistantDispatch, { reloadAssetsWithMarkerTable });
 					})
-					.catch((error) => {
+					.catch((error: AxiosError) => {
 						axiosErrorHandler(error, authDispatch);
 					});
 			} else {
@@ -826,7 +818,11 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 						digitalTwinLoading ||
 						glftDataLoading
 					) ?
-						<Loader />
+						<HomeOptionsLoader
+							key={gltfFileDownloadProgress}
+							glftDataLoading={glftDataLoading}
+							gltfFileDownloadProgress={gltfFileDownloadProgress}
+						/>
 						:
 						<>
 							{optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.GEOLOCATION &&
@@ -876,7 +872,7 @@ const PlatformAssistantHomeOptions: FC<{}> = () => {
 									setDigitalTwinsState={setDigitalTwinsState}
 									sensorsState={sensorsState}
 									setSensorsState={setSensorsState}
-									fetchGltfFileWorker={fetchGltfFileWorker}
+									setGltfFileDownloadProgress={(progress: number) => setGltfFileDownloadProgress(progress)}
 								/>
 							}
 							{(optionToShow === PLATFORM_ASSISTANT_HOME_OPTIONS.DIGITAL_TWINS && digitalTwinGltfData) &&

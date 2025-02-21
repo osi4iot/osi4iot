@@ -24,6 +24,7 @@ import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import RemoveDTLocalStorageIcon from '../Utils/RemoveDTLocalStorageIcon';
 import { removeDTStoragebyUid } from '../../../tools/fileSystem';
+import { AxiosResponse, AxiosError } from 'axios';
 
 export interface IDigitalTwin {
     id: number;
@@ -111,7 +112,7 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsDigitalTwinDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
@@ -119,7 +120,7 @@ const DeleteDigitalTwinModal: FC<DeleteDigitalTwinModalProps> = ({ rowIndex, gro
                 hideModal();
 
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();
@@ -195,14 +196,14 @@ const RemoveDTLocalStorageModal: FC<RemoveDTLocalStorageModalProps> = ({
 
     const action = (hideModal: () => void) => {
         removeDTStoragebyUid(digitalTwinUid)
-            .then((response) => {
+            .then((response:any) => {
                 setIsDigitalTwinDeleted(true);
                 setIsSubmitting(false);
                 toast.success(response);
                 hideModal();
 
             })
-            .catch((error) => {
+            .catch((error: any) => {
                 setIsSubmitting(false);
                 hideModal();
             })

@@ -16,6 +16,7 @@ import {
 } from '../../../contexts/groupMembersOptions';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 export interface IGroupMember {
     groupId: number;
@@ -66,14 +67,14 @@ const DeleteGroupMemberModal: FC<DeleteGroupMemberModalProps> = ({ rowIndex, gro
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsGroupMemberDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

@@ -180,5 +180,6 @@ module.exports = {
         "use-isnan": "error",
         "valid-typeof": "off",
         "jsdoc/newline-after-description": "off",
+        "indent": ["error", "tab"],
     }
 };

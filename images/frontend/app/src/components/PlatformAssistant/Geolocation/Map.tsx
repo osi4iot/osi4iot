@@ -412,9 +412,9 @@ interface MapProps {
     resetBuildingSelection: () => void;
     digitalTwinsState: IDigitalTwinState[];
     sensorsState: ISensorState[];
-    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData, isGroupDTDemo: boolean) => void;
+    openDigitalTwin3DViewer: (digitalTwinGltfData: IDigitalTwinGltfData) => void;
     setGlftDataLoading: (gtGlftDataLoading: boolean) => void;
-    fetchGltfFileWorker: Worker;
+    setGltfFileDownloadProgress: (gltfFileDownloadProgress: number) => void;
 }
 
 
@@ -467,7 +467,7 @@ const Map: FC<MapProps> = (
         sensorsState,
         openDigitalTwin3DViewer,
         setGlftDataLoading,
-        fetchGltfFileWorker
+        setGltfFileDownloadProgress,     
     }) => {
     const windowWidth = useWindowWidth();
     const isMobile = windowWidth < 768;
@@ -549,7 +549,7 @@ const Map: FC<MapProps> = (
                     sensorsState={sensorsState}
                     openDigitalTwin3DViewer={openDigitalTwin3DViewer}
                     setGlftDataLoading={setGlftDataLoading}
-                    fetchGltfFileWorker={fetchGltfFileWorker}
+                    setGltfFileDownloadProgress={setGltfFileDownloadProgress}
                 />
             }
             <ControlsContainer>

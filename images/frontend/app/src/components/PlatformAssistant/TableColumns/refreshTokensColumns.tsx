@@ -7,6 +7,7 @@ import DeleteIcon from '../Utils/DeleteIcon';
 import DeleteModal from '../../Tools/DeleteModal';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
+import { AxiosResponse, AxiosError } from 'axios';
 
 export interface IRefreshToken {
     id: number;
@@ -53,14 +54,14 @@ const DeleteRefreshTokenModal: FC<DeleteRefreshTokenModalProps> = ({ rowIndex, r
         const config = axiosAuth(accessToken);
         getAxiosInstance(refreshToken, authDispatch)
             .delete(url, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 setIsRefreshTokenDeleted(true);
                 setIsSubmitting(false);
                 const data = response.data;
                 toast.success(data.message);
                 hideModal();
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 setIsSubmitting(false);
                 hideModal();

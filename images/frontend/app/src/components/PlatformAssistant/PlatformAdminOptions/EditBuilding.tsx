@@ -25,6 +25,7 @@ import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import formatDateString from '../../../tools/formatDate';
 import { isGeoJSONString } from '../../../tools/geojsonValidation';
 import { ControlsContainer, FormContainer } from '../GroupAdminOptions/CreateAsset';
+import { AxiosResponse, AxiosError } from 'axios';
 
 const BuildingLocationTitle = styled.div`
     margin-bottom: 5px;
@@ -236,14 +237,14 @@ const EditBuilding: FC<EditBuildingProps> = ({ buildings, backToTable, refreshBu
 
         getAxiosInstance(refreshToken, authDispatch)
             .patch(url, buildingData, config)
-            .then((response) => {
+            .then((response: AxiosResponse<any, any>) => {
                 const data = response.data;
                 toast.success(data.message);
                 const buildingsOptionToShow = { buildingsOptionToShow: BUILDINGS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setBuildingsOptionToShow(buildingsDispatch, buildingsOptionToShow);
             })
-            .catch((error) => {
+            .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
                 backToTable();
             })

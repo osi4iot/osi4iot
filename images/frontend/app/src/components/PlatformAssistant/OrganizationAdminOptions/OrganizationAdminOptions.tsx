@@ -60,6 +60,7 @@ import { useReloadSensorTypesTable, useSensorTypesTable } from '../../../context
 import { ISensorType } from '../TableColumns/sensorTypesColumns';
 import { SensorTypesProvider } from '../../../contexts/sensorTypesOptions';
 import SensorTypesContainer from './SensorTypesContainer';
+import { AxiosResponse, AxiosError } from 'axios';
 
 
 const OrganizationAdminOptionsContainer = styled.div`
@@ -223,7 +224,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlBuildings, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const buildings = response.data;
                     buildings.map((building: IBuilding) => {
                         building.createdAtAge = elaspsedTimeFormat(building.createdAtAge);
@@ -235,7 +236,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     const buildingsFiltered = filterBuildings(buildings);
                     setBuildingsFiltered(buildingsFiltered);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -256,7 +257,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlFloors, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const floors = response.data;
                     floors.map((floor: IFloor) => {
                         floor.createdAtAge = elaspsedTimeFormat(floor.createdAtAge);
@@ -268,7 +269,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     const floorsFiltered = filterFloors(floors);
                     setFloorsFiltered(floorsFiltered);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -304,14 +305,14 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlOrgsManaged, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const orgsManaged = response.data;
                     setOrgsManagedTable(plaformAssistantDispatch, { orgsManaged });
                     setOrgsManagedLoading(false);
                     const reloadOrgsManagedTable = false;
                     setReloadOrgsManagedTable(plaformAssistantDispatch, { reloadOrgsManagedTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -332,7 +333,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const config = axiosAuth(accessToken);
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlNodeRedInstances, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const nodeRedInstances = response.data;
                     nodeRedInstances.forEach((nodeRedInstance: { groupId: number | string; deleted: boolean | string }) => {
                         if (nodeRedInstance.groupId === 0) nodeRedInstance.groupId = "-";
@@ -344,7 +345,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     const reloadNodeRedInstancesTable = false;
                     setReloadNodeRedInstancesTable(plaformAssistantDispatch, { reloadNodeRedInstancesTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
 
@@ -366,7 +367,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const urlOrganizationUsers = `${protocol}://${domainName}/admin_api/organization_users/user_orgs_managed/`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlOrganizationUsers, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const orgUsers = response.data.filter((user: IOrgUser) => user.login.slice(-9) !== "api_admin");
                     orgUsers.map((user: IOrgUser) => {
                         user.lastSeenAtAge = elaspsedTimeFormat(user.lastSeenAtAge);
@@ -379,7 +380,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     const reloadGlobalUsersTable = false;
                     setReloadGlobalUsersTable(plaformAssistantDispatch, { reloadGlobalUsersTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -400,7 +401,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const urlGroups = `${protocol}://${domainName}/admin_api/groups/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGroups, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const groups = response.data;
                     groups.map((group: { isOrgDefaultGroup: string; }) => {
                         group.isOrgDefaultGroup = group.isOrgDefaultGroup ? "Default" : "Generic";
@@ -411,7 +412,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     const reloadGroupsTable = false;
                     setReloadGroupsTable(plaformAssistantDispatch, { reloadGroupsTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -432,7 +433,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const urlSensorTypes = `${protocol}://${domainName}/admin_api/sensor_types/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlSensorTypes, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const sensorTypes = response.data;
                     sensorTypes.map((sensorType: ISensorType) => {
                         sensorType.isPredefinedString = "No";
@@ -444,7 +445,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     const reloadSensorTypesTable = false;
                     setReloadSensorTypesTable(plaformAssistantDispatch, { reloadSensorTypesTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -465,7 +466,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const urlAssetTypes = `${protocol}://${domainName}/admin_api/asset_types/user_managed`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlAssetTypes, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const assetTypes = response.data;
                     assetTypes.map((assetType: IAssetType) => {
                         assetType.isPredefinedString = "No";
@@ -477,7 +478,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     const reloadAssetTypesTable = false;
                     setReloadAssetTypesTable(plaformAssistantDispatch, { reloadAssetTypesTable });
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {
@@ -498,7 +499,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
             const urlGlobalUsers = `${protocol}://${domainName}/admin_api/application/global_users`;
             getAxiosInstance(refreshToken, authDispatch)
                 .get(urlGlobalUsers, config)
-                .then((response) => {
+                .then((response: AxiosResponse<any, any>) => {
                     const globalUsers = response.data.filter((user: IGlobalUser) => user.login.slice(-9) !== "api_admin");
                     globalUsers.map((user: { roleInPlatform: string; lastSeenAtAge: string, isGrafanaAdmin: boolean }) => {
                         user.roleInPlatform = user.isGrafanaAdmin ? "Admin" : "";
@@ -508,7 +509,7 @@ const OrganizationAdminOptions: FC<{}> = () => {
                     setGlobalUsersTable(plaformAssistantDispatch, { globalUsers });
                     setGlobalUsersLoading(false);
                 })
-                .catch((error) => {
+                .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
                 });
         } else {

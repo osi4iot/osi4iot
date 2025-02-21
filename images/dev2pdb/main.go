@@ -3,17 +3,18 @@ package main
 import (
 	"bufio"
 	"context"
-	"github.com/buger/jsonparser"
 	"fmt"
-	mqtt "github.com/eclipse/paho.mqtt.golang"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
+	"io"
 	"log"
+	"net/http"
 	"os"
 	"strings"
 	"time"
-	"net/http"
-	"io"
+
+	"github.com/buger/jsonparser"
+	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type config struct {
@@ -28,6 +29,65 @@ type config struct {
 	databaseName       string
 }
 
+func AdminApiQuery() bool {
+	client := http.Client{
+		Timeout: 5 * time.Second,
+	}
+
+	url := "http://admin_api:3200/health"
+	resp, err := client.Get(url)
+	if err != nil {
+		fmt.Printf("Error connecting to Admin API: %v\n", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	return resp.StatusCode == http.StatusOK
+}
+
+func isAdminApiHealthy() bool {
+	isHealthy := false
+	numTrials := 5
+	numMaxIterations := 60
+	numIter := 0
+	for {
+		numTrueTrials := 0
+		for i := 0; i < numTrials; i++ {
+			if AdminApiQuery() {
+				numTrueTrials++
+			}
+			time.Sleep(2 * time.Second)
+		}
+		if numTrueTrials == numTrials {
+			isHealthy = true
+			break
+		}
+		numIter++
+		if numIter == numMaxIterations {
+			break
+		}
+		fmt.Println("Admin API is not healthy yet. Retrying...")
+		time.Sleep(10 * time.Second)
+	}
+	return isHealthy
+}
+
+// func isAdminApiHealthy() bool {
+//     client := http.Client{
+//         Timeout: 5 * time.Second,
+//     }
+
+// 	url := "http://admin_api:3200/health"
+//     resp, err := client.Get(url)
+//     if err != nil {
+//         fmt.Printf("Error connecting to Admin API: %v\n", err)
+//         return false
+//     }
+//     defer resp.Body.Close()
+
+//     return resp.StatusCode == http.StatusOK
+// }
+
 func connectToMqttBroker(configData config) mqtt.Client {
 	opts := createClientOptions(configData)
 	client := mqtt.NewClient(opts)
@@ -37,7 +97,8 @@ func connectToMqttBroker(configData config) mqtt.Client {
 	}
 
 	if err := token.Error(); err != nil {
-		log.Fatal(err)
+		time.Sleep(70 * time.Second) //Wait until the mosquitto_gp_auth service clean the cache
+		log.Fatal("Dev2pdb service could not connect to mqtt broker: ", err)
 	} else {
 		fmt.Printf("Dev2pdb service connected to mqtt broker.\n")
 	}
@@ -59,25 +120,25 @@ func createClientOptions(configData config) *mqtt.ClientOptions {
 	return opts
 }
 
-func sendRowToChannelHandler1000ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel1000ms chan []interface{}) {
+func sendRowToChannelHandler1000ms(msg mqtt.Message, rowChannel1000ms chan []interface{}) {
 	timestamp := time.Now()
 	payload := msg.Payload()
 
 	topicsSlice := strings.Split(msg.Topic(), "/")
 	group_uid := topicsSlice[1][6:]
 	topic_uid := topicsSlice[2][6:]
-	topic := fmt.Sprintf("%s", topicsSlice[2])
+	topic := topicsSlice[2]
 	deleted := 0
 
 	item := []interface{}{group_uid, topic_uid, topic, payload, timestamp, deleted}
 	rowChannel1000ms <- item
 }
 
-func sendRowToChannelHandler200ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel200ms chan []interface{}) {
+func sendRowToChannelHandler200ms(msg mqtt.Message, rowChannel200ms chan []interface{}) {
 	topicsSlice := strings.Split(msg.Topic(), "/")
 	group_uid := topicsSlice[1][6:]
 	topic_uid := topicsSlice[2][6:]
-	topic := fmt.Sprintf("%s", topicsSlice[2])
+	topic := topicsSlice[2]
 	deleted := 0
 
 	timestampString, err := jsonparser.GetString(msg.Payload(), "timestamp");
@@ -96,15 +157,15 @@ func sendRowToChannelHandler200ms(dbPool *pgxpool.Pool, msg mqtt.Message, rowCha
 	}
 }
 
-func sendRowToChannelHandlerMessagedArray(dbPool *pgxpool.Pool, msg mqtt.Message, rowChannel1000ms chan []interface{}) {
+func sendRowToChannelHandlerMessagedArray(msg mqtt.Message, rowChannel1000ms chan []interface{}) {
 	messagesArray := msg.Payload()
 	topicsSlice := strings.Split(msg.Topic(), "/")
 	group_uid := topicsSlice[1][6:]
 	topic_uid := topicsSlice[2][6:]
-	topic := fmt.Sprintf("%s", topicsSlice[2])
+	topic := topicsSlice[2]
 	deleted := 0
 
-	jsonparser.ArrayEach(messagesArray, func(message []byte, dataType jsonparser.ValueType, offset int, err error) {
+	jsonparser.ArrayEach(messagesArray, func(message []byte, dataType jsonparser.ValueType, offset int, innerErr error) {
 		timestampString, err := jsonparser.GetString(message, "timestamp");
 		if err != nil {
 			fmt.Println("Timestamp field not defined")
@@ -170,21 +231,21 @@ func appendRowInSlice1000ms(dbPool *pgxpool.Pool, tickerStorage1000ms *time.Tick
 	}
 }
 
-func listen(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel1000ms chan []interface{}) {
+func listen(subcribedTopic string, client mqtt.Client, rowChannel1000ms chan []interface{}) {
 	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		go sendRowToChannelHandler1000ms(dbPool, msg, rowChannel1000ms)
+		go sendRowToChannelHandler1000ms(msg, rowChannel1000ms)
 	})
 }
 
-func listenMessagesArray(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel1000ms chan []interface{}) {
+func listenMessagesArray(subcribedTopic string, client mqtt.Client, rowChannel1000ms chan []interface{}) {
 	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		go sendRowToChannelHandlerMessagedArray(dbPool, msg, rowChannel1000ms)
+		go sendRowToChannelHandlerMessagedArray(msg, rowChannel1000ms)
 	})
 }
 
-func listenWithTimestamp(subcribedTopic string, client mqtt.Client, dbPool *pgxpool.Pool, rowChannel200ms chan []interface{}) {
+func listenWithTimestamp(subcribedTopic string, client mqtt.Client, rowChannel200ms chan []interface{}) {
 	client.Subscribe(subcribedTopic, 0, func(client mqtt.Client, msg mqtt.Message) {
-		go sendRowToChannelHandler200ms(dbPool, msg, rowChannel200ms)
+		go sendRowToChannelHandler200ms(msg, rowChannel200ms)
 	})
 }
 
@@ -250,6 +311,13 @@ func getParameterFromFileOrEnvVar(envVarName string, filePath string) string {
 }
 
 func main() {
+	// Check if the Admin API is healthy
+	if !isAdminApiHealthy() {
+		log.Fatal("Admin API service is not healthy")
+	} else {
+		time.Sleep(10 * time.Second) // Wait until the user dev2pdb is created
+	}
+
 	configData := getConfigData()
 
 	databaseUrl := getDatabaseUrl(configData)
@@ -268,14 +336,14 @@ func main() {
 	rowChannel1000ms := make(chan []interface{})
 	tickerStorage1000ms := time.NewTicker(1 * time.Second)
 	go appendRowInSlice1000ms(dbPool, tickerStorage1000ms, rowChannel1000ms)
-	go listen("dev2pdb/#", client, dbPool, rowChannel1000ms)
-	go listenMessagesArray("dev2pdb_ma/#", client, dbPool, rowChannel1000ms)
-	go listen("dtm2pdb/#", client, dbPool, rowChannel1000ms)
+	go listen("dev2pdb/#", client, rowChannel1000ms)
+	go listenMessagesArray("dev2pdb_ma/#", client, rowChannel1000ms)
+	go listen("dtm2pdb/#", client, rowChannel1000ms)
 
 	rowChannel200ms := make(chan []interface{})
 	tickerStorage200ms := time.NewTicker(200 * time.Millisecond)
 	go appendRowInSlice200ms(dbPool, tickerStorage200ms, rowChannel200ms)
-	go listenWithTimestamp("dev2pdb_wt/#", client, dbPool, rowChannel200ms)
+	go listenWithTimestamp("dev2pdb_wt/#", client, rowChannel200ms)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(rw http.ResponseWriter, r *http.Request) { io.WriteString(rw, "Healthy") })

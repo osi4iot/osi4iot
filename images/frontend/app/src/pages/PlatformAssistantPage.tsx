@@ -11,6 +11,7 @@ import { PLATFORM_ASSISTANT_OPTION } from "../components/PlatformAssistant/Utils
 import PlatformAssistantHomeOptions from '../components/PlatformAssistant/PlatformAssistantHomeOptions/PlatformAssistantHomeOptions';
 import { getAxiosInstance } from "../tools/axiosIntance";
 import axiosErrorHandler from "../tools/axiosErrorHandler";
+import { AxiosResponse, AxiosError } from "axios";
 
 
 const Container = styled.div`
@@ -45,11 +46,11 @@ const PlatformAssistantPage: FC<{}> = () => {
 		const config = axiosAuth(accessToken);
 		getAxiosInstance(refreshToken, authDispatch)
 			.get(url, config)
-			.then((response) => {
+			.then((response: AxiosResponse<any, any>) => {
 				const data = response.data;
 				setUserRole(platformAssistantDispatch, data);
 			})
-			.catch((error) => {
+			.catch((error: AxiosError) => {
 				axiosErrorHandler(error, authDispatch);
 			});
 	}, [
