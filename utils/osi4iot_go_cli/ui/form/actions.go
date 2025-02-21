@@ -10,6 +10,7 @@ import (
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
@@ -710,20 +711,41 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 	mqttAccessControl := m.FindAnswerByKey("MQTT_ACCESS_CONTROL")
 	numNriInMainOrg, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_NODERED_INSTANCES_IN_ORG"))
 	nriHashes := make([]string, numNriInMainOrg)
-	for idx := 0; idx < numNriInMainOrg; idx++ {
-		nriHashes[idx] = utils.GeneratePassword(10)
+
+	newOrg := common.Organization{
+		OrgHash:              orgHash,
+		OrgAcronym:           orgAcronym,
+		ExclusiveWorkerNodes: []string{},
+		NodeRedInstances:     []common.NodeRedInstance{},
 	}
+	for idx := 0; idx < numNriInMainOrg; idx++ {
+		nriHash := utils.GeneratePassword(10)
+		nriHashes[idx] = nriHash
+		nri := common.NodeRedInstance{
+			ClientCrt:           "",
+			ClientKey:           "",
+			ExpirationTimestamp: 0,
+			NriHash:             nriHash,
+			IsVolumeCreated:     "false",
+			ClientCrtName:       "",
+			ClientKeyName:       "",
+		}
+		newOrg.NodeRedInstances = append(newOrg.NodeRedInstances, nri)
+	}
+	platformData.Certs.MqttCerts.Organizations = append(platformData.Certs.MqttCerts.Organizations, newOrg)
+
 	orgAdminFirstName := m.FindAnswerByKey("ORG_ADMIN_FIRST_NAME")
 	orgAdminSurname := m.FindAnswerByKey("ORG_ADMIN_SURNAME")
 	orgAdminEmail := m.FindAnswerByKey("ORG_ADMIN_EMAIL")
 	orgAdminArray := []orgs.Admin{
-		{FirstName: orgAdminFirstName,
-			Surname: orgAdminSurname,
-			Email:   orgAdminEmail,
+		{
+			FirstName: orgAdminFirstName,
+			Surname:   orgAdminSurname,
+			Email:     orgAdminEmail,
 		},
 	}
 
-	newOrgData := orgs.CreateOrgData{
+	createOrgData := orgs.CreateOrgData{
 		Name:                   orgName,
 		Acronym:                orgAcronym,
 		Role:                   orgRole,
@@ -736,10 +758,35 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 		OrgAdminArray:          orgAdminArray,
 	}
 
-	err := orgs.RequestCreateOrg(platformData, newOrgData)
+	err := orgs.RequestCreateOrg(platformData, createOrgData)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error: creating organization: %v", err)
 		return creatingOrgMsg(errMsg), err
+	}
+
+	err = utils.MqttTLSCredentials(platformData)
+	if err != nil {
+		return creatingOrgMsg("Error: creating mqtt certs"), err
+	}
+
+	err = utils.WritePlatformDataToFile(platformData)
+	if err != nil {
+		return creatingOrgMsg("Error: writing platform data to file"), err
+	}
+
+	err = docker.AddNFSFolders(platformData)
+	if err != nil {
+		return creatingOrgMsg("Error: adding NFS folders on nodes"), err
+	}
+
+	err = docker.AddEfsFolders(platformData)
+	if err != nil {
+		return creatingOrgMsg("Error: adding EFS folders on nodes"), err
+	}
+
+	err = docker.CreateNriServices(newOrg, platformData)
+	if err != nil {
+		return creatingOrgMsg("Error: creating NodeRed instances services"), err
 	}
 
 	return creatingOrgMsg("Organization created successfully"), nil

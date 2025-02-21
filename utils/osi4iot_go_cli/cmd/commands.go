@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var SwarmActions = []string{"create", "init", "run", "stop", "delete"}
+var SwarmActions = []string{"create", "init", "run", "stop", "delete", "org"}
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -32,7 +32,7 @@ var cmdCreate = &cobra.Command{
 		platformState := data.GetPlatformState()
 		if platformState == data.Initiating {
 			platformData := data.GetData()
-			_, err:= docker.SetDockerClientsMap(platformData)
+			_, err:= docker.SetDockerClientsMap(platformData, "create")
 			if err != nil {
 				errMsg := fmt.Sprintf("Error setting Docker clients map: %v", err)
 				exitWithError(errMsg)
@@ -103,8 +103,8 @@ var cmdRun = &cobra.Command{
 	},
 }
 
-var cmdOrgs = &cobra.Command{
-	Use:   "orgs",
+var cmdOrg = &cobra.Command{
+	Use:   "org",
 	Short: "Organizations management",
 	Long:  "Organizations management",
 	// Run: func(cmd *cobra.Command, args []string) {
@@ -143,6 +143,12 @@ var subCmdAddOrg = &cobra.Command{
 		form.CreateOrgForm()
 		platformState := data.GetPlatformState()
 		if platformState == data.CreatingOrg {
+			platformData := data.GetData()
+			err := docker.SwarmInitiationInfo(platformData)
+			if err != nil {
+				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
+				exitWithError(errMsg)
+			}
 			exitWithOkMsg("Organization created successfully")
 		}
 	},
@@ -318,11 +324,11 @@ func init() {
 	rootCmd.AddCommand(cmdCerts)
 	rootCmd.AddCommand(cmdStatus)
 
-	cmdOrgs.AddCommand(subCmdOrgsList)
-	cmdOrgs.AddCommand(subCmdUpdateOrg)
-	cmdOrgs.AddCommand(subCmdAddOrg)
-	cmdOrgs.AddCommand(subCmdRemoveOrg)
-	rootCmd.AddCommand(cmdOrgs)
+	cmdOrg.AddCommand(subCmdOrgsList)
+	cmdOrg.AddCommand(subCmdUpdateOrg)
+	cmdOrg.AddCommand(subCmdAddOrg)
+	cmdOrg.AddCommand(subCmdRemoveOrg)
+	rootCmd.AddCommand(cmdOrg)
 
 	cmdCustomService.AddCommand(subCmdListCS)
 	cmdCustomService.AddCommand(subCmdUpdateCS)

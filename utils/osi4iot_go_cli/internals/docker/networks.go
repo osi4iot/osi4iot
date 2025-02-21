@@ -47,6 +47,7 @@ func createNetwork(dc *DockerClient, swarmNetwork *Network) error {
 	networkExists := false
 	for _, n := range existingNetworks {
 		if n.Name == swarmNetwork.Name {
+			swarmNetwork.Id = n.ID
 			networkExists = true
 			break
 		}

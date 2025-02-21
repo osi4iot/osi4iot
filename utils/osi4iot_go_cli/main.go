@@ -41,7 +41,7 @@ func main() {
 
 		if slices.Contains(cmd.SwarmActions, action) {
 			platformData := data.GetData()
-			DCMap, dcMapErr := docker.SetDockerClientsMap(platformData)
+			DCMap, dcMapErr := docker.SetDockerClientsMap(platformData, action)
 			if dcMapErr != nil {
 				err := docker.CheckDockerClientsMap(DCMap, action)
 				if err != nil {

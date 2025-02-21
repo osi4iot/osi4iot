@@ -19,7 +19,7 @@ func nodesConfiguration(platformData *common.PlatformData) error {
 		return fmt.Errorf("error installing NFS on nodes: %w", err)
 	}
 
-	err = addNFSFolders(platformData)
+	err = AddNFSFolders(platformData)
 	if err != nil {
 		return fmt.Errorf("error adding NFS folders on nodes: %w", err)
 	}
@@ -29,7 +29,7 @@ func nodesConfiguration(platformData *common.PlatformData) error {
 		return fmt.Errorf("error installing EFS on nodes: %w", err)
 	}
 
-	err = addEfsFolders(platformData)
+	err = AddEfsFolders(platformData)
 	if err != nil {
 		return fmt.Errorf("error adding EFS folders on nodes: %w", err)
 	}
@@ -271,7 +271,7 @@ sudo systemctl restart nfs-kernel-server
 	return nil
 }
 
-func addNFSFolders(platformData *common.PlatformData) error {
+func AddNFSFolders(platformData *common.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -492,7 +492,7 @@ fi
 	return nil
 }
 
-func addEfsFolders(platformData *common.PlatformData) error {
+func AddEfsFolders(platformData *common.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 

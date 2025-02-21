@@ -27,7 +27,7 @@ type SwarmData struct {
 	Networks map[string]Network
 }
 
-var swarmData SwarmData
+//var swarmData SwarmData
 
 type DockerClient struct {
 	Cli  *client.Client
@@ -116,7 +116,7 @@ func RunSwarm(dc *DockerClient, platformData *common.PlatformData) error {
 		return fmt.Errorf("error creating swarm networks: %v", err)
 	}
 
-	swarmData = SwarmData{
+	swarmData := SwarmData{
 		Secrets:  secrets,
 		Configs:  configs,
 		Volumes:  volumes,
@@ -489,7 +489,7 @@ type DcResp struct {
 	Err          error
 }
 
-func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerClient, error) {
+func SetDockerClientsMap(platformData *common.PlatformData, action string) (map[string]*DockerClient, error) {
 	var swarmErr error = nil
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	if deploymentLocation == "" {
@@ -511,6 +511,9 @@ func SetDockerClientsMap(platformData *common.PlatformData) (map[string]*DockerC
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Getting docker clients from each node"
 		endMsg := "Docker clients of all nodes have been successfully obtained."
+		if action == "org" {
+			endMsg = ""
+		}
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		for _, node := range nodesData {
 			wg.Add(1)

@@ -366,7 +366,11 @@ func Spinner(spinnerMsg string, endMsg string, done chan bool) {
 			case doneMsg := <-done:
 				if doneMsg {
 					spaces := strings.Repeat(" ", len(spinnerMsg)+10)
-					fmt.Printf("\r%s%s\n", endMsg, spaces)
+					if endMsg != "" {
+						fmt.Printf("\r%s%s\n", endMsg, spaces)
+					} else {
+						fmt.Print("\033[2K\r")
+					}
 				} else {
 					fmt.Println()
 				}
@@ -523,7 +527,7 @@ func GetLocalNodeIP() (string, error) {
 	}
 	defer conn.Close()
 
-	localAddr:= conn.LocalAddr().(*net.UDPAddr)
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	localIP := localAddr.IP.String()
 	return localIP, nil
 }

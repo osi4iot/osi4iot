@@ -105,11 +105,11 @@ func CreateCaCerts(platformData *common.PlatformData) (*rsa.PrivateKey, *x509.Ce
 		platformData.Certs.MqttCerts.CaCerts.MqttCertsCaCertName = mqttCertsCaCertName
 		platformData.Certs.MqttCerts.CaCerts.ExpirationTimestamp = GetCertExpirationTimestamp(caCertString)
 
-		deploymentMode := platformData.PlatformInfo.DeploymentMode
-		if deploymentMode == "development" {
-			WriteToFile("./certs/mqtt_certs/ca.cert", caCertPEM, 0600)
-			WriteToFile("./certs/mqtt_certs/ca.key", caKeyPEM, 0600)
-		}
+		// deploymentMode := platformData.PlatformInfo.DeploymentMode
+		// if deploymentMode == "development" {
+		// 	WriteToFile("./certs/mqtt_certs/ca.cert", caCertPEM, 0600)
+		// 	WriteToFile("./certs/mqtt_certs/ca.key", caKeyPEM, 0600)
+		// }
 	} else {
 		caCertPEM := []byte(platformData.Certs.MqttCerts.CaCerts.CaCrt)
 		block, _ := pem.Decode(caCertPEM)
@@ -120,7 +120,7 @@ func CreateCaCerts(platformData *common.PlatformData) (*rsa.PrivateKey, *x509.Ce
 		if err != nil {
 			return nil, nil, fmt.Errorf("error parsing CA certificate:: %v", err)
 		}
-		
+
 		caKeyPEM := []byte(platformData.Certs.MqttCerts.CaCerts.CaKey)
 		block, _ = pem.Decode(caKeyPEM)
 		if block == nil || block.Type != "RSA PRIVATE KEY" {
@@ -214,11 +214,10 @@ func CreateBrokerCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey,
 	return nil
 }
 
-func CreateNodeRedCerts(platformData *common.PlatformData,caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
+func CreateNodeRedCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
 	domainName := platformData.PlatformInfo.DomainName
 	validityDays := platformData.PlatformInfo.MQTTSslCertsValidityDays
 	limitTime := time.Now().Add(24 * 15 * time.Hour) //15 days of margin
-	deploymentMode := platformData.PlatformInfo.DeploymentMode
 	for iorg, org := range platformData.Certs.MqttCerts.Organizations {
 		orgAcronym := org.OrgAcronym
 		orgAcronymLower := strings.ToLower(orgAcronym)
@@ -296,10 +295,11 @@ func CreateNodeRedCerts(platformData *common.PlatformData,caKey *rsa.PrivateKey,
 				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].IsVolumeCreated = "false"
 				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash = nriHash
 
-				if deploymentMode == "development" {
-					WriteToFile(fmt.Sprintf("./certs/mqtt_certs/%s.crt", nriCommonName), nriCertPEM, 0600)
-					WriteToFile(fmt.Sprintf("./certs/mqtt_certs/%s.key", nriCommonName), nriKeyPEM, 0600)
-				}
+				// deploymentMode := platformData.PlatformInfo.DeploymentMode
+				// if deploymentMode == "development" {
+				// 	WriteToFile(fmt.Sprintf("./certs/mqtt_certs/%s.crt", nriCommonName), nriCertPEM, 0600)
+				// 	WriteToFile(fmt.Sprintf("./certs/mqtt_certs/%s.key", nriCommonName), nriKeyPEM, 0600)
+				// }
 			}
 		}
 	}

@@ -3,7 +3,7 @@ package docker
 import (
 	"fmt"
 	"strings"
-
+	
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
@@ -432,6 +432,7 @@ func createVolume(dc *DockerClient, swarmVol *Volume) error {
 	volumeExists := false
 	for _, v := range existingVolumes.Volumes {
 		if v.Name == swarmVol.Name {
+			swarmVol.ID = v.Name
 			volumeExists = true
 			break
 		}
@@ -455,27 +456,27 @@ func createVolume(dc *DockerClient, swarmVol *Volume) error {
 	return nil
 }
 
+// func createSwarmVolumes(platformData *common.PlatformData) (map[string]Volume, error) {
+// 	volumes := GenerateVolumes(platformData)
+// 	errors := []error{}
+// 	for key, volume := range volumes {
+// 		for _, dc := range DCMap {
+// 			err := createVolume(dc, &volume)
+// 			if err != nil {
+// 				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err))
+// 			}
+// 		}
+// 		volumes[key] = volume
+// 	}
+
+// 	if len(errors) > 0 {
+// 		return nil, fmt.Errorf("errors creating volumes: %v", errors)
+// 	}
+
+// 	return volumes, nil
+// }
+
 func createSwarmVolumes(platformData *common.PlatformData) (map[string]Volume, error) {
-	volumes := GenerateVolumes(platformData)
-	errors := []error{}
-	for key, volume := range volumes {
-		for _, dc := range DCMap {
-			err := createVolume(dc, &volume)
-			if err != nil {
-				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err))
-			}
-		}
-		volumes[key] = volume
-	}
-
-	if len(errors) > 0 {
-		return nil, fmt.Errorf("errors creating volumes: %v", errors)
-	}
-
-	return volumes, nil
-}
-
-func CreateSwarmVolumes(platformData *common.PlatformData) (map[string]Volume, error) {
 	volumesMap := GenerateVolumes(platformData)
 	numNodes := len(platformData.PlatformInfo.NodesData)
 	errors := []error{}

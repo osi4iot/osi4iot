@@ -254,34 +254,37 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 	}
 	Secrets["s3_storage"] = s3StorageSecret
 
-	for iorg := 0; iorg < len(platformData.Certs.MqttCerts.Organizations); iorg++ {
-		orgAcronym := strings.ToLower(platformData.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
-		numNodeRedInstances := len(platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
+	generateNriSecrets(platformData.Certs.MqttCerts.Organizations, Secrets)
+
+	return Secrets
+}
+
+func generateNriSecrets(orgs []common.Organization, Secrets map[string]Secret)  {
+	for iorg := 0; iorg < len(orgs); iorg++ {
+		orgAcronym := strings.ToLower(orgs[iorg].OrgAcronym)
+		numNodeRedInstances := len(orgs[iorg].NodeRedInstances)
 		for inri := 0; inri < numNodeRedInstances; inri++ {
-			nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
+			nriHash := orgs[iorg].NodeRedInstances[inri].NriHash
 			mqttClientCertSecretKey := fmt.Sprintf("%s_%s_cert", orgAcronym, nriHash)
 			mqttClientCertSecret := Secret{
-				Name: platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ClientCrtName,
-				Data: platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ClientCrt,
+				Name: orgs[iorg].NodeRedInstances[inri].ClientCrtName,
+				Data: orgs[iorg].NodeRedInstances[inri].ClientCrt,
 			}
 			Secrets[mqttClientCertSecretKey] = mqttClientCertSecret
 
 			mqttClientKeySecretKey := fmt.Sprintf("%s_%s_key", orgAcronym, nriHash)
 			mqttClientKeySecret := Secret{
-				Name: platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ClientKeyName,
-				Data: platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ClientKey,
+				Name: orgs[iorg].NodeRedInstances[inri].ClientKeyName,
+				Data: orgs[iorg].NodeRedInstances[inri].ClientKey,
 			}
 			Secrets[mqttClientKeySecretKey] = mqttClientKeySecret
 		}
 	}
-
-	return Secrets
 }
 
 func createSecret(dc *DockerClient, secretKey string, secret *Secret) error {
 	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{})
 	if err != nil {
-		fmt.Println("error listing secrets: ", err)
 		return fmt.Errorf("error listing secrets: %v", err)
 	}
 

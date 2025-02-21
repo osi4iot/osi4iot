@@ -1766,150 +1766,15 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		for _, nri := range org.NodeRedInstances {
 			nriHash := nri.NriHash
 			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
-			volumeName := fmt.Sprintf("%s_data", serviceName)
-			nodeRedInstanceHashPath := fmt.Sprintf("nodered_%s", nriHash)
-			isVolumeCreated := nri.IsVolumeCreated
-			mqttClientCert := fmt.Sprintf("%s_%s_cert", orgAcronymLower, nriHash)
-			mqttClientKey := fmt.Sprintf("%s_%s_key", orgAcronymLower, nriHash)
-
-			domainName := platformData.PlatformInfo.DomainName
-			nriAnottations := swarm.Annotations{
-				Name: serviceName,
-				Labels: map[string]string{
-					"app":            "osi4iot",
-					"service_type":   "nodered_instance",
-					"traefik.enable": "true",
-					fmt.Sprintf("traefik.http.routers.%s.rule", serviceName): fmt.Sprintf(
-						"Host(`%s`) && PathPrefix(`/%s/`)",
-						domainName,
-						nodeRedInstanceHashPath,
-					),
-					fmt.Sprintf("traefik.http.middlewares.%s-prefix.stripprefix.prefixes", serviceName): fmt.Sprintf(
-						"/%s",
-						nodeRedInstanceHashPath,
-					),
-					fmt.Sprintf("traefik.http.routers.%s.middlewares", serviceName): fmt.Sprintf(
-						"%s-prefix,%s-header,%s-redirectregex",
-						serviceName,
-						serviceName,
-						serviceName,
-					),
-					fmt.Sprintf("traefik.http.middlewares.%s-prefix.stripprefix.forceslash", serviceName): "false",
-					fmt.Sprintf("traefik.http.middlewares.%s-header.headers.customrequestheaders.X-Script-Name", serviceName): fmt.Sprintf(
-						"/%s/",
-						nodeRedInstanceHashPath,
-					),
-					fmt.Sprintf("traefik.http.middlewares.%s-redirectregex.redirectregex.regex", serviceName): fmt.Sprintf(
-						"%s/(%s*)",
-						domainName,
-						nodeRedInstanceHashPath,
-					),
-					fmt.Sprintf("traefik.http.middlewares.%s-redirectregex.redirectregex.replacement", serviceName): fmt.Sprintf(
-						"%s/$${1}",
-						domainName,
-					),
-					fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName):               "websecure",
-					fmt.Sprintf("traefik.http.routers.%s.tls", serviceName):                       "true",
-					fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", serviceName):          resolver,
-					fmt.Sprintf("traefik.http.routers.%s.service", serviceName):                   serviceName,
-					fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName): "1880",
-				},
+			nriData := NriData{
+				org: org,
+				nri: nri,
+				resources: nriResources,
+				constraintsArray: nriConstraintsArray,
+				resolver: resolver,
 			}
-
-			nriTaskTemplate := swarm.TaskSpec{
-				ContainerSpec: &swarm.ContainerSpec{
-					Image: "ghcr.io/osi4iot/nodered_instance:1.3.0",
-					Labels: map[string]string{
-						"app": "osi4iot",
-					},
-					Env: []string{
-						fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-						fmt.Sprintf("NODERED_INSTANCE_HASH=%s", nriHash),
-						fmt.Sprintf("IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=%s", isVolumeCreated),
-					},
-					Secrets: []*swarm.SecretReference{
-						{
-							File: &swarm.SecretReferenceFileTarget{
-								Name: "/data/certs/ca.crt",
-								UID:  "0",
-								GID:  "0",
-								Mode: 0444,
-							},
-							SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
-							SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
-						},
-						{
-							File: &swarm.SecretReferenceFileTarget{
-								Name: "/data/certs/client.crt",
-								UID:  "0",
-								GID:  "0",
-								Mode: 0444,
-							},
-							SecretID:   swarmData.Secrets[mqttClientCert].ID,
-							SecretName: swarmData.Secrets[mqttClientCert].Name,
-						},
-						{
-							File: &swarm.SecretReferenceFileTarget{
-								Name: "/data/certs/client.key",
-								UID:  "0",
-								GID:  "0",
-								Mode: 0444,
-							},
-							SecretID:   swarmData.Secrets[mqttClientKey].ID,
-							SecretName: swarmData.Secrets[mqttClientKey].Name,
-						},
-					},
-					Mounts: []mount.Mount{
-						{
-							Type:   mount.TypeVolume,
-							Source: swarmData.Volumes[volumeName].Name,
-							Target: "/data",
-						},
-					},
-				},
-				Resources: nriResources,
-				Placement: &swarm.Placement{
-					Constraints: nriConstraintsArray,
-				},
-			}
-			nriEndpointSpec := &swarm.EndpointSpec{
-				Mode: swarm.ResolutionModeVIP,
-			}
-			nriMode := swarm.ServiceMode{
-				Replicated: &swarm.ReplicatedService{
-					Replicas: giveReplicsPtr(nodeRoleNumMap, "nodered_instance"),
-				},
-			}
-			nriUpdateConfig := &swarm.UpdateConfig{
-				Parallelism:     2,
-				Delay:           time.Duration(5 * time.Second),
-				FailureAction:   swarm.UpdateFailureActionRollback,
-				Monitor:         time.Duration(20 * time.Second),
-				MaxFailureRatio: 0.2,
-				Order:           "start-first",
-			}
-			nriRollbackConfig := &swarm.UpdateConfig{
-				Parallelism:     2,
-				Delay:           time.Duration(5 * time.Second),
-				FailureAction:   swarm.UpdateFailureActionRollback,
-				Monitor:         time.Duration(20 * time.Second),
-				MaxFailureRatio: 0.2,
-				Order:           "start-first",
-			}
-			nriNetwork := []swarm.NetworkAttachmentConfig{
-				{Target: swarmData.Networks["internal_net"].Name},
-				{Target: swarmData.Networks["traefik_public"].Name},
-			}
-			Services[serviceName] = Service{
-				Name:           serviceName,
-				Annotations:    nriAnottations,
-				TaskTemplate:   nriTaskTemplate,
-				EndpointSpec:   nriEndpointSpec,
-				Mode:           nriMode,
-				UpdateConfig:   nriUpdateConfig,
-				RollbackConfig: nriRollbackConfig,
-				Networks:       nriNetwork,
-			}
+			nriService := nriService(platformData, nriData, swarmData)
+			Services[serviceName] = nriService
 		}
 	}
 
