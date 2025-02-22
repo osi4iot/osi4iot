@@ -399,7 +399,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 	const groupId = group.id;
 	const digitalTwinId = digitalTwinUpdate.id;
 	const storedDTTopics = await getDTTopicsByDigitalTwinId(digitalTwinId);
-	const digitalTwinTopicList = ["dtm2sim", "sim2dtm", "dtm2pdb", "dev2dtm", "dtm2dev", "dev2sim"];
+	const digitalTwinTopicList = ["dtm2sim", "sim2dtm", "dtm2pdb", "dev2dtm", "dtm2dev", "dev2sim", "sim2llm", "llm2sim"];
 	const topicTypesToAdd: string[] = [];
 	digitalTwinTopicList.forEach(topicType => {
 		const existentTopic = storedDTTopics.filter(dtTopic => dtTopic.topicRef === topicType)[0];
@@ -497,6 +497,38 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 			};
 			const dtm2pdbTopic = await createTopic(0, dtm2pdbTopicData);
 			await createDigitalTwinTopic(digitalTwinId, dtm2pdbTopic.id, "dtm2pdb");
+		}
+
+		if (topicTypesToAdd.indexOf("sim2llm") !== -1) {
+			const sim2llmTopicData =
+			{
+				topicType: "sim2llm",
+				topicName: `${digitalTwinUid}_sim2llm`,
+				description: `sim2llm for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub",
+				payloadJsonSchema: "{}",
+				requireS3Storage: false,
+				s3Folder: "",
+				parquetSchema: "{}",
+			};
+			const sim2llmTopic = await createTopic(0, sim2llmTopicData);
+			await createDigitalTwinTopic(digitalTwinId, sim2llmTopic.id, "sim2llm");
+		}
+
+		if (topicTypesToAdd.indexOf("llm2sim") !== -1) {
+			const llm2simTopicData =
+			{
+				topicType: "llm2sim",
+				topicName: `${digitalTwinUid}_llm2sim`,
+				description: `llm2sim for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub",
+				payloadJsonSchema: "{}",
+				requireS3Storage: false,
+				s3Folder: "",
+				parquetSchema: "{}",
+			};
+			const llm2simTopic = await createTopic(0, llm2simTopicData);
+			await createDigitalTwinTopic(digitalTwinId, llm2simTopic.id, "llm2sim");
 		}
 	}
 }
@@ -730,6 +762,32 @@ export const createDigitalTwin = async (
 		};
 		const dev2simTopic = await createTopic(groupId, dev2simTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, "dev2sim");
+
+		const sim2llmTopicData =
+		{
+			topicType: "sim2llm",
+			description: `sim2llm for DT_${digitalTwinUid}`,
+			mqttAccessControl: "Pub & Sub",
+			payloadJsonSchema: "{}",
+			requireS3Storage: false,
+			s3Folder: "",
+			parquetSchema: "{}",
+		};
+		const sim2llmTopic = await createTopic(groupId, sim2llmTopicData);
+		await createDigitalTwinTopic(digitalTwin.id, sim2llmTopic.id, "sim2llm");
+
+		const llm2simTopicData =
+		{
+			topicType: "llm2sim",
+			description: `llm2sim for DT_${digitalTwinUid}`,
+			mqttAccessControl: "Pub & Sub",
+			payloadJsonSchema: "{}",
+			requireS3Storage: false,
+			s3Folder: "",
+			parquetSchema: "{}",
+		};
+		const llm2simTopic = await createTopic(groupId, llm2simTopicData);
+		await createDigitalTwinTopic(digitalTwin.id, llm2simTopic.id, "llm2sim");
 	}
 
 	const sensorsRef = digitalTwinInput.sensorsRef;

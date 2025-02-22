@@ -275,7 +275,9 @@ class AuthenticationController implements IController {
 						topicType === "dtm2dev" ||
 						topicType === "dtm2sim" ||
 						topicType === "dtm2pdb" ||
-						topicType === "sim2dtm"
+						topicType === "sim2dtm" ||
+						topicType === "sim2llm" ||
+						topicType === "llm2sim"
 					)) {
 					const errorMessage = "Topic type not allowed for dev2pdb";
 					errorLogger(req, res, 400, errorMessage);

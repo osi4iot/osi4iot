@@ -31,8 +31,10 @@ const SimulationLegend: FC<SimulationLegendProps> = ({
     canvasContainerRef,
 }) => {
     const mountRef = useRef(null);
-
+    
     useEffect(() => {
+        if (resultRenderInfo === undefined) return;
+        
         const currentRef = mountRef.current as any;
         const legendRenderer = resultRenderInfo.legendRenderer;
         const legendCamera = resultRenderInfo.legendCamera;
