@@ -81,7 +81,7 @@ func nriService(platformData *common.PlatformData, nriData NriData, swarmData Sw
 
 	nriTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/nodered_instance:1.3.0",
+			Image: "ghcr.io/osi4iot/nodered_instance_llm:1.3.0",
 			Labels: map[string]string{
 				"app": "osi4iot",
 			},

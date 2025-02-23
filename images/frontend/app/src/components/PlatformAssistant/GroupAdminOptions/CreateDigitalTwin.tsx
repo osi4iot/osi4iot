@@ -1,10 +1,10 @@
-import { FC, useState, SyntheticEvent, useEffect } from 'react';
+import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
-import { Formik, Form, FormikProps } from 'formik';
-import * as Yup from 'yup';
+import { Formik, Form, FormikProps } from "formik";
+import * as Yup from "yup";
 import { nanoid } from "nanoid";
-import { GLTFLoader } from 'three-stdlib';
-import { useAuthState, useAuthDispatch } from '../../../contexts/authContext';
+import { GLTFLoader } from "three-stdlib";
+import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
 import {
     axiosAuth,
     checkGltfFile,
@@ -12,16 +12,16 @@ import {
     digitalTwinFormatValidation,
     getDomainName,
     getProtocol,
-    IOption
+    IOption,
 } from "../../../tools/tools";
 import { toast } from "react-toastify";
 import FormikControl from "../../Tools/FormikControl";
 import FormButtonsProps from "../../Tools/FormButtons";
 import FormTitle from "../../Tools/FormTitle";
-import { DIGITAL_TWINS_OPTIONS } from '../Utils/platformAssistantOptions';
-import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from '../../../contexts/digitalTwinsOptions';
-import { useFilePicker } from 'use-file-picker';
-import formatDateString from '../../../tools/formatDate';
+import { DIGITAL_TWINS_OPTIONS } from "../Utils/platformAssistantOptions";
+import { setDigitalTwinsOptionToShow, useDigitalTwinsDispatch } from "../../../contexts/digitalTwinsOptions";
+import { useFilePicker } from "use-file-picker";
+import formatDateString from "../../../tools/formatDate";
 import {
     setReloadDashboardsTable,
     setReloadSensorsTable,
@@ -29,15 +29,15 @@ import {
     useAssetsTable,
     useGroupsManagedTable,
     useOrgsOfGroupsManagedTable,
-    usePlatformAssitantDispatch
-} from '../../../contexts/platformAssistantContext';
-import { getAxiosInstance } from '../../../tools/axiosIntance';
-import axiosErrorHandler from '../../../tools/axiosErrorHandler';
-import { IGroupManaged } from '../TableColumns/groupsManagedColumns';
-import { IOrgOfGroupsManaged } from '../TableColumns/orgsOfGroupsManagedColumns';
-import { IAsset } from '../TableColumns/assetsColumns';
-import { ControlsContainer, FormContainer } from './CreateAsset';
-import { AxiosError, AxiosResponse } from 'axios';
+    usePlatformAssitantDispatch,
+} from "../../../contexts/platformAssistantContext";
+import { getAxiosInstance } from "../../../tools/axiosIntance";
+import axiosErrorHandler from "../../../tools/axiosErrorHandler";
+import { IGroupManaged } from "../TableColumns/groupsManagedColumns";
+import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
+import { IAsset } from "../TableColumns/assetsColumns";
+import { ControlsContainer, FormContainer } from "./CreateAsset";
+import { AxiosError, AxiosResponse } from "axios";
 
 const DataFileTitle = styled.div`
     margin-bottom: 5px;
@@ -56,33 +56,33 @@ const SelectDataFilenButtonContainer = styled.div`
     margin-bottom: 10px;
     flex-direction: row;
     justify-content: center;
-	align-items: center;
+    align-items: center;
     background-color: #202226;
     width: 100%;
 `;
 
 const FileButton = styled.button`
-	background-color: #3274d9;
-	padding: 5px 10px;
+    background-color: #3274d9;
+    padding: 5px 10px;
     margin: 5px 10px;
-	color: white;
-	border: 1px solid #2c3235;
-	border-radius: 10px;
-	outline: none;
-	cursor: pointer;
-	box-shadow: 0 5px #173b70;
+    color: white;
+    border: 1px solid #2c3235;
+    border-radius: 10px;
+    outline: none;
+    cursor: pointer;
+    box-shadow: 0 5px #173b70;
     font-size: 14px;
     width: 40%;
 
-	&:hover {
-		background-color: #2461c0;
-	}
+    &:hover {
+        background-color: #2461c0;
+    }
 
-	&:active {
-		background-color: #2461c0;
-		box-shadow: 0 2px #173b70;
-		transform: translateY(4px);
-	}
+    &:active {
+        background-color: #2461c0;
+        box-shadow: 0 2px #173b70;
+        transform: translateY(4px);
+    }
 `;
 
 const FieldContainer = styled.div`
@@ -114,7 +114,7 @@ const FieldContainer = styled.div`
 const selectFile = (openFileSelector: () => void, clear: () => void) => {
     clear();
     openFileSelector();
-}
+};
 
 export interface ITopicRef {
     topicId: number;
@@ -127,38 +127,70 @@ const protocol = getProtocol();
 const digitalTwinTypeOptions = [
     {
         label: "Grafana dashboard",
-        value: "Grafana dashboard"
+        value: "Grafana dashboard",
     },
     {
         label: "Glb 3D model",
-        value: "Glb 3D model"
+        value: "Glb 3D model",
     },
     {
         label: "Gltf 3D model",
-        value: "Gltf 3D model"
+        value: "Gltf 3D model",
+    },
+];
+
+const chatAssistantLanguageOptions = [
+    {
+        label: "None",
+        value: "none",
+    },
+    {
+        label: "UK English Male",
+        value: "en-UK-male",
+    },
+    {
+        label: "UK English Female",
+        value: "en-UK-female",
+    },
+    {
+        label: "Spanish",
+        value: "es-ES",
+    },
+    {
+        label: "French",
+        value: "fr-FR",
+    },
+    {
+        label: "Italian",
+        value: "it-IT",
+    },
+    {
+        label: "German",
+        value: "de-DE",
+    },
+    {
+        label: "Catalan",
+        value: "ca",
     }
 ];
 
-export const getSensorsRefFromDigitalTwinGltfData = (
-    digitalTwinGltfData: any,
-) => {
+export const getSensorsRefFromDigitalTwinGltfData = (digitalTwinGltfData: any) => {
     const sensorsRef: string[] = [];
     if (typeof digitalTwinGltfData === "string") digitalTwinGltfData = JSON.parse(digitalTwinGltfData);
     if (Object.keys(digitalTwinGltfData).length && digitalTwinGltfData.nodes?.length !== 0) {
         digitalTwinGltfData.nodes.forEach(
-            (
-                node: {
-                    name?: string; mesh?: number;
-                    extras: {
-                        animationType: string;
-                        topicType: string;
-                        objectOnOff: string;
-                        sensorRef: string;
-                        type: string;
-                        clipSensorRef: string;
-                    };
-                }
-            ) => {
+            (node: {
+                name?: string;
+                mesh?: number;
+                extras: {
+                    animationType: string;
+                    topicType: string;
+                    objectOnOff: string;
+                    sensorRef: string;
+                    type: string;
+                    clipSensorRef: string;
+                };
+            }) => {
                 // if (node.mesh !== undefined && node.extras !== undefined) {
                 if (node.extras !== undefined) {
                     if (node.extras.type && node.extras.type === "sensor") {
@@ -178,19 +210,19 @@ export const getSensorsRefFromDigitalTwinGltfData = (
                         }
                     }
                 }
-
-            })
+            }
+        );
     }
     return sensorsRef;
-}
+};
 
 const findGroupArray = (
     orgsOfGroupManaged: IOrgOfGroupsManaged[],
     groupsManaged: IGroupManaged[]
 ): Record<string, string[]> => {
-    const groupArray: Record<string, string[]> = {}
+    const groupArray: Record<string, string[]> = {};
     for (const group of groupsManaged) {
-        const orgAcronym = orgsOfGroupManaged.filter(org => org.id === group.orgId)[0].acronym;
+        const orgAcronym = orgsOfGroupManaged.filter((org) => org.id === group.orgId)[0].acronym;
         if (groupArray[orgAcronym] === undefined) {
             groupArray[orgAcronym] = [];
         }
@@ -199,15 +231,12 @@ const findGroupArray = (
         }
     }
     return groupArray;
-}
+};
 
-const findAssetNameArray = (
-    assetsManaged: IAsset[],
-    groupsManaged: IGroupManaged[]
-): Record<string, string[]> => {
-    const assetArray: Record<string, string[]> = {}
+const findAssetNameArray = (assetsManaged: IAsset[], groupsManaged: IGroupManaged[]): Record<string, string[]> => {
+    const assetArray: Record<string, string[]> = {};
     for (const asset of assetsManaged) {
-        const groupAcronym = groupsManaged.filter(group => group.id === asset.groupId)[0].acronym;
+        const groupAcronym = groupsManaged.filter((group) => group.id === asset.groupId)[0].acronym;
         if (assetArray[groupAcronym] === undefined) {
             assetArray[groupAcronym] = [];
         }
@@ -217,16 +246,12 @@ const findAssetNameArray = (
         }
     }
     return assetArray;
-}
+};
 
-const findAssetDescription = (
-    assetsManaged: IAsset[],
-    assetName: string
-): string => {
-    const assetManaged = assetsManaged.filter(asset => `Asset_${asset.assetUid}` === assetName)[0];
+const findAssetDescription = (assetsManaged: IAsset[], assetName: string): string => {
+    const assetManaged = assetsManaged.filter((asset) => `Asset_${asset.assetUid}` === assetName)[0];
     return assetManaged.description;
-}
-
+};
 
 interface CreateDigitalTwinProps {
     backToTable: () => void;
@@ -241,23 +266,24 @@ interface IFormikValues {
     description: string;
     type: string;
     maxNumResFemFiles: string;
+    chatAssistantLanguage: string;
     digitalTwinSimulationFormat: string;
 }
 
 export type ObjectMap = {
-    nodes: { [name: string]: THREE.Object3D }
-    materials: { [name: string]: THREE.Material }
-}
+    nodes: { [name: string]: THREE.Object3D };
+    materials: { [name: string]: THREE.Material };
+};
 
 export function buildGraph(object: THREE.Object3D) {
-    const data: ObjectMap = { nodes: {}, materials: {} }
+    const data: ObjectMap = { nodes: {}, materials: {} };
     if (object) {
         object.traverse((obj: any) => {
-            if (obj.name) data.nodes[obj.name] = obj
-            if (obj.material && !data.materials[obj.material.name]) data.materials[obj.material.name] = obj.material
-        })
+            if (obj.name) data.nodes[obj.name] = obj;
+            if (obj.material && !data.materials[obj.material.name]) data.materials[obj.material.name] = obj.material;
+        });
     }
-    return data
+    return data;
 }
 
 export function getSensorsRef(object: THREE.Object3D) {
@@ -284,12 +310,12 @@ export function getSensorsRef(object: THREE.Object3D) {
                     }
                 }
             }
-        })
+        });
     }
-    return sensorsRef
+    return sensorsRef;
 }
 
-type FormikType = FormikProps<IFormikValues>
+type FormikType = FormikProps<IFormikValues>;
 
 const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDigitalTwins }) => {
     const digitalTwinUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
@@ -302,8 +328,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const groupsManaged = useGroupsManagedTable();
     const assets = useAssetsTable();
     const initOrg = orgsOfGroupManaged[0];
-    const initGroup = groupsManaged.filter(group => group.orgId === initOrg.id)[0];
-    const initAsset = assets.filter(asset => asset.groupId === initGroup.id)[0];
+    const initGroup = groupsManaged.filter((group) => group.orgId === initOrg.id)[0];
+    const initAsset = assets.filter((asset) => asset.groupId === initGroup.id)[0];
     const initAssetName = `Asset_${initAsset.assetUid}`;
     const [orgOptions, setOrgOptions] = useState<IOption[]>([]);
     const [groupArray, setGroupArray] = useState<Record<string, string[]>>({});
@@ -328,7 +354,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
 
     useEffect(() => {
-        const orgArray = orgsOfGroupManaged.map(org => org.acronym);
+        const orgArray = orgsOfGroupManaged.map((org) => org.acronym);
         setOrgOptions(convertArrayToOptions(orgArray));
         const groupArray = findGroupArray(orgsOfGroupManaged, groupsManaged);
         setGroupArray(groupArray);
@@ -343,14 +369,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         const assetName = `Asset_${initAsset.assetUid}`;
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
-    }, [
-        assets,
-        groupsManaged,
-        initAsset.assetUid,
-        initGroup.acronym,
-        initOrg.acronym,
-        orgsOfGroupManaged,
-    ]);
+    }, [assets, groupsManaged, initAsset.assetUid, initGroup.acronym, initOrg.acronym, orgsOfGroupManaged]);
 
     const handleChangeOrg = (e: { value: string }, formik: FormikType) => {
         const orgAcronym = e.value;
@@ -365,7 +384,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
-    }
+    };
 
     const handleChangeGroup = (e: { value: string }, formik: FormikType) => {
         const groupAcronym = e.value;
@@ -376,66 +395,66 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
-    }
+    };
 
     const handleChangeAsset = (e: { value: string }, formik: FormikType) => {
         const assetName = e.value;
         formik.setFieldValue("assetName", assetName);
         const assetDescription = findAssetDescription(assets, assetName);
         setAssetDescription(assetDescription);
-    }
+    };
 
     const [openGlftFileSelector, gltfFileParams] = useFilePicker({
-        readAs: digitalTwinType === "Gltf 3D model" ? 'Text' : 'DataURL',
+        readAs: digitalTwinType === "Gltf 3D model" ? "Text" : "DataURL",
         multiple: false,
-        accept: digitalTwinType === "Gltf 3D model" ? '.gltf' : '.glb',
+        accept: digitalTwinType === "Gltf 3D model" ? ".gltf" : ".glb",
     });
-
 
     const [openFemResFileSelector, femResFileParams] = useFilePicker({
-        readAs: 'Text',
+        readAs: "Text",
         multiple: false,
-        accept: '.json',
+        accept: ".json",
     });
 
-    useEffect(() => {
-        if (gltfFileContent === undefined || gltfFileName === "-") return;
-        if (gltfFileName.slice(-3) === "glb") {
-            const loader = new GLTFLoader();
-            loader.loadAsync(gltfFileContent)
-                .then((gltf) => {
-                    const sensorsRef = getSensorsRef(gltf.scene);
-                    setSensorsRef(sensorsRef);
-                    setIsValidGltfFile(true);
-                })
-                .catch((error) => {
-                    if (error instanceof Error) {
-                        toast.error(`Invalid gltffile. ${error.message}`);
-                    } else {
-                        toast.error("Invalid gltffile");
-                    }
-                    setGltfFileContent(undefined);
-                    setLocalGltfFileLoaded(false);
+    useEffect(
+        () => {
+            if (gltfFileContent === undefined || gltfFileName === "-") return;
+            if (gltfFileName.slice(-3) === "glb") {
+                const loader = new GLTFLoader();
+                loader
+                    .loadAsync(gltfFileContent)
+                    .then((gltf) => {
+                        const sensorsRef = getSensorsRef(gltf.scene);
+                        setSensorsRef(sensorsRef);
+                        setIsValidGltfFile(true);
+                    })
+                    .catch((error) => {
+                        if (error instanceof Error) {
+                            toast.error(`Invalid gltffile. ${error.message}`);
+                        } else {
+                            toast.error("Invalid gltffile");
+                        }
+                        setGltfFileContent(undefined);
+                        setLocalGltfFileLoaded(false);
+                        setIsValidGltfFile(false);
+                        gltfFileParams.clear();
+                    });
+            } else if (gltfFileName.slice(-4) === "gltf") {
+                const gltfData = JSON.parse(gltfFileContent);
+                const message = checkGltfFile(gltfData);
+                if (message !== "OK") {
                     setIsValidGltfFile(false);
-                    gltfFileParams.clear();
-                })
-        } else if (gltfFileName.slice(-4) === "gltf") {
-            const gltfData = JSON.parse(gltfFileContent);
-            const message = checkGltfFile(gltfData);
-            if (message !== "OK") {
-                setIsValidGltfFile(false);
-                throw new Error(message);
+                    throw new Error(message);
+                }
+                const sensorsRef = getSensorsRefFromDigitalTwinGltfData(gltfData);
+                setSensorsRef(sensorsRef);
+                //setDigitalTwinGltfData(gltfData);
+                setIsValidGltfFile(true);
             }
-            const sensorsRef = getSensorsRefFromDigitalTwinGltfData(gltfData);
-            setSensorsRef(sensorsRef);
-            //setDigitalTwinGltfData(gltfData);
-            setIsValidGltfFile(true);
-        }
-    },
+        },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         [gltfFileContent]
     );
-
 
     useEffect(() => {
         if (
@@ -443,10 +462,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             gltfFileParams.filesContent.length !== 0 &&
             gltfFileParams.plainFiles.length !== 0
         ) {
-            setLocalGltfFileLoaded(true)
+            setLocalGltfFileLoaded(true);
             try {
-
-                const fileContent = gltfFileParams.filesContent[0].content
+                const fileContent = gltfFileParams.filesContent[0].content;
                 setGltfFileContent(fileContent);
                 setGltfFile(gltfFileParams.plainFiles[0]);
                 const gltfFileName = gltfFileParams.plainFiles[0].name;
@@ -467,18 +485,17 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [
-        gltfFileParams.loading,
-        gltfFileParams.filesContent,
-        gltfFileParams.plainFiles,
-        gltfFileParams,
-    ])
+    }, [gltfFileParams.loading, gltfFileParams.filesContent, gltfFileParams.plainFiles, gltfFileParams]);
 
     useEffect(() => {
-        if (!femResFileParams.loading && femResFileParams.filesContent.length !== 0 && femResFileParams.plainFiles.length !== 0) {
+        if (
+            !femResFileParams.loading &&
+            femResFileParams.filesContent.length !== 0 &&
+            femResFileParams.plainFiles.length !== 0
+        ) {
             setLocalFemResFileLoaded(true);
             try {
-                const fileContent = femResFileParams.filesContent[0].content
+                const fileContent = femResFileParams.filesContent[0].content;
                 const femResData = JSON.parse(fileContent);
                 setDigitalTwiFemResData(femResData);
                 setFemResFile(femResFileParams.plainFiles[0]);
@@ -495,19 +512,12 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 femResFileParams.clear();
             }
         }
-    },
-        [
-            femResFileParams.loading,
-            femResFileParams.filesContent,
-            femResFileParams.plainFiles,
-            femResFileParams
-        ]);
-
+    }, [femResFileParams.loading, femResFileParams.filesContent, femResFileParams.plainFiles, femResFileParams]);
 
     const onSubmit = (values: any, actions: any) => {
-        const groupId = groupsManaged.filter(group => group.acronym === values.groupAcronym)[0].id;
+        const groupId = groupsManaged.filter((group) => group.acronym === values.groupAcronym)[0].id;
         const assetName = values.assetName;
-        const assetId = assets.filter(asset => asset.assetUid === assetName.slice(6))[0].id;
+        const assetId = assets.filter((asset) => asset.assetUid === assetName.slice(6))[0].id;
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${assetId}`;
         const config = axiosAuth(accessToken);
 
@@ -517,8 +527,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             type: values.type,
             digitalTwinUid: values.digitalTwinUid,
             maxNumResFemFiles,
+            chatAssistantLanguage: values.chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
-            sensorsRef
+            sensorsRef,
         };
 
         setIsSubmitting(true);
@@ -530,7 +541,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 const digitalTwinsOptionToShow = { digitalTwinsOptionToShow: DIGITAL_TWINS_OPTIONS.TABLE };
                 setIsSubmitting(false);
                 setDigitalTwinsOptionToShow(digitalTwinsDispatch, digitalTwinsOptionToShow);
-                const configMultipart = axiosAuth(accessToken, "multipart/form-data")
+                const configMultipart = axiosAuth(accessToken, "multipart/form-data");
                 const urlUploadGltfBase0 = `${protocol}://${domainName}/admin_api/digital_twin_upload_file`;
                 const urlUploadGltfBase = `${urlUploadGltfBase0}/${groupId}/${data.digitalTwinId}`;
 
@@ -548,7 +559,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
-                        })
+                        });
                 }
 
                 if (Object.keys(digitalTwinFemResData).length !== 0) {
@@ -563,10 +574,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
                             backToTable();
-                        })
+                        });
                 }
-
-
             })
             .catch((error: AxiosError) => {
                 axiosErrorHandler(error, authDispatch);
@@ -580,39 +589,43 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 setReloadSensorsTable(plaformAssistantDispatch, { reloadSensorsTable });
                 const reloadDashboardsTable = true;
                 setReloadDashboardsTable(plaformAssistantDispatch, { reloadDashboardsTable });
-            })
-    }
+            });
+    };
 
     const validationSchema = Yup.object().shape({
-        digitalTwinUid: Yup.string().length(20, "String must be 20 characters long").required('Required'),
-        description: Yup.string().required('Required'),
-        type: Yup.string().max(20, "The maximum number of characters allowed is 20").required('Required'),
+        digitalTwinUid: Yup.string().length(20, "String must be 20 characters long").required("Required"),
+        description: Yup.string().required("Required"),
+        type: Yup.string().max(20, "The maximum number of characters allowed is 20").required("Required"),
         maxNumResFemFiles: Yup.number()
-            .when("type",
-                {
-                    is: "Gltf 3D model",
-                    then: Yup.number().min(1, "The minimum numer of FEM results files is 1").required("Must enter maxNumResFemFiles")
-                }
-            )
-            .when("type",
-                {
-                    is: "Glb 3D model",
-                    then: Yup.number().min(1, "The minimum numer of FEM results files is 1").required("Must enter maxNumResFemFiles")
-                }
-            ),
+            .when("type", {
+                is: "Gltf 3D model",
+                then: Yup.number()
+                    .min(1, "The minimum numer of FEM results files is 1")
+                    .required("Must enter maxNumResFemFiles"),
+            })
+            .when("type", {
+                is: "Glb 3D model",
+                then: Yup.number()
+                    .min(1, "The minimum numer of FEM results files is 1")
+                    .required("Must enter maxNumResFemFiles"),
+            }),
         digitalTwinSimulationFormat: Yup.string()
-        .when("type", {
-            is: "Gltf 3D model",
-            then: Yup.string()
-                .test("test-name", "Wrong format for the json object", (value: any) => digitalTwinFormatValidation(value))
-                .required("Must enter Digital twin simulation format")
-        })        
-        .when("type", {
-            is: "Glb 3D model",
-            then: Yup.string()
-                .test("test-name", "Wrong format for the json object", (value: any) => digitalTwinFormatValidation(value))
-                .required("Must enter Digital twin simulation format")
-        }),
+            .when("type", {
+                is: "Gltf 3D model",
+                then: Yup.string()
+                    .test("test-name", "Wrong format for the json object", (value: any) =>
+                        digitalTwinFormatValidation(value)
+                    )
+                    .required("Must enter Digital twin simulation format"),
+            })
+            .when("type", {
+                is: "Glb 3D model",
+                then: Yup.string()
+                    .test("test-name", "Wrong format for the json object", (value: any) =>
+                        digitalTwinFormatValidation(value)
+                    )
+                    .required("Must enter Digital twin simulation format"),
+            }),
     });
 
     const onCancel = (e: SyntheticEvent) => {
@@ -622,8 +635,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
 
     const onDigitalTwinTypeSelectChange = (e: { value: string }, formik: FormikType) => {
         setDigitalTwinType(e.value);
-        formik.setFieldValue("type", e.value)
-    }
+        formik.setFieldValue("type", e.value);
+    };
+
+
+    const onchatAssistantLanguageOptions = (e: { value: string }, formik: FormikType) => {
+        formik.setFieldValue("chatAssistantLanguage", e.value);
+    };
 
     const clearGltfDataFile = () => {
         setGltfFileName("-");
@@ -632,13 +650,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setLocalGltfFileLoaded(false);
         gltfFileParams.clear();
         setIsGlftDataReady(false);
-    }
+    };
 
     const localGltfFileButtonHandler = async () => {
         if (!localGltfFileLoaded) {
             selectFile(openGlftFileSelector, gltfFileParams.clear);
         }
-    }
+    };
 
     const clearFemResFile = () => {
         setFemResFileName("-");
@@ -646,13 +664,13 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         setDigitalTwiFemResData({});
         setLocalFemResFileLoaded(false);
         femResFileParams.clear();
-    }
+    };
 
     const localFemResFileButtonHandler = () => {
         if (!localFemResFileLoaded) {
             selectFile(openFemResFileSelector, femResFileParams.clear);
         }
-    }
+    };
 
     const initialDigitalTwinData = {
         orgAcronym: initOrg.acronym,
@@ -662,156 +680,149 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         type: "Grafana dashboard",
         digitalTwinUid,
         maxNumResFemFiles: "1",
-        digitalTwinSimulationFormat: "{}"
-    }
+        chatAssistantLanguage: "en-UK-male",
+        digitalTwinSimulationFormat: "{}",
+    };
 
     return (
         <>
             <FormTitle isSubmitting={isSubmitting}>Create digital twin</FormTitle>
             <FormContainer>
-                <Formik
-                    initialValues={initialDigitalTwinData}
-                    validationSchema={validationSchema}
-                    onSubmit={onSubmit}
-                >
-                    {
-                        formik => {
-                            return (
-                                <Form>
-                                    <ControlsContainer>
-                                        <FormikControl
-                                            control='select'
-                                            label='Select org'
-                                            name='orgAcronym'
-                                            type='text'
-                                            options={orgOptions}
-                                            onChange={(e) => handleChangeOrg(e, formik)}
-                                        />
-                                        <FormikControl
-                                            control='select'
-                                            label='Select group'
-                                            name='groupAcronym'
-                                            type='text'
-                                            options={groupOptions}
-                                            onChange={(e) => handleChangeGroup(e, formik)}
-                                        />
-                                        <FormikControl
-                                            control='select'
-                                            label='Select asset'
-                                            name='assetName'
-                                            type='text'
-                                            options={assetNameOptions}
-                                            onChange={(e) => handleChangeAsset(e, formik)}
-                                        />
-                                        <FieldContainer>
-                                            <label>Asset description</label>
-                                            <div>{assetDescription}</div>
-                                        </FieldContainer>
-                                        <FormikControl
-                                            control='input'
-                                            label='DigitalTwinUid'
-                                            name='digitalTwinUid'
-                                            type='text'
-                                        />
-                                        <FormikControl
-                                            control='input'
-                                            label='Description'
-                                            name='description'
-                                            type='text'
-                                        />
-                                        <FormikControl
-                                            control='select'
-                                            label='Type'
-                                            name="type"
-                                            options={digitalTwinTypeOptions}
-                                            type='text'
-                                            onChange={(e) => onDigitalTwinTypeSelectChange(e, formik)}
-                                        />
-                                        {
-                                            (digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model") &&
-                                            <>
-                                                <DataFileTitle>Gltf data file</DataFileTitle>
-                                                <DataFileContainer>
-                                                    <FieldContainer>
-                                                        <label>File name</label>
-                                                        <div>{gltfFileName}</div>
-                                                    </FieldContainer>
-                                                    <FieldContainer>
-                                                        <label>Last modification date</label>
-                                                        <div>{gltfFileLastModif}</div>
-                                                    </FieldContainer>
-                                                    <SelectDataFilenButtonContainer >
-                                                        <FileButton
-                                                            type='button'
-                                                            onClick={clearGltfDataFile}
-                                                        >
-                                                            Clear
-                                                        </FileButton>
-                                                        <FileButton
-                                                            type='button'
-                                                            onClick={() => localGltfFileButtonHandler()}
-                                                        >
-                                                            Select local file
-                                                        </FileButton>
-                                                    </SelectDataFilenButtonContainer>
-                                                </DataFileContainer>
-                                                <DataFileTitle>FEM results file</DataFileTitle>
-                                                <DataFileContainer>
-                                                    <FormikControl
-                                                        control='input'
-                                                        label='Max number of FEM result files stored'
-                                                        name='maxNumResFemFiles'
-                                                        type='text'
-                                                    />
-                                                    <FieldContainer>
-                                                        <label>File name</label>
-                                                        <div>{femResFileName}</div>
-                                                    </FieldContainer>
-                                                    <FieldContainer>
-                                                        <label>Last modification date</label>
-                                                        <div>{femResFileLastModifDateString}</div>
-                                                    </FieldContainer>
-                                                    <SelectDataFilenButtonContainer >
-                                                        <FileButton
-                                                            type='button'
-                                                            onClick={clearFemResFile}
-                                                        >
-                                                            Clear
-                                                        </FileButton>
-                                                        <FileButton
-                                                            type='button'
-                                                            onClick={() => localFemResFileButtonHandler()}
-                                                        >
-                                                            Select local file
-                                                        </FileButton>
-                                                    </SelectDataFilenButtonContainer>
-                                                </DataFileContainer>
-                                                <FormikControl
-                                                    control='textarea'
-                                                    label='Digital twin simulation format'
-                                                    name='digitalTwinSimulationFormat'
-                                                    textAreaSize='Small'
-                                                />
-                                            </>
-
-                                        }
-                                    </ControlsContainer>
-                                    <FormButtonsProps
-                                        onCancel={onCancel}
-                                        isValid={
-                                            formik.isValid &&
-                                            (isGlftDataReady || formik.values.type === "Grafana dashboard")
-                                        }
-                                        isSubmitting={formik.isSubmitting}
+                <Formik initialValues={initialDigitalTwinData} validationSchema={validationSchema} onSubmit={onSubmit}>
+                    {(formik) => {
+                        return (
+                            <Form>
+                                <ControlsContainer>
+                                    <FormikControl
+                                        control="select"
+                                        label="Select org"
+                                        name="orgAcronym"
+                                        type="text"
+                                        options={orgOptions}
+                                        onChange={(e) => handleChangeOrg(e, formik)}
                                     />
-                                </Form>
-                            )
-                        }
-                    }
+                                    <FormikControl
+                                        control="select"
+                                        label="Select group"
+                                        name="groupAcronym"
+                                        type="text"
+                                        options={groupOptions}
+                                        onChange={(e) => handleChangeGroup(e, formik)}
+                                    />
+                                    <FormikControl
+                                        control="select"
+                                        label="Select asset"
+                                        name="assetName"
+                                        type="text"
+                                        options={assetNameOptions}
+                                        onChange={(e) => handleChangeAsset(e, formik)}
+                                    />
+                                    <FieldContainer>
+                                        <label>Asset description</label>
+                                        <div>{assetDescription}</div>
+                                    </FieldContainer>
+                                    <FormikControl
+                                        control="input"
+                                        label="DigitalTwinUid"
+                                        name="digitalTwinUid"
+                                        type="text"
+                                    />
+                                    <FormikControl control="input" label="Description" name="description" type="text" />
+                                    <FormikControl
+                                        control="select"
+                                        label="Type"
+                                        name="type"
+                                        options={digitalTwinTypeOptions}
+                                        type="text"
+                                        onChange={(e) => onDigitalTwinTypeSelectChange(e, formik)}
+                                    />
+                                    {(digitalTwinType === "Gltf 3D model" || digitalTwinType === "Glb 3D model") && (
+                                        <>
+                                            <DataFileTitle>Gltf data file</DataFileTitle>
+                                            <DataFileContainer>
+                                                <FieldContainer>
+                                                    <label>File name</label>
+                                                    <div>{gltfFileName}</div>
+                                                </FieldContainer>
+                                                <FieldContainer>
+                                                    <label>Last modification date</label>
+                                                    <div>{gltfFileLastModif}</div>
+                                                </FieldContainer>
+                                                <SelectDataFilenButtonContainer>
+                                                    <FileButton type="button" onClick={clearGltfDataFile}>
+                                                        Clear
+                                                    </FileButton>
+                                                    <FileButton
+                                                        type="button"
+                                                        onClick={() => localGltfFileButtonHandler()}
+                                                    >
+                                                        Select local file
+                                                    </FileButton>
+                                                </SelectDataFilenButtonContainer>
+                                            </DataFileContainer>
+                                            <DataFileTitle>FEM results file</DataFileTitle>
+                                            <DataFileContainer>
+                                                <FormikControl
+                                                    control="input"
+                                                    label="Max number of FEM result files stored"
+                                                    name="maxNumResFemFiles"
+                                                    type="text"
+                                                />
+                                                <FieldContainer>
+                                                    <label>File name</label>
+                                                    <div>{femResFileName}</div>
+                                                </FieldContainer>
+                                                <FieldContainer>
+                                                    <label>Last modification date</label>
+                                                    <div>{femResFileLastModifDateString}</div>
+                                                </FieldContainer>
+                                                <SelectDataFilenButtonContainer>
+                                                    <FileButton type="button" onClick={clearFemResFile}>
+                                                        Clear
+                                                    </FileButton>
+                                                    <FileButton
+                                                        type="button"
+                                                        onClick={() => localFemResFileButtonHandler()}
+                                                    >
+                                                        Select local file
+                                                    </FileButton>
+                                                </SelectDataFilenButtonContainer>
+                                            </DataFileContainer>
+                                            <DataFileTitle>Chat assistant</DataFileTitle>
+                                            <DataFileContainer>
+                                                <FormikControl
+                                                    control="select"
+                                                    label="Select chat assistant language"
+                                                    name="chatAssistantLanguage"
+                                                    options={chatAssistantLanguageOptions}
+                                                    type="text"
+                                                    onChange={(e) => onchatAssistantLanguageOptions(e, formik)}
+                                                />
+                                            </DataFileContainer>
+                                            <FormikControl
+                                                control="textarea"
+                                                label="Digital twin simulation format"
+                                                name="digitalTwinSimulationFormat"
+                                                textAreaSize="Small"
+                                            />
+                                        </>
+                                    )}
+                                </ControlsContainer>
+                                <FormButtonsProps
+                                    onCancel={onCancel}
+                                    isValid={
+                                        formik.isValid &&
+                                        (isGlftDataReady || formik.values.type === "Grafana dashboard")
+                                    }
+                                    isSubmitting={formik.isSubmitting}
+                                />
+                            </Form>
+                        );
+                    }}
                 </Formik>
             </FormContainer>
         </>
-    )
-}
+    );
+};
 
 export default CreateDigitalTwin;

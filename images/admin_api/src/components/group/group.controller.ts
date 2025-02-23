@@ -434,6 +434,7 @@ class GroupController implements IController {
 				digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 				topicSensorTypes: ["dev2pdb_wt"],
 				maxNumResFemFiles: 1,
+				chatAssistantLanguage: "none",
 				digitalTwinSimulationFormat: "{}",
 				sensorsRef: ["sensor_3"]
 			}

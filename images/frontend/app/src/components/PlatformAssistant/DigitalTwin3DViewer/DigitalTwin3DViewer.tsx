@@ -943,10 +943,10 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 const resultFieldFiltered = resultFields.filter(
                     (result: { resultName: string }) => result.resultName === opts.femSimulationResult
                 )[0];
-                if (resultFieldFiltered === undefined) {
-                    console.log("resultFieldFiltered=", resultFieldFiltered);
+                let units = "";
+                if (resultFieldFiltered !== undefined) {
+                    units = resultFieldFiltered.units;
                 }
-                let units = resultFieldFiltered.units;
                 (femMinValueRef.current as any).innerHTML = `Min value: ${sortedFemMinValues[0].toExponential(
                     4
                 )} ${units}`;
@@ -1451,7 +1451,13 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         )}
                     </StyledDataGui>
                 )}
-                {isChatAssistantOpen && <ChatAssistant chatMessages={chatMessages} setChatMessages={setChatMessages} />}
+                {digitalTwinSelected && isChatAssistantOpen && (
+                    <ChatAssistant
+                        chatMessages={chatMessages}
+                        setChatMessages={setChatMessages}
+                        chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
+                    />
+                )}
                 <SelectedObjectInfoContainer>
                     <ObjectInfoContainer>
                         <ObjectInfo ref={selectedObjNameRef}>Name: -</ObjectInfo>

@@ -45,11 +45,12 @@ export const insertDigitalTwin = async (
 ): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
 		digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
-		digital_twin_simulation_format, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		chat_assistant_language, digital_twin_simulation_format, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
 		scope, digital_twin_uid AS "digitalTwinUid", description,
 		type, dashboard_id AS "dashboardId",
+		chat_assistant_language AS "chatAssistantLanguage",
 		digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		created, updated`;
 
@@ -63,6 +64,7 @@ export const insertDigitalTwin = async (
 			digitalTwinData.type,
 			digitalTwinData.dashboardId,
 			digitalTwinData.maxNumResFemFiles,
+			digitalTwinData.chatAssistantLanguage,
 			digitalTwinData.digitalTwinSimulationFormat,
 		]);
 	return result.rows[0] as IDigitalTwin;
@@ -75,6 +77,7 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
 										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 										grafanadb.digital_twin.dashboard_id AS "dashboardId",
+										chat_assistant_language AS "chatAssistantLanguage",
 										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 										FROM grafanadb.digital_twin
@@ -110,6 +113,7 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
 									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									chat_assistant_language AS "chatAssistantLanguage",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -129,6 +133,7 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
 										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 										grafanadb.digital_twin.dashboard_id AS "dashboardId",
+										chat_assistant_language AS "chatAssistantLanguage",
 										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 										FROM grafanadb.digital_twin
@@ -148,6 +153,7 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
 									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									chat_assistant_language AS "chatAssistantLanguage",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -169,6 +175,7 @@ export const getDigitalTwinByProp = async (propName: string, propValue: (string 
 									grafanadb.digital_twin.type, 
 									grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									chat_assistant_language AS "chatAssistantLanguage",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -188,13 +195,15 @@ export const checkDigitalTwinConstraint = async (groupId: number, assetId: numbe
 export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinData: Partial<IDigitalTwin>): Promise<void> => {
 	const query = `UPDATE grafanadb.digital_twin SET digital_twin_uid = $1,
 	                description = $2, type = $3, max_num_resfem_files = $4,
-					digital_twin_simulation_format = $5, updated = NOW()
-					WHERE grafanadb.digital_twin.id = $6;`;
+					chat_assistant_language = $5,
+					digital_twin_simulation_format = $6, updated = NOW()
+					WHERE grafanadb.digital_twin.id = $7;`;
 	await pool.query(query, [
 		digitalTwinData.digitalTwinUid,
 		digitalTwinData.description,
 		digitalTwinData.type,
 		digitalTwinData.maxNumResFemFiles,
+		digitalTwinData.chatAssistantLanguage,
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinId
 	]);
@@ -678,6 +687,7 @@ export const createDigitalTwin = async (
 		type: digitalTwinInput.type,
 		dashboardId: digitalTwinDashboardId,
 		maxNumResFemFiles: digitalTwinInput.maxNumResFemFiles,
+		chatAssistantLanguage: digitalTwinInput.chatAssistantLanguage,
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);

@@ -9,6 +9,7 @@ export default interface IDigitalTwin {
 	type: string;
 	dashboardId: number;
 	maxNumResFemFiles: number;
+	chatAssistantLanguage: string;
 	digitalTwinSimulationFormat: string;
 	dashboardUrl: string;
 	sensorsRef: string[];

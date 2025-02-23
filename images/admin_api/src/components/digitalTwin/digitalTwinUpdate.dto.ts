@@ -1,4 +1,4 @@
-import { IsBoolean, IsNumber, IsString } from "class-validator";
+import { IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
 
 class UpdateDigitalTwinDto {
 	@IsString()
@@ -15,6 +15,10 @@ class UpdateDigitalTwinDto {
 
 	@IsBoolean()
 	public isGltfFileModified: boolean;
+
+	@IsOptional()
+	@IsString()
+	public chatAssistantLanguage: string;
 
 	@IsString()
 	public digitalTwinSimulationFormat: string;

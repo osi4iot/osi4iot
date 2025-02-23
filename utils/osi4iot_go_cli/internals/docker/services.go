@@ -1091,7 +1091,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	adminApiTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/admin_api:1.3.0",
+			Image: "ghcr.io/osi4iot/admin_api_llm:1.3.0",
 			Labels: map[string]string{
 				"app": "osi4iot",
 			},
@@ -1251,7 +1251,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	frontendTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/frontend:1.3.0",
+			Image: "ghcr.io/osi4iot/frontend_llm:1.3.0",
 			Labels: map[string]string{
 				"app": "osi4iot",
 			},
