@@ -1,4 +1,4 @@
-import { IsBoolean, IsNumber, IsOptional, IsString } from "class-validator";
+import { IsBoolean, IsNumber, IsString } from "class-validator";
 
 
 class CreateDigitalTwinDto {
@@ -14,12 +14,9 @@ class CreateDigitalTwinDto {
 	@IsNumber()
 	public maxNumResFemFiles: number;
 
-	@IsOptional()
 	@IsBoolean()
-	@IsString()
 	public chatAssistantEnabled: boolean;
 
-	@IsOptional()
 	@IsString()
 	public chatAssistantLanguage: string;
 

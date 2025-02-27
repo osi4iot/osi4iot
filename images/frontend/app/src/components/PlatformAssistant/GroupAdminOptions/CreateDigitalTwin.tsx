@@ -556,7 +556,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             type: values.type,
             digitalTwinUid: values.digitalTwinUid,
             maxNumResFemFiles,
-            chatAssitantEnabled: values.chatAssistantEnabled,
+            chatAssistantEnabled: values.chatAssistantEnabled,
             chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
