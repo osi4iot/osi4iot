@@ -2,9 +2,9 @@ import React, { useState, KeyboardEvent, ChangeEvent, useRef, useEffect, useCall
 import styled from "styled-components";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
-import { useSpeechSynthesis } from "react-speech-kit";
 import { useLoggedUserLogin } from "../../../contexts/authContext/authContext";
 import getVoices, { IChatVoice } from "../../../tools/getVoices";
+import useSpeechSynthesis from "./useSpeechSynthesis";
 
 export interface ChatMessage {
     message: string;
@@ -138,34 +138,22 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
     const [voiceAssistant, setVoiceAssistant] = useState<boolean>(false);
-    const { speak, speaking, cancel } = useSpeechSynthesis();
+    const { speak, cancel } = useSpeechSynthesis({
+        onEnd: () => {
+            startListening();
+        },
+    });
     const [voice, setVoice] = useState<IChatVoice | null>(null);
-
-    useEffect(() => {
-        if (voiceAssistant && !listening && !speaking && !transcript && !input && browserSupportsSpeechRecognition) {
-            SpeechRecognition.startListening({ continuous: false, language: voice?.recognitionLang });
-            setVoiceAssistant(true);
-        }
-    }, [
-        voiceAssistant,
-        listening,
-        speaking,
-        transcript,
-        input,
-        browserSupportsSpeechRecognition,
-        voice?.recognitionLang,
-    ]);
 
     useEffect(() => {
         getVoices(chatAssistantLanguage).then((voice) => {
             setVoice(voice as IChatVoice);
+            const grettingMessage: ChatMessage = {
+                message: voice.greeting,
+                sender: "assistant",
+            };
+            setChatMessages([grettingMessage]);
         });
-
-        const grettingMessage: ChatMessage = {
-            message: "Hello! My name is OSI. How can I help you?",
-            sender: "assistant",
-        };
-        setChatMessages([grettingMessage]);
 
         return () => {
             SpeechRecognition.stopListening();
@@ -208,7 +196,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     }, [chatMessages]);
 
     const startListening = () => {
-        if (browserSupportsSpeechRecognition) {
+        if (browserSupportsSpeechRecognition ) {
             SpeechRecognition.startListening({ continuous: false, language: voice?.recognitionLang });
             setVoiceAssistant(true);
         }
@@ -218,18 +206,19 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].sender === "assistant") {
             const message = chatMessages[chatMessages.length - 1].message;
 
-            if (voiceAssistant) {
-                if (message !== "Hello! My name is OSI. How can I help you?") {
-                    console.log("voice.recognitionLang=", voice?.recognitionLang);
-                    if (voice && voice.speechLang !== undefined) {
-                        speak({ text: message, voice: voice?.speechLang });
-                    }
+            if (message !== "Hello! My name is OSI. How can I help you?") {
+                if (voiceAssistant && voice?.speechLang) {
+                    SpeechRecognition.stopListening();
+                    setVoiceAssistant(false);
+                    speak({
+                        text: message,
+                        voice: voice.speechLang,
+                    });
                 }
-                startListening();
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chatMessages, voiceAssistant, voice]);
+    }, [chatMessages]);
 
     const stopListening = () => {
         SpeechRecognition.stopListening();
@@ -257,11 +246,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                     placeholder="Write your question..."
                 />
                 <Button onClick={handleSend}>Send</Button>
-                <MicButton
-                    active={listening || speaking}
-                    onClick={listening || speaking ? stopListening : startListening}
-                >
-                    {listening || speaking ? <FaMicrophone /> : <FaMicrophoneSlash />}
+                <MicButton active={voiceAssistant} onClick={voiceAssistant ? stopListening : startListening}>
+                    {voiceAssistant ? <FaMicrophone /> : <FaMicrophoneSlash />}
                 </MicButton>
             </InputContainer>
         </ChatContainer>

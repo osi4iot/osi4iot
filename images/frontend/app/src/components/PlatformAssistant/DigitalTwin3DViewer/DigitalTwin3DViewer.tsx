@@ -620,10 +620,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     };
 
     const handleChatAssistantOpen = () => {
-        if (isControlPanelOpen) {
-            setChatAssistantOpen(false);
+        if (digitalTwinSelected && digitalTwinSelected.chatAssistantEnabled) {
+            if (isControlPanelOpen) {
+                setChatAssistantOpen(false);
+            } else {
+                setChatAssistantOpen((prevState) => !prevState);
+            }
         } else {
-            setChatAssistantOpen((prevState) => !prevState);
+            toast.warning("Chat assistant is not enabled for this digital twin.");
         }
     };
 
@@ -987,6 +991,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 const resultFieldFiltered = resultFields.filter(
                     (result: { resultName: string }) => result.resultName === opts.femSimulationResult
                 )[0];
+
                 const units = resultFieldFiltered.units;
                 (femMaxValueRef.current as any).innerHTML = `Max value: ${sortedFemMaxValues[0].toExponential(
                     4

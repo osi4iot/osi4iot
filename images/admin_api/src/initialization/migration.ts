@@ -755,6 +755,7 @@ export const dataBaseInitialization = async () => {
 					type VARCHAR(40),
 					dashboard_id bigint,
 					max_num_resfem_files SMALLINT NOT NULL DEFAULT 1,
+					chat_assistant_enabled BOOLEAN NOT NULL DEFAULT FALSE,
 					chat_assistant_language VARCHAR(20) NOT NULL DEFAULT 'none',
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
@@ -1015,6 +1016,7 @@ export const dataBaseInitialization = async () => {
 					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 					maxNumResFemFiles: 1,
 					digitalTwinSimulationFormat: "{}",
+					chatAssistantEnabled: false,
 					chatAssistantLanguage: "none",
 					sensorsRef: ["sensor_3"]
 				}

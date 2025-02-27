@@ -40,6 +40,7 @@ export interface IDigitalTwin {
     femSimDataFileName: string;
     femSimDataFileLastModifDateString: string;
     maxNumResFemFiles: number;
+    chatAssistantEnabled: boolean;
     chatAssistantLanguage: string;
     digitalTwinSimulationFormat: string;
     dashboardUrl: string;

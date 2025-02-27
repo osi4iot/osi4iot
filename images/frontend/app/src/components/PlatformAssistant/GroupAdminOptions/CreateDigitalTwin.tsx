@@ -51,6 +51,18 @@ const DataFileContainer = styled.div`
     margin-bottom: 20px;
 `;
 
+const ChatAssistantTitle = styled.div`
+    margin-bottom: 5px;
+`;
+
+const ChatAssistantContainer = styled.div`
+    border: 2px solid #2c3235;
+    border-radius: 10px;
+    padding: 10px;
+    width: 100%;
+    margin-bottom: 20px;
+`;
+
 const SelectDataFilenButtonContainer = styled.div`
     display: flex;
     margin-bottom: 10px;
@@ -139,6 +151,17 @@ const digitalTwinTypeOptions = [
     },
 ];
 
+const chatAssistantEnabledOptions = [
+    {
+        label: "Yes",
+        value: true,
+    },
+    {
+        label: "No",
+        value: false,
+    },
+];
+
 const chatAssistantLanguageOptions = [
     {
         label: "None",
@@ -171,7 +194,7 @@ const chatAssistantLanguageOptions = [
     {
         label: "Catalan",
         value: "ca",
-    }
+    },
 ];
 
 export const getSensorsRefFromDigitalTwinGltfData = (digitalTwinGltfData: any) => {
@@ -266,6 +289,7 @@ interface IFormikValues {
     description: string;
     type: string;
     maxNumResFemFiles: string;
+    chatAssistantEnabled: boolean;
     chatAssistantLanguage: string;
     digitalTwinSimulationFormat: string;
 }
@@ -352,6 +376,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
+    const [isChatAssistantEnabled, setIsChatAssistantEnabled] = useState(false);
 
     useEffect(() => {
         const orgArray = orgsOfGroupManaged.map((org) => org.acronym);
@@ -522,12 +547,17 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         const config = axiosAuth(accessToken);
 
         const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
+        let chatAssistantLanguage = "none";
+        if (values.chatAssistantEnabled) {
+            chatAssistantLanguage = values.chatAssistantLanguage;
+        }
         const digitalTwinData = {
             description: values.description,
             type: values.type,
             digitalTwinUid: values.digitalTwinUid,
             maxNumResFemFiles,
-            chatAssistantLanguage: values.chatAssistantLanguage,
+            chatAssitantEnabled: values.chatAssistantEnabled,
+            chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
         };
@@ -638,10 +668,15 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("type", e.value);
     };
 
+    const onchatAssistantEnabledOptions = (e: { value: boolean }, formik: FormikType) => {
+        formik.setFieldValue("chatAssistantEnabled", e.value);
+        setIsChatAssistantEnabled(e.value);
+    };
 
     const onchatAssistantLanguageOptions = (e: { value: string }, formik: FormikType) => {
         formik.setFieldValue("chatAssistantLanguage", e.value);
     };
+
 
     const clearGltfDataFile = () => {
         setGltfFileName("-");
@@ -680,6 +715,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         type: "Grafana dashboard",
         digitalTwinUid,
         maxNumResFemFiles: "1",
+        chatAssistantEnabled: false,
         chatAssistantLanguage: "en-UK-male",
         digitalTwinSimulationFormat: "{}",
     };
@@ -788,17 +824,27 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     </FileButton>
                                                 </SelectDataFilenButtonContainer>
                                             </DataFileContainer>
-                                            <DataFileTitle>Chat assistant</DataFileTitle>
-                                            <DataFileContainer>
+                                            <ChatAssistantTitle>Chat assistant</ChatAssistantTitle>
+                                            <ChatAssistantContainer>
                                                 <FormikControl
                                                     control="select"
-                                                    label="Select chat assistant language"
-                                                    name="chatAssistantLanguage"
-                                                    options={chatAssistantLanguageOptions}
+                                                    label="Use chat assistant"
+                                                    name="chatAssistantEnabled"
+                                                    options={chatAssistantEnabledOptions}
                                                     type="text"
-                                                    onChange={(e) => onchatAssistantLanguageOptions(e, formik)}
+                                                    onChange={(e) => onchatAssistantEnabledOptions(e, formik)}
                                                 />
-                                            </DataFileContainer>
+                                                {isChatAssistantEnabled && (
+                                                    <FormikControl
+                                                        control="select"
+                                                        label="Select chat assistant language"
+                                                        name="chatAssistantLanguage"
+                                                        options={chatAssistantLanguageOptions}
+                                                        type="text"
+                                                        onChange={(e) => onchatAssistantLanguageOptions(e, formik)}
+                                                    />
+                                                )}
+                                            </ChatAssistantContainer>
                                             <FormikControl
                                                 control="textarea"
                                                 label="Digital twin simulation format"
