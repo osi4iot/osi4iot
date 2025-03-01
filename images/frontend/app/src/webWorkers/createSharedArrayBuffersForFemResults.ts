@@ -65,7 +65,6 @@ const createSharedArrayBuffersForFemResults = (
         paramsArrayBuffer.set(paramsArray);
         paramsSABMap.set(resultName, paramsSAB);
 
-
         const lutRgbArraySAB = new SharedArrayBuffer(count * 3 * 4);
         const lutRgbArrayAB = new Float32Array(lutRgbArraySAB);
         lutRgbArrayAB.set(femSimulationGeneralInfo[resultName].resultLut.giveLutRgbArray());

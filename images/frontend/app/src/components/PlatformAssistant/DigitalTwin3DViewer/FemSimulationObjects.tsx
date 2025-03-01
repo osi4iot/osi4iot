@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import React, { FC, useEffect, useLayoutEffect, useRef, useState } from 'react'
+import React, { FC, useEffect, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber';
 import {
     defaultOpacity,
@@ -93,6 +93,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
     }
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
+    const currentJobIdRef = useRef(0);
 
     useEffect(() => {
         if (meshResult && femResultNames.length !== 0) {
@@ -214,7 +215,8 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         }
     })
 
-    useLayoutEffect(() => {
+    // useLayoutEffect(() => {
+    useEffect(() => {
         if (window.Worker && enableWebWorkes) {
             const times: number[] = [];
             times[0] = performance.now();
@@ -242,7 +244,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                     femResultModalValueSABMap &&
                     femResultNodalValueSABMap
                 ) {
-                    try {
+                    try {                   
                         femResultCalcWorkersManager(
                             numWebWorkers,
                             logElapsedTime,
@@ -265,7 +267,9 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
                             meshIndex,
                             meshRef.current,
                             meshResult,
+                            currentJobIdRef
                         )
+                        currentJobIdRef.current++;
                     } catch (e: any) {
                         toast.error("Error calculating FEM results in web workers")
                     }
@@ -403,6 +407,7 @@ const FemSimulationObjectBase: FC<FemSimulationObjectProps> = ({
         meshResult,
         femSimulationResult,
         femSimulationStateString,
+        femSimulationObjectState,
         showFemSimulationDeformation,
         femSimulationDefScale,
         showFemMesh,
@@ -440,6 +445,7 @@ const areEqual = (prevProps: FemSimulationObjectProps, nextProps: FemSimulationO
     return (prevProps.femSimulationObjectState !== undefined &&
         (prevProps.femSimulationObjectState.highlight === nextProps.femSimulationObjectState.highlight || nextProps.blinking)) &&
         prevProps.femSimulationObjectState.clipValue === nextProps.femSimulationObjectState.clipValue &&
+        prevProps.femSimulationObjectState.resultFieldModalValues === nextProps.femSimulationObjectState.resultFieldModalValues &&
         prevProps.blinking === nextProps.blinking &&
         prevProps.opacity === nextProps.opacity &&
         prevProps.hideObject === nextProps.hideObject &&

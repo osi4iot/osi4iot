@@ -146,14 +146,16 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const [voice, setVoice] = useState<IChatVoice | null>(null);
 
     useEffect(() => {
-        getVoices(chatAssistantLanguage).then((voice) => {
-            setVoice(voice as IChatVoice);
-            const grettingMessage: ChatMessage = {
-                message: voice.greeting,
-                sender: "assistant",
-            };
-            setChatMessages([grettingMessage]);
-        });
+        if (chatMessages.length === 0) {
+            getVoices(chatAssistantLanguage).then((voice) => {
+                setVoice(voice as IChatVoice);
+                const grettingMessage: ChatMessage = {
+                    message: voice.greeting,
+                    sender: "assistant",
+                };
+                setChatMessages([grettingMessage]);
+            });
+        }
 
         return () => {
             SpeechRecognition.stopListening();

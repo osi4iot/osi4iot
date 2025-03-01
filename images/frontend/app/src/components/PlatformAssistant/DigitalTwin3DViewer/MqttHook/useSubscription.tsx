@@ -142,7 +142,15 @@ const updateObjectsState = (
             const genericObjectNewState = { ...genericObjectsState };
             let isGenericObjectsStateChanged = false;
             let isfemSimulationObjectsStateChanged = false;
-            const femSimulationObjectsNewState = [...femSimulationObjectsState];
+            //const femSimulationObjectsNewState = [...femSimulationObjectsState];
+            const femSimulationObjectsNewState = femSimulationObjectsState.map((obj) => ({
+                ...obj,
+                // Si solo cambia resultFieldModalValues, crea una nueva referencia para ella:
+                resultFieldModalValues: Object.fromEntries(
+                    Object.entries(obj.resultFieldModalValues).map(([key, value]) => [key, [...value]])
+                ),
+            }));
+
             let digitalTwinState = "OK";
 
             if (isGroupDTDemo && messageTopicRef === "dev2pdb_3") {
@@ -324,7 +332,7 @@ const updateObjectsState = (
                             }
                         }
                         if (messagePayloadKeys.indexOf(fieldName) !== -1 || llmResponseValue !== null) {
-                            const value = llmResponseValue === null ? mqttMessage[fieldName] : llmResponseValue;;
+                            const value = llmResponseValue === null ? mqttMessage[fieldName] : llmResponseValue;
                             if (
                                 typeof value === "number" ||
                                 (Array.isArray(value) && value.findIndex((elem: any) => elem === null) !== -1)
