@@ -3,13 +3,15 @@ package docker
 import (
 	"fmt"
 	"strings"
-	
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 type Volume struct {
@@ -349,80 +351,6 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 	return Volumes
 }
 
-func createConfig(dc *DockerClient, configKey string, config *Config) error {
-	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{})
-	if err != nil {
-		return fmt.Errorf("error listing configs: %v", err)
-	}
-
-	configExists := false
-	for _, c := range existingConfigs {
-		if c.Spec.Name == config.Name {
-			configExists = true
-			config.ID = c.ID
-			break
-		} else if c.Spec.Name != config.Name && c.Spec.Name[:len(configKey)] == configKey {
-			configExists = false
-			err = dc.Cli.ConfigRemove(dc.Ctx, c.ID)
-			if err != nil {
-				return fmt.Errorf("error removing config: %v", err)
-			}
-			break
-		}
-	}
-
-	if !configExists {
-		configResp, err := dc.Cli.ConfigCreate(dc.Ctx, swarm.ConfigSpec{
-			Annotations: swarm.Annotations{
-				Name: config.Name,
-				Labels: map[string]string{
-					"app": "osi4iot",
-				},
-			},
-			Data: []byte(config.Data),
-		})
-		if err != nil {
-			return fmt.Errorf("error creating config: %v", err)
-		}
-		config.ID = configResp.ID
-	}
-
-	return nil
-}
-
-func createSwarmConfigs(platformData *common.PlatformData, dc *DockerClient) (map[string]Config, error) {
-	configs := GenerateConfigs(platformData)
-	for key, config := range configs {
-		err := createConfig(dc, key, &config)
-		if err != nil {
-			return nil, fmt.Errorf("error creating config %s: %v", key, err)
-		}
-		configs[key] = config
-	}
-
-	return configs, nil
-}
-
-func removeSwarmConfigs(dc *DockerClient) error {
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("label", "app=osi4iot")
-	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{
-		Filters: filterArgs,
-	})
-	if err != nil {
-		return fmt.Errorf("error listing configs: %v", err)
-	}
-
-	for _, c := range existingConfigs {
-		err = dc.Cli.ConfigRemove(dc.Ctx, c.ID)
-		if err != nil {
-			return fmt.Errorf("error removing config: %v", err)
-		}
-	}
-
-	return nil
-}
-
 func createVolume(dc *DockerClient, swarmVol *Volume) error {
 	existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
 	if err != nil {
@@ -455,26 +383,6 @@ func createVolume(dc *DockerClient, swarmVol *Volume) error {
 
 	return nil
 }
-
-// func createSwarmVolumes(platformData *common.PlatformData) (map[string]Volume, error) {
-// 	volumes := GenerateVolumes(platformData)
-// 	errors := []error{}
-// 	for key, volume := range volumes {
-// 		for _, dc := range DCMap {
-// 			err := createVolume(dc, &volume)
-// 			if err != nil {
-// 				errors = append(errors, fmt.Errorf("error creating volume %s in node %s: %v", volume.Name, dc.Node.NodeIP, err))
-// 			}
-// 		}
-// 		volumes[key] = volume
-// 	}
-
-// 	if len(errors) > 0 {
-// 		return nil, fmt.Errorf("errors creating volumes: %v", errors)
-// 	}
-
-// 	return volumes, nil
-// }
 
 func createSwarmVolumes(platformData *common.PlatformData) (map[string]Volume, error) {
 	volumesMap := GenerateVolumes(platformData)
@@ -687,4 +595,71 @@ func setNriVolumesAsCreated(platformData *common.PlatformData) (bool, error) {
 	}
 
 	return areNewNriVolumesCreated, nil
+}
+
+func RemoveNriVolumesInOrg(org common.Organization) error {
+	orgAcronym := strings.ToLower(org.OrgAcronym)
+	volumeNames := []string{}
+	numNodeRedInstances := len(org.NodeRedInstances)
+	for inri := range numNodeRedInstances {
+		nriHash := org.NodeRedInstances[inri].NriHash
+		serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
+		nriVolumeName := fmt.Sprintf("%s_data", serviceName)
+		volumeNames = append(volumeNames, nriVolumeName)
+	}
+
+	nriVolumeFilters := filters.NewArgs()
+	for _, name := range volumeNames {
+		nriVolumeFilters.Add("name", name)
+	}
+
+	done := make(chan bool)
+	spinnerMsg := fmt.Sprintf("Removing nri volumes in organization %s", org.OrgAcronym)
+	endMsg := fmt.Sprintf("Nri volumes in organization %s have been removed successfully", org.OrgAcronym)
+	utils.Spinner(spinnerMsg, endMsg, done)
+
+	timeOut := false
+	for i := 0; i <= 60; i++ {
+		time.Sleep(1 * time.Second) // wait for containers to stop completely
+		errors := []error{}
+		for _, dc := range DCMap {
+			existingVolumes := make(map[string]*volume.Volume)
+			volumesByNameResp, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
+				Filters: nriVolumeFilters,
+			})
+			if err != nil {
+				return fmt.Errorf("error listing volumes by name: %v", err)
+			}
+			for _, v := range volumesByNameResp.Volumes {
+				existingVolumes[v.Name] = v
+			}
+
+			for _, v := range existingVolumes {
+				err = dc.Cli.VolumeRemove(dc.Ctx, v.Name, true)
+				if err != nil {
+					if errdefs.IsNotFound(err) {
+						continue
+					}
+					errors = append(errors, fmt.Errorf("error removing nri volume: %v", err))
+				}
+			}
+		}
+
+		if len(errors) == 0 {
+			break
+		}
+
+		if i == 60 {
+			timeOut = true
+		}
+	}
+
+	if timeOut {
+		done <- false
+		return fmt.Errorf("timeout removing nri volumes in organization %s", org.OrgAcronym)
+	}
+
+	done <- true
+
+	return nil
 }

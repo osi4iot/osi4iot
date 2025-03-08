@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
@@ -237,4 +240,78 @@ tls:
 	}
 
 	return Configs
+}
+
+func createConfig(dc *DockerClient, configKey string, config *Config) error {
+	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{})
+	if err != nil {
+		return fmt.Errorf("error listing configs: %v", err)
+	}
+
+	configExists := false
+	for _, c := range existingConfigs {
+		if c.Spec.Name == config.Name {
+			configExists = true
+			config.ID = c.ID
+			break
+		} else if c.Spec.Name != config.Name && c.Spec.Name[:len(configKey)] == configKey {
+			configExists = false
+			err = dc.Cli.ConfigRemove(dc.Ctx, c.ID)
+			if err != nil {
+				return fmt.Errorf("error removing config: %v", err)
+			}
+			break
+		}
+	}
+
+	if !configExists {
+		configResp, err := dc.Cli.ConfigCreate(dc.Ctx, swarm.ConfigSpec{
+			Annotations: swarm.Annotations{
+				Name: config.Name,
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
+			},
+			Data: []byte(config.Data),
+		})
+		if err != nil {
+			return fmt.Errorf("error creating config: %v", err)
+		}
+		config.ID = configResp.ID
+	}
+
+	return nil
+}
+
+func createSwarmConfigs(platformData *common.PlatformData, dc *DockerClient) (map[string]Config, error) {
+	configs := GenerateConfigs(platformData)
+	for key, config := range configs {
+		err := createConfig(dc, key, &config)
+		if err != nil {
+			return nil, fmt.Errorf("error creating config %s: %v", key, err)
+		}
+		configs[key] = config
+	}
+
+	return configs, nil
+}
+
+func removeSwarmConfigs(dc *DockerClient) error {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing configs: %v", err)
+	}
+
+	for _, c := range existingConfigs {
+		err = dc.Cli.ConfigRemove(dc.Ctx, c.ID)
+		if err != nil {
+			return fmt.Errorf("error removing config: %v", err)
+		}
+	}
+
+	return nil
 }

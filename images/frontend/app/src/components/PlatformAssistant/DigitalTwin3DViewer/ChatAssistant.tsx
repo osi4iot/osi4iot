@@ -5,6 +5,7 @@ import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
 import { useLoggedUserLogin } from "../../../contexts/authContext/authContext";
 import getVoices, { IChatVoice } from "../../../tools/getVoices";
 import useSpeechSynthesis from "./useSpeechSynthesis";
+import useInterval from "../../../tools/useInterval";
 
 export interface ChatMessage {
     message: string;
@@ -133,17 +134,47 @@ interface ChatAssistantProps {
 }
 
 const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMessages, chatAssistantLanguage }) => {
+    const isMounted = useRef(true);
     const userName = useLoggedUserLogin();
     const [input, setInput] = useState<string>("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
-    const { transcript, listening, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
+    const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
     const [voiceAssistant, setVoiceAssistant] = useState<boolean>(false);
     const { speak, cancel } = useSpeechSynthesis({
         onEnd: () => {
-            startListening();
+            if (isMounted.current) {
+                startListening();
+                setUserAction("typing");
+            }
         },
     });
     const [voice, setVoice] = useState<IChatVoice | null>(null);
+    const [transcriptLength, setTranscriptLength] = useState<number>(0);
+    const [userAction, setUserAction] = useState<string>("none");
+
+    useEffect(() => {
+        return () => {
+            isMounted.current = false;
+            resetTranscript();
+            cancel();
+            setChatMessages([]);
+            const speechRecognition = SpeechRecognition.getRecognition();
+            if (speechRecognition) {
+                speechRecognition.continuous = false;
+                speechRecognition.abort();
+            }   
+        };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    useInterval(() => {
+        if (transcript.length !== 0 && transcriptLength === transcript.length) {
+            setUserAction("listening");
+        } else {
+            setTranscriptLength(transcript.length);
+            setUserAction("typing");
+        }
+    }, 1000);
 
     useEffect(() => {
         if (chatMessages.length === 0) {
@@ -157,12 +188,9 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             });
         }
 
-        return () => {
-            SpeechRecognition.stopListening();
-            cancel();
-        };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [setChatMessages]);
+        }, [setChatMessages]);
+
 
     const handleSend = useCallback(() => {
         if (input.trim() === "") return;
@@ -177,11 +205,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     }, [input, chatMessages, setChatMessages, resetTranscript]);
 
     useEffect(() => {
-        if (!listening && transcript) {
+        if (userAction === "listening" && transcript) {
             setInput(transcript);
             handleSend();
         }
-    }, [handleSend, listening, transcript]);
+    }, [handleSend, userAction, transcript]);
 
     const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
@@ -198,8 +226,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     }, [chatMessages]);
 
     const startListening = () => {
-        if (browserSupportsSpeechRecognition ) {
-            SpeechRecognition.startListening({ continuous: false, language: voice?.recognitionLang });
+        if (browserSupportsSpeechRecognition) {
+            SpeechRecognition.startListening({ continuous: true, language: voice?.recognitionLang });
             setVoiceAssistant(true);
         }
     };
@@ -225,6 +253,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const stopListening = () => {
         SpeechRecognition.stopListening();
         setVoiceAssistant(false);
+        setUserAction("none");
         cancel();
     };
 

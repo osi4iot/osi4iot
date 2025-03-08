@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
@@ -32,7 +33,7 @@ var cmdCreate = &cobra.Command{
 		platformState := data.GetPlatformState()
 		if platformState == data.Initiating {
 			platformData := data.GetData()
-			_, err:= docker.SetDockerClientsMap(platformData, "create")
+			_, err := docker.SetDockerClientsMap(platformData, "create")
 			if err != nil {
 				errMsg := fmt.Sprintf("Error setting Docker clients map: %v", err)
 				exitWithError(errMsg)
@@ -46,7 +47,8 @@ var cmdCreate = &cobra.Command{
 				errMsg := fmt.Sprintf("Error initializing platform: %v", err)
 				exitWithError(errMsg)
 			}
-			err = docker.SwarmInitiationInfo(platformData)
+			okMessage := "Platform has been created successfully and is ready to to be used"
+			err = docker.SwarmInitiationInfo(platformData, okMessage)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
@@ -67,7 +69,8 @@ var cmdInit = &cobra.Command{
 			errMsg := fmt.Sprintf("Error starting platform: %v", err)
 			exitWithError(errMsg)
 		}
-		err = docker.SwarmInitiationInfo(platformData)
+		okMessage := "Platform has been initialized successfully and is ready to to be used"
+		err = docker.SwarmInitiationInfo(platformData, okMessage)
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 			exitWithError(errMsg)
@@ -82,7 +85,7 @@ var cmdRun = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		checkState("run")
 		platformData := data.GetData()
-		dc, err :=  docker.GetManagerDC()
+		dc, err := docker.GetManagerDC()
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: getting docker client %v", err)
 			exitWithError(errMsg)
@@ -92,9 +95,9 @@ var cmdRun = &cobra.Command{
 			errMsg := fmt.Sprintf("Error: runing the platform %v", err)
 			exitWithError(errMsg)
 		} else {
-			fmt.Println("Platform has been started successfully")
 			platformData := data.GetData()
-			err := docker.SwarmInitiationInfo(platformData)
+			okMessage := "Platform has been started successfully and is ready to to be used"
+			err = docker.SwarmInitiationInfo(platformData, okMessage)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
@@ -112,13 +115,13 @@ var cmdOrg = &cobra.Command{
 	// },
 }
 
-
 var subCmdOrgsList = &cobra.Command{
 	Use:   "list",
 	Short: "List organizations",
 	Long:  "List organizations",
+	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		err:= orgs.ListOrgs()
+		err := orgs.ListOrgs()
 		if err != nil {
 			errMsg := fmt.Sprintf("Error: listing organizations %v", err)
 			exitWithError(errMsg)
@@ -139,17 +142,18 @@ var subCmdAddOrg = &cobra.Command{
 	Use:   "add",
 	Short: "Add organization",
 	Long:  "Add organization",
+	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		form.CreateOrgForm()
 		platformState := data.GetPlatformState()
 		if platformState == data.CreatingOrg {
 			platformData := data.GetData()
-			err := docker.SwarmInitiationInfo(platformData)
+			okMessage := "Organization has been created successfully"
+			err := docker.SwarmInitiationInfo(platformData, okMessage)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)
 				exitWithError(errMsg)
 			}
-			exitWithOkMsg("Organization created successfully")
 		}
 	},
 }
@@ -158,8 +162,37 @@ var subCmdRemoveOrg = &cobra.Command{
 	Use:   "remove",
 	Short: "Remove organization",
 	Long:  "Remove organization",
+	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("Remove organization")
+		orgIdString := args[0]
+		orgId, err := strconv.Atoi(orgIdString)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error: invalid organization ID %v", err)
+			exitWithError(errMsg)
+		}
+		existingOrg, err := orgs.CheckIfOrgExists(orgId)
+		if err != nil {
+			errMsg := fmt.Sprintf("Error: checking if organization exists %v", err)
+			exitWithError(errMsg)
+		}
+
+		if existingOrg == nil {
+			warningMsg := fmt.Sprintf("Organization with id %d does not exist", orgId)
+			exitWithWarning(warningMsg)
+		} else {
+			msg := fmt.Sprintf("Are you sure you want to remove the organization %s? [y/n]: ", existingOrg.Acronym)
+			fmt.Print(utils.StyleWarningMsg.Render(msg))
+			response := utils.ReadFromConsole()
+			if response == "y" || response == "Y" {
+				err = orgs.RemoveOrg(existingOrg)
+				if err != nil {
+					errMsg := fmt.Sprintf("Error: removing organization %v", err)
+					exitWithError(errMsg)
+					return
+				}
+				exitWithOkMsg("Organization removed successfully")
+			}
+		}
 	},
 }
 
@@ -355,7 +388,6 @@ func exitWithWarning(errMsg string) {
 	fmt.Println()
 	os.Exit(1)
 }
-
 
 func exitWithError(errMsg string) {
 	docker.CleanResources()

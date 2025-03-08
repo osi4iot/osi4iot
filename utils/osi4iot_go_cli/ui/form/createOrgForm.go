@@ -5,6 +5,8 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	clipboard "github.com/tiagomelo/go-clipboard/clipboard"
 )
 
@@ -54,7 +56,7 @@ func initialModelCreateOrg() Model {
 				DefaultAnswer: "",
 				ErrorMessage:  "",
 				Choices:       []string{"Generic", "Provider"},
-				ChoiceFocus:   0,
+				ChoiceFocus:   utils.GiveChoiceFocus("Generic", []string{"Generic", "Provider"}, 0),
 				Rules:         []string{"required", "isString"},
 				ActionKey:     "",
 				Margin:        0,
@@ -128,7 +130,7 @@ func initialModelCreateOrg() Model {
 				QuestionType:  "generic",
 				Prompt:        "Org admin first name",
 				Answer:        "",
-				DefaultAnswer: "",
+				DefaultAnswer: data.Data.PlatformInfo.PlatformAdminFirstName,
 				ErrorMessage:  "",
 				Choices:       []string{},
 				ChoiceFocus:   0,
@@ -141,7 +143,7 @@ func initialModelCreateOrg() Model {
 				QuestionType:  "generic",
 				Prompt:        "Org admin last name",
 				Answer:        "",
-				DefaultAnswer: "",
+				DefaultAnswer: data.Data.PlatformInfo.PlatformAdminSurname,
 				ErrorMessage:  "",
 				Choices:       []string{},
 				ChoiceFocus:   0,
@@ -154,7 +156,7 @@ func initialModelCreateOrg() Model {
 				QuestionType:  "generic",
 				Prompt:        "Org admin email",
 				Answer:        "",
-				DefaultAnswer: "",
+				DefaultAnswer: data.Data.PlatformInfo.PlatformAdminEmail,
 				ErrorMessage:  "",
 				Choices:       []string{},
 				ChoiceFocus:   0,

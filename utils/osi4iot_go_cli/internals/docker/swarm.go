@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -233,14 +234,22 @@ func DeletePlatform(platformData *common.PlatformData) error {
 		}
 	}
 
-	for i := 0; i < 60; i++ {
+	timeOut := false
+	for i := 0; i <= 60; i++ {
 		time.Sleep(1 * time.Second) // wait for containers to stop completely
 		err = removeSwarmVolumes(platformData)
 		if err == nil {
 			break
 		}
+		if i == 60 {
+			timeOut = true
+		}
 	}
 
+	if timeOut {
+		done <- false
+		return fmt.Errorf("error timeout removing volumes: %v", err)
+	}
 	done <- true
 
 	err = removeNfsRootFolder(platformData)
@@ -396,7 +405,7 @@ func findOrgAndNriIndex(platformData *common.PlatformData, orgAcronym string, nr
 	return orgIndex, nriIndex
 }
 
-func SwarmInitiationInfo(platformData *common.PlatformData) error {
+func SwarmInitiationInfo(platformData *common.PlatformData, okMessage string) error {
 	err := waitUntilAllContainersAreHealthy("all")
 	if err != nil {
 		errMsg := utils.StyleErrMsg.Render("error waiting for the platform to be healthy: ", err.Error())
@@ -417,7 +426,7 @@ func SwarmInitiationInfo(platformData *common.PlatformData) error {
 					if err != nil {
 						return fmt.Errorf("error writing platform data to file: %v", err)
 					}
-					okMsg := utils.StyleOKMsg.Render("Platform is ready to be used")
+					okMsg := utils.StyleOKMsg.Render(okMessage)
 					fmt.Println(okMsg)
 				}
 			} else {
@@ -425,7 +434,7 @@ func SwarmInitiationInfo(platformData *common.PlatformData) error {
 				if err != nil {
 					return fmt.Errorf("error writing platform data to file: %v", err)
 				}
-				okMsg := utils.StyleOKMsg.Render("Platform is ready to be used")
+				okMsg := utils.StyleOKMsg.Render(okMessage)
 				fmt.Println(okMsg)
 			}
 		}
@@ -715,5 +724,32 @@ func CleanResources() error {
 	if err := CloseDockerClientsMap(); err != nil {
 		return fmt.Errorf("error closing resources: %v", err)
 	}
+	return nil
+}
+
+func removeServicesByName(dc *DockerClient, svcNamesToRemove []string) error {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "app=osi4iot")
+	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{
+		Filters: filterArgs,
+	})
+	if err != nil {
+		return fmt.Errorf("error listing services: %v", err)
+	}
+
+	errors := []string{}
+	for _, service := range services {
+		serviceName := service.Spec.Name
+		if slices.Contains(svcNamesToRemove, serviceName) {
+			err := dc.Cli.ServiceRemove(dc.Ctx, service.ID)
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("error removing service %s: %v", serviceName, err))
+			}
+		}
+	}
+	if len(errors) > 0 {
+		return fmt.Errorf("%s", strings.Join(errors, "\n"))
+	}
+
 	return nil
 }
