@@ -16,6 +16,12 @@ class UpdateDigitalTwinDto {
 	@IsBoolean()
 	public isGltfFileModified: boolean;
 
+	@IsBoolean()
+	public chatAssistantEnabled: boolean;
+
+	@IsString()
+	public chatAssistantLanguage: string;
+
 	@IsString()
 	public digitalTwinSimulationFormat: string;
 

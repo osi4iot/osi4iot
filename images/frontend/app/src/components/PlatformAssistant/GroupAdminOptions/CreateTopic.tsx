@@ -51,6 +51,14 @@ const topicTypeOptions = [
         value: "sim2dtm"
     },
     {
+        label: "Simulator to LLM",
+        value: "sim2llm"
+    },
+    {
+        label: "LLM to simulator",
+        value: "llm2sim"
+    },
+    {
         label: "DTM to platform database",
         value: "dtm2pdb"
     },

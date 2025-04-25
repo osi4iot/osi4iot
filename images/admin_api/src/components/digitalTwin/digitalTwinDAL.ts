@@ -45,11 +45,14 @@ export const insertDigitalTwin = async (
 ): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
 		digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
+		chat_assistant_enabled, chat_assistant_language, 
 		digital_twin_simulation_format, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
 		scope, digital_twin_uid AS "digitalTwinUid", description,
 		type, dashboard_id AS "dashboardId",
+		chat_assistant_enabled AS "chatAssistantEnabled",
+		chat_assistant_language AS "chatAssistantLanguage",
 		digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		created, updated`;
 
@@ -63,6 +66,8 @@ export const insertDigitalTwin = async (
 			digitalTwinData.type,
 			digitalTwinData.dashboardId,
 			digitalTwinData.maxNumResFemFiles,
+			digitalTwinData.chatAssistantEnabled,
+			digitalTwinData.chatAssistantLanguage,
 			digitalTwinData.digitalTwinSimulationFormat,
 		]);
 	return result.rows[0] as IDigitalTwin;
@@ -75,6 +80,8 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
 										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 										grafanadb.digital_twin.dashboard_id AS "dashboardId",
+										grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+										grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 										FROM grafanadb.digital_twin
@@ -110,6 +117,8 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
 									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+									grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -129,6 +138,8 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 										grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
 										grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 										grafanadb.digital_twin.dashboard_id AS "dashboardId",
+										grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+										grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 										FROM grafanadb.digital_twin
@@ -148,6 +159,8 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 									grafanadb.digital_twin.scope, grafanadb.digital_twin.description,
 									grafanadb.digital_twin.type, grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+									grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -169,6 +182,8 @@ export const getDigitalTwinByProp = async (propName: string, propValue: (string 
 									grafanadb.digital_twin.type, 
 									grafanadb.digital_twin.max_num_resfem_files AS "maxNumResFemFiles",
 									grafanadb.digital_twin.dashboard_id AS "dashboardId",
+									grafanadb.digital_twin.chat_assistant_enabled AS "chatAssistantEnabled",
+									grafanadb.digital_twin.chat_assistant_language AS "chatAssistantLanguage",
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
@@ -188,13 +203,17 @@ export const checkDigitalTwinConstraint = async (groupId: number, assetId: numbe
 export const updateDigitalTwinById = async (digitalTwinId: number, digitalTwinData: Partial<IDigitalTwin>): Promise<void> => {
 	const query = `UPDATE grafanadb.digital_twin SET digital_twin_uid = $1,
 	                description = $2, type = $3, max_num_resfem_files = $4,
-					digital_twin_simulation_format = $5, updated = NOW()
-					WHERE grafanadb.digital_twin.id = $6;`;
+					chat_assistant_enabled = $5,
+					chat_assistant_language = $6,
+					digital_twin_simulation_format = $7, updated = NOW()
+					WHERE grafanadb.digital_twin.id = $8;`;
 	await pool.query(query, [
 		digitalTwinData.digitalTwinUid,
 		digitalTwinData.description,
 		digitalTwinData.type,
 		digitalTwinData.maxNumResFemFiles,
+		digitalTwinData.chatAssistantEnabled,
+		digitalTwinData.chatAssistantLanguage,
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinId
 	]);
@@ -399,7 +418,7 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 	const groupId = group.id;
 	const digitalTwinId = digitalTwinUpdate.id;
 	const storedDTTopics = await getDTTopicsByDigitalTwinId(digitalTwinId);
-	const digitalTwinTopicList = ["dtm2sim", "sim2dtm", "dtm2pdb", "dev2dtm", "dtm2dev", "dev2sim"];
+	const digitalTwinTopicList = ["dtm2sim", "sim2dtm", "dtm2pdb", "dev2dtm", "dtm2dev", "dev2sim", "sim2llm", "llm2sim"];
 	const topicTypesToAdd: string[] = [];
 	digitalTwinTopicList.forEach(topicType => {
 		const existentTopic = storedDTTopics.filter(dtTopic => dtTopic.topicRef === topicType)[0];
@@ -497,6 +516,38 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 			};
 			const dtm2pdbTopic = await createTopic(0, dtm2pdbTopicData);
 			await createDigitalTwinTopic(digitalTwinId, dtm2pdbTopic.id, "dtm2pdb");
+		}
+
+		if (topicTypesToAdd.indexOf("sim2llm") !== -1) {
+			const sim2llmTopicData =
+			{
+				topicType: "sim2llm",
+				topicName: `${digitalTwinUid}_sim2llm`,
+				description: `sim2llm for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub",
+				payloadJsonSchema: "{}",
+				requireS3Storage: false,
+				s3Folder: "",
+				parquetSchema: "{}",
+			};
+			const sim2llmTopic = await createTopic(0, sim2llmTopicData);
+			await createDigitalTwinTopic(digitalTwinId, sim2llmTopic.id, "sim2llm");
+		}
+
+		if (topicTypesToAdd.indexOf("llm2sim") !== -1) {
+			const llm2simTopicData =
+			{
+				topicType: "llm2sim",
+				topicName: `${digitalTwinUid}_llm2sim`,
+				description: `llm2sim for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub",
+				payloadJsonSchema: "{}",
+				requireS3Storage: false,
+				s3Folder: "",
+				parquetSchema: "{}",
+			};
+			const llm2simTopic = await createTopic(0, llm2simTopicData);
+			await createDigitalTwinTopic(digitalTwinId, llm2simTopic.id, "llm2sim");
 		}
 	}
 }
@@ -646,6 +697,8 @@ export const createDigitalTwin = async (
 		type: digitalTwinInput.type,
 		dashboardId: digitalTwinDashboardId,
 		maxNumResFemFiles: digitalTwinInput.maxNumResFemFiles,
+		chatAssistantEnabled: digitalTwinInput.chatAssistantEnabled,
+		chatAssistantLanguage: digitalTwinInput.chatAssistantLanguage,
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
@@ -730,6 +783,32 @@ export const createDigitalTwin = async (
 		};
 		const dev2simTopic = await createTopic(groupId, dev2simTopicData);
 		await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, "dev2sim");
+
+		const sim2llmTopicData =
+		{
+			topicType: "sim2llm",
+			description: `sim2llm for DT_${digitalTwinUid}`,
+			mqttAccessControl: "Pub & Sub",
+			payloadJsonSchema: "{}",
+			requireS3Storage: false,
+			s3Folder: "",
+			parquetSchema: "{}",
+		};
+		const sim2llmTopic = await createTopic(groupId, sim2llmTopicData);
+		await createDigitalTwinTopic(digitalTwin.id, sim2llmTopic.id, "sim2llm");
+
+		const llm2simTopicData =
+		{
+			topicType: "llm2sim",
+			description: `llm2sim for DT_${digitalTwinUid}`,
+			mqttAccessControl: "Pub & Sub",
+			payloadJsonSchema: "{}",
+			requireS3Storage: false,
+			s3Folder: "",
+			parquetSchema: "{}",
+		};
+		const llm2simTopic = await createTopic(groupId, llm2simTopicData);
+		await createDigitalTwinTopic(digitalTwin.id, llm2simTopic.id, "llm2sim");
 	}
 
 	const sensorsRef = digitalTwinInput.sensorsRef;

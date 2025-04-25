@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -530,6 +531,17 @@ func GetLocalNodeIP() (string, error) {
 	localAddr := conn.LocalAddr().(*net.UDPAddr)
 	localIP := localAddr.IP.String()
 	return localIP, nil
+}
+
+func ReadFromConsole() string {
+	reader := bufio.NewReader(os.Stdin)
+	char, _, err := reader.ReadRune()
+
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return string(char)
 }
 
 var StyleWarningMsg = lipgloss.NewStyle().

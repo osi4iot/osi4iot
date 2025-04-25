@@ -8,10 +8,12 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/uitable"
 )
@@ -30,16 +32,16 @@ type Organization struct {
 }
 
 type NodeRedInstance struct {
-	Id       int    `json:"id"`
-	OrgId    int    `json:"orgId"`
-	GroupId  int    `json:"groupId"`
-	NriHash  string `json:"nriHash"`
-	IconRadio int    `json:"iconRadio"`
+	Id        int     `json:"id"`
+	OrgId     int     `json:"orgId"`
+	GroupId   int     `json:"groupId"`
+	NriHash   string  `json:"nriHash"`
+	IconRadio int     `json:"iconRadio"`
 	Longitude float64 `json:"longitude"`
-	Latitude float64 `json:"latitude"`
-	Deleted  bool   `json:"deleted"`
-	Created  string `json:"created"`
-	Updated  string `json:"updated"`
+	Latitude  float64 `json:"latitude"`
+	Deleted   bool    `json:"deleted"`
+	Created   string  `json:"created"`
+	Updated   string  `json:"updated"`
 }
 
 type Admin struct {
@@ -154,7 +156,6 @@ func ListOrgs() error {
 		{Title: "Num nri", Width: 8},
 	}
 
-
 	values := []table.Row{}
 	for _, org := range orgs {
 		values = append(values,
@@ -173,7 +174,8 @@ func ListOrgs() error {
 		)
 	}
 
-	uitable.Create(columns, values, len(orgs)+3)
+	maxHeight := min(len(orgs) + 3, 13)
+	uitable.Create(columns, values, maxHeight)
 
 	return nil
 }
@@ -224,29 +226,43 @@ func getNodeRedInstances(platformData *common.PlatformData, accessToken string) 
 	return nodeRedInstances, nil
 }
 
-func RequestCreateOrg(plaformData *common.PlatformData, createOrgData CreateOrgData) error {
-	accessToken, err := utils.Login(plaformData)
+func CheckIfOrgExists(orgId int) (*Organization, error) {
+	platformData := data.GetData()
+	orgs, err := getOrgs(platformData)
+	if err != nil {
+		return nil, fmt.Errorf("error getting organizations: %w", err)
+	}
+
+	for _, org := range orgs {
+		if org.Id == orgId {
+			return &org, nil
+		}
+	}
+	return nil, nil
+}
+
+func RequestCreateOrg(platformData *common.PlatformData, createOrgData CreateOrgData) error {
+	accessToken, err := utils.Login(platformData)
 	if err != nil || accessToken == "" {
 		return fmt.Errorf("error logging in: %w", err)
 	}
 
-	domainName := plaformData.PlatformInfo.DomainName
-	domainCertsType := plaformData.PlatformInfo.DomainCertsType
+	domainName := platformData.PlatformInfo.DomainName
+	domainCertsType := platformData.PlatformInfo.DomainCertsType
 	protocol := "https"
 	if domainCertsType == "No certs" {
 		protocol = "http"
 	}
 
-	
 	jsonData, err := json.Marshal(createOrgData)
 	if err != nil {
-		return fmt.Errorf("error al convertir createOrgData a JSON: %w", err)
+		return fmt.Errorf("error converting createOrgData to JSON: %w", err)
 	}
-	
+
 	urlCreateOrg := fmt.Sprintf("%s://%s/admin_api/organization", protocol, domainName)
 	req, err := http.NewRequest("POST", urlCreateOrg, bytes.NewBuffer(jsonData))
 	if err != nil {
-		return fmt.Errorf("error al crear la solicitud POST: %w", err)
+		return fmt.Errorf("error creating POST request: %w", err)
 	}
 
 	client := &http.Client{}
@@ -285,3 +301,104 @@ func RequestCreateOrg(plaformData *common.PlatformData, createOrgData CreateOrgD
 	return nil
 }
 
+func RequestRemoveOrg(platformData *common.PlatformData, orgId int) error {
+	accessToken, err := utils.Login(platformData)
+	if err != nil || accessToken == "" {
+		return fmt.Errorf("error logging in: %w", err)
+	}
+
+	domainName := platformData.PlatformInfo.DomainName
+	domainCertsType := platformData.PlatformInfo.DomainCertsType
+	protocol := "https"
+	if domainCertsType == "No certs" {
+		protocol = "http"
+	}
+
+
+	urlRemoveOrg := fmt.Sprintf("%s://%s/admin_api/organization/id/%s", protocol, domainName, strconv.Itoa(orgId))
+	req, err := http.NewRequest("DELETE", urlRemoveOrg, nil)
+	if err != nil {
+		return fmt.Errorf("error creating DELETE request: %w", err)
+	}
+
+	client := &http.Client{}
+	if domainCertsType == "No certs" {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		client = &http.Client{Transport: tr}
+	}
+
+	req.Header.Set("Authorization", "Bearer "+accessToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error in delete org request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("error reading response body: %w", err)
+	}
+
+	var removeOrgResp Response
+	err = json.Unmarshal(respBody, &removeOrgResp)
+	if err != nil {
+		return err
+	}
+
+	if removeOrgResp.Message != "Organization deleted successfully" {
+		return fmt.Errorf("error removing organization: %s", removeOrgResp.Message)
+	}
+
+	return nil
+}
+
+func RemoveOrg(existingOrg *Organization) error {
+	platformData := data.GetData()
+	err := RequestRemoveOrg(platformData, existingOrg.Id)
+	if err != nil {
+		return fmt.Errorf("error requesting remove organization: %w", err)
+	}
+
+	newOrgs := []common.Organization{}
+	var orgToRemove common.Organization
+	for _, org := range platformData.Certs.MqttCerts.Organizations {
+		if !strings.EqualFold(org.OrgAcronym, existingOrg.Acronym) {
+			newOrgs = append(newOrgs, org)
+		} else {
+			orgToRemove = org
+		}
+	}
+	platformData.Certs.MqttCerts.Organizations = newOrgs
+
+	err = utils.WritePlatformDataToFile(platformData)
+	if err != nil {
+		return fmt.Errorf("error writing platform data to file: %w", err)
+	}
+
+	err = 	docker.RemoveNriServices(orgToRemove)
+	if err != nil {
+		return fmt.Errorf("error removing NRI services: %w", err)
+	}
+
+	err = docker.RemoveNriVolumesInOrg(orgToRemove)
+	if err != nil {
+		return err
+	}
+
+	err = docker.RemoveNfsFolders(platformData, orgToRemove.OrgAcronym)
+	if err != nil {
+		return fmt.Errorf("error adding NFS folders on nodes: %w", err)
+	}
+
+	err = docker.RemoveEfsFolders(platformData, orgToRemove.OrgAcronym)
+	if err != nil {
+		return fmt.Errorf("error adding EFS folders on nodes: %w", err)
+	}
+
+	return nil
+}

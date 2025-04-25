@@ -1,7 +1,6 @@
 declare function postMessage(message: any, transfer?: Transferable[] | undefined): void;
 
 const calFemResultwithSAB = () => {
-
     const getColorRGB = (alpha: number, minV: number, maxV: number, n: number, rgbArray: Float32Array) => {
         if (alpha <= minV) {
             alpha = minV;
@@ -15,7 +14,9 @@ const calFemResultwithSAB = () => {
         const g = rgbArray[3 * colorPosition + 1];
         const b = rgbArray[3 * colorPosition + 2];
         return { r, g, b };
-    }
+    };
+    let currentJobId = 0;
+    let cancelPrevious = false;
 
     // eslint-disable-next-line no-restricted-globals
     self.onmessage = (event: MessageEvent<any>) => {
@@ -34,6 +35,10 @@ const calFemResultwithSAB = () => {
             dispYNodalValuesBuffer,
             dispZNodalValuesBuffer,
         } = event.data;
+        const jobId = generalData.jobId;
+        if (jobId !== currentJobId) {
+            cancelPrevious = true;
+        }
         const initialIndex = generalData.initialIndex;
         const finalIndex = generalData.finalIndex;
         const femSimulationDefScale = generalData.femSimulationDefScale;
@@ -57,6 +62,7 @@ const calFemResultwithSAB = () => {
         const dispYNodalValues = new Float32Array(dispYNodalValuesBuffer);
         const dispZNodalValues = new Float32Array(dispZNodalValuesBuffer);
 
+        let currentJobArray: Float32Array;
         let resultColors: Float32Array;
         let currentPositions = new Float32Array((finalIndex - initialIndex) * 3);
         let MinMaxValues: Float32Array;
@@ -72,16 +78,27 @@ const calFemResultwithSAB = () => {
 
         let ipos = 0;
         for (let i = initialIndex; i < finalIndex; i++) {
+            if (cancelPrevious) {
+                const currentJobArray = new Float32Array([currentJobId]);
+                const result = {
+                    buffer0: currentJobArray.buffer,
+                };
+                currentJobId++;
+                postMessage(result, [currentJobArray.buffer]);
+                return;
+            }
             if (resultType === 1 || resultType === 3) {
                 let totalcolorValue = 0;
                 for (let imode = 1; imode <= numberOfModes; imode++) {
                     const modalValue = resultFieldModalValues[imode - 1];
                     if (modalValue === 0.0) continue;
-                    if (resultLocation === 0) { //"OnNodes"
+                    if (resultLocation === 0) {
+                        //"OnNodes"
                         const inode = elemConnectivities[i] - 1;
                         const resultValue = resultNodalValues[inode + (imode - 1) * count];
                         totalcolorValue += resultValue * modalValue;
-                    } else if (resultLocation === 1) { //"OnGaussPoints"
+                    } else if (resultLocation === 1) {
+                        //"OnGaussPoints"
                         totalcolorValue += resultNodalValues[i + (imode - 1) * count] * modalValue;
                     }
                 }
@@ -123,29 +140,31 @@ const calFemResultwithSAB = () => {
                 }
 
                 currentPositionArray.push(currentCoordX, currentCoordY, currentCoordZ);
-                if (i === (finalIndex - 1)) {
+                if (i === finalIndex - 1) {
                     currentPositions.set(currentPositionArray);
                 }
             }
             ++ipos;
         }
 
+        currentJobArray = new Float32Array([currentJobId]);
         MinMaxValues = new Float32Array([femMinValue, femMaxValue]);
         resultColors = new Float32Array(lutColors);
 
         const result = {
+            buffer0: currentJobArray.buffer,
             buffer1: MinMaxValues.buffer,
             buffer2: resultColors.buffer,
             buffer3: currentPositions.buffer,
-        }
-        postMessage(result,
-            [
-                MinMaxValues.buffer,
-                resultColors.buffer,
-                currentPositions.buffer,
-            ]
-        );
-
+        };
+        
+        postMessage(result, [
+            currentJobArray.buffer,
+            MinMaxValues.buffer,
+            resultColors.buffer,
+            currentPositions.buffer,
+        ]);
+        currentJobId++;
     };
 };
 

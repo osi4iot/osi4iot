@@ -27,18 +27,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
-		case "esc":
-			if m.table.Focused() {
-				m.table.Blur()
-			} else {
-				m.table.Focus()
-			}
 		case "ctrl+q", "ctrl+d":
 			return m, tea.Quit
-		case "enter":
-			return m, tea.Batch(
-				tea.Printf("Detalles de la Tarea %s: %s", m.table.SelectedRow()[1], m.table.SelectedRow()[2]),
-			)
 		}
 	}
 	m.table, cmd = m.table.Update(msg)

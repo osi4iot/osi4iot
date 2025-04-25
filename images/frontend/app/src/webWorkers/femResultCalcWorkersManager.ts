@@ -1,7 +1,7 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 import { toast } from "react-toastify";
 import { IFemSimulationObject } from "../components/PlatformAssistant/DigitalTwin3DViewer/Model";
-import { FemSimulationObjectState } from '../components/PlatformAssistant/DigitalTwin3DViewer/ViewerUtils';
+import { FemSimulationObjectState } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerUtils";
 
 const femResultCalcWorkersManager = (
     numWorkers: number,
@@ -25,9 +25,10 @@ const femResultCalcWorkersManager = (
     meshIndex: number,
     meshRefCurrent: any,
     meshResult: any,
+    currentJobIdRef: React.MutableRefObject<number>
 ) => {
     let startTime: number = 0;
-    if(logElapsedTime) startTime = Date.now();
+    if (logElapsedTime) startTime = Date.now();
     const paramsBuffer = paramsSABMap.get(femSimulationResult);
     const lutRgbBuffer = lutRgbArraySABMap.get(femSimulationResult);
     const originalGeometryBuffer = originaGeometrySAB;
@@ -56,12 +57,11 @@ const femResultCalcWorkersManager = (
         if (showFemSimulationDeformation) resultType = 2;
     }
 
-
     if (resultType === 1 || resultType === 3) {
         const resultFieldModalValuesAB = new Float32Array(resultFieldModalValuesBuffer as SharedArrayBuffer);
-        resultFieldModalValuesAB.set(femSimulationObjectState.resultFieldModalValues[femSimulationResult])
+        resultFieldModalValuesAB.set(femSimulationObjectState.resultFieldModalValues[femSimulationResult]);
     }
-    
+
     if (resultType === 2 || resultType === 3) {
         const dispXModalValuesAB = new Float32Array(dispXModalValuesBuffer as SharedArrayBuffer);
         dispXModalValuesAB.set(femSimulationObjectState.resultFieldModalValues[deformationFields[0]]);
@@ -72,18 +72,20 @@ const femResultCalcWorkersManager = (
     }
 
     let numWorkerCompleted = 0;
+    const currentJobId = currentJobIdRef.current;
     for (let iworker = 1; iworker <= numWorkers; ++iworker) {
         const initialIndex = (iworker - 1) * interval;
         let finalIndex = iworker * interval;
         if (iworker === numWorkers) finalIndex = count;
 
         const generalData = {
+            jobId: currentJobId,
             initialIndex,
             finalIndex,
             femSimulationDefScale,
             resultType,
             count,
-            iworker
+            iworker,
         };
 
         const message = {
@@ -100,13 +102,19 @@ const femResultCalcWorkersManager = (
             dispXNodalValuesBuffer,
             dispYNodalValuesBuffer,
             dispZNodalValuesBuffer,
-        }
+        };
 
         workers[iworker - 1].postMessage(message);
 
         // eslint-disable-next-line no-loop-func
         workers[iworker - 1].onmessage = (e: MessageEvent<string>) => {
-            const { buffer1, buffer2, buffer3 } = (e.data as any);
+            const { buffer0, buffer1, buffer2, buffer3 } = e.data as any;
+        
+            const currentJobArray = new Float32Array(buffer0);
+            const jobId = currentJobArray[0];
+            if (currentJobId !== jobId) {
+                return;
+            }
             numWorkerCompleted++;
 
             if (resultType === 1 || resultType === 3) {
@@ -127,13 +135,13 @@ const femResultCalcWorkersManager = (
                         newFemMinValues[meshIndex] = minValue;
                         return newFemMinValues;
                     });
-    
+
                     setFemMaxValues((prevFemMaxValues: number[]) => {
                         const newFemMaxValues = [...prevFemMaxValues];
                         newFemMaxValues[meshIndex] = maxValue;
                         return newFemMaxValues;
                     });
-                    femSimulationObject.node.geometry.setAttribute('color', new THREE.BufferAttribute(resultColors, 3));
+                    femSimulationObject.node.geometry.setAttribute("color", new THREE.BufferAttribute(resultColors, 3));
                 }
             }
 
@@ -143,7 +151,10 @@ const femResultCalcWorkersManager = (
             }
 
             if (numWorkerCompleted === numWorkers) {
-                femSimulationObject.node.geometry.setAttribute('position', new THREE.BufferAttribute(currentPositions, 3));
+                femSimulationObject.node.geometry.setAttribute(
+                    "position",
+                    new THREE.BufferAttribute(currentPositions, 3)
+                );
                 if (meshRefCurrent) {
                     if (showFemMesh) {
                         const wireframeGeometry = new THREE.WireframeGeometry(femSimulationObject.node.geometry);
@@ -155,15 +166,14 @@ const femResultCalcWorkersManager = (
 
             if (logElapsedTime && numWorkerCompleted === numWorkers) {
                 const endTime = Date.now();
-                console.log(`Elapsed time with ${numWorkers} workers: ${endTime - startTime}ms`)
+                console.log(`Elapsed time with ${numWorkers} workers: ${endTime - startTime}ms`);
             }
-
         };
         workers[iworker - 1].onerror = (event: ErrorEvent) => {
             const errorMessage = `Error in fem result calculation for worker ${iworker}`;
             toast.warning(errorMessage);
-        }
+        };
     }
-}
+};
 
 export default femResultCalcWorkersManager;

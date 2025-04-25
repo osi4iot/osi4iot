@@ -381,3 +381,23 @@ func CreateNriServices(newOrg common.Organization, platformData *common.Platform
 
 	return nil
 }
+
+func RemoveNriServices(org common.Organization) error {
+	dc, err := GetManagerDC()
+	if err != nil {
+		return fmt.Errorf("error getting docker client: %v", err)
+	}
+
+	servicesToRemove := []string{}
+	for _, nri := range org.NodeRedInstances {
+		serviceName := fmt.Sprintf("org_%s_nri_%s", strings.ToLower(org.OrgAcronym), nri.NriHash)
+		servicesToRemove = append(servicesToRemove, serviceName)
+	}
+
+	err= removeServicesByName(dc, servicesToRemove)
+	if err != nil {
+		return fmt.Errorf("error removing services: %v", err)
+	}
+
+	return nil
+}

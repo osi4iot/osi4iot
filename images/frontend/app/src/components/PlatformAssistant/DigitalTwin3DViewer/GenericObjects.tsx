@@ -43,7 +43,6 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
     const [mixer, setMixer] = useState<THREE.AnimationMixer | null>(null);
     const [clipsDuration, setClipsDuration] = useState(0);
 
-
     useEffect(() => {
         if (obj.animations.length !== 0 && !(obj.animations as any).includes(undefined) && meshRef.current) {
             const mixer = new THREE.AnimationMixer(meshRef.current as any);
@@ -96,7 +95,7 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [mixer, genericObjectState.clipValue]);
 
-
+    
     useFrame(({ clock }, delta) => {
         if (
             obj.blenderAnimationTypes.includes("blenderEndless") ||
@@ -133,8 +132,10 @@ const GenericObjectBase: FC<GenericObjectProps> = ({
                     changeMaterialPropRecursively(obj, 'emissive', noEmitColor);
                     changeMaterialPropRecursively(obj, 'opacity', defOpacity * opacity);
 
-                    changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
-                    changeMaterialPropRecursively(obj, 'depthWrite', !showDeepObjects);
+                    if (recursiveTransparency === undefined || recursiveTransparency === "true")  {
+                        changeMaterialPropRecursively(obj, 'transparent', (defOpacity * opacity) === 1 ? false : true);
+                        changeMaterialPropRecursively(obj, 'depthWrite', !showDeepObjects);
+                    }
                 }
             }
         } else {
