@@ -16,6 +16,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.194.0",
     "@aws-sdk/s3-request-presigner": "^3.198.0",
+    "@nats-io/nkeys": "^2.0.3",
     "@turf/point-on-feature": "^6.5.0",
     "@turf/rhumb-destination": "^6.5.0",
     "@types/multer": "^1.4.7",

@@ -7,11 +7,11 @@ require (
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/docker/cli v27.5.1+incompatible
 	github.com/docker/docker v27.4.1+incompatible
+	github.com/nats-io/nkeys v0.4.11
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.8.1
 	github.com/tiagomelo/go-clipboard v0.1.1
-	golang.org/x/crypto v0.31.0
-	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67
+	golang.org/x/crypto v0.37.0
 )
 
 require (
@@ -52,9 +52,9 @@ require (
 	go.opentelemetry.io/otel/metric v1.34.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.34.0 // indirect
 	go.opentelemetry.io/otel/trace v1.34.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/sync v0.13.0 // indirect
+	golang.org/x/sys v0.32.0 // indirect
+	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/time v0.10.0 // indirect
 	gotest.tools/v3 v3.5.1 // indirect
 )

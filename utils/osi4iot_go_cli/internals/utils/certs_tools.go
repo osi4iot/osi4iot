@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"golang.org/x/crypto/bcrypt"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
@@ -14,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/nats-io/nkeys"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 )
 
@@ -37,7 +39,7 @@ func GetCertExpirationTimestamp(cert string) int64 {
 	return parsedCert.NotAfter.UnixMilli() / 1000
 }
 
-func CreateCaCerts(platformData *common.PlatformData) (*rsa.PrivateKey, *x509.Certificate, error) {
+func CreateMqttCaCerts(platformData *common.PlatformData) (*rsa.PrivateKey, *x509.Certificate, error) {
 	var caKey *rsa.PrivateKey
 	var caCert *x509.Certificate
 	var err error
@@ -218,13 +220,13 @@ func CreateNodeRedCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey
 	domainName := platformData.PlatformInfo.DomainName
 	validityDays := platformData.PlatformInfo.MQTTSslCertsValidityDays
 	limitTime := time.Now().Add(24 * 15 * time.Hour) //15 days of margin
-	for iorg, org := range platformData.Certs.MqttCerts.Organizations {
+	for iorg, org := range platformData.Organizations {
 		orgAcronym := org.OrgAcronym
 		orgAcronymLower := strings.ToLower(orgAcronym)
 		for inri, nri := range org.NodeRedInstances {
-			mqttClientCert := nri.ClientCrt
-			mqttClientKey := nri.ClientKey
-			mqttClientExpirationTimestamp := nri.ExpirationTimestamp
+			mqttClientCert := nri.NriMqttCerts.ClientCrt
+			mqttClientKey := nri.NriMqttCerts.ClientKey
+			mqttClientExpirationTimestamp := nri.NriMqttCerts.ExpirationTimestamp
 			expirationTime := time.Unix(mqttClientExpirationTimestamp, 0)
 			if (mqttClientCert == "" && mqttClientKey == "") || expirationTime.Before(limitTime) {
 				nriHash := nri.NriHash
@@ -284,16 +286,15 @@ func CreateNodeRedCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey
 				mqttClientCert := string(nriCertPEM)
 				mqttClientKey := string(nriKeyPEM)
 
-				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ClientCrt = mqttClientCert
+				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrt = mqttClientCert
 				mqttClientCertName := fmt.Sprintf("%s_%s_cert_%s", orgAcronymLower, nriHash, GetMD5Hash(mqttClientCert))
-				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ClientCrtName = mqttClientCertName
-				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ExpirationTimestamp = GetCertExpirationTimestamp(mqttClientCert)
+				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrtName = mqttClientCertName
+				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ExpirationTimestamp = GetCertExpirationTimestamp(mqttClientCert)
 
-				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ClientKey = mqttClientKey
+				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKey = mqttClientKey
 				mqttClientKeyName := fmt.Sprintf("%s_%s_key_%s", orgAcronymLower, nriHash, GetMD5Hash(mqttClientKey))
-				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].ClientKeyName = mqttClientKeyName
-				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].IsVolumeCreated = "false"
-				platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash = nriHash
+				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKeyName = mqttClientKeyName
+				platformData.Organizations[iorg].NodeRedInstances[inri].NriHash = nriHash
 
 				// deploymentMode := platformData.PlatformInfo.DeploymentMode
 				// if deploymentMode == "development" {
@@ -309,7 +310,7 @@ func CreateNodeRedCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey
 
 func MqttTLSCredentials(platformData *common.PlatformData) error {
 	//CA Cert
-	caKey, caCert, err := CreateCaCerts(platformData)
+	caKey, caCert, err := CreateMqttCaCerts(platformData)
 	if err != nil {
 		return err
 	}
@@ -328,3 +329,93 @@ func MqttTLSCredentials(platformData *common.PlatformData) error {
 
 	return nil
 }
+
+func NatsCredentials(platformData *common.PlatformData) error {
+	platformData.Certs.NatsCerts.NatsAdminUsername = "nats_admin"
+	natsAdminPassword := GeneratePassword(20)
+	platformData.Certs.NatsCerts.NatsAdminPassword = natsAdminPassword
+	var err error
+	platformData.Certs.NatsCerts.NatsAdminHashedPassword, err = HashNasPassword(natsAdminPassword)
+	if err != nil {
+		return err
+	}
+
+	//Creating NKeys for account: NATS_ISSUER_SEED and NATS_ISSUER_PUBKEY
+	accountKP, err := nkeys.CreateAccount()
+	if err != nil {
+		return err
+	}
+	accountPub, err := accountKP.PublicKey()
+	if err != nil {
+		return err
+	}
+	platformData.Certs.NatsCerts.NatsIssuerPublicKey = accountPub
+	accountSeed, err := accountKP.Seed()
+	if err != nil {
+		return err
+	}
+	platformData.Certs.NatsCerts.NatsIssuerSeed = string(accountSeed)
+
+	//Creating xkey: NATS_XKEY_SEED and NATS_XKEY_PUBKEY
+	xkeyKP, err := nkeys.CreateCurveKeys()
+	if err != nil {
+		return err
+	}
+	xkeyPub, err := xkeyKP.PublicKey()
+	if err != nil {
+		return err
+	}
+	platformData.Certs.NatsCerts.NatsXKeyPublicKey = xkeyPub
+	xkeySeed, err := xkeyKP.Seed()
+	if err != nil {
+		return err
+	}
+	platformData.Certs.NatsCerts.NatsXKeySeed = string(xkeySeed)
+
+	//Creating NATS admin nkey credentials
+	natsAdminKP, err := nkeys.CreateUser()
+	if err != nil {
+		return err
+	}
+	natsAdminNkeyPub, err := natsAdminKP.PublicKey()
+	if err != nil {
+		return err
+	}
+	platformData.Certs.NatsCerts.NatsAdminNkeyPublic = natsAdminNkeyPub
+	natsAdminNkeySeed, err := natsAdminKP.Seed()
+	if err != nil {
+		return err
+	}
+	platformData.Certs.NatsCerts.NatsAdminNkeySeed = string(natsAdminNkeySeed)
+
+	//Creating Platform admin nats credentials
+	userPub, userSeed, err := CreateUserNatsNkey()
+	if err != nil {
+		return err
+	}
+	platformData.PlatformInfo.PlatformAdminNatsPublicKey = userPub
+	platformData.PlatformInfo.PlatformAdminNatsSeed = userSeed
+	return nil
+}
+
+func HashNasPassword(password string) (string, error) {
+    bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+    return string(bytes), err
+}
+
+func CreateUserNatsNkey() (string, string, error) {
+	userKP, err := nkeys.CreateUser()
+	if err != nil {
+		return "", "", err
+	}
+	userPub, err := userKP.PublicKey()
+	if err != nil {
+		return "", "", err
+	}
+	userSeed, err := userKP.Seed()
+	if err != nil {
+		return "", "", err
+	}
+	return userPub, string(userSeed), nil
+}
+

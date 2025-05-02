@@ -24,6 +24,10 @@ class CreateUserDto {
 	@Matches(/^[a-zA-Z0-9._-]{8,20}$/)
 	public password: string;
 
+	@ValidateIf((obj) => obj.natsNkey !== undefined)
+	@IsString()
+	public natsNkey?: string;
+
 	@ValidateIf((obj) => obj.isGrafanaAdmin !== undefined)
 	@IsBoolean()
 	public isGrafanaAdmin?: boolean;

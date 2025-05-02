@@ -366,14 +366,14 @@ func RemoveOrg(existingOrg *Organization) error {
 
 	newOrgs := []common.Organization{}
 	var orgToRemove common.Organization
-	for _, org := range platformData.Certs.MqttCerts.Organizations {
+	for _, org := range platformData.Organizations {
 		if !strings.EqualFold(org.OrgAcronym, existingOrg.Acronym) {
 			newOrgs = append(newOrgs, org)
 		} else {
 			orgToRemove = org
 		}
 	}
-	platformData.Certs.MqttCerts.Organizations = newOrgs
+	platformData.Organizations = newOrgs
 
 	err = utils.WritePlatformDataToFile(platformData)
 	if err != nil {

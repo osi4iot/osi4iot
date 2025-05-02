@@ -551,6 +551,39 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 	return submissionResultMsg(msg), nil
 }
 
+func messagingSystemQuestions(m *Model) (submissionResultMsg, error) {
+	qIdx := m.FindQuestionIdByKey("MESSAGING_SYSTEM_TYPE")
+	messagingSystem := m.Questions[qIdx].Answer
+	if messagingSystem == "Mosquitto MQTT" {
+		m.removeQuestionByKey("NATS_NKEY_VALIDITY_DAYS")
+		addMqttCertsValidityDaysQuestions(qIdx+1, m)
+	} else if messagingSystem == "NATS" {
+		m.removeQuestionByKey("MQTT_SSL_CERTS_VALIDITY_DAYS")
+	}
+	return submissionResultMsg("Messaging system questions added/removed succesfully"), nil
+}
+
+func addMqttCertsValidityDaysQuestions(index int, m *Model) {
+	idx := m.FindQuestionIdByKey("MQTT_SSL_CERTS_VALIDITY_DAYS")
+	if idx == -1 {
+		mqttCertsValidityDaysQuestion := Question{
+			Key:           "MQTT_SSL_CERTS_VALIDITY_DAYS",
+			QuestionType:  "generic",
+			Prompt:        "Mqtt ssl certs validity days",
+			Answer:        utils.IntValueToStr(data.Data.PlatformInfo.MQTTSslCertsValidityDays),
+			DefaultAnswer: "365",
+			ErrorMessage:  "",
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			Rules:         []string{"required", "int", "minval:30"},
+			ActionKey:     "",
+			Margin:        0,
+		}
+		m.addQuestions(index, mqttCertsValidityDaysQuestion)
+	}
+}
+
+
 func createPlatform(m *Model) (platformCreatingMsg, error) {
 	platformData := data.GetData()
 	areAllQuestionsOK := true
@@ -567,7 +600,7 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		return platformCreatingMsg("Error: Some questions are not answered correctly"), nil
 	}
 
-	if len(data.Data.Certs.MqttCerts.Organizations) == 0 {
+	if len(data.Data.Organizations) == 0 {
 		orgHash := utils.GeneratePassword(16)
 		orgAcronym := platformData.PlatformInfo.MainOrganizationAcronym
 		numNriInMainOrg := platformData.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
@@ -579,7 +612,7 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 			ExclusiveWorkerNodes: exclusiveWorkerNodes,
 			NodeRedInstances:     nodered_instances,
 		}
-		platformData.Certs.MqttCerts.Organizations = append(platformData.Certs.MqttCerts.Organizations, organization)
+		platformData.Organizations = append(platformData.Organizations, organization)
 	}
 
 	notificationsEmailAddress := m.FindAnswerByKey("NOTIFICATIONS_EMAIL_ADDRESS")
@@ -636,11 +669,18 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	data.SetData("PGADMIN_DEFAULT_PASSWORD", pgAdminDefaultPassword)
 
 	data.SetCertsData()
-	err = utils.MqttTLSCredentials(platformData)
-	if err != nil {
-		return platformCreatingMsg("Error: creating mqtt certs"), err
-	}
-
+	//if platformData.PlatformInfo.MessagingSystem == "mqtt" {
+		err = utils.MqttTLSCredentials(platformData)
+		if err != nil {
+			return platformCreatingMsg("Error: creating mqtt certs"), err
+		}
+	//} else if platformData.PlatformInfo.MessagingSystem == "nats" {
+		err = utils.NatsCredentials(platformData)
+		if err != nil {
+			return platformCreatingMsg("Error: creating nats certs"), err
+		}
+	//}
+	
 	deployLocation := platformData.PlatformInfo.DeploymentLocation
 	nodesData := []common.NodeData{}
 	numNodes := platformData.PlatformInfo.NumberOfSwarmNodes
@@ -721,18 +761,27 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 	for idx := 0; idx < numNriInMainOrg; idx++ {
 		nriHash := utils.GeneratePassword(10)
 		nriHashes[idx] = nriHash
+		nriUserName := fmt.Sprintf("nri_%s", nriHash)
+		nriPassword := utils.GeneratePassword(20)
+		nriNkeyPublicKey, nriNkeySeed, err := utils.CreateUserNatsNkey()
+		if err != nil {
+			return creatingOrgMsg("Error: generating NATS Nkey pair"), err
+		}
+		nriNatsCerts := common.NriNatsCerts{
+			NriNkeyPublicKey:  nriNkeyPublicKey,
+			NriNkeySeed: nriNkeySeed,
+		}
+		
 		nri := common.NodeRedInstance{
-			ClientCrt:           "",
-			ClientKey:           "",
-			ExpirationTimestamp: 0,
 			NriHash:             nriHash,
-			IsVolumeCreated:     "false",
-			ClientCrtName:       "",
-			ClientKeyName:       "",
+			NriUserName:         nriUserName,
+			NriPassword:         nriPassword,
+			NriMqttCerts:       common.NriMqttCerts{},
+			NriNatsCerts:       nriNatsCerts,
 		}
 		newOrg.NodeRedInstances = append(newOrg.NodeRedInstances, nri)
 	}
-	platformData.Certs.MqttCerts.Organizations = append(platformData.Certs.MqttCerts.Organizations, newOrg)
+	platformData.Organizations = append(platformData.Organizations, newOrg)
 
 	orgAdminFirstName := m.FindAnswerByKey("ORG_ADMIN_FIRST_NAME")
 	orgAdminSurname := m.FindAnswerByKey("ORG_ADMIN_SURNAME")

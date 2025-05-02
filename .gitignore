@@ -30,6 +30,8 @@ volumes/grafana_system/*
 volumes/prometheus/*
 !volumes/prometheus/.gitkeep
 images/auth_callout/config.env
+images/dev2pdb_nats/config.yaml
+images/dev2pdb/config.yaml
 images/frontend/static/register/build
 images/frontend/static/register/public/env-config.js
 images/frontend/app/.env
@@ -53,7 +55,7 @@ images/admin_api/ssl_config
 images/admin_api/mqtt_certs
 images/admin_api/logs
 images/s3_storage/node_modules
-image/s3_storage/.env
+images/s3_storage/.env
 images/sensor_demo/nodejs/temp_monitoring/certs
 images/sensor_demo/nodejs/temp_monitoring/node_modules
 images/sensor_demo/nodejs/temp_monitoring/.env

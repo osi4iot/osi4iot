@@ -1,10 +1,11 @@
 package common
 
 type PlatformData struct {
-	PlatformInfo       PlatformInfo  `json:"platformInfo"`
-	Certs              Certs         `json:"certs"`
-	AdminAPISecretName string        `json:"admin_api_secret_name"`
-	CustomServices     []interface{} `json:"custom_services"`
+	PlatformInfo       PlatformInfo   `json:"platformInfo"`
+	Organizations      []Organization `json:"organizations"`
+	Certs              Certs          `json:"certs"`
+	AdminAPISecretName string         `json:"admin_api_secret_name"`
+	CustomServices     []interface{}  `json:"custom_services"`
 }
 
 type PlatformInfo struct {
@@ -29,6 +30,8 @@ type PlatformInfo struct {
 	PlatformAdminUserName      string     `json:"PLATFORM_ADMIN_USER_NAME"`
 	PlatformAdminEmail         string     `json:"PLATFORM_ADMIN_EMAIL"`
 	PlatformAdminPassword      string     `json:"PLATFORM_ADMIN_PASSWORD"`
+	PlatformAdminNatsPublicKey string     `json:"PLATFORM_ADMIN_NATS_PUBLIC_KEY"`
+	PlatformAdminNatsSeed      string     `json:"PLATFORM_ADMIN_NATS_SEED"`
 	NumberOfSwarmNodes         int        `json:"NUMBER_OF_SWARM_NODES"`
 	NodesData                  []NodeData `json:"NODES_DATA"`
 
@@ -64,6 +67,7 @@ type PlatformInfo struct {
 	AccessTokenSecret         string `json:"ACCESS_TOKEN_SECRET"`
 	AccessTokenLifetime       int    `json:"ACCESS_TOKEN_LIFETIME"`
 
+	MessagingSystem          string `json:"MESSAGING_SYSTEM"`
 	MQTTSslCertsValidityDays int    `json:"MQTT_SSL_CERTS_VALIDITY_DAYS"`
 	FloatingIPAddress        string `json:"FLOATING_IP_ADDRES"`
 	NetworkInterface         string `json:"NETWORK_INTERFACE"`
@@ -106,6 +110,7 @@ type PlatformInfo struct {
 type Certs struct {
 	DomainCerts DomainCerts `json:"domain_certs"`
 	MqttCerts   MqttCerts   `json:"mqtt_certs"`
+	NatsCerts   NatsCerts   `json:"nats_certs"`
 }
 
 type DomainCerts struct {
@@ -120,9 +125,20 @@ type DomainCerts struct {
 }
 
 type MqttCerts struct {
-	CaCerts       CaCerts        `json:"ca_certs"`
-	Broker        Broker         `json:"broker"`
-	Organizations []Organization `json:"organizations"`
+	CaCerts CaCerts `json:"ca_certs"`
+	Broker  Broker  `json:"broker"`
+}
+
+type NatsCerts struct {
+	NatsAdminUsername       string `json:"nats_admin_username"`
+	NatsAdminPassword       string `json:"nats_admin_password"`
+	NatsAdminHashedPassword string `json:"nats_admin_hashed_password"`
+	NatsAdminNkeyPublic     string `json:"nats_admin_nkey_pub"`
+	NatsAdminNkeySeed       string `json:"nats_admin_nkey_seed"`
+	NatsIssuerSeed          string `json:"nats_issuer_seed"`
+	NatsIssuerPublicKey     string `json:"nats_issuer_pub_key"`
+	NatsXKeySeed            string `json:"nats_xkey_seed"`
+	NatsXKeyPublicKey       string `json:"nats_xkey_pub_key"`
 }
 
 type CaCerts struct {
@@ -148,14 +164,25 @@ type Organization struct {
 	NodeRedInstances     []NodeRedInstance `json:"nodered_instances"`
 }
 
-type NodeRedInstance struct {
+type NriMqttCerts struct {
 	ClientCrt           string `json:"client_crt"`
 	ClientKey           string `json:"client_key"`
 	ExpirationTimestamp int64  `json:"expiration_timestamp"`
-	NriHash             string `json:"nri_hash"`
-	IsVolumeCreated     string `json:"is_volume_created"`
 	ClientCrtName       string `json:"client_crt_name"`
 	ClientKeyName       string `json:"client_key_name"`
+}
+
+type NriNatsCerts struct {
+	NriNkeyPublicKey  string `json:"nri_nkey_public"`
+	NriNkeySeed       string `json:"nri_nkey_seed"`
+}
+
+type NodeRedInstance struct {
+	NriHash      string       `json:"nri_hash"`
+	NriUserName  string       `json:"nri_user_name"`
+	NriPassword  string       `json:"nri_password"`
+	NriMqttCerts NriMqttCerts `json:"nri_mqtt_certs"`
+	NriNatsCerts NriNatsCerts `json:"nri_nats_certs"`
 }
 
 type NodeData struct {

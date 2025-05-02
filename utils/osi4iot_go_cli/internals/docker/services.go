@@ -31,10 +31,10 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	domainCertsType := platformData.PlatformInfo.DomainCertsType
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	messagingSystem := platformData.PlatformInfo.MessagingSystem
 	nodeRoleNumMap := getNodeRoleNumMap(platformData)
 	roleMemoryBytesMap := getNodeMemoryBytesMap(platformData)
 	roleNanoCPUsMap := getNodeNanoCpusMap(platformData)
-
 	workerConstraintsArray := []string{
 		"node.role==worker",
 		"node.labels.platform_worker==true",
@@ -284,6 +284,11 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 				TargetPort:    443,
 				PublishedPort: 443,
 			},
+		},
+	}
+
+	//if messagingSystem == "mqtt" {
+		mosquittoPorts := []swarm.PortConfig{
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    1883,
@@ -291,16 +296,17 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			},
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    8884,
-				PublishedPort: 8884,
-			},
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    9001,
 				PublishedPort: 9001,
 			},
-		},
-	}
+			{
+				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    8884,
+				PublishedPort: 8884,
+			},
+		}
+		traefikEndpointSpec.Ports = append(traefikEndpointSpec.Ports, mosquittoPorts...)
+	//}
 	traefikMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
 			Replicas: giveReplicsPtr(nodeRoleNumMap, "traefik"),
@@ -336,171 +342,700 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		Networks:       traefikNetwork,
 	}
 
-	mosquittoRule := fmt.Sprintf("Host(`%s`)", platformData.PlatformInfo.DomainName)
-	mosquittoRule8884 := fmt.Sprintf("HostSNI(`%s`)", platformData.PlatformInfo.DomainName)
-	mosquitoAnottations := swarm.Annotations{
-		Name: "mosquitto",
-		Labels: map[string]string{
-			"app":            "osi4iot",
-			"service_type":   "mosquitto",
-			"traefik.enable": "true",
-			// MQTT without TLS (1883, TCP classic)
-			"traefik.tcp.routers.mosquitto1883.rule":                      "HostSNI(`*`)",
-			"traefik.tcp.routers.mosquitto1883.entrypoints":               "mqtt",
-			"traefik.tcp.routers.mosquitto1883.service":                   "mosquitto1883",
-			"traefik.tcp.services.mosquitto1883.loadbalancer.server.port": "1883",
-			// MQTT with TLS (1883, TCP)
-			"traefik.tcp.routers.mosquitto8884.rule":                      mosquittoRule8884,
-			"traefik.tcp.routers.mosquitto8884.entrypoints":               "mqtt-tls",
-			"traefik.tcp.routers.mosquitto8884.service":                   "mosquitto8884",
-			"traefik.tcp.routers.mosquitto8884.tls":                       "true",
-			"traefik.tcp.routers.mosquitto8884.tls.certresolver":          resolver,
-			"traefik.tcp.services.mosquitto8884.loadbalancer.server.port": "8884",
-			// MQTT over WebSockets (WSS) Port 9001
-			"traefik.http.routers.mosquitto-wss.rule":                      mosquittoRule,
-			"traefik.http.routers.mosquitto-wss.entrypoints":               "wss",
-			"traefik.http.routers.mosquitto-wss.service":                   "mosquitto-wss",
-			"traefik.http.routers.mosquitto-wss.tls":                       "true",
-			"traefik.http.routers.mosquitto-wss.tls.certresolver":          resolver,
-			"traefik.http.services.mosquitto-wss.loadbalancer.server.port": "9001",
-		},
-	}
-	mosquitoTaskTemplate := swarm.TaskSpec{
-		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/mosquitto_go_auth:2.1.0-mosquitto_2.0.15",
+	//if messagingSystem == "mqtt" {
+		mosquittoRule := fmt.Sprintf("Host(`%s`)", platformData.PlatformInfo.DomainName)
+		mosquittoRule8884 := fmt.Sprintf("HostSNI(`%s`)", platformData.PlatformInfo.DomainName)
+		mosquitoAnottations := swarm.Annotations{
+			Name: "mosquitto",
 			Labels: map[string]string{
-				"app": "osi4iot",
+				"app":            "osi4iot",
+				"service_type":   "mosquitto",
+				"traefik.enable": "true",
+				// MQTT without TLS (1883, TCP classic)
+				"traefik.tcp.routers.mosquitto1883.rule":                      "HostSNI(`*`)",
+				"traefik.tcp.routers.mosquitto1883.entrypoints":               "mqtt",
+				"traefik.tcp.routers.mosquitto1883.service":                   "mosquitto1883",
+				"traefik.tcp.services.mosquitto1883.loadbalancer.server.port": "1883",
+				// MQTT with TLS (1883, TCP)
+				"traefik.tcp.routers.mosquitto8884.rule":                      mosquittoRule8884,
+				"traefik.tcp.routers.mosquitto8884.entrypoints":               "mqtt-tls",
+				"traefik.tcp.routers.mosquitto8884.service":                   "mosquitto8884",
+				"traefik.tcp.routers.mosquitto8884.tls":                       "true",
+				"traefik.tcp.routers.mosquitto8884.tls.certresolver":          resolver,
+				"traefik.tcp.services.mosquitto8884.loadbalancer.server.port": "8884",
+				// MQTT over WebSockets (WSS) Port 9001
+				"traefik.http.routers.mosquitto-wss.rule":                      mosquittoRule,
+				"traefik.http.routers.mosquitto-wss.entrypoints":               "wss",
+				"traefik.http.routers.mosquitto-wss.service":                   "mosquitto-wss",
+				"traefik.http.routers.mosquitto-wss.tls":                       "true",
+				"traefik.http.routers.mosquitto-wss.tls.certresolver":          resolver,
+				"traefik.http.services.mosquitto-wss.loadbalancer.server.port": "9001",
 			},
-			Env: []string{
-				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
-			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/mosquitto/mqtt_certs/ca.crt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
+		}
+		mosquitoTaskTemplate := swarm.TaskSpec{
+			ContainerSpec: &swarm.ContainerSpec{
+				Image: "ghcr.io/osi4iot/mosquitto_go_auth:2.1.0-mosquitto_2.0.15",
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
+				Env: []string{
+					fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
+				},
+				Secrets: []*swarm.SecretReference{
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/mosquitto/mqtt_certs/ca.crt",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
+						SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
 					},
-					SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
-					SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/mosquitto/mqtt_certs/server.crt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/mosquitto/mqtt_certs/server.crt",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["mqtt_broker_cert"].ID,
+						SecretName: swarmData.Secrets["mqtt_broker_cert"].Name,
 					},
-					SecretID:   swarmData.Secrets["mqtt_broker_cert"].ID,
-					SecretName: swarmData.Secrets["mqtt_broker_cert"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/mosquitto/mqtt_certs/server.key",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/mosquitto/mqtt_certs/server.key",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["mqtt_broker_key"].ID,
+						SecretName: swarmData.Secrets["mqtt_broker_key"].Name,
 					},
-					SecretID:   swarmData.Secrets["mqtt_broker_key"].ID,
-					SecretName: swarmData.Secrets["mqtt_broker_key"].Name,
 				},
-			},
-			Configs: []*swarm.ConfigReference{
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/etc/mosquitto/mosquitto.conf",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
+				Configs: []*swarm.ConfigReference{
+					{
+						File: &swarm.ConfigReferenceFileTarget{
+							Name: "/etc/mosquitto/mosquitto.conf",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						ConfigID:   swarmData.Configs["mosquitto_conf"].ID,
+						ConfigName: swarmData.Configs["mosquitto_conf"].Name,
 					},
-					ConfigID:   swarmData.Configs["mosquitto_conf"].ID,
-					ConfigName: swarmData.Configs["mosquitto_conf"].Name,
-				},
-				{
-					File: &swarm.ConfigReferenceFileTarget{
-						Name: "/etc/mosquitto/conf.d/go-auth.conf",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
+					{
+						File: &swarm.ConfigReferenceFileTarget{
+							Name: "/etc/mosquitto/conf.d/go-auth.conf",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						ConfigID:   swarmData.Configs["mosquitto_go_auth"].ID,
+						ConfigName: swarmData.Configs["mosquitto_go_auth"].Name,
 					},
-					ConfigID:   swarmData.Configs["mosquitto_go_auth"].ID,
-					ConfigName: swarmData.Configs["mosquitto_go_auth"].Name,
+				},
+				Mounts: []mount.Mount{
+					{
+						Type:   mount.TypeVolume,
+						Source: swarmData.Volumes["mosquitto_data"].Name,
+						Target: "/mosquitto/data",
+					},
+					{
+						Type:   mount.TypeVolume,
+						Source: swarmData.Volumes["mosquitto_log"].Name,
+						Target: "/mosquitto/log",
+					},
 				},
 			},
-			Mounts: []mount.Mount{
+			Resources: &swarm.ResourceRequirements{
+				Limits: &swarm.Limit{
+					NanoCPUs:    giveCPUs("mosquitto", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("mosquitto", roleMemoryBytesMap),
+				},
+				Reservations: &swarm.Resources{
+					NanoCPUs:    giveCPUs("mosquitto", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("mosquitto", roleMemoryBytesMap),
+				},
+			},
+			Placement: &swarm.Placement{
+				Constraints: workerConstraintsArray,
+			},
+		}
+		mosquitoEndpointSpec := &swarm.EndpointSpec{
+			Mode: swarm.ResolutionModeVIP,
+			Ports: []swarm.PortConfig{
 				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["mosquitto_data"].Name,
-					Target: "/mosquitto/data",
-				},
-				{
-					Type:   mount.TypeVolume,
-					Source: swarmData.Volumes["mosquitto_log"].Name,
-					Target: "/mosquitto/log",
+					Protocol:      swarm.PortConfigProtocolTCP,
+					TargetPort:    8883,
+					PublishedPort: 8883,
 				},
 			},
-		},
-		Resources: &swarm.ResourceRequirements{
-			Limits: &swarm.Limit{
-				NanoCPUs:    giveCPUs("mosquitto", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("mosquitto", roleMemoryBytesMap),
-			},
-			Reservations: &swarm.Resources{
-				NanoCPUs:    giveCPUs("mosquitto", nodeRoleNumMap, roleNanoCPUsMap),
-				MemoryBytes: giveMemory("mosquitto", roleMemoryBytesMap),
-			},
-		},
-		Placement: &swarm.Placement{
-			Constraints: workerConstraintsArray,
-		},
-	}
-	mosquitoEndpointSpec := &swarm.EndpointSpec{
-		Mode: swarm.ResolutionModeVIP,
-		Ports: []swarm.PortConfig{
-			{
-				Protocol:      swarm.PortConfigProtocolTCP,
-				TargetPort:    8883,
-				PublishedPort: 8883,
-			},
-		},
-	}
+		}
 
-	mosquitoMode := swarm.ServiceMode{
-		Replicated: &swarm.ReplicatedService{
-			Replicas: giveReplicsPtr(nodeRoleNumMap, "mosquitto"),
-		},
-	}
-	mosquitoUpdateConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	mosquitoRollbackConfig := &swarm.UpdateConfig{
-		Parallelism:     2,
-		Delay:           time.Duration(5 * time.Second),
-		FailureAction:   swarm.UpdateFailureActionRollback,
-		Monitor:         time.Duration(20 * time.Second),
-		MaxFailureRatio: 0.2,
-		Order:           "start-first",
-	}
-	mosquitoNetwork := []swarm.NetworkAttachmentConfig{
-		{Target: swarmData.Networks["internal_net"].Name},
-		{Target: swarmData.Networks["traefik_public"].Name},
-	}
-	Services["mosquitto"] = Service{
-		Name:           "mosquitto",
-		Annotations:    mosquitoAnottations,
-		TaskTemplate:   mosquitoTaskTemplate,
-		EndpointSpec:   mosquitoEndpointSpec,
-		Mode:           mosquitoMode,
-		UpdateConfig:   mosquitoUpdateConfig,
-		RollbackConfig: mosquitoRollbackConfig,
-		Networks:       mosquitoNetwork,
-	}
+		mosquitoMode := swarm.ServiceMode{
+			Replicated: &swarm.ReplicatedService{
+				Replicas: giveReplicsPtr(nodeRoleNumMap, "mosquitto"),
+			},
+		}
+		mosquitoUpdateConfig := &swarm.UpdateConfig{
+			Parallelism:     2,
+			Delay:           time.Duration(5 * time.Second),
+			FailureAction:   swarm.UpdateFailureActionRollback,
+			Monitor:         time.Duration(20 * time.Second),
+			MaxFailureRatio: 0.2,
+			Order:           "start-first",
+		}
+		mosquitoRollbackConfig := &swarm.UpdateConfig{
+			Parallelism:     2,
+			Delay:           time.Duration(5 * time.Second),
+			FailureAction:   swarm.UpdateFailureActionRollback,
+			Monitor:         time.Duration(20 * time.Second),
+			MaxFailureRatio: 0.2,
+			Order:           "start-first",
+		}
+		mosquitoNetwork := []swarm.NetworkAttachmentConfig{
+			{Target: swarmData.Networks["internal_net"].Name},
+			{Target: swarmData.Networks["traefik_public"].Name},
+		}
+		Services["mosquitto"] = Service{
+			Name:           "mosquitto",
+			Annotations:    mosquitoAnottations,
+			TaskTemplate:   mosquitoTaskTemplate,
+			EndpointSpec:   mosquitoEndpointSpec,
+			Mode:           mosquitoMode,
+			UpdateConfig:   mosquitoUpdateConfig,
+			RollbackConfig: mosquitoRollbackConfig,
+			Networks:       mosquitoNetwork,
+		}
+	//} else if messagingSystem == "nats" {
+		nats1Annottations := swarm.Annotations{
+			Name: "nats1",
+			Labels: map[string]string{
+				"app":          "osi4iot",
+				"service_type": "nats1",
+			},
+		}
+		nats1TaskTemplate := swarm.TaskSpec{
+			ContainerSpec: &swarm.ContainerSpec{
+				Image: "ghcr.io/osi4iot/nats:2.11.1-alpine",
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
+				Env: []string{
+					"SERVER_NAME=nats1",
+					fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
+				},
+				Command: []string{
+					"nats-server",
+					"-c",
+					"/etc/nats/nats.conf",
+					"-js",
+				},
+				Secrets: []*swarm.SecretReference{
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/etc/nats/ca.pem",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["iot_platform_ca_cert"].ID,
+						SecretName: swarmData.Secrets["iot_platform_ca_cert"].Name,
+					},
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/etc/nats/cert.pem",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["iot_platform_cert"].ID,
+						SecretName: swarmData.Secrets["iot_platform_cert"].Name,
+					},
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/etc/nats/key.pem",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["iot_platform_key"].ID,
+						SecretName: swarmData.Secrets["iot_platform_key"].Name,
+					},
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/etc/nats/nats.conf",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["nats_config"].ID,
+						SecretName: swarmData.Secrets["nats_config"].Name,
+					},
+				},
+				Mounts: []mount.Mount{
+					{
+						Type:   mount.TypeVolume,
+						Source: swarmData.Volumes["nats1_data"].Name,
+						Target: "/nats_data",
+					},
+				},
+			},
+			Resources: &swarm.ResourceRequirements{
+				Limits: &swarm.Limit{
+					NanoCPUs:    giveCPUs("nats", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("nats", roleMemoryBytesMap),
+				},
+				Reservations: &swarm.Resources{
+					NanoCPUs:    giveCPUs("nats", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("nats", roleMemoryBytesMap),
+				},
+			},
+			Placement: &swarm.Placement{
+				Constraints: workerConstraintsArray,
+			},
+		}
+		nats1EndpointSpec := &swarm.EndpointSpec{
+			Mode: swarm.ResolutionModeVIP,
+			Ports: []swarm.PortConfig{
+				{
+					Protocol:      swarm.PortConfigProtocolTCP,
+					TargetPort:    4222,
+					PublishedPort: 4222,
+				},
+				{
+					Protocol:      swarm.PortConfigProtocolTCP,
+					TargetPort:    8222,
+					PublishedPort: 8222,
+				},
+				{
+					Protocol:      swarm.PortConfigProtocolTCP,
+					TargetPort:    9001,
+					PublishedPort: 9002, //OJO luego de cambiar a 9001
+				},
+				{
+					Protocol:      swarm.PortConfigProtocolTCP,
+					TargetPort:    1885, //OJO luego de cambiar a 1883
+					PublishedPort: 1885, //OJO luego de cambiar a 1883
+				},
+			},
+		}
+
+		nats1Mode := swarm.ServiceMode{
+			Replicated: &swarm.ReplicatedService{
+				Replicas: giveReplicsPtr(nodeRoleNumMap, "nats"),
+			},
+		}
+		nats1UpdateConfig := &swarm.UpdateConfig{
+			Parallelism:     2,
+			Delay:           time.Duration(5 * time.Second),
+			FailureAction:   swarm.UpdateFailureActionRollback,
+			Monitor:         time.Duration(20 * time.Second),
+			MaxFailureRatio: 0.2,
+			Order:           "start-first",
+		}
+		nats1RollbackConfig := &swarm.UpdateConfig{
+			Parallelism:     2,
+			Delay:           time.Duration(5 * time.Second),
+			FailureAction:   swarm.UpdateFailureActionRollback,
+			Monitor:         time.Duration(20 * time.Second),
+			MaxFailureRatio: 0.2,
+			Order:           "start-first",
+		}
+		nats1Network := []swarm.NetworkAttachmentConfig{
+			{Target: swarmData.Networks["internal_net"].Name},
+		}
+		Services["nats1"] = Service{
+			Name:           "nats1",
+			Annotations:    nats1Annottations,
+			TaskTemplate:   nats1TaskTemplate,
+			EndpointSpec:   nats1EndpointSpec,
+			Mode:           nats1Mode,
+			UpdateConfig:   nats1UpdateConfig,
+			RollbackConfig: nats1RollbackConfig,
+			Networks:       nats1Network,
+		}
+
+		if nodeRoleNumMap["Platform worker"] >= 3 {
+			nats2Annottations := swarm.Annotations{
+				Name: "nats2",
+				Labels: map[string]string{
+					"app":          "osi4iot",
+					"service_type": "nats2",
+				},
+			}
+			nats2TaskTemplate := swarm.TaskSpec{
+				ContainerSpec: &swarm.ContainerSpec{
+					Image: "ghcr.io/osi4iot/nats:2.11.1-alpine",
+					Labels: map[string]string{
+						"app": "osi4iot",
+					},
+					Env: []string{
+						"SERVER_NAME=nats2",
+						fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
+					},
+					Secrets: []*swarm.SecretReference{
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/etc/nats/ca.pem",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["iot_platform_ca_cert"].ID,
+							SecretName: swarmData.Secrets["iot_platform_ca_cert"].Name,
+						},
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/etc/nats/cert.pem",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["iot_platform_cert"].ID,
+							SecretName: swarmData.Secrets["iot_platform_cert"].Name,
+						},
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/etc/nats/key.pem",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["iot_platform_key"].ID,
+							SecretName: swarmData.Secrets["iot_platform_key"].Name,
+						},
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/etc/nats/nats.conf",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["nats_config"].ID,
+							SecretName: swarmData.Secrets["nats_config"].Name,
+						},
+					},
+					Mounts: []mount.Mount{
+						{
+							Type:   mount.TypeVolume,
+							Source: swarmData.Volumes["nats1_data"].Name,
+							Target: "/nats_data",
+						},
+					},
+				},
+				Resources: &swarm.ResourceRequirements{
+					Limits: &swarm.Limit{
+						NanoCPUs:    giveCPUs("nats", nodeRoleNumMap, roleNanoCPUsMap),
+						MemoryBytes: giveMemory("nats", roleMemoryBytesMap),
+					},
+					Reservations: &swarm.Resources{
+						NanoCPUs:    giveCPUs("nats", nodeRoleNumMap, roleNanoCPUsMap),
+						MemoryBytes: giveMemory("nats", roleMemoryBytesMap),
+					},
+				},
+				Placement: &swarm.Placement{
+					Constraints: workerConstraintsArray,
+				},
+			}
+			nats2EndpointSpec := &swarm.EndpointSpec{
+				Mode: swarm.ResolutionModeVIP,
+				Ports: []swarm.PortConfig{
+					{
+						Protocol:      swarm.PortConfigProtocolTCP,
+						TargetPort:    4222,
+						PublishedPort: 4222,
+					},
+					{
+						Protocol:      swarm.PortConfigProtocolTCP,
+						TargetPort:    8222,
+						PublishedPort: 8222,
+					},
+					{
+						Protocol:      swarm.PortConfigProtocolTCP,
+						TargetPort:    9001,
+						PublishedPort: 9001,
+					},
+					{
+						Protocol:      swarm.PortConfigProtocolTCP,
+						TargetPort:    1883,
+						PublishedPort: 1883,
+					},
+				},
+			}
+
+			nats2Mode := swarm.ServiceMode{
+				Replicated: &swarm.ReplicatedService{
+					Replicas: giveReplicsPtr(nodeRoleNumMap, "nats"),
+				},
+			}
+			nats2UpdateConfig := &swarm.UpdateConfig{
+				Parallelism:     2,
+				Delay:           time.Duration(5 * time.Second),
+				FailureAction:   swarm.UpdateFailureActionRollback,
+				Monitor:         time.Duration(20 * time.Second),
+				MaxFailureRatio: 0.2,
+				Order:           "start-first",
+			}
+			nats2RollbackConfig := &swarm.UpdateConfig{
+				Parallelism:     2,
+				Delay:           time.Duration(5 * time.Second),
+				FailureAction:   swarm.UpdateFailureActionRollback,
+				Monitor:         time.Duration(20 * time.Second),
+				MaxFailureRatio: 0.2,
+				Order:           "start-first",
+			}
+			nats2Network := []swarm.NetworkAttachmentConfig{
+				{Target: swarmData.Networks["internal_net"].Name},
+			}
+			Services["nats2"] = Service{
+				Name:           "nats2",
+				Annotations:    nats2Annottations,
+				TaskTemplate:   nats2TaskTemplate,
+				EndpointSpec:   nats2EndpointSpec,
+				Mode:           nats2Mode,
+				UpdateConfig:   nats2UpdateConfig,
+				RollbackConfig: nats2RollbackConfig,
+				Networks:       nats2Network,
+			}
+
+			nats3Annottations := swarm.Annotations{
+				Name: "nats3",
+				Labels: map[string]string{
+					"app":          "osi4iot",
+					"service_type": "nats3",
+				},
+			}
+			nats3TaskTemplate := swarm.TaskSpec{
+				ContainerSpec: &swarm.ContainerSpec{
+					Image: "ghcr.io/osi4iot/nats:2.11.1-alpine",
+					Labels: map[string]string{
+						"app": "osi4iot",
+					},
+					Env: []string{
+						"SERVER_NAME=nats3",
+						fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
+					},
+					Secrets: []*swarm.SecretReference{
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/etc/nats/ca.pem",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["iot_platform_ca_cert"].ID,
+							SecretName: swarmData.Secrets["iot_platform_ca_cert"].Name,
+						},
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/etc/nats/cert.pem",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["iot_platform_cert"].ID,
+							SecretName: swarmData.Secrets["iot_platform_cert"].Name,
+						},
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/etc/nats/key.pem",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["iot_platform_key"].ID,
+							SecretName: swarmData.Secrets["iot_platform_key"].Name,
+						},
+						{
+							File: &swarm.SecretReferenceFileTarget{
+								Name: "/etc/nats/nats.conf",
+								UID:  "0",
+								GID:  "0",
+								Mode: 0444,
+							},
+							SecretID:   swarmData.Secrets["nats_config"].ID,
+							SecretName: swarmData.Secrets["nats_config"].Name,
+						},
+					},
+					Mounts: []mount.Mount{
+						{
+							Type:   mount.TypeVolume,
+							Source: swarmData.Volumes["nats1_data"].Name,
+							Target: "/nats_data",
+						},
+					},
+				},
+				Resources: &swarm.ResourceRequirements{
+					Limits: &swarm.Limit{
+						NanoCPUs:    giveCPUs("nats", nodeRoleNumMap, roleNanoCPUsMap),
+						MemoryBytes: giveMemory("nats", roleMemoryBytesMap),
+					},
+					Reservations: &swarm.Resources{
+						NanoCPUs:    giveCPUs("nats", nodeRoleNumMap, roleNanoCPUsMap),
+						MemoryBytes: giveMemory("nats", roleMemoryBytesMap),
+					},
+				},
+				Placement: &swarm.Placement{
+					Constraints: workerConstraintsArray,
+				},
+			}
+			nats3EndpointSpec := &swarm.EndpointSpec{
+				Mode: swarm.ResolutionModeVIP,
+				Ports: []swarm.PortConfig{
+					{
+						Protocol:      swarm.PortConfigProtocolTCP,
+						TargetPort:    4222,
+						PublishedPort: 4222,
+					},
+					{
+						Protocol:      swarm.PortConfigProtocolTCP,
+						TargetPort:    8222,
+						PublishedPort: 8222,
+					},
+					{
+						Protocol:      swarm.PortConfigProtocolTCP,
+						TargetPort:    9001,
+						PublishedPort: 9001,
+					},
+					{
+						Protocol:      swarm.PortConfigProtocolTCP,
+						TargetPort:    1883,
+						PublishedPort: 1883,
+					},
+				},
+			}
+
+			nats3Mode := swarm.ServiceMode{
+				Replicated: &swarm.ReplicatedService{
+					Replicas: giveReplicsPtr(nodeRoleNumMap, "nats"),
+				},
+			}
+			nats3UpdateConfig := &swarm.UpdateConfig{
+				Parallelism:     2,
+				Delay:           time.Duration(5 * time.Second),
+				FailureAction:   swarm.UpdateFailureActionRollback,
+				Monitor:         time.Duration(20 * time.Second),
+				MaxFailureRatio: 0.2,
+				Order:           "start-first",
+			}
+			nats3RollbackConfig := &swarm.UpdateConfig{
+				Parallelism:     2,
+				Delay:           time.Duration(5 * time.Second),
+				FailureAction:   swarm.UpdateFailureActionRollback,
+				Monitor:         time.Duration(20 * time.Second),
+				MaxFailureRatio: 0.2,
+				Order:           "start-first",
+			}
+			nats3Network := []swarm.NetworkAttachmentConfig{
+				{Target: swarmData.Networks["internal_net"].Name},
+			}
+			Services["nats3"] = Service{
+				Name:           "nats3",
+				Annotations:    nats3Annottations,
+				TaskTemplate:   nats3TaskTemplate,
+				EndpointSpec:   nats3EndpointSpec,
+				Mode:           nats3Mode,
+				UpdateConfig:   nats3UpdateConfig,
+				RollbackConfig: nats3RollbackConfig,
+				Networks:       nats3Network,
+			}
+		}
+
+		authCalloutAnottations := swarm.Annotations{
+			Name: "auth_callout",
+			Labels: map[string]string{
+				"app":          "osi4iot",
+				"service_type": "auth_callout",
+			},
+		}
+		authCalloutTaskTemplate := swarm.TaskSpec{
+			ContainerSpec: &swarm.ContainerSpec{
+				Image: "ghcr.io/osi4iot/auth_callout:1.3.0",
+				Labels: map[string]string{
+					"app": "osi4iot",
+				},
+				Env: []string{
+					fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
+				},
+				Secrets: []*swarm.SecretReference{
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/etc/nats/ca.pem",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["iot_platform_ca_cert"].ID,
+						SecretName: swarmData.Secrets["iot_platform_ca_cert"].Name,
+					},
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/auth_callout/config.env",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0444,
+						},
+						SecretID:   swarmData.Secrets["auth_callout"].ID,
+						SecretName: swarmData.Secrets["auth_callout"].Name,
+					},
+				},
+				Mounts: []mount.Mount{},
+			},
+			Resources: &swarm.ResourceRequirements{
+				Limits: &swarm.Limit{
+					NanoCPUs:    giveCPUs("auth_callout", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("auth_callout", roleMemoryBytesMap),
+				},
+				Reservations: &swarm.Resources{
+					NanoCPUs:    giveCPUs("auth_callout", nodeRoleNumMap, roleNanoCPUsMap),
+					MemoryBytes: giveMemory("auth_callout", roleMemoryBytesMap),
+				},
+			},
+			Placement: &swarm.Placement{
+				Constraints: workerConstraintsArray,
+			},
+		}
+		authCalloutEndpointSpec := &swarm.EndpointSpec{
+			Mode: swarm.ResolutionModeVIP,
+		}
+
+		authCalloutMode := swarm.ServiceMode{
+			Replicated: &swarm.ReplicatedService{
+				Replicas: giveReplicsPtr(nodeRoleNumMap, "auth_callout"),
+			},
+		}
+		authCalloutUpdateConfig := &swarm.UpdateConfig{
+			Parallelism:     2,
+			Delay:           time.Duration(5 * time.Second),
+			FailureAction:   swarm.UpdateFailureActionRollback,
+			Monitor:         time.Duration(20 * time.Second),
+			MaxFailureRatio: 0.2,
+			Order:           "start-first",
+		}
+		authCalloutRollbackConfig := &swarm.UpdateConfig{
+			Parallelism:     2,
+			Delay:           time.Duration(5 * time.Second),
+			FailureAction:   swarm.UpdateFailureActionRollback,
+			Monitor:         time.Duration(20 * time.Second),
+			MaxFailureRatio: 0.2,
+			Order:           "start-first",
+		}
+		authCalloutNetwork := []swarm.NetworkAttachmentConfig{
+			{Target: swarmData.Networks["internal_net"].Name},
+		}
+		Services["auth_callout"] = Service{
+			Name:           "auth_callout",
+			Annotations:    authCalloutAnottations,
+			TaskTemplate:   authCalloutTaskTemplate,
+			EndpointSpec:   authCalloutEndpointSpec,
+			Mode:           authCalloutMode,
+			UpdateConfig:   authCalloutUpdateConfig,
+			RollbackConfig: authCalloutRollbackConfig,
+			Networks:       authCalloutNetwork,
+		}
+	//}
 
 	postgresAnottations := swarm.Annotations{
 		Name: "postgres",
@@ -850,45 +1385,34 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	dev2pdbTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/dev2pdb:1.3.0",
+			Image: "ghcr.io/osi4iot/dev2pdb_nats:1.3.0",
 			Labels: map[string]string{
 				"app":          "osi4iot",
 				"service_type": "dev2pdb",
 			},
 			Env: []string{
-				"DATABASE_NAME=iot_data_db",
 				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
 			},
 			Secrets: []*swarm.SecretReference{
 				{
 					File: &swarm.SecretReferenceFileTarget{
-						Name: "dev2pdb_password.txt",
+						Name: "/dev2pdb/config.yaml",
 						UID:  "0",
 						GID:  "0",
 						Mode: 0444,
 					},
-					SecretID:   swarmData.Secrets["dev2pdb_password"].ID,
-					SecretName: swarmData.Secrets["dev2pdb_password"].Name,
+					SecretID:   swarmData.Secrets["dev2pdb_config"].ID,
+					SecretName: swarmData.Secrets["dev2pdb_config"].Name,
 				},
 				{
 					File: &swarm.SecretReferenceFileTarget{
-						Name: "timescaledb_user.txt",
+						Name: "/etc/nats/ca.pem",
 						UID:  "0",
 						GID:  "0",
 						Mode: 0444,
 					},
-					SecretID:   swarmData.Secrets["timescale_user"].ID,
-					SecretName: swarmData.Secrets["timescale_user"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "timescaledb_password.txt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["timescale_password"].ID,
-					SecretName: swarmData.Secrets["timescale_password"].Name,
+					SecretID:   swarmData.Secrets["iot_platform_ca_cert"].ID,
+					SecretName: swarmData.Secrets["iot_platform_ca_cert"].Name,
 				},
 			},
 			Mounts: []mount.Mount{},
@@ -1102,26 +1626,6 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			Secrets: []*swarm.SecretReference{
 				{
 					File: &swarm.SecretReferenceFileTarget{
-						Name: "ca.crt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
-					SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "ca.key",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["mqtt_certs_ca_key"].ID,
-					SecretName: swarmData.Secrets["mqtt_certs_ca_key"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
 						Name: "admin_api.txt",
 						UID:  "0",
 						GID:  "0",
@@ -1185,6 +1689,32 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			Constraints: workerConstraintsArray,
 		},
 	}
+	//if messagingSystem == "mqtt" {
+		mqttSecrets := []*swarm.SecretReference{
+			{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "ca.crt",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
+				SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
+			},
+			{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "ca.key",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   swarmData.Secrets["mqtt_certs_ca_key"].ID,
+				SecretName: swarmData.Secrets["mqtt_certs_ca_key"].Name,
+			},
+		}
+		adminApiTaskTemplate.ContainerSpec.Secrets = append(adminApiTaskTemplate.ContainerSpec.Secrets, mqttSecrets...)
+	//}
+
 	adminApiEndpointSpec := &swarm.EndpointSpec{
 		Mode: swarm.ResolutionModeVIP,
 		Ports: []swarm.PortConfig{
@@ -1741,40 +2271,42 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		nriResources = &swarm.ResourceRequirements{}
 	}
 
-	for _, org := range platformData.Certs.MqttCerts.Organizations {
-		orgAcronym := org.OrgAcronym
-		orgAcronymLower := strings.ToLower(orgAcronym)
+	if messagingSystem == "mqtt" {
+		for _, org := range platformData.Organizations {
+			orgAcronym := org.OrgAcronym
+			orgAcronymLower := strings.ToLower(orgAcronym)
 
-		if numSwarmNodes == 1 {
-			nriConstraintsArray = []string{
-				"node.role==manager",
-			}
-		} else {
-			if len(org.ExclusiveWorkerNodes) != 0 {
+			if numSwarmNodes == 1 {
 				nriConstraintsArray = []string{
-					"node.role==worker",
-					fmt.Sprintf("node.labels.org_hash==%s", org.OrgHash),
+					"node.role==manager",
 				}
 			} else {
-				nriConstraintsArray = []string{
-					"node.role==worker",
-					"node.labels.generic_org_worker==true",
+				if len(org.ExclusiveWorkerNodes) != 0 {
+					nriConstraintsArray = []string{
+						"node.role==worker",
+						fmt.Sprintf("node.labels.org_hash==%s", org.OrgHash),
+					}
+				} else {
+					nriConstraintsArray = []string{
+						"node.role==worker",
+						"node.labels.generic_org_worker==true",
+					}
 				}
 			}
-		}
 
-		for _, nri := range org.NodeRedInstances {
-			nriHash := nri.NriHash
-			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
-			nriData := NriData{
-				org: org,
-				nri: nri,
-				resources: nriResources,
-				constraintsArray: nriConstraintsArray,
-				resolver: resolver,
+			for _, nri := range org.NodeRedInstances {
+				nriHash := nri.NriHash
+				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
+				nriData := NriData{
+					org:              org,
+					nri:              nri,
+					resources:        nriResources,
+					constraintsArray: nriConstraintsArray,
+					resolver:         resolver,
+				}
+				nriService := nriService(platformData, nriData, swarmData)
+				Services[serviceName] = nriService
 			}
-			nriService := nriService(platformData, nriData, swarmData)
-			Services[serviceName] = nriService
 		}
 	}
 
@@ -1805,6 +2337,18 @@ func giveCPUs(serviceName string,
 	case "mosquitto":
 		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
 			cpus = 0.30
+		} else {
+			cpus = 0.50
+		}
+	case "nats":
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.30
+		} else {
+			cpus = 0.50
+		}
+	case "auth_callout":
+		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
+			cpus = 0.15
 		} else {
 			cpus = 0.50
 		}
@@ -1895,6 +2439,10 @@ func giveMemory(serviceName string, roleMemoryBytesMap map[string]int64) int64 {
 		memory = 250
 	case "mosquitto":
 		memory = 500
+	case "nats":
+		memory = 500
+	case "auth_callout":
+		memory = 250
 	case "postgres":
 		memory = 500
 	case "timescaledb":
@@ -1943,6 +2491,10 @@ func giveReplicsPtr(nodeRoleNumMap map[string]int, serviceName string) *uint64 {
 	case "traefik":
 		replics = uint64(nodeRoleNumMap["Manager"])
 	case "mosquitto_go_auth":
+		replics = uint64(1)
+	case "nats":
+		replics = uint64(1)
+	case "auth_callout":
 		replics = uint64(1)
 	case "postgres":
 		replics = uint64(1)

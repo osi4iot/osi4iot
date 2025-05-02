@@ -308,11 +308,12 @@ export const dataBaseInitialization = async () => {
 
 				const tableUser = "grafanadb.user";
 				const queryStringAlterUser = `ALTER TABLE grafanadb.user
-									ADD COLUMN first_name varchar(127),
-									ADD COLUMN surname varchar(127)`;
+									ADD COLUMN first_name varchar(127) NOT NULL DEFAULT 'unknown',
+									ADD COLUMN surname varchar(127) NOT NULL DEFAULT 'unknown',
+									ADD COLUMN nats_nkey varchar(60) NOT NULL DEFAULT 'undefined';`
 				try {
 					await postgresClient.query(queryStringAlterUser);
-					logger.log("info", `Columns first_name and surnanme have been added sucessfully to Table ${tableUser}`);
+					logger.log("info", `Columns first_name, surname, and nats_nkey have been added sucessfully to Table ${tableUser}`);
 				} catch (err) {
 					logger.log("error", `Columns first_name and surnanme can not be added sucessfully to Table ${tableUser}: %s`, err.message);
 				}
@@ -325,6 +326,7 @@ export const dataBaseInitialization = async () => {
 					email: process_env.PLATFORM_ADMIN_EMAIL,
 					login: process_env.PLATFORM_ADMIN_USER_NAME,
 					password: process_env.PLATFORM_ADMIN_PASSWORD,
+					natsNkey: process_env.PLATFORM_ADMIN_NATS_PUBLIC_KEY,
 					OrgId: 1
 				}
 				await grafanaApi.createUser(plaformAdminUser);

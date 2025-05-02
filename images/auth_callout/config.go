@@ -15,7 +15,7 @@ import (
 )
 
 type Config struct {
-	Env        string `mapstructure:"ENV"`
+	Env               string `mapstructure:"ENV"`
 	AccessTokenSecret string `mapstructure:"ACCESS_TOKEN_SECRET"`
 	DomainName        string `mapstructure:"DOMAIN_NAME"`
 	PGHost            string `mapstructure:"PG_HOST"`
@@ -26,8 +26,8 @@ type Config struct {
 	NatsHost          string `mapstructure:"NATS_HOST"`
 	NatsPort          int    `mapstructure:"NATS_PORT"`
 	NatsProtocol      string `mapstructure:"NATS_PROTOCOL"`
-	NatsUser          string `mapstructure:"NATS_USERNAME"`
-	NatsPass          string `mapstructure:"NATS_PASSWORD"`
+	NatsAdminUserName string `mapstructure:"NATS_ADMIN_USERNAME"`
+	NatsAdminPassword string `mapstructure:"NATS_ADMIN_PASSWORD"`
 	NatsIssuerSeed    string `mapstructure:"NATS_ISSUER_SEED"`
 	NatsXkeySeed      string `mapstructure:"NATS_XKEY_SEED"`
 }
@@ -83,12 +83,12 @@ func DBConnectionPool(config *Config) *pgxpool.Pool {
 func NatsConnection(config *Config) (*nats.Conn, error) {
 	natsUrl := fmt.Sprintf("%s://%s:%d", config.NatsProtocol, config.NatsHost, config.NatsPort)
 	slog.Info("Connecting to NATS server", slog.String("url", natsUrl))
-	natsUser := config.NatsUser
-	natsPass := config.NatsPass
+	natsUser := config.NatsAdminUserName
+	natsPass := config.NatsAdminPassword
 
 	if config.Env == "development" {
 		tlsCfg := &tls.Config{
-			ServerName: config.DomainName,
+			ServerName:         config.DomainName,
 			InsecureSkipVerify: true,
 		}
 		return nats.Connect(natsUrl, nats.UserInfo(natsUser, natsPass), nats.Secure(tlsCfg))

@@ -289,7 +289,7 @@ func AddNFSFolders(platformData *common.PlatformData) error {
 			}
 		}
 
-		organizations := platformData.Certs.MqttCerts.Organizations
+		organizations := platformData.Organizations
 
 		addNfsFoldersScript := `#!/bin/bash
 org_acronym=$1
@@ -349,7 +349,7 @@ func RemoveNfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 			}
 		}
 
-		organizations := platformData.Certs.MqttCerts.Organizations
+		organizations := platformData.Organizations
 		orgToRemove := common.Organization{}
 		for _, org := range organizations {
 			if org.OrgAcronym == orgAcronym {
@@ -502,7 +502,7 @@ func AddEfsFolders(platformData *common.PlatformData) error {
 		endMsg := "EFS folders added successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodeData := platformData.PlatformInfo.NodesData[0]
-		organizations := platformData.Certs.MqttCerts.Organizations
+		organizations := platformData.Organizations
 
 		addEfsFoldersScript := `#!/bin/bash
 org_acronym=$1
@@ -552,7 +552,7 @@ func RemoveEfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 		endMsg := fmt.Sprintf("EFS folders removed successfully for organization %s", orgAcronym)
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodeData := platformData.PlatformInfo.NodesData[0]
-		organizations := platformData.Certs.MqttCerts.Organizations
+		organizations := platformData.Organizations
 		orgToRemove := common.Organization{}
 		for _, org := range organizations {
 			if org.OrgAcronym == orgAcronym {
@@ -657,7 +657,7 @@ func addNodesLabels(platformData *common.PlatformData) error {
 		case "Generic org worker":
 			spec.Labels["generic_org_worker"] = "true"
 		case "Exclusive org worker":
-			organizations := platformData.Certs.MqttCerts.Organizations
+			organizations := platformData.Organizations
 			filteredOrg := filterOrganizations(organizations, nodeName)
 			if filteredOrg != nil {
 				spec.Labels["org_hash"] = filteredOrg.OrgHash

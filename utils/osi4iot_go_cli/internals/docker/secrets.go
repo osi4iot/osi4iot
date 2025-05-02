@@ -20,19 +20,21 @@ type Secret struct {
 
 func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 	Secrets := make(map[string]Secret)
-	mainOrgNodeRedInstances := platformData.Certs.MqttCerts.Organizations[0].NodeRedInstances
+	mainOrgNodeRedInstances := platformData.Organizations[0].NodeRedInstances
 	var hashes []string
 	for _, nri := range mainOrgNodeRedInstances {
 		hashes = append(hashes, nri.NriHash)
 	}
 	mainOrgNodeRedInstanceHashes := strings.Join(hashes, ",")
 	domainCertsType := platformData.PlatformInfo.DomainCertsType
+	messagingSystem := platformData.PlatformInfo.MessagingSystem
+	nodeRoleNumMap := getNodeRoleNumMap(platformData)
 
 	adminApiSecretsDataArray := []string{
 		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(platformData.PlatformInfo.RegistrationTokenLifetime)),
 		fmt.Sprintf("REFRESH_TOKEN_LIFETIME=%s", strconv.Itoa(platformData.PlatformInfo.RefreshTokenLifetime)),
 		fmt.Sprintf("REFRESH_TOKEN_SECRET=%s", platformData.PlatformInfo.RefreshTokenSecret),
-		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s",platformData.PlatformInfo.AccessTokenSecret),
+		fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", platformData.PlatformInfo.AccessTokenSecret),
 		fmt.Sprintf("ACCESS_TOKEN_LIFETIME=%s", strconv.Itoa(platformData.PlatformInfo.AccessTokenLifetime)),
 		fmt.Sprintf("MQTT_SSL_CERTS_VALIDITY_DAYS=%s", strconv.Itoa(platformData.PlatformInfo.MQTTSslCertsValidityDays)),
 		fmt.Sprintf("ENCRYPTION_SECRET_KEY=%s", platformData.PlatformInfo.EncryptionSecretKey),
@@ -41,6 +43,7 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 		fmt.Sprintf("PLATFORM_ADMIN_USER_NAME=%s", platformData.PlatformInfo.PlatformAdminUserName),
 		fmt.Sprintf("PLATFORM_ADMIN_EMAIL=%s", platformData.PlatformInfo.PlatformAdminEmail),
 		fmt.Sprintf("PLATFORM_ADMIN_PASSWORD=%s", platformData.PlatformInfo.PlatformAdminPassword),
+		fmt.Sprintf("PLATFORM_ADMIN_NATS_PUBLIC_KEY=%s", platformData.PlatformInfo.PlatformAdminNatsPublicKey),
 		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", platformData.PlatformInfo.GrafanaAdminPassword),
 		fmt.Sprintf("POSTGRES_USER=%s", platformData.PlatformInfo.PostgresUser),
 		fmt.Sprintf("POSTGRES_PASSWORD=%s", platformData.PlatformInfo.PostgresPassword),
@@ -54,10 +57,19 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", platformData.PlatformInfo.MainOrganizationTelegramChatID),
 		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK=%s", platformData.PlatformInfo.MainOrganizationTelegramInviteLink),
 		fmt.Sprintf("TELEGRAM_BOTTOKEN=%s", platformData.PlatformInfo.TelegramBotToken),
-		fmt.Sprintf("MAIN_ORG_HASH=%s", platformData.Certs.MqttCerts.Organizations[0].OrgHash),
+		fmt.Sprintf("MAIN_ORG_HASH=%s", platformData.Organizations[0].OrgHash),
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", platformData.PlatformInfo.AWSAccessKeyIDS3Bucket),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", platformData.PlatformInfo.AWSSecretAccessKeyS3Bucket),
 		fmt.Sprintf("MAIN_ORG_NODERED_INSTANCE_HASHES=%s", mainOrgNodeRedInstanceHashes),
+	}
+
+	if messagingSystem == "nats" {
+		messagingSystemSecretsDataArray := []string{
+			fmt.Sprintf("NATS_ADMIN_USERNAME=%s", platformData.Certs.NatsCerts.NatsAdminUsername),
+			fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", platformData.Certs.NatsCerts.NatsAdminPassword),
+			fmt.Sprintf("NATS_ADMIN_NKEY_PUBLIC=%s", platformData.Certs.NatsCerts.NatsAdminNkeyPublic),
+		}
+		adminApiSecretsDataArray = append(adminApiSecretsDataArray, messagingSystemSecretsDataArray...)
 	}
 
 	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")
@@ -75,46 +87,102 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 			Data: platformData.Certs.DomainCerts.SslCertCrt,
 		}
 		Secrets["iot_platform_cert"] = iotPlatformCertSecret
-		
+
 		iotPlatformKeySecret := Secret{
 			Name: platformData.Certs.DomainCerts.IotPlatformKeyName,
 			Data: platformData.Certs.DomainCerts.PrivateKey,
 		}
 		Secrets["iot_platform_key"] = iotPlatformKeySecret
+
+		iotPlatformCaCertSecret := Secret{
+			Name: platformData.Certs.DomainCerts.IotPlatformCaName,
+			Data: platformData.Certs.DomainCerts.SslCaPem,
+		}
+		Secrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
 	}
 
-	mqttCaCertHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.CaCerts.CaCrt)
-	mqttCaCertSecretName := fmt.Sprintf("mqtt_certs_ca_cert_%s", mqttCaCertHash)
-	mqttCaCertSecret := Secret{
-		Name: mqttCaCertSecretName,
-		Data: platformData.Certs.MqttCerts.CaCerts.CaCrt,
-	}
+	if messagingSystem == "mqtt" {
+		mqttCaCertHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.CaCerts.CaCrt)
+		mqttCaCertSecretName := fmt.Sprintf("mqtt_certs_ca_cert_%s", mqttCaCertHash)
+		mqttCaCertSecret := Secret{
+			Name: mqttCaCertSecretName,
+			Data: platformData.Certs.MqttCerts.CaCerts.CaCrt,
+		}
 
-	Secrets["mqtt_certs_ca_cert"] = mqttCaCertSecret
+		Secrets["mqtt_certs_ca_cert"] = mqttCaCertSecret
 
-	mqttCaKeyHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.CaCerts.CaKey)
-	mqttCaKeySecretName := fmt.Sprintf("mqtt_certs_ca_key_%s", mqttCaKeyHash)
-	mqttCaKeySecret := Secret{
-		Name: mqttCaKeySecretName,
-		Data: platformData.Certs.MqttCerts.CaCerts.CaKey,
-	}
-	Secrets["mqtt_certs_ca_key"] = mqttCaKeySecret
+		mqttCaKeyHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.CaCerts.CaKey)
+		mqttCaKeySecretName := fmt.Sprintf("mqtt_certs_ca_key_%s", mqttCaKeyHash)
+		mqttCaKeySecret := Secret{
+			Name: mqttCaKeySecretName,
+			Data: platformData.Certs.MqttCerts.CaCerts.CaKey,
+		}
+		Secrets["mqtt_certs_ca_key"] = mqttCaKeySecret
 
-	mqttBrokerCertHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.Broker.ServerCrt)
-	mqttBrokerCertSecretName := fmt.Sprintf("mqtt_broker_cert_%s", mqttBrokerCertHash)
-	mqttBrokerCertSecret := Secret{
-		Name: mqttBrokerCertSecretName,
-		Data: platformData.Certs.MqttCerts.Broker.ServerCrt,
-	}
-	Secrets["mqtt_broker_cert"] = mqttBrokerCertSecret
+		mqttBrokerCertHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.Broker.ServerCrt)
+		mqttBrokerCertSecretName := fmt.Sprintf("mqtt_broker_cert_%s", mqttBrokerCertHash)
+		mqttBrokerCertSecret := Secret{
+			Name: mqttBrokerCertSecretName,
+			Data: platformData.Certs.MqttCerts.Broker.ServerCrt,
+		}
+		Secrets["mqtt_broker_cert"] = mqttBrokerCertSecret
 
-	mqttBrokerKeyHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.Broker.ServerKey)
-	mqttBrokerKeySecretName := fmt.Sprintf("mqtt_broker_key_%s", mqttBrokerKeyHash)
-	mqttBrokerKeySecret := Secret{
-		Name: mqttBrokerKeySecretName,
-		Data: platformData.Certs.MqttCerts.Broker.ServerKey,
+		mqttBrokerKeyHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.Broker.ServerKey)
+		mqttBrokerKeySecretName := fmt.Sprintf("mqtt_broker_key_%s", mqttBrokerKeyHash)
+		mqttBrokerKeySecret := Secret{
+			Name: mqttBrokerKeySecretName,
+			Data: platformData.Certs.MqttCerts.Broker.ServerKey,
+		}
+		Secrets["mqtt_broker_key"] = mqttBrokerKeySecret
+	} else if messagingSystem == "nats" {
+		authCalloutSecretsDataArray := []string{
+			fmt.Sprintf("DOMAIN_NAME=%s", platformData.PlatformInfo.DomainName),
+			fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", platformData.PlatformInfo.AccessTokenSecret),
+			fmt.Sprintf("PG_HOST=%s", "postgres"),
+			fmt.Sprintf("PG_PORT=%s", "5432"),
+			fmt.Sprintf("PG_USERNAME=%s", platformData.PlatformInfo.PostgresUser),
+			fmt.Sprintf("PG_PASSWORD=%s", platformData.PlatformInfo.PostgresPassword),
+			fmt.Sprintf("PG_DBNAME=%s", platformData.PlatformInfo.PostgresDB),
+			fmt.Sprintf("NATS_HOST=%s", "nats1"),
+			fmt.Sprintf("NATS_PORT=%s", "4222"),
+			fmt.Sprintf("NATS_PROTOCOL=%s", "nats"),
+			fmt.Sprintf("NATS_ADMIN_USERNAME=%s", platformData.Certs.NatsCerts.NatsAdminUsername),
+			fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", platformData.Certs.NatsCerts.NatsAdminPassword),
+			fmt.Sprintf("NATS_ISSUER_SEED=%s", platformData.Certs.NatsCerts.NatsIssuerSeed),
+			fmt.Sprintf("NATS_XKEY_SEED=%s", platformData.Certs.NatsCerts.NatsXKeySeed),
+		}
+		authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
+		authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)
+		authCalloutSecretsName := fmt.Sprintf("authCallout_%s", authCalloutSecretsHash)
+		authCalloutSecret := Secret{
+			Name: authCalloutSecretsName,
+			Data: authCalloutSecretsData,
+		}
+		Secrets["auth_callout"] = authCalloutSecret
+
+		clusterRoutes := []string{"nats1:6222"}
+		if nodeRoleNumMap["Platform worker"] >= 3 {
+			clusterRoutes = append(clusterRoutes, "nats2:6222")
+			clusterRoutes = append(clusterRoutes, "nats3:6222")
+		}
+		params := utils.NatsConfigParams{
+			NatsAdminUsername:   platformData.Certs.NatsCerts.NatsAdminUsername,
+			NatsAdminPassword:   platformData.Certs.NatsCerts.NatsAdminPassword,
+			NatsAdminNkeyPublic: platformData.Certs.NatsCerts.NatsAdminNkeyPublic,
+			NatsIssuerPublicKey: platformData.Certs.NatsCerts.NatsIssuerPublicKey,
+			NatsXKeyPublicKey:   platformData.Certs.NatsCerts.NatsXKeyPublicKey,
+			ClusterRoutes:       clusterRoutes,
+		}
+
+		cfgStr, _ := utils.NatsRenderConfig(params)
+		natsConfigHash := utils.GetMD5Hash(cfgStr)
+		natsConfigName := fmt.Sprintf("nats_config_%s", natsConfigHash)
+		natsConfigSecret := Secret{
+			Name: natsConfigName,
+			Data: cfgStr,
+		}
+		Secrets["nats_config"] = natsConfigSecret
 	}
-	Secrets["mqtt_broker_key"] = mqttBrokerKeySecret
 
 	grafanaSecretsDataArray := []string{
 		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", platformData.PlatformInfo.GrafanaAdminPassword),
@@ -198,14 +266,14 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 	}
 	Secrets["timescale_data_ret_int"] = timescaleDataRetIntSecret
 
-	dev2pdbPassword := platformData.PlatformInfo.Dev2PDBPassword
-	dev2pdbPasswordHash := utils.GetMD5Hash(dev2pdbPassword)
-	dev2pdbPasswordSecretName := fmt.Sprintf("dev2pdb_password_%s", dev2pdbPasswordHash)
-	dev2pdbPasswordSecret := Secret{
-		Name: dev2pdbPasswordSecretName,
-		Data: dev2pdbPassword,
+	dev2pdbCfgStr, _ := utils.Dev2pdbConfig(platformData, nodeRoleNumMap)
+	dev2pdbConfigHash := utils.GetMD5Hash(dev2pdbCfgStr)
+	dev2pdbConfigName := fmt.Sprintf("dev2pdb_config_%s", dev2pdbConfigHash)
+	dev2pdbConfigSecret := Secret{
+		Name: dev2pdbConfigName,
+		Data: dev2pdbCfgStr,
 	}
-	Secrets["dev2pdb_password"] = dev2pdbPasswordSecret
+	Secrets["dev2pdb_config"] = dev2pdbConfigSecret
 
 	minioSecrets := []string{
 		fmt.Sprintf("MINIO_ROOT_USER=%s", platformData.PlatformInfo.PlatformAdminUserName),
@@ -254,12 +322,14 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 	}
 	Secrets["s3_storage"] = s3StorageSecret
 
-	generateNriSecrets(platformData.Certs.MqttCerts.Organizations, Secrets)
+	//if messagingSystem == "mqtt" {
+		generateNriSecrets(platformData.Organizations, Secrets)
+	//}
 
 	return Secrets
 }
 
-func generateNriSecrets(orgs []common.Organization, Secrets map[string]Secret)  {
+func generateNriSecrets(orgs []common.Organization, Secrets map[string]Secret) {
 	for iorg := 0; iorg < len(orgs); iorg++ {
 		orgAcronym := strings.ToLower(orgs[iorg].OrgAcronym)
 		numNodeRedInstances := len(orgs[iorg].NodeRedInstances)
@@ -267,15 +337,15 @@ func generateNriSecrets(orgs []common.Organization, Secrets map[string]Secret)  
 			nriHash := orgs[iorg].NodeRedInstances[inri].NriHash
 			mqttClientCertSecretKey := fmt.Sprintf("%s_%s_cert", orgAcronym, nriHash)
 			mqttClientCertSecret := Secret{
-				Name: orgs[iorg].NodeRedInstances[inri].ClientCrtName,
-				Data: orgs[iorg].NodeRedInstances[inri].ClientCrt,
+				Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrtName,
+				Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrt,
 			}
 			Secrets[mqttClientCertSecretKey] = mqttClientCertSecret
 
 			mqttClientKeySecretKey := fmt.Sprintf("%s_%s_key", orgAcronym, nriHash)
 			mqttClientKeySecret := Secret{
-				Name: orgs[iorg].NodeRedInstances[inri].ClientKeyName,
-				Data: orgs[iorg].NodeRedInstances[inri].ClientKey,
+				Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKeyName,
+				Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKey,
 			}
 			Secrets[mqttClientKeySecretKey] = mqttClientKeySecret
 		}

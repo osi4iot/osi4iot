@@ -115,6 +115,8 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.AccessTokenSecret == "" {
 			Data.PlatformInfo.AccessTokenSecret = value
 		}
+	case "MESSAGING_SYSTEM_TYPE":
+		Data.PlatformInfo.MessagingSystem = value
 	case "MQTT_SSL_CERTS_VALIDITY_DAYS":
 		mqttCertsValidityDays, _ := strconv.Atoi(value)
 		Data.PlatformInfo.MQTTSslCertsValidityDays = mqttCertsValidityDays

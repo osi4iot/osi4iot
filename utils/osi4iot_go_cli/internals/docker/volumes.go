@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
-
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
@@ -28,6 +25,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 	deploymentMode := platformData.PlatformInfo.DeploymentMode
 	s3BucketType := platformData.PlatformInfo.S3BucketType
 	domainCertsType := platformData.PlatformInfo.DomainCertsType
+	//messagingSystem := platformData.PlatformInfo.MessagingSystem
 
 	if domainCertsType[0:19] == "Let's encrypt certs" {
 		Volumes["letsencrypt"] = Volume{
@@ -37,6 +35,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 		}
 	}
 
+	//if messagingSystem == "mqtt" {
 	Volumes["mosquitto_data"] = Volume{
 		Name:       "mosquitto_data",
 		Driver:     "local",
@@ -47,6 +46,13 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
+	//} else if messagingSystem == "nats" {
+	Volumes["nats1_data"] = Volume{
+		Name:       "nats1_data",
+		Driver:     "local",
+		DriverOpts: map[string]string{},
+	}
+	//}
 	Volumes["pgdata"] = Volume{
 		Name:       "pgdata",
 		Driver:     "local",
@@ -94,11 +100,11 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 		}
 	}
 
-	for iorg := 0; iorg < len(platformData.Certs.MqttCerts.Organizations); iorg++ {
-		orgAcronym := strings.ToLower(platformData.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
-		numNodeRedInstances := len(platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
+	for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
+		orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
+		numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
 		for inri := 0; inri < numNodeRedInstances; inri++ {
-			nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
+			nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
 			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
 			volumeName := fmt.Sprintf("%s_data", serviceName)
 			Volumes[volumeName] = Volume{
@@ -216,11 +222,11 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 			Volumes["minio_storage"] = minioStorage
 		}
 
-		for iorg := 0; iorg < len(platformData.Certs.MqttCerts.Organizations); iorg++ {
-			orgAcronym := strings.ToLower(platformData.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
-			numNodeRedInstances := len(platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
+		for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
+			orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
+			numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
 			for inri := 0; inri < numNodeRedInstances; inri++ {
-				nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
+				nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
 				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
 				volumeName := fmt.Sprintf("%s_data", serviceName)
 				nriVolume := Volumes[volumeName]
@@ -330,11 +336,11 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 			Volumes["minio_storage"] = minioStorage
 		}
 
-		for iorg := 0; iorg < len(platformData.Certs.MqttCerts.Organizations); iorg++ {
-			orgAcronym := strings.ToLower(platformData.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
-			numNodeRedInstances := len(platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
+		for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
+			orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
+			numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
 			for inri := 0; inri < numNodeRedInstances; inri++ {
-				nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
+				nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
 				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
 				volumeName := fmt.Sprintf("%s_data", serviceName)
 				nriVolume := Volumes[volumeName]
@@ -476,11 +482,11 @@ func getVolumeFilterByNames(platformData *common.PlatformData) filters.Args {
 		"minio_storage",
 	}
 
-	for iorg := 0; iorg < len(platformData.Certs.MqttCerts.Organizations); iorg++ {
-		orgAcronym := strings.ToLower(platformData.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
-		numNodeRedInstances := len(platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
+	for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
+		orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
+		numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
 		for inri := 0; inri < numNodeRedInstances; inri++ {
-			nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
+			nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
 			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
 			nriVolumeName := fmt.Sprintf("%s_data", serviceName)
 			volumeNames = append(volumeNames, nriVolumeName)
@@ -516,11 +522,11 @@ func getVolumesMapByNodeRole(platformData *common.PlatformData, volumesMap map[s
 			"minio_storage",
 		)
 	case "Generic org worker":
-		for iorg := 0; iorg < len(platformData.Certs.MqttCerts.Organizations); iorg++ {
-			orgAcronym := strings.ToLower(platformData.Certs.MqttCerts.Organizations[iorg].OrgAcronym)
-			numNodeRedInstances := len(platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances)
+		for iorg := 0; iorg < len(platformData.Organizations); iorg++ {
+			orgAcronym := strings.ToLower(platformData.Organizations[iorg].OrgAcronym)
+			numNodeRedInstances := len(platformData.Organizations[iorg].NodeRedInstances)
 			for inri := 0; inri < numNodeRedInstances; inri++ {
-				nriHash := platformData.Certs.MqttCerts.Organizations[iorg].NodeRedInstances[inri].NriHash
+				nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
 				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
 				nriVolumeName := fmt.Sprintf("%s_data", serviceName)
 				volumeNames = append(volumeNames, nriVolumeName)
@@ -538,63 +544,6 @@ func getVolumesMapByNodeRole(platformData *common.PlatformData, volumesMap map[s
 	}
 
 	return filteredVolumes
-}
-
-func setNriVolumesAsCreated(platformData *common.PlatformData) (bool, error) {
-	areNewNriVolumesCreated := false
-	docker, err := GetManagerDC()
-	if err != nil {
-		return false, fmt.Errorf("error getting docker client: %v", err)
-	}
-
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("label", "app=osi4iot")
-	services, err := docker.Cli.ServiceList(docker.Ctx, types.ServiceListOptions{
-		Filters: filterArgs,
-	})
-	if err != nil {
-		return false, fmt.Errorf("error listing services: %v", err)
-	}
-	filteredServices := []swarm.Service{}
-	for _, service := range services {
-		if val, ok := service.Spec.Labels["service_type"]; ok && val == "nodered_instance" {
-			filteredServices = append(filteredServices, service)
-		}
-	}
-
-	oldEnvVar := "IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=false"
-	newEnvVar := "IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=true"
-	for _, service := range filteredServices {
-		serviceSpec := service.Spec
-		envVars := serviceSpec.TaskTemplate.ContainerSpec.Env
-		serviceNameArray := strings.Split(serviceSpec.Name, "_")
-		orgAcronym := serviceNameArray[1]
-		nriHash := serviceNameArray[3]
-		orgIndex, nriIndex := findOrgAndNriIndex(platformData, orgAcronym, nriHash)
-		serviceEnvModified := false
-		for envIndex, envVar := range envVars {
-			if envVar == oldEnvVar {
-				envVars[envIndex] = newEnvVar
-				serviceEnvModified = true
-				break
-			}
-		}
-		if orgIndex != -1 && nriIndex != -1 && serviceEnvModified {
-			serviceSpec.TaskTemplate.ContainerSpec.Env = envVars
-			response, err := docker.Cli.ServiceUpdate(docker.Ctx, service.ID, service.Version, serviceSpec, types.ServiceUpdateOptions{})
-			if err != nil {
-				return false, fmt.Errorf("error updating service: %v", err)
-			} else {
-				if len(response.Warnings) > 0 {
-					fmt.Printf("Warnings at updating service %s: %v\n", service.Spec.Name, response.Warnings)
-				}
-				platformData.Certs.MqttCerts.Organizations[orgIndex].NodeRedInstances[nriIndex].IsVolumeCreated = "true"
-				areNewNriVolumesCreated = true
-			}
-		}
-	}
-
-	return areNewNriVolumesCreated, nil
 }
 
 func RemoveNriVolumesInOrg(org common.Organization) error {

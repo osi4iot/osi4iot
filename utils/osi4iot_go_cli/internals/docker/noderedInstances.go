@@ -31,7 +31,6 @@ func nriService(platformData *common.PlatformData, nriData NriData, swarmData Sw
 	serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
 	volumeName := fmt.Sprintf("%s_data", serviceName)
 	nodeRedInstanceHashPath := fmt.Sprintf("nodered_%s", nriHash)
-	isVolumeCreated := nriData.nri.IsVolumeCreated
 	mqttClientCert := fmt.Sprintf("%s_%s_cert", orgAcronymLower, nriHash)
 	mqttClientKey := fmt.Sprintf("%s_%s_key", orgAcronymLower, nriHash)
 
@@ -81,14 +80,17 @@ func nriService(platformData *common.PlatformData, nriData NriData, swarmData Sw
 
 	nriTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/nodered_instance:1.3.0",
+			Image: "ghcr.io/osi4iot/nodered_instance_nats:1.3.0",
 			Labels: map[string]string{
 				"app": "osi4iot",
 			},
 			Env: []string{
 				fmt.Sprintf("TZ=%s", platformData.PlatformInfo.DefaultTimeZone),
 				fmt.Sprintf("NODERED_INSTANCE_HASH=%s", nriHash),
-				fmt.Sprintf("IS_NODERED_INSTANCE_VOLUME_ALREADY_CREATED=%s", isVolumeCreated),
+				fmt.Sprintf("DOMAIN_NAME=%s", platformData.PlatformInfo.DomainName),
+				fmt.Sprintf("MESSAGING_SYSTEM=%s", platformData.PlatformInfo.MessagingSystem),
+				fmt.Sprintf("NRI_USERNAME=%s", platformData.PlatformInfo.PlatformAdminUserName),
+				fmt.Sprintf("NRI_PASSWORD=%s", platformData.PlatformInfo.PlatformAdminPassword),
 			},
 			Secrets: []*swarm.SecretReference{
 				{

@@ -42,15 +42,6 @@ var once sync.Once
 
 func InitPlatform(platformData *common.PlatformData) error {
 	nodesData := platformData.PlatformInfo.NodesData
-	organizations := platformData.Certs.MqttCerts.Organizations
-	for orgIdx, org := range organizations {
-		for nriIdx, nri := range org.NodeRedInstances {
-			if nri.IsVolumeCreated == "true" {
-				platformData.Certs.MqttCerts.Organizations[orgIdx].NodeRedInstances[nriIdx].IsVolumeCreated = "false"
-			}
-		}
-	}
-
 	err := initSwarm()
 	if err != nil {
 		return fmt.Errorf("error: initializing swarm %s", err.Error())
@@ -384,59 +375,23 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 	return nil
 }
 
-func findOrgAndNriIndex(platformData *common.PlatformData, orgAcronym string, nriHash string) (int, int) {
-	orgIndex := -1
-	nriIndex := -1
-	for orgIdx, org := range platformData.Certs.MqttCerts.Organizations {
-		if strings.ToLower(org.OrgAcronym) == orgAcronym {
-			for nriIdx, nri := range org.NodeRedInstances {
-				if nri.NriHash == nriHash {
-					orgIndex = orgIdx
-					nriIndex = nriIdx
-					break
-				} else {
-					continue
-				}
-			}
-		} else {
-			continue
-		}
-	}
-	return orgIndex, nriIndex
-}
-
 func SwarmInitiationInfo(platformData *common.PlatformData, okMessage string) error {
 	err := waitUntilAllContainersAreHealthy("all")
 	if err != nil {
 		errMsg := utils.StyleErrMsg.Render("error waiting for the platform to be healthy: ", err.Error())
 		fmt.Println(errMsg)
 	} else {
-		areNewNriVolumesCreated, err := setNriVolumesAsCreated(platformData)
+		err := waitUntilAllContainersAreHealthy("nodered_instances")
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render("error setting nri volumes as created: ", err.Error())
+			errMsg := utils.StyleErrMsg.Render("error waiting nri is to be healthy: ", err.Error())
 			fmt.Println(errMsg)
 		} else {
-			if areNewNriVolumesCreated {
-				err := waitUntilAllContainersAreHealthy("nodered_instances")
-				if err != nil {
-					errMsg := utils.StyleErrMsg.Render("error waiting nri is to be healthy: ", err.Error())
-					fmt.Println(errMsg)
-				} else {
-					err = utils.WritePlatformDataToFile(platformData)
-					if err != nil {
-						return fmt.Errorf("error writing platform data to file: %v", err)
-					}
-					okMsg := utils.StyleOKMsg.Render(okMessage)
-					fmt.Println(okMsg)
-				}
-			} else {
-				err = utils.WritePlatformDataToFile(platformData)
-				if err != nil {
-					return fmt.Errorf("error writing platform data to file: %v", err)
-				}
-				okMsg := utils.StyleOKMsg.Render(okMessage)
-				fmt.Println(okMsg)
+			err = utils.WritePlatformDataToFile(platformData)
+			if err != nil {
+				return fmt.Errorf("error writing platform data to file: %v", err)
 			}
+			okMsg := utils.StyleOKMsg.Render(okMessage)
+			fmt.Println(okMsg)
 		}
 	}
 

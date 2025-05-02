@@ -14,7 +14,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"golang.org/x/crypto/bcrypt"
-	"golang.org/x/exp/rand"
+	"math/rand"
 )
 
 // countryMap contiene los países y sus respectivos códigos.
@@ -274,7 +274,7 @@ func GiveCountryCode(countryName string) string {
 
 func GeneratePassword(passwordLength int) string {
 	time.Sleep(1 * time.Microsecond)
-	source := rand.NewSource(uint64(time.Now().UnixMicro()))
+	source := rand.NewSource(time.Now().UnixMicro())
 	rng := rand.New(source)
 	lowerCase := "abcdefghijklmnopqrstuvwxyz" // lowercase
 	upperCase := "ABCDEFGHIJKLMNOPQRSTUVWXYZ" // uppercase
@@ -296,6 +296,33 @@ func GeneratePassword(passwordLength int) string {
 	}
 	return password.String()
 }
+
+func GenerateRandomSalt() string {
+	passwordLength := 16
+	time.Sleep(1 * time.Microsecond)
+	source := rand.NewSource(time.Now().UnixMicro())
+	rng := rand.New(source)
+	lowerCase := "abcdefghijklmnopqrstuvwxyz" // lowercase
+	upperCase := "ABCDEFGHIJKLMNOPQRSTUVWXYZ" // uppercase
+	numbers := "0123456789"
+	var password strings.Builder
+	for n := 0; n < passwordLength; n++ {
+		randNum := rng.Intn(3)
+		switch randNum {
+		case 0:
+			randCharNum := rng.Intn(len(lowerCase))
+			password.WriteByte(lowerCase[randCharNum])
+		case 1:
+			randCharNum := rng.Intn(len(upperCase))
+			password.WriteByte(upperCase[randCharNum])
+		case 2:
+			randCharNum := rng.Intn(len(numbers))
+			password.WriteByte(numbers[randCharNum])
+		}
+	}
+	return password.String()
+}
+
 
 func HashPassword(password string) (string, error) {
 	cost := 8
