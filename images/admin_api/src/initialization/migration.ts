@@ -15,7 +15,7 @@ import { createHomeDashboard } from "../components/group/dashboardDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import needle from "needle";
-import { createFictitiousUserForService } from "../components/user/userDAL";
+import { createFictitiousUserForService, createFictitiousUsersForMainOrgNri } from "../components/user/userDAL";
 import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
 import {
 	assignNodeRedInstanceToGroup,
@@ -326,7 +326,7 @@ export const dataBaseInitialization = async () => {
 					email: process_env.PLATFORM_ADMIN_EMAIL,
 					login: process_env.PLATFORM_ADMIN_USER_NAME,
 					password: process_env.PLATFORM_ADMIN_PASSWORD,
-					natsNkey: process_env.PLATFORM_ADMIN_NATS_PUBLIC_KEY,
+					natsNkey: process_env.PLATFORM_ADMIN_NATS_PUBLIC,
 					OrgId: 1
 				}
 				await grafanaApi.createUser(plaformAdminUser);
@@ -340,12 +340,19 @@ export const dataBaseInitialization = async () => {
 					email: "",
 					login: "dev2pdb",
 					password: process_env.DEV2PDB_PASSWORD,
+					natsNkey: process_env.DEV2PDB_NATS_NKEY_PUBLIC,
 					OrgId: 1
 				}
 				try {
 					await createFictitiousUserForService(dev2pdbUser);
 				} catch (err) {
-					logger.log("error", `Fictitiou user for service dev2pdb could not be created: %s`, err.message);
+					logger.log("error", `Fictitious user for service dev2pdb could not be created: %s`, err.message);
+				}
+
+				try {
+					await createFictitiousUsersForMainOrgNri();
+				} catch (err) {
+					logger.log("error", `Fictitious user for NRI could not be created: %s`, err.message);
 				}
 
 				const queryStringUpdateUser = 'UPDATE grafanadb.user SET first_name = $1, surname = $2, name = $3 WHERE id = $4';
@@ -882,7 +889,7 @@ export const dataBaseInitialization = async () => {
 				let mainNodeRedInstance: INodeRedInstance;
 				try {
 					await postgresClient.query(queryStringodeRedInstance);
-					const nodeRedInstances = await createNodeRedInstancesInOrg(process_env.MAIN_ORG_NODERED_INSTANCE_HASHES, 1);
+					const nodeRedInstances = await createNodeRedInstancesInOrg(process_env.MAIN_ORG_NRI_HASHES, 1);
 					mainNodeRedInstance = nodeRedInstances[0];
 					logger.log("info", `Table ${tableNodeRedInstance} has been created sucessfully`);
 				} catch (err) {
@@ -1070,6 +1077,32 @@ export const dataBaseInitialization = async () => {
 					logger.log("info", `Foreing key in table ${tableAlertNotification} has been added sucessfully`);
 				} catch (err) {
 					logger.log("error", `Foreing key in table ${tableAlertNotification} couldd not be added: %s`, err.message);
+				}
+
+				const tableANatsService = "grafanadb.nats_service";
+				const queryStringNatsService = `
+				CREATE TABLE IF NOT EXISTS ${tableANatsService}(
+					id serial PRIMARY KEY,
+					svc_hash varchar(30) UNIQUE,
+					group_id bigint,
+					name VARCHAR(50),
+					description VARCHAR(190),
+					created TIMESTAMPTZ,
+					updated TIMESTAMPTZ,
+					CONSTRAINT fk_group_id
+						FOREIGN KEY(group_id)
+							REFERENCES grafanadb.group(id)
+							ON DELETE CASCADE
+				);
+
+				CREATE INDEX IF NOT EXISTS idx_svc_hash
+				ON grafanadb.nats_service(svc_hash);`;
+
+				try {
+					await postgresClient.query(queryStringNatsService);
+					logger.log("info", `Table ${tableANatsService} has been created sucessfully`);
+				} catch (err) {
+					logger.log("error", `Table ${tableANatsService} could not be created: %s`, err.message);
 				}
 
 				pool.end(() => {

@@ -31,6 +31,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]Config {
 		fmt.Sprintf("DOMAIN_NAME=%s", platformData.PlatformInfo.DomainName),
 		fmt.Sprintf("PROTOCOL=%s", protocol),
 		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", platformData.PlatformInfo.DeploymentLocation),
+		fmt.Sprintf("MESSAGING_SYSTEM=%s", platformData.PlatformInfo.MessagingSystem),
 		fmt.Sprintf("PLATFORM_PHRASE=\"%s\"", platformData.PlatformInfo.PlatformPhrase),
 		fmt.Sprintf("MAIN_ORGANIZATION_NAME=\"%s\"", platformData.PlatformInfo.MainOrganizationName),
 		fmt.Sprintf("MAIN_ORGANIZATION_ACRONYM=%s", platformData.PlatformInfo.MainOrganizationAcronym),

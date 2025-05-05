@@ -439,7 +439,7 @@ func initialModelCreatePlatform() Model {
 				Margin:        0,
 			},
 			{
-				Key:           "MESSAGING_SYSTEM_TYPE",
+				Key:           "MESSAGING_SYSTEM",
 				QuestionType:  "list",
 				Prompt:        "Select the messaging system of the platform",
 				Answer:        data.Data.PlatformInfo.MessagingSystem,

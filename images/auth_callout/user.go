@@ -42,7 +42,6 @@ func (u *User) GetPermissions(authModel *AuthModel, group *Group, nri *Nri, svc 
 		subjectArrray := []string{}
 		dev2pdbTopicTypeArray := []string{"dev2pdb", "dev2pdb_ma", "dev2pdb_wt", "dtm2pdb"}
 		for _, topicType := range dev2pdbTopicTypeArray {
-			//topic := topicType + ".*.*"
 			topic := topicType + ".>"
 			subjectArrray = append(subjectArrray, topic)
 		}

@@ -53,5 +53,11 @@ func (n *Nri) NriPermissions(authModel *AuthModel) jwt.Permissions {
 		return defaultPermissions
 	}
 
-	return group.GroupPermissions(authModel)
+	nriPermissions:= group.GroupPermissions(authModel)
+
+	testTopic := "test." + "nri_" + n.NriHash
+	nriPermissions.Pub.Allow = append(nriPermissions.Pub.Allow, testTopic)
+	nriPermissions.Sub.Allow = append(nriPermissions.Sub.Allow, testTopic)
+
+	return nriPermissions
 }

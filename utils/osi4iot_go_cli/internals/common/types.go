@@ -30,7 +30,7 @@ type PlatformInfo struct {
 	PlatformAdminUserName      string     `json:"PLATFORM_ADMIN_USER_NAME"`
 	PlatformAdminEmail         string     `json:"PLATFORM_ADMIN_EMAIL"`
 	PlatformAdminPassword      string     `json:"PLATFORM_ADMIN_PASSWORD"`
-	PlatformAdminNatsPublicKey string     `json:"PLATFORM_ADMIN_NATS_PUBLIC_KEY"`
+	PlatformAdminNatsPublicKey string     `json:"PLATFORM_ADMIN_NATS_PUBLIC"`
 	PlatformAdminNatsSeed      string     `json:"PLATFORM_ADMIN_NATS_SEED"`
 	NumberOfSwarmNodes         int        `json:"NUMBER_OF_SWARM_NODES"`
 	NodesData                  []NodeData `json:"NODES_DATA"`
@@ -84,7 +84,9 @@ type PlatformInfo struct {
 	TimescaleDataRetentionInterval string `json:"TIMESCALE_DATA_RET_INT_DAYS"`
 	GrafanaDBPassword              string `json:"GRAFANA_DB_PASSWORD"`
 	GrafanaDatasourcePassword      string `json:"GRAFANA_DATASOURCE_PASSWORD"`
-	Dev2PDBPassword                string `json:"DEV2PDB_PASSWORD"`
+	Dev2pdbPassword                string `json:"DEV2PDB_PASSWORD"`
+	Dev2pdbNatsNkeyPublic          string `json:"DEV2PDB_NATS_NKEY_PUBLIC"`
+	Dev2pdbNatsNkeySeed            string `json:"DEV2PDB_NATS_NKEY_SEED"`
 	NodeRedAdmin                   string `json:"NODE_RED_ADMIN"`
 	NodeRedAdminHash               string `json:"NODE_RED_ADMIN_HASH"`
 	PGAdminDefaultEmail            string `json:"PGADMIN_DEFAULT_EMAIL"`
@@ -173,8 +175,8 @@ type NriMqttCerts struct {
 }
 
 type NriNatsCerts struct {
-	NriNkeyPublicKey  string `json:"nri_nkey_public"`
-	NriNkeySeed       string `json:"nri_nkey_seed"`
+	NriNkeyPublic string `json:"nri_nkey_public"`
+	NriNkeySeed   string `json:"nri_nkey_seed"`
 }
 
 type NodeRedInstance struct {

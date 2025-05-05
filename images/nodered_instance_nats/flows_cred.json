@@ -1,1 +1,7 @@
-{"9b716f06439e1901":{"user":"${NRI_USERNAME}","password":"${NRI_PASSWORD}"},"906e7c5aec6fed1a":{}}
+{
+    "9b716f06439e1901": {
+        "user": "${NRI_USERNAME}",
+        "password": "${NRI_PASSWORD}"
+    },
+    "906e7c5aec6fed1a": {}
+}

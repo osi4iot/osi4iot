@@ -177,6 +177,31 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_REGION=%s", platformData.PlatformInfo.AWSRegionRoute53))
 		traefikEnvVars = append(traefikEnvVars, fmt.Sprintf("AWS_HOSTED_ZONE_ID=%s", platformData.PlatformInfo.AWSHostedZoneIdRoute53))
 	}
+
+	traefikCommands := []string{
+		"traefik",
+		"--api.insecure=false",
+		"--providers.docker=true",
+		"--providers.docker.swarmMode=true",
+		"--providers.docker.exposedByDefault=false",
+		"--entrypoints.web.address=:80",
+		"--ping=true",
+		"--entrypoints.web.http.redirections.entrypoint.to=websecure",
+		"--entrypoints.web.http.redirections.entrypoint.scheme=https",
+		"--entrypoints.web.http.redirections.entrypoint.permanent=true",
+		"--entrypoints.websecure.address=:443",
+		"--providers.docker.network=traefik_public",
+		"--api",
+		"--accesslog",
+		"--log",
+	}
+
+	if messagingSystem == "mqtt" {
+		traefikCommands = append(traefikCommands, "--entrypoints.mqtt.address=:1883")
+		traefikCommands = append(traefikCommands, "--entrypoints.mqtt-tls.address=:8884")
+		traefikCommands = append(traefikCommands, "--entrypoints.wss.address=:9001")
+	}
+
 	traefikTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/traefik_go_cli:v2.10",
@@ -194,26 +219,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 				Retries:       3,
 				StartInterval: time.Duration(10 * time.Second),
 			},
-			Command: []string{
-				"traefik",
-				"--api.insecure=false",
-				"--providers.docker=true",
-				"--providers.docker.swarmMode=true",
-				"--providers.docker.exposedByDefault=false",
-				"--entrypoints.web.address=:80",
-				"--ping=true",
-				"--entrypoints.web.http.redirections.entrypoint.to=websecure",
-				"--entrypoints.web.http.redirections.entrypoint.scheme=https",
-				"--entrypoints.web.http.redirections.entrypoint.permanent=true",
-				"--entrypoints.websecure.address=:443",
-				"--entrypoints.mqtt.address=:1883",
-				"--entrypoints.mqtt-tls.address=:8884",
-				"--entrypoints.wss.address=:9001",
-				"--providers.docker.network=traefik_public",
-				"--api",
-				"--accesslog",
-				"--log",
-			},
+			Command: traefikCommands,
 			Secrets: traefikSecrets,
 			Configs: traefikConfigs,
 			Mounts: []mount.Mount{
@@ -287,7 +293,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		},
 	}
 
-	//if messagingSystem == "mqtt" {
+	if messagingSystem == "mqtt" {
 		mosquittoPorts := []swarm.PortConfig{
 			{
 				Protocol:      swarm.PortConfigProtocolTCP,
@@ -306,7 +312,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			},
 		}
 		traefikEndpointSpec.Ports = append(traefikEndpointSpec.Ports, mosquittoPorts...)
-	//}
+	}
 	traefikMode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{
 			Replicas: giveReplicsPtr(nodeRoleNumMap, "traefik"),
@@ -342,7 +348,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		Networks:       traefikNetwork,
 	}
 
-	//if messagingSystem == "mqtt" {
+	if messagingSystem == "mqtt" {
 		mosquittoRule := fmt.Sprintf("Host(`%s`)", platformData.PlatformInfo.DomainName)
 		mosquittoRule8884 := fmt.Sprintf("HostSNI(`%s`)", platformData.PlatformInfo.DomainName)
 		mosquitoAnottations := swarm.Annotations{
@@ -508,7 +514,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			RollbackConfig: mosquitoRollbackConfig,
 			Networks:       mosquitoNetwork,
 		}
-	//} else if messagingSystem == "nats" {
+	} else if messagingSystem == "nats" {
 		nats1Annottations := swarm.Annotations{
 			Name: "nats1",
 			Labels: map[string]string{
@@ -612,12 +618,12 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 				{
 					Protocol:      swarm.PortConfigProtocolTCP,
 					TargetPort:    9001,
-					PublishedPort: 9002, //OJO luego de cambiar a 9001
+					PublishedPort: 9001,
 				},
 				{
 					Protocol:      swarm.PortConfigProtocolTCP,
-					TargetPort:    1885, //OJO luego de cambiar a 1883
-					PublishedPort: 1885, //OJO luego de cambiar a 1883
+					TargetPort:    1883,
+					PublishedPort: 1883,
 				},
 			},
 		}
@@ -1035,7 +1041,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			RollbackConfig: authCalloutRollbackConfig,
 			Networks:       authCalloutNetwork,
 		}
-	//}
+	}
 
 	postgresAnottations := swarm.Annotations{
 		Name: "postgres",
@@ -1615,7 +1621,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 	}
 	adminApiTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
-			Image: "ghcr.io/osi4iot/admin_api:1.3.0",
+			Image: "ghcr.io/osi4iot/admin_api_nats:1.3.0",
 			Labels: map[string]string{
 				"app": "osi4iot",
 			},
@@ -1689,7 +1695,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			Constraints: workerConstraintsArray,
 		},
 	}
-	//if messagingSystem == "mqtt" {
+	if messagingSystem == "mqtt" {
 		mqttSecrets := []*swarm.SecretReference{
 			{
 				File: &swarm.SecretReferenceFileTarget{
@@ -1713,7 +1719,7 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 			},
 		}
 		adminApiTaskTemplate.ContainerSpec.Secrets = append(adminApiTaskTemplate.ContainerSpec.Secrets, mqttSecrets...)
-	//}
+	}
 
 	adminApiEndpointSpec := &swarm.EndpointSpec{
 		Mode: swarm.ResolutionModeVIP,
@@ -2271,42 +2277,40 @@ func GenerateServices(platformData *common.PlatformData, swarmData SwarmData) ma
 		nriResources = &swarm.ResourceRequirements{}
 	}
 
-	if messagingSystem == "mqtt" {
-		for _, org := range platformData.Organizations {
-			orgAcronym := org.OrgAcronym
-			orgAcronymLower := strings.ToLower(orgAcronym)
+	for _, org := range platformData.Organizations {
+		orgAcronym := org.OrgAcronym
+		orgAcronymLower := strings.ToLower(orgAcronym)
 
-			if numSwarmNodes == 1 {
+		if numSwarmNodes == 1 {
+			nriConstraintsArray = []string{
+				"node.role==manager",
+			}
+		} else {
+			if len(org.ExclusiveWorkerNodes) != 0 {
 				nriConstraintsArray = []string{
-					"node.role==manager",
+					"node.role==worker",
+					fmt.Sprintf("node.labels.org_hash==%s", org.OrgHash),
 				}
 			} else {
-				if len(org.ExclusiveWorkerNodes) != 0 {
-					nriConstraintsArray = []string{
-						"node.role==worker",
-						fmt.Sprintf("node.labels.org_hash==%s", org.OrgHash),
-					}
-				} else {
-					nriConstraintsArray = []string{
-						"node.role==worker",
-						"node.labels.generic_org_worker==true",
-					}
+				nriConstraintsArray = []string{
+					"node.role==worker",
+					"node.labels.generic_org_worker==true",
 				}
 			}
+		}
 
-			for _, nri := range org.NodeRedInstances {
-				nriHash := nri.NriHash
-				serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
-				nriData := NriData{
-					org:              org,
-					nri:              nri,
-					resources:        nriResources,
-					constraintsArray: nriConstraintsArray,
-					resolver:         resolver,
-				}
-				nriService := nriService(platformData, nriData, swarmData)
-				Services[serviceName] = nriService
+		for _, nri := range org.NodeRedInstances {
+			nriHash := nri.NriHash
+			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
+			nriData := NriData{
+				org:              org,
+				nri:              nri,
+				resources:        nriResources,
+				constraintsArray: nriConstraintsArray,
+				resolver:         resolver,
 			}
+			nriService := nriService(platformData, nriData, swarmData)
+			Services[serviceName] = nriService
 		}
 	}
 

@@ -26,6 +26,7 @@ func nriService(platformData *common.PlatformData, nriData NriData, swarmData Sw
 	orgAcronym := nriData.org.OrgAcronym
 	orgAcronymLower := strings.ToLower(orgAcronym)
 	resolver := nriData.resolver
+	messagingSystem := platformData.PlatformInfo.MessagingSystem
 
 	nriHash := nriData.nri.NriHash
 	serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
@@ -33,6 +34,7 @@ func nriService(platformData *common.PlatformData, nriData NriData, swarmData Sw
 	nodeRedInstanceHashPath := fmt.Sprintf("nodered_%s", nriHash)
 	mqttClientCert := fmt.Sprintf("%s_%s_cert", orgAcronymLower, nriHash)
 	mqttClientKey := fmt.Sprintf("%s_%s_key", orgAcronymLower, nriHash)
+	nriNatsSecretsKey := fmt.Sprintf("%s_%s_nats", orgAcronymLower, nriHash)
 
 	domainName := platformData.PlatformInfo.DomainName
 	nriAnottations := swarm.Annotations{
@@ -78,6 +80,57 @@ func nriService(platformData *common.PlatformData, nriData NriData, swarmData Sw
 		},
 	}
 
+	nriSecrets := []*swarm.SecretReference{}
+	if messagingSystem == "mqtt" {
+		nriMqttSecrets := []*swarm.SecretReference{
+			{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "/data/certs/ca.crt",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
+				SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
+			},
+			{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "/data/certs/client.crt",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   swarmData.Secrets[mqttClientCert].ID,
+				SecretName: swarmData.Secrets[mqttClientCert].Name,
+			},
+			{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "/data/certs/client.key",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   swarmData.Secrets[mqttClientKey].ID,
+				SecretName: swarmData.Secrets[mqttClientKey].Name,
+			},
+		}
+		nriSecrets = append(nriSecrets, nriMqttSecrets...)
+	} else if messagingSystem == "nats" {
+		nriNatsSecrets := []*swarm.SecretReference{
+			{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "/data/certs/nri_credentials",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   swarmData.Secrets[nriNatsSecretsKey].ID,
+				SecretName: swarmData.Secrets[nriNatsSecretsKey].Name,
+			},
+		}
+		nriSecrets = append(nriSecrets, nriNatsSecrets...)
+	}
+
 	nriTaskTemplate := swarm.TaskSpec{
 		ContainerSpec: &swarm.ContainerSpec{
 			Image: "ghcr.io/osi4iot/nodered_instance_nats:1.3.0",
@@ -89,41 +142,8 @@ func nriService(platformData *common.PlatformData, nriData NriData, swarmData Sw
 				fmt.Sprintf("NODERED_INSTANCE_HASH=%s", nriHash),
 				fmt.Sprintf("DOMAIN_NAME=%s", platformData.PlatformInfo.DomainName),
 				fmt.Sprintf("MESSAGING_SYSTEM=%s", platformData.PlatformInfo.MessagingSystem),
-				fmt.Sprintf("NRI_USERNAME=%s", platformData.PlatformInfo.PlatformAdminUserName),
-				fmt.Sprintf("NRI_PASSWORD=%s", platformData.PlatformInfo.PlatformAdminPassword),
 			},
-			Secrets: []*swarm.SecretReference{
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/data/certs/ca.crt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets["mqtt_certs_ca_cert"].ID,
-					SecretName: swarmData.Secrets["mqtt_certs_ca_cert"].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/data/certs/client.crt",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets[mqttClientCert].ID,
-					SecretName: swarmData.Secrets[mqttClientCert].Name,
-				},
-				{
-					File: &swarm.SecretReferenceFileTarget{
-						Name: "/data/certs/client.key",
-						UID:  "0",
-						GID:  "0",
-						Mode: 0444,
-					},
-					SecretID:   swarmData.Secrets[mqttClientKey].ID,
-					SecretName: swarmData.Secrets[mqttClientKey].Name,
-				},
-			},
+			Secrets: nriSecrets,
 			Mounts: []mount.Mount{
 				{
 					Type:   mount.TypeVolume,
@@ -256,24 +276,27 @@ func createNriSwarmVolumes(platformData *common.PlatformData, newOrg common.Orga
 
 func createNriSwarmSecrets(dc *DockerClient, platformData *common.PlatformData, newOrg common.Organization) (map[string]Secret, error) {
 	nriSecrets := make(map[string]Secret)
-	generateNriSecrets([]common.Organization{newOrg}, nriSecrets)
+	messagingSystem := platformData.PlatformInfo.MessagingSystem
+	generateNriSecrets(messagingSystem, []common.Organization{newOrg}, nriSecrets)
 
-	filterArgs := filters.NewArgs()
-	mqttCaCertHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.CaCerts.CaCrt)
-	mqttCaCertSecretName := fmt.Sprintf("mqtt_certs_ca_cert_%s", mqttCaCertHash)
-	filterArgs.Add("name", mqttCaCertSecretName)
-	mqttCertsCaCertSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{Filters: filterArgs})
-	if err != nil {
-		return nil, fmt.Errorf("error listing secrets: %v", err)
+	if messagingSystem == "mqtt" {
+		filterArgs := filters.NewArgs()
+		mqttCaCertHash := utils.GetMD5Hash(platformData.Certs.MqttCerts.CaCerts.CaCrt)
+		mqttCaCertSecretName := fmt.Sprintf("mqtt_certs_ca_cert_%s", mqttCaCertHash)
+		filterArgs.Add("name", mqttCaCertSecretName)
+		mqttCertsCaCertSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{Filters: filterArgs})
+		if err != nil {
+			return nil, fmt.Errorf("error listing secrets: %v", err)
+		}
+		if len(mqttCertsCaCertSecrets) == 0 {
+			return nil, fmt.Errorf("error getting secret %s", "mqtt_certs_ca_cert")
+		}
+		nriSecrets["mqtt_certs_ca_cert"] = Secret{
+			ID:   mqttCertsCaCertSecrets[0].ID,
+			Name: mqttCertsCaCertSecrets[0].Spec.Name,
+		}
 	}
-	if len(mqttCertsCaCertSecrets) == 0 {
-		return nil, fmt.Errorf("error getting secret %s", "mqtt_certs_ca_cert")
-	}
-	nriSecrets["mqtt_certs_ca_cert"] = Secret{
-		ID:   mqttCertsCaCertSecrets[0].ID,
-		Name: mqttCertsCaCertSecrets[0].Spec.Name,
-	}
-	
+
 	for key, secret := range nriSecrets {
 		err := createSecret(dc, key, &secret)
 		if err != nil {
@@ -358,9 +381,9 @@ func CreateNriServices(newOrg common.Organization, platformData *common.Platform
 	nriNetworks := GenerateNetworks(platformData)
 
 	swarmData := SwarmData{
-		Configs: nil,
-		Secrets: nriSecrets,
-		Volumes: nriVolumesMap,
+		Configs:  nil,
+		Secrets:  nriSecrets,
+		Volumes:  nriVolumesMap,
 		Networks: nriNetworks,
 	}
 
@@ -396,7 +419,7 @@ func RemoveNriServices(org common.Organization) error {
 		servicesToRemove = append(servicesToRemove, serviceName)
 	}
 
-	err= removeServicesByName(dc, servicesToRemove)
+	err = removeServicesByName(dc, servicesToRemove)
 	if err != nil {
 		return fmt.Errorf("error removing services: %v", err)
 	}

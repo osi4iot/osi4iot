@@ -3,6 +3,7 @@ package handler
 
 import (
 	"dev2pdb/internal/models"
+	"fmt"
 	"time"
 
 	"github.com/buger/jsonparser"
@@ -10,14 +11,30 @@ import (
 
 type RowExtractor func(topicParts []string, payload []byte) ([]models.ThingData, error)
 
-func BaseExtractor(parts []string, payload []byte) ([]models.ThingData, error) {
+func ThingDataRow(time time.Time, parts []string, payload []byte) (models.ThingData, error) {
+    if len(parts) < 3 {
+        return models.ThingData{}, fmt.Errorf("invalid topic format")
+    } else if len(parts[1]) < 7 || len(parts[2]) < 7 {
+        return models.ThingData{}, fmt.Errorf("invalid topic format")
+    }
+    if parts[1][:6] != "Group_" || parts[2][:6] != "Topic_" {
+        return models.ThingData{}, fmt.Errorf("invalid topic format")
+    }
     row := models.ThingData{
         GroupUID:  parts[1][6:],
         TopicUID:  parts[2][6:],
         Topic:     parts[2],
         Payload:   payload,
-        Timestamp: time.Now(),
+        Timestamp: time,
         Deleted:   0,
+    }
+    return row, nil
+}
+
+func BaseExtractor(parts []string, payload []byte) ([]models.ThingData, error) {
+    row, err := ThingDataRow(time.Now(), parts, payload)
+    if err != nil {
+        return nil, err
     }
     return []models.ThingData{row}, nil
 }
@@ -25,7 +42,11 @@ func BaseExtractor(parts []string, payload []byte) ([]models.ThingData, error) {
 func TimestampExtractor(parts []string, payload []byte) ([]models.ThingData, error) {
     ts, err := jsonparser.GetString(payload, "timestamp")
     if err != nil {
-        return nil, err
+        row, err := ThingDataRow(time.Now(), parts, payload)
+        if err != nil {
+            return nil, err
+        }
+        return []models.ThingData{row}, nil
     }
     t, err := time.Parse(time.RFC3339, ts)
     if err != nil {

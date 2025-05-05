@@ -115,7 +115,7 @@ func SetData(key string, value string) {
 		if Data.PlatformInfo.AccessTokenSecret == "" {
 			Data.PlatformInfo.AccessTokenSecret = value
 		}
-	case "MESSAGING_SYSTEM_TYPE":
+	case "MESSAGING_SYSTEM":
 		Data.PlatformInfo.MessagingSystem = value
 	case "MQTT_SSL_CERTS_VALIDITY_DAYS":
 		mqttCertsValidityDays, _ := strconv.Atoi(value)
@@ -210,7 +210,11 @@ func SetData(key string, value string) {
 			Data.PlatformInfo.GrafanaDatasourcePassword = value
 		}
 	case "DEV2PDB_PASSWORD":
-		Data.PlatformInfo.Dev2PDBPassword = value
+		Data.PlatformInfo.Dev2pdbPassword = value
+	case "DEV2PDB_NATS_NKEY_PUBLIC":
+		Data.PlatformInfo.Dev2pdbNatsNkeyPublic = value
+	case "DEV2PDB_NATS_NKEY_SEED":
+		Data.PlatformInfo.Dev2pdbNatsNkeySeed = value
 	case "NODE_RED_ADMIN":
 		Data.PlatformInfo.NodeRedAdmin = value
 	case "NODE_RED_ADMIN_HASH":

@@ -216,7 +216,7 @@ func CreateBrokerCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey,
 	return nil
 }
 
-func CreateNodeRedCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
+func CreateNodeRedMqttCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
 	domainName := platformData.PlatformInfo.DomainName
 	validityDays := platformData.PlatformInfo.MQTTSslCertsValidityDays
 	limitTime := time.Now().Add(24 * 15 * time.Hour) //15 days of margin
@@ -295,12 +295,6 @@ func CreateNodeRedCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey
 				mqttClientKeyName := fmt.Sprintf("%s_%s_key_%s", orgAcronymLower, nriHash, GetMD5Hash(mqttClientKey))
 				platformData.Organizations[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKeyName = mqttClientKeyName
 				platformData.Organizations[iorg].NodeRedInstances[inri].NriHash = nriHash
-
-				// deploymentMode := platformData.PlatformInfo.DeploymentMode
-				// if deploymentMode == "development" {
-				// 	WriteToFile(fmt.Sprintf("./certs/mqtt_certs/%s.crt", nriCommonName), nriCertPEM, 0600)
-				// 	WriteToFile(fmt.Sprintf("./certs/mqtt_certs/%s.key", nriCommonName), nriKeyPEM, 0600)
-				// }
 			}
 		}
 	}
@@ -322,11 +316,29 @@ func MqttTLSCredentials(platformData *common.PlatformData) error {
 	}
 
 	//Node-Red MQTT Cert
-	err = CreateNodeRedCerts(platformData, caKey, caCert)
+	err = CreateNodeRedMqttCerts(platformData, caKey, caCert)
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func CreateNriNatsNkeys(platformData *common.PlatformData) error {
+	for iorg, org := range platformData.Organizations {
+		for inri, nri := range org.NodeRedInstances {
+			nriNatsPublic := nri.NriNatsCerts.NriNkeyPublic
+			nriNatsSeed := nri.NriNatsCerts.NriNkeySeed
+			if nriNatsPublic == "" && nriNatsSeed == "" {
+				nriNatsPublic, nriNatsSeed, err := CreateUserNatsNkey()
+				if err != nil {
+					return fmt.Errorf("error creating NATS Nkey for Node-Red instance: %v", err)
+				}
+				platformData.Organizations[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeyPublic = nriNatsPublic
+				platformData.Organizations[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeySeed = nriNatsSeed
+			}
+		}
+	}
 	return nil
 }
 
@@ -395,6 +407,7 @@ func NatsCredentials(platformData *common.PlatformData) error {
 	}
 	platformData.PlatformInfo.PlatformAdminNatsPublicKey = userPub
 	platformData.PlatformInfo.PlatformAdminNatsSeed = userSeed
+
 	return nil
 }
 

@@ -22,10 +22,16 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 	Secrets := make(map[string]Secret)
 	mainOrgNodeRedInstances := platformData.Organizations[0].NodeRedInstances
 	var hashes []string
+	var nriPasswords []string
+	var nriNkeysPublic []string
 	for _, nri := range mainOrgNodeRedInstances {
 		hashes = append(hashes, nri.NriHash)
+		nriPasswords = append(nriPasswords, nri.NriPassword)
+		nriNkeysPublic = append(nriNkeysPublic, nri.NriNatsCerts.NriNkeyPublic)
 	}
-	mainOrgNodeRedInstanceHashes := strings.Join(hashes, ",")
+	mainOrgNriHashes := strings.Join(hashes, ",")
+	mainOrgNriPasswords := strings.Join(nriPasswords, ",")
+	mainOrgNriNkeysPublic := strings.Join(nriNkeysPublic, ",")
 	domainCertsType := platformData.PlatformInfo.DomainCertsType
 	messagingSystem := platformData.PlatformInfo.MessagingSystem
 	nodeRoleNumMap := getNodeRoleNumMap(platformData)
@@ -43,7 +49,7 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 		fmt.Sprintf("PLATFORM_ADMIN_USER_NAME=%s", platformData.PlatformInfo.PlatformAdminUserName),
 		fmt.Sprintf("PLATFORM_ADMIN_EMAIL=%s", platformData.PlatformInfo.PlatformAdminEmail),
 		fmt.Sprintf("PLATFORM_ADMIN_PASSWORD=%s", platformData.PlatformInfo.PlatformAdminPassword),
-		fmt.Sprintf("PLATFORM_ADMIN_NATS_PUBLIC_KEY=%s", platformData.PlatformInfo.PlatformAdminNatsPublicKey),
+		fmt.Sprintf("PLATFORM_ADMIN_NATS_PUBLIC=%s", platformData.PlatformInfo.PlatformAdminNatsPublicKey),
 		fmt.Sprintf("GRAFANA_ADMIN_PASSWORD=%s", platformData.PlatformInfo.GrafanaAdminPassword),
 		fmt.Sprintf("POSTGRES_USER=%s", platformData.PlatformInfo.PostgresUser),
 		fmt.Sprintf("POSTGRES_PASSWORD=%s", platformData.PlatformInfo.PostgresPassword),
@@ -51,7 +57,11 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 		fmt.Sprintf("TIMESCALE_USER=%s", platformData.PlatformInfo.TimescaleUser),
 		fmt.Sprintf("TIMESCALE_PASSWORD=%s", platformData.PlatformInfo.TimescalePassword),
 		fmt.Sprintf("TIMESCALE_DB=%s", platformData.PlatformInfo.TimescaleDB),
-		fmt.Sprintf("DEV2PDB_PASSWORD=%s", platformData.PlatformInfo.Dev2PDBPassword),
+		fmt.Sprintf("DEV2PDB_PASSWORD=%s", platformData.PlatformInfo.Dev2pdbPassword),
+		fmt.Sprintf("DEV2PDB_NATS_NKEY_PUBLIC=%s", platformData.PlatformInfo.Dev2pdbNatsNkeyPublic),
+		fmt.Sprintf("NATS_ADMIN_USERNAME=%s", platformData.Certs.NatsCerts.NatsAdminUsername),
+		fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", platformData.Certs.NatsCerts.NatsAdminPassword),
+		fmt.Sprintf("NATS_ADMIN_NKEY_PUBLIC=%s", platformData.Certs.NatsCerts.NatsAdminNkeyPublic),
 		fmt.Sprintf("NOTIFICATIONS_EMAIL_USER=%s", platformData.PlatformInfo.NotificationsEmailUser),
 		fmt.Sprintf("NOTIFICATIONS_EMAIL_PASSWORD=%s", platformData.PlatformInfo.NotificationsEmailPassword),
 		fmt.Sprintf("MAIN_ORGANIZATION_TELEGRAM_CHAT_ID=%s", platformData.PlatformInfo.MainOrganizationTelegramChatID),
@@ -60,16 +70,9 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 		fmt.Sprintf("MAIN_ORG_HASH=%s", platformData.Organizations[0].OrgHash),
 		fmt.Sprintf("AWS_ACCESS_KEY_ID=%s", platformData.PlatformInfo.AWSAccessKeyIDS3Bucket),
 		fmt.Sprintf("AWS_SECRET_ACCESS_KEY=%s", platformData.PlatformInfo.AWSSecretAccessKeyS3Bucket),
-		fmt.Sprintf("MAIN_ORG_NODERED_INSTANCE_HASHES=%s", mainOrgNodeRedInstanceHashes),
-	}
-
-	if messagingSystem == "nats" {
-		messagingSystemSecretsDataArray := []string{
-			fmt.Sprintf("NATS_ADMIN_USERNAME=%s", platformData.Certs.NatsCerts.NatsAdminUsername),
-			fmt.Sprintf("NATS_ADMIN_PASSWORD=%s", platformData.Certs.NatsCerts.NatsAdminPassword),
-			fmt.Sprintf("NATS_ADMIN_NKEY_PUBLIC=%s", platformData.Certs.NatsCerts.NatsAdminNkeyPublic),
-		}
-		adminApiSecretsDataArray = append(adminApiSecretsDataArray, messagingSystemSecretsDataArray...)
+		fmt.Sprintf("MAIN_ORG_NRI_HASHES=%s", mainOrgNriHashes),
+		fmt.Sprintf("MAIN_ORG_NRI_PASSWORDS=%s", mainOrgNriPasswords),
+		fmt.Sprintf("MAIN_ORG_NRI_NKEYS_PUBLIC=%s", mainOrgNriNkeysPublic),
 	}
 
 	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")
@@ -322,32 +325,68 @@ func GenerateSecrets(platformData *common.PlatformData) map[string]Secret {
 	}
 	Secrets["s3_storage"] = s3StorageSecret
 
-	//if messagingSystem == "mqtt" {
-		generateNriSecrets(platformData.Organizations, Secrets)
-	//}
+	generateNriSecrets(messagingSystem, platformData.Organizations, Secrets)
 
 	return Secrets
 }
 
-func generateNriSecrets(orgs []common.Organization, Secrets map[string]Secret) {
-	for iorg := 0; iorg < len(orgs); iorg++ {
+func generateNriSecrets(messagingSystem string, orgs []common.Organization, Secrets map[string]Secret) {
+	for iorg := range orgs {
 		orgAcronym := strings.ToLower(orgs[iorg].OrgAcronym)
 		numNodeRedInstances := len(orgs[iorg].NodeRedInstances)
-		for inri := 0; inri < numNodeRedInstances; inri++ {
+		for inri := range numNodeRedInstances {
 			nriHash := orgs[iorg].NodeRedInstances[inri].NriHash
-			mqttClientCertSecretKey := fmt.Sprintf("%s_%s_cert", orgAcronym, nriHash)
-			mqttClientCertSecret := Secret{
-				Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrtName,
-				Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrt,
-			}
-			Secrets[mqttClientCertSecretKey] = mqttClientCertSecret
+			if messagingSystem == "mqtt" {
+				mqttClientCertSecretKey := fmt.Sprintf("%s_%s_cert", orgAcronym, nriHash)
+				mqttClientCertSecret := Secret{
+					Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrtName,
+					Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrt,
+				}
+				Secrets[mqttClientCertSecretKey] = mqttClientCertSecret
 
-			mqttClientKeySecretKey := fmt.Sprintf("%s_%s_key", orgAcronym, nriHash)
-			mqttClientKeySecret := Secret{
-				Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKeyName,
-				Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKey,
+				mqttClientKeySecretKey := fmt.Sprintf("%s_%s_key", orgAcronym, nriHash)
+				mqttClientKeySecret := Secret{
+					Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKeyName,
+					Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKey,
+				}
+				Secrets[mqttClientKeySecretKey] = mqttClientKeySecret
+			} else if messagingSystem == "nats" {
+				nriUserName := orgs[iorg].NodeRedInstances[inri].NriUserName
+				if nriUserName == "" {
+					nriUserName = fmt.Sprintf("nri_%s", nriHash)
+					orgs[iorg].NodeRedInstances[inri].NriUserName = nriUserName
+				}
+				nriPassword := orgs[iorg].NodeRedInstances[inri].NriPassword
+				if nriPassword == "" {
+					nriPassword = utils.GeneratePassword(20)
+					orgs[iorg].NodeRedInstances[inri].NriPassword = nriPassword
+				}
+				nriNatsPublic := orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeyPublic
+				nriNatsSeed := orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeySeed
+				if nriNatsPublic == "" && nriNatsSeed == "" {
+					nriNatsPublic, nriNatsSeed, _ := utils.CreateUserNatsNkey()
+					orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeyPublic = nriNatsPublic
+					orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeySeed = nriNatsSeed
+				} else {
+					nriNatsSeed = orgs[iorg].NodeRedInstances[inri].NriNatsCerts.NriNkeySeed
+				}
+				
+				nriNatsSecrets := []string{
+					fmt.Sprintf("NRI_USERNAME=%s", nriUserName),
+					fmt.Sprintf("NRI_PASSWORD=%s", nriPassword),
+					fmt.Sprintf("NATS_NKEY_SEED=%s", nriNatsSeed),
+				}
+				
+				nriNatsSecretsData := strings.Join(nriNatsSecrets, "\n")
+				nriNatsSecretsHash := utils.GetMD5Hash(nriNatsSecretsData)
+				nriNatsSecretsKey := fmt.Sprintf("%s_%s_nats", orgAcronym, nriHash)
+				nriNatsSecretsName := fmt.Sprintf("%s_%s", nriNatsSecretsKey, nriNatsSecretsHash)
+				nriNatsSecret := Secret{
+					Name: nriNatsSecretsName,
+					Data: nriNatsSecretsData,
+				}
+				Secrets[nriNatsSecretsKey] = nriNatsSecret
 			}
-			Secrets[mqttClientKeySecretKey] = mqttClientKeySecret
 		}
 	}
 }

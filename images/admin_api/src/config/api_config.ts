@@ -27,7 +27,7 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	PLATFORM_ADMIN_USER_NAME: string;
 	PLATFORM_ADMIN_EMAIL: string;
 	PLATFORM_ADMIN_PASSWORD: string;
-	PLATFORM_ADMIN_NATS_PUBLIC_KEY: string;
+	PLATFORM_ADMIN_NATS_PUBLIC: string;
 	GRAFANA_ADMIN_PASSWORD: string;
 	POSTGRES_USER: string;
 	POSTGRES_PASSWORD: string;
@@ -40,13 +40,20 @@ interface IProcessEnv extends Record<string, string | string[] | string[][]> {
 	AWS_SECRET_ACCESS_KEY: string;
 	AWS_REGION: string;
 	DEV2PDB_PASSWORD: string;
+	DEV2PDB_NATS_NKEY_PUBLIC: string;
+	MESSAGING_SYSTEM: string;
+	NATS_ADMIN_USERNAME: string;
+	NATS_ADMIN_PASSWORD: string;
+	NATS_ADMIN_NKEY_PUBLIC: string;
 	NOTIFICATIONS_EMAIL_USER: string;
 	NOTIFICATIONS_EMAIL_PASSWORD: string;
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: string;
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: string;
 	TELEGRAM_BOTTOKEN: string;
 	MAIN_ORG_HASH: string;
-	MAIN_ORG_NODERED_INSTANCE_HASHES: string[];
+	MAIN_ORG_NRI_HASHES: string[];
+	MAIN_ORG_NRI_PASSWORDS: string[];
+	MAIN_ORG_NRI_NKEYS_PUBLIC: string[];
 	REPLICA: string;
 }
 
@@ -76,7 +83,7 @@ const process_env: IProcessEnv = {
 	PLATFORM_ADMIN_USER_NAME: process.env.PLATFORM_ADMIN_USER_NAME,
 	PLATFORM_ADMIN_EMAIL: process.env.PLATFORM_ADMIN_EMAIL,
 	PLATFORM_ADMIN_PASSWORD: process.env.PLATFORM_ADMIN_PASSWORD,
-	PLATFORM_ADMIN_NATS_PUBLIC_KEY: process.env.PLATFORM_ADMIN_NATS_PUBLIC_KEY,
+	PLATFORM_ADMIN_NATS_PUBLIC: process.env.PLATFORM_ADMIN_NATS_PUBLIC,
 	GRAFANA_ADMIN_PASSWORD: process.env.GRAFANA_ADMIN_PASSWORD,
 	POSTGRES_USER: process.env.POSTGRES_USER,
 	POSTGRES_PASSWORD: process.env.POSTGRES_PASSWORD,
@@ -89,13 +96,20 @@ const process_env: IProcessEnv = {
 	AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
 	AWS_REGION: process.env.AWS_REGION,
 	DEV2PDB_PASSWORD: process.env.DEV2PDB_PASSWORD,
+	DEV2PDB_NATS_NKEY_PUBLIC: process.env.DEV2PDB_NATS_NKEY_PUBLIC,
+	MESSAGING_SYSTEM: process.env.MESSAGING_SYSTEM,
+	NATS_ADMIN_USERNAME: process.env.NATS_ADMIN_USERNAME,
+	NATS_ADMIN_PASSWORD: process.env.NATS_ADMIN_PASSWORD,
+	NATS_ADMIN_NKEY_PUBLIC: process.env.NATS_ADMIN_NKEY_PUBLIC,
 	NOTIFICATIONS_EMAIL_USER: process.env.NOTIFICATIONS_EMAIL_USER,
 	NOTIFICATIONS_EMAIL_PASSWORD: process.env.NOTIFICATIONS_EMAIL_PASSWORD,
 	MAIN_ORGANIZATION_TELEGRAM_CHAT_ID: process.env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
 	MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK: process.env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 	TELEGRAM_BOTTOKEN: process.env.TELEGRAM_BOTTOKEN,
 	MAIN_ORG_HASH: process.env.MAIN_ORG_HASH,
-	MAIN_ORG_NODERED_INSTANCE_HASHES: [],
+	MAIN_ORG_NRI_HASHES: [],
+	MAIN_ORG_NRI_PASSWORDS: [],
+	MAIN_ORG_NRI_NKEYS_PUBLIC: [],
 	REPLICA: process.env.REPLICA,
 };
 
@@ -108,9 +122,15 @@ const readDockerFiles = (dockerFileName: string) => {
 				const splittedLine = line.split("=");
 				if (splittedLine.length === 2) {
 					const envName = splittedLine[0];
-					if (envName === "MAIN_ORG_NODERED_INSTANCE_HASHES") {
+					if (envName === "MAIN_ORG_NRI_HASHES") {
 						const envValues = splittedLine[1].replace(/"/g, "").split(",");
-						process_env.MAIN_ORG_NODERED_INSTANCE_HASHES.push(...envValues);
+						process_env.MAIN_ORG_NRI_HASHES.push(...envValues);
+					} else if (envName === "MAIN_ORG_NRI_PASSWORDS") {
+						const envValues = splittedLine[1].replace(/"/g, "").split(",");
+						process_env.MAIN_ORG_NRI_PASSWORDS.push(...envValues);
+					} else if (envName === "MAIN_ORG_NRI_NKEYS_PUBLIC") {
+						const envValues = splittedLine[1].replace(/"/g, "").split(",");
+						process_env.MAIN_ORG_NRI_NKEYS_PUBLIC.push(...envValues);
 					} else {
 						const envValue = splittedLine[1].replace(/"/g, "");
 						process_env[envName] = envValue;

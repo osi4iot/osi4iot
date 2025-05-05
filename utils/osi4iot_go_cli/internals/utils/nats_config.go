@@ -36,7 +36,7 @@ jetstream {
 }
 
 mqtt {
-  port: 1885
+  port: 1883
   tls {
     cert_file: "/etc/nats/cert.pem"
     key_file:  "/etc/nats/key.pem"

@@ -2,13 +2,13 @@ package docker
 
 import (
 	"fmt"
-	"strings"
-	"time"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"strings"
+	"time"
 )
 
 type Volume struct {
@@ -25,7 +25,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 	deploymentMode := platformData.PlatformInfo.DeploymentMode
 	s3BucketType := platformData.PlatformInfo.S3BucketType
 	domainCertsType := platformData.PlatformInfo.DomainCertsType
-	//messagingSystem := platformData.PlatformInfo.MessagingSystem
+	messagingSystem := platformData.PlatformInfo.MessagingSystem
 
 	if domainCertsType[0:19] == "Let's encrypt certs" {
 		Volumes["letsencrypt"] = Volume{
@@ -35,24 +35,26 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]Volume {
 		}
 	}
 
-	//if messagingSystem == "mqtt" {
-	Volumes["mosquitto_data"] = Volume{
-		Name:       "mosquitto_data",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
+	if messagingSystem == "mqtt" {
+		Volumes["mosquitto_data"] = Volume{
+			Name:       "mosquitto_data",
+			Driver:     "local",
+			DriverOpts: map[string]string{},
+		}
+		Volumes["mosquitto_log"] = Volume{
+			Name:       "mosquitto_log",
+			Driver:     "local",
+			DriverOpts: map[string]string{},
+		}
+	} else if messagingSystem == "nats" {
+		Volumes["nats1_data"] = Volume{
+			Name:       "nats1_data",
+			Driver:     "local",
+			DriverOpts: map[string]string{},
+		}
+		//OJO completar ...
 	}
-	Volumes["mosquitto_log"] = Volume{
-		Name:       "mosquitto_log",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
-	}
-	//} else if messagingSystem == "nats" {
-	Volumes["nats1_data"] = Volume{
-		Name:       "nats1_data",
-		Driver:     "local",
-		DriverOpts: map[string]string{},
-	}
-	//}
+
 	Volumes["pgdata"] = Volume{
 		Name:       "pgdata",
 		Driver:     "local",

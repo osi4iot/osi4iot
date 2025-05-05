@@ -552,12 +552,12 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 }
 
 func messagingSystemQuestions(m *Model) (submissionResultMsg, error) {
-	qIdx := m.FindQuestionIdByKey("MESSAGING_SYSTEM_TYPE")
+	qIdx := m.FindQuestionIdByKey("MESSAGING_SYSTEM")
 	messagingSystem := m.Questions[qIdx].Answer
-	if messagingSystem == "Mosquitto MQTT" {
+	if messagingSystem == "mqtt" {
 		m.removeQuestionByKey("NATS_NKEY_VALIDITY_DAYS")
 		addMqttCertsValidityDaysQuestions(qIdx+1, m)
-	} else if messagingSystem == "NATS" {
+	} else if messagingSystem == "nats" {
 		m.removeQuestionByKey("MQTT_SSL_CERTS_VALIDITY_DAYS")
 	}
 	return submissionResultMsg("Messaging system questions added/removed succesfully"), nil
@@ -669,17 +669,17 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	data.SetData("PGADMIN_DEFAULT_PASSWORD", pgAdminDefaultPassword)
 
 	data.SetCertsData()
-	//if platformData.PlatformInfo.MessagingSystem == "mqtt" {
+	if platformData.PlatformInfo.MessagingSystem == "mqtt" {
 		err = utils.MqttTLSCredentials(platformData)
 		if err != nil {
 			return platformCreatingMsg("Error: creating mqtt certs"), err
 		}
-	//} else if platformData.PlatformInfo.MessagingSystem == "nats" {
+	} else if platformData.PlatformInfo.MessagingSystem == "nats" {
 		err = utils.NatsCredentials(platformData)
 		if err != nil {
 			return platformCreatingMsg("Error: creating nats certs"), err
 		}
-	//}
+	}
 	
 	deployLocation := platformData.PlatformInfo.DeploymentLocation
 	nodesData := []common.NodeData{}
@@ -763,12 +763,12 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 		nriHashes[idx] = nriHash
 		nriUserName := fmt.Sprintf("nri_%s", nriHash)
 		nriPassword := utils.GeneratePassword(20)
-		nriNkeyPublicKey, nriNkeySeed, err := utils.CreateUserNatsNkey()
+		nriNkeyPublic, nriNkeySeed, err := utils.CreateUserNatsNkey()
 		if err != nil {
 			return creatingOrgMsg("Error: generating NATS Nkey pair"), err
 		}
 		nriNatsCerts := common.NriNatsCerts{
-			NriNkeyPublicKey:  nriNkeyPublicKey,
+			NriNkeyPublic:  nriNkeyPublic,
 			NriNkeySeed: nriNkeySeed,
 		}
 		

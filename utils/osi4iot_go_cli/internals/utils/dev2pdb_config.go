@@ -98,13 +98,13 @@ func Dev2pdbConfig(platformData *common.PlatformData, nodeRoleNumMap map[string]
 			Broker:                "mosquitto",
 			Port:                  1883,
 			Username:              "dev2pdb",
-			Password: platformData.PlatformInfo.Dev2PDBPassword,
+			Password: platformData.PlatformInfo.Dev2pdbPassword,
 			TLSInsecureSkipVerify: true,
 		},
 		NATS: NATSParams{
 			ServersURL: serversUrl,
 			Username: "dev2pdb",
-			Password: platformData.PlatformInfo.Dev2PDBPassword,
+			Password: platformData.PlatformInfo.Dev2pdbPassword,
 			Timeout:  "15s",
 		},
 		TimescaleDB: TimescaleDBParams{
