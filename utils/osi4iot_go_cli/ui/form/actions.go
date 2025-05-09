@@ -11,7 +11,6 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/nri"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
@@ -881,7 +880,7 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 		return creatingOrgMsg("Error: adding EFS folders on nodes"), err
 	}
 
-	err = nri.CreateNriServicesForOrg(newOrg, platformData)
+	err = docker.CreateNriServicesForOrg(newOrg, platformData)
 	if err != nil {
 		return creatingOrgMsg("Error: creating NodeRed instances services"), err
 	}

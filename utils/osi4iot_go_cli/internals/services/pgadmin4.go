@@ -6,8 +6,8 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 func Pgadmin4Service(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
@@ -36,16 +36,15 @@ func Pgadmin4Service(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps reso
 	secrets := []*swarm.SecretReference{
 		{
 			File: &swarm.SecretReferenceFileTarget{
-				Name: "grafana.txt",
+				Name: "pgadmin4.txt",
 				UID:  "0",
 				GID:  "0",
 				Mode: 0444,
 			},
-			SecretID:   sd.Secrets["grafana"].ID,
-			SecretName: sd.Secrets["grafana"].Name,
+			SecretID:   sd.Secrets["pgadmin4"].ID,
+			SecretName: sd.Secrets["pgadmin4"].Name,
 		},
 	}
-
 
 	constraints := []string{
 		"node.role==worker",

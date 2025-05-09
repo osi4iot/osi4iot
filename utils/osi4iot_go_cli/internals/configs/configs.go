@@ -188,7 +188,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 		Data: s3StorageConfig,
 	}
 
-	if domainCertsType == "Certs provided by an CA" {
+	if domainCertsType != "No certs" {
 		traefikConfig := `
 tls:
   certificates:

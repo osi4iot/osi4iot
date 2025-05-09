@@ -66,7 +66,7 @@ func TimescaledbService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps r
 		}
 	}
 
-	return NewService("postgres", pd, sd).
+	return NewService("timescaledb", pd, sd).
 		WithImage("ghcr.io/osi4iot/timescaledb:2.4.2-pg13").
 		WithEnv([]string{
 			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.TimescaleDB),

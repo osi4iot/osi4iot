@@ -51,7 +51,7 @@ func FrontendService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps reso
 	}
 
 	return NewService("frontend", pd, sd).
-		WithImage("ghcr.io/osi4iot/admin_api_nats:1.3.0").
+		WithImage("ghcr.io/osi4iot/frontend:1.3.0").
 		WithAnnotationsLabels(annotationsLabels).
 		WithConfigs(configs).
 		WithResources(

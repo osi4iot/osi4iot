@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 // ServiceBuilder encapsulates common logic for creating swarm services.
@@ -40,6 +40,19 @@ func NewService(name string, pd *common.PlatformData, sd dt.SwarmData) *ServiceB
 					Env: []string{
 						fmt.Sprintf("TZ=%s", pd.PlatformInfo.DefaultTimeZone),
 					},
+				},
+				Resources: &swarm.ResourceRequirements{
+					Limits: &swarm.Limit{
+						NanoCPUs:    0,
+						MemoryBytes: 0,
+					},
+					Reservations: &swarm.Resources{
+						NanoCPUs:    0,
+						MemoryBytes: 0,
+					},
+				},
+				Placement: &swarm.Placement{
+					Constraints: []string{},
 				},
 			},
 			EndpointSpec: &swarm.EndpointSpec{
@@ -250,12 +263,13 @@ func GenerateServices(pd *common.PlatformData, sd dt.SwarmData) map[string]dt.Se
 	services := map[string]dt.Service{
 		"system-prune": SystemPruneService(pd, sd, nodeRoleMaps),
 		"traefik":      TraefikService(pd, sd, nodeRoleMaps),
-		"postgres":     TimescaledbService(pd, sd, nodeRoleMaps),
+		"postgres":     PostgresService(pd, sd, nodeRoleMaps),
 		"timescaledb":  TimescaledbService(pd, sd, nodeRoleMaps),
+		"s3_storage":   S3StorageService(pd, sd, nodeRoleMaps),
 		"dev2pdb":      Dev2pdbService(pd, sd, nodeRoleMaps),
 		"admin_api":    AdminApiService(pd, sd, nodeRoleMaps),
-		"grafana":      GrafanaService(pd, sd, nodeRoleMaps),
 		"frontend":     FrontendService(pd, sd, nodeRoleMaps),
+		"grafana":      GrafanaService(pd, sd, nodeRoleMaps),
 	}
 
 	if messagingSystem == "mqtt" {
@@ -276,12 +290,12 @@ func GenerateServices(pd *common.PlatformData, sd dt.SwarmData) map[string]dt.Se
 			break
 		}
 	}
-	if existArmArchNodes {
+	if !existArmArchNodes {
 		services["grafana_renderer"] = GrafanaRendererService(pd, sd, nodeRoleMaps)
 	}
 
 	s3BucketType := pd.PlatformInfo.S3BucketType
-	if s3BucketType == "minio" {
+	if s3BucketType == "Local Minio" {
 		services["minio"] = MinioService(pd, sd, nodeRoleMaps)
 	}
 

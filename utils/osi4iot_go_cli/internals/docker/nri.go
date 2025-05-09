@@ -1,4 +1,4 @@
-package nri
+package docker
 
 import (
 	"fmt"
@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/networks"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/secrets"
@@ -42,6 +41,7 @@ func NriService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources
 	domainName := pd.PlatformInfo.DomainName
 
 	annotationsLabels := map[string]string{
+		"service_type":   "nodered_instance",
 		"traefik.enable": "true",
 		fmt.Sprintf("traefik.http.routers.%s.rule", serviceName): fmt.Sprintf(
 			"Host(`%s`) && PathPrefix(`/%s/`)",
@@ -134,6 +134,10 @@ func NriService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources
 		WithImage("ghcr.io/osi4iot/nodered_instance_nats:1.3.0").
 		WithAnnotationsLabels(annotationsLabels).
 		WithSecrets(secrets).
+		WithEnv([]string{
+			fmt.Sprintf("NODERED_INSTANCE_HASH=%s", nriHash),
+			fmt.Sprintf("MESSAGING_SYSTEM=%s", messagingSystem),
+		}).
 		WithMounts([]mount.Mount{
 			{
 				Type:   mount.TypeVolume,
@@ -203,10 +207,10 @@ func nriVolumesDataMap(platformData *common.PlatformData, newOrg common.Organiza
 	return nriVolumesData
 }
 
-func createNriSwarmVolumes(platformData *common.PlatformData, newOrg common.Organization) (map[string]dt.Volume, error) {
+func createNriSwarmVolumes(platformData *common.PlatformData, org common.Organization) (map[string]dt.Volume, error) {
 	numNodes := len(platformData.PlatformInfo.NodesData)
 	errors := []error{}
-	nriVolumesMap := nriVolumesDataMap(platformData, newOrg)
+	nriVolumesMap := nriVolumesDataMap(platformData, org)
 	for _, dc := range dt.DCMap {
 		if numNodes > 1 && dc.Node.NodeRole != "Generic org worker" {
 			continue
@@ -228,10 +232,10 @@ func createNriSwarmVolumes(platformData *common.PlatformData, newOrg common.Orga
 	return nriVolumesMap, nil
 }
 
-func createNriSwarmSecrets(dc *dt.DockerClient, platformData *common.PlatformData, newOrg common.Organization) (map[string]dt.Secret, error) {
+func createNriSwarmSecrets(dc *dt.DockerClient, platformData *common.PlatformData, org common.Organization) (map[string]dt.Secret, error) {
 	nriSecrets := make(map[string]dt.Secret)
 	messagingSystem := platformData.PlatformInfo.MessagingSystem
-	secrets.GenerateNriSecrets(messagingSystem, []common.Organization{newOrg}, nriSecrets)
+	secrets.GenerateNriSecrets(messagingSystem, []common.Organization{org}, nriSecrets)
 
 	if messagingSystem == "mqtt" {
 		filterArgs := filters.NewArgs()
@@ -263,7 +267,7 @@ func createNriSwarmSecrets(dc *dt.DockerClient, platformData *common.PlatformDat
 }
 
 func CreateNriServicesForOrg(newOrg common.Organization, pd *common.PlatformData) error {
-	dc, err := docker.GetManagerDC()
+	dc, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
 	}
@@ -338,7 +342,7 @@ func CreateNriServicesForOrg(newOrg common.Organization, pd *common.PlatformData
 			constraintsArray: nriConstraintsArray,
 		}
 		nriService := NriService(pd, swarmData, nodeRoleMaps, nriData)
-		err := docker.CreateSwarmService(dc, nriService)
+		err :=CreateSwarmService(dc, nriService)
 		if err != nil {
 			return err
 		}
@@ -347,16 +351,13 @@ func CreateNriServicesForOrg(newOrg common.Organization, pd *common.PlatformData
 	return nil
 }
 
-func CreateNriServices(
-	pd *common.PlatformData,
-	sd dt.SwarmData,
-	nodeRoleMaps resources.NodesRoleMaps,
-) error {
-	dc, err := docker.GetManagerDC()
+func CreateNriServices(pd *common.PlatformData) error {
+	dc, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
 	}
 
+	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
 	var nriConstraintsArray []string
 	nriResources := &swarm.ResourceRequirements{
 		Limits: &swarm.Limit{
@@ -381,7 +382,27 @@ func CreateNriServices(
 		nriResources = &swarm.ResourceRequirements{}
 	}
 
+	nriNetworks := networks.GenerateNetworks(pd)
+
 	for _, org := range pd.Organizations {
+
+		nriVolumesMap, err := createNriSwarmVolumes(pd, org)
+		if err != nil {
+			return err
+		}
+
+		nriSecrets, err := createNriSwarmSecrets(dc, pd, org)
+		if err != nil {
+			return err
+		}
+
+		swarmData := dt.SwarmData{
+			Configs:  nil,
+			Secrets:  nriSecrets,
+			Volumes:  nriVolumesMap,
+			Networks: nriNetworks,
+		}
+
 		if numSwarmNodes == 1 {
 			nriConstraintsArray = []string{
 				"node.role==manager",
@@ -407,8 +428,8 @@ func CreateNriServices(
 				resources:        nriResources,
 				constraintsArray: nriConstraintsArray,
 			}
-			nriService := NriService(pd, sd, nodeRoleMaps, nriData)
-			err := docker.CreateSwarmService(dc, nriService)
+			nriService := NriService(pd, swarmData, nodeRoleMaps, nriData)
+			err := CreateSwarmService(dc, nriService)
 			if err != nil {
 				return err
 			}
@@ -419,7 +440,7 @@ func CreateNriServices(
 }
 
 func RemoveNriServices(org common.Organization) error {
-	dc, err := docker.GetManagerDC()
+	dc, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
 	}
@@ -430,7 +451,7 @@ func RemoveNriServices(org common.Organization) error {
 		servicesToRemove = append(servicesToRemove, serviceName)
 	}
 
-	err = docker.RemoveServicesByName(dc, servicesToRemove)
+	err = RemoveServicesByName(dc, servicesToRemove)
 	if err != nil {
 		return fmt.Errorf("error removing services: %v", err)
 	}

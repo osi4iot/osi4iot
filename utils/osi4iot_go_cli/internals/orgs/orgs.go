@@ -14,7 +14,6 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/nri"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/volumes"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/uitable"
@@ -176,7 +175,7 @@ func ListOrgs() error {
 		)
 	}
 
-	maxHeight := min(len(orgs) + 3, 13)
+	maxHeight := min(len(orgs)+3, 13)
 	uitable.Create(columns, values, maxHeight)
 
 	return nil
@@ -316,7 +315,6 @@ func RequestRemoveOrg(platformData *common.PlatformData, orgId int) error {
 		protocol = "http"
 	}
 
-
 	urlRemoveOrg := fmt.Sprintf("%s://%s/admin_api/organization/id/%s", protocol, domainName, strconv.Itoa(orgId))
 	req, err := http.NewRequest("DELETE", urlRemoveOrg, nil)
 	if err != nil {
@@ -382,7 +380,7 @@ func RemoveOrg(existingOrg *Organization) error {
 		return fmt.Errorf("error writing platform data to file: %w", err)
 	}
 
-	err = 	nri.RemoveNriServices(orgToRemove)
+	err = docker.RemoveNriServices(orgToRemove)
 	if err != nil {
 		return fmt.Errorf("error removing NRI services: %w", err)
 	}

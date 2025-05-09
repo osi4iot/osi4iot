@@ -327,8 +327,6 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	}
 	Secrets["s3_storage"] = s3StorageSecret
 
-	GenerateNriSecrets(messagingSystem, pd.Organizations, Secrets)
-
 	return Secrets
 }
 

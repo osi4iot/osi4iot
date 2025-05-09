@@ -87,6 +87,9 @@ func RunSwarm(dc *dt.DockerClient, platformData *common.PlatformData) error {
 		return fmt.Errorf("error creating swarm networks: %v", err)
 	}
 
+	// Wait for 10 seconds to ensure that the secrets, configs, volumes, and networks are created
+	time.Sleep(10 * time.Second)
+
 	swarmData := dt.SwarmData{
 		Secrets:  secrets,
 		Configs:  configs,
@@ -97,6 +100,16 @@ func RunSwarm(dc *dt.DockerClient, platformData *common.PlatformData) error {
 	err = createSwarmServices(platformData, dc, swarmData)
 	if err != nil {
 		return fmt.Errorf("error creating swarm services: %v", err)
+	}
+
+	err = waitUntilAllContainersAreHealthy("all")
+	if err != nil {
+		return fmt.Errorf("error waiting for all containers to be healthy: %v", err)
+	}
+
+	err = CreateNriServices(platformData)
+	if err != nil {
+		return fmt.Errorf("error creating NRI services: %v", err)
 	}
 
 	return nil
@@ -386,23 +399,17 @@ func waitUntilAllContainersAreHealthy(serviceType string) error {
 }
 
 func SwarmInitiationInfo(platformData *common.PlatformData, okMessage string) error {
-	err := waitUntilAllContainersAreHealthy("all")
+	err := waitUntilAllContainersAreHealthy("nodered_instance")
 	if err != nil {
-		errMsg := utils.StyleErrMsg.Render("error waiting for the platform to be healthy: ", err.Error())
+		errMsg := utils.StyleErrMsg.Render("error waiting nri is to be healthy: ", err.Error())
 		fmt.Println(errMsg)
 	} else {
-		err := waitUntilAllContainersAreHealthy("nodered_instances")
+		err = utils.WritePlatformDataToFile(platformData)
 		if err != nil {
-			errMsg := utils.StyleErrMsg.Render("error waiting nri is to be healthy: ", err.Error())
-			fmt.Println(errMsg)
-		} else {
-			err = utils.WritePlatformDataToFile(platformData)
-			if err != nil {
-				return fmt.Errorf("error writing platform data to file: %v", err)
-			}
-			okMsg := utils.StyleOKMsg.Render(okMessage)
-			fmt.Println(okMsg)
+			return fmt.Errorf("error writing platform data to file: %v", err)
 		}
+		okMsg := utils.StyleOKMsg.Render(okMessage)
+		fmt.Println(okMsg)
 	}
 
 	return nil
