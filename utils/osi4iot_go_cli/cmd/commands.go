@@ -47,7 +47,7 @@ var cmdCreate = &cobra.Command{
 				errMsg := fmt.Sprintf("Error initializing platform: %v", err)
 				exitWithError(errMsg)
 			}
-			okMessage := "Platform has been created successfully and is ready to to be used"
+			okMessage := "Platform has been created successfully and is ready to be used"
 			err = docker.SwarmInitiationInfo(platformData, okMessage)
 			if err != nil {
 				errMsg := fmt.Sprintf("Error: initializing the platform %v", err)

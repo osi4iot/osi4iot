@@ -1,7 +1,6 @@
 package data
 
 import (
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -120,6 +119,9 @@ func SetData(key string, value string) {
 	case "MQTT_SSL_CERTS_VALIDITY_DAYS":
 		mqttCertsValidityDays, _ := strconv.Atoi(value)
 		Data.PlatformInfo.MQTTSslCertsValidityDays = mqttCertsValidityDays
+	case "NUM_NATS_CLUSTER_NODES":
+		numNatsClusterNodes, _ := strconv.Atoi(value)
+		Data.PlatformInfo.NumNatsClusterNodes = numNatsClusterNodes
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
 	case "DEPLOYMENT_MODE":
@@ -243,7 +245,7 @@ func SetData(key string, value string) {
 		}
 		switch keyWords[2] {
 		case "Label":
-			Data.PlatformInfo.NodesData[nodeIndex-1].NodeLabel = value			
+			Data.PlatformInfo.NodesData[nodeIndex-1].NodeLabel = value
 		case "HostName":
 			Data.PlatformInfo.NodesData[nodeIndex-1].NodeHostName = value
 		case "IP":
@@ -262,23 +264,6 @@ func SetNodesData(nodesData []common.NodeData) {
 	Data.PlatformInfo.NodesData = nodesData
 }
 
-func SetCertsData() {
-	if Data.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
-		keyHash := utils.GetMD5Hash(Data.Certs.DomainCerts.PrivateKey)
-		Data.Certs.DomainCerts.IotPlatformKeyName = fmt.Sprintf("iot_platform_key_%s", keyHash)
-
-		caHash := utils.GetMD5Hash(Data.Certs.DomainCerts.SslCaPem)
-		Data.Certs.DomainCerts.IotPlatformCaName = fmt.Sprintf("iot_platform_ca_%s", caHash)
-		caExpirationTimestamp :=  utils.GetCertExpirationTimestamp(Data.Certs.DomainCerts.SslCaPem)
-		Data.Certs.DomainCerts.CaPemExpirationTimestamp = caExpirationTimestamp
-
-		certHash :=  utils.GetMD5Hash(Data.Certs.DomainCerts.SslCertCrt)
-		Data.Certs.DomainCerts.IotPlatformCertName = fmt.Sprintf("iot_platform_cert_%s", certHash)
-		certExpirationTimestamp :=  utils.GetCertExpirationTimestamp(Data.Certs.DomainCerts.SslCertCrt)
-		Data.Certs.DomainCerts.CertCrtExpirationTimestamp = certExpirationTimestamp
-	}
-}
-
 func SetPlatformState(state PlatformStatus) {
 	PlatformState = state
 }
@@ -286,7 +271,6 @@ func SetPlatformState(state PlatformStatus) {
 func GetPlatformState() PlatformStatus {
 	return PlatformState
 }
-
 
 func GetData() *common.PlatformData {
 	return Data

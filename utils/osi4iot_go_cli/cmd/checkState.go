@@ -4,6 +4,9 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 )
 
+// checkState checks the current state of the platform and performs actions based on the provided action string.
+// It ensures that the platform is in a valid state for the requested action.
+// If the platform is in an invalid state, it exits with a warning message.
 func checkState(action string) {
 	platformState := data.GetPlatformState()
 	if platformState == data.Empty && action != "create" {

@@ -1,5 +1,15 @@
 package common
 
+import (
+	"crypto"
+	"crypto/x509"
+	"encoding/pem"
+	"fmt"
+	"os"
+
+	"github.com/go-acme/lego/registration"
+)
+
 type PlatformData struct {
 	PlatformInfo       PlatformInfo   `json:"platformInfo"`
 	Organizations      []Organization `json:"organizations"`
@@ -68,6 +78,7 @@ type PlatformInfo struct {
 	AccessTokenLifetime       int    `json:"ACCESS_TOKEN_LIFETIME"`
 
 	MessagingSystem          string `json:"MESSAGING_SYSTEM"`
+	NumNatsClusterNodes       int    `json:"NUM_NATS_CLUSTER_NODES"`
 	MQTTSslCertsValidityDays int    `json:"MQTT_SSL_CERTS_VALIDITY_DAYS"`
 	FloatingIPAddress        string `json:"FLOATING_IP_ADDRES"`
 	NetworkInterface         string `json:"NETWORK_INTERFACE"`
@@ -116,14 +127,15 @@ type Certs struct {
 }
 
 type DomainCerts struct {
-	PrivateKey                 string `json:"private_key"`
-	IotPlatformKeyName         string `json:"iot_platform_key_name"`
-	SslCaPem                   string `json:"ssl_ca_pem"`
-	IotPlatformCaName          string `json:"iot_platform_ca_name"`
-	SslCertCrt                 string `json:"ssl_cert_crt"`
-	IotPlatformCertName        string `json:"iot_platform_cert_name"`
-	CaPemExpirationTimestamp   int64  `json:"ca_pem_expiration_timestamp"`
-	CertCrtExpirationTimestamp int64  `json:"cert_crt_expiration_timestamp"`
+	AcmeUser                   AcmeUser `json:"acme_user"`
+	PrivateKey                 string   `json:"private_key"`
+	IotPlatformKeyName         string   `json:"iot_platform_key_name"`
+	SslCaPem                   string   `json:"ssl_ca_pem"`
+	IotPlatformCaName          string   `json:"iot_platform_ca_name"`
+	SslCertCrt                 string   `json:"ssl_cert_crt"`
+	IotPlatformCertName        string   `json:"iot_platform_cert_name"`
+	CaPemExpirationTimestamp   int64    `json:"ca_pem_expiration_timestamp"`
+	CertCrtExpirationTimestamp int64    `json:"cert_crt_expiration_timestamp"`
 }
 
 type MqttCerts struct {
@@ -198,4 +210,28 @@ type NodeData struct {
 	NodeArch        string `json:"nodeArch"`
 	NodeNanoCPUs    int64  `json:"nodeNanoCPUs"`
 	NodeMemoryBytes int64  `json:"nodeMemory"`
+}
+
+type AcmeUser struct {
+	Email        string                 `json:"email"`
+	Registration *registration.Resource `json:"registration"`
+	Key          []byte                 `json:"key_pem"`
+}
+
+func (u *AcmeUser) GetEmail() string {
+	return u.Email
+}
+
+func (u *AcmeUser) GetRegistration() *registration.Resource {
+	return u.Registration
+}
+
+func (u *AcmeUser) GetPrivateKey() crypto.PrivateKey {
+	block, _ := pem.Decode(u.Key)
+	key, err := x509.ParseECPrivateKey(block.Bytes)
+	if err != nil {
+		fmt.Printf("Error parsing private key: %v", err)
+		os.Exit(1)
+	}
+	return key
 }

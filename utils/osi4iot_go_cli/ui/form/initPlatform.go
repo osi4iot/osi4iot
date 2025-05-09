@@ -650,5 +650,7 @@ func initialModelCreatePlatform() Model {
 		DeployLocationQuestions(&model)
 	}
 
+	messagingSystemQuestions(&model)
+
 	return model
 }

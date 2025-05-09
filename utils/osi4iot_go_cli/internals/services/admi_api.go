@@ -1,0 +1,155 @@
+package services
+
+import (
+	"fmt"
+
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+)
+
+func AdminApiService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
+	domainName := pd.PlatformInfo.DomainName
+
+	adminApiRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/admin_api/`)", domainName)
+
+	annotationsLabels := map[string]string{
+		"traefik.enable": "true",
+		"traefik.http.middlewares.admin_api-header.headers.customrequestheaders.X-Script-Name": "/admin_api/",
+		"traefik.http.middlewares.admin_api-prefix.stripprefix.prefixes":                       "/admin_api",
+		"traefik.http.middlewares.admin_api-prefix.stripprefix.forceslash":                     "false",
+		"traefik.http.middlewares.admin_api-redirectregex.redirectregex.regex":                 "^/admin_api(.*)",
+		"traefik.http.middlewares.admin_api-redirectregex.redirectregex.replacement":           "/$1",
+		"traefik.http.routers.admin_api.entrypoints":                                           "websecure",
+		"traefik.http.routers.admin_api.rule":                                                  adminApiRule,
+		"traefik.http.routers.admin_api.tls":                                                   "true",
+		"traefik.http.routers.admin_api.tls.certresolver":                                      "",
+		"traefik.http.routers.admin_api.middlewares":                                           "admin_api-redirectregex,admin_api-prefix,admin_api-header",
+		"traefik.http.routers.admin_api.service":                                               "admin_api",
+		"traefik.http.services.admin_api.loadbalancer.server.port":                             "3200",
+		"traefik.http.services.admin_api.loadbalancer.healthcheck.path":                        "/health",
+		"traefik.http.services.admin_api.loadbalancer.healthcheck.interval":                    "5s",
+		"traefik.http.services.admin_api.loadbalancer.healthcheck.timeout":                     "3s",
+	}
+
+	secrets := []*swarm.SecretReference{
+		{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "admin_api.txt",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			SecretID:   sd.Secrets["admin_api"].ID,
+			SecretName: sd.Secrets["admin_api"].Name,
+		},
+	}
+
+	messagingSystem := pd.PlatformInfo.MessagingSystem
+	if messagingSystem == "mqtt" {
+		mqttSecrets := []*swarm.SecretReference{
+			{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "ca.crt",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   sd.Secrets["mqtt_certs_ca_cert"].ID,
+				SecretName: sd.Secrets["mqtt_certs_ca_cert"].Name,
+			},
+			{
+				File: &swarm.SecretReferenceFileTarget{
+					Name: "ca.key",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0444,
+				},
+				SecretID:   sd.Secrets["mqtt_certs_ca_key"].ID,
+				SecretName: sd.Secrets["mqtt_certs_ca_key"].Name,
+			},
+		}
+		secrets = append(secrets, mqttSecrets...)
+	}
+
+	configs := []*swarm.ConfigReference{
+		{
+			File: &swarm.ConfigReferenceFileTarget{
+				Name: "/run/configs/admin_api.conf",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			ConfigID:   sd.Configs["admin_api"].ID,
+			ConfigName: sd.Configs["admin_api"].Name,
+		},
+		{
+			File: &swarm.ConfigReferenceFileTarget{
+				Name: "/run/configs/main_org_building.geojson",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			ConfigID:   sd.Configs["main_org_building"].ID,
+			ConfigName: sd.Configs["main_org_building"].Name,
+		},
+		{
+			File: &swarm.ConfigReferenceFileTarget{
+				Name: "/run/configs/main_org_floor.geojson",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			ConfigID:   sd.Configs["main_org_floor"].ID,
+			ConfigName: sd.Configs["main_org_floor"].Name,
+		},
+	}
+
+	constraints := []string{
+		"node.role==worker",
+		"node.labels.platform_worker==true",
+	}
+
+	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+		constraints = []string{
+			"node.role==manager",
+		}
+	}
+
+
+	return NewService("admin_api", pd, sd).
+		WithImage("ghcr.io/osi4iot/admin_api_nats:1.3.0").
+		WithEnv([]string{
+			"REPLICA={{.Task.Slot}}",
+		}).
+		WithAnnotationsLabels(annotationsLabels).
+		WithSecrets(secrets).
+		WithConfigs(configs).
+		WithMounts([]mount.Mount{
+			{
+				Type:   mount.TypeVolume,
+				Source: sd.Volumes["admin_api_log"].Name,
+				Target: "/app/logs",
+			},
+		}).
+		WithResources(
+			resources.CPUs("admin_api", nodeRoleMaps),
+			resources.Memory("admin_api", nodeRoleMaps),
+		).
+		WithPlacement(constraints).
+		WithModeReplicated(resources.GiveReplicsPtr("admin_api", nodeRoleMaps)).
+		WithPorts([]swarm.PortConfig{
+			{
+				Protocol:      swarm.PortConfigProtocolTCP,
+				TargetPort:    3200,
+				PublishedPort: 3200,
+			},
+		}).
+		WithNetworks([]swarm.NetworkAttachmentConfig{
+			{Target: sd.Networks["internal_net"].Name},
+			{Target: sd.Networks["traefik_public"].Name},
+		}).
+		Build()
+}

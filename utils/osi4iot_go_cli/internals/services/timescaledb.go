@@ -1,0 +1,94 @@
+package services
+
+import (
+	"fmt"
+
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+)
+
+func TimescaledbService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
+
+	secrets := []*swarm.SecretReference{
+		{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "timescaledb_user.txt",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			SecretID:   sd.Secrets["timescale_user"].ID,
+			SecretName: sd.Secrets["timescale_user"].Name,
+		},
+		{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "timescaledb_password.txt",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			SecretID:   sd.Secrets["timescale_password"].ID,
+			SecretName: sd.Secrets["timescale_password"].Name,
+		},
+		{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "timescaledb_grafana.txt",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			SecretID:   sd.Secrets["timescale_grafana"].ID,
+			SecretName: sd.Secrets["timescale_grafana"].Name,
+		},
+		{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "timescaledb_data_ret_int.txt",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			SecretID:   sd.Secrets["timescale_data_ret_int"].ID,
+			SecretName: sd.Secrets["timescale_data_ret_int"].Name,
+		},
+	}
+
+	constraints := []string{
+		"node.role==worker",
+		"node.labels.platform_worker==true",
+	}
+
+	if nodeRoleMaps.NodeRoleNumMap["Platform worker"] == 0 {
+		constraints = []string{
+			"node.role==manager",
+		}
+	}
+
+	return NewService("postgres", pd, sd).
+		WithImage("ghcr.io/osi4iot/timescaledb:2.4.2-pg13").
+		WithEnv([]string{
+			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.TimescaleDB),
+			"POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt",
+			"POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt",
+		}).
+		WithSecrets(secrets).
+		WithMounts([]mount.Mount{
+			{
+				Type:   mount.TypeVolume,
+				Source: sd.Volumes["timescaledb_data"].Name,
+				Target: "/var/lib/postgresql/data",
+			},
+		}).
+		WithResources(
+			resources.CPUs("timescaledb", nodeRoleMaps),
+			resources.Memory("timescaledb", nodeRoleMaps),
+		).
+		WithPlacement(constraints).
+		WithModeReplicated(resources.GiveReplicsPtr("timescaledb", nodeRoleMaps)).
+		WithNetworks([]swarm.NetworkAttachmentConfig{
+			{Target: sd.Networks["internal_net"].Name},
+		}).
+		Build()
+}

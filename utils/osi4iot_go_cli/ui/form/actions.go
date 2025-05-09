@@ -11,6 +11,7 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/nri"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
@@ -559,6 +560,7 @@ func messagingSystemQuestions(m *Model) (submissionResultMsg, error) {
 		addMqttCertsValidityDaysQuestions(qIdx+1, m)
 	} else if messagingSystem == "nats" {
 		m.removeQuestionByKey("MQTT_SSL_CERTS_VALIDITY_DAYS")
+		addNumNatsClusterNodesQuestions(qIdx+1, m)
 	}
 	return submissionResultMsg("Messaging system questions added/removed succesfully"), nil
 }
@@ -583,6 +585,26 @@ func addMqttCertsValidityDaysQuestions(index int, m *Model) {
 	}
 }
 
+func addNumNatsClusterNodesQuestions(index int, m *Model) {
+	idx := m.FindQuestionIdByKey("NUM_NATS_CLUSTER_NODES")
+	if idx == -1 {
+		numNatsClusterNodesQuestion := Question{
+			Key:           "NUM_NATS_CLUSTER_NODES",
+			QuestionType:  "generic",
+			Prompt:        "Number of NATS cluster nodes",
+			Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumNatsClusterNodes),
+			DefaultAnswer: "1",
+			ErrorMessage:  "",
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			Rules:         []string{"required", "int", "minval:1"},
+			ActionKey:     "",
+			Margin:        0,
+		}
+		m.addQuestions(index, numNatsClusterNodesQuestion)
+	}
+}
+
 
 func createPlatform(m *Model) (platformCreatingMsg, error) {
 	platformData := data.GetData()
@@ -604,14 +626,37 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		orgHash := utils.GeneratePassword(16)
 		orgAcronym := platformData.PlatformInfo.MainOrganizationAcronym
 		numNriInMainOrg := platformData.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
-		exclusiveWorkerNodes := make([]string, 0)
-		nodered_instances := make([]common.NodeRedInstance, numNriInMainOrg)
+		exclusiveWorkerNodes := []string{}
+		noderedInstances := make([]common.NodeRedInstance, numNriInMainOrg)
 		organization := common.Organization{
 			OrgHash:              orgHash,
 			OrgAcronym:           orgAcronym,
 			ExclusiveWorkerNodes: exclusiveWorkerNodes,
-			NodeRedInstances:     nodered_instances,
+			NodeRedInstances:     noderedInstances,
 		}
+		for idx := range numNriInMainOrg {
+			nriHash := utils.GeneratePassword(10)
+			nriUserName := fmt.Sprintf("nri_%s", nriHash)
+			nriPassword := utils.GeneratePassword(20)
+			nriNkeyPublic, nriNkeySeed, err := utils.CreateUserNatsNkey()
+			if err != nil {
+				return platformCreatingMsg("Error: generating NATS Nkey pair for " + nriUserName), err
+			}
+			nriNatsCerts := common.NriNatsCerts{
+				NriNkeyPublic:  nriNkeyPublic,
+				NriNkeySeed: nriNkeySeed,
+			}
+			
+			nri := common.NodeRedInstance{
+				NriHash:             nriHash,
+				NriUserName:         nriUserName,
+				NriPassword:         nriPassword,
+				NriMqttCerts:       common.NriMqttCerts{},
+				NriNatsCerts:       nriNatsCerts,
+			}
+			organization.NodeRedInstances[idx] = nri
+		}
+
 		platformData.Organizations = append(platformData.Organizations, organization)
 	}
 
@@ -668,7 +713,10 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	pgAdminDefaultPassword := platformAdminPassword
 	data.SetData("PGADMIN_DEFAULT_PASSWORD", pgAdminDefaultPassword)
 
-	data.SetCertsData()
+	if platformData.PlatformInfo.DomainCertsType == "Certs provided by an CA" {
+		utils.SetCertsNamesAndExpirationTime(platformData)
+	}
+
 	if platformData.PlatformInfo.MessagingSystem == "mqtt" {
 		err = utils.MqttTLSCredentials(platformData)
 		if err != nil {
@@ -703,7 +751,7 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		return platformCreatingMsg("Error: writing platform data to file"), err
 	}
 
-	return platformCreatingMsg("osi4iot_state.json file created and platform initiated successfully"), nil
+	return platformCreatingMsg("osi4iot_state.json file created successfully"), nil
 }
 
 func GetLocalNodeData() (common.NodeData, error) {
@@ -749,8 +797,8 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 	orgTelegramChatId := m.FindAnswerByKey("ORGANIZATION_TELEGRAM_CHAT_ID")
 	orgTelegramInvitationLink := m.FindAnswerByKey("ORGANIZATION_TELEGRAM_INVITATION_LINK")
 	mqttAccessControl := m.FindAnswerByKey("MQTT_ACCESS_CONTROL")
-	numNriInMainOrg, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_NODERED_INSTANCES_IN_ORG"))
-	nriHashes := make([]string, numNriInMainOrg)
+	numNriInOrg, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_NODERED_INSTANCES_IN_ORG"))
+	nriHashes := make([]string, numNriInOrg)
 
 	newOrg := common.Organization{
 		OrgHash:              orgHash,
@@ -758,7 +806,7 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 		ExclusiveWorkerNodes: []string{},
 		NodeRedInstances:     []common.NodeRedInstance{},
 	}
-	for idx := 0; idx < numNriInMainOrg; idx++ {
+	for idx := 0; idx < numNriInOrg; idx++ {
 		nriHash := utils.GeneratePassword(10)
 		nriHashes[idx] = nriHash
 		nriUserName := fmt.Sprintf("nri_%s", nriHash)
@@ -833,7 +881,7 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 		return creatingOrgMsg("Error: adding EFS folders on nodes"), err
 	}
 
-	err = docker.CreateNriServices(newOrg, platformData)
+	err = nri.CreateNriServicesForOrg(newOrg, platformData)
 	if err != nil {
 		return creatingOrgMsg("Error: creating NodeRed instances services"), err
 	}

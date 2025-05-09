@@ -14,7 +14,9 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/nri"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/volumes"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/uitable"
 )
 
@@ -380,12 +382,12 @@ func RemoveOrg(existingOrg *Organization) error {
 		return fmt.Errorf("error writing platform data to file: %w", err)
 	}
 
-	err = 	docker.RemoveNriServices(orgToRemove)
+	err = 	nri.RemoveNriServices(orgToRemove)
 	if err != nil {
 		return fmt.Errorf("error removing NRI services: %w", err)
 	}
 
-	err = docker.RemoveNriVolumesInOrg(orgToRemove)
+	err = volumes.RemoveNriVolumesInOrg(orgToRemove)
 	if err != nil {
 		return err
 	}

@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
+	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
@@ -104,7 +105,7 @@ func SetInitialPlatformState() error {
 		}
 	} else {
 		numVolumes :=0
-		for _, dc := range docker.DCMap {
+		for _, dc := range dt.DCMap {
 			existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
 				Filters: filterArgs,
 			})
