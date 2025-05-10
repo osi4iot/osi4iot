@@ -2,12 +2,11 @@ package services
 
 import (
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func AuthCalloutService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
+func AuthCalloutService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -42,7 +41,6 @@ func AuthCalloutService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps r
 			"node.role==manager",
 		}
 	}
-
 
 	return NewService("auth_callout", pd, sd).
 		WithImage("ghcr.io/osi4iot/auth_callout:1.3.0").

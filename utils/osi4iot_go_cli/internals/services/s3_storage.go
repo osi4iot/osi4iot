@@ -3,12 +3,11 @@ package services
 import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func S3StorageService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
+func S3StorageService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -66,7 +65,7 @@ func S3StorageService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps res
 		WithModeReplicated(resources.GiveReplicsPtr("s3_storage", nodeRoleMaps)).
 		WithPorts([]swarm.PortConfig{
 			{
-				Protocol: swarm.PortConfigProtocolTCP, 
+				Protocol:      swarm.PortConfigProtocolTCP,
 				TargetPort:    3500,
 				PublishedPort: 3500,
 			},

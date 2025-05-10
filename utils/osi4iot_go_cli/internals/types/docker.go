@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+
 )
 
 type Secret struct {
@@ -22,9 +22,9 @@ type Config struct {
 }
 
 type Network struct {
-	Id 	 string
-	Name string
-	Driver   string
+	Id     string
+	Name   string
+	Driver string
 }
 
 type Volume struct {
@@ -53,17 +53,16 @@ type SwarmData struct {
 }
 
 type NriData struct {
-	Org              common.Organization
-	Nri              common.NodeRedInstance
+	Org              Organization
+	Nri              NodeRedInstance
 	Resources        *swarm.ResourceRequirements
 	ConstraintsArray []string
 }
 
-
 type DockerClient struct {
 	Cli  *client.Client
 	Ctx  context.Context
-	Node common.NodeData
+	Node NodeData
 }
 
 func (dc *DockerClient) Close() error {
@@ -79,4 +78,3 @@ func (dc *DockerClient) Close() error {
 }
 
 var DCMap = make(map[string]*DockerClient)
-

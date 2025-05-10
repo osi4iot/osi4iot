@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
-func nodesConfiguration(platformData *common.PlatformData) error {
+func nodesConfiguration(platformData *types.PlatformData) error {
 	err := installUFWOnNodes(platformData)
 	if err != nil {
 		return fmt.Errorf("error installing UFW on nodes: %w", err)
@@ -42,7 +42,7 @@ func nodesConfiguration(platformData *common.PlatformData) error {
 	return nil
 }
 
-func installUFWOnNodes(platformData *common.PlatformData) error {
+func installUFWOnNodes(platformData *types.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -153,7 +153,7 @@ sudo ufw enable
 	return nil
 }
 
-func installNFS(platformData *common.PlatformData) error {
+func installNFS(platformData *types.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -163,7 +163,7 @@ func installNFS(platformData *common.PlatformData) error {
 		endMsg := "NFS installed successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodesData := platformData.PlatformInfo.NodesData
-		nfsNode := common.NodeData{}
+		nfsNode := types.NodeData{}
 		for _, node := range nodesData {
 			if node.NodeRole == "NFS server" {
 				nfsNode = node
@@ -271,7 +271,7 @@ sudo systemctl restart nfs-kernel-server
 	return nil
 }
 
-func AddNFSFolders(platformData *common.PlatformData) error {
+func AddNFSFolders(platformData *types.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -281,7 +281,7 @@ func AddNFSFolders(platformData *common.PlatformData) error {
 		endMsg := "NFS folders added successfully."
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodesData := platformData.PlatformInfo.NodesData
-		nfsNode := common.NodeData{}
+		nfsNode := types.NodeData{}
 		for _, node := range nodesData {
 			if node.NodeRole == "NFS server" {
 				nfsNode = node
@@ -331,7 +331,7 @@ sudo systemctl restart nfs-kernel-server
 	return nil
 }
 
-func RemoveNfsFolders(platformData *common.PlatformData, orgAcronym string) error {
+func RemoveNfsFolders(platformData *types.PlatformData, orgAcronym string) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -341,7 +341,7 @@ func RemoveNfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 		endMsg := fmt.Sprintf("NFS folders removed successfully for organization %s", orgAcronym)
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodesData := platformData.PlatformInfo.NodesData
-		nfsNode := common.NodeData{}
+		nfsNode := types.NodeData{}
 		for _, node := range nodesData {
 			if node.NodeRole == "NFS server" {
 				nfsNode = node
@@ -350,7 +350,7 @@ func RemoveNfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 		}
 
 		organizations := platformData.Organizations
-		orgToRemove := common.Organization{}
+		orgToRemove := types.Organization{}
 		for _, org := range organizations {
 			if org.OrgAcronym == orgAcronym {
 				orgToRemove = org
@@ -394,7 +394,7 @@ sudo systemctl restart nfs-kernel-server
 	return nil
 }
 
-func installEFS(platformData *common.PlatformData) error {
+func installEFS(platformData *types.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -492,7 +492,7 @@ fi
 	return nil
 }
 
-func AddEfsFolders(platformData *common.PlatformData) error {
+func AddEfsFolders(platformData *types.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -542,7 +542,7 @@ done
 	return nil
 }
 
-func RemoveEfsFolders(platformData *common.PlatformData, orgAcronym string) error {
+func RemoveEfsFolders(platformData *types.PlatformData, orgAcronym string) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -553,7 +553,7 @@ func RemoveEfsFolders(platformData *common.PlatformData, orgAcronym string) erro
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodeData := platformData.PlatformInfo.NodesData[0]
 		organizations := platformData.Organizations
-		orgToRemove := common.Organization{}
+		orgToRemove := types.Organization{}
 		for _, org := range organizations {
 			if org.OrgAcronym == orgAcronym {
 				orgToRemove = org
@@ -593,7 +593,7 @@ done
 	return nil
 }
 
-func filterOrganizations(organizations []common.Organization, nodeName string) *common.Organization {
+func filterOrganizations(organizations []types.Organization, nodeName string) *types.Organization {
 	for _, org := range organizations {
 		for _, node := range org.ExclusiveWorkerNodes {
 			if node == nodeName {
@@ -604,7 +604,7 @@ func filterOrganizations(organizations []common.Organization, nodeName string) *
 	return nil
 }
 
-func addNodesLabels(platformData *common.PlatformData) error {
+func addNodesLabels(platformData *types.PlatformData) error {
 	spinnerDone := make(chan bool)
 	spinnerMsg := "Adding node labels"
 	endMsg := "Node labels added successfully"
@@ -677,7 +677,7 @@ func addNodesLabels(platformData *common.PlatformData) error {
 	return nil
 }
 
-func removeEfsRootFolder(platformData *common.PlatformData) error {
+func removeEfsRootFolder(platformData *types.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -710,7 +710,7 @@ fi
 	return nil
 }
 
-func removeNfsRootFolder(platformData *common.PlatformData) error {
+func removeNfsRootFolder(platformData *types.PlatformData) error {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
 
@@ -720,7 +720,7 @@ func removeNfsRootFolder(platformData *common.PlatformData) error {
 		endMsg := "NFS root folder removed successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		nodesData := platformData.PlatformInfo.NodesData
-		nfsNode := common.NodeData{}
+		nfsNode := types.NodeData{}
 		for _, node := range nodesData {
 			if node.NodeRole == "NFS server" {
 				nfsNode = node

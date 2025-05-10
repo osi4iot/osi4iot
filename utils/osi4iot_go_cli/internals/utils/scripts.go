@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 func executeScriptOnLocalHost(script string, args ...string) (string, error) {
@@ -37,9 +37,9 @@ func executeScriptOnLocalHost(script string, args ...string) (string, error) {
 }
 
 type NodeScript struct {
-	Node common.NodeData
+	Node   types.NodeData
 	Script string
-	Args []string
+	Args   []string
 }
 
 type ScriptResp struct {
@@ -47,7 +47,7 @@ type ScriptResp struct {
 	Err      error
 }
 
-func RunScriptInNodes(platformData *common.PlatformData, nodeScripts []NodeScript) ([]string, error) {
+func RunScriptInNodes(platformData *types.PlatformData, nodeScripts []NodeScript) ([]string, error) {
 	sshPrivKey, err := GetSshPrivKey(platformData)
 	if err != nil {
 		return []string{}, err
@@ -64,7 +64,7 @@ func RunScriptInNodes(platformData *common.PlatformData, nodeScripts []NodeScrip
 			nodeIP := ns.Node.NodeIP
 			runningInLocalHost, err := IsHostIP(nodeIP)
 			if err != nil {
-				respErr :=  fmt.Errorf("error checking if host is localhost: %w", err)
+				respErr := fmt.Errorf("error checking if host is localhost: %w", err)
 				respChan <- ScriptResp{Err: respErr}
 				return
 			}
@@ -106,4 +106,3 @@ func RunScriptInNodes(platformData *common.PlatformData, nodeScripts []NodeScrip
 
 	return responses, nil
 }
-

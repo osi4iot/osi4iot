@@ -11,9 +11,9 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/table"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/volumes"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/ui/uitable"
@@ -68,7 +68,7 @@ type Response struct {
 	Message string `json:"message"`
 }
 
-func getOrgs(platformData *common.PlatformData) ([]Organization, error) {
+func getOrgs(platformData *types.PlatformData) ([]Organization, error) {
 	var orgs []Organization = []Organization{}
 	accessToken, err := utils.Login(platformData)
 	if err != nil {
@@ -181,7 +181,7 @@ func ListOrgs() error {
 	return nil
 }
 
-func getNodeRedInstances(platformData *common.PlatformData, accessToken string) ([]NodeRedInstance, error) {
+func getNodeRedInstances(platformData *types.PlatformData, accessToken string) ([]NodeRedInstance, error) {
 	var nodeRedInstances []NodeRedInstance = []NodeRedInstance{}
 
 	domainName := platformData.PlatformInfo.DomainName
@@ -242,7 +242,7 @@ func CheckIfOrgExists(orgId int) (*Organization, error) {
 	return nil, nil
 }
 
-func RequestCreateOrg(platformData *common.PlatformData, createOrgData CreateOrgData) error {
+func RequestCreateOrg(platformData *types.PlatformData, createOrgData CreateOrgData) error {
 	accessToken, err := utils.Login(platformData)
 	if err != nil || accessToken == "" {
 		return fmt.Errorf("error logging in: %w", err)
@@ -302,7 +302,7 @@ func RequestCreateOrg(platformData *common.PlatformData, createOrgData CreateOrg
 	return nil
 }
 
-func RequestRemoveOrg(platformData *common.PlatformData, orgId int) error {
+func RequestRemoveOrg(platformData *types.PlatformData, orgId int) error {
 	accessToken, err := utils.Login(platformData)
 	if err != nil || accessToken == "" {
 		return fmt.Errorf("error logging in: %w", err)
@@ -364,8 +364,8 @@ func RemoveOrg(existingOrg *Organization) error {
 		return fmt.Errorf("error requesting remove organization: %w", err)
 	}
 
-	newOrgs := []common.Organization{}
-	var orgToRemove common.Organization
+	newOrgs := []types.Organization{}
+	var orgToRemove types.Organization
 	for _, org := range platformData.Organizations {
 		if !strings.EqualFold(org.OrgAcronym, existingOrg.Acronym) {
 			newOrgs = append(newOrgs, org)

@@ -8,7 +8,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 type LoginData struct {
@@ -20,7 +20,7 @@ type LoginResponse struct {
 	AccessToken string `json:"accessToken"`
 }
 
-func Login(platformData *common.PlatformData) (string, error) {
+func Login(platformData *types.PlatformData) (string, error) {
 	domainCertsType := platformData.PlatformInfo.DomainCertsType
 	protocol := "https"
 	if domainCertsType == "No certs" {

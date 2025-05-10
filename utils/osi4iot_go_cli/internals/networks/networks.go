@@ -5,27 +5,26 @@ import (
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func GenerateNetworks(platformData *common.PlatformData) map[string]dt.Network {
-	Networks := make(map[string]dt.Network)
+func GenerateNetworks(platformData *pt.PlatformData) map[string]pt.Network {
+	Networks := make(map[string]pt.Network)
 	deploymentMode := platformData.PlatformInfo.DeploymentMode
 	numNodes := len(platformData.PlatformInfo.NodesData)
 
-	Networks["traefik_public"] = dt.Network{
-		Name: "traefik_public",
+	Networks["traefik_public"] = pt.Network{
+		Name:   "traefik_public",
 		Driver: "overlay",
 	}
-	Networks["internal_net"] = dt.Network{
-		Name: "internal_net",
+	Networks["internal_net"] = pt.Network{
+		Name:   "internal_net",
 		Driver: "overlay",
 	}
 
 	if deploymentMode == "development" && numNodes > 1 {
-		Networks["agent_network"] = dt.Network{
-			Name: "agent_network",
+		Networks["agent_network"] = pt.Network{
+			Name:   "agent_network",
 			Driver: "overlay",
 		}
 	}
@@ -33,7 +32,7 @@ func GenerateNetworks(platformData *common.PlatformData) map[string]dt.Network {
 	return Networks
 }
 
-func createNetwork(dc *dt.DockerClient, swarmNetwork *dt.Network) error {
+func createNetwork(dc *pt.DockerClient, swarmNetwork *pt.Network) error {
 	existingNetworks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing networks: %v", err)
@@ -65,7 +64,7 @@ func createNetwork(dc *dt.DockerClient, swarmNetwork *dt.Network) error {
 	return nil
 }
 
-func CreateSwarmNetworks(platformData *common.PlatformData, dc *dt.DockerClient) (map[string]dt.Network, error) {
+func CreateSwarmNetworks(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Network, error) {
 	networks := GenerateNetworks(platformData)
 	for _, network := range networks {
 		err := createNetwork(dc, &network)
@@ -77,7 +76,7 @@ func CreateSwarmNetworks(platformData *common.PlatformData, dc *dt.DockerClient)
 	return networks, nil
 }
 
-func RemoveSwarmNetworks(dc *dt.DockerClient) error {
+func RemoveSwarmNetworks(dc *pt.DockerClient) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	existingNetworks, err := dc.Cli.NetworkList(dc.Ctx, network.ListOptions{

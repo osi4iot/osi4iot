@@ -7,13 +7,12 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
-func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
-	Configs := make(map[string]dt.Config)
+func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
+	Configs := make(map[string]pt.Config)
 	platformName := strings.Replace(platformData.PlatformInfo.PlatformName, " ", "_", -1)
 	protocol := "https"
 	if platformData.PlatformInfo.DomainCertsType == "No certs" {
@@ -42,7 +41,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 	adminAPIConfig := strings.Join(adminAPIConfigArray, "\n")
 	adminAPIConfigHash := utils.GetMD5Hash(adminAPIConfig)
 	adminAPIConfigName := fmt.Sprintf("admin_api_%s", adminAPIConfigHash)
-	Configs["admin_api"] = dt.Config{
+	Configs["admin_api"] = pt.Config{
 		Name: adminAPIConfigName,
 		Data: adminAPIConfig,
 	}
@@ -50,7 +49,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 	mainOrgBuilding := platformData.PlatformInfo.MainOrganizationBuilding
 	mainOrgBuildingHash := utils.GetMD5Hash(mainOrgBuilding)
 	mainOrgBuildingName := fmt.Sprintf("main_org_building_%s", mainOrgBuildingHash)
-	Configs["main_org_building"] = dt.Config{
+	Configs["main_org_building"] = pt.Config{
 		Name: mainOrgBuildingName,
 		Data: mainOrgBuilding,
 	}
@@ -58,17 +57,17 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 	mainOrgFloor := platformData.PlatformInfo.MainOrganizationFirstFloor
 	mainOrgFloorHash := utils.GetMD5Hash(mainOrgFloor)
 	mainOrgFloorName := fmt.Sprintf("main_org_floor_%s", mainOrgFloorHash)
-	Configs["main_org_floor"] = dt.Config{
+	Configs["main_org_floor"] = pt.Config{
 		Name: mainOrgFloorName,
 		Data: mainOrgFloor,
 	}
 
 	frontendConfigArray := []string{
 		fmt.Sprintf("PLATFORM_NAME=%s", platformName),
-		fmt.Sprintf("DOMAIN_NAME=%s",platformData.PlatformInfo.DomainName),
+		fmt.Sprintf("DOMAIN_NAME=%s", platformData.PlatformInfo.DomainName),
 		fmt.Sprintf("PROTOCOL=%s", protocol),
 		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", platformData.PlatformInfo.DeploymentLocation),
-		fmt.Sprintf("DEPLOYMENT_MODE=%s",platformData.PlatformInfo.DeploymentMode),
+		fmt.Sprintf("DEPLOYMENT_MODE=%s", platformData.PlatformInfo.DeploymentMode),
 		fmt.Sprintf("MIN_LONGITUDE=%f", platformData.PlatformInfo.MinLongitude),
 		fmt.Sprintf("MAX_LONGITUDE=%f", platformData.PlatformInfo.MaxLongitude),
 		fmt.Sprintf("MIN_LATITUDE=%f", platformData.PlatformInfo.MinLatitude),
@@ -77,7 +76,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 	frontendConfig := strings.Join(frontendConfigArray, "\n")
 	frontendConfigHash := utils.GetMD5Hash(frontendConfig)
 	frontendConfigName := fmt.Sprintf("frontend_%s", frontendConfigHash)
-	Configs["frontend"] = dt.Config{
+	Configs["frontend"] = pt.Config{
 		Name: frontendConfigName,
 		Data: frontendConfig,
 	}
@@ -91,7 +90,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 	grafanaConfig := strings.Join(grafanaConfigArray, "\n")
 	grafanaConfigHash := utils.GetMD5Hash(grafanaConfig)
 	grafanaConfigName := fmt.Sprintf("grafana_%s", grafanaConfigHash)
-	Configs["grafana"] = dt.Config{
+	Configs["grafana"] = pt.Config{
 		Name: grafanaConfigName,
 		Data: grafanaConfig,
 	}
@@ -138,7 +137,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 	mosquittoConfig := strings.Join(mosquittoConfigArray, "\n")
 	mosquittoConfigHash := utils.GetMD5Hash(mosquittoConfig)
 	mosquittoConfigName := fmt.Sprintf("mosquitto_%s", mosquittoConfigHash)
-	Configs["mosquitto_conf"] = dt.Config{
+	Configs["mosquitto_conf"] = pt.Config{
 		Name: mosquittoConfigName,
 		Data: mosquittoConfig,
 	}
@@ -168,7 +167,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 	mosquittoGoAuth := strings.Join(mosquittoGoAuthArray, "\n")
 	mosquittoGoAuthHash := utils.GetMD5Hash(mosquittoGoAuth)
 	mosquittoGoAuthName := fmt.Sprintf("mosquitto_go_auth_%s", mosquittoGoAuthHash)
-	Configs["mosquitto_go_auth"] = dt.Config{
+	Configs["mosquitto_go_auth"] = pt.Config{
 		Name: mosquittoGoAuthName,
 		Data: mosquittoGoAuth,
 	}
@@ -183,7 +182,7 @@ func GenerateConfigs(platformData *common.PlatformData) map[string]dt.Config {
 	s3StorageConfig := strings.Join(s3StorageConfigArray, "\n")
 	s3StorageConfigHash := utils.GetMD5Hash(s3StorageConfig)
 	s3StorageConfigName := fmt.Sprintf("s3_storage_%s", s3StorageConfigHash)
-	Configs["s3_storage"] = dt.Config{
+	Configs["s3_storage"] = pt.Config{
 		Name: s3StorageConfigName,
 		Data: s3StorageConfig,
 	}
@@ -207,7 +206,7 @@ tls:
 `
 		traefikConfigHash := utils.GetMD5Hash(traefikConfig)
 		traefikConfigName := fmt.Sprintf("traefik_%s", traefikConfigHash)
-		Configs["traefik"] = dt.Config{
+		Configs["traefik"] = pt.Config{
 			Name: traefikConfigName,
 			Data: traefikConfig,
 		}
@@ -217,7 +216,7 @@ tls:
 	return Configs
 }
 
-func createConfig(dc *dt.DockerClient, configKey string, config *dt.Config) error {
+func createConfig(dc *pt.DockerClient, configKey string, config *pt.Config) error {
 	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing configs: %v", err)
@@ -258,7 +257,7 @@ func createConfig(dc *dt.DockerClient, configKey string, config *dt.Config) erro
 	return nil
 }
 
-func CreateSwarmConfigs(platformData *common.PlatformData, dc *dt.DockerClient) (map[string]dt.Config, error) {
+func CreateSwarmConfigs(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Config, error) {
 	configs := GenerateConfigs(platformData)
 	for key, config := range configs {
 		err := createConfig(dc, key, &config)
@@ -271,7 +270,7 @@ func CreateSwarmConfigs(platformData *common.PlatformData, dc *dt.DockerClient) 
 	return configs, nil
 }
 
-func RemoveSwarmConfigs(dc *dt.DockerClient) error {
+func RemoveSwarmConfigs(dc *pt.DockerClient) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	existingConfigs, err := dc.Cli.ConfigList(dc.Ctx, types.ConfigListOptions{

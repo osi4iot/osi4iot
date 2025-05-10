@@ -5,12 +5,11 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func NatsService(nodeId int, pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
+func NatsService(nodeId int, pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
 	// Define the NATS service
 	serviceName := fmt.Sprintf("nats%d", nodeId)
 	volName := fmt.Sprintf("nats%d_data", nodeId)
@@ -93,7 +92,7 @@ func NatsService(nodeId int, pd *common.PlatformData, sd dt.SwarmData, nodeRoleM
 	}
 
 	return NewService(serviceName, pd, sd).
-		WithImage("ghcr.io/osi4iot/nats:2.11.1-alpine",).
+		WithImage("ghcr.io/osi4iot/nats:2.11.1-alpine").
 		WithEnv([]string{
 			fmt.Sprintf("SERVER_NAME=%s", serviceName),
 		}).

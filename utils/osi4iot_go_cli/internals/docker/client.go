@@ -9,15 +9,14 @@ import (
 	"sync"
 
 	"github.com/docker/docker/client"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
 var once sync.Once
 var sshPrivKeyTempFile *os.File
 
-func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPrivKeyTempFile *os.File) (*dt.DockerClient, error) {
+func getNodeDockerClient(node pt.NodeData, deploymentLocation string, sshPrivKeyTempFile *os.File) (*pt.DockerClient, error) {
 	var cli *client.Client
 	runningInLocalHost, err := utils.IsHostIP(node.NodeIP)
 	if err != nil {
@@ -57,7 +56,7 @@ func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPri
 		}
 	}
 
-	dc := &dt.DockerClient{
+	dc := &pt.DockerClient{
 		Cli:  cli,
 		Ctx:  context.Background(),
 		Node: node,
@@ -68,11 +67,11 @@ func getNodeDockerClient(node common.NodeData, deploymentLocation string, sshPri
 
 type DcResp struct {
 	IP           string
-	DockerClient *dt.DockerClient
+	DockerClient *pt.DockerClient
 	Err          error
 }
 
-func SetDockerClientsMap(platformData *common.PlatformData, action string) (map[string]*dt.DockerClient, error) {
+func SetDockerClientsMap(platformData *pt.PlatformData, action string) (map[string]*pt.DockerClient, error) {
 	var swarmErr error = nil
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	if deploymentLocation == "" {
@@ -100,7 +99,7 @@ func SetDockerClientsMap(platformData *common.PlatformData, action string) (map[
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 		for _, node := range nodesData {
 			wg.Add(1)
-			go func(node common.NodeData) {
+			go func(node pt.NodeData) {
 				defer wg.Done()
 				dc, err := getNodeDockerClient(node, deploymentLocation, sshPrivKeyTempFile)
 				dcResponses <- DcResp{IP: node.NodeIP, DockerClient: dc, Err: err}
@@ -113,9 +112,9 @@ func SetDockerClientsMap(platformData *common.PlatformData, action string) (map[
 		for resp := range dcResponses {
 			if resp.Err != nil {
 				errorLines = append(errorLines, fmt.Sprintf("error getting docker client in node %s: %v", resp.IP, resp.Err.Error()))
-				dt.DCMap[resp.IP] = nil
+				pt.DCMap[resp.IP] = nil
 			} else {
-				dt.DCMap[resp.IP] = resp.DockerClient
+				pt.DCMap[resp.IP] = resp.DockerClient
 			}
 		}
 		if len(errorLines) > 0 {
@@ -126,10 +125,10 @@ func SetDockerClientsMap(platformData *common.PlatformData, action string) (map[
 		}
 	})
 
-	return dt.DCMap, swarmErr
+	return pt.DCMap, swarmErr
 }
 
-func CheckDockerClientsMap(DCMap map[string]*dt.DockerClient, action string) error {
+func CheckDockerClientsMap(DCMap map[string]*pt.DockerClient, action string) error {
 	if len(DCMap) == 0 {
 		return fmt.Errorf("error: failed to get any docker client")
 	}
@@ -159,7 +158,7 @@ func CheckDockerClientsMap(DCMap map[string]*dt.DockerClient, action string) err
 }
 
 func CloseDockerClientsMap() error {
-	for _, dc := range dt.DCMap {
+	for _, dc := range pt.DCMap {
 		if dc != nil {
 			err := dc.Close()
 			if err != nil {

@@ -8,14 +8,13 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
-	Secrets := make(map[string]dt.Secret)
+func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
+	Secrets := make(map[string]pt.Secret)
 	mainOrgNodeRedInstances := pd.Organizations[0].NodeRedInstances
 	var hashes []string
 	var nriPasswords []string
@@ -74,12 +73,11 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	adminApiSecretsData := strings.Join(adminApiSecretsDataArray, "\n")
 	adminApiSecretsHash := utils.GetMD5Hash(adminApiSecretsData)
 	adminApiSecretsName := fmt.Sprintf("admin_api_%s", adminApiSecretsHash)
-	adminApiSecret := dt.Secret{
+	adminApiSecret := pt.Secret{
 		Name: adminApiSecretsName,
 		Data: adminApiSecretsData,
 	}
 	Secrets["admin_api"] = adminApiSecret
-
 
 	if pd.PlatformInfo.DomainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
 		utils.SetOrUpdateAcmeCerts(pd)
@@ -87,19 +85,19 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 
 	if domainCertsType == "Certs provided by an CA" ||
 		domainCertsType == "Let's encrypt certs with DNS-01 challenge and AWS Route 53 provider" {
-		iotPlatformCertSecret := dt.Secret{
+		iotPlatformCertSecret := pt.Secret{
 			Name: pd.Certs.DomainCerts.IotPlatformCertName,
 			Data: pd.Certs.DomainCerts.SslCertCrt,
 		}
 		Secrets["iot_platform_cert"] = iotPlatformCertSecret
 
-		iotPlatformKeySecret := dt.Secret{
+		iotPlatformKeySecret := pt.Secret{
 			Name: pd.Certs.DomainCerts.IotPlatformKeyName,
 			Data: pd.Certs.DomainCerts.PrivateKey,
 		}
 		Secrets["iot_platform_key"] = iotPlatformKeySecret
 
-		iotPlatformCaCertSecret := dt.Secret{
+		iotPlatformCaCertSecret := pt.Secret{
 			Name: pd.Certs.DomainCerts.IotPlatformCaName,
 			Data: pd.Certs.DomainCerts.SslCaPem,
 		}
@@ -109,7 +107,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	if messagingSystem == "mqtt" {
 		mqttCaCertHash := utils.GetMD5Hash(pd.Certs.MqttCerts.CaCerts.CaCrt)
 		mqttCaCertSecretName := fmt.Sprintf("mqtt_certs_ca_cert_%s", mqttCaCertHash)
-		mqttCaCertSecret := dt.Secret{
+		mqttCaCertSecret := pt.Secret{
 			Name: mqttCaCertSecretName,
 			Data: pd.Certs.MqttCerts.CaCerts.CaCrt,
 		}
@@ -118,7 +116,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 
 		mqttCaKeyHash := utils.GetMD5Hash(pd.Certs.MqttCerts.CaCerts.CaKey)
 		mqttCaKeySecretName := fmt.Sprintf("mqtt_certs_ca_key_%s", mqttCaKeyHash)
-		mqttCaKeySecret := dt.Secret{
+		mqttCaKeySecret := pt.Secret{
 			Name: mqttCaKeySecretName,
 			Data: pd.Certs.MqttCerts.CaCerts.CaKey,
 		}
@@ -126,7 +124,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 
 		mqttBrokerCertHash := utils.GetMD5Hash(pd.Certs.MqttCerts.Broker.ServerCrt)
 		mqttBrokerCertSecretName := fmt.Sprintf("mqtt_broker_cert_%s", mqttBrokerCertHash)
-		mqttBrokerCertSecret := dt.Secret{
+		mqttBrokerCertSecret := pt.Secret{
 			Name: mqttBrokerCertSecretName,
 			Data: pd.Certs.MqttCerts.Broker.ServerCrt,
 		}
@@ -134,7 +132,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 
 		mqttBrokerKeyHash := utils.GetMD5Hash(pd.Certs.MqttCerts.Broker.ServerKey)
 		mqttBrokerKeySecretName := fmt.Sprintf("mqtt_broker_key_%s", mqttBrokerKeyHash)
-		mqttBrokerKeySecret := dt.Secret{
+		mqttBrokerKeySecret := pt.Secret{
 			Name: mqttBrokerKeySecretName,
 			Data: pd.Certs.MqttCerts.Broker.ServerKey,
 		}
@@ -159,7 +157,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 		authCalloutSecretsData := strings.Join(authCalloutSecretsDataArray, "\n")
 		authCalloutSecretsHash := utils.GetMD5Hash(authCalloutSecretsData)
 		authCalloutSecretsName := fmt.Sprintf("authCallout_%s", authCalloutSecretsHash)
-		authCalloutSecret := dt.Secret{
+		authCalloutSecret := pt.Secret{
 			Name: authCalloutSecretsName,
 			Data: authCalloutSecretsData,
 		}
@@ -182,7 +180,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 		cfgStr, _ := utils.NatsRenderConfig(params)
 		natsConfigHash := utils.GetMD5Hash(cfgStr)
 		natsConfigName := fmt.Sprintf("nats_config_%s", natsConfigHash)
-		natsConfigSecret := dt.Secret{
+		natsConfigSecret := pt.Secret{
 			Name: natsConfigName,
 			Data: cfgStr,
 		}
@@ -202,7 +200,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	grafanaSecretsData := strings.Join(grafanaSecretsDataArray, "\n")
 	grafanaSecretsHash := utils.GetMD5Hash(grafanaSecretsData)
 	grafanaSecretName := fmt.Sprintf("grafana_%s", grafanaSecretsHash)
-	grafanaSecret := dt.Secret{
+	grafanaSecret := pt.Secret{
 		Name: grafanaSecretName,
 		Data: grafanaSecretsData,
 	}
@@ -211,7 +209,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	postgresPassword := pd.PlatformInfo.PostgresPassword
 	postgresPasswordHash := utils.GetMD5Hash(postgresPassword)
 	postgresPasswordSecretName := fmt.Sprintf("postgres_password_%s", postgresPasswordHash)
-	postgresPasswordSecret := dt.Secret{
+	postgresPasswordSecret := pt.Secret{
 		Name: postgresPasswordSecretName,
 		Data: postgresPassword,
 	}
@@ -220,7 +218,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	postgresUser := pd.PlatformInfo.PostgresUser
 	postgresUserHash := utils.GetMD5Hash(postgresUser)
 	postgresUserSecretName := fmt.Sprintf("postgres_user_%s", postgresUserHash)
-	postgresUserSecret := dt.Secret{
+	postgresUserSecret := pt.Secret{
 		Name: postgresUserSecretName,
 		Data: postgresUser,
 	}
@@ -229,7 +227,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	postgresGrafana := fmt.Sprintf("GRAFANA_DB_PASSWORD=%s", pd.PlatformInfo.GrafanaDBPassword)
 	postgresGrafanaHash := utils.GetMD5Hash(postgresGrafana)
 	postgresGrafanaSecretName := fmt.Sprintf("postgres_grafana_%s", postgresGrafanaHash)
-	postgresGrafanaSecret := dt.Secret{
+	postgresGrafanaSecret := pt.Secret{
 		Name: postgresGrafanaSecretName,
 		Data: postgresGrafana,
 	}
@@ -238,7 +236,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	timescalePassword := pd.PlatformInfo.TimescalePassword
 	timescalePasswordHash := utils.GetMD5Hash(timescalePassword)
 	timescalePasswordSecretName := fmt.Sprintf("timescale_password_%s", timescalePasswordHash)
-	timescalePasswordSecret := dt.Secret{
+	timescalePasswordSecret := pt.Secret{
 		Name: timescalePasswordSecretName,
 		Data: timescalePassword,
 	}
@@ -247,7 +245,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	timescaleUser := pd.PlatformInfo.TimescaleUser
 	timescaleUserHash := utils.GetMD5Hash(timescaleUser)
 	timescaleUserSecretName := fmt.Sprintf("timescale_user_%s", timescaleUserHash)
-	timescaleUserSecret := dt.Secret{
+	timescaleUserSecret := pt.Secret{
 		Name: timescaleUserSecretName,
 		Data: timescaleUser,
 	}
@@ -256,7 +254,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	timescaleGrafana := fmt.Sprintf("GRAFANA_DATASOURCE_PASSWORD=%s", pd.PlatformInfo.GrafanaDatasourcePassword)
 	timescaleGrafanaHash := utils.GetMD5Hash(timescaleGrafana)
 	timescaleGrafanaSecretName := fmt.Sprintf("timescale_grafana_%s", timescaleGrafanaHash)
-	timescaleGrafanaSecret := dt.Secret{
+	timescaleGrafanaSecret := pt.Secret{
 		Name: timescaleGrafanaSecretName,
 		Data: timescaleGrafana,
 	}
@@ -265,7 +263,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	timescaleDataRetInt := fmt.Sprintf("DATA_RETENTION_INTERVAL=%s", pd.PlatformInfo.TimescaleDataRetentionInterval)
 	timescaleDataRetIntHash := utils.GetMD5Hash(timescaleDataRetInt)
 	timescaleDataRetIntSecretName := fmt.Sprintf("timescale_data_ret_int_%s", timescaleDataRetIntHash)
-	timescaleDataRetIntSecret := dt.Secret{
+	timescaleDataRetIntSecret := pt.Secret{
 		Name: timescaleDataRetIntSecretName,
 		Data: timescaleDataRetInt,
 	}
@@ -274,7 +272,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	dev2pdbCfgStr, _ := utils.Dev2pdbConfig(pd, nodeRoleMaps.NodeRoleNumMap)
 	dev2pdbConfigHash := utils.GetMD5Hash(dev2pdbCfgStr)
 	dev2pdbConfigName := fmt.Sprintf("dev2pdb_config_%s", dev2pdbConfigHash)
-	dev2pdbConfigSecret := dt.Secret{
+	dev2pdbConfigSecret := pt.Secret{
 		Name: dev2pdbConfigName,
 		Data: dev2pdbCfgStr,
 	}
@@ -287,7 +285,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	minioSecretsData := strings.Join(minioSecrets, "\n")
 	minioSecretsHash := utils.GetMD5Hash(minioSecretsData)
 	minioSecretsName := fmt.Sprintf("minio_%s", minioSecretsHash)
-	minioSecret := dt.Secret{
+	minioSecret := pt.Secret{
 		Name: minioSecretsName,
 		Data: minioSecretsData,
 	}
@@ -302,7 +300,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	pgadmin4SecretsData := strings.Join(pgadmin4Secrets, "\n")
 	pgadmin4SecretsHash := utils.GetMD5Hash(pgadmin4SecretsData)
 	pgadmin4SecretsName := fmt.Sprintf("pgadmin4_%s", pgadmin4SecretsHash)
-	pgadmin4Secret := dt.Secret{
+	pgadmin4Secret := pt.Secret{
 		Name: pgadmin4SecretsName,
 		Data: pgadmin4SecretsData,
 	}
@@ -321,7 +319,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	s3StorageSecretsData := strings.Join(s3StorageSecrets, "\n")
 	s3StorageSecretsHash := utils.GetMD5Hash(s3StorageSecretsData)
 	s3StorageSecretsName := fmt.Sprintf("s3_storage_%s", s3StorageSecretsHash)
-	s3StorageSecret := dt.Secret{
+	s3StorageSecret := pt.Secret{
 		Name: s3StorageSecretsName,
 		Data: s3StorageSecretsData,
 	}
@@ -330,7 +328,7 @@ func GenerateSecrets(pd *common.PlatformData) map[string]dt.Secret {
 	return Secrets
 }
 
-func GenerateNriSecrets(messagingSystem string, orgs []common.Organization, Secrets map[string]dt.Secret) {
+func GenerateNriSecrets(messagingSystem string, orgs []pt.Organization, Secrets map[string]pt.Secret) {
 	for iorg := range orgs {
 		orgAcronym := strings.ToLower(orgs[iorg].OrgAcronym)
 		numNodeRedInstances := len(orgs[iorg].NodeRedInstances)
@@ -338,14 +336,14 @@ func GenerateNriSecrets(messagingSystem string, orgs []common.Organization, Secr
 			nriHash := orgs[iorg].NodeRedInstances[inri].NriHash
 			if messagingSystem == "mqtt" {
 				mqttClientCertSecretKey := fmt.Sprintf("%s_%s_cert", orgAcronym, nriHash)
-				mqttClientCertSecret := dt.Secret{
+				mqttClientCertSecret := pt.Secret{
 					Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrtName,
 					Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrt,
 				}
 				Secrets[mqttClientCertSecretKey] = mqttClientCertSecret
 
 				mqttClientKeySecretKey := fmt.Sprintf("%s_%s_key", orgAcronym, nriHash)
-				mqttClientKeySecret := dt.Secret{
+				mqttClientKeySecret := pt.Secret{
 					Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKeyName,
 					Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKey,
 				}
@@ -381,7 +379,7 @@ func GenerateNriSecrets(messagingSystem string, orgs []common.Organization, Secr
 				nriNatsSecretsHash := utils.GetMD5Hash(nriNatsSecretsData)
 				nriNatsSecretsKey := fmt.Sprintf("%s_%s_nats", orgAcronym, nriHash)
 				nriNatsSecretsName := fmt.Sprintf("%s_%s", nriNatsSecretsKey, nriNatsSecretsHash)
-				nriNatsSecret := dt.Secret{
+				nriNatsSecret := pt.Secret{
 					Name: nriNatsSecretsName,
 					Data: nriNatsSecretsData,
 				}
@@ -391,7 +389,7 @@ func GenerateNriSecrets(messagingSystem string, orgs []common.Organization, Secr
 	}
 }
 
-func CreateSecret(dc *dt.DockerClient, secretKey string, secret *dt.Secret) error {
+func CreateSecret(dc *pt.DockerClient, secretKey string, secret *pt.Secret) error {
 	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing secrets: %v", err)
@@ -432,7 +430,7 @@ func CreateSecret(dc *dt.DockerClient, secretKey string, secret *dt.Secret) erro
 	return nil
 }
 
-func CreateSwarmSecrets(platformData *common.PlatformData, dc *dt.DockerClient) (map[string]dt.Secret, error) {
+func CreateSwarmSecrets(platformData *pt.PlatformData, dc *pt.DockerClient) (map[string]pt.Secret, error) {
 	secrets := GenerateSecrets(platformData)
 	for key, secret := range secrets {
 		err := CreateSecret(dc, key, &secret)
@@ -445,7 +443,7 @@ func CreateSwarmSecrets(platformData *common.PlatformData, dc *dt.DockerClient) 
 	return secrets, nil
 }
 
-func RemoveSwarmSecrets(dc *dt.DockerClient) error {
+func RemoveSwarmSecrets(dc *pt.DockerClient) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	existingSecrets, err := dc.Cli.SecretList(dc.Ctx, types.SecretListOptions{

@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"text/template"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 // Dev2pdbConfig generates a configuration string for the dev2pdb service.
@@ -68,19 +68,19 @@ type TimescaleDBParams struct {
 }
 
 type Dev2pdbParams struct {
-    Mode       string
-    DomainName string
-    MessagingType  string
-    MQTT    MQTTParams
-    NATS   NATSParams
-    TimescaleDB TimescaleDBParams
+	Mode          string
+	DomainName    string
+	MessagingType string
+	MQTT          MQTTParams
+	NATS          NATSParams
+	TimescaleDB   TimescaleDBParams
 }
 
 // Dev2pdbConfig generates a configuration string for the dev2pdb service.
-func Dev2pdbConfig(platformData *common.PlatformData, nodeRoleNumMap map[string]int ) (string, error) {
-	serversUrl := []string{"nats://nats1:4222",}
+func Dev2pdbConfig(platformData *types.PlatformData, nodeRoleNumMap map[string]int) (string, error) {
+	serversUrl := []string{"nats://nats1:4222"}
 	if nodeRoleNumMap["Platform worker"] >= 3 {
-		serversUrl = append(serversUrl, "nats://nats2:4222",)
+		serversUrl = append(serversUrl, "nats://nats2:4222")
 		serversUrl = append(serversUrl, "nats://nats3:4222")
 	}
 
@@ -89,23 +89,23 @@ func Dev2pdbConfig(platformData *common.PlatformData, nodeRoleNumMap map[string]
 		messagingType = "nats"
 	}
 
-    params := Dev2pdbParams{
-        Mode:       "prod",
-        DomainName: platformData.PlatformInfo.DomainName,
-		MessagingType:  messagingType,
+	params := Dev2pdbParams{
+		Mode:          "prod",
+		DomainName:    platformData.PlatformInfo.DomainName,
+		MessagingType: messagingType,
 		MQTT: MQTTParams{
 			ClientID:              "dev2pdb",
 			Broker:                "mosquitto",
 			Port:                  1883,
 			Username:              "dev2pdb",
-			Password: platformData.PlatformInfo.Dev2pdbPassword,
+			Password:              platformData.PlatformInfo.Dev2pdbPassword,
 			TLSInsecureSkipVerify: true,
 		},
 		NATS: NATSParams{
 			ServersURL: serversUrl,
-			Username: "dev2pdb",
-			Password: platformData.PlatformInfo.Dev2pdbPassword,
-			Timeout:  "15s",
+			Username:   "dev2pdb",
+			Password:   platformData.PlatformInfo.Dev2pdbPassword,
+			Timeout:    "15s",
 		},
 		TimescaleDB: TimescaleDBParams{
 			User:     platformData.PlatformInfo.TimescaleUser,
@@ -115,15 +115,15 @@ func Dev2pdbConfig(platformData *common.PlatformData, nodeRoleNumMap map[string]
 			DBName:   "iot_data_db",
 			SSLMode:  "disable",
 		},
-    }
+	}
 
-    tmpl, err := template.New("dev2pdbConfig").Parse(configTmpl)
-    if err != nil {
-        return "", err
-    }
-    var buf bytes.Buffer
-    if err := tmpl.Execute(&buf, params); err != nil {
-        return "", err
-    }
-    return buf.String(), nil
+	tmpl, err := template.New("dev2pdbConfig").Parse(configTmpl)
+	if err != nil {
+		return "", err
+	}
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, params); err != nil {
+		return "", err
+	}
+	return buf.String(), nil
 }

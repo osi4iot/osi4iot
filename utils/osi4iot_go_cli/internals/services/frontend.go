@@ -4,18 +4,17 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func FrontendService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
+func FrontendService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
 	frontendRule := fmt.Sprintf("Host(`%s`)", domainName)
 	annotationsLabels := map[string]string{
-		"traefik.enable":                     "true",
-		"traefik.http.routers.frontend.rule": frontendRule,
+		"traefik.enable":                                                   "true",
+		"traefik.http.routers.frontend.rule":                               frontendRule,
 		"traefik.http.routers.frontend.entrypoints":                        "websecure",
 		"traefik.http.routers.frontend.tls":                                "true",
 		"traefik.http.routers.frontend.tls.certresolver":                   "",
@@ -26,7 +25,7 @@ func FrontendService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps reso
 		"traefik.http.services.frontend.loadbalancer.healthCheck.timeout":  "3s",
 	}
 
-    configs := []*swarm.ConfigReference{
+	configs := []*swarm.ConfigReference{
 		{
 			File: &swarm.ConfigReferenceFileTarget{
 				Name: "/run/configs/frontend.conf",

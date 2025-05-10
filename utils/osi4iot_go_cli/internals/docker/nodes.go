@@ -5,11 +5,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func getSwarmNodesMap(dc *dt.DockerClient) (map[string]swarm.Node, error) {
+func getSwarmNodesMap(dc *pt.DockerClient) (map[string]swarm.Node, error) {
 	swarmNodes, err := dc.Cli.NodeList(dc.Ctx, types.NodeListOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("error listing swarm nodes: %w", err)
@@ -22,7 +21,7 @@ func getSwarmNodesMap(dc *dt.DockerClient) (map[string]swarm.Node, error) {
 	return swarmNodesMap, nil
 }
 
-func updateNodesData(dc *dt.DockerClient, nodesData []common.NodeData) error {
+func updateNodesData(dc *pt.DockerClient, nodesData []pt.NodeData) error {
 	swarmNodesMap, err := getSwarmNodesMap(dc)
 	if err != nil {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
@@ -42,8 +41,8 @@ func updateNodesData(dc *dt.DockerClient, nodesData []common.NodeData) error {
 	return nil
 }
 
-func GetManagerDC() (*dt.DockerClient, error) {
-	for _, dc := range dt.DCMap {
+func GetManagerDC() (*pt.DockerClient, error) {
+	for _, dc := range pt.DCMap {
 		if dc.Node.NodeRole == "Manager" {
 			return dc, nil
 		}
@@ -52,23 +51,23 @@ func GetManagerDC() (*dt.DockerClient, error) {
 	return nil, fmt.Errorf("error getting manager docker client")
 }
 
-func joinNodeToSwarm(dc *dt.DockerClient, managerNode common.NodeData, joinToken string) error {
+func joinNodeToSwarm(dc *pt.DockerClient, managerNode pt.NodeData, joinToken string) error {
 	remoteAddr := fmt.Sprintf("%s:2377", managerNode.NodeIP)
 	joinRequest := swarm.JoinRequest{
-		ListenAddr: "0.0.0.0:2377",
-		RemoteAddrs: []string{remoteAddr},
-		JoinToken:  joinToken,
-		AdvertiseAddr: dc.Node.NodeIP, 
+		ListenAddr:    "0.0.0.0:2377",
+		RemoteAddrs:   []string{remoteAddr},
+		JoinToken:     joinToken,
+		AdvertiseAddr: dc.Node.NodeIP,
 	}
 
 	if err := dc.Cli.SwarmJoin(dc.Ctx, joinRequest); err != nil {
 		return fmt.Errorf("error joining node with IP %s to swarm: %v", dc.Node.NodeIP, err)
 	}
-	
+
 	return nil
 }
 
-func joinAllNodesToSwarm(managerClient *dt.DockerClient) error {
+func joinAllNodesToSwarm(managerClient *pt.DockerClient) error {
 	swarmInfo, err := managerClient.Cli.SwarmInspect(managerClient.Ctx)
 	if err != nil {
 		return fmt.Errorf("error inspecting the Swarm: %v", err)
@@ -81,7 +80,7 @@ func joinAllNodesToSwarm(managerClient *dt.DockerClient) error {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
 	}
 
-	for ip, dc := range dt.DCMap {
+	for ip, dc := range pt.DCMap {
 		node := dc.Node
 		_, ok := swarmNodesMap[ip]
 		if ok {
@@ -101,7 +100,7 @@ func joinAllNodesToSwarm(managerClient *dt.DockerClient) error {
 	return nil
 }
 
-func nodeLeaveSwarm(dc *dt.DockerClient) error {
+func nodeLeaveSwarm(dc *pt.DockerClient) error {
 	err := dc.Cli.SwarmLeave(dc.Ctx, true)
 	if err != nil {
 		return fmt.Errorf("error leaving swarm: %v", err)
@@ -121,7 +120,7 @@ func nodesLeaveSwarm() error {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
 	}
 
-	for ip, dc := range dt.DCMap {
+	for ip, dc := range pt.DCMap {
 		node := dc.Node
 		_, ok := swarmNodesMap[ip]
 		if ok {
@@ -135,7 +134,7 @@ func nodesLeaveSwarm() error {
 	return nil
 }
 
-func GetNodeRoleNumMap(platformData *common.PlatformData) map[string]int {
+func GetNodeRoleNumMap(platformData *pt.PlatformData) map[string]int {
 	roleNumMap := make(map[string]int)
 	roleNumMap["Manager"] = 0
 	roleNumMap["Platform worker"] = 0
@@ -163,7 +162,7 @@ func GetNodeRoleNumMap(platformData *common.PlatformData) map[string]int {
 	return roleNumMap
 }
 
-func GetNodeNanoCpusMap(platformData *common.PlatformData) map[string]int64 {
+func GetNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 	roleNanoCpusMap := make(map[string]int64)
 	roleNanoCpusMap["Manager"] = 0
 	roleNanoCpusMap["Platform worker"] = 0
@@ -217,7 +216,7 @@ func GetNodeNanoCpusMap(platformData *common.PlatformData) map[string]int64 {
 	return roleNanoCpusMap
 }
 
-func GetNodeMemoryBytesMap(platformData *common.PlatformData) map[string]int64 {
+func GetNodeMemoryBytesMap(platformData *pt.PlatformData) map[string]int64 {
 	roleMemoryBytesMap := make(map[string]int64)
 	roleMemoryBytesMap["Manager"] = 0
 	roleMemoryBytesMap["Platform worker"] = 0

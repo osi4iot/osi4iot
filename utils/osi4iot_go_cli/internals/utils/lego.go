@@ -15,11 +15,11 @@ import (
 	"github.com/go-acme/lego/lego"
 	"github.com/go-acme/lego/providers/dns/route53"
 	"github.com/go-acme/lego/registration"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 // SetOrUpdateAcmeCerts sets or updates the ACME certificates for the platform
-func SetOrUpdateAcmeCerts(platformData *common.PlatformData) error {
+func SetOrUpdateAcmeCerts(platformData *types.PlatformData) error {
 	setRoute53EnvVars(platformData)
 
 	caDir := lego.LEDirectoryProduction
@@ -46,8 +46,8 @@ func SetOrUpdateAcmeCerts(platformData *common.PlatformData) error {
 	}
 	client.Challenge.SetDNS01Provider(provider)
 
-    privateKey := platformData.Certs.DomainCerts.PrivateKey
-    sslCertCrt := platformData.Certs.DomainCerts.SslCertCrt
+	privateKey := platformData.Certs.DomainCerts.PrivateKey
+	sslCertCrt := platformData.Certs.DomainCerts.SslCertCrt
 	sslCaPem := platformData.Certs.DomainCerts.SslCaPem
 
 	domainName := platformData.PlatformInfo.DomainName
@@ -77,7 +77,7 @@ func SetOrUpdateAcmeCerts(platformData *common.PlatformData) error {
 // LoadOrCreateAcmeUser loads the ACME user from the platformData or creates a new one if it doesn't exist
 // It initializes the ACME client and registers the user with the ACME server
 // It uses the Route53 DNS provider for DNS challenges
-func loadOrCreateAcmeUser(platformData *common.PlatformData, caDirUrl string) (*common.AcmeUser, error) {
+func loadOrCreateAcmeUser(platformData *types.PlatformData, caDirUrl string) (*types.AcmeUser, error) {
 	acmeUser := &platformData.Certs.DomainCerts.AcmeUser
 	if acmeUser.Email != "" && acmeUser.Key != nil {
 		return acmeUser, nil
@@ -94,7 +94,7 @@ func loadOrCreateAcmeUser(platformData *common.PlatformData, caDirUrl string) (*
 	keyPem := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: der})
 
 	email := platformData.PlatformInfo.PlatformAdminEmail
-	u := common.AcmeUser{Email: email, Key: keyPem}
+	u := types.AcmeUser{Email: email, Key: keyPem}
 	config := lego.NewConfig(&u)
 	config.CADirURL = caDirUrl
 	client, err := lego.NewClient(config)
@@ -131,7 +131,7 @@ func timeToExpiry(pemCert []byte) (time.Duration, error) {
 }
 
 // ObtainCert generates a new certificate for the given domains and saves it in platformData.Certs.DomainCerts
-func ObtainCert(platformData *common.PlatformData,
+func ObtainCert(platformData *types.PlatformData,
 	client *lego.Client,
 	domains []string,
 ) error {
@@ -157,7 +157,7 @@ func ObtainCert(platformData *common.PlatformData,
 // RenewIfNeeded checks if the certificate is about to expire and renews it if necessary
 // It uses a threshold to determine when to renew the certificate
 // The threshold is the time before expiration when the certificate should be renewed
-func renewIfNeeded(platformData *common.PlatformData,
+func renewIfNeeded(platformData *types.PlatformData,
 	client *lego.Client,
 	domains []string,
 	threshold time.Duration,
@@ -196,7 +196,7 @@ func renewIfNeeded(platformData *common.PlatformData,
 }
 
 // SetRoute53EnvVars sets the environment variables for AWS Route53 credentials
-func setRoute53EnvVars(platformData *common.PlatformData) error {
+func setRoute53EnvVars(platformData *types.PlatformData) error {
 	awsAccessKeyIDRoute53 := platformData.PlatformInfo.AWSAccessKeyIDRoute53
 	if err := os.Setenv("AWS_ACCESS_KEY_ID", awsAccessKeyIDRoute53); err != nil {
 		return fmt.Errorf("error setting AWS_ACCESS_KEY_ID: %v", err)
@@ -218,18 +218,17 @@ func setRoute53EnvVars(platformData *common.PlatformData) error {
 }
 
 // SetCertsNamesAndExpirationTime sets the names and expiration timestamps for the certificates
-func SetCertsNamesAndExpirationTime(platformData *common.PlatformData) {
+func SetCertsNamesAndExpirationTime(platformData *types.PlatformData) {
 	keyHash := GetMD5Hash(platformData.Certs.DomainCerts.PrivateKey)
 	platformData.Certs.DomainCerts.IotPlatformKeyName = fmt.Sprintf("iot_platform_key_%s", keyHash)
 
 	caHash := GetMD5Hash(platformData.Certs.DomainCerts.SslCaPem)
 	platformData.Certs.DomainCerts.IotPlatformCaName = fmt.Sprintf("iot_platform_ca_%s", caHash)
-	caExpirationTimestamp :=  GetCertExpirationTimestamp(platformData.Certs.DomainCerts.SslCaPem)
+	caExpirationTimestamp := GetCertExpirationTimestamp(platformData.Certs.DomainCerts.SslCaPem)
 	platformData.Certs.DomainCerts.CaPemExpirationTimestamp = caExpirationTimestamp
 
-	certHash :=  GetMD5Hash(platformData.Certs.DomainCerts.SslCertCrt)
+	certHash := GetMD5Hash(platformData.Certs.DomainCerts.SslCertCrt)
 	platformData.Certs.DomainCerts.IotPlatformCertName = fmt.Sprintf("iot_platform_cert_%s", certHash)
-	certExpirationTimestamp :=  GetCertExpirationTimestamp(platformData.Certs.DomainCerts.SslCertCrt)
+	certExpirationTimestamp := GetCertExpirationTimestamp(platformData.Certs.DomainCerts.SslCertCrt)
 	platformData.Certs.DomainCerts.CertCrtExpirationTimestamp = certExpirationTimestamp
 }
-

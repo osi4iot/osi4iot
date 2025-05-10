@@ -7,13 +7,11 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-
-func GenerateVolumes(platformData *common.PlatformData) map[string]dt.Volume {
-	Volumes := make(map[string]dt.Volume)
+func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
+	Volumes := make(map[string]pt.Volume)
 
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	deploymentMode := platformData.PlatformInfo.DeploymentMode
@@ -22,7 +20,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]dt.Volume {
 	messagingSystem := platformData.PlatformInfo.MessagingSystem
 
 	if domainCertsType[0:19] == "Let's encrypt certs" {
-		Volumes["letsencrypt"] = dt.Volume{
+		Volumes["letsencrypt"] = pt.Volume{
 			Name:       "letsencrypt",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
@@ -30,18 +28,18 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]dt.Volume {
 	}
 
 	if messagingSystem == "mqtt" {
-		Volumes["mosquitto_data"] = dt.Volume{
+		Volumes["mosquitto_data"] = pt.Volume{
 			Name:       "mosquitto_data",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
 		}
-		Volumes["mosquitto_log"] = dt.Volume{
+		Volumes["mosquitto_log"] = pt.Volume{
 			Name:       "mosquitto_log",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
 		}
 	} else if messagingSystem == "nats" {
-		Volumes["nats1_data"] = dt.Volume{
+		Volumes["nats1_data"] = pt.Volume{
 			Name:       "nats1_data",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
@@ -49,39 +47,39 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]dt.Volume {
 		//OJO completar ...
 	}
 
-	Volumes["pgdata"] = dt.Volume{
+	Volumes["pgdata"] = pt.Volume{
 		Name:       "pgdata",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
-	Volumes["grafana_data"] = dt.Volume{
+	Volumes["grafana_data"] = pt.Volume{
 		Name:       "grafana_data",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
-	Volumes["timescaledb_data"] = dt.Volume{
+	Volumes["timescaledb_data"] = pt.Volume{
 		Name:       "timescaledb_data",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
-	Volumes["s3_storage_data"] = dt.Volume{
+	Volumes["s3_storage_data"] = pt.Volume{
 		Name:       "s3_storage_data",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
-	Volumes["admin_api_log"] = dt.Volume{
+	Volumes["admin_api_log"] = pt.Volume{
 		Name:       "admin_api_log",
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
 
 	if deploymentMode == "development" {
-		Volumes["portainer_data"] = dt.Volume{
+		Volumes["portainer_data"] = pt.Volume{
 			Name:       "portainer_data",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
 		}
-		Volumes["pgadmin4_data"] = dt.Volume{
+		Volumes["pgadmin4_data"] = pt.Volume{
 			Name:       "pgadmin4_data",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
@@ -89,7 +87,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]dt.Volume {
 	}
 
 	if s3BucketType == "Local Minio" {
-		Volumes["minio_storage"] = dt.Volume{
+		Volumes["minio_storage"] = pt.Volume{
 			Name:       "minio_storage",
 			Driver:     "local",
 			DriverOpts: map[string]string{},
@@ -103,7 +101,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]dt.Volume {
 			nriHash := platformData.Organizations[iorg].NodeRedInstances[inri].NriHash
 			serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronym, nriHash)
 			volumeName := fmt.Sprintf("%s_data", serviceName)
-			Volumes[volumeName] = dt.Volume{
+			Volumes[volumeName] = pt.Volume{
 				Name:       volumeName,
 				Driver:     "local",
 				DriverOpts: map[string]string{},
@@ -353,7 +351,7 @@ func GenerateVolumes(platformData *common.PlatformData) map[string]dt.Volume {
 	return Volumes
 }
 
-func CreateVolume(dc *dt.DockerClient, swarmVol *dt.Volume) error {
+func CreateVolume(dc *pt.DockerClient, swarmVol *pt.Volume) error {
 	existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{})
 	if err != nil {
 		return fmt.Errorf("error listing volumes: %v", err)
@@ -386,12 +384,12 @@ func CreateVolume(dc *dt.DockerClient, swarmVol *dt.Volume) error {
 	return nil
 }
 
-func CreateSwarmVolumes(platformData *common.PlatformData) (map[string]dt.Volume, error) {
+func CreateSwarmVolumes(platformData *pt.PlatformData) (map[string]pt.Volume, error) {
 	volumesMap := GenerateVolumes(platformData)
 	numNodes := len(platformData.PlatformInfo.NodesData)
 	errors := []error{}
-	for _, dc := range dt.DCMap {
-		var filteredVolumes map[string]dt.Volume
+	for _, dc := range pt.DCMap {
+		var filteredVolumes map[string]pt.Volume
 		if numNodes == 1 {
 			filteredVolumes = volumesMap
 		} else {
@@ -414,11 +412,11 @@ func CreateSwarmVolumes(platformData *common.PlatformData) (map[string]dt.Volume
 	return volumesMap, nil
 }
 
-func RemoveSwarmVolumes(platformData *common.PlatformData) error {
+func RemoveSwarmVolumes(platformData *pt.PlatformData) error {
 	errors := []error{}
 	filterByNames := getVolumeFilterByNames(platformData)
 
-	for _, dc := range dt.DCMap {
+	for _, dc := range pt.DCMap {
 		existingVolumes := make(map[string]*volume.Volume)
 		volumesByNameResp, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
 			Filters: filterByNames,
@@ -463,7 +461,7 @@ func RemoveSwarmVolumes(platformData *common.PlatformData) error {
 	return nil
 }
 
-func getVolumeFilterByNames(platformData *common.PlatformData) filters.Args {
+func getVolumeFilterByNames(platformData *pt.PlatformData) filters.Args {
 	volumeNames := []string{
 		"letsencrypt",
 		"mosquitto_data",
@@ -497,7 +495,7 @@ func getVolumeFilterByNames(platformData *common.PlatformData) filters.Args {
 	return volumeFilters
 }
 
-func getVolumesMapByNodeRole(platformData *common.PlatformData, volumesMap map[string]dt.Volume, nodeRole string) map[string]dt.Volume {
+func getVolumesMapByNodeRole(platformData *pt.PlatformData, volumesMap map[string]pt.Volume, nodeRole string) map[string]pt.Volume {
 	volumeNames := []string{}
 	switch nodeRole {
 	case "Manager":
@@ -534,7 +532,7 @@ func getVolumesMapByNodeRole(platformData *common.PlatformData, volumesMap map[s
 		//no code
 	}
 
-	filteredVolumes := make(map[string]dt.Volume)
+	filteredVolumes := make(map[string]pt.Volume)
 	for _, name := range volumeNames {
 		filteredVolumes[name] = volumesMap[name]
 	}

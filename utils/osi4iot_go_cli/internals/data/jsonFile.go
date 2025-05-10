@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
@@ -104,8 +104,8 @@ func SetInitialPlatformState() error {
 			PlatformState = Running
 		}
 	} else {
-		numVolumes :=0
-		for _, dc := range dt.DCMap {
+		numVolumes := 0
+		for _, dc := range pt.DCMap {
 			existingVolumes, err := dc.Cli.VolumeList(dc.Ctx, volume.ListOptions{
 				Filters: filterArgs,
 			})
@@ -150,7 +150,7 @@ func ReadPlatformDataFromFile() error {
 	return nil
 }
 
-func fixingPlatformData() error{
+func fixingPlatformData() error {
 	platformData := GetData()
 
 	nodeData := platformData.PlatformInfo.NodesData

@@ -6,7 +6,6 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"golang.org/x/crypto/bcrypt"
 	"encoding/hex"
 	"encoding/pem"
 	"fmt"
@@ -15,8 +14,10 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/nats-io/nkeys"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 func GetMD5Hash(text string) string {
@@ -39,7 +40,7 @@ func GetCertExpirationTimestamp(cert string) int64 {
 	return parsedCert.NotAfter.UnixMilli() / 1000
 }
 
-func CreateMqttCaCerts(platformData *common.PlatformData) (*rsa.PrivateKey, *x509.Certificate, error) {
+func CreateMqttCaCerts(platformData *types.PlatformData) (*rsa.PrivateKey, *x509.Certificate, error) {
 	var caKey *rsa.PrivateKey
 	var caCert *x509.Certificate
 	var err error
@@ -137,7 +138,7 @@ func CreateMqttCaCerts(platformData *common.PlatformData) (*rsa.PrivateKey, *x50
 	return caKey, caCert, nil
 }
 
-func CreateBrokerCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
+func CreateBrokerCerts(platformData *types.PlatformData, caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
 	var mqttCert, mqttKey string
 	commonName := "mqtt_broker"
 	validityDays := 3650 //10 years
@@ -216,7 +217,7 @@ func CreateBrokerCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey,
 	return nil
 }
 
-func CreateNodeRedMqttCerts(platformData *common.PlatformData, caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
+func CreateNodeRedMqttCerts(platformData *types.PlatformData, caKey *rsa.PrivateKey, caCert *x509.Certificate) error {
 	domainName := platformData.PlatformInfo.DomainName
 	validityDays := platformData.PlatformInfo.MQTTSslCertsValidityDays
 	limitTime := time.Now().Add(24 * 15 * time.Hour) //15 days of margin
@@ -302,7 +303,7 @@ func CreateNodeRedMqttCerts(platformData *common.PlatformData, caKey *rsa.Privat
 	return nil
 }
 
-func MqttTLSCredentials(platformData *common.PlatformData) error {
+func MqttTLSCredentials(platformData *types.PlatformData) error {
 	//CA Cert
 	caKey, caCert, err := CreateMqttCaCerts(platformData)
 	if err != nil {
@@ -324,7 +325,7 @@ func MqttTLSCredentials(platformData *common.PlatformData) error {
 	return nil
 }
 
-func CreateNriNatsNkeys(platformData *common.PlatformData) error {
+func CreateNriNatsNkeys(platformData *types.PlatformData) error {
 	for iorg, org := range platformData.Organizations {
 		for inri, nri := range org.NodeRedInstances {
 			nriNatsPublic := nri.NriNatsCerts.NriNkeyPublic
@@ -342,7 +343,7 @@ func CreateNriNatsNkeys(platformData *common.PlatformData) error {
 	return nil
 }
 
-func NatsCredentials(platformData *common.PlatformData) error {
+func NatsCredentials(platformData *types.PlatformData) error {
 	platformData.Certs.NatsCerts.NatsAdminUsername = "nats_admin"
 	natsAdminPassword := GeneratePassword(20)
 	platformData.Certs.NatsCerts.NatsAdminPassword = natsAdminPassword
@@ -412,8 +413,8 @@ func NatsCredentials(platformData *common.PlatformData) error {
 }
 
 func HashNasPassword(password string) (string, error) {
-    bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-    return string(bytes), err
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
+	return string(bytes), err
 }
 
 func CreateUserNatsNkey() (string, string, error) {
@@ -431,4 +432,3 @@ func CreateUserNatsNkey() (string, string, error) {
 	}
 	return userPub, string(userSeed), nil
 }
-

@@ -8,22 +8,21 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 // ServiceBuilder encapsulates common logic for creating swarm services.
 // It uses functional options to configure the service spec.
 type ServiceBuilder struct {
-	svc dt.Service
-	sd  dt.SwarmData
+	svc pt.Service
+	sd  pt.SwarmData
 }
 
 // NewService initializes a builder with a mandatory name.
-func NewService(name string, pd *common.PlatformData, sd dt.SwarmData) *ServiceBuilder {
+func NewService(name string, pd *pt.PlatformData, sd pt.SwarmData) *ServiceBuilder {
 	return &ServiceBuilder{
-		svc: dt.Service{
+		svc: pt.Service{
 			Name: name,
 			Annotations: swarm.Annotations{
 				Name: name,
@@ -251,7 +250,7 @@ func (b *ServiceBuilder) WithGlobal() *ServiceBuilder {
 	return b
 }
 
-func (b *ServiceBuilder) Build() dt.Service { return b.svc }
+func (b *ServiceBuilder) Build() pt.Service { return b.svc }
 
 func durationPtr(d time.Duration) *time.Duration {
 	return &d
@@ -259,10 +258,10 @@ func durationPtr(d time.Duration) *time.Duration {
 
 // GenerateServices creates a map of services based on the platform data and swarm data.
 // It not includes nodered service
-func GenerateServices(pd *common.PlatformData, sd dt.SwarmData) map[string]dt.Service {
+func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Service {
 	messagingSystem := pd.PlatformInfo.MessagingSystem
 	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
-	services := map[string]dt.Service{
+	services := map[string]pt.Service{
 		"system-prune": SystemPruneService(pd, sd, nodeRoleMaps),
 		"traefik":      TraefikService(pd, sd, nodeRoleMaps),
 		"postgres":     PostgresService(pd, sd, nodeRoleMaps),
@@ -315,4 +314,64 @@ func GenerateServices(pd *common.PlatformData, sd dt.SwarmData) map[string]dt.Se
 	return services
 }
 
+func CreateNriServices(pd *pt.PlatformData, dc *pt.DockerClient, sd pt.SwarmData) map[string]pt.Service {
+	nriServices := make(map[string]pt.Service)
 
+	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
+	var nriConstraintsArray []string
+	nriResources := &swarm.ResourceRequirements{
+		Limits: &swarm.Limit{
+			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
+			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
+		},
+		Reservations: &swarm.Resources{
+			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
+			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
+		},
+	}
+	numSwarmNodes := len(pd.PlatformInfo.NodesData)
+	existArmArchNodes := false
+	for _, node := range pd.PlatformInfo.NodesData {
+		if node.NodeArch == "aarch64" {
+			existArmArchNodes = true
+			break
+		}
+	}
+
+	if numSwarmNodes == 1 && existArmArchNodes {
+		nriResources = &swarm.ResourceRequirements{}
+	}
+
+	for _, org := range pd.Organizations {
+		if numSwarmNodes == 1 {
+			nriConstraintsArray = []string{
+				"node.role==manager",
+			}
+		} else {
+			if len(org.ExclusiveWorkerNodes) != 0 {
+				nriConstraintsArray = []string{
+					"node.role==worker",
+					fmt.Sprintf("node.labels.org_hash==%s", org.OrgHash),
+				}
+			} else {
+				nriConstraintsArray = []string{
+					"node.role==worker",
+					"node.labels.generic_org_worker==true",
+				}
+			}
+		}
+
+		for _, nri := range org.NodeRedInstances {
+			nriData := pt.NriData{
+				Org:              org,
+				Nri:              nri,
+				Resources:        nriResources,
+				ConstraintsArray: nriConstraintsArray,
+			}
+			serviceName, nriService := NriService(pd, sd, nodeRoleMaps, nriData)
+			nriServices[serviceName] = nriService
+		}
+	}
+
+	return nriServices
+}

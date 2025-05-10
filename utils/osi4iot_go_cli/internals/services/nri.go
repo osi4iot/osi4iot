@@ -6,19 +6,17 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-
-func NriService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps, nriData dt.NriData) dt.Service {
+func NriService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps, nriData pt.NriData) (serviceName string, service pt.Service) {
 	orgAcronym := nriData.Org.OrgAcronym
 	orgAcronymLower := strings.ToLower(orgAcronym)
 	messagingSystem := pd.PlatformInfo.MessagingSystem
 
 	nriHash := nriData.Nri.NriHash
-	serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
+	serviceName = fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
 	volumeName := fmt.Sprintf("%s_data", serviceName)
 	nodeRedInstanceHashPath := fmt.Sprintf("nodered_%s", nriHash)
 	mqttClientCert := fmt.Sprintf("%s_%s_cert", orgAcronymLower, nriHash)
@@ -117,7 +115,7 @@ func NriService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources
 		secrets = append(secrets, natsSecrets...)
 	}
 
-	return NewService(serviceName, pd, sd).
+	return serviceName, NewService(serviceName, pd, sd).
 		WithImage("ghcr.io/osi4iot/nodered_instance_nats:1.3.0").
 		WithAnnotationsLabels(annotationsLabels).
 		WithSecrets(secrets).

@@ -1,7 +1,7 @@
 package resources
 
 import (
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 type NodesRoleMaps struct {
@@ -10,7 +10,7 @@ type NodesRoleMaps struct {
 	RoleNanoCPUsMap    map[string]int64
 }
 
-func NewNodeRoleMaps(pd *common.PlatformData) NodesRoleMaps {
+func NewNodeRoleMaps(pd *pt.PlatformData) NodesRoleMaps {
 	nodeRoleMaps := NodesRoleMaps{
 		NodeRoleNumMap:     getNodeRoleNumMap(pd),
 		RoleMemoryBytesMap: getNodeMemoryBytesMap(pd),
@@ -20,8 +20,7 @@ func NewNodeRoleMaps(pd *common.PlatformData) NodesRoleMaps {
 	return nodeRoleMaps
 }
 
-
-func getNodeRoleNumMap(platformData *common.PlatformData) map[string]int {
+func getNodeRoleNumMap(platformData *pt.PlatformData) map[string]int {
 	roleNumMap := make(map[string]int)
 	roleNumMap["Manager"] = 0
 	roleNumMap["Platform worker"] = 0
@@ -49,7 +48,7 @@ func getNodeRoleNumMap(platformData *common.PlatformData) map[string]int {
 	return roleNumMap
 }
 
-func getNodeNanoCpusMap(platformData *common.PlatformData) map[string]int64 {
+func getNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 	roleNanoCpusMap := make(map[string]int64)
 	roleNanoCpusMap["Manager"] = 0
 	roleNanoCpusMap["Platform worker"] = 0
@@ -103,7 +102,7 @@ func getNodeNanoCpusMap(platformData *common.PlatformData) map[string]int64 {
 	return roleNanoCpusMap
 }
 
-func getNodeMemoryBytesMap(platformData *common.PlatformData) map[string]int64 {
+func getNodeMemoryBytesMap(platformData *pt.PlatformData) map[string]int64 {
 	roleMemoryBytesMap := make(map[string]int64)
 	roleMemoryBytesMap["Manager"] = 0
 	roleMemoryBytesMap["Platform worker"] = 0
@@ -389,7 +388,3 @@ func GiveReplicsPtr(serviceName string, nodeRoleMaps NodesRoleMaps) *uint64 {
 	}
 	return &replics
 }
-
-
-
-

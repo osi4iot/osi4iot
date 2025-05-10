@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/data"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/docker"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
@@ -37,7 +37,7 @@ func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
 		if currentNumNodes != 0 {
 			iniNode = currentNumNodes + 1
 		}
-		defaultNodeData := common.NodeData{}
+		defaultNodeData := types.NodeData{}
 		for inode := iniNode; inode <= numNodes; inode++ {
 			if len(platformData.PlatformInfo.NodesData) >= inode {
 				defaultNodeData = platformData.PlatformInfo.NodesData[inode-1]
@@ -533,7 +533,7 @@ func copyKeyInNode(m *Model) (submissionResultMsg, error) {
 			return submissionResultMsg(msg), nil
 		}
 
-		nodeData := common.NodeData{
+		nodeData := types.NodeData{
 			NodeHostName: hostName,
 			NodeIP:       ip,
 			NodeUserName: userName,
@@ -605,7 +605,6 @@ func addNumNatsClusterNodesQuestions(index int, m *Model) {
 	}
 }
 
-
 func createPlatform(m *Model) (platformCreatingMsg, error) {
 	platformData := data.GetData()
 	areAllQuestionsOK := true
@@ -627,8 +626,8 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 		orgAcronym := platformData.PlatformInfo.MainOrganizationAcronym
 		numNriInMainOrg := platformData.PlatformInfo.NumberOfNodeRedInstancesInMainOrg
 		exclusiveWorkerNodes := []string{}
-		noderedInstances := make([]common.NodeRedInstance, numNriInMainOrg)
-		organization := common.Organization{
+		noderedInstances := make([]types.NodeRedInstance, numNriInMainOrg)
+		organization := types.Organization{
 			OrgHash:              orgHash,
 			OrgAcronym:           orgAcronym,
 			ExclusiveWorkerNodes: exclusiveWorkerNodes,
@@ -642,17 +641,17 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 			if err != nil {
 				return platformCreatingMsg("Error: generating NATS Nkey pair for " + nriUserName), err
 			}
-			nriNatsCerts := common.NriNatsCerts{
-				NriNkeyPublic:  nriNkeyPublic,
-				NriNkeySeed: nriNkeySeed,
+			nriNatsCerts := types.NriNatsCerts{
+				NriNkeyPublic: nriNkeyPublic,
+				NriNkeySeed:   nriNkeySeed,
 			}
-			
-			nri := common.NodeRedInstance{
-				NriHash:             nriHash,
-				NriUserName:         nriUserName,
-				NriPassword:         nriPassword,
-				NriMqttCerts:       common.NriMqttCerts{},
-				NriNatsCerts:       nriNatsCerts,
+
+			nri := types.NodeRedInstance{
+				NriHash:      nriHash,
+				NriUserName:  nriUserName,
+				NriPassword:  nriPassword,
+				NriMqttCerts: types.NriMqttCerts{},
+				NriNatsCerts: nriNatsCerts,
 			}
 			organization.NodeRedInstances[idx] = nri
 		}
@@ -728,9 +727,9 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 			return platformCreatingMsg("Error: creating nats certs"), err
 		}
 	}
-	
+
 	deployLocation := platformData.PlatformInfo.DeploymentLocation
-	nodesData := []common.NodeData{}
+	nodesData := []types.NodeData{}
 	numNodes := platformData.PlatformInfo.NumberOfSwarmNodes
 	if deployLocation == "Local deployment" {
 		localNodeData, err := GetLocalNodeData()
@@ -754,30 +753,30 @@ func createPlatform(m *Model) (platformCreatingMsg, error) {
 	return platformCreatingMsg("osi4iot_state.json file created successfully"), nil
 }
 
-func GetLocalNodeData() (common.NodeData, error) {
+func GetLocalNodeData() (types.NodeData, error) {
 	hostname, err := os.Hostname()
 	if err != nil {
-		return common.NodeData{}, err
+		return types.NodeData{}, err
 	}
 
 	usr, err := user.Current()
 	if err != nil {
-		return common.NodeData{}, err
+		return types.NodeData{}, err
 	}
 
 	cmd := exec.Command("uname", "-m")
 	output, err := cmd.Output()
 	if err != nil {
-		return common.NodeData{}, err
+		return types.NodeData{}, err
 	}
 	nodeArch := strings.TrimSpace(string(output))
 
 	localIP, err := utils.GetLocalNodeIP()
 	if err != nil {
-		return common.NodeData{}, fmt.Errorf("error getting local node IP: %v", err)
+		return types.NodeData{}, fmt.Errorf("error getting local node IP: %v", err)
 	}
 
-	nodeData := common.NodeData{
+	nodeData := types.NodeData{
 		NodeHostName: hostname,
 		NodeIP:       localIP,
 		NodeUserName: usr.Username,
@@ -800,11 +799,11 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 	numNriInOrg, _ := strconv.Atoi(m.FindAnswerByKey("NUMBER_OF_NODERED_INSTANCES_IN_ORG"))
 	nriHashes := make([]string, numNriInOrg)
 
-	newOrg := common.Organization{
+	newOrg := types.Organization{
 		OrgHash:              orgHash,
 		OrgAcronym:           orgAcronym,
 		ExclusiveWorkerNodes: []string{},
-		NodeRedInstances:     []common.NodeRedInstance{},
+		NodeRedInstances:     []types.NodeRedInstance{},
 	}
 	for idx := 0; idx < numNriInOrg; idx++ {
 		nriHash := utils.GeneratePassword(10)
@@ -815,17 +814,17 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 		if err != nil {
 			return creatingOrgMsg("Error: generating NATS Nkey pair"), err
 		}
-		nriNatsCerts := common.NriNatsCerts{
-			NriNkeyPublic:  nriNkeyPublic,
-			NriNkeySeed: nriNkeySeed,
+		nriNatsCerts := types.NriNatsCerts{
+			NriNkeyPublic: nriNkeyPublic,
+			NriNkeySeed:   nriNkeySeed,
 		}
-		
-		nri := common.NodeRedInstance{
-			NriHash:             nriHash,
-			NriUserName:         nriUserName,
-			NriPassword:         nriPassword,
-			NriMqttCerts:       common.NriMqttCerts{},
-			NriNatsCerts:       nriNatsCerts,
+
+		nri := types.NodeRedInstance{
+			NriHash:      nriHash,
+			NriUserName:  nriUserName,
+			NriPassword:  nriPassword,
+			NriMqttCerts: types.NriMqttCerts{},
+			NriNatsCerts: nriNatsCerts,
 		}
 		newOrg.NodeRedInstances = append(newOrg.NodeRedInstances, nri)
 	}

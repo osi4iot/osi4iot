@@ -4,11 +4,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 )
 
-var Data *common.PlatformData = &common.PlatformData{}
+var Data *pt.PlatformData = &pt.PlatformData{}
 
 type PlatformStatus int
 
@@ -130,7 +130,7 @@ func SetData(key string, value string) {
 		numberOfNodes, _ := strconv.Atoi(value)
 		Data.PlatformInfo.NumberOfSwarmNodes = numberOfNodes
 		if len(Data.PlatformInfo.NodesData) == 0 {
-			Data.PlatformInfo.NodesData = make([]common.NodeData, numberOfNodes)
+			Data.PlatformInfo.NodesData = make([]pt.NodeData, numberOfNodes)
 		}
 	case "S3_BUCKET_TYPE":
 		Data.PlatformInfo.S3BucketType = value
@@ -239,7 +239,7 @@ func SetData(key string, value string) {
 	firstWord := keyWords[0]
 	if firstWord == "Node" && len(keyWords) > 2 {
 		nodeIndex, _ := strconv.Atoi(keyWords[1])
-		nodeData := common.NodeData{}
+		nodeData := pt.NodeData{}
 		if len(Data.PlatformInfo.NodesData) == nodeIndex {
 			Data.PlatformInfo.NodesData = append(Data.PlatformInfo.NodesData, nodeData)
 		}
@@ -260,7 +260,7 @@ func SetData(key string, value string) {
 	}
 }
 
-func SetNodesData(nodesData []common.NodeData) {
+func SetNodesData(nodesData []pt.NodeData) {
 	Data.PlatformInfo.NodesData = nodesData
 }
 
@@ -272,6 +272,6 @@ func GetPlatformState() PlatformStatus {
 	return PlatformState
 }
 
-func GetData() *common.PlatformData {
+func GetData() *pt.PlatformData {
 	return Data
 }

@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
+	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -60,7 +60,7 @@ func PublicKeyFile(file string) ssh.AuthMethod {
 	return ssh.PublicKeys(key)
 }
 
-func giveSshPrivateKeyPath(platformData *common.PlatformData) string {
+func giveSshPrivateKeyPath(platformData *types.PlatformData) string {
 	sshPrivateKeyPath := platformData.PlatformInfo.SshPrivKeyPath
 	if sshPrivateKeyPath == "" {
 		sshPrivateKeyPath = "./.osi4iot_keys/osi4iot_key"
@@ -69,7 +69,7 @@ func giveSshPrivateKeyPath(platformData *common.PlatformData) string {
 	return sshPrivateKeyPath
 }
 
-func giveSshPublicKeyPath(platformData *common.PlatformData) string {
+func giveSshPublicKeyPath(platformData *types.PlatformData) string {
 	sshPublicKey := platformData.PlatformInfo.SshPubKeyPath
 	if sshPublicKey == "" {
 		sshPublicKey = "./.osi4iot_keys/osi4iot_key.pub"
@@ -78,7 +78,7 @@ func giveSshPublicKeyPath(platformData *common.PlatformData) string {
 	return sshPublicKey
 }
 
-func CreateKeyPair(platformData *common.PlatformData) error {
+func CreateKeyPair(platformData *types.PlatformData) error {
 	if platformData.PlatformInfo.SshPrivKey == "" && platformData.PlatformInfo.SshPubKey == "" {
 		sshPrivateKeyPath := giveSshPrivateKeyPath(platformData)
 		existsSshPrivateKeyFile := FileExists(sshPrivateKeyPath)
@@ -158,7 +158,7 @@ func generatePublicKey(privatekey *rsa.PublicKey) ([]byte, error) {
 	return pubKeyBytes, nil
 }
 
-func CopyKeyInNode(nodeData common.NodeData, publicKey string) error {
+func CopyKeyInNode(nodeData types.NodeData, publicKey string) error {
 	sshConfig := configWithPassword(nodeData.NodeUserName, nodeData.NodePassword)
 	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
 	if err != nil {
@@ -194,33 +194,33 @@ fi
 	return nil
 }
 
-func executeScriptOnRemoteHost(nodeData common.NodeData, privateKey, script string, args ...string) (string, error) {
-    sshConfig := SshConfigWithKey(nodeData.NodeUserName, privateKey)
-    client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
-    if err != nil {
-        return "", fmt.Errorf("error connecting to remote host: %w", err)
-    }
-    defer client.Close()
+func executeScriptOnRemoteHost(nodeData types.NodeData, privateKey, script string, args ...string) (string, error) {
+	sshConfig := SshConfigWithKey(nodeData.NodeUserName, privateKey)
+	client, err := ssh.Dial("tcp", nodeData.NodeIP+":22", sshConfig)
+	if err != nil {
+		return "", fmt.Errorf("error connecting to remote host: %w", err)
+	}
+	defer client.Close()
 
-    session, err := client.NewSession()
-    if err != nil {
-        return "", fmt.Errorf("error creating SSH session: %w", err)
-    }
-    defer session.Close()
+	session, err := client.NewSession()
+	if err != nil {
+		return "", fmt.Errorf("error creating SSH session: %w", err)
+	}
+	defer session.Close()
 
-    cmdStr := fmt.Sprintf("bash -s %s", strings.Join(args, " "))
-    
-    session.Stdin = strings.NewReader(script)
-    
-    output, err := session.CombinedOutput(cmdStr)
-    if err != nil {
-        return "", fmt.Errorf("error executing remote script: %w\nOutput: %s", err, output)
-    }
-    
-    return string(output), nil
+	cmdStr := fmt.Sprintf("bash -s %s", strings.Join(args, " "))
+
+	session.Stdin = strings.NewReader(script)
+
+	output, err := session.CombinedOutput(cmdStr)
+	if err != nil {
+		return "", fmt.Errorf("error executing remote script: %w\nOutput: %s", err, output)
+	}
+
+	return string(output), nil
 }
 
-func readSshPrivateKeyFromFile(platformData *common.PlatformData) (string,error) {
+func readSshPrivateKeyFromFile(platformData *types.PlatformData) (string, error) {
 	sshPrivateKeyPath := giveSshPrivateKeyPath(platformData)
 	keyBytes, err := os.ReadFile(sshPrivateKeyPath)
 	if err != nil {
@@ -230,7 +230,7 @@ func readSshPrivateKeyFromFile(platformData *common.PlatformData) (string,error)
 	return string(keyBytes), nil
 }
 
-func readSshPublicKeyFromFile(platformData *common.PlatformData) (string,error) {
+func readSshPublicKeyFromFile(platformData *types.PlatformData) (string, error) {
 	sshPublicKeyPath := giveSshPublicKeyPath(platformData)
 	keyBytes, err := os.ReadFile(sshPublicKeyPath)
 	if err != nil {
@@ -240,7 +240,7 @@ func readSshPublicKeyFromFile(platformData *common.PlatformData) (string,error) 
 	return string(keyBytes), nil
 }
 
-func giveAwsSshKeyPath(platformData *common.PlatformData) string {
+func giveAwsSshKeyPath(platformData *types.PlatformData) string {
 	awsSshKeyPath := platformData.PlatformInfo.AwsSshKeyPath
 	if awsSshKeyPath == "" {
 		awsSshKeyPath = "./.osi4iot_keys/aws_ssh_key.pem"
@@ -249,7 +249,7 @@ func giveAwsSshKeyPath(platformData *common.PlatformData) string {
 	return awsSshKeyPath
 }
 
-func readAwsSshKeyFromFile(platformData *common.PlatformData) (string,error) {
+func readAwsSshKeyFromFile(platformData *types.PlatformData) (string, error) {
 	awsSshKeyPath := giveAwsSshKeyPath(platformData)
 	keyBytes, err := os.ReadFile(awsSshKeyPath)
 	if err != nil {
@@ -259,7 +259,7 @@ func readAwsSshKeyFromFile(platformData *common.PlatformData) (string,error) {
 	return string(keyBytes), nil
 }
 
-func GetSshPrivKey(platformData *common.PlatformData) (string, error) {
+func GetSshPrivKey(platformData *types.PlatformData) (string, error) {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	sshPrivKey := ""
 	var err error
@@ -296,7 +296,7 @@ func GetSshPrivKey(platformData *common.PlatformData) (string, error) {
 	return sshPrivKey, nil
 }
 
-func GetSshPrivKeyLocalPath(platformData *common.PlatformData) string {
+func GetSshPrivKeyLocalPath(platformData *types.PlatformData) string {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	sshPrivKeyPath := ""
 	if deploymentLocation == "On-premise cluster deployment" {
@@ -308,7 +308,7 @@ func GetSshPrivKeyLocalPath(platformData *common.PlatformData) string {
 	return sshPrivKeyPath
 }
 
-func CreateSshPrivKeyTempFile(platformData *common.PlatformData) (*os.File, error) {
+func CreateSshPrivKeyTempFile(platformData *types.PlatformData) (*os.File, error) {
 	sshPrivateKey, err := GetSshPrivKey(platformData)
 	if err != nil {
 		return nil, fmt.Errorf("error getting SSH private key: %w", err)
@@ -327,7 +327,6 @@ func CreateSshPrivKeyTempFile(platformData *common.PlatformData) (*os.File, erro
 	if err := tempFile.Close(); err != nil {
 		return nil, fmt.Errorf("error closing temporary file: %w", err)
 	}
-
 
 	return tempFile, nil
 }

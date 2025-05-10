@@ -5,12 +5,11 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
+	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func AdminApiService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
+func AdminApiService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
 	adminApiRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/admin_api/`)", domainName)
@@ -117,7 +116,6 @@ func AdminApiService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps reso
 			"node.role==manager",
 		}
 	}
-
 
 	return NewService("admin_api", pd, sd).
 		WithImage("ghcr.io/osi4iot/admin_api_nats:1.3.0").
