@@ -12,12 +12,13 @@ import (
 
 func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 	Volumes := make(map[string]pt.Volume)
+	pi := platformData.PlatformInfo
 
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	deploymentMode := platformData.PlatformInfo.DeploymentMode
-	s3BucketType := platformData.PlatformInfo.S3BucketType
-	domainCertsType := platformData.PlatformInfo.DomainCertsType
-	messagingSystem := platformData.PlatformInfo.MessagingSystem
+	deploymentLocation := pi.DeploymentLocation
+	deploymentMode := pi.DeploymentMode
+	s3BucketType := pi.S3BucketType
+	domainCertsType := pi.DomainCertsType
+	messagingSystem := pi.MessagingSystem
 
 	if domainCertsType[0:19] == "Let's encrypt certs" {
 		Volumes["letsencrypt"] = pt.Volume{
@@ -109,7 +110,7 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		}
 	}
 
-	nodesData := platformData.PlatformInfo.NodesData
+	nodesData := pi.NodesData
 	if deploymentLocation == "On-premise cluster deployment" && len(nodesData) > 1 {
 		nfsServerIP := ""
 		for _, node := range nodesData {
@@ -233,7 +234,7 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			}
 		}
 	} else if deploymentLocation == "AWS cluster deployment" && len(nodesData) > 1 {
-		awsEfsDNS := platformData.PlatformInfo.AwsEfsDNS
+		awsEfsDNS := pi.AwsEfsDNS
 		driverOptsO := fmt.Sprintf("addr=%s,nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport", awsEfsDNS)
 
 		if domainCertsType[0:19] == "Let's encrypt certs" {

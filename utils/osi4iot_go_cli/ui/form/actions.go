@@ -880,7 +880,7 @@ func createOrg(m *Model) (creatingOrgMsg, error) {
 		return creatingOrgMsg("Error: adding EFS folders on nodes"), err
 	}
 
-	err = docker.CreateNriServicesForOrg(newOrg, platformData)
+	err = docker.CreateNriSwarmServicesForOrg(platformData, newOrg)
 	if err != nil {
 		return creatingOrgMsg("Error: creating NodeRed instances services"), err
 	}

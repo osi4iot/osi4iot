@@ -54,6 +54,8 @@ type KeyMap struct {
 
 func (m *Model) validateAnswer(qIdx int) (bool, string) {
 	platformData := data.GetData()
+	pi := platformData.PlatformInfo
+	picerts := platformData.Certs
 	q := m.Questions[qIdx]
 	dataMap := make(map[string]string)
 	if qIdx > 0 && len(m.Questions[qIdx-1].Rules) > 0 {
@@ -73,23 +75,23 @@ func (m *Model) validateAnswer(qIdx int) (bool, string) {
 		if slices.Contains(m.Questions[qIdx].Rules, "fileOrFieldExists") {
 			key := m.Questions[qIdx].Key
 			if key == "MAIN_ORGANIZATION_BUILDING_PATH" {
-				mainOrgBuilding := platformData.PlatformInfo.MainOrganizationBuilding
+				mainOrgBuilding := pi.MainOrganizationBuilding
 				dataMap[q.Prompt] = mainOrgBuilding
 			} else if key == "MAIN_ORGANIZATION_FLOOR_PATH" {
-				dataMap[q.Prompt] =  platformData.PlatformInfo.MainOrganizationFirstFloor
+				dataMap[q.Prompt] =  pi.MainOrganizationFirstFloor
 			} else if key == "DOMAIN_SSL_PRIVATE_KEY_PATH" {
-				dataMap[q.Prompt] = platformData.Certs.DomainCerts.PrivateKey
+				dataMap[q.Prompt] = picerts.DomainCerts.PrivateKey
 			} else if key == "DOMAIN_SSL_CA_PEM_PATH" {
-				dataMap[q.Prompt] = platformData.Certs.DomainCerts.SslCaPem
+				dataMap[q.Prompt] = picerts.DomainCerts.SslCaPem
 			} else if key == "DOMAIN_SSL_CERT_CRT_PATH" {
-				dataMap[q.Prompt] = platformData.Certs.DomainCerts.SslCertCrt
+				dataMap[q.Prompt] = picerts.DomainCerts.SslCertCrt
 			} else if key == "AWS_SSH_KEY_PATH" {
-				dataMap[q.Prompt] = platformData.PlatformInfo.AwsSshKey
+				dataMap[q.Prompt] = pi.AwsSshKey
 			} else if key == "SSH_PRIVATE_KEY_PATH" {
-				dataMap[q.Prompt] = platformData.PlatformInfo.SshPrivKey
+				dataMap[q.Prompt] = pi.SshPrivKey
 			} else if key == "SSH_PUBLIC_KEY_PATH" {
-				dataMap[q.Prompt] = platformData.PlatformInfo.SshPubKey
-			} 
+				dataMap[q.Prompt] = pi.SshPubKey
+			}
 		}
 	}
 	return validation.Run(q.Answer, q.Prompt, q.Rules, dataMap)

@@ -6,9 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/networks"
-	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/secrets"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/services"
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
@@ -76,7 +74,6 @@ func createNriSwarmSecrets(dc *pt.DockerClient, platformData *pt.PlatformData, o
 }
 
 func CreateNriSwarmServices(pd *pt.PlatformData, dc *pt.DockerClient) error {
-
 	nriNetworks := networks.GenerateNetworks(pd)
 
 	nriVolumes := make(map[string]pt.Volume)
@@ -118,66 +115,22 @@ func CreateNriSwarmServices(pd *pt.PlatformData, dc *pt.DockerClient) error {
 	return nil
 }
 
-func CreateNriServicesForOrg(newOrg pt.Organization, pd *pt.PlatformData) error {
+func CreateNriSwarmServicesForOrg(pd *pt.PlatformData, org pt.Organization) error {
 	dc, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
 	}
-
-	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
-	var nriConstraintsArray []string
-	nriResources := &swarm.ResourceRequirements{
-		Limits: &swarm.Limit{
-			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
-			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
-		},
-		Reservations: &swarm.Resources{
-			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
-			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
-		},
-	}
-	numSwarmNodes := len(pd.PlatformInfo.NodesData)
-	existArmArchNodes := false
-	for _, node := range pd.PlatformInfo.NodesData {
-		if node.NodeArch == "aarch64" {
-			existArmArchNodes = true
-			break
-		}
-	}
-
-	if numSwarmNodes == 1 && existArmArchNodes {
-		nriResources = &swarm.ResourceRequirements{}
-	}
-
-	if numSwarmNodes == 1 {
-		nriConstraintsArray = []string{
-			"node.role==manager",
-		}
-	} else {
-		if len(newOrg.ExclusiveWorkerNodes) != 0 {
-			nriConstraintsArray = []string{
-				"node.role==worker",
-				fmt.Sprintf("node.labels.org_hash==%s", newOrg.OrgHash),
-			}
-		} else {
-			nriConstraintsArray = []string{
-				"node.role==worker",
-				"node.labels.generic_org_worker==true",
-			}
-		}
-	}
-
-	nriVolumesMap, err := createNriSwarmVolumes(pd, newOrg)
-	if err != nil {
-		return err
-	}
-
-	nriSecrets, err := createNriSwarmSecrets(dc, pd, newOrg)
-	if err != nil {
-		return err
-	}
-
 	nriNetworks := networks.GenerateNetworks(pd)
+
+	nriVolumesMap, err := createNriSwarmVolumes(pd, org)
+	if err != nil {
+		return err
+	}
+
+	nriSecrets, err := createNriSwarmSecrets(dc, pd, org)
+	if err != nil {
+		return err
+	}
 
 	swarmData := pt.SwarmData{
 		Configs:  nil,
@@ -186,24 +139,17 @@ func CreateNriServicesForOrg(newOrg pt.Organization, pd *pt.PlatformData) error 
 		Networks: nriNetworks,
 	}
 
-	for _, nri := range newOrg.NodeRedInstances {
-		nriData := pt.NriData{
-			Org:              newOrg,
-			Nri:              nri,
-			Resources:        nriResources,
-			ConstraintsArray: nriConstraintsArray,
-		}
-		_, nriService := services.NriService(pd, swarmData, nodeRoleMaps, nriData)
-		err := CreateSwarmService(dc, nriService)
+	nriServices := services.CreateNriServices(pd, dc, swarmData)
+	for key, service := range nriServices {
+		err := CreateSwarmService(dc, service)
 		if err != nil {
-			return err
+			return fmt.Errorf("error creating service %s: %v", key, err)
 		}
 	}
-
 	return nil
 }
 
-func RemoveNriServices(org pt.Organization) error {
+func RemoveNriSwarmServicesInOrg(org pt.Organization) error {
 	dc, err := GetManagerDC()
 	if err != nil {
 		return fmt.Errorf("error getting docker client: %v", err)
@@ -215,7 +161,7 @@ func RemoveNriServices(org pt.Organization) error {
 		servicesToRemove = append(servicesToRemove, serviceName)
 	}
 
-	err = RemoveServicesByName(dc, servicesToRemove)
+	err = RemoveSwarmServicesByName(dc, servicesToRemove)
 	if err != nil {
 		return fmt.Errorf("error removing services: %v", err)
 	}

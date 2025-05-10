@@ -43,8 +43,9 @@ func nodesConfiguration(platformData *types.PlatformData) error {
 }
 
 func installUFWOnNodes(platformData *types.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
@@ -110,7 +111,7 @@ ufw allow 2049/tcp
 sudo ufw enable
 `
 
-		nodesData := platformData.PlatformInfo.NodesData
+		nodesData := pi.NodesData
 		nodeSripts := []utils.NodeScript{}
 		for _, node := range nodesData {
 			var nodeScript utils.NodeScript
@@ -154,15 +155,16 @@ sudo ufw enable
 }
 
 func installNFS(platformData *types.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Intalling NFS"
 		endMsg := "NFS installed successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := platformData.PlatformInfo.NodesData
+		nodesData := pi.NodesData
 		nfsNode := types.NodeData{}
 		for _, node := range nodesData {
 			if node.NodeRole == "NFS server" {
@@ -272,15 +274,16 @@ sudo systemctl restart nfs-kernel-server
 }
 
 func AddNFSFolders(platformData *types.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Adding NFS folders."
 		endMsg := "NFS folders added successfully."
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := platformData.PlatformInfo.NodesData
+		nodesData := pi.NodesData
 		nfsNode := types.NodeData{}
 		for _, node := range nodesData {
 			if node.NodeRole == "NFS server" {
@@ -332,15 +335,16 @@ sudo systemctl restart nfs-kernel-server
 }
 
 func RemoveNfsFolders(platformData *types.PlatformData, orgAcronym string) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := fmt.Sprintf("Removing NFS folders for organization %s", orgAcronym)
 		endMsg := fmt.Sprintf("NFS folders removed successfully for organization %s", orgAcronym)
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := platformData.PlatformInfo.NodesData
+		nodesData := pi.NodesData
 		nfsNode := types.NodeData{}
 		for _, node := range nodesData {
 			if node.NodeRole == "NFS server" {
@@ -395,15 +399,16 @@ sudo systemctl restart nfs-kernel-server
 }
 
 func installEFS(platformData *types.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Installing EFS client"
 		endMsg := "EFS client installed successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := platformData.PlatformInfo.NodesData[0]
+		nodeData := pi.NodesData[0]
 		efsScript := `#!/bin/bash
 export efs_dns=$1
 
@@ -493,15 +498,16 @@ fi
 }
 
 func AddEfsFolders(platformData *types.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Adding EFS folders for organizations"
 		endMsg := "EFS folders added successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := platformData.PlatformInfo.NodesData[0]
+		nodeData := pi.NodesData[0]
 		organizations := platformData.Organizations
 
 		addEfsFoldersScript := `#!/bin/bash
@@ -543,15 +549,16 @@ done
 }
 
 func RemoveEfsFolders(platformData *types.PlatformData, orgAcronym string) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := fmt.Sprintf("Removing EFS folders for organization %s", orgAcronym)
 		endMsg := fmt.Sprintf("EFS folders removed successfully for organization %s", orgAcronym)
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := platformData.PlatformInfo.NodesData[0]
+		nodeData := pi.NodesData[0]
 		organizations := platformData.Organizations
 		orgToRemove := types.Organization{}
 		for _, org := range organizations {
@@ -605,12 +612,13 @@ func filterOrganizations(organizations []types.Organization, nodeName string) *t
 }
 
 func addNodesLabels(platformData *types.PlatformData) error {
+	pi := platformData.PlatformInfo
 	spinnerDone := make(chan bool)
 	spinnerMsg := "Adding node labels"
 	endMsg := "Node labels added successfully"
 	utils.Spinner(spinnerMsg, endMsg, spinnerDone)
 
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
+	deploymentLocation := pi.DeploymentLocation
 	docker, err := GetManagerDC()
 	if err != nil {
 		spinnerDone <- false
@@ -623,7 +631,7 @@ func addNodesLabels(platformData *types.PlatformData) error {
 		return fmt.Errorf("error creating swarm nodes map: %w", err)
 	}
 
-	nodesData := platformData.PlatformInfo.NodesData
+	nodesData := pi.NodesData
 	numManagerNodes := 0
 	for _, node := range nodesData {
 		if node.NodeRole == "Manager" {
@@ -678,15 +686,16 @@ func addNodesLabels(platformData *types.PlatformData) error {
 }
 
 func removeEfsRootFolder(platformData *types.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "AWS cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Removing EFS root folder"
 		endMsg := "EFS root folder removed successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodeData := platformData.PlatformInfo.NodesData[0]
+		nodeData := pi.NodesData[0]
 		efsScript := `#!/bin/bash
 if [ -d /home/ubuntu/efs_osi4iot ]; then
 	sudo rm -rf /home/ubuntu/efs_osi4iot/*
@@ -711,15 +720,16 @@ fi
 }
 
 func removeNfsRootFolder(platformData *types.PlatformData) error {
-	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
-	numSwarmNodes := len(platformData.PlatformInfo.NodesData)
+	pi := platformData.PlatformInfo
+	deploymentLocation := pi.DeploymentLocation
+	numSwarmNodes := len(pi.NodesData)
 
 	if deploymentLocation == "On-premise cluster deployment" && numSwarmNodes > 1 {
 		spinnerDone := make(chan bool)
 		spinnerMsg := "Removing NFS root folder"
 		endMsg := "NFS root folder removed successfully"
 		utils.Spinner(spinnerMsg, endMsg, spinnerDone)
-		nodesData := platformData.PlatformInfo.NodesData
+		nodesData := pi.NodesData
 		nfsNode := types.NodeData{}
 		for _, node := range nodesData {
 			if node.NodeRole == "NFS server" {

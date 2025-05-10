@@ -380,7 +380,7 @@ func RemoveOrg(existingOrg *Organization) error {
 		return fmt.Errorf("error writing platform data to file: %w", err)
 	}
 
-	err = docker.RemoveNriServices(orgToRemove)
+	err = docker.RemoveNriSwarmServicesInOrg(orgToRemove)
 	if err != nil {
 		return fmt.Errorf("error removing NRI services: %w", err)
 	}

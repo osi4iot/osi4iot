@@ -525,7 +525,7 @@ func CleanResources() error {
 	return nil
 }
 
-func RemoveServicesByName(dc *pt.DockerClient, svcNamesToRemove []string) error {
+func RemoveSwarmServicesByName(dc *pt.DockerClient, svcNamesToRemove []string) error {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "app=osi4iot")
 	services, err := dc.Cli.ServiceList(dc.Ctx, types.ServiceListOptions{

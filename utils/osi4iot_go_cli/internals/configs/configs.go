@@ -12,31 +12,32 @@ import (
 )
 
 func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
+	pi := platformData.PlatformInfo
 	Configs := make(map[string]pt.Config)
-	platformName := strings.Replace(platformData.PlatformInfo.PlatformName, " ", "_", -1)
+	platformName := strings.Replace(pi.PlatformName, " ", "_", -1)
 	protocol := "https"
-	if platformData.PlatformInfo.DomainCertsType == "No certs" {
+	if pi.DomainCertsType == "No certs" {
 		protocol = "http"
 	}
-	domainCertsType := platformData.PlatformInfo.DomainCertsType
+	domainCertsType := pi.DomainCertsType
 
 	adminAPIConfigArray := []string{
 		fmt.Sprintf("PLATFORM_NAME=%s", platformName),
-		fmt.Sprintf("DOMAIN_NAME=%s", platformData.PlatformInfo.DomainName),
+		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
 		fmt.Sprintf("PROTOCOL=%s", protocol),
-		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", platformData.PlatformInfo.DeploymentLocation),
-		fmt.Sprintf("MESSAGING_SYSTEM=%s", platformData.PlatformInfo.MessagingSystem),
-		fmt.Sprintf("PLATFORM_PHRASE=\"%s\"", platformData.PlatformInfo.PlatformPhrase),
-		fmt.Sprintf("MAIN_ORGANIZATION_NAME=\"%s\"", platformData.PlatformInfo.MainOrganizationName),
-		fmt.Sprintf("MAIN_ORGANIZATION_ACRONYM=%s", platformData.PlatformInfo.MainOrganizationAcronym),
-		fmt.Sprintf("MAIN_ORGANIZATION_ADDRESS1=\"%s\"", platformData.PlatformInfo.MainOrganizationAddress1),
-		fmt.Sprintf("MAIN_ORGANIZATION_CITY=\"%s\"", platformData.PlatformInfo.MainOrganizationCity),
-		fmt.Sprintf("MAIN_ORGANIZATION_ZIP_CODE=%s", platformData.PlatformInfo.MainOrganizationZipCode),
-		fmt.Sprintf("MAIN_ORGANIZATION_STATE=\"%s\"", platformData.PlatformInfo.MainOrganizationState),
-		fmt.Sprintf("MAIN_ORGANIZATION_COUNTRY=\"%s\"", platformData.PlatformInfo.MainOrganizationCountry),
-		fmt.Sprintf("S3_BUCKET_TYPE=\"%s\"", platformData.PlatformInfo.S3BucketType),
-		fmt.Sprintf("S3_BUCKET_NAME=%s", platformData.PlatformInfo.S3BucketName),
-		fmt.Sprintf("AWS_REGION=%s", utils.AwsRegionsMap[platformData.PlatformInfo.AWSRegionS3Bucket]),
+		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", pi.DeploymentLocation),
+		fmt.Sprintf("MESSAGING_SYSTEM=%s", pi.MessagingSystem),
+		fmt.Sprintf("PLATFORM_PHRASE=\"%s\"", pi.PlatformPhrase),
+		fmt.Sprintf("MAIN_ORGANIZATION_NAME=\"%s\"", pi.MainOrganizationName),
+		fmt.Sprintf("MAIN_ORGANIZATION_ACRONYM=%s", pi.MainOrganizationAcronym),
+		fmt.Sprintf("MAIN_ORGANIZATION_ADDRESS1=\"%s\"", pi.MainOrganizationAddress1),
+		fmt.Sprintf("MAIN_ORGANIZATION_CITY=\"%s\"", pi.MainOrganizationCity),
+		fmt.Sprintf("MAIN_ORGANIZATION_ZIP_CODE=%s", pi.MainOrganizationZipCode),
+		fmt.Sprintf("MAIN_ORGANIZATION_STATE=\"%s\"", pi.MainOrganizationState),
+		fmt.Sprintf("MAIN_ORGANIZATION_COUNTRY=\"%s\"", pi.MainOrganizationCountry),
+		fmt.Sprintf("S3_BUCKET_TYPE=\"%s\"", pi.S3BucketType),
+		fmt.Sprintf("S3_BUCKET_NAME=%s", pi.S3BucketName),
+		fmt.Sprintf("AWS_REGION=%s", utils.AwsRegionsMap[pi.AWSRegionS3Bucket]),
 	}
 	adminAPIConfig := strings.Join(adminAPIConfigArray, "\n")
 	adminAPIConfigHash := utils.GetMD5Hash(adminAPIConfig)
@@ -46,7 +47,7 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 		Data: adminAPIConfig,
 	}
 
-	mainOrgBuilding := platformData.PlatformInfo.MainOrganizationBuilding
+	mainOrgBuilding := pi.MainOrganizationBuilding
 	mainOrgBuildingHash := utils.GetMD5Hash(mainOrgBuilding)
 	mainOrgBuildingName := fmt.Sprintf("main_org_building_%s", mainOrgBuildingHash)
 	Configs["main_org_building"] = pt.Config{
@@ -54,7 +55,7 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 		Data: mainOrgBuilding,
 	}
 
-	mainOrgFloor := platformData.PlatformInfo.MainOrganizationFirstFloor
+	mainOrgFloor := pi.MainOrganizationFirstFloor
 	mainOrgFloorHash := utils.GetMD5Hash(mainOrgFloor)
 	mainOrgFloorName := fmt.Sprintf("main_org_floor_%s", mainOrgFloorHash)
 	Configs["main_org_floor"] = pt.Config{
@@ -64,14 +65,14 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 
 	frontendConfigArray := []string{
 		fmt.Sprintf("PLATFORM_NAME=%s", platformName),
-		fmt.Sprintf("DOMAIN_NAME=%s", platformData.PlatformInfo.DomainName),
+		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
 		fmt.Sprintf("PROTOCOL=%s", protocol),
-		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", platformData.PlatformInfo.DeploymentLocation),
-		fmt.Sprintf("DEPLOYMENT_MODE=%s", platformData.PlatformInfo.DeploymentMode),
-		fmt.Sprintf("MIN_LONGITUDE=%f", platformData.PlatformInfo.MinLongitude),
-		fmt.Sprintf("MAX_LONGITUDE=%f", platformData.PlatformInfo.MaxLongitude),
-		fmt.Sprintf("MIN_LATITUDE=%f", platformData.PlatformInfo.MinLatitude),
-		fmt.Sprintf("MAX_LATITUDE=%f", platformData.PlatformInfo.MaxLatitude),
+		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", pi.DeploymentLocation),
+		fmt.Sprintf("DEPLOYMENT_MODE=%s", pi.DeploymentMode),
+		fmt.Sprintf("MIN_LONGITUDE=%f", pi.MinLongitude),
+		fmt.Sprintf("MAX_LONGITUDE=%f", pi.MaxLongitude),
+		fmt.Sprintf("MIN_LATITUDE=%f", pi.MinLatitude),
+		fmt.Sprintf("MAX_LATITUDE=%f", pi.MaxLatitude),
 	}
 	frontendConfig := strings.Join(frontendConfigArray, "\n")
 	frontendConfigHash := utils.GetMD5Hash(frontendConfig)
@@ -82,10 +83,10 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 	}
 
 	grafanaConfigArray := []string{
-		fmt.Sprintf("DOMAIN_NAME=%s", platformData.PlatformInfo.DomainName),
-		fmt.Sprintf("DEFAULT_TIME_ZONE=%s", platformData.PlatformInfo.DefaultTimeZone),
-		fmt.Sprintf("MAIN_ORGANIZATION_NAME=\"%s\"", platformData.PlatformInfo.MainOrganizationName),
-		fmt.Sprintf("MAIN_ORGANIZATION_ACRONYM=%s", strings.Replace(platformData.PlatformInfo.MainOrganizationAcronym, " ", "_", -1)),
+		fmt.Sprintf("DOMAIN_NAME=%s", pi.DomainName),
+		fmt.Sprintf("DEFAULT_TIME_ZONE=%s", pi.DefaultTimeZone),
+		fmt.Sprintf("MAIN_ORGANIZATION_NAME=\"%s\"", pi.MainOrganizationName),
+		fmt.Sprintf("MAIN_ORGANIZATION_ACRONYM=%s", strings.Replace(pi.MainOrganizationAcronym, " ", "_", -1)),
 	}
 	grafanaConfig := strings.Join(grafanaConfigArray, "\n")
 	grafanaConfigHash := utils.GetMD5Hash(grafanaConfig)
@@ -173,11 +174,11 @@ func GenerateConfigs(platformData *pt.PlatformData) map[string]pt.Config {
 	}
 
 	s3StorageConfigArray := []string{
-		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", platformData.PlatformInfo.DeploymentLocation),
-		fmt.Sprintf("DEFAULT_TIME_ZONE=%s", platformData.PlatformInfo.DefaultTimeZone),
-		fmt.Sprintf("S3_BUCKET_TYPE=\"%s\"", platformData.PlatformInfo.S3BucketType),
-		fmt.Sprintf("S3_BUCKET_NAME=%s", platformData.PlatformInfo.S3BucketName),
-		fmt.Sprintf("AWS_REGION=%s", utils.AwsRegionsMap[platformData.PlatformInfo.AWSRegionS3Bucket]),
+		fmt.Sprintf("DEPLOYMENT_LOCATION=\"%s\"", pi.DeploymentLocation),
+		fmt.Sprintf("DEFAULT_TIME_ZONE=%s", pi.DefaultTimeZone),
+		fmt.Sprintf("S3_BUCKET_TYPE=\"%s\"", pi.S3BucketType),
+		fmt.Sprintf("S3_BUCKET_NAME=%s", pi.S3BucketName),
+		fmt.Sprintf("AWS_REGION=%s", utils.AwsRegionsMap[pi.AWSRegionS3Bucket]),
 	}
 	s3StorageConfig := strings.Join(s3StorageConfigArray, "\n")
 	s3StorageConfigHash := utils.GetMD5Hash(s3StorageConfig)
