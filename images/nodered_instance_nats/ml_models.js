@@ -245,6 +245,10 @@ class MLModels {
 
     async loadMlModelsFromFileSystem(pyodide) {
         this.pyodide = pyodide;
+        
+        if (!fs.existsSync("/data/ml_models")) {
+            fs.mkdirSync("/data/ml_models", { recursive: true });
+        }
 
         const MLM_Refs = fs.readdirSync("/data/ml_models", { withFileTypes: true })
             .filter(dirent => dirent.isDirectory())

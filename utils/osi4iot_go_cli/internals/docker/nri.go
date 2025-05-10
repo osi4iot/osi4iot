@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/networks"
@@ -17,146 +16,6 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/volumes"
 )
-
-type NriData struct {
-	org              common.Organization
-	nri              common.NodeRedInstance
-	resources        *swarm.ResourceRequirements
-	constraintsArray []string
-}
-
-func NriService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps, nriData NriData) dt.Service {
-	orgAcronym := nriData.org.OrgAcronym
-	orgAcronymLower := strings.ToLower(orgAcronym)
-	messagingSystem := pd.PlatformInfo.MessagingSystem
-
-	nriHash := nriData.nri.NriHash
-	serviceName := fmt.Sprintf("org_%s_nri_%s", orgAcronymLower, nriHash)
-	volumeName := fmt.Sprintf("%s_data", serviceName)
-	nodeRedInstanceHashPath := fmt.Sprintf("nodered_%s", nriHash)
-	mqttClientCert := fmt.Sprintf("%s_%s_cert", orgAcronymLower, nriHash)
-	mqttClientKey := fmt.Sprintf("%s_%s_key", orgAcronymLower, nriHash)
-	nriNatsSecretsKey := fmt.Sprintf("%s_%s_nats", orgAcronymLower, nriHash)
-
-	domainName := pd.PlatformInfo.DomainName
-
-	annotationsLabels := map[string]string{
-		"service_type":   "nodered_instance",
-		"traefik.enable": "true",
-		fmt.Sprintf("traefik.http.routers.%s.rule", serviceName): fmt.Sprintf(
-			"Host(`%s`) && PathPrefix(`/%s/`)",
-			domainName,
-			nodeRedInstanceHashPath,
-		),
-		fmt.Sprintf("traefik.http.middlewares.%s-prefix.stripprefix.prefixes", serviceName): fmt.Sprintf(
-			"/%s",
-			nodeRedInstanceHashPath,
-		),
-		fmt.Sprintf("traefik.http.routers.%s.middlewares", serviceName): fmt.Sprintf(
-			"%s-prefix,%s-header,%s-redirectregex",
-			serviceName,
-			serviceName,
-			serviceName,
-		),
-		fmt.Sprintf("traefik.http.middlewares.%s-prefix.stripprefix.forceslash", serviceName): "false",
-		fmt.Sprintf("traefik.http.middlewares.%s-header.headers.customrequestheaders.X-Script-Name", serviceName): fmt.Sprintf(
-			"/%s/",
-			nodeRedInstanceHashPath,
-		),
-		fmt.Sprintf("traefik.http.middlewares.%s-redirectregex.redirectregex.regex", serviceName): fmt.Sprintf(
-			"%s/(%s*)",
-			domainName,
-			nodeRedInstanceHashPath,
-		),
-		fmt.Sprintf("traefik.http.middlewares.%s-redirectregex.redirectregex.replacement", serviceName): fmt.Sprintf(
-			"%s/$${1}",
-			domainName,
-		),
-		fmt.Sprintf("traefik.http.routers.%s.entrypoints", serviceName):               "websecure",
-		fmt.Sprintf("traefik.http.routers.%s.tls", serviceName):                       "true",
-		fmt.Sprintf("traefik.http.routers.%s.tls.certresolver", serviceName):          "",
-		fmt.Sprintf("traefik.http.routers.%s.service", serviceName):                   serviceName,
-		fmt.Sprintf("traefik.http.services.%s.loadbalancer.server.port", serviceName): "1880",
-	}
-
-	secrets := []*swarm.SecretReference{}
-	if messagingSystem == "mqtt" {
-		mqttSecrets := []*swarm.SecretReference{
-			{
-				File: &swarm.SecretReferenceFileTarget{
-					Name: "/data/certs/ca.crt",
-					UID:  "0",
-					GID:  "0",
-					Mode: 0444,
-				},
-				SecretID:   sd.Secrets["mqtt_certs_ca_cert"].ID,
-				SecretName: sd.Secrets["mqtt_certs_ca_cert"].Name,
-			},
-			{
-				File: &swarm.SecretReferenceFileTarget{
-					Name: "/data/certs/client.crt",
-					UID:  "0",
-					GID:  "0",
-					Mode: 0444,
-				},
-				SecretID:   sd.Secrets[mqttClientCert].ID,
-				SecretName: sd.Secrets[mqttClientCert].Name,
-			},
-			{
-				File: &swarm.SecretReferenceFileTarget{
-					Name: "/data/certs/client.key",
-					UID:  "0",
-					GID:  "0",
-					Mode: 0444,
-				},
-				SecretID:   sd.Secrets[mqttClientKey].ID,
-				SecretName: sd.Secrets[mqttClientKey].Name,
-			},
-		}
-		secrets = append(secrets, mqttSecrets...)
-	} else if messagingSystem == "nats" {
-		natsSecrets := []*swarm.SecretReference{
-			{
-				File: &swarm.SecretReferenceFileTarget{
-					Name: "/data/certs/nri_credentials",
-					UID:  "0",
-					GID:  "0",
-					Mode: 0444,
-				},
-				SecretID:   sd.Secrets[nriNatsSecretsKey].ID,
-				SecretName: sd.Secrets[nriNatsSecretsKey].Name,
-			},
-		}
-		secrets = append(secrets, natsSecrets...)
-	}
-
-	return services.NewService(serviceName, pd, sd).
-		WithImage("ghcr.io/osi4iot/nodered_instance_nats:1.3.0").
-		WithAnnotationsLabels(annotationsLabels).
-		WithSecrets(secrets).
-		WithEnv([]string{
-			fmt.Sprintf("NODERED_INSTANCE_HASH=%s", nriHash),
-			fmt.Sprintf("MESSAGING_SYSTEM=%s", messagingSystem),
-		}).
-		WithMounts([]mount.Mount{
-			{
-				Type:   mount.TypeVolume,
-				Source: sd.Volumes[volumeName].Name,
-				Target: "/data",
-			},
-		}).
-		WithResources(
-			resources.CPUs("nodered_instance", nodeRoleMaps),
-			resources.Memory("nodered_instance", nodeRoleMaps),
-		).
-		WithPlacement(nriData.constraintsArray).
-		WithModeReplicated(resources.GiveReplicsPtr("nodered_instance", nodeRoleMaps)).
-		WithNetworks([]swarm.NetworkAttachmentConfig{
-			{Target: sd.Networks["internal_net"].Name},
-			{Target: sd.Networks["traefik_public"].Name},
-		}).
-		Build()
-}
 
 func nriVolumesDataMap(platformData *common.PlatformData, newOrg common.Organization) map[string]dt.Volume {
 	orgAcronym := strings.ToLower(newOrg.OrgAcronym)
@@ -266,91 +125,6 @@ func createNriSwarmSecrets(dc *dt.DockerClient, platformData *common.PlatformDat
 	return nriSecrets, nil
 }
 
-func CreateNriServicesForOrg(newOrg common.Organization, pd *common.PlatformData) error {
-	dc, err := GetManagerDC()
-	if err != nil {
-		return fmt.Errorf("error getting docker client: %v", err)
-	}
-
-	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
-	var nriConstraintsArray []string
-	nriResources := &swarm.ResourceRequirements{
-		Limits: &swarm.Limit{
-			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
-			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
-		},
-		Reservations: &swarm.Resources{
-			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
-			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
-		},
-	}
-	numSwarmNodes := len(pd.PlatformInfo.NodesData)
-	existArmArchNodes := false
-	for _, node := range pd.PlatformInfo.NodesData {
-		if node.NodeArch == "aarch64" {
-			existArmArchNodes = true
-			break
-		}
-	}
-
-	if numSwarmNodes == 1 && existArmArchNodes {
-		nriResources = &swarm.ResourceRequirements{}
-	}
-
-	if numSwarmNodes == 1 {
-		nriConstraintsArray = []string{
-			"node.role==manager",
-		}
-	} else {
-		if len(newOrg.ExclusiveWorkerNodes) != 0 {
-			nriConstraintsArray = []string{
-				"node.role==worker",
-				fmt.Sprintf("node.labels.org_hash==%s", newOrg.OrgHash),
-			}
-		} else {
-			nriConstraintsArray = []string{
-				"node.role==worker",
-				"node.labels.generic_org_worker==true",
-			}
-		}
-	}
-
-	nriVolumesMap, err := createNriSwarmVolumes(pd, newOrg)
-	if err != nil {
-		return err
-	}
-
-	nriSecrets, err := createNriSwarmSecrets(dc, pd, newOrg)
-	if err != nil {
-		return err
-	}
-
-	nriNetworks := networks.GenerateNetworks(pd)
-
-	swarmData := dt.SwarmData{
-		Configs:  nil,
-		Secrets:  nriSecrets,
-		Volumes:  nriVolumesMap,
-		Networks: nriNetworks,
-	}
-
-	for _, nri := range newOrg.NodeRedInstances {
-		nriData := NriData{
-			org:              newOrg,
-			nri:              nri,
-			resources:        nriResources,
-			constraintsArray: nriConstraintsArray,
-		}
-		nriService := NriService(pd, swarmData, nodeRoleMaps, nriData)
-		err :=CreateSwarmService(dc, nriService)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func CreateNriServices(pd *common.PlatformData) error {
 	dc, err := GetManagerDC()
 	if err != nil {
@@ -422,17 +196,102 @@ func CreateNriServices(pd *common.PlatformData) error {
 		}
 
 		for _, nri := range org.NodeRedInstances {
-			nriData := NriData{
-				org:              org,
-				nri:              nri,
-				resources:        nriResources,
-				constraintsArray: nriConstraintsArray,
+			nriData := dt.NriData{
+				Org:              org,
+				Nri:              nri,
+				Resources:        nriResources,
+				ConstraintsArray: nriConstraintsArray,
 			}
-			nriService := NriService(pd, swarmData, nodeRoleMaps, nriData)
+			nriService := services.NriService(pd, swarmData, nodeRoleMaps, nriData)
 			err := CreateSwarmService(dc, nriService)
 			if err != nil {
 				return err
 			}
+		}
+	}
+
+	return nil
+}
+
+func CreateNriServicesForOrg(newOrg common.Organization, pd *common.PlatformData) error {
+	dc, err := GetManagerDC()
+	if err != nil {
+		return fmt.Errorf("error getting docker client: %v", err)
+	}
+
+	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
+	var nriConstraintsArray []string
+	nriResources := &swarm.ResourceRequirements{
+		Limits: &swarm.Limit{
+			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
+			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
+		},
+		Reservations: &swarm.Resources{
+			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
+			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
+		},
+	}
+	numSwarmNodes := len(pd.PlatformInfo.NodesData)
+	existArmArchNodes := false
+	for _, node := range pd.PlatformInfo.NodesData {
+		if node.NodeArch == "aarch64" {
+			existArmArchNodes = true
+			break
+		}
+	}
+
+	if numSwarmNodes == 1 && existArmArchNodes {
+		nriResources = &swarm.ResourceRequirements{}
+	}
+
+	if numSwarmNodes == 1 {
+		nriConstraintsArray = []string{
+			"node.role==manager",
+		}
+	} else {
+		if len(newOrg.ExclusiveWorkerNodes) != 0 {
+			nriConstraintsArray = []string{
+				"node.role==worker",
+				fmt.Sprintf("node.labels.org_hash==%s", newOrg.OrgHash),
+			}
+		} else {
+			nriConstraintsArray = []string{
+				"node.role==worker",
+				"node.labels.generic_org_worker==true",
+			}
+		}
+	}
+
+	nriVolumesMap, err := createNriSwarmVolumes(pd, newOrg)
+	if err != nil {
+		return err
+	}
+
+	nriSecrets, err := createNriSwarmSecrets(dc, pd, newOrg)
+	if err != nil {
+		return err
+	}
+
+	nriNetworks := networks.GenerateNetworks(pd)
+
+	swarmData := dt.SwarmData{
+		Configs:  nil,
+		Secrets:  nriSecrets,
+		Volumes:  nriVolumesMap,
+		Networks: nriNetworks,
+	}
+
+	for _, nri := range newOrg.NodeRedInstances {
+		nriData := dt.NriData{
+			Org:              newOrg,
+			Nri:              nri,
+			Resources:        nriResources,
+			ConstraintsArray: nriConstraintsArray,
+		}
+		nriService := services.NriService(pd, swarmData, nodeRoleMaps, nriData)
+		err :=CreateSwarmService(dc, nriService)
+		if err != nil {
+			return err
 		}
 	}
 

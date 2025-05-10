@@ -556,6 +556,7 @@ func messagingSystemQuestions(m *Model) (submissionResultMsg, error) {
 	messagingSystem := m.Questions[qIdx].Answer
 	if messagingSystem == "mqtt" {
 		m.removeQuestionByKey("NATS_NKEY_VALIDITY_DAYS")
+		m.removeQuestionByKey("NUM_NATS_CLUSTER_NODES")
 		addMqttCertsValidityDaysQuestions(qIdx+1, m)
 	} else if messagingSystem == "nats" {
 		m.removeQuestionByKey("MQTT_SSL_CERTS_VALIDITY_DAYS")

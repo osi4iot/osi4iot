@@ -6,8 +6,8 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/common"
-	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/resources"
+	dt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
 func MosquittoService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) dt.Service {
@@ -139,6 +139,7 @@ func MosquittoService(pd *common.PlatformData, sd dt.SwarmData, nodeRoleMaps res
 		}).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
+			{Target: sd.Networks["traefik_public"].Name},
 		}).
 		Build()
 }

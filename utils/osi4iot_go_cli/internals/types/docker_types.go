@@ -1,4 +1,4 @@
-package docker_types
+package types
 
 import (
 	"context"
@@ -51,6 +51,14 @@ type SwarmData struct {
 	Volumes  map[string]Volume
 	Networks map[string]Network
 }
+
+type NriData struct {
+	Org              common.Organization
+	Nri              common.NodeRedInstance
+	Resources        *swarm.ResourceRequirements
+	ConstraintsArray []string
+}
+
 
 type DockerClient struct {
 	Cli  *client.Client
