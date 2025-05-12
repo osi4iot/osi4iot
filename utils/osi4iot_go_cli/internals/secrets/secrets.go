@@ -20,7 +20,6 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	var nriPasswords []string
 	var nriNkeysPublic []string
 	for _, nri := range mainOrgNodeRedInstances {
-		fmt.Printf("NRI: %v\n", nri)
 		hashes = append(hashes, nri.NriHash)
 		nriPasswords = append(nriPasswords, nri.NriPassword)
 		nriNkeysPublic = append(nriNkeysPublic, nri.NriNatsCerts.NriNkeyPublic)
