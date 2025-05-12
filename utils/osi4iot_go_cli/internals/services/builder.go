@@ -124,7 +124,7 @@ func (b *ServiceBuilder) WithMounts(m []mount.Mount) *ServiceBuilder {
 func (b *ServiceBuilder) WithResources(cpus, mem int64) *ServiceBuilder {
 	b.svc.TaskTemplate.Resources.Reservations.MemoryBytes = mem
 	b.svc.TaskTemplate.Resources.Reservations.NanoCPUs = cpus
-	b.svc.TaskTemplate.Resources.Limits.MemoryBytes = mem
+	//b.svc.TaskTemplate.Resources.Limits.MemoryBytes = mem
 	//b.svc.TaskTemplate.Resources.Limits.NanoCPUs = cpus
 	return b
 }
