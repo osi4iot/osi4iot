@@ -78,7 +78,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	b := batcher.NewBatcher(ctx, dbpool, dataCh, cfg.NumWorkers, 1000, 200*time.Millisecond, batcher.CopyFromSaver)
+	b := batcher.NewBatcher(ctx, dbpool, dataCh, cfg.NumWorkers, 1000, 200*time.Millisecond, batcher.CopyFromSaver, sugar)
 	go b.Start()
 
 	// 3) Defining subjects and their handlers

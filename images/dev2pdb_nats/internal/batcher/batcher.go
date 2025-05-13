@@ -8,6 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
+	"go.uber.org/zap"
 )
 
 type Saver func(ctx context.Context, pool *pgxpool.Pool, batch []models.ThingData) error
@@ -24,11 +25,12 @@ type Batcher struct {
     sem chan struct{}
     wg  sync.WaitGroup
     buf []models.ThingData
+    sugar *zap.SugaredLogger
 }
 
 func NewBatcher(
     ctx context.Context, pool *pgxpool.Pool, in <-chan models.ThingData,
-    workerCount, batchSize int, interval time.Duration, saveFn Saver,
+    workerCount, batchSize int, interval time.Duration, saveFn Saver, sugar *zap.SugaredLogger,
 ) *Batcher {
     return &Batcher{
         ctx:         ctx,
@@ -39,6 +41,7 @@ func NewBatcher(
         interval:    interval,
         saveFn:      saveFn,
         sem:         make(chan struct{}, workerCount),
+        sugar: sugar,
     }
 }
 
@@ -56,7 +59,7 @@ func (b *Batcher) flush() {
         defer b.wg.Done()
         defer func() { <-b.sem }()
         if err := b.saveFn(b.ctx, b.pool, rows); err != nil {
-            // log aquí
+           b.sugar.Errorf("error saving batch: %v", err)
         }
     }(c)
 }
