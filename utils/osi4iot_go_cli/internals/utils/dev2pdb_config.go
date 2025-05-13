@@ -18,6 +18,9 @@ domainName: "{{ .DomainName }}"
 # Messaging configuration
 messagingType: "{{ .MessagingType }}"  # options: "mqtt" or "nats
 
+# Number of workers
+numWorkers: {{ .NumWorkers }}
+
 mqtt:
   clientID: "{{ .MQTT.ClientID }}"
   broker: "{{ .MQTT.Broker }}"
@@ -74,6 +77,7 @@ type Dev2pdbParams struct {
 	MQTT          MQTTParams
 	NATS          NATSParams
 	TimescaleDB   TimescaleDBParams
+	NumWorkers   int
 }
 
 // Dev2pdbConfig generates a configuration string for the dev2pdb service.
@@ -92,6 +96,7 @@ func Dev2pdbConfig(platformData *types.PlatformData, nodeRoleNumMap map[string]i
 	params := Dev2pdbParams{
 		Mode:          "prod",
 		DomainName:    platformData.PlatformInfo.DomainName,
+		NumWorkers:    5,
 		MessagingType: messagingType,
 		MQTT: MQTTParams{
 			ClientID:              "dev2pdb",

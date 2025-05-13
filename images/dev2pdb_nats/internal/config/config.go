@@ -1,3 +1,4 @@
+// internal/config/config.go
 package config
 
 import (
@@ -15,6 +16,7 @@ type Config struct {
 	MQTT          MQTTConfig        `mapstructure:"mqtt"`
 	NATS          NATSConfig        `mapstructure:"nats"`
 	TimescaleDB   TimescaleDBConfig `mapstructure:"timescaledb"`
+	NumWorkers    int               `mapstructure:"numWorkers"`
 }
 
 type Messaging struct {
@@ -68,6 +70,8 @@ func Load() (*Config, error) {
 
 	viper.SetDefault("timescaledb.port", 5432)
 	viper.SetDefault("timescaledb.sslmode", "disable")
+
+	viper.SetDefault("numWorkers", 5)
 
 	// 4) Read in the file
 	if err := viper.ReadInConfig(); err != nil {

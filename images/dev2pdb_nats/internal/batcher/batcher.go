@@ -1,9 +1,9 @@
-// internal/batcher/batcher.go
 package batcher
 
 import (
 	"context"
 	"dev2pdb/internal/models"
+	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v4"
@@ -12,32 +12,74 @@ import (
 
 type Saver func(ctx context.Context, pool *pgxpool.Pool, batch []models.ThingData) error
 
-func Start(ctx context.Context, pool *pgxpool.Pool, in <-chan models.ThingData,
-    batchSize int, interval time.Duration, saveFn Saver) {
+type Batcher struct {
+    ctx         context.Context
+    pool        *pgxpool.Pool
+    in          <-chan models.ThingData
+    workerCount int
+    batchSize   int
+    interval    time.Duration
+    saveFn      Saver
 
-    ticker := time.NewTicker(interval)
+    sem chan struct{}
+    wg  sync.WaitGroup
+    buf []models.ThingData
+}
+
+func NewBatcher(
+    ctx context.Context, pool *pgxpool.Pool, in <-chan models.ThingData,
+    workerCount, batchSize int, interval time.Duration, saveFn Saver,
+) *Batcher {
+    return &Batcher{
+        ctx:         ctx,
+        pool:        pool,
+        in:          in,
+        workerCount: workerCount,
+        batchSize:   batchSize,
+        interval:    interval,
+        saveFn:      saveFn,
+        sem:         make(chan struct{}, workerCount),
+    }
+}
+
+func (b *Batcher) flush() {
+    if len(b.buf) == 0 {
+        return
+    }
+    c := make([]models.ThingData, len(b.buf))
+    copy(c, b.buf)
+    b.buf = b.buf[:0]
+
+    b.wg.Add(1)
+    b.sem <- struct{}{}
+    go func(rows []models.ThingData) {
+        defer b.wg.Done()
+        defer func() { <-b.sem }()
+        if err := b.saveFn(b.ctx, b.pool, rows); err != nil {
+            // log aquí
+        }
+    }(c)
+}
+
+func (b *Batcher) Start() {
+    ticker := time.NewTicker(b.interval)
     defer ticker.Stop()
-
-    var batch []models.ThingData
 
     for {
         select {
-        case <-ctx.Done():
-            if len(batch) > 0 {
-                saveFn(ctx, pool, batch)
-            }
+        case <-b.ctx.Done():
+            b.flush()
+            b.wg.Wait()
             return
-        case row := <-in:
-            batch = append(batch, row)
-            if len(batch) >= batchSize {
-                saveFn(ctx, pool, batch)
-                batch = batch[:0]
+
+        case row := <-b.in:
+            b.buf = append(b.buf, row)
+            if len(b.buf) >= b.batchSize {
+                b.flush()
             }
+
         case <-ticker.C:
-            if len(batch) > 0 {
-                saveFn(ctx, pool, batch)
-                batch = batch[:0]
-            }
+            b.flush()
         }
     }
 }

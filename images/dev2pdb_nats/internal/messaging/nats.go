@@ -1,3 +1,5 @@
+//internal/messaging/nats.go
+
 package messaging
 
 import (

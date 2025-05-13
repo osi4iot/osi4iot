@@ -1,4 +1,4 @@
-// cmd/service/main.go
+// main.go
 package main
 
 import (
@@ -78,8 +78,8 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go batcher.Start(ctx, dbpool, dataCh, 1000, 200 * time.Microsecond, batcher.CopyFromSaver)
-	//go batcher.Start(ctx, dbpool, dataCh, 1000, 1 * time.Second, batcher.CopyFromSaver)
+	b := batcher.NewBatcher(ctx, dbpool, dataCh, cfg.NumWorkers, 1000, 200*time.Millisecond, batcher.CopyFromSaver)
+	go b.Start()
 
 	// 3) Defining subjects and their handlers
 	subs := []struct {

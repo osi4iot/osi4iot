@@ -1,3 +1,4 @@
+// internal/messaging/messaging.go
 package messaging
 
 import (
