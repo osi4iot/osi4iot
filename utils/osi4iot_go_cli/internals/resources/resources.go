@@ -186,7 +186,7 @@ func CPUs(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 		} else {
 			cpus = 0.50
 		}
-		cpus = 1.0 // OJO luego verificar
+		cpus = 2.0 // OJO luego verificar
 	case "auth_callout":
 		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
 			cpus = 0.15
@@ -205,7 +205,7 @@ func CPUs(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 		} else {
 			cpus = 0.50
 		}
-		cpus = 2.0 // OJO luego verificar
+		cpus = 4.0 // OJO luego verificar
 	case "s3_storage":
 		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
 			cpus = 0.15
@@ -218,7 +218,7 @@ func CPUs(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 		} else {
 			cpus = 0.50
 		}
-		cpus = 1.0 // OJO luego verificar
+		cpus = 2.0 // OJO luego verificar
 	case "grafana":
 		if nodeRoleNumMap["Manager"] == 1 {
 			if roleNanoCPUsMap["Manager"] <= 2*1e9 {
@@ -285,19 +285,19 @@ func Memory(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 		memory = 500
 	case "nats":
 		//memory = 500
-		memory = 1000 // OJO luego verificar
+		memory = 2000 // OJO luego verificar
 	case "auth_callout":
 		memory = 250
 	case "postgres":
 		memory = 500
 	case "timescaledb":
 		//memory = 500
-		memory = 2000 // OJO luego verificar
+		memory = 8000 // OJO luego verificar
 	case "s3_storage":
 		memory = 250
 	case "dev2pdb":
 		//memory = 500
-		memory = 1000 // OJO luego verificar
+		memory = 2000 // OJO luego verificar
 	case "grafana":
 		memory = 500
 	case "admin_api":
