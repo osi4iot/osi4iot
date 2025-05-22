@@ -1,7 +1,6 @@
 package resources
 
 import (
-
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
@@ -57,9 +56,11 @@ func getNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 	roleNanoCpusMap["Exclusive org worker"] = 0
 	roleNanoCpusMap["NFS server"] = 0
 	nodesData := platformData.PlatformInfo.NodesData
+	numNodes := len(nodesData)
 
 	for _, node := range nodesData {
 		nodeRole := node.NodeRole
+
 		switch nodeRole {
 		case "Manager":
 			if roleNanoCpusMap["Manager"] == 0 {
@@ -100,6 +101,11 @@ func getNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 		}
 	}
 
+	if numNodes == 1 {
+		resourceUtilization := float64(platformData.PlatformInfo.LocalResourceUtilization) * 0.01
+		roleNanoCpusMap["Manager"] = int64(float64(roleNanoCpusMap["Manager"]) * resourceUtilization)
+	}
+
 	return roleNanoCpusMap
 }
 
@@ -111,6 +117,7 @@ func getNodeMemoryBytesMap(platformData *pt.PlatformData) map[string]int64 {
 	roleMemoryBytesMap["Exclusive org worker"] = 0
 	roleMemoryBytesMap["NFS server"] = 0
 	nodesData := platformData.PlatformInfo.NodesData
+	numNodes := len(nodesData)
 
 	for _, node := range nodesData {
 		nodeRole := node.NodeRole
@@ -153,181 +160,12 @@ func getNodeMemoryBytesMap(platformData *pt.PlatformData) map[string]int64 {
 		}
 	}
 
+	if numNodes == 1 {
+		resourceUtilization := float64(platformData.PlatformInfo.LocalResourceUtilization) * 0.01
+		roleMemoryBytesMap["Manager"] = int64(float64(roleMemoryBytesMap["Manager"]) * resourceUtilization)
+	}
+
 	return roleMemoryBytesMap
-}
-
-func CPUs(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
-	roleNanoCPUsMap := nodeRoleMaps.RoleNanoCPUsMap
-	nodeRoleNumMap := nodeRoleMaps.NodeRoleNumMap
-
-	cpus := 0.25
-	switch serviceName {
-	case "system_prune":
-		cpus = 0.25
-	case "traefik":
-		if nodeRoleNumMap["Manager"] == 1 {
-			if roleNanoCPUsMap["Manager"] <= 2*1e9 {
-				cpus = 0.15
-			} else {
-				cpus = 0.25
-			}
-		} else {
-			cpus = 0.50
-		}
-	case "mosquitto":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.30
-		} else {
-			cpus = 0.50
-		}
-	case "nats":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.30
-		} else {
-			cpus = 0.50
-		}
-		cpus = 2.0 // OJO luego verificar
-	case "auth_callout":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.15
-		} else {
-			cpus = 0.50
-		}
-	case "postgres":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.25
-		} else {
-			cpus = 0.50
-		}
-	case "timescaledb":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.25
-		} else {
-			cpus = 0.50
-		}
-		cpus = 4.0 // OJO luego verificar
-	case "s3_storage":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.15
-		} else {
-			cpus = 0.50
-		}
-	case "dev2pdb":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.15
-		} else {
-			cpus = 0.50
-		}
-		cpus = 2.0 // OJO luego verificar
-	case "grafana":
-		if nodeRoleNumMap["Manager"] == 1 {
-			if roleNanoCPUsMap["Manager"] <= 2*1e9 {
-				cpus = 0.2
-			} else {
-				cpus = 0.50
-			}
-		} else {
-			cpus = 0.50
-		}
-	case "admin_api":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.30
-		} else {
-			cpus = 0.50
-		}
-	case "frontend":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.25
-		} else {
-			cpus = 0.50
-		}
-	case "agent":
-		cpus = 0.10
-	case "portainer":
-		cpus = 0.10
-	case "pgadmin4":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.15
-		} else {
-			cpus = 0.25
-		}
-	case "minio":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.30
-		} else {
-			cpus = 0.50
-		}
-	case "grafana_renderer":
-		if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-			cpus = 0.25
-		} else {
-			cpus = 0.50
-		}
-	case "keepalived":
-		cpus = 0.25
-	case "nodered_instance":
-		cpus = 0.50
-	default:
-		cpus = 0.25
-	}
-	return int64(cpus * 1e9)
-}
-
-func Memory(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
-	roleMemoryBytesMap := nodeRoleMaps.RoleMemoryBytesMap
-	memory := 100
-	switch serviceName {
-	case "system_prune":
-		memory = 50
-	case "traefik":
-		memory = 250
-	case "mosquitto":
-		memory = 500
-	case "nats":
-		//memory = 500
-		memory = 2000 // OJO luego verificar
-	case "auth_callout":
-		memory = 250
-	case "postgres":
-		memory = 500
-	case "timescaledb":
-		//memory = 500
-		memory = 8000 // OJO luego verificar
-	case "s3_storage":
-		memory = 250
-	case "dev2pdb":
-		//memory = 500
-		memory = 2000 // OJO luego verificar
-	case "grafana":
-		memory = 500
-	case "admin_api":
-		memory = 1000
-	case "frontend":
-		memory = 500
-	case "agent":
-		memory = 100
-	case "portainer":
-		memory = 100
-	case "pgadmin4":
-		memory = 500
-	case "minio":
-		memory = 500
-	case "grafana_renderer":
-		memory = 500
-	case "keepalived":
-		memory = 50
-	case "nodered_instance":
-		var gbytes int64 = 1024 * 1024 * 1024
-		if roleMemoryBytesMap["Generic org worker"] <= 2*gbytes || roleMemoryBytesMap["Exclusive org worker"] <= 2*gbytes {
-			memory = 2048
-		} else {
-			memory = 4096
-		}
-	default:
-		memory = 100
-	}
-
-	return int64(memory * 1024 * 1024)
 }
 
 func GiveReplicsPtr(serviceName string, nodeRoleMaps NodesRoleMaps) *uint64 {

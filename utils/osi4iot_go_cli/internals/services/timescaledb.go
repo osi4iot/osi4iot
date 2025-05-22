@@ -66,11 +66,13 @@ func TimescaledbService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resou
 	}
 
 	return NewService("timescaledb", pd, sd).
-		WithImage("ghcr.io/osi4iot/timescaledb:2.4.2-pg13").
+		//WithImage("ghcr.io/osi4iot/timescaledb:2.4.2-pg13").
+		WithImage("ghcr.io/osi4iot/timescaledb:2.20.0-pg17").
 		WithEnv([]string{
 			fmt.Sprintf("POSTGRES_DB=%s", pd.PlatformInfo.TimescaleDB),
 			"POSTGRES_PASSWORD_FILE=/run/secrets/timescaledb_password.txt",
 			"POSTGRES_USER_FILE=/run/secrets/timescaledb_user.txt",
+			"POSTGRES_INITDB_WALDIR=/var/lib/postgresql/pg_wal",
 		}).
 		WithSecrets(secrets).
 		WithMounts([]mount.Mount{
@@ -78,6 +80,11 @@ func TimescaledbService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resou
 				Type:   mount.TypeVolume,
 				Source: sd.Volumes["timescaledb_data"].Name,
 				Target: "/var/lib/postgresql/data",
+			},
+			{
+				Type:   mount.TypeVolume,
+				Source: sd.Volumes["timescaledb_wal"].Name,
+				Target: "/var/lib/postgresql/pg_wal",
 			},
 		}).
 		WithResources(

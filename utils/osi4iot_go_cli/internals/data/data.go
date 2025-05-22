@@ -124,6 +124,9 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.NumNatsClusterNodes = numNatsClusterNodes
 	case "DEPLOYMENT_LOCATION":
 		Data.PlatformInfo.DeploymentLocation = value
+	case "LOCAL_RESOURCE_UTILIZATION_PERCENTAGE":
+		localResourceUtilization, _ := strconv.Atoi(value)
+		Data.PlatformInfo.LocalResourceUtilization = localResourceUtilization
 	case "DEPLOYMENT_MODE":
 		Data.PlatformInfo.DeploymentMode = value
 	case "NUMBER_OF_SWARM_NODES":

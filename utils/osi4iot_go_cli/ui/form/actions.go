@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/orgs"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 	"github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/utils"
+	"github.com/shirou/gopsutil/mem"
 )
 
 func creatingNodeQuestions(m *Model) (submissionResultMsg, error) {
@@ -400,21 +402,44 @@ func DeployLocationQuestions(m *Model) (submissionResultMsg, error) {
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
 		removingNodeQuestions(m)
+		addLocalResourceUtilizationQuestion(qIdx+1, m)
 	} else if deployLocation == "On-premise cluster deployment" {
 		m.removeQuestionByKey("AWS_SSH_KEY_PATH")
 		m.removeQuestionByKey("AWS_EFS_DNS")
+		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
 		addNumNodesQuestion(qIdx+1, m)
 		addNodesDataQuestions(m)
 		addNetworkInterfaceQuestions(m)
 	} else if deployLocation == "AWS cluster deployment" {
 		m.removeQuestionByKey("FLOATING_IP_ADDRESS")
 		m.removeQuestionByKey("NETWORK_INTERFACE")
+		m.removeQuestionByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
 		addAwsSsHKeyQuestions(qIdx+1, m)
 		addAwsEFSQuestion(qIdx+2, m)
 		addNumNodesQuestion(qIdx+3, m)
 		addNodesDataQuestions(m)
 	}
 	return submissionResultMsg("Deploy location questions added succesfully"), nil
+}
+
+func addLocalResourceUtilizationQuestion(index int, m *Model) {
+	idx := m.FindQuestionIdByKey("LOCAL_RESOURCE_UTILIZATION_PERCENTAGE")
+	if idx == -1 {
+		localResourceUtilizationQuestion := Question{
+			Key:           "LOCAL_RESOURCE_UTILIZATION_PERCENTAGE",
+			QuestionType:  "generic",
+			Prompt:        "Local computer resource utilization percentage",
+			Answer:        utils.IntValueToStr(data.Data.PlatformInfo.LocalResourceUtilization),
+			DefaultAnswer: "100",
+			ErrorMessage:  "",
+			Choices:       []string{},
+			ChoiceFocus:   0,
+			Rules:         []string{"required", "int", "minval:50", "maxval:100"},
+			ActionKey:     "",
+			Margin:        0,
+		}
+		m.addQuestions(index, localResourceUtilizationQuestion)
+	}
 }
 
 func addNodesDataQuestions(m *Model) (submissionResultMsg, error) {
@@ -776,12 +801,21 @@ func GetLocalNodeData() (types.NodeData, error) {
 		return types.NodeData{}, fmt.Errorf("error getting local node IP: %v", err)
 	}
 
+	nodeNanoCpus := int64(runtime.NumCPU() * 1e9)
+
+	vm, err := mem.VirtualMemory()
+	if err != nil {
+		return types.NodeData{}, fmt.Errorf("error getting memory: %v", err)
+	}
+
 	nodeData := types.NodeData{
-		NodeHostName: hostname,
-		NodeIP:       localIP,
-		NodeUserName: usr.Username,
-		NodeRole:     "Manager",
-		NodeArch:     nodeArch,
+		NodeHostName:    hostname,
+		NodeIP:          localIP,
+		NodeUserName:    usr.Username,
+		NodeRole:        "Manager",
+		NodeArch:        nodeArch,
+		NodeNanoCPUs:    nodeNanoCpus,
+		NodeMemoryBytes: int64(vm.Total),
 	}
 	return nodeData, nil
 }

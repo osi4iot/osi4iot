@@ -22,6 +22,7 @@ type PlatformInfo struct {
 	DockerImagesVersion        string     `json:"DOCKER_IMAGES_VERSION"`
 	DeploymentMode             string     `json:"DEPLOYMENT_MODE"`
 	DeploymentLocation         string     `json:"DEPLOYMENT_LOCATION"`
+	LocalResourceUtilization   int        `json:"LOCAL_RESOURCE_UTILIZATION_PERCENTAGE"`
 	S3BucketType               string     `json:"S3_BUCKET_TYPE"`
 	AWSAccessKeyIDRoute53      string     `json:"AWS_ACCESS_KEY_ID_ROUTE_53"`
 	AWSSecretAccessKeyRoute53  string     `json:"AWS_SECRET_ACCESS_KEY_ROUTE_53"`
@@ -78,7 +79,7 @@ type PlatformInfo struct {
 	AccessTokenLifetime       int    `json:"ACCESS_TOKEN_LIFETIME"`
 
 	MessagingSystem          string `json:"MESSAGING_SYSTEM"`
-	NumNatsClusterNodes       int    `json:"NUM_NATS_CLUSTER_NODES"`
+	NumNatsClusterNodes      int    `json:"NUM_NATS_CLUSTER_NODES"`
 	MQTTSslCertsValidityDays int    `json:"MQTT_SSL_CERTS_VALIDITY_DAYS"`
 	FloatingIPAddress        string `json:"FLOATING_IP_ADDRES"`
 	NetworkInterface         string `json:"NETWORK_INTERFACE"`
@@ -93,6 +94,7 @@ type PlatformInfo struct {
 	TimescalePassword              string `json:"TIMESCALE_PASSWORD"`
 	TimescaleDB                    string `json:"TIMESCALE_DB"`
 	TimescaleDataRetentionInterval string `json:"TIMESCALE_DATA_RET_INT_DAYS"`
+	NumberDev2pdbWorkers          int    `json:"NUMBER_DEV2PDB_WORKERS"`
 	GrafanaDBPassword              string `json:"GRAFANA_DB_PASSWORD"`
 	GrafanaDatasourcePassword      string `json:"GRAFANA_DATASOURCE_PASSWORD"`
 	Dev2pdbPassword                string `json:"DEV2PDB_PASSWORD"`

@@ -74,11 +74,11 @@ func main() {
 	sugar.Infof("using messaging system: %s", cfg.MessagingType)
 
 	// 2-) Unified channel and batchers
-	dataCh := make(chan models.ThingData, 1000)
+	dataCh := make(chan models.ThingData, 2000)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	b := batcher.NewBatcher(ctx, dbpool, dataCh, cfg.NumWorkers, 1000, 200*time.Millisecond, batcher.CopyFromSaver, sugar)
+	b := batcher.NewBatcher(ctx, dbpool, dataCh, cfg.NumWorkers, 2000, 200*time.Millisecond, batcher.CopyFromSaver, sugar)
 	go b.Start()
 
 	// 3) Defining subjects and their handlers

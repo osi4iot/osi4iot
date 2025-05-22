@@ -63,6 +63,11 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 		Driver:     "local",
 		DriverOpts: map[string]string{},
 	}
+	Volumes["timescaledb_wal"] = pt.Volume{
+		Name:       "timescaledb_wal",
+		Driver:     "local",
+		DriverOpts: map[string]string{},
+	}
 	Volumes["s3_storage_data"] = pt.Volume{
 		Name:       "s3_storage_data",
 		Driver:     "local",

@@ -1,4 +1,4 @@
-FROM timescale/timescaledb:2.4.2-pg13
+FROM timescale/timescaledb:2.20.0-pg17
 ENV POSTGRES_DB=$POSTGRES_DB
 COPY entry_script.sh /src/scripts/entry_script.sh
 RUN chmod +x /src/scripts/entry_script.sh

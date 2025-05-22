@@ -96,7 +96,7 @@ func Dev2pdbConfig(platformData *types.PlatformData, nodeRoleNumMap map[string]i
 	params := Dev2pdbParams{
 		Mode:          "prod",
 		DomainName:    platformData.PlatformInfo.DomainName,
-		NumWorkers:    10,
+		NumWorkers:    platformData.PlatformInfo.NumberDev2pdbWorkers,
 		MessagingType: messagingType,
 		MQTT: MQTTParams{
 			ClientID:              "dev2pdb",
