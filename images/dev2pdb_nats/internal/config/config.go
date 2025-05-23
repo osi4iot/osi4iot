@@ -17,6 +17,7 @@ type Config struct {
 	NATS          NATSConfig        `mapstructure:"nats"`
 	TimescaleDB   TimescaleDBConfig `mapstructure:"timescaledb"`
 	NumWorkers    int               `mapstructure:"numWorkers"`
+	BatchSize     int               `mapstructure:"batchSize"`
 }
 
 type Messaging struct {
@@ -71,7 +72,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("timescaledb.port", 5432)
 	viper.SetDefault("timescaledb.sslmode", "disable")
 
-	viper.SetDefault("numWorkers", 5)
+	viper.SetDefault("numWorkers", 10)
+	viper.SetDefault("batchSize", 1000)
 
 	// 4) Read in the file
 	if err := viper.ReadInConfig(); err != nil {

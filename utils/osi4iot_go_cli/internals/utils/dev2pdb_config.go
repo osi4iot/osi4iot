@@ -78,6 +78,7 @@ type Dev2pdbParams struct {
 	NATS          NATSParams
 	TimescaleDB   TimescaleDBParams
 	NumWorkers   int
+	BatchSize   int
 }
 
 // Dev2pdbConfig generates a configuration string for the dev2pdb service.
@@ -97,6 +98,7 @@ func Dev2pdbConfig(platformData *types.PlatformData, nodeRoleNumMap map[string]i
 		Mode:          "prod",
 		DomainName:    platformData.PlatformInfo.DomainName,
 		NumWorkers:    platformData.PlatformInfo.NumberDev2pdbWorkers,
+		BatchSize:	 platformData.PlatformInfo.Dev2pdbBatchSize,
 		MessagingType: messagingType,
 		MQTT: MQTTParams{
 			ClientID:              "dev2pdb",
