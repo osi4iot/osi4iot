@@ -32,6 +32,9 @@ func main() {
 	if err != nil {
 		sugar.Fatalf("config load error: %v", err)
 	}
+	sugar.Info("Number of workers: ", cfg.NumWorkers)
+	sugar.Info("Batch size: ", cfg.BatchSize)
+	sugar.Infof("Messaging type: %s", cfg.MessagingType)
 
 	// Check Admin API with backoff and retry until the Admin API is available
 	bo := backoff.NewExponentialBackOff()
