@@ -21,6 +21,9 @@ messagingType: "{{ .MessagingType }}"  # options: "mqtt" or "nats
 # Number of workers
 numWorkers: {{ .NumWorkers }}
 
+# Batch size
+batchSize: {{ .BatchSize }}
+
 mqtt:
   clientID: "{{ .MQTT.ClientID }}"
   broker: "{{ .MQTT.Broker }}"
