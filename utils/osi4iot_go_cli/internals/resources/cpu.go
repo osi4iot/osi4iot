@@ -53,6 +53,109 @@ func CPUsForLocalDeployment(serviceName string, totalCpu int64) int64 {
 	return int64(cpusPorcentage * float64(totalCpu))
 }
 
+func CPUsForClusterDeployment(serviceName string, roleNanoCPUsMap map[string]int64) int64 {
+	cpus := 0.25
+	switch serviceName {
+	case "system_prune":
+		cpus = 0.25
+	case "traefik":
+		if roleNanoCPUsMap["Manager"] <= 10*1e9 {
+			cpus = 0.25 * 1.0e9 / float64(roleNanoCPUsMap["Manager"])
+		} else {
+			cpus = 4.0
+		}
+	case "grafana":
+		if roleNanoCPUsMap["Manager"] <= 10*1e9 {
+			cpus = 0.25 * 1.0e9 / float64(roleNanoCPUsMap["Manager"])
+		} else {
+			cpus = 4.0
+		}
+	case "keepalived":
+		cpus = 0.25
+	case "mosquitto":
+		if roleNanoCPUsMap["Platform worker"] <= 16*1e9 {
+			cpus = 0.25 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 4.0
+		}
+	case "nats":
+		if roleNanoCPUsMap["Platform worker"] <= 16*1e9 {
+			cpus = 0.25 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 4.0
+		}
+	case "auth_callout":
+		if roleNanoCPUsMap["Platform worker"] <= 16*1e9 {
+			cpus = 0.0625 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 1.0
+		}
+	case "postgres":
+		if roleNanoCPUsMap["Platform worker"] <= 32*1e9 {
+			cpus = 0.125 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 4.0
+		}
+	case "timescaledb":
+		if roleNanoCPUsMap["Platform worker"] <= 32*1e9 {
+			cpus = 0.125 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 4.0
+		}
+	case "s3_storage":
+		if roleNanoCPUsMap["Platform worker"] <= 32*1e9 {
+			cpus = 0.0625 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 2.0
+		}
+	case "dev2pdb":
+		if roleNanoCPUsMap["Platform worker"] <= 16*1e9 {
+			cpus = 0.125 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 2.0
+		}
+	case "admin_api":
+		if roleNanoCPUsMap["Platform worker"] <= 8*1e9 {
+			cpus = 0.125 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 1.0
+		}
+	case "frontend":
+		if roleNanoCPUsMap["Platform worker"] <= 8*1e9 {
+			cpus = 0.125 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 1.0
+		}
+	case "pgadmin4":
+		if roleNanoCPUsMap["Platform worker"] <= 32*1e9 {
+			cpus = 0.0625 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 2.0
+		}
+	case "minio":
+		if roleNanoCPUsMap["Platform worker"] <= 16*1e9 {
+			cpus = 0.125 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 2.0
+		}
+	case "grafana_renderer":
+		if roleNanoCPUsMap["Platform worker"] <= 16*1e9 {
+			cpus = 0.125 * 1.0e9 / float64(roleNanoCPUsMap["Platform worker"])
+		} else {
+			cpus = 2.0
+		}
+	case "nodered_instance":
+		if roleNanoCPUsMap["Generic org worker"] <= 8*1e9 {
+			cpus = 0.125 * 1.0e9 / float64(roleNanoCPUsMap["Generic org worker"])
+		} else {
+			cpus = 1.0
+		}
+	default:
+		cpus = 0.25
+	}
+	return int64(cpus * 1.0e9)
+}
+
 func CPUs(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 	roleNanoCPUsMap := nodeRoleMaps.RoleNanoCPUsMap
 	nodeRoleNumMap := nodeRoleMaps.NodeRoleNumMap
@@ -60,8 +163,8 @@ func CPUs(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 	for _, num := range nodeRoleNumMap {
 		numNodes += num
 	}
-	
-    cpus := int64(0.25 * 1e9)
+
+	cpus := int64(0.25 * 1e9)
 	if numNodes == 1 {
 		totalCpu := roleNanoCPUsMap["Manager"]
 		cpus = CPUsForLocalDeployment(serviceName, totalCpu)
@@ -70,116 +173,4 @@ func CPUs(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 	}
 
 	return cpus
-
-	// cpus := 0.25
-	// switch serviceName {
-	// case "system_prune":
-	// 	cpus = 0.25
-	// case "traefik":
-	// 	if nodeRoleNumMap["Manager"] == 1 {
-	// 		if roleNanoCPUsMap["Manager"] <= 2*1e9 {
-	// 			cpus = 0.15
-	// 		} else {
-	// 			cpus = 0.25
-	// 		}
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "mosquitto":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.30
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "nats":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.30
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// 	cpus = 4.0 // OJO luego quitar
-	// case "auth_callout":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.15
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "postgres":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.25
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "timescaledb":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.25
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// 	cpus = 4.0 // OJO luego quitar
-	// case "s3_storage":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.15
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "dev2pdb":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.15
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// 	cpus = 2.0 // OJO luego quitar
-	// case "grafana":
-	// 	if nodeRoleNumMap["Manager"] == 1 {
-	// 		if roleNanoCPUsMap["Manager"] <= 2*1e9 {
-	// 			cpus = 0.2
-	// 		} else {
-	// 			cpus = 0.50
-	// 		}
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "admin_api":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.30
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "frontend":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.25
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "agent":
-	// 	cpus = 0.10
-	// case "portainer":
-	// 	cpus = 0.10
-	// case "pgadmin4":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.15
-	// 	} else {
-	// 		cpus = 0.25
-	// 	}
-	// case "minio":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.30
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "grafana_renderer":
-	// 	if roleNanoCPUsMap["Platform worker"] <= 2*1e9 {
-	// 		cpus = 0.25
-	// 	} else {
-	// 		cpus = 0.50
-	// 	}
-	// case "keepalived":
-	// 	cpus = 0.25
-	// case "nodered_instance":
-	// 	cpus = 0.50
-	// default:
-	// 	cpus = 0.25
-	// }
-	// return int64(cpus * 1e9)
 }

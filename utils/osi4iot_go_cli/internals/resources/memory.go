@@ -74,6 +74,105 @@ func MemoryForLocalDeployment(serviceName string, totalMemory int64) int64 {
 	return int64(memoryPorcentage * float64(totalMemory))
 }
 
+func MemoryForClusterDeployment(serviceName string, roleMemoryBytesMap map[string]int64) int64 {
+	var memory int64 = 500 * 1e6
+	switch serviceName {
+	case "system_prune":
+		memory = 500 * 1e6
+	case "traefik":
+		if roleMemoryBytesMap["Manager"] <= 16000*1e6 {
+			memory = int64(0.25 * float64(roleMemoryBytesMap["Manager"]))
+		} else {
+			memory = 4000 * 1e6
+		}
+	case "grafana":
+		if roleMemoryBytesMap["Manager"] <= 16000*1e6 {
+			memory = int64(0.25 * float64(roleMemoryBytesMap["Manager"]))
+		} else {
+			memory = 4000 * 1e6
+		}
+	case "keepalived":
+		memory = 500 * 1e6
+	case "mosquitto":
+		if roleMemoryBytesMap["Platform worker"] <= 32000*1e6 {
+			memory = int64(0.125 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 4000 * 1e6
+		}
+	case "nats":
+		if roleMemoryBytesMap["Platform worker"] <= 32000*1e6 {
+			memory = int64(0.25 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 8000 * 1e6
+		}
+	case "auth_callout":
+		if roleMemoryBytesMap["Platform worker"] <= 32000*1e6 {
+			memory = int64(0.0625 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 2000 * 1e6
+		}
+	case "postgres":
+		if roleMemoryBytesMap["Platform worker"] <= 32000*1e6 {
+			memory = int64(0.25 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 8000 * 1e6
+		}
+	case "timescaledb":
+		if roleMemoryBytesMap["Platform worker"] <= 32000*1e6 {
+			memory = int64(0.25 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 8000 * 1e6
+		}
+	case "s3_storage":
+		if roleMemoryBytesMap["Platform worker"] <= 16000*1e6 {
+			memory = int64(0.125 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 2000 * 1e6
+		}
+	case "dev2pdb":
+		if roleMemoryBytesMap["Platform worker"] <= 32000*1e6 {
+			memory = int64(0.125 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 4000 * 1e6
+		}
+	case "admin_api":
+		if roleMemoryBytesMap["Platform worker"] <= 16000*1e6 {
+			memory = int64(0.125 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 2000 * 1e6
+		}
+	case "frontend":
+		if roleMemoryBytesMap["Platform worker"] <= 16000*1e6 {
+			memory = int64(0.125 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 2000 * 1e6
+		}
+	case "pgadmin4":
+		if roleMemoryBytesMap["Platform worker"] <= 16000*1e6 {
+			memory = int64(0.125 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 2000 * 1e6
+		}
+	case "minio":
+		if roleMemoryBytesMap["Platform worker"] <= 16000*1e6 {
+			memory = int64(0.125 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 2000 * 1e6
+		}
+	case "grafana_renderer":
+		if roleMemoryBytesMap["Platform worker"] <= 16000*1e6 {
+			memory = int64(0.125 * float64(roleMemoryBytesMap["Platform worker"]))
+		} else {
+			memory = 2000 * 1e6
+		}
+	case "nodered_instance":
+		memory = 2040 * 1e6
+	default:
+		memory = 500 * 1e6
+	}
+	return memory
+}
+
 func Memory(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 	nodeRoleNumMap := nodeRoleMaps.NodeRoleNumMap
 	numNodes := 0
@@ -85,62 +184,9 @@ func Memory(serviceName string, nodeRoleMaps NodesRoleMaps) int64 {
 	if numNodes == 1 {
 		totalMemory := nodeRoleMaps.RoleMemoryBytesMap["Manager"]
 		memory = MemoryForLocalDeployment(serviceName, totalMemory)
+	} else {
+		memory = MemoryForClusterDeployment(serviceName, nodeRoleMaps.RoleMemoryBytesMap)
 	}
 
 	return memory
-
-	// roleMemoryBytesMap := nodeRoleMaps.RoleMemoryBytesMap
-	// memory := 100
-	// switch serviceName {
-	// case "system_prune":
-	// 	memory = 50
-	// case "traefik":
-	// 	memory = 250
-	// case "mosquitto":
-	// 	memory = 500
-	// case "nats":
-	// 	memory = 500
-	// 	memory = 2048 // OJO luego quitar
-	// case "auth_callout":
-	// 	memory = 250
-	// case "postgres":
-	// 	memory = 500
-	// case "timescaledb":
-	// 	memory = 500
-	// 	memory = 4096 // OJO luego quitar
-	// case "s3_storage":
-	// 	memory = 250
-	// case "dev2pdb":
-	// 	memory = 500
-	// 	memory = 2048 // OJO luego quitar
-	// case "grafana":
-	// 	memory = 500
-	// case "admin_api":
-	// 	memory = 1000
-	// case "frontend":
-	// 	memory = 500
-	// case "agent":
-	// 	memory = 100
-	// case "portainer":
-	// 	memory = 100
-	// case "pgadmin4":
-	// 	memory = 500
-	// case "minio":
-	// 	memory = 500
-	// case "grafana_renderer":
-	// 	memory = 500
-	// case "keepalived":
-	// 	memory = 50
-	// case "nodered_instance":
-	// 	var gbytes int64 = 1024 * 1024 * 1024
-	// 	if roleMemoryBytesMap["Generic org worker"] <= 2*gbytes || roleMemoryBytesMap["Exclusive org worker"] <= 2*gbytes {
-	// 		memory = 2048
-	// 	} else {
-	// 		memory = 4096
-	// 	}
-	// default:
-	// 	memory = 100
-	// }
-
-	// return int64(memory * 1024 * 1024)
 }
