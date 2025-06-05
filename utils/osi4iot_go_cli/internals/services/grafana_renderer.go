@@ -6,7 +6,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func GrafanaRendererService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func GrafanaRendererService(
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 
 	constraints := []string{
 		"node.role==worker",
@@ -25,8 +30,8 @@ func GrafanaRendererService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps r
 			"ENABLE_METRICS=true",
 		}).
 		WithResources(
-			resources.CPUs("grafana_renderer", nodeRoleMaps),
-			resources.Memory("grafana_renderer", nodeRoleMaps),
+			resources.CPUs("grafana_renderer", svcResourcesMap),
+			resources.Memory("grafana_renderer", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("grafana_renderer", nodeRoleMaps)).

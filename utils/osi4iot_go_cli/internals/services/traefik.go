@@ -8,7 +8,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func TraefikService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func TraefikService(
+	pd *pt.PlatformData, 
+	sd pt.SwarmData, 
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+	) pt.Service {
 	messagingSystem := pd.PlatformInfo.MessagingSystem
 	domainCertsType := pd.PlatformInfo.DomainCertsType
 
@@ -106,8 +111,8 @@ func TraefikService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources
 			{Type: mount.TypeBind, Source: "/var/run/docker.sock", Target: "/var/run/docker.sock", ReadOnly: true},
 		}).
 		WithResources(
-			resources.CPUs("traefik", nodeRoleMaps),
-			resources.Memory("traefik", nodeRoleMaps),
+			resources.CPUs("traefik", svcResourcesMap),
+			resources.Memory("traefik", svcResourcesMap),
 		).
 		WithPlacement([]string{
 			"node.role == manager",

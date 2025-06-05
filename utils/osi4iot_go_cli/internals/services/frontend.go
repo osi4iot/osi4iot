@@ -8,7 +8,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func FrontendService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func FrontendService(
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
 	frontendRule := fmt.Sprintf("Host(`%s`)", domainName)
@@ -54,8 +59,8 @@ func FrontendService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resource
 		WithAnnotationsLabels(annotationsLabels).
 		WithConfigs(configs).
 		WithResources(
-			resources.CPUs("frontend", nodeRoleMaps),
-			resources.Memory("frontend", nodeRoleMaps),
+			resources.CPUs("frontend", svcResourcesMap),
+			resources.Memory("frontend", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("frontend", nodeRoleMaps)).

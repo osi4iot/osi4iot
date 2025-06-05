@@ -9,7 +9,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func Pgadmin4Service(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func Pgadmin4Service(
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
 	pgadmin4Rule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/pgadmin4/`)", domainName)
@@ -69,8 +74,8 @@ func Pgadmin4Service(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resource
 			},
 		}).
 		WithResources(
-			resources.CPUs("pgadmin4", nodeRoleMaps),
-			resources.Memory("pgadmin4", nodeRoleMaps),
+			resources.CPUs("pgadmin4", svcResourcesMap),
+			resources.Memory("pgadmin4", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("pgadmin4", nodeRoleMaps)).

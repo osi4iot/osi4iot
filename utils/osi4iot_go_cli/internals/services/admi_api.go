@@ -9,7 +9,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func AdminApiService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func AdminApiService(
+	pd *pt.PlatformData, 
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+	) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
 	adminApiRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/admin_api/`)", domainName)
@@ -133,8 +138,8 @@ func AdminApiService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resource
 			},
 		}).
 		WithResources(
-			resources.CPUs("admin_api", nodeRoleMaps),
-			resources.Memory("admin_api", nodeRoleMaps),
+			resources.CPUs("admin_api", svcResourcesMap),
+			resources.Memory("admin_api", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("admin_api", nodeRoleMaps)).

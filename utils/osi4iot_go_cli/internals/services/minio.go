@@ -9,7 +9,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func MinioService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func MinioService(
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
 	minioRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/minio_api`)", domainName)
@@ -89,8 +94,8 @@ func MinioService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.N
 			},
 		}).
 		WithResources(
-			resources.CPUs("minio", nodeRoleMaps),
-			resources.Memory("minio", nodeRoleMaps),
+			resources.CPUs("minio", svcResourcesMap),
+			resources.Memory("minio", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("minio", nodeRoleMaps)).

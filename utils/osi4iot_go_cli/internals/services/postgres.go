@@ -9,7 +9,13 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func PostgresService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func PostgresService(
+	
+	pd *pt.PlatformData, 
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+	) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -71,8 +77,8 @@ func PostgresService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resource
 			},
 		}).
 		WithResources(
-			resources.CPUs("postgres", nodeRoleMaps),
-			resources.Memory("postgres", nodeRoleMaps),
+			resources.CPUs("postgres", svcResourcesMap),
+			resources.Memory("postgres", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("postgres", nodeRoleMaps)).

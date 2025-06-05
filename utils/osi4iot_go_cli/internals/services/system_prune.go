@@ -9,7 +9,7 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func SystemPruneService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func SystemPruneService(pd *pt.PlatformData, sd pt.SwarmData, svcResourcesMap resources.SvcResourcesMap) pt.Service {
 	return NewService("system-prune", pd, sd).
 		WithImage("ghcr.io/osi4iot/system_prune:latest").
 		WithCommand([]string{"docker", "system", "prune", "--all", "--force"}).
@@ -17,8 +17,8 @@ func SystemPruneService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resou
 			{Type: mount.TypeBind, Source: "/var/run/docker.sock", Target: "/var/run/docker.sock"},
 		}).
 		WithResources(
-			resources.CPUs("system_prune", nodeRoleMaps),
-			resources.Memory("system_prune", nodeRoleMaps),
+			resources.CPUs("system_prune", svcResourcesMap),
+			resources.Memory("system_prune", svcResourcesMap),
 		).
 		WithRestartPolicy(24*time.Hour, swarm.RestartPolicyConditionAny).
 		WithModeGlobal().

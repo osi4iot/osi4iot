@@ -261,27 +261,29 @@ func durationPtr(d time.Duration) *time.Duration {
 func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Service {
 	messagingSystem := pd.PlatformInfo.MessagingSystem
 	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
+	svcResourcesMap := resources.NewSvcResourcesMap(pd)
+
 	services := map[string]pt.Service{
-		"system-prune": SystemPruneService(pd, sd, nodeRoleMaps),
-		"traefik":      TraefikService(pd, sd, nodeRoleMaps),
-		"postgres":     PostgresService(pd, sd, nodeRoleMaps),
-		"timescaledb":  TimescaledbService(pd, sd, nodeRoleMaps),
-		"s3_storage":   S3StorageService(pd, sd, nodeRoleMaps),
-		"dev2pdb":      Dev2pdbService(pd, sd, nodeRoleMaps),
-		"admin_api":    AdminApiService(pd, sd, nodeRoleMaps),
-		"frontend":     FrontendService(pd, sd, nodeRoleMaps),
-		"grafana":      GrafanaService(pd, sd, nodeRoleMaps),
+		"system-prune": SystemPruneService(pd, sd, svcResourcesMap),
+		"traefik":      TraefikService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"postgres":     PostgresService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"timescaledb":  TimescaledbService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"s3_storage":   S3StorageService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"dev2pdb":      Dev2pdbService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"admin_api":    AdminApiService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"frontend":     FrontendService(pd, sd, svcResourcesMap, nodeRoleMaps),
+		"grafana":      GrafanaService(pd, sd, svcResourcesMap, nodeRoleMaps),
 	}
 
 	if messagingSystem == "mqtt" {
-		services["mosquitto"] = MosquittoService(pd, sd, nodeRoleMaps)
+		services["mosquitto"] = MosquittoService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	} else if messagingSystem == "nats" {
 		for idx := range pd.PlatformInfo.NumNatsClusterNodes {
 			nodeId := idx + 1
 			serviceName := fmt.Sprintf("nats%d", nodeId)
-			services[serviceName] = NatsService(nodeId, pd, sd, nodeRoleMaps)
+			services[serviceName] = NatsService(nodeId, pd, sd, svcResourcesMap, nodeRoleMaps)
 		}
-		services["auth_callout"] = AuthCalloutService(pd, sd, nodeRoleMaps)
+		services["auth_callout"] = AuthCalloutService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
 	existArmArchNodes := false
@@ -292,41 +294,46 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		}
 	}
 	if !existArmArchNodes {
-		services["grafana_renderer"] = GrafanaRendererService(pd, sd, nodeRoleMaps)
+		services["grafana_renderer"] = GrafanaRendererService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
 	s3BucketType := pd.PlatformInfo.S3BucketType
 	if s3BucketType == "Local Minio" {
-		services["minio"] = MinioService(pd, sd, nodeRoleMaps)
+		services["minio"] = MinioService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
 	numSwarmNodes := len(pd.PlatformInfo.NodesData)
 	deploymentLocation := pd.PlatformInfo.DeploymentLocation
 	if numSwarmNodes > 1 && !existArmArchNodes && deploymentLocation == "On-premise cluster deployment" {
-		services["keepalived"] = KeepalivedService(pd, sd, nodeRoleMaps)
+		services["keepalived"] = KeepalivedService(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
 	deploymentMode := pd.PlatformInfo.DeploymentMode
 	if deploymentMode == "development" {
-		services["pgadmin4"] = Pgadmin4Service(pd, sd, nodeRoleMaps)
+		services["pgadmin4"] = Pgadmin4Service(pd, sd, svcResourcesMap, nodeRoleMaps)
 	}
 
 	return services
 }
 
-func CreateNriServices(pd *pt.PlatformData, dc *pt.DockerClient, sd pt.SwarmData) map[string]pt.Service {
+func CreateNriServices(
+	pd *pt.PlatformData,
+	dc *pt.DockerClient,
+	sd pt.SwarmData,
+) map[string]pt.Service {
 	nriServices := make(map[string]pt.Service)
 
 	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
+	svcResourcesMap := resources.NewSvcResourcesMap(pd)
 	var nriConstraintsArray []string
 	nriResources := &swarm.ResourceRequirements{
 		Limits: &swarm.Limit{
-			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
-			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
+			NanoCPUs:    resources.CPUs("nodered_instance", svcResourcesMap),
+			MemoryBytes: resources.Memory("nodered_instance", svcResourcesMap),
 		},
 		Reservations: &swarm.Resources{
-			NanoCPUs:    resources.CPUs("nodered_instance", nodeRoleMaps),
-			MemoryBytes: resources.Memory("nodered_instance", nodeRoleMaps),
+			NanoCPUs:    resources.CPUs("nodered_instance", svcResourcesMap),
+			MemoryBytes: resources.Memory("nodered_instance", svcResourcesMap),
 		},
 	}
 	numSwarmNodes := len(pd.PlatformInfo.NodesData)
@@ -368,7 +375,7 @@ func CreateNriServices(pd *pt.PlatformData, dc *pt.DockerClient, sd pt.SwarmData
 				Resources:        nriResources,
 				ConstraintsArray: nriConstraintsArray,
 			}
-			serviceName, nriService := NriService(pd, sd, nodeRoleMaps, nriData)
+			serviceName, nriService := NriService(pd, sd, nodeRoleMaps, nriData, svcResourcesMap)
 			nriServices[serviceName] = nriService
 		}
 	}

@@ -6,7 +6,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func Dev2pdbService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func Dev2pdbService(
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -46,8 +51,8 @@ func Dev2pdbService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources
 		WithImage("ghcr.io/osi4iot/dev2pdb_nats:1.3.0").
 		WithSecrets(secrets).
 		WithResources(
-			resources.CPUs("dev2pdb", nodeRoleMaps),
-			resources.Memory("dev2pdb", nodeRoleMaps),
+			resources.CPUs("dev2pdb", svcResourcesMap),
+			resources.Memory("dev2pdb", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("dev2pdb", nodeRoleMaps)).

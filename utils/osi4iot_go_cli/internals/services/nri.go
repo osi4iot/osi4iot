@@ -10,7 +10,13 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func NriService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps, nriData pt.NriData) (serviceName string, service pt.Service) {
+func NriService(
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	nodeRoleMaps resources.NodesRoleMaps,
+	nriData pt.NriData,
+	svcResourcesMap resources.SvcResourcesMap,
+) (serviceName string, service pt.Service) {
 	orgAcronym := nriData.Org.OrgAcronym
 	orgAcronymLower := strings.ToLower(orgAcronym)
 	messagingSystem := pd.PlatformInfo.MessagingSystem
@@ -131,8 +137,8 @@ func NriService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.Nod
 			},
 		}).
 		WithResources(
-			resources.CPUs("nodered_instance", nodeRoleMaps),
-			resources.Memory("nodered_instance", nodeRoleMaps),
+			resources.CPUs("nodered_instance", svcResourcesMap),
+			resources.Memory("nodered_instance", svcResourcesMap),
 		).
 		WithPlacement(nriData.ConstraintsArray).
 		WithModeReplicated(resources.GiveReplicsPtr("nodered_instance", nodeRoleMaps)).

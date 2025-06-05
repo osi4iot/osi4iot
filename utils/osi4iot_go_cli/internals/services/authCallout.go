@@ -6,7 +6,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func AuthCalloutService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func AuthCalloutService(
+	pd *pt.PlatformData, 
+	sd pt.SwarmData, 
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+	) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -46,8 +51,8 @@ func AuthCalloutService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resou
 		WithImage("ghcr.io/osi4iot/auth_callout:1.3.0").
 		WithSecrets(secrets).
 		WithResources(
-			resources.CPUs("auth_callout", nodeRoleMaps),
-			resources.Memory("auth_callout", nodeRoleMaps),
+			resources.CPUs("auth_callout", svcResourcesMap),
+			resources.Memory("auth_callout", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("auth_callout", nodeRoleMaps)).

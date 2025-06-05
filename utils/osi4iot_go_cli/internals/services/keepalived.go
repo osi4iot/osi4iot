@@ -9,7 +9,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func KeepalivedService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func KeepalivedService(
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 
 	constraints := []string{
 		"node.role == manager",
@@ -37,8 +42,8 @@ func KeepalivedService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resour
 			},
 		}).
 		WithResources(
-			resources.CPUs("keepalived", nodeRoleMaps),
-			resources.Memory("keepalived", nodeRoleMaps),
+			resources.CPUs("keepalived", svcResourcesMap),
+			resources.Memory("keepalived", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithGlobal().

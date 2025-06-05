@@ -9,7 +9,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func GrafanaService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func GrafanaService(
+	pd *pt.PlatformData, 
+	sd pt.SwarmData, 
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+	) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
 	grafanaRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/grafana/`)", domainName)
@@ -78,8 +83,8 @@ func GrafanaService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources
 			},
 		}).
 		WithResources(
-			resources.CPUs("grafana", nodeRoleMaps),
-			resources.Memory("grafana", nodeRoleMaps),
+			resources.CPUs("grafana", svcResourcesMap),
+			resources.Memory("grafana", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("grafana", nodeRoleMaps)).

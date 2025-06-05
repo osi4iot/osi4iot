@@ -7,7 +7,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func S3StorageService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func S3StorageService(
+	pd *pt.PlatformData, 
+	sd pt.SwarmData, 
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -58,8 +63,8 @@ func S3StorageService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resourc
 			},
 		}).
 		WithResources(
-			resources.CPUs("s3_storage", nodeRoleMaps),
-			resources.Memory("s3_storage", nodeRoleMaps),
+			resources.CPUs("s3_storage", svcResourcesMap),
+			resources.Memory("s3_storage", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("s3_storage", nodeRoleMaps)).

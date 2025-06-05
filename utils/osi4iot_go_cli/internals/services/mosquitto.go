@@ -9,7 +9,11 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func MosquittoService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func MosquittoService(
+	pd *pt.PlatformData, sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 	domainCertsType := pd.PlatformInfo.DomainCertsType
 
 	mosquittoRule := fmt.Sprintf("Host(`%s`)", pd.PlatformInfo.DomainName)
@@ -128,8 +132,8 @@ func MosquittoService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resourc
 			},
 		}).
 		WithResources(
-			resources.CPUs("mosquitto", nodeRoleMaps),
-			resources.Memory("mosquitto", nodeRoleMaps),
+			resources.CPUs("mosquitto", svcResourcesMap),
+			resources.Memory("mosquitto", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("mosquitto", nodeRoleMaps)).

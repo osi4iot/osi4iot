@@ -9,7 +9,12 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func TimescaledbService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func TimescaledbService(
+	pd *pt.PlatformData, 
+	sd pt.SwarmData, 
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+	) pt.Service {
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -88,8 +93,8 @@ func TimescaledbService(pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resou
 			},
 		}).
 		WithResources(
-			resources.CPUs("timescaledb", nodeRoleMaps),
-			resources.Memory("timescaledb", nodeRoleMaps),
+			resources.CPUs("timescaledb", svcResourcesMap),
+			resources.Memory("timescaledb", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("timescaledb", nodeRoleMaps)).

@@ -9,7 +9,13 @@ import (
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
 
-func NatsService(nodeId int, pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps resources.NodesRoleMaps) pt.Service {
+func NatsService(
+	nodeId int,
+	pd *pt.PlatformData,
+	sd pt.SwarmData,
+	svcResourcesMap resources.SvcResourcesMap,
+	nodeRoleMaps resources.NodesRoleMaps,
+) pt.Service {
 	// Define the NATS service
 	serviceName := fmt.Sprintf("nats%d", nodeId)
 	volName := fmt.Sprintf("nats%d_data", nodeId)
@@ -106,8 +112,8 @@ func NatsService(nodeId int, pd *pt.PlatformData, sd pt.SwarmData, nodeRoleMaps 
 			},
 		}).
 		WithResources(
-			resources.CPUs("nats", nodeRoleMaps),
-			resources.Memory("nats", nodeRoleMaps),
+			resources.CPUs("nats", svcResourcesMap),
+			resources.Memory("nats", svcResourcesMap),
 		).
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("nats", nodeRoleMaps)).

@@ -1,8 +1,16 @@
 package resources
 
 import (
+	"strconv"
+	"strings"
+
 	pt "github.com/osi4iot/osi4iot/utils/osi4iot_go_cli/internals/types"
 )
+
+type SvcResourcesMap struct {
+	SvcMemoryBytesMap map[string]int64
+	SvcNanoCPUsMap    map[string]int64
+}
 
 type NodesRoleMaps struct {
 	NodeRoleNumMap     map[string]int
@@ -13,8 +21,8 @@ type NodesRoleMaps struct {
 func NewNodeRoleMaps(pd *pt.PlatformData) NodesRoleMaps {
 	nodeRoleMaps := NodesRoleMaps{
 		NodeRoleNumMap:     getNodeRoleNumMap(pd),
-		RoleMemoryBytesMap: getNodeMemoryBytesMap(pd),
-		RoleNanoCPUsMap:    getNodeNanoCpusMap(pd),
+		RoleMemoryBytesMap: getRoleMemoryBytesMap(pd),
+		RoleNanoCPUsMap:    getRoleNanoCpusMap(pd),
 	}
 
 	return nodeRoleMaps
@@ -48,7 +56,7 @@ func getNodeRoleNumMap(platformData *pt.PlatformData) map[string]int {
 	return roleNumMap
 }
 
-func getNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
+func getRoleNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 	roleNanoCpusMap := make(map[string]int64)
 	roleNanoCpusMap["Manager"] = 0
 	roleNanoCpusMap["Platform worker"] = 0
@@ -109,7 +117,7 @@ func getNodeNanoCpusMap(platformData *pt.PlatformData) map[string]int64 {
 	return roleNanoCpusMap
 }
 
-func getNodeMemoryBytesMap(platformData *pt.PlatformData) map[string]int64 {
+func getRoleMemoryBytesMap(platformData *pt.PlatformData) map[string]int64 {
 	roleMemoryBytesMap := make(map[string]int64)
 	roleMemoryBytesMap["Manager"] = 0
 	roleMemoryBytesMap["Platform worker"] = 0
@@ -232,4 +240,35 @@ func GiveReplicsPtr(serviceName string, nodeRoleMaps NodesRoleMaps) *uint64 {
 		replics = uint64(1)
 	}
 	return &replics
+}
+
+func NewSvcResourcesMap(pd *pt.PlatformData) SvcResourcesMap {
+	resourcesMap := SvcResourcesMap{
+		SvcMemoryBytesMap: getMemoryBytesSvcMap(pd),
+		SvcNanoCPUsMap:    getNanoCPUsSvcMap(pd),
+	}
+
+	return resourcesMap
+}
+
+func NriResourceMap(pd *pt.PlatformData) SvcResourcesMap {
+	uiSvcCpusStr := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[0]
+	uiSvcCpus, _ := strconv.ParseFloat(uiSvcCpusStr[0:len(uiSvcCpusStr)-3], 64)
+	nanoCPUsSvcMap := make(map[string]int64)
+
+	if uiSvcCpus <= 1.0 {
+		nanoCPUsSvcMap["nodered_instance"] = int64(uiSvcCpus * 1e9)
+	} else {
+		nanoCPUsSvcMap["nodered_instance"] = int64(1.0 * 1e9)
+	}
+	
+	memoryBytesSvcMap := make(map[string]int64)
+	memoryBytesSvcMap["nodered_instance"] = int64(2000 * 1024 * 1024) // 2000 MB
+
+	resourcesMap := SvcResourcesMap{
+		SvcMemoryBytesMap: memoryBytesSvcMap,
+		SvcNanoCPUsMap:    nanoCPUsSvcMap,
+	}
+
+	return resourcesMap
 }
