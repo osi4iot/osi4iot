@@ -30,6 +30,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 	domainCertsType := pd.PlatformInfo.DomainCertsType
 	messagingSystem := pd.PlatformInfo.MessagingSystem
 	nodeRoleMaps := resources.NewNodeRoleMaps(pd)
+	numNodes := len(pd.PlatformInfo.NodesData)
 
 	adminApiSecretsDataArray := []string{
 		fmt.Sprintf("REGISTRATION_TOKEN_LIFETIME=%s", strconv.Itoa(pd.PlatformInfo.RegistrationTokenLifetime)),
@@ -164,9 +165,10 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Secrets["auth_callout"] = authCalloutSecret
 
 		clusterRoutes := []string{"nats1:6222"}
-		if nodeRoleMaps.NodeRoleNumMap["Platform worker"] >= 3 {
-			clusterRoutes = append(clusterRoutes, "nats2:6222")
-			clusterRoutes = append(clusterRoutes, "nats3:6222")
+		if (numNodes == 1 && pd.PlatformInfo.NumNatsClusterNodes > 1) || nodeRoleMaps.NodeRoleNumMap["Platform worker"] >= 3 {
+			for iNatsNode := 2; iNatsNode <= pd.PlatformInfo.NumNatsClusterNodes; iNatsNode++ {
+				clusterRoutes = append(clusterRoutes, fmt.Sprintf("nats%d:6222", iNatsNode))
+			}
 		}
 		params := utils.NatsConfigParams{
 			NatsAdminUsername:   pd.Certs.NatsCerts.NatsAdminUsername,

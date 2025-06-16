@@ -615,12 +615,12 @@ func addNumNatsClusterNodesQuestions(index int, m *Model) {
 	if idx == -1 {
 		numNatsClusterNodesQuestion := Question{
 			Key:           "NUM_NATS_CLUSTER_NODES",
-			QuestionType:  "generic",
+			QuestionType:  "list",
 			Prompt:        "Number of NATS cluster nodes",
 			Answer:        utils.IntValueToStr(data.Data.PlatformInfo.NumNatsClusterNodes),
 			DefaultAnswer: "1",
 			ErrorMessage:  "",
-			Choices:       []string{},
+			Choices:       []string{"1", "3", "5"},
 			ChoiceFocus:   0,
 			Rules:         []string{"required", "int", "minval:1"},
 			ActionKey:     "",

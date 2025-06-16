@@ -133,7 +133,7 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.IotDataSvcResources = value
 	case "ADMIN_DATA_STORAGE_SVC_RESOURCES":
 		Data.PlatformInfo.AdminDataStorageSvcResources = value
-	case "UI_SERVICES_RESOURCES":
+	case "UI_SVC_RESOURCES":
 		Data.PlatformInfo.UiSvcResources = value
 	case "NUMBER_OF_SWARM_NODES":
 		numberOfNodes, _ := strconv.Atoi(value)

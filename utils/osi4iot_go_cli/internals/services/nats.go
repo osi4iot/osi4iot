@@ -19,6 +19,8 @@ func NatsService(
 	// Define the NATS service
 	serviceName := fmt.Sprintf("nats%d", nodeId)
 	volName := fmt.Sprintf("nats%d_data", nodeId)
+	numNodes := len(pd.PlatformInfo.NodesData)
+	numNatsClusterNodes := pd.PlatformInfo.NumNatsClusterNodes
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -63,26 +65,41 @@ func NatsService(
 		},
 	}
 
+	var natsPort uint32 = 4222
+	var metricPort uint32 = 8222
+	var mqttPort uint32 = 1883
+	var websocketPort uint32 = 9001
+	if numNodes == 1 && numNatsClusterNodes > 1 {
+		natsPort = uint32(4222 + (nodeId - 1))
+		metricPort = uint32(8222 + (nodeId - 1))
+		websocketPort = uint32(9001 + (nodeId - 1))
+		mqttPort = uint32(1883 + (nodeId - 1))
+	}
+
 	ports := []swarm.PortConfig{
 		{
 			Protocol:      swarm.PortConfigProtocolTCP,
 			TargetPort:    4222,
-			PublishedPort: 4222,
+			PublishedPort: natsPort,
+			PublishMode: swarm.PortConfigPublishModeHost,
 		},
 		{
 			Protocol:      swarm.PortConfigProtocolTCP,
 			TargetPort:    8222,
-			PublishedPort: 8222,
+			PublishedPort: metricPort,
+			PublishMode:   swarm.PortConfigPublishModeHost,
 		},
 		{
 			Protocol:      swarm.PortConfigProtocolTCP,
 			TargetPort:    9001,
-			PublishedPort: 9001,
+			PublishedPort: websocketPort,
+			PublishMode: swarm.PortConfigPublishModeHost,
 		},
 		{
 			Protocol:      swarm.PortConfigProtocolTCP,
 			TargetPort:    1883,
-			PublishedPort: 1883,
+			PublishedPort: mqttPort,
+			PublishMode: swarm.PortConfigPublishModeHost,
 		},
 	}
 
@@ -99,8 +116,9 @@ func NatsService(
 
 	return NewService(serviceName, pd, sd).
 		WithImage("ghcr.io/osi4iot/nats:2.11.1-alpine").
+		WithHostname(serviceName).
 		WithEnv([]string{
-			fmt.Sprintf("SERVER_NAME=%s", serviceName),
+			fmt.Sprintf("SERVER_NAME=\"%s\"", serviceName),
 		}).
 		WithCommand([]string{"nats-server", "-c", "/etc/nats/nats.conf", "-js"}).
 		WithSecrets(secrets).
@@ -108,7 +126,7 @@ func NatsService(
 			{
 				Type:   mount.TypeVolume,
 				Source: sd.Volumes[volName].Name,
-				Target: "/nats_data",
+				Target: "/data/nats",
 			},
 		}).
 		WithResources(
@@ -118,6 +136,10 @@ func NatsService(
 		WithPlacement(constraints).
 		WithModeReplicated(resources.GiveReplicsPtr("nats", nodeRoleMaps)).
 		WithPorts(ports).
+		WithHealthCheck([]string{
+			"CMD-SHELL", 
+			"wget -qO- http://localhost:8222/healthz | grep -q '\"status\":\"ok\"' || exit 0",
+		}).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 		}).

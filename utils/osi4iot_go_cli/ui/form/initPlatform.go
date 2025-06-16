@@ -641,7 +641,7 @@ func initialModelCreatePlatform() Model {
 				Margin:    0,
 			},			
 			{
-				Key:           "USER_INTERFACE_SERVICES_RESOURCES",
+				Key:           "UI_SVC_RESOURCES",
 				QuestionType:  "list",
 				Prompt:        "Select user interface services resources",
 				Answer:        data.Data.PlatformInfo.UiSvcResources,

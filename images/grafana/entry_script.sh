@@ -16,7 +16,6 @@ fi
 
 if [ -f "/run/configs/grafana.conf" ]
 then
-    export GF_INSTALL_PLUGINS=grafana-clock-panel,natel-discrete-panel,briangann-gauge-panel,vonage-status-panel,neocat-cal-heatmap-panel
     export HOME_DASHBOARD_PATH=/var/lib/grafana/data/home_dashboard.json
     export GF_RENDERING_SERVER_URL=http://grafana_renderer:8081/render
     export GF_RENDERING_CALLBACK_URL=http://grafana:5000/grafana/

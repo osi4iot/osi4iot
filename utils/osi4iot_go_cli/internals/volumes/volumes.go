@@ -40,12 +40,14 @@ func GenerateVolumes(platformData *pt.PlatformData) map[string]pt.Volume {
 			DriverOpts: map[string]string{},
 		}
 	} else if messagingSystem == "nats" {
-		Volumes["nats1_data"] = pt.Volume{
-			Name:       "nats1_data",
-			Driver:     "local",
-			DriverOpts: map[string]string{},
+		for iNatsNode := 1; iNatsNode <= pi.NumNatsClusterNodes; iNatsNode++ {
+			volumeName := fmt.Sprintf("nats%d_data", iNatsNode)
+			Volumes[volumeName] = pt.Volume{
+				Name:       volumeName,
+				Driver:     "local",
+				DriverOpts: map[string]string{},
+			}
 		}
-		//OJO completar ...
 	}
 
 	Volumes["pgdata"] = pt.Volume{

@@ -53,10 +53,3 @@ func getMemoryBytesSvcMap(pd *pt.PlatformData) map[string]int64 {
 
 	return memoryBytesSvcMap
 }
-
-func NriMemoryBytesMaps(pd *pt.PlatformData) map[string]int64 {
-	memoryBytesSvcMap := make(map[string]int64)
-	memoryBytesSvcMap["nodered_instance"] = int64(2000 * 1024 * 1024) // 2000 MB
-
-	return memoryBytesSvcMap
-}

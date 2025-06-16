@@ -30,9 +30,13 @@ tls {
 }  
 
 jetstream {
-  store_dir: "/nats/jetstream"
+  store_dir: "/data/nats"
   max_memory_store: 1G
-  max_file_store: 1G
+  max_file_store: 100G
+  sync_interval: "10s"
+  max_outstanding_catchup: 524288000
+  max_buffered_msgs: 5000000
+  max_buffered_size: 5368709120
 }
 
 mqtt {
