@@ -129,8 +129,10 @@ func SetData(key string, value string) {
 		Data.PlatformInfo.LocalResourceUtilization = localResourceUtilization
 	case "DEPLOYMENT_MODE":
 		Data.PlatformInfo.DeploymentMode = value
-	case "IOT_DATA_SVC_RESOURCES":
-		Data.PlatformInfo.IotDataSvcResources = value
+	case "MESSAGING_SVC_RESOURCES":
+		Data.PlatformInfo.MessagingSvcResources = value
+	case "IOT_DATA_STORAGE_SVC_RESOURCES":
+		Data.PlatformInfo.IotDataStorageSvcResources = value
 	case "ADMIN_DATA_STORAGE_SVC_RESOURCES":
 		Data.PlatformInfo.AdminDataStorageSvcResources = value
 	case "UI_SVC_RESOURCES":

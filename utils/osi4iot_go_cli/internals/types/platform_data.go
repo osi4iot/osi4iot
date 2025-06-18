@@ -106,7 +106,8 @@ type PlatformInfo struct {
 	PGAdminDefaultEmail            string `json:"PGADMIN_DEFAULT_EMAIL"`
 	PGAdminDefaultPassword         string `json:"PGADMIN_DEFAULT_PASSWORD"`
 
-	IotDataSvcResources string `json:"IOT_DATA_SVC_RESOURCES"`
+	MessagingSvcResources string `json:"MESSAGING_SVC_RESOURCES"`
+	IotDataStorageSvcResources string `json:"IOT_DATA_STORAGE_SVC_RESOURCES"`
 	AdminDataStorageSvcResources string `json:"ADMIN_DATA_STORAGE_SVC_RESOURCES"`
 	UiSvcResources     string `json:"UI_SVC_RESOURCES"`
 

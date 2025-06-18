@@ -18,8 +18,10 @@ func getMemoryBytesSvcMap(pd *pt.PlatformData) map[string]int64 {
 	numNodes := len(nodesData)
 	deploymentLocation := pd.PlatformInfo.DeploymentLocation
 
-	iotDataSvcMemStr := strings.Split(pd.PlatformInfo.IotDataSvcResources, "-")[1]
-	iotDataSvcMem, _ := strconv.ParseFloat(iotDataSvcMemStr[0:len(iotDataSvcMemStr)-2], 64)
+	messagingSvcMemStr := strings.Split(pd.PlatformInfo.MessagingSvcResources, "-")[1]
+	messagingSvcMem, _ := strconv.ParseFloat(messagingSvcMemStr[0:len(messagingSvcMemStr)-2], 64)
+	iotDataStorageSvcMemStr := strings.Split(pd.PlatformInfo.IotDataStorageSvcResources, "-")[1]
+	iotDataStorageSvcMem, _ := strconv.ParseFloat(iotDataStorageSvcMemStr[0:len(iotDataStorageSvcMemStr)-2], 64)
 	adminDataStorageSvcMemStr := strings.Split(pd.PlatformInfo.AdminDataStorageSvcResources, "-")[1]
 	adminDataStorageSvcMem, _ := strconv.ParseFloat(adminDataStorageSvcMemStr[0:len(adminDataStorageSvcMemStr)-2], 64)
 	uiSvcMemStr := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[1]
@@ -36,11 +38,13 @@ func getMemoryBytesSvcMap(pd *pt.PlatformData) map[string]int64 {
 	memoryBytesSvcMap["grafana"] = int64(uiSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["traefik"] = int64(uiSvcMem * 1024 * 1024)
 
-	memoryBytesSvcMap["mosquitto"] = int64(iotDataSvcMem * 1024 * 1024)
-	memoryBytesSvcMap["nats"] = int64(iotDataSvcMem * 1024 * 1024)
-	memoryBytesSvcMap["auth_callout"] = int64(0.25 * iotDataSvcMem * 1024 * 1024)
-	memoryBytesSvcMap["timescaledb"] = int64(iotDataSvcMem * 1024 * 1024)
-	memoryBytesSvcMap["dev2pdb"] = int64(0.50 * iotDataSvcMem * 1024 * 1024)
+	memoryBytesSvcMap["mosquitto"] = int64(messagingSvcMem * 1024 * 1024)
+	memoryBytesSvcMap["nats"] = int64(messagingSvcMem * 1024 * 1024)
+	memoryBytesSvcMap["auth_callout"] = int64(0.25 * iotDataStorageSvcMem * 1024 * 1024)
+	memoryBytesSvcMap["dev2pdb"] = int64(0.50 * iotDataStorageSvcMem * 1024 * 1024)
+
+	memoryBytesSvcMap["timescaledb"] = int64(iotDataStorageSvcMem * 1024 * 1024)
+	
 	memoryBytesSvcMap["postgres"] = int64(adminDataStorageSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["s3_storage"] = int64(0.5 * adminDataStorageSvcMem * 1024 * 1024)
 	memoryBytesSvcMap["minio"] = int64(adminDataStorageSvcMem * 1024 * 1024)

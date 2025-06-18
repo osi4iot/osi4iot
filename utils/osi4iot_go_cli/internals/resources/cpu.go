@@ -19,8 +19,10 @@ func getNanoCPUsSvcMap(pd *pt.PlatformData) map[string]int64 {
 	numNodes := len(nodesData)
 	deploymentLocation := pd.PlatformInfo.DeploymentLocation
 
-	iotDataSvcCpusStr := strings.Split(pd.PlatformInfo.IotDataSvcResources, "-")[0]
-	iotDataSvcCpus, _ := strconv.ParseFloat(iotDataSvcCpusStr[0:len(iotDataSvcCpusStr)-3], 64)
+	messagingSvcCpusStr := strings.Split(pd.PlatformInfo.MessagingSvcResources, "-")[0]
+	messagingSvcCpus, _ := strconv.ParseFloat(messagingSvcCpusStr[0:len(messagingSvcCpusStr)-3], 64)
+	iotStorageDataSvcCpusStr := strings.Split(pd.PlatformInfo.IotDataStorageSvcResources, "-")[0]
+	iotStorageDataSvcCpus, _ := strconv.ParseFloat(iotStorageDataSvcCpusStr[0:len(iotStorageDataSvcCpusStr)-3], 64)
 	adminDataStorageSvcCpusStr := strings.Split(pd.PlatformInfo.AdminDataStorageSvcResources, "-")[0]
 	adminDataStorageSvcCpus, _ := strconv.ParseFloat(adminDataStorageSvcCpusStr[0:len(adminDataStorageSvcCpusStr)-3], 64)
 	uiSvcCpusStr := strings.Split(pd.PlatformInfo.UiSvcResources, "-")[0]
@@ -37,11 +39,11 @@ func getNanoCPUsSvcMap(pd *pt.PlatformData) map[string]int64 {
 	nanoCPUsSvcMap["traefik"] = int64(uiSvcCpus * 1e9)
 	nanoCPUsSvcMap["grafana"] = int64(uiSvcCpus * 1e9)
 
-	nanoCPUsSvcMap["mosquitto"] = int64(iotDataSvcCpus * 1e9)
-	nanoCPUsSvcMap["nats"] = int64(iotDataSvcCpus * 1e9)
-	nanoCPUsSvcMap["auth_callout"] = int64(0.25 * iotDataSvcCpus * 1e9)
-	nanoCPUsSvcMap["timescaledb"] = int64(iotDataSvcCpus * 1e9)
-	nanoCPUsSvcMap["dev2pdb"] = int64(0.50 * iotDataSvcCpus * 1e9)
+	nanoCPUsSvcMap["mosquitto"] = int64(messagingSvcCpus * 1e9)
+	nanoCPUsSvcMap["nats"] = int64(messagingSvcCpus * 1e9)
+	nanoCPUsSvcMap["auth_callout"] = int64(0.25 * messagingSvcCpus * 1e9)
+	nanoCPUsSvcMap["dev2pdb"] = int64(0.50 * messagingSvcCpus * 1e9)
+	nanoCPUsSvcMap["timescaledb"] = int64(iotStorageDataSvcCpus * 1e9)
 
 	nanoCPUsSvcMap["postgres"] = int64(adminDataStorageSvcCpus * 1e9)
 	nanoCPUsSvcMap["s3_storage"] = int64(0.5 * adminDataStorageSvcCpus * 1e9)
