@@ -8,17 +8,37 @@ import (
 	"github.com/spf13/viper"
 )
 
+type Node struct {
+	Uid      string   `json:"uid"`
+	Type     string   `json:"type"`
+	Children []string `json:"children"`
+	Subject  string   `json:"subject"`
+	SubjectIn string   `json:"subjectIn"`
+	Script   string   `json:"script"`
+}
+
+type Flow struct {
+	FlowUID       string `json:"flowUid"`
+	Name          string `json:"name"`
+	GroupID       int    `json:"groupId"`
+	AssetID       int    `json:"assetId"`
+	DigitalTwinID int    `json:"digitalTwinId"`
+	Nodes         []Node `json:"nodes"`
+}
+
 // Config holds the entire application configuration.
 type Config struct {
-	Mode         string            `mapstructure:"mode"`
-	DomainName   string            `mapstructure:"domainName"`
-	NATS         NATSConfig        `mapstructure:"nats"`
-	Postgresql   PostgresqlConfig  `mapstructure:"postgresql"`
-	TimescaleDB  TimescaleDBConfig `mapstructure:"timescaledb"`
-	OrgId        int               `mapstructure:"orgId"`
-	OrgHash      string            `mapstructure:"orgHash"`
-	ReplicaIndex int               `mapstructure:"replicaIndex"`
-	NumReplicas  int               `mapstructure:"numReplicas"`
+	Mode              string            `mapstructure:"mode"`
+	DomainName        string            `mapstructure:"domainName"`
+	NATS              NATSConfig        `mapstructure:"nats"`
+	Postgresql        PostgresqlConfig  `mapstructure:"postgresql"`
+	TimescaleDB       TimescaleDBConfig `mapstructure:"timescaledb"`
+	OrgId             int               `mapstructure:"orgId"`
+	OrgHash           string            `mapstructure:"orgHash"`
+	NumStreamReplicas int               `mapstructure:"numStreamReplicas"`
+	ReplicaIndex      int               `mapstructure:"replicaIndex"`
+	NumReplicas       int               `mapstructure:"numReplicas"`
+	Flows             []Flow            `mapstructure:"flows"`
 }
 
 type NATSConfig struct {
