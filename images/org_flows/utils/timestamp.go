@@ -9,9 +9,9 @@ import (
 type Timestamp time.Time
 
 
-// MarshalJSON converts time to unix timestamp in milliseconds by default
+// MarshalJSON converts Timestamp to JSON.
 func (t Timestamp) MarshalJSON() ([]byte, error) {
-	timestamp := time.Time(t).UnixMilli()
+	timestamp := time.Time(t).Format("2006-01-02T15:04:05.000Z") // ISO 8601 format with milliseconds
 	return json.Marshal(timestamp)
 }
 
@@ -79,4 +79,8 @@ func (t Timestamp) ISO8601() string {
 // IsZero reports whether the timestamp represents the zero moment
 func (t Timestamp) IsZero() bool {
 	return time.Time(t).IsZero()
+}
+
+func (t Timestamp) Now() Timestamp {
+	return Timestamp(time.Now())
 }

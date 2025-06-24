@@ -64,7 +64,11 @@ func CreateStream(
 	return stream, nil
 }
 
-func CreateConsumer(cfg *config.Config, log *logger.Logger, stream jetstream.Stream) (jetstream.Consumer, error) {
+func CreateConsumer(
+	cfg *config.Config, 
+	log *logger.Logger, 
+	stream jetstream.Stream,
+	) (jetstream.Consumer, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
@@ -91,4 +95,48 @@ func CreateConsumer(cfg *config.Config, log *logger.Logger, stream jetstream.Str
 
 	log.Infof("Consumer '%s' created successfully", consumerName)
 	return consumer, nil
+}
+
+func CreateFlowKeyValueStore(
+	orgHash string,
+	flowUID string,
+	log *logger.Logger,
+	js jetstream.JetStream,
+) (jetstream.KeyValue, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kvName := fmt.Sprintf("org_%s-flow_%s", orgHash, flowUID)
+	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
+		Bucket: kvName,
+	})
+
+	if err != nil {
+		log.Errorf("Error creating KV store '%s': %v", kvName, err)
+		return nil, err
+	}
+
+	log.Infof("KV store '%s' created successfully", kvName)
+	return kv, nil
+}
+
+func DeleteFlowKeyValueStore(
+	orgHash string,
+	flowUID string,
+	log *logger.Logger,
+	js jetstream.JetStream,
+) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	kvName := fmt.Sprintf("org_%s-flow_%s", orgHash, flowUID)
+	err := js.DeleteKeyValue(ctx, kvName)
+
+	if err != nil {
+		log.Errorf("Error deleting KV store '%s': %v", kvName, err)
+		return err
+	}
+
+	log.Infof("KV store '%s' deleted successfully", kvName)
+	return nil
 }

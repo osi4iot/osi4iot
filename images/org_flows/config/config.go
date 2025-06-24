@@ -9,21 +9,24 @@ import (
 )
 
 type Node struct {
-	Uid      string   `json:"uid"`
-	Type     string   `json:"type"`
-	Children []string `json:"children"`
-	Subject  string   `json:"subject"`
+	Uid       string   `json:"uid"`
+	Type      string   `json:"type"`
+	Children  []string `json:"children"`
+	Subject   string   `json:"subject"`
 	SubjectIn string   `json:"subjectIn"`
-	Script   string   `json:"script"`
+	Script    string   `json:"script"`
+	Duration  int      `json:"duration"` // Delay in milliseconds
 }
 
 type Flow struct {
-	FlowUID       string `json:"flowUid"`
-	Name          string `json:"name"`
-	GroupID       int    `json:"groupId"`
-	AssetID       int    `json:"assetId"`
-	DigitalTwinID int    `json:"digitalTwinId"`
-	Nodes         []Node `json:"nodes"`
+	FlowUID           string `json:"flowUid"`
+	Name              string `json:"name"`
+	GroupID           int    `json:"groupId"`
+	AssetID           int    `json:"assetId"`
+	DigitalTwinID     int    `json:"digitalTwinId"`
+	TelegramChatID    int64  `json:"telegramChatId"`
+	NotificationEmail string `json:"notificationEmail"`
+	Nodes             []Node `json:"nodes"`
 }
 
 // Config holds the entire application configuration.
@@ -38,6 +41,9 @@ type Config struct {
 	NumStreamReplicas int               `mapstructure:"numStreamReplicas"`
 	ReplicaIndex      int               `mapstructure:"replicaIndex"`
 	NumReplicas       int               `mapstructure:"numReplicas"`
+	TelegramBotToken  string            `mapstructure:"telegramBotToken"`
+	EmailUsername     string            `mapstructure:"emailUsername"`
+	EmailPassword     string            `mapstructure:"emailPassword"`
 	Flows             []Flow            `mapstructure:"flows"`
 }
 

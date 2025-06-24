@@ -49,6 +49,7 @@ func main() {
 		log.Fatal("Application startup failed")
 	}
 
+
 	// Start Admin service
 	admin.Listen(cfg, log, cons)
 
