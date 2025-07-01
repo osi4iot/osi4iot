@@ -228,7 +228,12 @@ func (n *FuncNode) setupJSGlobals(vm *goja.Runtime, log *logger.Logger) {
 			log.Errorf("Failed to get HTTP response: %v", err)
 			return nil
 		}
-		return response
+		
+		var responseData interface{}
+		if err := utils.UnmarshalData(response, &responseData); err != nil {
+			log.Errorf("Failed to unmarshal HTTP response: %v", err)
+		}
+		return responseData
 	})
 }
 

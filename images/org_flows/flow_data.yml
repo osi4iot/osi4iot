@@ -1,0 +1,35 @@
+flowUid: "flow1"
+name: "Flow_1"
+digitalTwinId: 1
+nodes:
+    - nodeUid: "node1"
+      type: "Listen"
+      numOuputs: 1
+      x: 0.0
+      y: 0.0
+      metadata: 
+        subject: "test.input"
+      wires: [["node2"]]
+    - nodeUid: "node2"
+      type: "Function"
+      numOuputs: 1
+      x: 0.0
+      y: 0.0
+      metadata:
+        script: |
+            function process(message) {
+              message.payload.data = {
+                message: "<h1>⚠️ Hola soy Sofia!</h1>",
+                subject: "Alert: High Temperature",
+              };
+              return message;
+            }
+      wires: [["node3"]]
+    - nodeUid: "node3"
+      type: "Publish"
+      numOuputs: 0
+      x: 0.0
+      y: 0.0      
+      metadata:
+        subject: "test.output"
+      wires: []

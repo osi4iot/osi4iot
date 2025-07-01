@@ -5,6 +5,7 @@ go 1.24.4
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/dop251/goja v0.0.0-20250531102226-cb187b08699c
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/nats-io/nats.go v1.43.0
 	github.com/spf13/viper v1.20.1
 	go.uber.org/zap v1.27.0

@@ -18,33 +18,41 @@ type Node struct {
 	Duration  int      `json:"duration"` // Delay in milliseconds
 }
 
+type Org struct {
+	OrgId   int    `json:"orgId"`
+	OrgHash string `json:"orgHash"`
+	Flows   []Flow `json:"flows"`
+}
+
 type Flow struct {
-	FlowUID           string `json:"flowUid"`
-	Name              string `json:"name"`
-	GroupID           int    `json:"groupId"`
-	AssetID           int    `json:"assetId"`
-	DigitalTwinID     int    `json:"digitalTwinId"`
-	TelegramChatID    int64  `json:"telegramChatId"`
-	NotificationEmail string `json:"notificationEmail"`
-	Nodes             []Node `json:"nodes"`
+	FlowUID                string `json:"flowUid"`
+	Name                   string `json:"name"`
+	GroupID                int    `json:"groupId"`
+	AssetID                int    `json:"assetId"`
+	DigitalTwinID          int    `json:"digitalTwinId"`
+	GroupTelegramChatID    int64  `json:"groupTelegramChatId"`
+	GroupNotificationEmail string `json:"groupNotificationEmail"`
+	Nodes                  []Node `json:"nodes"`
 }
 
 // Config holds the entire application configuration.
 type Config struct {
 	Mode              string            `mapstructure:"mode"`
 	DomainName        string            `mapstructure:"domainName"`
+	AdminUsername     string            `mapstructure:"adminUsername"`
+	AdminPassword     string            `mapstructure:"adminPassword"`
 	NATS              NATSConfig        `mapstructure:"nats"`
 	Postgresql        PostgresqlConfig  `mapstructure:"postgresql"`
 	TimescaleDB       TimescaleDBConfig `mapstructure:"timescaledb"`
-	OrgId             int               `mapstructure:"orgId"`
-	OrgHash           string            `mapstructure:"orgHash"`
 	NumStreamReplicas int               `mapstructure:"numStreamReplicas"`
 	ReplicaIndex      int               `mapstructure:"replicaIndex"`
+	ShardIndex        int               `mapstructure:"shardIndex"`
 	NumReplicas       int               `mapstructure:"numReplicas"`
 	TelegramBotToken  string            `mapstructure:"telegramBotToken"`
 	EmailUsername     string            `mapstructure:"emailUsername"`
 	EmailPassword     string            `mapstructure:"emailPassword"`
-	Flows             []Flow            `mapstructure:"flows"`
+	RefreshThreshold  uint           `mapstructure:"refreshThreshold"`
+	Orgs              []Org             `mapstructure:"orgs"`
 }
 
 type NATSConfig struct {
@@ -95,6 +103,8 @@ func Load() (*Config, error) {
 	viper.SetDefault("orgId", 1)
 	viper.SetDefault("replicaIndex", 1)
 	viper.SetDefault("numReplicas", 1)
+	viper.SetDefault("numStreamReplicas", 1)
+	viper.SetDefault("shardIndex", 1)
 
 	// 4) Read in the file
 	if err := viper.ReadInConfig(); err != nil {

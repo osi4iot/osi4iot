@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 func main() {
@@ -38,26 +39,32 @@ func main() {
 	}
 
 	// Create or update the stream
-	stream, err := nats.CreateStream(cfg, log, js)
+	stream, err := nats.CreateStream(cfg.ShardIndex, cfg.NumStreamReplicas, log, js)
 	if err != nil {
 		log.Fatal("Application startup failed")
 	}
 
 	// Create or update the consumer
-	cons, err := nats.CreateConsumer(cfg, log, stream)
+	jsConsumer, err := nats.CreateConsumer(cfg.ShardIndex, cfg.ReplicaIndex, log, stream)
 	if err != nil {
 		log.Fatal("Application startup failed")
 	}
 
+	admin, err := admin.CreateAdmin(cfg, log)
+	if err != nil {
+		log.Fatal("Application startup failed: %v", err)
+	}
 
-	// Start Admin service
-	admin.Listen(cfg, log, cons)
+	ctx, cancel := utils.ContextWithCancel()
+	admin.StartAutoRefresh(ctx, time.Duration(2 * time.Minute))
+
+	flows_manager.CreateFlowsManager(cfg, nc, js, jsConsumer, admin, log)
 
 	utils.HealthCheck()
-
-	flows_manager.CreateFlowsManager(cfg, nc, js, log)
 
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigChan
+	cancel()
+	log.Info("Received shutdown signal, shutting down gracefully...")
 }

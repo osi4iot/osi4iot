@@ -17,6 +17,9 @@ import NodeRedInstanceController from "./components/nodeRedInstance/nodeRedInsta
 import MLModelController from "./components/ml_model/ml_modelController";
 import AssetController from "./components/asset/asset.controller";
 import SensorController from "./components/sensor/sensor.controller";
+import FlowController from "./components/flows/flow/flow.controller";
+import WireController from "./components/flows/wire/wire.controller";
+import NodeController from "./components/flows/node/node.controller";
 
 
 const main= async (): Promise<void> => {
@@ -39,6 +42,9 @@ const main= async (): Promise<void> => {
 			new DigitalTwinController(),
 			new MLModelController(),
 			new DashboardController(),
+			new FlowController(),
+			new NodeController(),
+			new WireController(),
 		]);
 		app.listen();
 	} catch (error) {

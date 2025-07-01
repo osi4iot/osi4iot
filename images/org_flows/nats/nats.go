@@ -36,20 +36,21 @@ func JetStreamConnect(nc *nats.Conn, log *logger.Logger) (jetstream.JetStream, e
 }
 
 func CreateStream(
-	cfg *config.Config,
+	shardIndex int,
+	numStreamReplicas int,
 	log *logger.Logger,
 	js jetstream.JetStream,
 ) (jetstream.Stream, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	streamName := strings.ToUpper(fmt.Sprintf("ORG_%s", cfg.OrgHash))
-	subject := fmt.Sprintf("org_%s.>", cfg.OrgHash)
+	streamName := strings.ToUpper(fmt.Sprintf("ORG_FLOWS_%d", shardIndex))
+	subject := fmt.Sprintf("org_flows_%d.>", shardIndex)
 	stream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
 		Name:     streamName,
 		Subjects: []string{subject},
 		Storage:  jetstream.FileStorage,
-		Replicas: cfg.NumStreamReplicas,
+		Replicas: numStreamReplicas,
 		Retention: jetstream.LimitsPolicy,
 		MaxAge: 1 * time.Hour, // Retain messages for 1 hour
 	})
@@ -65,14 +66,15 @@ func CreateStream(
 }
 
 func CreateConsumer(
-	cfg *config.Config, 
+	shardIndex int,
+	replicaIndex int,
 	log *logger.Logger, 
 	stream jetstream.Stream,
 	) (jetstream.Consumer, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	consumerName := fmt.Sprintf("org_%s_%d", cfg.OrgHash, cfg.ReplicaIndex)
+	consumerName := fmt.Sprintf("org_flows_shard_%d_replica_%d", shardIndex, replicaIndex)
 	ackWait := 10 * time.Second
 	ackPolicy := jetstream.AckExplicitPolicy
 	maxWaiting := 100
@@ -85,7 +87,7 @@ func CreateConsumer(
 		AckWait:       ackWait,
 		MaxWaiting:    maxWaiting,
 		MaxAckPending: maxAckPending,
-		FilterSubject: fmt.Sprintf("org_%s.admin.>", cfg.OrgHash),
+		FilterSubject: fmt.Sprintf("org_flows_shard_%d.admin.>", shardIndex),
 	})
 
 	if err != nil {

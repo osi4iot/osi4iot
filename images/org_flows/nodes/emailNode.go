@@ -27,10 +27,10 @@ func CreateEmailNode(nodeUid string, flow common.Flow) *EmailNode {
 			Ctx:    ctx,
 		},
 		SMTPServer: "smtp.gmail.com",
-		From:       flow.EmailUsername,
-		To:         flow.NotificationEmail,
-		Username:   flow.EmailUsername,
-		Password:   flow.EmailPassword,
+		From:       flow.PlatformEmailUsername,
+		To:         flow.GroupNotificationEmail,
+		Username:   flow.PlatformEmailUsername,
+		Password:   flow.PlatformEmailPassword,
 	}
 }
 
