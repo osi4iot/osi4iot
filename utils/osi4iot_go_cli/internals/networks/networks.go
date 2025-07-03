@@ -11,6 +11,7 @@ import (
 func GenerateNetworks(platformData *pt.PlatformData) map[string]pt.Network {
 	Networks := make(map[string]pt.Network)
 	deploymentMode := platformData.PlatformInfo.DeploymentMode
+	messagingSystem := platformData.PlatformInfo.MessagingSystem
 	numNodes := len(platformData.PlatformInfo.NodesData)
 
 	Networks["traefik_public"] = pt.Network{
@@ -28,6 +29,15 @@ func GenerateNetworks(platformData *pt.PlatformData) map[string]pt.Network {
 			Driver: "overlay",
 		}
 	}
+
+	if messagingSystem == "nats" {
+		Networks["nats_network"] = pt.Network{
+			Name:   "nats_network",
+			Driver: "overlay",
+		}
+	}
+
+
 
 	return Networks
 }

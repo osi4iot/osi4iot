@@ -274,7 +274,8 @@ func GetSshPrivKey(platformData *types.PlatformData) (string, error) {
 		}
 	}
 
-	if deploymentLocation == "On-premise cluster deployment" {
+	switch deploymentLocation {
+	case "On-premise cluster deployment":
 		if platformData.PlatformInfo.SshPrivKey != "" {
 			sshPrivKey = platformData.PlatformInfo.SshPrivKey
 		} else {
@@ -283,7 +284,7 @@ func GetSshPrivKey(platformData *types.PlatformData) (string, error) {
 				return "", err
 			}
 		}
-	} else if deploymentLocation == "AWS cluster deployment" {
+	case "AWS cluster deployment":
 		sshPrivKey = platformData.PlatformInfo.AwsSshKey
 		if sshPrivKey == "" {
 			sshPrivKey, err = readAwsSshKeyFromFile(platformData)
@@ -299,9 +300,10 @@ func GetSshPrivKey(platformData *types.PlatformData) (string, error) {
 func GetSshPrivKeyLocalPath(platformData *types.PlatformData) string {
 	deploymentLocation := platformData.PlatformInfo.DeploymentLocation
 	sshPrivKeyPath := ""
-	if deploymentLocation == "On-premise cluster deployment" {
+	switch deploymentLocation {
+	case "On-premise cluster deployment":
 		sshPrivKeyPath = "./.osi4iot_keys/osi4iot_key"
-	} else if deploymentLocation == "AWS cluster deployment" {
+	case "AWS cluster deployment":
 		sshPrivKeyPath = "./.osi4iot_keys/aws_ssh_key.pem"
 	}
 

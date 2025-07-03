@@ -462,7 +462,7 @@ const updateObjectsState = (
                                 updateCustomAnimationState(obj.node, mqttMessage);
                                 const customAnimationPayloadKeys = Object.keys(mqttMessage.customAnimation[objName]);
                                 if (customAnimationPayloadKeys.indexOf("position") !== -1) {
-                                    const wirePos = obj.node.scale;
+                                    const wirePos = obj.node.position;
                                     obj.wireFrameMesh.position.set(wirePos.x, wirePos.y, wirePos.z);
                                 }
                                 if (customAnimationPayloadKeys.indexOf("scale") !== -1) {

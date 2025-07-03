@@ -61,6 +61,7 @@ func AuthCalloutService(
 		}).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
+			{Target: sd.Networks["nats_network"].Name},
 		}).
 		Build()
 

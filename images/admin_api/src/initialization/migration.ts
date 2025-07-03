@@ -1485,56 +1485,23 @@ export const dataBaseInitialization = async () => {
 					);
 				}
 
-				const tableFlow = "grafanadb.flow";
-				const queryStringFlow = `
-				CREATE TABLE IF NOT EXISTS ${tableFlow}(
-					id serial PRIMARY KEY,
-					digital_twin_id bigint,
-					flow_uid VARCHAR(40) UNIQUE,
-					name VARCHAR(100),
-					created TIMESTAMPTZ,
-					updated TIMESTAMPTZ,
-					UNIQUE(digital_twin_id),
-					CONSTRAINT fk_digital_twin_id
-						FOREIGN KEY(digital_twin_id)
-							REFERENCES grafanadb.digital_twin(id)
-							ON DELETE CASCADE
-				);
-
-				CREATE INDEX IF NOT EXISTS idx_flow_uid
-				ON grafanadb.flow(flow_uid);`;
-
-				try {
-					await postgresClient.query(queryStringFlow);
-					logger.log(
-						"info",
-						`Table ${tableFlow} has been created sucessfully`
-					);
-				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableFlow} could not be created: %s`,
-						err.message
-					);
-				}
-
 				const tableFlowNode = "grafanadb.node";
 				const queryStringFlowNode = `
 				CREATE TABLE IF NOT EXISTS ${tableFlowNode}(
 					id serial PRIMARY KEY,
-					flow_id bigint,
+					digital_twin_id bigint,
 					node_uid VARCHAR(40) UNIQUE,
 					type VARCHAR(40),
 					name VARCHAR(100),
 					x float8 NOT NULL DEFAULT 0.0,
 					y float8 NOT NULL DEFAULT 0.0,
 					num_outputs integer NOT NULL DEFAULT 1,
-					metadata jsonb NOT NULL DEFAULT '{}'::jsonb,
+					settings jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
-					CONSTRAINT fk_flow_id
-						FOREIGN KEY(flow_id)
-							REFERENCES grafanadb.flow(id)
+					CONSTRAINT fk_digital_twin_id
+						FOREIGN KEY(digital_twin_id)
+							REFERENCES grafanadb.digital_twin(id)
 							ON DELETE CASCADE,
 					CONSTRAINT chk_positive_num_output 
 						CHECK (num_outputs >= 0)							

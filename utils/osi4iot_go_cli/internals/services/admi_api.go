@@ -10,11 +10,11 @@ import (
 )
 
 func AdminApiService(
-	pd *pt.PlatformData, 
+	pd *pt.PlatformData,
 	sd pt.SwarmData,
 	svcResourcesMap resources.SvcResourcesMap,
 	nodeRoleMaps resources.NodesRoleMaps,
-	) pt.Service {
+) pt.Service {
 	domainName := pd.PlatformInfo.DomainName
 
 	adminApiRule := fmt.Sprintf("Host(`%s`) && PathPrefix(`/admin_api/`)", domainName)
@@ -52,7 +52,8 @@ func AdminApiService(
 	}
 
 	messagingSystem := pd.PlatformInfo.MessagingSystem
-	if messagingSystem == "mqtt" {
+	switch messagingSystem {
+	case "mqtt":
 		mqttSecrets := []*swarm.SecretReference{
 			{
 				File: &swarm.SecretReferenceFileTarget{
@@ -76,6 +77,18 @@ func AdminApiService(
 			},
 		}
 		secrets = append(secrets, mqttSecrets...)
+	case "nats":
+		natsSecret := swarm.SecretReference{
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "/etc/nats/ca.pem",
+				UID:  "0",
+				GID:  "0",
+				Mode: 0444,
+			},
+			SecretID:   sd.Secrets["iot_platform_ca_cert"].ID,
+			SecretName: sd.Secrets["iot_platform_ca_cert"].Name,
+		}
+		secrets = append(secrets, &natsSecret)
 	}
 
 	configs := []*swarm.ConfigReference{
@@ -153,6 +166,7 @@ func AdminApiService(
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["traefik_public"].Name},
+			{Target: sd.Networks["nats_network"].Name},
 		}).
 		Build()
 }

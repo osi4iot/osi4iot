@@ -1,7 +1,7 @@
 import { Router, NextFunction, Request, Response } from "express";
-import multer from 'multer';
-import multerS3 from 'multer-s3';
-import { ReadStream } from 'fs';
+import multer from "multer";
+import multerS3 from "multer-s3";
+import { ReadStream } from "fs";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
@@ -58,7 +58,9 @@ import IRequestWithAssetAndGroup from "../group/interfaces/requestWithAssetAndGr
 import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigitalTwinAndGroup.interface";
 import infoLogger from "../../utils/logger/infoLogger";
 import { getAssetTopicsInfoFromByDTIdsArray } from "../asset/assetDAL";
-import type {Readable} from 'stream'
+import type { Readable } from "stream";
+import CreatePipelineDto from "./pipeline.dto";
+import { createDigitalTwinPipeline, updateDigitalTwinPipeline } from "./pipeline";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -72,10 +74,10 @@ const uploadDigitalTwinFile = multer({
 			const { groupId, digitalTwinId, folder, fileName } = req.params;
 			const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 			const fileKey = `${keyBase}/${folder}/${fileName}`;
-			cb(null, fileKey)
-		}
-	})
-})
+			cb(null, fileKey);
+		},
+	}),
+});
 
 class DigitalTwinController implements IController {
 	public path = "/digital_twin";
@@ -88,51 +90,19 @@ class DigitalTwinController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-			.get(
-				`${this.path}s/user_managed/`,
-				userAuth,
-				this.getDigitalTwinsManagedByUser
-			)
-			.get(
-				`${this.path}s_state/user_managed/`,
-				userAuth,
-				this.getStateOfDigitalTwinsManagedByUser
-			)
-			.get(
-				`${this.path}_simulators/user_managed/`,
-				userAuth,
-				this.getDigitalTwinSimulatorsManagedByUser
-			)
-			.get(
-				`${this.path}s_in_org/:orgId/`,
-				organizationAdminAuth,
-				organizationExists,
-				this.getDigitalTwinsInOrg
-			)
-			.get(
-				`${this.path}s_in_group/:groupId`,
-				groupExists,
-				groupAdminAuth,
-				this.getDigitalTwinsInGroup
-			)
+			.get(`${this.path}s/user_managed/`, userAuth, this.getDigitalTwinsManagedByUser)
+			.get(`${this.path}s_state/user_managed/`, userAuth, this.getStateOfDigitalTwinsManagedByUser)
+			.get(`${this.path}_simulators/user_managed/`, userAuth, this.getDigitalTwinSimulatorsManagedByUser)
+			.get(`${this.path}s_in_org/:orgId/`, organizationAdminAuth, organizationExists, this.getDigitalTwinsInOrg)
+			.get(`${this.path}s_in_group/:groupId`, groupExists, groupAdminAuth, this.getDigitalTwinsInGroup)
 			.get(
 				`${this.path}_mqtt_topics_in_group/:groupId`,
 				groupExists,
 				groupAdminAuth,
 				this.getDigitalTwinMqttTopicsInGroup
 			)
-			.get(
-				`${this.path}/:groupId/:propName/:propValue`,
-				groupExists,
-				groupAdminAuth,
-				this.getDigitalTwinByProp
-			)
-			.get(
-				`${this.path}_data/:groupId/:digitalTwinId`,
-				groupExists,
-				groupAdminAuth,
-				this.getDigitalTwinData
-			)
+			.get(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupAdminAuth, this.getDigitalTwinByProp)
+			.get(`${this.path}_data/:groupId/:digitalTwinId`, groupExists, groupAdminAuth, this.getDigitalTwinData)
 			.get(
 				`${this.path}_glbfile/:groupId/:digitalTwinId`,
 				groupExists,
@@ -145,12 +115,7 @@ class DigitalTwinController implements IController {
 				groupAdminAuth,
 				this.getDigitalTwinGltfFile
 			)
-			.delete(
-				`${this.path}/:groupId/:digitalTwinId`,
-				groupExists,
-				groupAdminAuth,
-				this.deleteDigitalTwinById
-			)
+			.delete(`${this.path}/:groupId/:digitalTwinId`, groupExists, groupAdminAuth, this.deleteDigitalTwinById)
 			.patch(
 				`${this.path}/:groupId/:digitalTwinId`,
 				groupExists,
@@ -169,7 +134,7 @@ class DigitalTwinController implements IController {
 				`${this.path}_upload_file/:groupId/:digitalTwinId/:folder/:fileName`,
 				digitalTwinAndGroupExist,
 				groupAdminAuth,
-				uploadDigitalTwinFile.single('file'),
+				uploadDigitalTwinFile.single("file"),
 				this.uploadDigitalTwinFile
 			)
 			.get(
@@ -190,6 +155,20 @@ class DigitalTwinController implements IController {
 				groupAdminAuth,
 				this.deleteDigitalTwinFile
 			)
+			.post(
+				`${this.path}_pipeline/:groupId/:digitalTwinId`,
+				digitalTwinAndGroupExist,
+				groupAdminAuth,
+				validationMiddleware<CreatePipelineDto>(CreatePipelineDto, true),
+				this.createPipeline
+			)
+			.patch(
+				`${this.path}_pipeline/:groupId/:digitalTwinId`,
+				digitalTwinAndGroupExist,
+				groupAdminAuth,
+				validationMiddleware<CreatePipelineDto>(CreatePipelineDto, true),
+				this.updatePipeline
+			);
 	}
 
 	private getDigitalTwinsManagedByUser = async (
@@ -205,15 +184,15 @@ class DigitalTwinController implements IController {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
-					const orgIdsArray = organizations.map(org => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(groupInOrg => {
+					const orgIdsArray = organizations.map((org) => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+					const groupsIdArray = groups.map((group) => group.id);
+					groupsInOrgs.forEach((groupInOrg) => {
 						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-					})
+					});
 				}
 				if (groups.length !== 0) {
-					const groupsIdArray = groups.map(group => group.id);
+					const groupsIdArray = groups.map((group) => group.id);
 					digitalTwins = await getDigitalTwinsByGroupsIdArray(groupsIdArray);
 				}
 			}
@@ -237,15 +216,15 @@ class DigitalTwinController implements IController {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
-					const orgIdsArray = organizations.map(org => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(groupInOrg => {
+					const orgIdsArray = organizations.map((org) => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+					const groupsIdArray = groups.map((group) => group.id);
+					groupsInOrgs.forEach((groupInOrg) => {
 						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-					})
+					});
 				}
 				if (groups.length !== 0) {
-					const groupsIdArray = groups.map(group => group.id);
+					const groupsIdArray = groups.map((group) => group.id);
 					digitalTwinsState = await getStateOfDigitalTwinsByGroupsIdArray(groupsIdArray);
 				}
 			}
@@ -268,15 +247,15 @@ class DigitalTwinController implements IController {
 				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
 				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
-					const orgIdsArray = organizations.map(org => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-					const groupsIdArray = groups.map(group => group.id);
-					groupsInOrgs.forEach(groupInOrg => {
+					const orgIdsArray = organizations.map((org) => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+					const groupsIdArray = groups.map((group) => group.id);
+					groupsInOrgs.forEach((groupInOrg) => {
 						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-					})
+					});
 				}
 				if (groups.length !== 0) {
-					const groupsIdArray = groups.map(group => group.id);
+					const groupsIdArray = groups.map((group) => group.id);
 					digitalTwinSimulators = await getDigitalTwinSimulatorsByGroupsIdArray(groupsIdArray);
 				}
 			}
@@ -320,7 +299,7 @@ class DigitalTwinController implements IController {
 	): Promise<void> => {
 		try {
 			const digitalTwinsInGroup = await getDigitalTwinsByGroupId(req.group.id);
-			const digitalTwinIdsArray = digitalTwinsInGroup.map(digitalTwin => digitalTwin.id);
+			const digitalTwinIdsArray = digitalTwinsInGroup.map((digitalTwin) => digitalTwin.id);
 			const digitalTwinTopicsInfo = await getDigitalTwinMqttTopicsInfoFromByDTIdsArray(digitalTwinIdsArray);
 			const assetTopicsInfo = await getAssetTopicsInfoFromByDTIdsArray(digitalTwinIdsArray);
 			const digitalTwinMqttTopicsInfo = [...digitalTwinTopicsInfo, ...assetTopicsInfo];
@@ -331,11 +310,7 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private getDigitalTwinByProp = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getDigitalTwinByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidTopicPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
@@ -347,11 +322,7 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private getDigitalTwinData = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getDigitalTwinData = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
@@ -363,11 +334,7 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private getDigitalTwinGltfFile = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getDigitalTwinGltfFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
@@ -379,30 +346,22 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private getDigitalTwinGlbFile = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getDigitalTwinGlbFile = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", parseInt(digitalTwinId, 10));
 			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
 			const response = await getDigitalTwinGlbFile(digitalTwin);
 			if (!response) throw new HttpException(req, res, 500, "The glb file does not exist");
-			res.set('content-type', "model/gltf-binary");
-			const stream = response.Body as  Readable;
+			res.set("content-type", "model/gltf-binary");
+			const stream = response.Body as Readable;
 			stream.pipe(res);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private deleteDigitalTwinById = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private deleteDigitalTwinById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
@@ -412,7 +371,7 @@ class DigitalTwinController implements IController {
 			const groupId = digitalTwin.groupId;
 			const bucketFolder = `org_${orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
 			await removeFilesFromBucketFolder(bucketFolder);
-			const message = { message: "Digital twin deleted successfully" }
+			const message = { message: "Digital twin deleted successfully" };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -429,19 +388,24 @@ class DigitalTwinController implements IController {
 			const group = req.group;
 			const { digitalTwinId } = req.params;
 			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
-			if (!existentDigitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
-			const digitalTwinUpdated: IDigitalTwin & UpdateDigitalTwinDto = { ...existentDigitalTwin, ...digitalTwinData };
+			if (!existentDigitalTwin)
+				throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
+			const digitalTwinUpdated: IDigitalTwin & UpdateDigitalTwinDto = {
+				...existentDigitalTwin,
+				...digitalTwinData,
+			};
 
-			const isSensorsRefOk = await checkExistentSensorsRef(digitalTwinUpdated.assetId, digitalTwinUpdated.sensorsRef);
-			if (!isSensorsRefOk) throw new HttpException(req, res, 500,
-				"Some indicated sensor has not been defined"
+			const isSensorsRefOk = await checkExistentSensorsRef(
+				digitalTwinUpdated.assetId,
+				digitalTwinUpdated.sensorsRef
 			);
+			if (!isSensorsRefOk) throw new HttpException(req, res, 500, "Some indicated sensor has not been defined");
 
 			if (digitalTwinData.isGltfFileModified) {
 				await verifyAndCorrectDigitalTwinReferences(group, digitalTwinUpdated);
 			}
 			await updateDigitalTwinById(parseInt(digitalTwinId, 10), digitalTwinUpdated);
-			const message = { message: "Digital twin updated successfully" }
+			const message = { message: "Digital twin updated successfully" };
 			res.status(200).json(message);
 		} catch (error) {
 			next(error);
@@ -459,26 +423,33 @@ class DigitalTwinController implements IController {
 			const group = req.group;
 
 			const existDigitalTwin = await getDigitalTwinByProp("digital_twin_uid", digitalTwinData.digitalTwinUid);
-			if (existDigitalTwin) throw new HttpException(req, res, 400,
-				`A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`
-			);
+			if (existDigitalTwin)
+				throw new HttpException(
+					req,
+					res,
+					400,
+					`A digital twin with uid: ${digitalTwinData.digitalTwinUid} already exist`
+				);
 
 			const isConstraintOk = await checkDigitalTwinConstraint(group.id, asset.id, "Asset");
-			if (!isConstraintOk) throw new HttpException(req, res, 400,
-				"The unique constraint for groupId, assetId and scope is violated"
-			);
+			if (!isConstraintOk)
+				throw new HttpException(
+					req,
+					res,
+					400,
+					"The unique constraint for groupId, assetId and scope is violated"
+				);
 
 			const isSensorsRefOk = await checkExistentSensorsRef(asset.id, digitalTwinData.sensorsRef);
-			if (!isSensorsRefOk) throw new HttpException(req, res, 500,
-				"Some indicated sensor has not been defined"
-			);
+			if (!isSensorsRefOk) throw new HttpException(req, res, 500, "Some indicated sensor has not been defined");
 
 			const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
-			if (!digitalTwin) throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");
+			if (!digitalTwin)
+				throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");
 
 			const response = {
 				message: `A new digital twin has been created`,
-				digitalTwinId: digitalTwin.id
+				digitalTwinId: digitalTwin.id,
 			};
 
 			res.status(200).send(response);
@@ -541,16 +512,15 @@ class DigitalTwinController implements IController {
 		const group = req.group;
 		const { groupId, digitalTwinId, folder } = req.params;
 		const keyBase = `org_${group.orgId}/group_${groupId}/digitalTwin_${digitalTwinId}`;
-		const folderPath = `${keyBase}/${folder}`
+		const folderPath = `${keyBase}/${folder}`;
 
 		try {
-			const fileInfoList = await getBucketFolderInfoFileList(folderPath)
+			const fileInfoList = await getBucketFolderInfoFileList(folderPath);
 			res.status(200).send(fileInfoList);
 		} catch (error) {
 			next(error);
 		}
 	};
-
 
 	private deleteDigitalTwinFile = async (
 		req: IRequestWithDigitalTwinAndGroup,
@@ -573,12 +543,52 @@ class DigitalTwinController implements IController {
 		}
 	};
 
+	private createPipeline = async (
+		req: IRequestWithAssetAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { digitalTwinId } = req.params;
+			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
+			const pipelineData: CreatePipelineDto = req.body;
+			await createDigitalTwinPipeline(digitalTwinIdNum, pipelineData);
+
+			const response = {
+				message: `A new pipeline has been created`,
+			};
+
+			res.status(200).send(response);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private updatePipeline = async (
+		req: IRequestWithAssetAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { digitalTwinId } = req.params;
+			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
+			const pipelineData: CreatePipelineDto = req.body;
+			await updateDigitalTwinPipeline(digitalTwinIdNum, pipelineData);
+
+			const response = {
+				message: `The pipeline has been updated`,
+			};
+
+			res.status(200).send(response);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private isValidTopicPropName = (propName: string) => {
 		const validPropName = ["id", "digital_twin_uid"];
 		return validPropName.indexOf(propName) !== -1;
 	};
-
 }
 
 export default DigitalTwinController;
-

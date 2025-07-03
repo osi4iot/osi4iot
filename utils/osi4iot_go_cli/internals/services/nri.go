@@ -71,7 +71,8 @@ func NriService(
 	}
 
 	secrets := []*swarm.SecretReference{}
-	if messagingSystem == "mqtt" {
+	switch messagingSystem {
+	case "mqtt":
 		mqttSecrets := []*swarm.SecretReference{
 			{
 				File: &swarm.SecretReferenceFileTarget{
@@ -105,7 +106,7 @@ func NriService(
 			},
 		}
 		secrets = append(secrets, mqttSecrets...)
-	} else if messagingSystem == "nats" {
+	case "nats":
 		natsSecrets := []*swarm.SecretReference{
 			{
 				File: &swarm.SecretReferenceFileTarget{
@@ -145,6 +146,7 @@ func NriService(
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
 			{Target: sd.Networks["traefik_public"].Name},
+			{Target: sd.Networks["nats_network"].Name},
 		}).
 		Build()
 }

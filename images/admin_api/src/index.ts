@@ -17,14 +17,21 @@ import NodeRedInstanceController from "./components/nodeRedInstance/nodeRedInsta
 import MLModelController from "./components/ml_model/ml_modelController";
 import AssetController from "./components/asset/asset.controller";
 import SensorController from "./components/sensor/sensor.controller";
-import FlowController from "./components/flows/flow/flow.controller";
-import WireController from "./components/flows/wire/wire.controller";
-import NodeController from "./components/flows/node/node.controller";
+import WireController from "./components/pipelines/wire/wire.controller";
+import NodeController from "./components/pipelines/node/node.controller";
+import natsClient from "./config/natsConfig";
 
-
-const main= async (): Promise<void> => {
+const main = async (): Promise<void> => {
 	try {
 		await dataBaseInitialization();
+		await natsClient.connect();
+
+		natsClient.subscribe("test.input", (msg: any) => {
+			if (typeof msg === "object") {
+				msg = JSON.stringify(msg);
+			}
+			logger.log("info", `Received message on 'test.input': ${msg as string}`);
+		});
 
 		// prettier-ignore
 		const app = new App([
@@ -42,7 +49,6 @@ const main= async (): Promise<void> => {
 			new DigitalTwinController(),
 			new MLModelController(),
 			new DashboardController(),
-			new FlowController(),
 			new NodeController(),
 			new WireController(),
 		]);
@@ -52,6 +58,6 @@ const main= async (): Promise<void> => {
 		logger.log("error", "Process finished");
 		process.exit(1);
 	}
-}
+};
 
 void main();

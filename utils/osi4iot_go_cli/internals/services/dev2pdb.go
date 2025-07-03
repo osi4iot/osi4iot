@@ -58,6 +58,7 @@ func Dev2pdbService(
 		WithModeReplicated(resources.GiveReplicsPtr("dev2pdb", nodeRoleMaps)).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
+			{Target: sd.Networks["nats_network"].Name},
 		}).
 		Build()
 }

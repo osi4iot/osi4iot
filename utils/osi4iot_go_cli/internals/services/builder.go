@@ -275,9 +275,10 @@ func GenerateServices(pd *pt.PlatformData, sd pt.SwarmData) map[string]pt.Servic
 		"grafana":      GrafanaService(pd, sd, svcResourcesMap, nodeRoleMaps),
 	}
 
-	if messagingSystem == "mqtt" {
+	switch messagingSystem {
+	case "mqtt":
 		services["mosquitto"] = MosquittoService(pd, sd, svcResourcesMap, nodeRoleMaps)
-	} else if messagingSystem == "nats" {
+	case "nats":
 		for idx := range pd.PlatformInfo.NumNatsClusterNodes {
 			nodeId := idx + 1
 			serviceName := fmt.Sprintf("nats%d", nodeId)

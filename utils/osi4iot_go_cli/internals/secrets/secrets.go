@@ -105,7 +105,8 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 		Secrets["iot_platform_ca_cert"] = iotPlatformCaCertSecret
 	}
 
-	if messagingSystem == "mqtt" {
+	switch messagingSystem {
+	case "mqtt":
 		mqttCaCertHash := utils.GetMD5Hash(pd.Certs.MqttCerts.CaCerts.CaCrt)
 		mqttCaCertSecretName := fmt.Sprintf("mqtt_certs_ca_cert_%s", mqttCaCertHash)
 		mqttCaCertSecret := pt.Secret{
@@ -138,7 +139,7 @@ func GenerateSecrets(pd *pt.PlatformData) map[string]pt.Secret {
 			Data: pd.Certs.MqttCerts.Broker.ServerKey,
 		}
 		Secrets["mqtt_broker_key"] = mqttBrokerKeySecret
-	} else if messagingSystem == "nats" {
+	case "nats":
 		authCalloutSecretsDataArray := []string{
 			fmt.Sprintf("DOMAIN_NAME=%s", pd.PlatformInfo.DomainName),
 			fmt.Sprintf("ACCESS_TOKEN_SECRET=%s", pd.PlatformInfo.AccessTokenSecret),
@@ -336,7 +337,8 @@ func GenerateNriSecrets(messagingSystem string, orgs []pt.Organization, Secrets 
 		numNodeRedInstances := len(orgs[iorg].NodeRedInstances)
 		for inri := range numNodeRedInstances {
 			nriHash := orgs[iorg].NodeRedInstances[inri].NriHash
-			if messagingSystem == "mqtt" {
+			switch messagingSystem {
+			case "mqtt":
 				mqttClientCertSecretKey := fmt.Sprintf("%s_%s_cert", orgAcronym, nriHash)
 				mqttClientCertSecret := pt.Secret{
 					Name: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientCrtName,
@@ -350,7 +352,7 @@ func GenerateNriSecrets(messagingSystem string, orgs []pt.Organization, Secrets 
 					Data: orgs[iorg].NodeRedInstances[inri].NriMqttCerts.ClientKey,
 				}
 				Secrets[mqttClientKeySecretKey] = mqttClientKeySecret
-			} else if messagingSystem == "nats" {
+			case "nats":
 				nriUserName := orgs[iorg].NodeRedInstances[inri].NriUserName
 				if nriUserName == "" {
 					nriUserName = fmt.Sprintf("nri_%s", nriHash)

@@ -21,6 +21,7 @@ func NatsService(
 	volName := fmt.Sprintf("nats%d_data", nodeId)
 	numNodes := len(pd.PlatformInfo.NodesData)
 	numNatsClusterNodes := pd.PlatformInfo.NumNatsClusterNodes
+	domainName := pd.PlatformInfo.DomainName
 
 	secrets := []*swarm.SecretReference{
 		{
@@ -142,6 +143,7 @@ func NatsService(
 		}).
 		WithNetworks([]swarm.NetworkAttachmentConfig{
 			{Target: sd.Networks["internal_net"].Name},
+			{Target: sd.Networks["nats_network"].Name, Aliases: []string{fmt.Sprintf("nats%d.%s", nodeId, domainName)}},
 		}).
 		Build()
 }

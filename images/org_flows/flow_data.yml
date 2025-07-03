@@ -1,21 +1,18 @@
-flowUid: "flow1"
-name: "Flow_1"
-digitalTwinId: 1
 nodes:
     - nodeUid: "node1"
       type: "Listen"
       numOuputs: 1
       x: 0.0
       y: 0.0
-      metadata: 
+      settings: 
         subject: "test.input"
-      wires: [["node2"]]
+      wires: [[{"nodeUid": "node2", "wireUid": "wire1"}]]
     - nodeUid: "node2"
       type: "Function"
       numOuputs: 1
       x: 0.0
       y: 0.0
-      metadata:
+      settings:
         script: |
             function process(message) {
               message.payload.data = {
@@ -24,7 +21,7 @@ nodes:
               };
               return message;
             }
-      wires: [["node3"]]
+      wires: [[{"nodeUid": "node3", "wireUid": "wire2"}]]
     - nodeUid: "node3"
       type: "Publish"
       numOuputs: 0
