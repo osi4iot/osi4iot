@@ -185,6 +185,16 @@ export const updateDigitalTwinPipeline = async (
 		}
 	});
 
+	const nodesWithNumOutputsDecreased = new Map<number, INode>();
+	// Check if any existing nodes have modified numOutputs
+	nodesToUpdate.forEach((node) => {
+		const incomingNode = node.incoming;
+		const existingNodeData = node.existing;
+		if (incomingNode.numOutputs < existingNodeData.numOutputs) {
+			nodesWithNumOutputsDecreased.set(existingNodeData.id, incomingNode);
+		}
+	});
+
 	// STEP 2: Identify wires to delete, update and create
 	const wiresToDelete: IWire[] = [];
 	const wiresToUpdate: { existing: IWire; incoming: IWireWithUidDto }[] = [];
@@ -193,10 +203,18 @@ export const updateDigitalTwinPipeline = async (
 	// Identify wires to delete
 	existingWires.forEach((existingWire) => {
 		if (!incomingWiresMap.has(existingWire.wireUid)) {
-			wiresToDelete.push(existingWire);
+			const nodeIniId = existingWire.nodeIniId;
+			const niniOutputIndex = existingWire.niniOutputIndex;
+
+			const willBeDeletedByTrigger =
+				nodesWithNumOutputsDecreased.has(nodeIniId) &&
+				niniOutputIndex >= (nodesWithNumOutputsDecreased.get(nodeIniId)?.numOutputs || 0);
+
+			if (!willBeDeletedByTrigger) {
+				wiresToDelete.push(existingWire);
+			}
 		}
 	});
-
 	// Identify wires to update or create
 	incomingWiresMap.forEach((incomingWire, wireUid) => {
 		const existingWire = existingWiresMap.get(wireUid);

@@ -26,13 +26,6 @@ const main = async (): Promise<void> => {
 		await dataBaseInitialization();
 		await natsClient.connect();
 
-		natsClient.subscribe("test.input", (msg: any) => {
-			if (typeof msg === "object") {
-				msg = JSON.stringify(msg);
-			}
-			logger.log("info", `Received message on 'test.input': ${msg as string}`);
-		});
-
 		// prettier-ignore
 		const app = new App([
 			new HealthCheckController(),

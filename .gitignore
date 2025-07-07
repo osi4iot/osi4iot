@@ -59,7 +59,8 @@ images/s3_storage/.env
 images/sensor_demo/nodejs/temp_monitoring/certs
 images/sensor_demo/nodejs/temp_monitoring/node_modules
 images/sensor_demo/nodejs/temp_monitoring/.env
-images/org_flows/config.yml
+images/pipelines/config.yml
+images/pipelines/flow_data.yml
 utils/osi4iot_cli/node_modules
 utils/osi4iot_cli/osi4iot_state_old.json
 utils/osi4iot_cli/osi4iot_state.json
