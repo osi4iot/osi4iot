@@ -48,6 +48,8 @@ export interface IDigitalTwin {
     sensorsRef: string[];
     numGltfFilesLocallyStored: number;
     numFemResFilesLocallyStored: number;
+    pipelineFileName: string;
+	pipelineFileLastModifDate: string;
 }
 
 export interface IDigitalTwinSimulator {

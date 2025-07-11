@@ -4,7 +4,8 @@ import INode from "./node.interface";
 import CreateNodeDto from "./node.dto";
 import natsClient from "../../../config/natsConfig";
 
-export const insertNode = async (nodeData: INode): Promise<INode> => {
+
+export const insertNode = async (nodeData: INode, groupId: number): Promise<INode> => {
 	const queryString = `INSERT INTO grafanadb.node (node_uid,
         digital_twin_id, name, type, x, y, num_outputs, settings, created, updated)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
@@ -22,13 +23,18 @@ export const insertNode = async (nodeData: INode): Promise<INode> => {
 		nodeData.settings,
 	]);
 	if (result.rows.length === 1) {
-		await natsClient.jsPublish("node", "create", result.rows[0].id);
+		const context = {
+			groupId,
+			digitalTwinId: nodeData.digitalTwinId,
+		};
+		await natsClient.jsPublish("node", "create", result.rows[0].id, context);
 	}
 	return result.rows[0] as INode;
 };
 
 export const createNewNode = async (
-	nodeData: CreateNodeDto
+	nodeData: CreateNodeDto,
+	groupId: number
 ): Promise<INode> => {
 	if (nodeData.nodeUid === undefined || nodeData.nodeUid === "") {
 		nodeData.nodeUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
@@ -43,7 +49,7 @@ export const createNewNode = async (
 	}
 
 	const nodeInput: INode = { ...nodeData };
-	const newNode = await insertNode(nodeInput);
+	const newNode = await insertNode(nodeInput, groupId);
 
 	return newNode;
 };
@@ -55,7 +61,7 @@ export const updateNodeByPropName = async (
 ): Promise<INode> => {
 	const query = `UPDATE grafanadb.node SET name = $1, type = $2, x = $3, y = $4, 
 				num_outputs = $5, settings = $6, updated = NOW()
-				WHERE grafanadb.node.${propName} = $7;`;
+				WHERE grafanadb.node.${propName} = $7 RETURNING *;`;
 	const result = await pool.query(query, [
 		node.name,
 		node.type,
@@ -67,7 +73,11 @@ export const updateNodeByPropName = async (
 	]);
 
 	if (result.rows.length === 1) {
-		await natsClient.jsPublish("node", "update", result.rows[0].id);
+		const context = {
+			groupId: node.groupId,
+			digitalTwinId: node.digitalTwinId,
+		};
+		await natsClient.jsPublish("node", "update", result.rows[0].id, context);
 	}
 
 	return result.rows[0] as INode;
@@ -78,11 +88,15 @@ export const deleteNodeByPropName = async (
 	propName: string,
 	propValue: string | number
 ): Promise<void> => {
-	const result = await pool.query(`DELETE FROM grafanadb.node WHERE ${propName} = $1`, [
+	const result = await pool.query(`DELETE FROM grafanadb.node WHERE ${propName} = $1 RETURNING *`, [
 		propValue,
 	]);
 	if (result.rows.length === 1) {
-		await natsClient.jsPublish("node", "delete", result.rows[0].id);
+		const context = {
+			groupId: result.rows[0].groupId,
+			digitalTwinId: result.rows[0].digitalTwinId,
+		};
+		await natsClient.jsPublish("node", "delete", result.rows[0].id, context);
 	}
 };
 

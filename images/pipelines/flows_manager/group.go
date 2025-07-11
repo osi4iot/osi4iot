@@ -46,6 +46,49 @@ func (fm *FlowsManager) DeleteGroup(groupId int) error {
 	groupIdStr := strconv.Itoa(groupId)
 	if _, ok := fm.Groups.Load(groupIdStr); ok {
 		fm.Groups.Delete(groupIdStr)
+
+		for _, asset := range fm.GetAssets() {
+			if asset.GroupId == groupId {
+				fm.DeleteAsset(asset.Id)
+			}
+		}
+
+		for _, sensor := range fm.GetSensors() {
+			if sensor.GroupId == groupId {
+				fm.DeleteSensor(sensor.Id)
+			}
+		}
+
+		for _, model := range fm.GetMlModels() {
+			if model.GroupId == groupId {
+				fm.DeleteMlModel(model.Id)
+			}
+		}
+
+		for _, topic := range fm.GetTopics() {
+			if topic.GroupId == groupId {
+				fm.DeleteTopic(topic.Id)
+			}
+		}
+
+		for _, digitalTwin := range fm.GetDigitalTwins() {
+			if digitalTwin.GroupId == groupId {
+				fm.DeleteDigitalTwin(digitalTwin.Id)
+			}
+		}
+
+		for _, node := range fm.GetNodes() {
+			if (*node).GetGroupId() == groupId {
+				fm.DeleteNode((*node).GetId())
+			}
+		}
+
+		for _, wire := range fm.GetWires() {
+			if wire.GroupId == groupId {
+				fm.DeleteWire(wire.Id)
+			}
+		}
+
 		return nil
 	}
 	return common.ErrNotFound

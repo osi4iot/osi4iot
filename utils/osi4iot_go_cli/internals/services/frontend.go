@@ -55,7 +55,7 @@ func FrontendService(
 	}
 
 	return NewService("frontend", pd, sd).
-		WithImage("ghcr.io/osi4iot/frontend:1.3.0").
+		WithImage("ghcr.io/osi4iot/frontend_nats:1.3.0").
 		WithAnnotationsLabels(annotationsLabels).
 		WithConfigs(configs).
 		WithResources(

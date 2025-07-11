@@ -2,6 +2,7 @@ import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
+import YAML from 'yaml'
 import { nanoid } from "nanoid";
 import { GLTFLoader } from "three-stdlib";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
@@ -367,12 +368,15 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const [gltfFileContent, setGltfFileContent] = useState<string>();
     const [gltfFileName, setGltfFileName] = useState("-");
     const [gltfFileLastModif, setGltfFileLastModif] = useState("-");
-    //const [digitalTwinGltfData, setDigitalTwinGltfData] = useState({});
     const [localFemResFileLoaded, setLocalFemResFileLoaded] = useState(false);
     const [digitalTwinFemResData, setDigitalTwiFemResData] = useState({});
+    const [localPipelineFileLoaded, setLocalPipelineFileLoaded] = useState(false);
+    const [digitalTwinPipelineData, setDigitalTwinPipelineData] = useState({});
     const [femResFile, setFemResFile] = useState<File>();
     const [femResFileName, setFemResFileName] = useState("-");
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
+    const [pipelineFileName, setPipelineFileName] = useState("-");
+    const [pipelineFileLastModifDateString, setPipelineFileLastModifDateString] = useState("-");
     const [digitalTwinType, setDigitalTwinType] = useState("Grafana dashboard");
     const [isGlftDataReady, setIsGlftDataReady] = useState(false);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
@@ -439,6 +443,12 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         readAs: "Text",
         multiple: false,
         accept: ".json",
+    });
+
+    const [openPipelineFileSelector, pipelineFileParams] = useFilePicker({
+        readAs: "Text",
+        multiple: false,
+        accept: ".yml, .yaml",
     });
 
     useEffect(
@@ -539,6 +549,39 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         }
     }, [femResFileParams.loading, femResFileParams.filesContent, femResFileParams.plainFiles, femResFileParams]);
 
+    useEffect(() => {
+        if (
+            !pipelineFileParams.loading &&
+            pipelineFileParams.filesContent.length !== 0 &&
+            pipelineFileParams.plainFiles.length !== 0
+        ) {
+            setLocalPipelineFileLoaded(true);
+            try {
+                const pipelineData = YAML.parse(pipelineFileParams.filesContent[0].content);
+                for (let inode=0; inode<pipelineData.nodes.length; inode++) {
+                    pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
+                }
+                setDigitalTwinPipelineData(pipelineData);
+                const pipelineFileName = pipelineFileParams.plainFiles[0].name;
+                setPipelineFileName(pipelineFileName);
+                const dateString = (pipelineFileParams.plainFiles[0] as any).lastModified;
+                setPipelineFileLastModifDateString(formatDateString(dateString));
+                setLocalPipelineFileLoaded(false);
+                pipelineFileParams.clear();
+            } catch (e) {
+                console.log(e);
+                toast.error("Invalid pipeline file");
+                setLocalPipelineFileLoaded(false);
+                pipelineFileParams.clear();
+            }
+        }
+    }, [
+        pipelineFileParams.loading,
+        pipelineFileParams.filesContent,
+        pipelineFileParams.plainFiles,
+        pipelineFileParams,
+    ]);
+
     const onSubmit = (values: any, actions: any) => {
         const groupId = groupsManaged.filter((group) => group.acronym === values.groupAcronym)[0].id;
         const assetName = values.assetName;
@@ -560,7 +603,11 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
+            pipelineFileName,
+            pipelineFileLastModifDate: pipelineFileLastModifDateString,
         };
+
+        console.log("digitalTwinData=", digitalTwinData);
 
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -598,6 +645,20 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                     const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadFemResFile, femResData, configMultipart)
+                        .then((response: AxiosResponse<any, any>) => {
+                            toast.success(response.data.message);
+                        })
+                        .catch((error: AxiosError) => {
+                            axiosErrorHandler(error, authDispatch);
+                            backToTable();
+                        });
+                }
+
+                if (Object.keys(digitalTwinPipelineData).length !== 0) {
+                    const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
+                    const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${data.digitalTwinId}`;
+                    getAxiosInstance(refreshToken, authDispatch)
+                        .post(urlUploadPipeline, digitalTwinPipelineData, config)
                         .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
                         })
@@ -677,11 +738,9 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
         formik.setFieldValue("chatAssistantLanguage", e.value);
     };
 
-
     const clearGltfDataFile = () => {
         setGltfFileName("-");
         setGltfFileLastModif("-");
-        //setDigitalTwinGltfData({});
         setLocalGltfFileLoaded(false);
         gltfFileParams.clear();
         setIsGlftDataReady(false);
@@ -704,6 +763,19 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
     const localFemResFileButtonHandler = () => {
         if (!localFemResFileLoaded) {
             selectFile(openFemResFileSelector, femResFileParams.clear);
+        }
+    };
+
+    const clearPipelineFile = () => {
+        setPipelineFileName("-");
+        setPipelineFileLastModifDateString("-");
+        setLocalPipelineFileLoaded(false);
+        pipelineFileParams.clear();
+    };
+
+    const localPipelineFileButtonHandler = () => {
+        if (!localPipelineFileLoaded) {
+            selectFile(openPipelineFileSelector, pipelineFileParams.clear);
         }
     };
 
@@ -819,6 +891,28 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                                                     <FileButton
                                                         type="button"
                                                         onClick={() => localFemResFileButtonHandler()}
+                                                    >
+                                                        Select local file
+                                                    </FileButton>
+                                                </SelectDataFilenButtonContainer>
+                                            </DataFileContainer>
+                                            <DataFileTitle>Pipeline</DataFileTitle>
+                                            <DataFileContainer>
+                                                <FieldContainer>
+                                                    <label>File name</label>
+                                                    <div>{pipelineFileName}</div>
+                                                </FieldContainer>
+                                                <FieldContainer>
+                                                    <label>Last modification date</label>
+                                                    <div>{pipelineFileLastModifDateString}</div>
+                                                </FieldContainer>
+                                                <SelectDataFilenButtonContainer>
+                                                    <FileButton type="button" onClick={clearPipelineFile}>
+                                                        Clear
+                                                    </FileButton>
+                                                    <FileButton
+                                                        type="button"
+                                                        onClick={() => localPipelineFileButtonHandler()}
                                                     >
                                                         Select local file
                                                     </FileButton>

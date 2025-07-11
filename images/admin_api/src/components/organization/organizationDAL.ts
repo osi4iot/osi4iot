@@ -16,6 +16,7 @@ import UpdateOrganizationDto from "./interfaces/updateOrganization.dto";
 import { createNodeRedInstance, deleteNodeRedInstanceById } from "../nodeRedInstance/nodeRedInstanceDAL";
 import INodeRedInstance from "../nodeRedInstance/nodeRedInstance.interface";
 import CreateNodeRedInstanceDto from "../nodeRedInstance/nodeRedInstance.dto";
+import natsClient from "../../config/natsConfig";
 
 export const exitsOrganizationWithName = async (orgName: string): Promise<boolean> => {
 	const result = await pool.query('SELECT COUNT(*) FROM grafanadb.org WHERE name = $1',
@@ -32,7 +33,7 @@ export const exitsOrganizationWithAcronym = async (orgAcronym: string): Promise<
 
 export const updateOrganizationByProp = async (propName: string, propValue: (string | number), orgData: Partial<CreateOrganizationDto>): Promise<void> => {
 	const query = `UPDATE grafanadb.org SET name = $1, acronym = $2, role = $3, 
-	building_id = $4, org_hash = $5,  mqtt_access_control = $6  WHERE grafanadb.org.${propName} = $7;`;
+	building_id = $4, org_hash = $5,  mqtt_access_control = $6  WHERE grafanadb.org.${propName} = $7 RETURNING *;`;
 	const queryArray =
 		[
 			orgData.name,
@@ -43,7 +44,8 @@ export const updateOrganizationByProp = async (propName: string, propValue: (str
 			orgData.mqttAccessControl,
 			propValue
 		];
-	await pool.query(query, queryArray);
+	const result = await pool.query(query, queryArray);
+	await natsClient.jsPublish("org", "update", result.rows[0].id);
 }
 
 export const updateOrganizationHashById = async (orgId: number, newOrgHash: string): Promise<void> => {
@@ -54,6 +56,7 @@ export const updateOrganizationHashById = async (orgId: number, newOrgHash: stri
 			orgId
 		];
 	await pool.query(query, queryArray);
+	await natsClient.jsPublish("org", "update", orgId);
 }
 
 export const getApiKeyIdByName = async (apiKeyName: string): Promise<number> => {

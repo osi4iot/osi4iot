@@ -44,15 +44,16 @@ func CreateStream(
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	streamName := strings.ToUpper(fmt.Sprintf("ORG_FLOWS_%d", shardIndex))
-	subject := fmt.Sprintf("org_flows_%d.>", shardIndex)
+	streamName := strings.ToUpper(fmt.Sprintf("PIPELINES_SHARD_%d", shardIndex))
+	subject1 := fmt.Sprintf("pipelines_shard_%d.admin", shardIndex)
+	subject2 := fmt.Sprintf("pipelines_shard_%d.admin.>", shardIndex)
 	stream, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:     streamName,
-		Subjects: []string{subject},
-		Storage:  jetstream.FileStorage,
-		Replicas: numStreamReplicas,
+		Name:      streamName,
+		Subjects:  []string{subject1, subject2},
+		Storage:   jetstream.FileStorage,
+		Replicas:  numStreamReplicas,
 		Retention: jetstream.LimitsPolicy,
-		MaxAge: 1 * time.Hour, // Retain messages for 1 hour
+		MaxAge:    1 * time.Hour, // Retain messages for 1 hour
 	})
 
 	if err != nil {
@@ -61,33 +62,34 @@ func CreateStream(
 	}
 
 	log.Infof("Stream '%s' created successfully", streamName)
-	log.Infof("Stream subject: '%s'", subject)
+	log.Infof("Stream subjects: '%s' and '%s'", subject1, subject2)
 	return stream, nil
 }
 
 func CreateConsumer(
 	shardIndex int,
 	replicaIndex int,
-	log *logger.Logger, 
+	log *logger.Logger,
 	stream jetstream.Stream,
-	) (jetstream.Consumer, error) {
+) (jetstream.Consumer, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	consumerName := fmt.Sprintf("org_flows_shard_%d_replica_%d", shardIndex, replicaIndex)
-	ackWait := 10 * time.Second
-	ackPolicy := jetstream.AckExplicitPolicy
-	maxWaiting := 100
-	maxAckPending := 1000
+	consumerName := fmt.Sprintf("pipelines_shard_%d_replica_%d", shardIndex, replicaIndex)
 
 	consumer, err := stream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
-		Name:          consumerName,
-		Durable:       consumerName,
-		AckPolicy:     ackPolicy,
-		AckWait:       ackWait,
-		MaxWaiting:    maxWaiting,
-		MaxAckPending: maxAckPending,
-		FilterSubject: fmt.Sprintf("org_flows_shard_%d.admin.>", shardIndex),
+		Name:              consumerName,
+		Durable:           consumerName,
+		DeliverPolicy:     jetstream.DeliverAllPolicy,
+		AckPolicy:         jetstream.AckExplicitPolicy,
+		MaxDeliver:        3,
+		AckWait:           10 * time.Second,
+		MaxWaiting:        100,
+		MaxAckPending:     1000,
+		FilterSubject:     fmt.Sprintf("pipelines_shard_%d.admin", shardIndex),
+		ReplayPolicy:      jetstream.ReplayInstantPolicy,
+		MaxRequestBatch:   500,
+		MaxRequestExpires: 30 * time.Second,
 	})
 
 	if err != nil {

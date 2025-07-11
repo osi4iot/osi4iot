@@ -80,6 +80,7 @@ export const createTopic = async (groupId: number, topicInput: CreateTopicDto): 
 export const getTopicByProp = async (propName: string, propValue: (string | number)): Promise<ITopic> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
                                     grafanadb.topic.group_id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
@@ -99,6 +100,7 @@ export const getTopicByProp = async (propName: string, propValue: (string | numb
 export const getAllTopics = async (): Promise<ITopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.topic.group_id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
@@ -154,6 +156,7 @@ export const getNumTopics = async (): Promise<number> => {
 export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.topic.group_id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
@@ -177,6 +180,7 @@ export const getTopicsByGroupId = async (groupId: number): Promise<ITopic[]> => 
 export const getTopicsByGroupsIdArray = async (groupsIdArray: number[]): Promise<ITopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.topic.group_id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",
@@ -235,6 +239,7 @@ export const getNumTopicsByGroupsIdArray = async (groupsIdArray: number[]): Prom
 export const getTopicsByOrgId = async (orgId: number): Promise<ITopic[]> => {
 	const response = await pool.query(`SELECT grafanadb.topic.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.topic.group_id AS "groupId",
+									grafanadb.group.group_uid AS "groupUid",
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.topic.description,
 									grafanadb.topic.topic_uid AS "topicUid",

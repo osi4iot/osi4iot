@@ -42,6 +42,9 @@ import {
 	getDigitalTwinGlbFile,
 	getDigitalTwinData,
 	getDigitalTwinGltfFile,
+	getAllDTTopics,
+	getDTTopicsByGroupsIdArray,
+	getDTTopicsByDigitalTwinId,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -60,7 +63,10 @@ import infoLogger from "../../utils/logger/infoLogger";
 import { getAssetTopicsInfoFromByDTIdsArray } from "../asset/assetDAL";
 import type { Readable } from "stream";
 import CreatePipelineDto from "./pipeline.dto";
-import { createDigitalTwinPipeline, updateDigitalTwinPipeline } from "./pipeline";
+import { applyPipelineAction, createDigitalTwinPipeline, updateDigitalTwinPipeline } from "./pipeline";
+import CreatePipelineActionDto from "./pipeline_action.dto";
+import natsClient from "../../config/natsConfig";
+import IDigitalTwinTopic from "./digitalTwinTopic.interface";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -168,6 +174,20 @@ class DigitalTwinController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreatePipelineDto>(CreatePipelineDto, true),
 				this.updatePipeline
+			)
+			.post(
+				`${this.path}_pipeline_action/:groupId/:digitalTwinId`,
+				digitalTwinAndGroupExist,
+				groupAdminAuth,
+				validationMiddleware<CreatePipelineActionDto>(CreatePipelineActionDto, true),
+				this.setPipelineAction
+			)
+			.get(`${this.path}_topics/user_managed/:digitalTwinId`, userAuth, this.getDigitalTwinTopicsUserManaged)
+			.get(
+				`${this.path}_topics/:groupId/:digitalTwinId`,
+				groupExists,
+				groupAdminAuth,
+				this.getDigitalTwinTopicsByDTid
 			);
 	}
 
@@ -447,6 +467,12 @@ class DigitalTwinController implements IController {
 			if (!digitalTwin)
 				throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");
 
+			const context = {
+				groupId: group.id,
+				digitalTwinId: digitalTwin.id,
+			};
+			await natsClient.jsPublish("digitalTwin", "create", digitalTwin.id, context);
+
 			const response = {
 				message: `A new digital twin has been created`,
 				digitalTwinId: digitalTwin.id,
@@ -543,6 +569,53 @@ class DigitalTwinController implements IController {
 		}
 	};
 
+	private getDigitalTwinTopicsUserManaged = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			let digitalTwinTopics: IDigitalTwinTopic[] = [];
+			if (req.user.isGrafanaAdmin) {
+				digitalTwinTopics = await getAllDTTopics();
+			} else {
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
+				if (organizations.length !== 0) {
+					const orgIdsArray = organizations.map((org) => org.id);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+					const groupsIdArray = groups.map((group) => group.id);
+					groupsInOrgs.forEach((groupInOrg) => {
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
+					});
+				}
+				if (groups.length !== 0) {
+					const groupsIdArray = groups.map((group) => group.id);
+					digitalTwinTopics = await getDTTopicsByGroupsIdArray(groupsIdArray);
+				}
+			}
+			res.status(200).send(digitalTwinTopics);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getDigitalTwinTopicsByDTid = async (
+		req: IRequestWithDigitalTwinAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		const { digitalTwinId } = req.params;
+		try {
+			const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
+			if (!digitalTwin) throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
+			const digitalTwinTopics = await getDTTopicsByDigitalTwinId(digitalTwin.id);
+			res.status(200).send(digitalTwinTopics);
+		} catch (error) {
+			next(error);
+		}
+	};
+
 	private createPipeline = async (
 		req: IRequestWithAssetAndGroup,
 		res: Response,
@@ -552,12 +625,11 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
 			const pipelineData: CreatePipelineDto = req.body;
-			await createDigitalTwinPipeline(digitalTwinIdNum, pipelineData);
+			await createDigitalTwinPipeline(digitalTwinIdNum, pipelineData, req.group.id);
 
 			const response = {
 				message: `A new pipeline has been created`,
 			};
-
 			res.status(200).send(response);
 		} catch (error) {
 			next(error);
@@ -573,10 +645,32 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
 			const pipelineData: CreatePipelineDto = req.body;
-			await updateDigitalTwinPipeline(digitalTwinIdNum, pipelineData);
+			await updateDigitalTwinPipeline(digitalTwinIdNum, pipelineData, req.group.id);
 
 			const response = {
 				message: `The pipeline has been updated`,
+			};
+
+			res.status(200).send(response);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private setPipelineAction = async (
+		req: IRequestWithDigitalTwinAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { digitalTwinId } = req.params;
+			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
+			const pipelineActionData: CreatePipelineActionDto = req.body;
+			const { action } = pipelineActionData;
+
+			await applyPipelineAction(digitalTwinIdNum, action, req.group.id);
+			const response = {
+				message: `The action '${action}' has been executed for pipeline of digital twin with id ${digitalTwinIdNum}`,
 			};
 
 			res.status(200).send(response);

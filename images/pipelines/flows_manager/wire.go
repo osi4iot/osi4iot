@@ -63,9 +63,9 @@ func (fm *FlowsManager) AddWires(wires []*common.Wire) {
 func (fm *FlowsManager) DeleteWire(wireId int) error {
 	wireIdStr := strconv.Itoa(wireId)
 	if value, ok := fm.Wires.Load(wireIdStr); ok {
-		fm.Wires.Delete(wireIdStr)
 		wire := value.(*common.Wire)
 		fm.deleteWireFromDigitalTwin(wire.DigitalTwinId, wire.Id)
+		fm.Wires.Delete(wireIdStr)
 		return nil
 	}
 	return common.ErrNotFound
@@ -104,19 +104,32 @@ func (fm *FlowsManager) AddWireToDigitalTwin(digitalTwinId int, wire *common.Wir
 			wire.NiniOutputIndex, wire.NodeIniId, (*nodeIni).GetNumOutputs())
 	}
 
-	// Verify that no wire already exists at this output index
+	// Update NodeOutputByIndex
 	outputIndexKey := makeNodeOutputIndexKey(digitalTwinId, wire.NodeIniId, wire.NiniOutputIndex)
-	if _, exists := fm.NodeOutputByIndex.Load(outputIndexKey); exists {
-		return fmt.Errorf("output index %d already used by node %d",
-			wire.NiniOutputIndex, wire.NodeIniId)
+	value, exists := fm.NodeOutputByIndex.Load(outputIndexKey)
+	if exists {
+		// If the output index already exists, append the wire to the existing slice
+		existingWires := value.([]*common.Wire)
+		// Verify that the wire does not already exist in this output index
+		existsWire := false
+		for _, w := range existingWires {
+			if w.Id == wire.Id {
+				existsWire = true
+				break
+			}
+		}
+		if !existsWire {
+			existingWires = append(existingWires, wire)
+			fm.NodeOutputByIndex.Store(outputIndexKey, existingWires)
+		}
+	} else {
+		// Create a new slice for this output index
+		fm.NodeOutputByIndex.Store(outputIndexKey, []*common.Wire{wire})
 	}
 
 	// Update indices
 	fm.updateDigitalTwinWiresIndex(digitalTwinId, wire, true)
 	fm.updateNodeWireIndices(digitalTwinId, wire, true)
-
-	// Map output by index
-	fm.NodeOutputByIndex.Store(outputIndexKey, wire)
 
 	return nil
 }
@@ -130,10 +143,10 @@ func (fm *FlowsManager) updateDigitalTwinWiresIndex(digitalTwinId int, wire *com
 	}
 
 	if add {
-		// Verificar que no existe ya
+		// Verify that the wire does not already exist
 		for _, w := range wires {
 			if w.Id == wire.Id {
-				return // Ya existe
+				return // Already exists
 			}
 		}
 		wires = append(wires, wire)
@@ -222,10 +235,26 @@ func (fm *FlowsManager) deleteWireFromDigitalTwin(digitalTwinId int, wireId int)
 
 		// Remove from NodeOutputByIndex
 		outputIndexKey := makeNodeOutputIndexKey(digitalTwinId, wire.NodeIniId, wire.NiniOutputIndex)
-		fm.NodeOutputByIndex.Delete(outputIndexKey)
+		values, ok := fm.NodeOutputByIndex.Load(outputIndexKey)
+		if ok {
+			wires := values.([]*common.Wire)
+			if len(wires) == 1 && wires[0].Id == wire.Id {
+				fm.NodeOutputByIndex.Delete(outputIndexKey)
+			} else {
+				// Otherwise, remove the specific wire from the slice
+				for i, w := range wires {
+					if w.Id == wire.Id {
+						wires = append(wires[:i], wires[i+1:]...)
+						break
+					}
+				}
+				fm.NodeOutputByIndex.Store(outputIndexKey, wires)
+			}
+		}
 
 		return nil
 	}
+	
 	return common.ErrNotFound
 }
 
@@ -239,8 +268,8 @@ func (fm *FlowsManager) GetDigitalTwinWires(digitalTwinId int) []*common.Wire {
 
 func (fm *FlowsManager) GetNodeOutputWires(digitalTwinId int, nodeId int) [][]*common.Wire {
 	indexKey := makeNodeOutputWiresKey(digitalTwinId, nodeId)
-	if value, ok := fm.NodeOutputWires.Load(indexKey); ok {
-		return value.([][]*common.Wire)
+	if values, ok := fm.NodeOutputWires.Load(indexKey); ok {
+		return values.([][]*common.Wire)
 	}
 	return nil
 }
@@ -253,10 +282,10 @@ func (fm *FlowsManager) GetNodeInputWires(digitalTwinId int, nodeId int) []*comm
 	return nil
 }
 
-func (fm *FlowsManager) GetNodeOutputIndex(digitalTwinId int, nodeId int, outputIndex int) *common.Wire {
+func (fm *FlowsManager) GetNodeOutputIndex(digitalTwinId int, nodeId int, outputIndex int) []*common.Wire {
 	indexKey := makeNodeOutputIndexKey(digitalTwinId, nodeId, outputIndex)
 	if value, ok := fm.NodeOutputByIndex.Load(indexKey); ok {
-		return value.(*common.Wire)
+		return value.([]*common.Wire)
 	}
 	return nil
 }

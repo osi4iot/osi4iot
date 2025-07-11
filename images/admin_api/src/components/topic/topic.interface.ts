@@ -2,6 +2,7 @@ export default interface ITopic {
 	id?: number;
 	orgId: number;
 	groupId: number;
+	groupUid: string;
 	topicType: string;
 	topicName: string;
 	description: string;

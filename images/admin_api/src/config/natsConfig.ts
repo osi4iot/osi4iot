@@ -14,6 +14,11 @@ import {
 import process_env from "./api_config";
 import { logger } from "./winston";
 
+export interface AdminMsgContext {
+	groupId?: number;
+	digitalTwinId?: number;
+}
+
 export interface Nats {
 	nc: NatsConnection;
 	js: JetStreamClient;
@@ -30,7 +35,7 @@ class NATSClient {
 	private isConnecting: boolean;
 	private connectionPromise: Promise<NatsConnection> | null;
 	private config: any;
-	private STREAM_NAME = "PIPELINES_SHARD1";
+	private STREAM_NAME = "PIPELINES_SHARD_1";
 
 	constructor() {
 		if (NATSClient.instance) {
@@ -157,16 +162,18 @@ class NATSClient {
 		return this.stringCodec as Codec<string>;
 	}
 
-	async jsPublish(component: string, action: string, id: number): Promise<PubAck> {
+	async jsPublish(component: string, action: string, id: number, context?: AdminMsgContext | null): Promise<PubAck> {
 		const js = this.getJetStream();
-		const payload = {
+		const adminMsg = {
 			component,
 			action,
 			id,
+			context
 		};
-		const subject = "pipeline_shard1.admin";
+
+		const subject = "pipelines_shard_1.admin";
 		try {
-			const ack = await js.publish(subject, this.stringCodec.encode(payload));
+			const ack = await js.publish(subject, this.stringCodec.encode(JSON.stringify(adminMsg)));
 			return ack;
 		} catch (error) {
 			logger.log("error", `Error publishing to '${subject}':`, error);
@@ -203,7 +210,7 @@ class NATSClient {
 
 		const streamConfig: Partial<StreamConfig> = {
 			name: this.STREAM_NAME,
-			subjects: ["pipeline_shard1.admin", "pipeline_shard1.admin.>"],
+			subjects: ["pipelines_shard_1.admin", "pipelines_shard_1.admin.>"],
 			retention: RetentionPolicy.Limits,
 			max_msgs: 1000,
 			max_age: 60 * 60 * 2 * 1000000000, // 2 horas in nanoseconds

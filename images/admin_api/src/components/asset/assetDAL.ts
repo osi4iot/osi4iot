@@ -1,10 +1,10 @@
 import { nanoid } from "nanoid";
-import pointOnFeature from '@turf/point-on-feature';
-import rhumbDestination from '@turf/rhumb-destination';
-import { point, polygon } from '@turf/helpers';
+import pointOnFeature from "@turf/point-on-feature";
+import rhumbDestination from "@turf/rhumb-destination";
+import { point, polygon } from "@turf/helpers";
 import pool from "../../config/dbconfig";
-import archiver from 'archiver';
-import s3Files from 's3-files';
+import archiver from "archiver";
+import s3Files from "s3-files";
 import s3Client from "../../config/s3Config";
 import IGroup from "../group/interfaces/Group.interface";
 import CreateAssetDto from "./asset.dto";
@@ -27,6 +27,7 @@ import ISensor from "../sensor/sensor.interface";
 import IAssetTopic from "./assetTopic.interface";
 import IMqttDigitalTwinTopicInfo from "../digitalTwin/mqttDigitalTwinTopicInfo.interface";
 import IDigitalTwinTopic from "../digitalTwin/digitalTwinTopic.interface";
+import natsClient from "../../config/natsConfig";
 
 export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAssetType> => {
 	const queryString = `INSERT INTO grafanadb.asset_type (org_id, asset_type_uid,
@@ -44,25 +45,24 @@ export const insertAssetType = async (assetTypeData: IAssetType): Promise<IAsset
 		asset_state_format AS "assetStateFormat",
 		created, updated`;
 
-	const result = await pool.query(queryString,
-		[
-			assetTypeData.orgId,
-			assetTypeData.assetTypeUid,
-			assetTypeData.type,
-			assetTypeData.iconSvgFileName,
-			assetTypeData.iconSvgString,
-			assetTypeData.geolocationMode,
-			assetTypeData.markerSvgFileName,
-			assetTypeData.markerSvgString,
-			assetTypeData.isPredefined || false,
-			assetTypeData.assetStateFormat,
-		]);
+	const result = await pool.query(queryString, [
+		assetTypeData.orgId,
+		assetTypeData.assetTypeUid,
+		assetTypeData.type,
+		assetTypeData.iconSvgFileName,
+		assetTypeData.iconSvgString,
+		assetTypeData.geolocationMode,
+		assetTypeData.markerSvgFileName,
+		assetTypeData.markerSvgString,
+		assetTypeData.isPredefined || false,
+		assetTypeData.assetStateFormat,
+	]);
 	return result.rows[0] as IAssetType;
 };
 
 export const updateAssetTypeByPropName = async (
 	propName: string,
-	propValue: (string | number),
+	propValue: string | number,
 	assetType: IAssetType
 ): Promise<void> => {
 	const query = `UPDATE grafanadb.asset_type SET type = $1,
@@ -79,11 +79,11 @@ export const updateAssetTypeByPropName = async (
 		assetType.markerSvgString,
 		assetType.geolocationMode,
 		assetType.assetStateFormat,
-		propValue
+		propValue,
 	]);
 };
 
-export const deleteAssetTypeByPropName = async (propName: string, propValue: (string | number)): Promise<void> => {
+export const deleteAssetTypeByPropName = async (propName: string, propValue: string | number): Promise<void> => {
 	await pool.query(`DELETE FROM grafanadb.asset_type WHERE ${propName} = $1`, [propValue]);
 };
 
@@ -113,7 +113,8 @@ export const getAllAssetTypes = async (): Promise<IAssetType[]> => {
 };
 
 export const getAssetTypesByOrgsIdArray = async (orgsIdArray: number[]): Promise<IAssetType[]> => {
-	const response = await pool.query(`SELECT grafanadb.asset_type.id, 
+	const response = await pool.query(
+		`SELECT grafanadb.asset_type.id, 
 									grafanadb.asset_type.org_id AS "orgId",
 									grafanadb.asset_type.asset_type_uid AS "assetTypeUid",
 									grafanadb.asset_type.type,
@@ -127,12 +128,15 @@ export const getAssetTypesByOrgsIdArray = async (orgsIdArray: number[]): Promise
 									grafanadb.asset_type.created, grafanadb.asset_type.updated
 									FROM grafanadb.asset_type
 									WHERE grafanadb.asset_type.org_id = ANY($1::bigint[])
-									ORDER BY grafanadb.asset_type.id  ASC;`, [orgsIdArray]);
+									ORDER BY grafanadb.asset_type.id  ASC;`,
+		[orgsIdArray]
+	);
 	return response.rows as IAssetType[];
 };
 
 export const getAssetTypesByOrgId = async (orgId: number): Promise<IAssetType[]> => {
-	const response = await pool.query(`SELECT grafanadb.asset_type.id, 
+	const response = await pool.query(
+		`SELECT grafanadb.asset_type.id, 
 									grafanadb.asset_type.org_id AS "orgId",
 									grafanadb.asset_type.asset_type_uid AS "assetTypeUid",
 									grafanadb.asset_type.type,
@@ -146,16 +150,19 @@ export const getAssetTypesByOrgId = async (orgId: number): Promise<IAssetType[]>
 									grafanadb.asset_type.created, grafanadb.asset_type.updated
 									FROM grafanadb.asset_type
 									WHERE grafanadb.asset_type.org_id = $1
-									ORDER BY grafanadb.asset_type.id  ASC;`, [orgId]);
+									ORDER BY grafanadb.asset_type.id  ASC;`,
+		[orgId]
+	);
 	return response.rows as IAssetType[];
 };
 
 export const getAssetTypeByPropName = async (
 	orgId: number,
 	propName: string,
-	propValue: (string | number)
+	propValue: string | number
 ): Promise<IAssetType> => {
-	const response = await pool.query(`SELECT grafanadb.asset_type.id, 
+	const response = await pool.query(
+		`SELECT grafanadb.asset_type.id, 
 									grafanadb.asset_type.org_id AS "orgId",
 									grafanadb.asset_type.asset_type_uid AS "assetTypeUid",
 									grafanadb.asset_type.type,
@@ -169,15 +176,15 @@ export const getAssetTypeByPropName = async (
 									grafanadb.asset_type.created, grafanadb.asset_type.updated
 									FROM grafanadb.asset_type
 									WHERE grafanadb.asset_type.${propName} = $1 AND
-									grafanadb.asset_type.org_id = $2`, [propValue, orgId]);
+									grafanadb.asset_type.org_id = $2`,
+		[propValue, orgId]
+	);
 	return response.rows[0] as IAssetType;
-}
+};
 
-export const getAssetTypeByTypeAndOrgId = async (
-	orgId: number,
-	type: string,
-): Promise<IAssetType> => {
-	const response = await pool.query(`SELECT grafanadb.asset_type.id, 
+export const getAssetTypeByTypeAndOrgId = async (orgId: number, type: string): Promise<IAssetType> => {
+	const response = await pool.query(
+		`SELECT grafanadb.asset_type.id, 
 									grafanadb.asset_type.org_id AS "orgId",
 									grafanadb.asset_type.asset_type_uid AS "assetTypeUid",
 									grafanadb.asset_type.type,
@@ -191,20 +198,25 @@ export const getAssetTypeByTypeAndOrgId = async (
 									grafanadb.asset_type.created, grafanadb.asset_type.updated
 									FROM grafanadb.asset_type
 									WHERE grafanadb.asset_type.type = $1 AND
-									grafanadb.asset_type.org_id = $2`, [type, orgId]);
+									grafanadb.asset_type.org_id = $2`,
+		[type, orgId]
+	);
 	return response.rows[0] as IAssetType;
-}
+};
 
 export const getNumAssetTypes = async (): Promise<number> => {
 	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.asset_type;`);
 	return parseInt(result.rows[0].count, 10);
-}
+};
 
 export const getNumAssetTypesByOrgsIdArray = async (orgsIdArray: number[]): Promise<number> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.asset_type
-									WHERE grafanadb.asset_type.org_id = ANY($1::bigint[])`, [orgsIdArray]);
+	const result = await pool.query(
+		`SELECT COUNT(*) FROM grafanadb.asset_type
+									WHERE grafanadb.asset_type.org_id = ANY($1::bigint[])`,
+		[orgsIdArray]
+	);
 	return parseInt(result.rows[0].count, 10);
-}
+};
 
 export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 	const queryString = `INSERT INTO grafanadb.asset (group_id, asset_uid,
@@ -220,16 +232,15 @@ export const insertAsset = async (assetData: IAsset): Promise<IAsset> => {
 		geolocation[1] AS latitude,
 		created, updated`;
 
-	const result = await pool.query(queryString,
-		[
-			assetData.groupId,
-			assetData.assetUid,
-			assetData.assetTypeId,
-			assetData.description,
-			`(${assetData.longitude},${assetData.latitude})`,
-			assetData.iconRadio,
-			assetData.iconSizeFactor,
-		]);
+	const result = await pool.query(queryString, [
+		assetData.groupId,
+		assetData.assetUid,
+		assetData.assetTypeId,
+		assetData.description,
+		`(${assetData.longitude},${assetData.latitude})`,
+		assetData.iconRadio,
+		assetData.iconSizeFactor,
+	]);
 	return result.rows[0] as IAsset;
 };
 
@@ -244,7 +255,7 @@ export const checkSensorReferences = async (group: IGroup, assetData: CreateAsse
 		}
 	}
 	return areSensorTypesOk;
-}
+};
 
 export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): Promise<IAsset> => {
 	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
@@ -268,7 +279,7 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): 
 	const sensorsUid: string[] = [];
 	for (let i = 0; i < sensorsRef.length; i++) {
 		sensorsUid[i] = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
-		const topicId = assetTopics.filter(assetTopic => assetTopic.topicRef === sensorsRef[i].topicRef)[0].topicId;
+		const topicId = assetTopics.filter((assetTopic) => assetTopic.topicRef === sensorsRef[i].topicRef)[0].topicId;
 		sensorsRef[i].topicId = topicId;
 		const sensorType = await getSensorTypeByPropName(group.orgId, "type", sensorsRef[i].sensorType);
 		sensorsRef[i].sensorTypeId = sensorType.id;
@@ -284,7 +295,11 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): 
 	return newAsset;
 };
 
-export const updateAssetByPropName = async (propName: string, propValue: (string | number), asset: IAsset): Promise<void> => {
+export const updateAssetByPropName = async (
+	propName: string,
+	propValue: string | number,
+	asset: IAsset
+): Promise<void> => {
 	const query = `UPDATE grafanadb.asset SET description = $1,
 				geolocation = $2, icon_radio = $3,
 				icon_size_factor = $4,
@@ -296,12 +311,20 @@ export const updateAssetByPropName = async (propName: string, propValue: (string
 		asset.iconRadio,
 		asset.iconSizeFactor,
 		asset.assetTypeId,
-		propValue
+		propValue,
 	]);
+	const context = {
+		groupId: asset.groupId,
+	};
+	await natsClient.jsPublish("asset", "update", asset.id, context);
 };
 
-export const deleteAssetByPropName = async (propName: string, propValue: (string | number)): Promise<void> => {
-	await pool.query(`DELETE FROM grafanadb.asset WHERE ${propName} = $1`, [propValue]);
+export const deleteAssetByPropName = async (propName: string, propValue: string | number): Promise<void> => {
+	const result = await pool.query(`DELETE FROM grafanadb.asset WHERE ${propName} = $1 RETURNING id`, [propValue]);
+	const context = {
+		groupId: result.rows[0].groupId,
+	};
+	await natsClient.jsPublish("asset", "delete", result.rows[0].id, context);
 };
 
 export const checkInitialAssetGeolocation = async (group: IGroup, assetData: CreateAssetDto) => {
@@ -317,10 +340,11 @@ export const checkInitialAssetGeolocation = async (group: IGroup, assetData: Cre
 			assetData.latitude = center.geometry.coordinates[1];
 		}
 	}
-}
+};
 
-export const getAssetByPropName = async (propName: string, propValue: (string | number)): Promise<IAsset> => {
-	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
+export const getAssetByPropName = async (propName: string, propValue: string | number): Promise<IAsset> => {
+	const response = await pool.query(
+		`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 	                                grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.asset.description,
 									grafanadb.asset_type.type AS "assetType",
@@ -333,9 +357,11 @@ export const getAssetByPropName = async (propName: string, propValue: (string | 
 									FROM grafanadb.asset
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
-									WHERE grafanadb.asset.${propName} = $1`, [propValue]);
+									WHERE grafanadb.asset.${propName} = $1`,
+		[propValue]
+	);
 	return response.rows[0] as IAsset;
-}
+};
 
 export const getAllAssets = async (): Promise<IAsset[]> => {
 	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
@@ -353,16 +379,16 @@ export const getAllAssets = async (): Promise<IAsset[]> => {
 									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									ORDER BY grafanadb.asset.id  ASC;`);
 	return response.rows as IAsset[];
-}
+};
 
 export const getNumAssets = async (): Promise<number> => {
 	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.asset;`);
 	return parseInt(result.rows[0].count, 10);
-}
-
+};
 
 export const getAssetsByGroupId = async (groupId: number): Promise<IAsset[]> => {
-	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
+	const response = await pool.query(
+		`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.asset.description,
 									grafanadb.asset_type.type AS "assetType",
@@ -376,12 +402,15 @@ export const getAssetsByGroupId = async (groupId: number): Promise<IAsset[]> => 
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									WHERE grafanadb.asset.group_id = $1
-									ORDER BY grafanadb.asset.id  ASC;`, [groupId]);
+									ORDER BY grafanadb.asset.id  ASC;`,
+		[groupId]
+	);
 	return response.rows as IAsset[];
 };
 
 export const getAssetsByGroupsIdArray = async (groupsIdArray: number[]): Promise<IAsset[]> => {
-	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
+	const response = await pool.query(
+		`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.asset.description,
 									grafanadb.asset_type.type AS "assetType",
@@ -395,19 +424,24 @@ export const getAssetsByGroupsIdArray = async (groupsIdArray: number[]): Promise
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									WHERE grafanadb.asset.group_id = ANY($1::bigint[])
-									ORDER BY grafanadb.asset.id  ASC`, [groupsIdArray]);
+									ORDER BY grafanadb.asset.id  ASC`,
+		[groupsIdArray]
+	);
 	return response.rows as IAsset[];
 };
 
-
 export const getNumAssetsByGroupsIdArray = async (groupsIdArray: number[]): Promise<number> => {
-	const result = await pool.query(`SELECT COUNT(*) FROM grafanadb.asset
-									WHERE grafanadb.asset.group_id = ANY($1::bigint[])`, [groupsIdArray]);
+	const result = await pool.query(
+		`SELECT COUNT(*) FROM grafanadb.asset
+									WHERE grafanadb.asset.group_id = ANY($1::bigint[])`,
+		[groupsIdArray]
+	);
 	return parseInt(result.rows[0].count, 10);
-}
+};
 
 export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
-	const response = await pool.query(`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
+	const response = await pool.query(
+		`SELECT grafanadb.asset.id, grafanadb.group.org_id AS "orgId",
 									grafanadb.asset.group_id AS "groupId", grafanadb.asset.asset_uid AS "assetUid",
 									grafanadb.asset.description,
 									grafanadb.asset_type.type AS "assetType",
@@ -421,23 +455,19 @@ export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
 									INNER JOIN grafanadb.group ON grafanadb.asset.group_id = grafanadb.group.id
 									INNER JOIN grafanadb.asset_type ON grafanadb.asset.asset_type_id = grafanadb.asset_type.id
 									WHERE grafanadb.group.org_id = $1
-									ORDER BY grafanadb.asset.id  ASC`, [orgId]);
+									ORDER BY grafanadb.asset.id  ASC`,
+		[orgId]
+	);
 	return response.rows as IAsset[];
 };
 
-export const createAssetTopic = async (
-	assetId: number,
-	topicId: number,
-	topicRef: string,
-): Promise<IAssetTopic> => {
+export const createAssetTopic = async (assetId: number, topicId: number, topicRef: string): Promise<IAssetTopic> => {
 	const queryString = `INSERT INTO grafanadb.asset_topic (
 		asset_id, topic_id, topic_ref)
 		VALUES ($1, $2, $3)
 	    RETURNING  asset_id AS "assetId", topic_id AS "topicId", 
-		topic_ref AS "topicRef"`
-	const result = await pool.query(
-		queryString,
-		[assetId, topicId, topicRef]);
+		topic_ref AS "topicRef"`;
+	const result = await pool.query(queryString, [assetId, topicId, topicRef]);
 	return result.rows[0] as IAssetTopic;
 };
 
@@ -448,6 +478,17 @@ export const getAllAssetTopics = async (): Promise<IAssetTopic[]> => {
 						ORDER BY grafanadb.asset_topic.asset_id ASC,
 						         grafanadb.asset_topic.topic_id ASC;`;
 	const response = await pool.query(queryString);
+	return response.rows as IAssetTopic[];
+};
+
+export const getAssetTopicsUsingAssetId = async (assetId: number): Promise<IAssetTopic[]> => {
+	const queryString = `SELECT asset_id AS "assetId",
+						topic_id AS "topicId", topic_ref AS "topicRef"
+						FROM grafanadb.asset_topic
+						WHERE grafanadb.asset_topic.asset_id = $1
+						ORDER BY grafanadb.asset_topic.asset_id ASC,
+						         grafanadb.asset_topic.topic_id ASC;`;
+	const response = await pool.query(queryString, [assetId]);
 	return response.rows as IAssetTopic[];
 };
 
@@ -486,17 +527,18 @@ export const getAssetTopicByAssetIdAndTopicRef = async (assetId: number, topicRe
 	return response.rows[0] as IAssetTopic;
 };
 
-export const deleteAssetTopics = async (
-	assetId: number,
-): Promise<void> => {
+export const deleteAssetTopics = async (assetId: number): Promise<void> => {
 	const queryString = `DELETE FROM grafanadb.topic USING grafanadb.asset_topic
 						WHERE grafanadb.asset_topic.topic_id = grafanadb.topic.id AND
 						grafanadb.asset_topic.asset_id = $1;`;
 	await pool.query(queryString, [assetId]);
 };
 
-export const getAssetTopicsInfoFromByDTIdsArray = async (digitalTwinIdsArray: number[]): Promise<IMqttDigitalTwinTopicInfo[]> => {
-	const response = await pool.query(`SELECT grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
+export const getAssetTopicsInfoFromByDTIdsArray = async (
+	digitalTwinIdsArray: number[]
+): Promise<IMqttDigitalTwinTopicInfo[]> => {
+	const response = await pool.query(
+		`SELECT grafanadb.digital_twin.digital_twin_uid AS "digitalTwinUid",
 									grafanadb.asset_topic.topic_id AS "topicId", 
 									grafanadb.topic.topic_type AS "topicType",
 									grafanadb.asset_topic.topic_ref AS "topicRef",
@@ -507,10 +549,12 @@ export const getAssetTopicsInfoFromByDTIdsArray = async (digitalTwinIdsArray: nu
 									INNER JOIN grafanadb.topic ON grafanadb.topic.id = grafanadb.asset_topic.topic_id
 									INNER JOIN grafanadb.group ON grafanadb.topic.group_id = grafanadb.group.id
 									WHERE grafanadb.digital_twin.id = ANY($1::bigint[])
-									ORDER BY grafanadb.asset_topic.topic_id ASC;`, [digitalTwinIdsArray]);
+									ORDER BY grafanadb.asset_topic.topic_id ASC;`,
+		[digitalTwinIdsArray]
+	);
 
 	return response.rows as IMqttDigitalTwinTopicInfo[];
-}
+};
 
 export const getAssetTopicsByDigitalTwinId = async (digitalTwinId: number): Promise<IDigitalTwinTopic[]> => {
 	const queryString = `SELECT grafanadb.digital_twin.id AS "digitalTwinId",
@@ -546,42 +590,44 @@ export const updateGroupAssetsLocation = async (geoJsonDataString: string, group
 
 		for (let i = 0; i < groupAssets.length; i++) {
 			let bearing: number;
-			const distance = - totalLongitude * 0.5 + i * interAssetDistance;
+			const distance = -totalLongitude * 0.5 + i * interAssetDistance;
 			if (distance > 0) bearing = -90;
 			else bearing = 90;
 			const positionCoords = rhumbDestination(pt, Math.abs(distance), bearing);
 			const assetLongitude = positionCoords.geometry.coordinates[0];
 			const assetLatitude = positionCoords.geometry.coordinates[1];
 			const assetId = groupAssets[i].id;
-			const query = pool.query(`UPDATE grafanadb.asset SET geolocation = $1, updated = NOW() WHERE id = $2;`,
-				[`(${assetLongitude},${assetLatitude})`, assetId]);
+			const query = pool.query(`UPDATE grafanadb.asset SET geolocation = $1, updated = NOW() WHERE id = $2;`, [
+				`(${assetLongitude},${assetLatitude})`,
+				assetId,
+			]);
 			assetsLocationQueries.push(query);
 		}
-		await Promise.all(assetsLocationQueries)
+		await Promise.all(assetsLocationQueries);
 	}
-}
+};
 
 export const generateZipFileStream = (folderPath: string, fileNames: string[]) => {
 	const keyStream = s3Files
 		.connect({ s3: s3Client, bucket: process_env.S3_BUCKET_NAME })
-		.createKeyStream(folderPath, fileNames)
+		.createKeyStream(folderPath, fileNames);
 
 	const fileSream = s3Files.createFileStream(keyStream, false);
-	const archive = archiver('zip', { zlib: { level: 5 } });
+	const archive = archiver("zip", { zlib: { level: 5 } });
 	fileSream
-		.on('data', (file: any) => {
+		.on("data", (file: any) => {
 			if (file.data.length !== 0) {
-				archive.append(file.data, { name: file.path })
+				archive.append(file.data, { name: file.path });
 			}
 		})
-		.on('end', () => {
+		.on("end", () => {
 			void archive.finalize();
 		})
-		.on('error', (err: any) => {
-			archive.emit('error', err)
-		})
+		.on("error", (err: any) => {
+			archive.emit("error", err);
+		});
 	return archive;
-}
+};
 
 export const getBucketFolderFileNames = async (folderPath: string) => {
 	const bucketName = process_env.S3_BUCKET_NAME;
@@ -597,18 +643,19 @@ export const getBucketFolderFileNames = async (folderPath: string) => {
 		let isTruncated = true;
 		while (isTruncated) {
 			const data = await s3Client.send(command);
-			fileNames.push(...data.Contents.map(fileData => fileData.Key.split("/")[5]))
+			fileNames.push(...data.Contents.map((fileData) => fileData.Key.split("/")[5]));
 			isTruncated = data.IsTruncated;
 			command.input.ContinuationToken = data.NextContinuationToken;
 		}
 	} catch (err) {
-		logger.log("error", `Files info list for bucket ${bucketName} could not be obtained: %s`, err.message)
+		logger.log("error", `Files info list for bucket ${bucketName} could not be obtained: %s`, err.message);
 	}
 	return fileNames;
-}
+};
 
 export const getAllAssetS3Folder = async (): Promise<IAssetS3Folder[]> => {
-	const response = await pool.query(`SELECT grafanadb.org.id AS "orgId",
+	const response = await pool.query(
+		`SELECT grafanadb.org.id AS "orgId",
 	                                    grafanadb.org.acronym AS "orgAcronym",
 	                                    grafanadb.group.id AS "groupId",
 										grafanadb.group.acronym AS "groupAcronym",
@@ -625,12 +672,15 @@ export const getAllAssetS3Folder = async (): Promise<IAssetS3Folder[]> => {
                                         ORDER BY grafanadb.group.org_id ASC,
                                         grafanadb.topic.group_id ASC,
                                         grafanadb.asset.id ASC,
-                                        grafanadb.topic.id  ASC;`, [true]);
+                                        grafanadb.topic.id  ASC;`,
+		[true]
+	);
 	return response.rows as IAssetS3Folder[];
-}
+};
 
 export const getAssetS3FolderByGroupsIdArray = async (groupsIdArray: number[]): Promise<IAssetS3Folder[]> => {
-	const response = await pool.query(`SELECT grafanadb.org.id AS "orgId",
+	const response = await pool.query(
+		`SELECT grafanadb.org.id AS "orgId",
 										grafanadb.org.acronym AS "orgAcronym",
 										grafanadb.group.id AS "groupId",
 										grafanadb.group.acronym AS "groupAcronym",
@@ -648,9 +698,11 @@ export const getAssetS3FolderByGroupsIdArray = async (groupsIdArray: number[]): 
                                         ORDER BY grafanadb.group.org_id ASC,
                                         grafanadb.topic.group_id ASC,
                                         grafanadb.asset.id ASC,
-                                        grafanadb.topic.id  ASC;`, [true, groupsIdArray]);
+                                        grafanadb.topic.id  ASC;`,
+		[true, groupsIdArray]
+	);
 	return response.rows as IAssetS3Folder[];
-}
+};
 
 export const getAssetS3StorageYears = async (assetFolderPath: string) => {
 	const bucketParams = {
@@ -674,10 +726,7 @@ export const getAssetS3StorageYears = async (assetFolderPath: string) => {
 			years.sort();
 		}
 	} catch (err) {
-		logger.log("error", `S3 bucket subfolders of ${assetFolderPath} could not be obtained: %s`, err.message)
+		logger.log("error", `S3 bucket subfolders of ${assetFolderPath} could not be obtained: %s`, err.message);
 	}
 	return years;
-}
-
-
-
+};

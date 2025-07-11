@@ -27,6 +27,12 @@ class UpdateDigitalTwinDto {
 
 	@IsString({ each: true })
 	public sensorsRef: string[];
+
+	@IsString()
+	public pipelineFileName: string;
+
+	@IsString()
+	public pipelineFileLastModifDate: string;
 }
 
 export default UpdateDigitalTwinDto;

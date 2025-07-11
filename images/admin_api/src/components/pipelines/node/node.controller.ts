@@ -1,18 +1,11 @@
 import { Router, NextFunction, Request, Response } from "express";
 import IController from "../../../interfaces/controller.interface";
-import {
-	groupAdminAuth,
-	organizationAdminAuth,
-	userAuth,
-} from "../../../middleware/auth.middleware";
+import { groupAdminAuth, organizationAdminAuth, userAuth } from "../../../middleware/auth.middleware";
 import organizationExists from "../../../middleware/organizationExists.middleware";
 import groupExists from "../../../middleware/groupExists.middleware";
 import validationMiddleware from "../../../middleware/validation.middleware";
 import IRequestWithUser from "../../../interfaces/requestWithUser.interface";
-import {
-	getAllGroupsInOrgArray,
-	getGroupsThatCanBeEditatedAndAdministratedByUserId,
-} from "../../group/groupDAL";
+import { getAllGroupsInOrgArray, getGroupsThatCanBeEditatedAndAdministratedByUserId } from "../../group/groupDAL";
 import { getOrganizationsManagedByUserId } from "../../organization/organizationDAL";
 import IRequestWithOrganization from "../../organization/interfaces/requestWithOrganization.interface";
 import IRequestWithGroup from "../../group/interfaces/requestWithGroup.interface";
@@ -46,41 +39,17 @@ class NodeController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
+			.get(`${this.path}s/user_managed/`, userAuth, this.getNodesManagedByUser)
+			.get(`${this.path}s_in_org/:orgId/`, organizationAdminAuth, organizationExists, this.getNodesInOrg)
+			.get(`${this.path}s_in_group/:groupId`, groupExists, groupAdminAuth, this.getNodesInGroup)
 			.get(
-				`${this.path}s/user_managed/`,
-				userAuth,
-				this.getNodesManagedByUser
-			)
-			.get(
-				`${this.path}s_in_org/:orgId/`,
-				organizationAdminAuth,
-				organizationExists,
-				this.getNodesInOrg
-			)
-			.get(
-				`${this.path}s_in_group/:groupId`,
-				groupExists,
-				groupAdminAuth,
-				this.getNodesInGroup
-			)
-			.get(
-				`${this.path}s_in_flow/:groupId/:digitalTwinId`,
+				`${this.path}s_in_digital_twin/:groupId/:digitalTwinId`,
 				groupExists,
 				groupAdminAuth,
 				this.getNodesInDigitalTwin
 			)
-			.get(
-				`${this.path}/:groupId/:propName/:propValue`,
-				groupExists,
-				groupAdminAuth,
-				this.getNodeByProp
-			)
-			.delete(
-				`${this.path}/:groupId/:propName/:propValue`,
-				groupExists,
-				groupAdminAuth,
-				this.deleteNodeByProp
-			)
+			.get(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupAdminAuth, this.getNodeByProp)
+			.delete(`${this.path}/:groupId/:propName/:propValue`, groupExists, groupAdminAuth, this.deleteNodeByProp)
 			.patch(
 				`${this.path}/:groupId/:propName/:propValue`,
 				groupExists,
@@ -97,32 +66,20 @@ class NodeController implements IController {
 			);
 	}
 
-	private getNodesManagedByUser = async (
-		req: IRequestWithUser,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getNodesManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			let nodes: INode[] = [];
 			if (req.user.isGrafanaAdmin) {
 				nodes = await getAllNodes();
 			} else {
-				const groups =
-					await getGroupsThatCanBeEditatedAndAdministratedByUserId(
-						req.user.id
-					);
-				const organizations = await getOrganizationsManagedByUserId(
-					req.user.id
-				);
+				const groups = await getGroupsThatCanBeEditatedAndAdministratedByUserId(req.user.id);
+				const organizations = await getOrganizationsManagedByUserId(req.user.id);
 				if (organizations.length !== 0) {
 					const orgIdsArray = organizations.map((org) => org.id);
-					const groupsInOrgs = await getAllGroupsInOrgArray(
-						orgIdsArray
-					);
+					const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
 					const groupsIdArray = groups.map((group) => group.id);
 					groupsInOrgs.forEach((groupInOrg) => {
-						if (groupsIdArray.indexOf(groupInOrg.id) === -1)
-							groups.push(groupInOrg);
+						if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
 					});
 				}
 				if (groups.length !== 0) {
@@ -136,11 +93,7 @@ class NodeController implements IController {
 		}
 	};
 
-	private getNodesInOrg = async (
-		req: IRequestWithOrganization,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getNodesInOrg = async (req: IRequestWithOrganization, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const nodes = await getNodesByOrgId(req.organization.id);
 			res.status(200).send(nodes);
@@ -149,11 +102,7 @@ class NodeController implements IController {
 		}
 	};
 
-	private getNodesInGroup = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getNodesInGroup = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const nodes = await getNodesByGroupId(req.group.id);
 			res.status(200).send(nodes);
@@ -171,13 +120,7 @@ class NodeController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
 			if (!digitalTwin) {
-				throw new ItemNotFoundException(
-					req,
-					res,
-					"The digital twin",
-					"id",
-					digitalTwinId
-				);
+				throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinId);
 			}
 			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
 			const nodes = await getNodesByDigitalTwinId(digitalTwinIdNum);
@@ -187,48 +130,24 @@ class NodeController implements IController {
 		}
 	};
 
-	private getNodeByProp = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private getNodeByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidNodePropName(propName))
-				throw new InvalidPropNameExeception(req, res, propName);
+			if (!this.isValidNodePropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const node = await getNodeByPropName(propName, propValue);
-			if (!node)
-				throw new ItemNotFoundException(
-					req,
-					res,
-					"The node",
-					propName,
-					propValue
-				);
+			if (!node) throw new ItemNotFoundException(req, res, "The node", propName, propValue);
 			res.status(200).json(node);
 		} catch (error) {
 			next(error);
 		}
 	};
 
-	private deleteNodeByProp = async (
-		req: Request,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private deleteNodeByProp = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
-			if (!this.isValidNodePropName(propName))
-				throw new InvalidPropNameExeception(req, res, propName);
+			if (!this.isValidNodePropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const node = await getNodeByPropName(propName, propValue);
-			if (!node)
-				throw new ItemNotFoundException(
-					req,
-					res,
-					"The node",
-					propName,
-					propValue
-				);
+			if (!node) throw new ItemNotFoundException(req, res, "The node", propName, propValue);
 			await deleteNodeByPropName(propName, propValue);
 			const message = { message: "Node deleted successfully" };
 			infoLogger(req, res, 200, message.message);
@@ -238,25 +157,13 @@ class NodeController implements IController {
 		}
 	};
 
-	private updateNodeByProp = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private updateNodeByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			const nodeData = req.body;
-			if (!this.isValidNodePropName(propName))
-				throw new InvalidPropNameExeception(req, res, propName);
+			if (!this.isValidNodePropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const existingNode = await getNodeByPropName(propName, propValue);
-			if (!existingNode)
-				throw new ItemNotFoundException(
-					req,
-					res,
-					"The node",
-					propName,
-					propValue
-				);
+			if (!existingNode) throw new ItemNotFoundException(req, res, "The node", propName, propValue);
 			const node = { ...existingNode, ...nodeData };
 			await updateNodeByPropName(propName, propValue, node);
 			const message = { message: "Node updated successfully" };
@@ -266,14 +173,16 @@ class NodeController implements IController {
 		}
 	};
 
-	private createNode = async (
-		req: IRequestWithGroup,
-		res: Response,
-		next: NextFunction
-	): Promise<void> => {
+	private createNode = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
 			const nodeData: CreateNodeDto = req.body;
-			await createNewNode(nodeData);
+			const digitalTwinId = nodeData.digitalTwinId;
+			const existentDigitalTwin = await getDigitalTwinByProp("id", digitalTwinId);
+			if (!existentDigitalTwin) {
+				const digitalTwinIdStr = digitalTwinId.toString();
+				throw new ItemNotFoundException(req, res, "The digital twin", "id", digitalTwinIdStr);
+			}
+			await createNewNode(nodeData, req.group.id);
 			const message = { message: `A new node has been created` };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);

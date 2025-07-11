@@ -17,10 +17,12 @@ import {
 	updateWireById,
 } from "../pipelines/wire/wireDAL";
 import IWireWithUidDto from "../pipelines/wire/wireWithUid.inteface";
+import natsClient from "../../config/natsConfig";
 
 export const createDigitalTwinPipeline = async (
 	digitalTwinId: number,
-	pipelineData: CreatePipelineDto
+	pipelineData: CreatePipelineDto,
+	groupId: number
 ): Promise<void> => {
 	const existentNodes = await getNodesByDigitalTwinId(digitalTwinId);
 	if (existentNodes.length > 0) {
@@ -65,7 +67,7 @@ export const createDigitalTwinPipeline = async (
 	const nodePromises = Array.from(nodesData.entries()).map(async ([nodeUid, pipelineNode]) => {
 		let node: INode | null = await getNodeByPropName("node_uid", nodeUid);
 		if (!node) {
-			node = await createNewNode(pipelineNode);
+			node = await createNewNode(pipelineNode, groupId);
 		}
 		return { nodeUid, node };
 	});
@@ -88,22 +90,30 @@ export const createDigitalTwinPipeline = async (
 			}
 
 			const newWire = {
+				digitalTwinId,
 				wireUid,
 				nodeIniId,
 				niniOutputIndex: wireData.niniOutputIndex,
 				nodeEndId,
 			};
-			wire = await createNewWire(newWire);
+			wire = await createNewWire(newWire, groupId);
 		}
 		return { wireUid, wire };
 	});
 
 	await Promise.all(wirePromises);
+
+	const context = {
+		digitalTwinId,
+		groupId,
+	};
+	await natsClient.jsPublish("pipeline_action", "start", digitalTwinId, context);
 };
 
 export const updateDigitalTwinPipeline = async (
 	digitalTwinId: number,
-	pipelineData: CreatePipelineDto
+	pipelineData: CreatePipelineDto,
+	groupId: number
 ): Promise<void> => {
 	// Get existing nodes and wires
 	const existingNodes = await getNodesByDigitalTwinId(digitalTwinId);
@@ -257,6 +267,10 @@ export const updateDigitalTwinPipeline = async (
 	if (nodesToUpdate.length > 0) {
 		const updateNodePromises = nodesToUpdate.map(async ({ existing, incoming }) => {
 			const nodeData: INode = {
+				id: existing.id,
+				orgId: existing.orgId,
+				groupId: existing.groupId,
+				assetId: existing.assetId,
 				nodeUid: existing.nodeUid,
 				digitalTwinId: existing.digitalTwinId,
 				name: incoming.name,
@@ -279,7 +293,7 @@ export const updateDigitalTwinPipeline = async (
 	// Create new nodes
 	if (nodesToCreate.length > 0) {
 		const createNodePromises = nodesToCreate.map(async ({ nodeUid, data }) => {
-			const newNode = await createNewNode(data);
+			const newNode = await createNewNode(data, groupId);
 			return { nodeUid, node: newNode };
 		});
 
@@ -332,14 +346,38 @@ export const updateDigitalTwinPipeline = async (
 
 			const newWire = {
 				wireUid: data.wireUid,
+				digitalTwinId,
 				nodeIniId,
 				niniOutputIndex: data.niniOutputIndex,
 				nodeEndId,
 			};
 
-			return await createNewWire(newWire);
+			return await createNewWire(newWire, groupId);
 		});
 
 		await Promise.all(createWirePromises);
 	}
+
+	const context = {
+		digitalTwinId,
+		groupId,
+	};
+	await natsClient.jsPublish("pipeline_action", "restart", digitalTwinId, context);
+};
+
+export const applyPipelineAction = async (digitalTwinId: number, action: string, groupId: number): Promise<void> => {
+	if (!["start", "stop", "restart"].includes(action)) {
+		throw new Error("Invalid action. Allowed actions are: start, stop, restart.");
+	}
+
+	const nodes = await getNodesByDigitalTwinId(digitalTwinId);
+	if (nodes.length === 0) {
+		throw new Error("No nodes found for the specified digital twin.");
+	}
+
+	const context = {
+		groupId,
+		digitalTwinId,
+	};
+	await natsClient.jsPublish("pipeline_action", action, digitalTwinId, context);
 };

@@ -21,3 +21,11 @@ func makeNodeInputWiresKey(digitalTwinId int, nodeID int) string {
 func makeNodeOutputIndexKey(digitalTwinId int, nodeID int, outputIndex int) string {
 	return fmt.Sprintf("dt:%d:outidx:%d:%d", digitalTwinId, nodeID, outputIndex)
 }
+
+func makeDigitalTwinTopicRefKey(digitalTwinId int, topicRef int) string {
+	return fmt.Sprintf("dt:%d:topicRef:%d", digitalTwinId, topicRef)
+}
+
+func makeAssetTopicRefKey(assetId int, topicRef int) string {
+	return fmt.Sprintf("asset:%d:topicRef:%d", assetId, topicRef)
+}

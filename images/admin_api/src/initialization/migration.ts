@@ -1016,6 +1016,8 @@ export const dataBaseInitialization = async () => {
 					chat_assistant_enabled BOOLEAN NOT NULL DEFAULT FALSE,
 					chat_assistant_language VARCHAR(20) NOT NULL DEFAULT 'none',
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
+					pipeline_file_name VARCHAR(100),
+					pipeline_file_last_modif_date VARCHAR(100),
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (group_id, asset_id, scope),
@@ -1374,6 +1376,8 @@ export const dataBaseInitialization = async () => {
 					chatAssistantEnabled: false,
 					chatAssistantLanguage: "none",
 					sensorsRef: ["sensor_3"],
+					pipelineFileName: "-",
+					pipelineFileLastModifDate: "-",
 				};
 
 				try {
@@ -1529,12 +1533,17 @@ export const dataBaseInitialization = async () => {
 				CREATE TABLE IF NOT EXISTS ${tableOutputWire}(
 					id serial PRIMARY KEY,
 					wire_uid VARCHAR(40) UNIQUE,
+					digital_twin_id bigint,
 					node_ini_id bigint,
 					nini_output_index integer NOT NULL DEFAULT 0,
 					node_end_id bigint,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE(node_ini_id, nini_output_index, node_end_id),
+					CONSTRAINT fk_digital_twin_id
+						FOREIGN KEY(digital_twin_id)
+							REFERENCES grafanadb.digital_twin(id)
+							ON DELETE CASCADE,
 					CONSTRAINT fk_node_ini_id
 						FOREIGN KEY(node_ini_id)
 							REFERENCES grafanadb.node(id)

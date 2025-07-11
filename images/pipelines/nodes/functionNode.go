@@ -34,26 +34,26 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 		fm.Log().Errorf("FuncNode %s: 'script' setting is required", node.NodeUid)
 		return nil, fmt.Errorf("FuncNode %s: 'script' setting is required", node.NodeUid)
 	}
-	
+
 	ctx, cancel := context.WithCancel(context.Background())
 	funNode := &FuncNode{
 		BaseNode: BaseNode{
-			Id:      node.Id,
-			NodeUid: node.NodeUid,
-			OrgId:   node.OrgId,
-			GroupId: node.GroupId,
-			AssetId: node.AssetId,
+			Id:            node.Id,
+			NodeUid:       node.NodeUid,
+			OrgId:         node.OrgId,
+			GroupId:       node.GroupId,
+			AssetId:       node.AssetId,
 			DigitalTwinId: node.DigitalTwinId,
-			Name:    node.Name,
-			Xpos:    node.Xpos,
-			Ypos:    node.Ypos,
-			NumOutputs: node.NumOutputs,
-			Settings: node.Settings,
-			Type:    "FuncNode",
-			Fm:      fm,
-			Cancel:  cancel,
-			Ctx:     ctx,
-
+			Name:          node.Name,
+			Xpos:          node.Xpos,
+			Ypos:          node.Ypos,
+			NumOutputs:    node.NumOutputs,
+			Settings:      node.Settings,
+			Type:          "Function",
+			Fm:            fm,
+			Cancel:        cancel,
+			Ctx:           ctx,
+			status:        common.NodeStatusCreated,
 		},
 		nc:           nil,                          // This will be set later
 		vmPool:       make(chan *goja.Runtime, 10), // Pool size of 10
@@ -80,35 +80,60 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 	return funNode, nil
 }
 
-func (n *FuncNode) Start(log *logger.Logger) {
-	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
-	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
+// func (n *FuncNode) Start(log *logger.Logger) {
+// 	if n.GetStatus() == common.NodeStatusRunning {
+// 		log.Infof("EmailNode %s is already running", n.NodeUid)
+// 		return
+// 	}
+// 	n.SetStatus(common.NodeStatusRunning)
 
-	if len(nodeInputWires) == 0 {
-		log.Errorf("No input wires found for FuncNode with UID: %s", n.NodeUid)
+// 	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
+// 	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
+
+// 	if len(nodeInputWires) == 0 {
+// 		log.Errorf("No input wires found for FuncNode with UID: %s", n.NodeUid)
+// 		n.SetStatus(common.NodeStatusStopped)
+// 		return
+// 	}
+
+// 	for i, wire := range nodeInputWires {
+// 		n.wg.Add(1)
+// 		go func(channelIndex int, inputWire *common.Wire) {
+// 			defer n.wg.Done()
+// 			defer func() {
+// 				log.Infof("FuncNode channel %d goroutine terminated for UID: %s", channelIndex, n.NodeUid)
+// 			}()
+
+// 			for {
+// 				select {
+// 				case <-n.Ctx.Done():
+// 					log.Infof("Stopping FuncNode channel %d with UID: %s", channelIndex, n.NodeUid)
+// 					return
+// 				case msg, ok := <-inputWire.Channel:
+// 					if !ok {
+// 						log.Infof("Channel closed for FuncNode with UID: %s", n.NodeUid)
+// 						return
+// 					}
+
+// 					if err := n.processMessage(msg, log); err != nil {
+// 						n.handleError(err)
+// 					}
+// 				}
+// 			}
+// 		}(i, wire)
+// 	}
+// }
+
+func (n *FuncNode) Start(log *logger.Logger) {
+	if n.GetStatus() == common.NodeStatusRunning {
+		log.Infof("FuncNode %s is already running", n.NodeUid)
 		return
 	}
-
-	for i, wire := range nodeInputWires {
-		go func(channelIndex int, inputWire *common.Wire) {
-			for {
-				select {
-				case <-n.Ctx.Done():
-					log.Infof("Stopping FuncNode channel %d with UID: %s", channelIndex, n.NodeUid)
-					return
-				case msg, ok := <-inputWire.Channel:
-					if !ok {
-						log.Infof("Channel closed for FuncNode with UID: %s", n.NodeUid)
-						return
-					}
-
-					if err := n.processMessage(msg, log); err != nil {
-						n.handleError(err)
-					}
-				}
-			}
-		}(i, wire)
-	}
+	
+	n.SetStatus(common.NodeStatusRunning)
+	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
+	
+	n.handleInputWires(log, n.processMessage)
 }
 
 func (n *FuncNode) precompileScript(log *logger.Logger) error {

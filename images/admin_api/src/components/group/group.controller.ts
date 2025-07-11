@@ -1,6 +1,6 @@
 import { Router, NextFunction, Request, Response } from "express";
-import pointOnFeature from '@turf/point-on-feature';
-import { point, polygon } from '@turf/helpers';
+import pointOnFeature from "@turf/point-on-feature";
+import { point, polygon } from "@turf/helpers";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
@@ -28,7 +28,7 @@ import {
 	groupsWhichTheLoggedUserIsMember,
 	removeMembersInGroup,
 	udpateRoleMemberInGroup,
-	updateGroup
+	updateGroup,
 } from "./groupDAL";
 import InvalidPropNameExeception from "../../exceptions/InvalidPropNameExeception";
 import ItemNotFoundException from "../../exceptions/ItemNotFoundException";
@@ -43,16 +43,13 @@ import UpdateGroupDto from "./interfaces/group_update.dto";
 import UpdateGroupMemberDto from "./interfaces/groupMemberUpdate.dto";
 import IRequestWithUser from "../../interfaces/requestWithUser.interface";
 import IGroup from "./interfaces/Group.interface";
-import {
-	getDashboardsDataWithRawSqlOfGroup,
-	updateDashboardsDataRawSqlOfGroup
-} from "./dashboardDAL";
+import { getDashboardsDataWithRawSqlOfGroup, updateDashboardsDataRawSqlOfGroup } from "./dashboardDAL";
 import { updateGroupUidOfRawSqlAlertSettingOfGroup } from "./alertDAL";
 import IUser from "../user/interfaces/User.interface";
 import {
 	createDigitalTwin,
 	removeFilesFromBucketFolder,
-	uploadMobilePhoneGltfFile
+	uploadMobilePhoneGltfFile,
 } from "../digitalTwin/digitalTwinDAL";
 import { getFloorByOrgIdAndFloorNumber } from "../building/buildingDAL";
 import { findGroupGeojsonData } from "../../utils/geolocation.ts/geolocation";
@@ -71,6 +68,7 @@ import { nanoid } from "nanoid";
 import sslGroupCerticatesGenerator from "./sslGroupCerticatesGenerator";
 import infoLogger from "../../utils/logger/infoLogger";
 import { predefinedSensorTypes } from "../../initialization/predefinedSensorTypes";
+import natsClient from "../../config/natsConfig";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -83,11 +81,7 @@ class GroupController implements IController {
 
 	private initializeRoutes(): void {
 		this.router
-			.get(
-				`${this.path}s/user_managed/`,
-				userAuth,
-				this.getGroupsManagedByUser
-			)
+			.get(`${this.path}s/user_managed/`, userAuth, this.getGroupsManagedByUser)
 			.patch(
 				`${this.path}_user_managed/:groupId/`,
 				groupExists,
@@ -95,24 +89,11 @@ class GroupController implements IController {
 				validationMiddleware<UpdateGroupManagedDto>(UpdateGroupManagedDto),
 				this.updateGroupManagedById
 			)
-			.get(
-				`/group_members/user_managed/`,
-				userAuth,
-				this.getGroupMembersForGroupsManagedByUser
-			)
-			.get(
-				`${this.path}s/which_the_logged_user_is_member/`,
-				userAuth,
-				this.getGroupsWhichTheLoggedUserIsMember
-			);
+			.get(`/group_members/user_managed/`, userAuth, this.getGroupMembersForGroupsManagedByUser)
+			.get(`${this.path}s/which_the_logged_user_is_member/`, userAuth, this.getGroupsWhichTheLoggedUserIsMember);
 
 		this.router
-			.get(
-				`${this.path}s/:orgId/`,
-				organizationAdminAuth,
-				organizationExists,
-				this.getAllGroupsInOrg
-			)
+			.get(`${this.path}s/:orgId/`, organizationAdminAuth, organizationExists, this.getAllGroupsInOrg)
 			.post(
 				`${this.path}/:orgId/`,
 				organizationAdminAuth,
@@ -121,13 +102,7 @@ class GroupController implements IController {
 				this.createGroup
 			);
 
-		this.router
-			.patch(
-				`${this.path}/:groupId/change_uid/`,
-				groupExists,
-				groupAdminAuth,
-				this.changeGroupUid
-			)
+		this.router.patch(`${this.path}/:groupId/change_uid/`, groupExists, groupAdminAuth, this.changeGroupUid);
 
 		this.router
 			.post(
@@ -137,12 +112,7 @@ class GroupController implements IController {
 				validationMiddleware<CreateGroupMembersArrayDto>(CreateGroupMembersArrayDto),
 				this.addMembersToGroup
 			)
-			.get(
-				`${this.path}/:groupId/members/`,
-				groupExists,
-				groupAdminAuth,
-				this.getGroupMembers
-			)
+			.get(`${this.path}/:groupId/members/`, groupExists, groupAdminAuth, this.getGroupMembers)
 			.get(
 				`${this.path}/:groupId/members_editor_or_admin/`,
 				groupExists,
@@ -156,12 +126,7 @@ class GroupController implements IController {
 				validationMiddleware<CreateGroupMembersArrayDto>(CreateGroupMembersArrayDto),
 				this.updateGroupMembers
 			)
-			.delete(
-				`${this.path}/:groupId/members/`,
-				groupExists,
-				groupAdminAuth,
-				this.removeGroupMembers
-			)
+			.delete(`${this.path}/:groupId/members/`, groupExists, groupAdminAuth, this.removeGroupMembers);
 
 		this.router
 			.post(
@@ -189,7 +154,7 @@ class GroupController implements IController {
 				groupExists,
 				groupAdminAuth,
 				this.removeGroupMemberByProp
-			)
+			);
 
 		this.router
 			.get(
@@ -212,13 +177,7 @@ class GroupController implements IController {
 				this.deleteGroupByProp
 			);
 
-		this.router
-			.get(
-				`${this.path}_ssl_certs/:groupId`,
-				groupExists,
-				groupAdminAuth,
-				this.getSslCertsByGroupId
-			);
+		this.router.get(`${this.path}_ssl_certs/:groupId`, groupExists, groupAdminAuth, this.getSslCertsByGroupId);
 	}
 
 	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> => {
@@ -229,18 +188,22 @@ class GroupController implements IController {
 			groups = await getGroupsManagedByUserId(user.id);
 			const organizations = await getOrganizationsManagedByUserId(user.id);
 			if (organizations.length !== 0) {
-				const orgIdsArray = organizations.map(org => org.id);
-				const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray)
-				const groupsIdArray = groups.map(group => group.id);
-				groupsInOrgs.forEach(groupInOrg => {
+				const orgIdsArray = organizations.map((org) => org.id);
+				const groupsInOrgs = await getAllGroupsInOrgArray(orgIdsArray);
+				const groupsIdArray = groups.map((group) => group.id);
+				groupsInOrgs.forEach((groupInOrg) => {
 					if (groupsIdArray.indexOf(groupInOrg.id) === -1) groups.push(groupInOrg);
-				})
+				});
 			}
 		}
 		return groups;
-	}
+	};
 
-	private getGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getGroupsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const groups = await this.groupsManagedByUsers(req.user);
 			res.status(200).send(groups);
@@ -249,7 +212,11 @@ class GroupController implements IController {
 		}
 	};
 
-	private getGroupsWhichTheLoggedUserIsMember = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getGroupsWhichTheLoggedUserIsMember = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const groups = await groupsWhichTheLoggedUserIsMember(req.user.id);
 			res.status(200).send(groups);
@@ -258,10 +225,14 @@ class GroupController implements IController {
 		}
 	};
 
-	private getGroupMembersForGroupsManagedByUser = async (req: IRequestWithUser, res: Response, next: NextFunction): Promise<void> => {
+	private getGroupMembersForGroupsManagedByUser = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const groups = await this.groupsManagedByUsers(req.user);
-			const teamIdsArray = groups.map(group => group.teamId);
+			const teamIdsArray = groups.map((group) => group.teamId);
 			const groupMembers = await getGroupMembersInTeamIdArray(teamIdsArray);
 			res.status(200).send(groupMembers);
 		} catch (error) {
@@ -276,21 +247,28 @@ class GroupController implements IController {
 			groupInput.email = `${groupInput.acronym.toLocaleLowerCase()}@test.com`;
 			const orgId = parseInt(req.params.orgId, 10);
 			const existentGroup = await getGroupByProp("name", groupInput.name);
-			if (existentGroup) throw new AlreadyExistingItemException(
-				req,
-				res,
-				"A",
-				"Group",
-				["name"],
-				[groupInput.name]
+			if (existentGroup)
+				throw new AlreadyExistingItemException(req, res, "A", "Group", ["name"], [groupInput.name]);
+			const usersArray = await getOrganizationUsersByEmailArray(
+				orgId,
+				groupInput.groupAdminDataArray.map((user) => user.email)
 			);
-			const usersArray = await getOrganizationUsersByEmailArray(orgId, groupInput.groupAdminDataArray.map(user => user.email));
 			const nodeRedInstancesUnlinkedInOrg = await getNodeRedInstancesUnassignedInOrg(orgId);
 			if (nodeRedInstancesUnlinkedInOrg.length === 0) {
-				throw new HttpException(req, res, 400, `The org with id: ${orgId} not have nodered instances available`)
+				throw new HttpException(
+					req,
+					res,
+					400,
+					`The org with id: ${orgId} not have nodered instances available`
+				);
 			}
 			if (usersArray.length !== groupInput.groupAdminDataArray.length) {
-				throw new HttpException(req, res, 404, "All the administrators of the group must be members of the organization");
+				throw new HttpException(
+					req,
+					res,
+					404,
+					"All the administrators of the group must be members of the organization"
+				);
 			} else {
 				usersArray.forEach((user, index) => {
 					groupInput.groupAdminDataArray[index].userId = user.userId;
@@ -299,6 +277,7 @@ class GroupController implements IController {
 				});
 			}
 			const groupCreated = await createGroup(orgId, groupInput, req.organization.name);
+			await natsClient.jsPublish("group", "create", groupCreated.id);
 			const floorData = await getFloorByOrgIdAndFloorNumber(groupCreated.orgId, groupCreated.floorNumber);
 			const geoJsonDataString = findGroupGeojsonData(floorData, groupCreated.featureIndex);
 			const geojsonObj = JSON.parse(geoJsonDataString);
@@ -386,7 +365,7 @@ class GroupController implements IController {
 						requireS3Storage: false,
 						s3Folder: "",
 						parquetSchema: "{}",
-					}
+					},
 				],
 				sensorsRef: [
 					{
@@ -423,9 +402,9 @@ class GroupController implements IController {
 						topicRef: "dev2pdb_5",
 						description: `Mobile photo`,
 						payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
-					}
-				]
-			}
+					},
+				],
+			};
 			const asset = await createNewAsset(groupCreated, defaultAssetData);
 
 			const digitalTwinData = {
@@ -437,18 +416,20 @@ class GroupController implements IController {
 				chatAssistantEnabled: false,
 				chatAssistantLanguage: "none",
 				digitalTwinSimulationFormat: "{}",
-				sensorsRef: ["sensor_3"]
-			}
+				sensorsRef: ["sensor_3"],
+				pipelineFileName: "-",
+				pipelineFileLastModifDate: "-",
+			};
 			const digitalTwin = await createDigitalTwin(groupCreated, asset, digitalTwinData);
 			const keyBase = `org_${orgId}/group_${groupCreated.id}/digitalTwin_${digitalTwin.id}`;
-			const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`
+			const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
 			await uploadMobilePhoneGltfFile(gltfFileName);
 
 			const groupHash = `Group_${groupCreated.groupUid}`;
 			const tableHash = `Table_${groupCreated.groupUid}`;
 			const isOrgDefaultGroup = false;
 			const group = { ...groupInput, isOrgDefaultGroup, groupHash, tableHash };
-			const message = { message: `Group created successfully`, group }
+			const message = { message: `Group created successfully`, group };
 			infoLogger(req, res, 200, message.message);
 			res.status(201).send(message);
 		} catch (error) {
@@ -486,7 +467,7 @@ class GroupController implements IController {
 			const existentGroup = await getGroupByWithFolderPermissionProp(propName, propValue);
 			if (!existentGroup) throw new ItemNotFoundException(req, res, "The group", propName, propValue);
 			await updateGroup(groupInput, existentGroup);
-			const message = { message: "Group updated successfully" }
+			const message = { message: "Group updated successfully" };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
@@ -511,7 +492,7 @@ class GroupController implements IController {
 			const telegramChatId = groupManagedInput.telegramChatId;
 			const groupManagedUpdate = { ...existentGroup, folderPermission, telegramInvitationLink, telegramChatId };
 			await updateGroup(groupManagedUpdate, existentGroup);
-			const message = { message: "Group managed updated successfully" }
+			const message = { message: "Group managed updated successfully" };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
 		} catch (error) {
@@ -543,13 +524,20 @@ class GroupController implements IController {
 	private isValidGroupPropName = (propName: string) => {
 		const validPropName = ["id", "name", "acronym"];
 		return validPropName.indexOf(propName) !== -1;
-	}
+	};
 
-	private addMembersToGroup = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+	private addMembersToGroup = async (
+		req: IRequestWithUserAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const orgId = req.group.orgId;
 			const groupMembersArray: CreateGroupMemberDto[] = req.body.members;
-			const usersArray = await getOrganizationUsersByEmailArray(orgId, groupMembersArray.map(user => user.email));
+			const usersArray = await getOrganizationUsersByEmailArray(
+				orgId,
+				groupMembersArray.map((user) => user.email)
+			);
 			if (usersArray.length !== groupMembersArray.length) {
 				throw new HttpException(
 					req,
@@ -593,10 +581,17 @@ class GroupController implements IController {
 		}
 	};
 
-	private updateGroupMembers = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+	private updateGroupMembers = async (
+		req: IRequestWithUserAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const groupMembersArray: CreateGroupMemberDto[] = req.body.members;
-			const existentGroupMemberArray = await getGroupMembersByEmailsArray(req.group, groupMembersArray.map(user => user.email));
+			const existentGroupMemberArray = await getGroupMembersByEmailsArray(
+				req.group,
+				groupMembersArray.map((user) => user.email)
+			);
 			if (existentGroupMemberArray.length !== groupMembersArray.length) {
 				throw new HttpException(
 					req,
@@ -615,19 +610,26 @@ class GroupController implements IController {
 								req,
 								res,
 								401,
-								"To assign group admin role to a user, organization administrator privileges are needed.");
+								"To assign group admin role to a user, organization administrator privileges are needed."
+							);
 						}
 						if (member.roleInGroup === "Viewer" && req.group.folderPermission === "Edit") {
 							throw new HttpException(
 								req,
 								res,
 								401,
-								"A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed.");
+								"A roleInGroup: 'Viewer' when folderPermission: 'Edit' is not allowed."
+							);
 						}
 						if (existentGroupMemberArray[index].roleInGroup === "Admin" && member.roleInGroup !== "Admin") {
 							numAdminRoleToBeRemoved++;
 							if (numAdminRoleToBeRemoved === numMembersWithAdminRole) {
-								throw new HttpException(req, res, 405, "At least one group member must have admin role");
+								throw new HttpException(
+									req,
+									res,
+									405,
+									"At least one group member must have admin role"
+								);
 							}
 						}
 					}
@@ -641,13 +643,18 @@ class GroupController implements IController {
 		}
 	};
 
-	private updateGroupMemberByProp = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+	private updateGroupMemberByProp = async (
+		req: IRequestWithUserAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidGroupMemberPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
 			const groupMemberRole: UpdateGroupMemberDto = req.body;
 			const existentGroupMember = await getGroupMemberByProp(req.group, propName, propValue);
-			if (!existentGroupMember) throw new ItemNotFoundException(req, res, "The group member", propName, propValue);
+			if (!existentGroupMember)
+				throw new ItemNotFoundException(req, res, "The group member", propName, propValue);
 			const groupMember = { ...existentGroupMember };
 			groupMember.roleInGroup = groupMemberRole.roleInGroup;
 			const isOrgAdminUser = await isThisUserOrgAdmin(req.user.id, req.group.orgId);
@@ -683,8 +690,11 @@ class GroupController implements IController {
 		}
 	};
 
-
-	private addMemberToGroup = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+	private addMemberToGroup = async (
+		req: IRequestWithUserAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const orgId = req.group.orgId;
 			const groupMember: CreateGroupMemberDto = req.body;
@@ -737,11 +747,14 @@ class GroupController implements IController {
 		}
 	};
 
-
-	private getGroupMembersWithAdminOrEditorRole = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
+	private getGroupMembersWithAdminOrEditorRole = async (
+		req: IRequestWithGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const groupMembers = await getGroupMembers(req.group);
-			const groupMembersWithAdminOrEditorRole = groupMembers.filter(member => member.roleInGroup !== "Viewer");
+			const groupMembersWithAdminOrEditorRole = groupMembers.filter((member) => member.roleInGroup !== "Viewer");
 			res.status(200).send(groupMembersWithAdminOrEditorRole);
 		} catch (error) {
 			next(error);
@@ -751,7 +764,7 @@ class GroupController implements IController {
 	private isValidGroupMemberPropName = (propName: string) => {
 		const validPropName = ["id", "login", "email"];
 		return validPropName.indexOf(propName) !== -1;
-	}
+	};
 
 	private getGroupMemberByProp = async (req: IRequestWithGroup, res: Response, next: NextFunction): Promise<void> => {
 		try {
@@ -765,7 +778,11 @@ class GroupController implements IController {
 		}
 	};
 
-	private removeGroupMemberByProp = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+	private removeGroupMemberByProp = async (
+		req: IRequestWithUserAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const { propName, propValue } = req.params;
 			if (!this.isValidGroupMemberPropName(propName)) throw new InvalidPropNameExeception(req, res, propName);
@@ -794,10 +811,14 @@ class GroupController implements IController {
 		}
 	};
 
-	private removeGroupMembers = async (req: IRequestWithUserAndGroup, res: Response, next: NextFunction): Promise<void> => {
+	private removeGroupMembers = async (
+		req: IRequestWithUserAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
 		try {
 			const groupMembers = await getGroupMembers(req.group);
-			const groupMembersToRemove = groupMembers.filter(member => member.roleInGroup !== "Admin");
+			const groupMembersToRemove = groupMembers.filter((member) => member.roleInGroup !== "Admin");
 			const message = await removeMembersInGroup(req.group, groupMembersToRemove);
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);
@@ -830,8 +851,6 @@ class GroupController implements IController {
 			next(error);
 		}
 	};
-
-
 }
 
 export default GroupController;

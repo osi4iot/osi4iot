@@ -2,6 +2,7 @@ import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
+import YAML from "yaml";
 import { useFilePicker } from "use-file-picker";
 import { GLTFLoader } from "three-stdlib";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
@@ -133,7 +134,6 @@ const chatAssistantEnabledOptions = [
     },
 ];
 
-
 const chatAssistantLanguageOptions = [
     {
         label: "None",
@@ -213,11 +213,19 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [gltfFileLastModif, setGltfFileLastModif] = useState("-");
     const [localFemResFileLoaded, setLocalFemResFileLoaded] = useState(false);
     const [digitalTwinFemResData, setDigitalTwiFemResData] = useState({});
+    const [localPipelineFileLoaded, setLocalPipelineFileLoaded] = useState(false);
+    const [digitalTwinPipelineData, setDigitalTwinPipelineData] = useState({});
     const [femResFile, setFemResFile] = useState<File>();
     const [femResFileNames, setFemResFileNames] = useState<string[]>([]);
     const [femResFilesLastModif, setFemResFilesLastModif] = useState<string[]>([]);
     const [femResFileName, setFemResFileName] = useState("-");
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
+    const storedPipelineFileName = digitalTwins[digitalTwinRowIndex].pipelineFileName || "-";
+    const [pipelineFileName, setPipelineFileName] = useState(storedPipelineFileName);
+    const storedPipelineFileLastModifDate = digitalTwins[digitalTwinRowIndex].pipelineFileLastModifDate || "-";
+    const [pipelineFileLastModifDateString, setPipelineFileLastModifDateString] = useState(
+        storedPipelineFileLastModifDate
+    );
     const [digitalTwinType, setDigitalTwinType] = useState(digitalTwinInitialData.type);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
     const [isGlftDataReady, setIsGlftDataReady] = useState(storedDigitalTwinType !== "Gltf 3D model");
@@ -236,6 +244,12 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         readAs: "Text",
         multiple: false,
         accept: ".json",
+    });
+
+    const [openPipelineFileSelector, pipelineFileParams] = useFilePicker({
+        readAs: "Text",
+        multiple: false,
+        accept: ".yml, .yaml",
     });
 
     useEffect(() => {
@@ -389,6 +403,40 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         }
     }, [femResFileParams.loading, femResFileParams.filesContent, femResFileParams.plainFiles, femResFileParams]);
 
+    useEffect(() => {
+        if (
+            !pipelineFileParams.loading &&
+            pipelineFileParams.filesContent.length !== 0 &&
+            pipelineFileParams.plainFiles.length !== 0
+        ) {
+            setLocalPipelineFileLoaded(true);
+            try {
+                const fileContent = pipelineFileParams.filesContent[0].content;
+                const pipelineData = YAML.parse(fileContent);
+                for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
+                    pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
+                }
+                setDigitalTwinPipelineData(pipelineData);
+                const pipelineFileName = pipelineFileParams.plainFiles[0].name;
+                setPipelineFileName(pipelineFileName);
+                const dateString = (pipelineFileParams.plainFiles[0] as any).lastModified;
+                setPipelineFileLastModifDateString(formatDateString(dateString));
+                setLocalPipelineFileLoaded(false);
+                pipelineFileParams.clear();
+            } catch (e) {
+                console.log(e);
+                toast.error("Invalid pipeline file");
+                setLocalPipelineFileLoaded(false);
+                pipelineFileParams.clear();
+            }
+        }
+    }, [
+        pipelineFileParams.loading,
+        pipelineFileParams.filesContent,
+        pipelineFileParams.plainFiles,
+        pipelineFileParams,
+    ]);
+
     const onSubmit = async (values: any, actions: any) => {
         const groupId = digitalTwins[digitalTwinRowIndex].groupId;
         const url = `${protocol}://${domainName}/admin_api/digital_twin/${groupId}/${digitalTwinId}`;
@@ -401,59 +449,79 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         let isGltfFileModified = false;
         const maxNumResFemFiles = parseInt(values.maxNumResFemFiles, 10);
 
-        if (isValidGltfFile && (values.type === "Gltf 3D model" || values.type === "Glb 3D model")) {
-            if (
-                Object.keys(digitalTwinFemResData).length !== 0 &&
-                (femResFileNames[0] !== femResFileName ||
-                    formatDateString(femResFilesLastModif[0]) !== formatDateString(femResFileLastModifDateString))
-            ) {
-                if (digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles && maxNumResFemFiles >= 2) {
-                    const warningMessage =
-                        "Please increase the 'Max number of FEM result files stored' before uploading a new file.";
-                    toast.warning(warningMessage);
-                    setIsSubmitting(false);
-                    return;
-                }
-                const femResData = new FormData();
-                femResData.append("file", femResFile as File, femResFileName);
-                const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
-                try {
-                    const response = await getAxiosInstance(refreshToken, authDispatch).post(
-                        urlUploadFemResFile,
-                        femResData,
-                        configMultipart
-                    );
-                    if (response.data) {
-                        toast.success(response.data.message);
+        if (values.type === "Gltf 3D model" || values.type === "Glb 3D model") {
+            if (isValidGltfFile) {
+                if (
+                    Object.keys(digitalTwinFemResData).length !== 0 &&
+                    (femResFileNames[0] !== femResFileName ||
+                        formatDateString(femResFilesLastModif[0]) !== formatDateString(femResFileLastModifDateString))
+                ) {
+                    if (digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles && maxNumResFemFiles >= 2) {
+                        const warningMessage =
+                            "Please increase the 'Max number of FEM result files stored' before uploading a new file.";
+                        toast.warning(warningMessage);
+                        setIsSubmitting(false);
+                        return;
                     }
-                } catch (error: any) {
-                    axiosErrorHandler(error, authDispatch);
-                    backToTable();
+                    const femResData = new FormData();
+                    femResData.append("file", femResFile as File, femResFileName);
+                    const urlUploadFemResFile = `${urlUploadGltfBase}/femResFiles/${femResFileName}`;
+                    try {
+                        const response = await getAxiosInstance(refreshToken, authDispatch).post(
+                            urlUploadFemResFile,
+                            femResData,
+                            configMultipart
+                        );
+                        if (response.data) {
+                            toast.success(response.data.message);
+                        }
+                    } catch (error: any) {
+                        axiosErrorHandler(error, authDispatch);
+                        backToTable();
+                    }
+                }
+    
+                if (
+                    gltfFile !== undefined &&
+                    (storedGltfFileName !== gltfFileName ||
+                        formatDateString(storedGltfFileLastModif) !== formatDateString(gltfFileLastModif))
+                ) {
+                    isGltfFileModified = true;
+                    const gltfData = new FormData();
+                    gltfData.append("file", gltfFile as File, gltfFileName);
+                    const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
+                    try {
+                        const response = await getAxiosInstance(refreshToken, authDispatch).post(
+                            urlUploadGltfFile,
+                            gltfData,
+                            configMultipart
+                        );
+                        if (response.data) {
+                            toast.success(response.data.message);
+                        }
+                    } catch (error: any) {
+                        axiosErrorHandler(error, authDispatch);
+                        backToTable();
+                    }
                 }
             }
 
-            if (
-                gltfFile !== undefined &&
-                (storedGltfFileName !== gltfFileName ||
-                    formatDateString(storedGltfFileLastModif) !== formatDateString(gltfFileLastModif))
-            ) {
-                isGltfFileModified = true;
-                const gltfData = new FormData();
-                gltfData.append("file", gltfFile as File, gltfFileName);
-                const urlUploadGltfFile = `${urlUploadGltfBase}/gltfFile/${gltfFileName}`;
-                try {
-                    const response = await getAxiosInstance(refreshToken, authDispatch).post(
-                        urlUploadGltfFile,
-                        gltfData,
-                        configMultipart
-                    );
-                    if (response.data) {
+            const storedDate = formatDateString(storedPipelineFileLastModifDate);
+            const newDate = formatDateString(pipelineFileLastModifDateString);
+
+            if (Object.keys(digitalTwinPipelineData).length !== 0 && 
+            (storedPipelineFileName !== pipelineFileName || storedDate !== newDate)) {
+                const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
+                const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
+                getAxiosInstance(refreshToken, authDispatch)
+                    .patch(urlUploadPipeline, digitalTwinPipelineData, config)
+                    .then((response: AxiosResponse<any, any>) => {
                         toast.success(response.data.message);
-                    }
-                } catch (error: any) {
-                    axiosErrorHandler(error, authDispatch);
-                    backToTable();
-                }
+                    })
+                    .catch((error: AxiosError) => {
+                        axiosErrorHandler(error, authDispatch);
+                        backToTable();
+                    });
             }
         }
 
@@ -471,6 +539,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
+            pipelineFileName,
+            pipelineFileLastModifDate: pipelineFileLastModifDateString,
         };
 
         getAxiosInstance(refreshToken, authDispatch)
@@ -577,6 +647,19 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
         }
     };
 
+    const clearPipelineFile = () => {
+        setPipelineFileName("-");
+        setPipelineFileLastModifDateString("-");
+        setLocalPipelineFileLoaded(false);
+        pipelineFileParams.clear();
+    };
+
+    const localPipelineFileButtonHandler = () => {
+        if (!localPipelineFileLoaded) {
+            selectFile(openPipelineFileSelector, pipelineFileParams.clear);
+        }
+    };
+
     return (
         <>
             {digitalTwinGltfDataLoading ? (
@@ -668,6 +751,28 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             <FileButton
                                                                 type="button"
                                                                 onClick={() => localFemResFileButtonHandler()}
+                                                            >
+                                                                Select local file
+                                                            </FileButton>
+                                                        </SelectDataFilenButtonContainer>
+                                                    </DataFileContainer>
+                                                    <DataFileTitle>Pipeline</DataFileTitle>
+                                                    <DataFileContainer>
+                                                        <FieldContainer>
+                                                            <label>File name</label>
+                                                            <div>{pipelineFileName}</div>
+                                                        </FieldContainer>
+                                                        <FieldContainer>
+                                                            <label>Last modification date</label>
+                                                            <div>{pipelineFileLastModifDateString}</div>
+                                                        </FieldContainer>
+                                                        <SelectDataFilenButtonContainer>
+                                                            <FileButton type="button" onClick={clearPipelineFile}>
+                                                                Clear
+                                                            </FileButton>
+                                                            <FileButton
+                                                                type="button"
+                                                                onClick={() => localPipelineFileButtonHandler()}
                                                             >
                                                                 Select local file
                                                             </FileButton>

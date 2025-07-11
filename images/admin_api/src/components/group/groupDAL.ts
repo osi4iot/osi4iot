@@ -35,6 +35,7 @@ import { generateGrafanaDataSourceUser } from "./datasourceDAL";
 import { updateGroupAssetsLocation } from "../asset/assetDAL";
 import { nanoid } from "nanoid";
 import { passwordGenerator } from "../../utils/passwordGenerator";
+import natsClient from "../../config/natsConfig";
 
 export const defaultOrgGroupName = (orgName: string, orgAcronym: string): string => {
 	let groupName = `${orgName} general`;
@@ -630,6 +631,7 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 		group.mqttAccessControl,
 		group.id
 	]);
+	await natsClient.jsPublish("group", "update", group.id);
 }
 
 export const createView = async (group: IGroup): Promise<void> => {
@@ -666,6 +668,7 @@ export const deleteGroup = async (group: IGroup, orgKey: string): Promise<string
 	if (response.rows[0]) {
 		message = "Group deleted successfully";
 	}
+	await natsClient.jsPublish("group", "delete", group.id);
 	return message;
 };
 

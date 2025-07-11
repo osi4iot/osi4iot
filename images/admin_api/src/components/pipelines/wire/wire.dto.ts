@@ -6,6 +6,9 @@ class CreateWireDto {
 	public wireUid?: string;
 
 	@IsNumber()
+	public digitalTwinId: number;
+
+	@IsNumber()
 	public nodeIniId: number;
 
 	@IsNumber()

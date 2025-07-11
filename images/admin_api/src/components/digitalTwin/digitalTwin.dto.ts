@@ -1,6 +1,5 @@
 import { IsBoolean, IsNumber, IsString } from "class-validator";
 
-
 class CreateDigitalTwinDto {
 	@IsString()
 	public digitalTwinUid: string;
@@ -25,6 +24,12 @@ class CreateDigitalTwinDto {
 
 	@IsString({ each: true })
 	public sensorsRef: string[];
+
+	@IsString()
+	public pipelineFileName: string;
+
+	@IsString()
+	public pipelineFileLastModifDate: string;
 }
 
 export default CreateDigitalTwinDto;
