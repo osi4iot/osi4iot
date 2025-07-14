@@ -1,7 +1,9 @@
 package flows_manager
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"pipelines/admin"
 	"pipelines/common"
 	"pipelines/config"
@@ -13,9 +15,6 @@ import (
 
 type FlowsManager struct {
 	Orgs                     *common.ShardedSyncMap
-	Groups                   *common.ShardedSyncMap
-	Assets                   *common.ShardedSyncMap
-	Sensors                  *common.ShardedSyncMap
 	Topics                   *common.ShardedSyncMap
 	AssetTopicsRef           *common.ShardedSyncMap
 	DigitalTwinTopicsRef     *common.ShardedSyncMap
@@ -52,9 +51,6 @@ func CreateFlowsManager(
 	log *logger.Logger,
 ) *FlowsManager {
 	orgs := admin.GetOrgs()
-	groups := admin.GetGroups()
-	assets := admin.GetAssets()
-	sensors := admin.GetSensors()
 	topics := admin.GetTopics()
 	mlModels := admin.GetMlModels()
 	digitalTwins := admin.GetDigitalTwins()
@@ -65,9 +61,6 @@ func CreateFlowsManager(
 
 	flowManager := FlowsManager{
 		Orgs:                     common.NewShardedSyncMap(config.ShardCount),
-		Groups:                   common.NewShardedSyncMap(config.ShardCount),
-		Assets:                   common.NewShardedSyncMap(config.ShardCount),
-		Sensors:                  common.NewShardedSyncMap(config.ShardCount),
 		Topics:                   common.NewShardedSyncMap(config.ShardCount),
 		AssetTopicsRef:           common.NewShardedSyncMap(config.ShardCount),
 		DigitalTwinTopicsRef:     common.NewShardedSyncMap(config.ShardCount),
@@ -96,14 +89,11 @@ func CreateFlowsManager(
 	}
 
 	flowManager.AddOrgs(orgs)
-	flowManager.AddGroups(groups)
-	flowManager.AddAssets(assets)
-	flowManager.AddSensors(sensors)
 	flowManager.AddTopics(topics)
-	flowManager.AddMlModels(mlModels)
-	flowManager.AddDigitalTwins(digitalTwins)
 	flowManager.AddAssetTopicsRef(assetsTopics)
 	flowManager.AddDigitalTwinTopicsRef(digitalTwinTopics)
+	flowManager.AddMlModels(mlModels)
+	flowManager.AddDigitalTwins(digitalTwins)
 	flowManager.AddNodes(nodes)
 	flowManager.AddWires(wires)
 
@@ -140,12 +130,6 @@ func (fm *FlowsManager) Listen() {
 			}
 		case "group":
 			switch adminMsg.Action {
-			case "create":
-				group := fm.Admin.GetGroup(adminMsg.Id)
-				fm.AddGroup(group)
-			case "update":
-				group := fm.Admin.GetGroup(adminMsg.Id)
-				fm.UpdateGroup(group)
 			case "delete":
 				fm.DeleteGroup(adminMsg.Id)
 			default:
@@ -153,14 +137,7 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "asset":
-			groupId := adminMsg.Context["groupId"]
 			switch adminMsg.Action {
-			case "create":
-				asset := fm.Admin.GetAsset(groupId, adminMsg.Id)
-				fm.AddAsset(asset)
-			case "update":
-				asset := fm.Admin.GetAsset(groupId, adminMsg.Id)
-				fm.UpdateAsset(asset)
 			case "delete":
 				fm.DeleteAsset(adminMsg.Id)
 			default:
@@ -168,14 +145,7 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "sensor":
-			groupId := adminMsg.Context["groupId"]
 			switch adminMsg.Action {
-			case "create":
-				sensor := fm.Admin.GetSensor(groupId, adminMsg.Id)
-				fm.AddSensor(sensor)
-			case "update":
-				sensor := fm.Admin.GetSensor(groupId, adminMsg.Id)
-				fm.UpdateSensor(sensor)
 			case "delete":
 				fm.DeleteSensor(adminMsg.Id)
 			default:
@@ -183,7 +153,7 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "topic":
-			groupId := adminMsg.Context["groupId"]
+			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
 				topic := fm.Admin.GetTopic(groupId, adminMsg.Id)
@@ -197,8 +167,32 @@ func (fm *FlowsManager) Listen() {
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
 			}
+		case "asset_topic":
+			topicId := int(adminMsg.Context["topicId"].(float64))
+			topicRef := adminMsg.Context["topicRef"].(string)
+			switch adminMsg.Action {
+			case "create":
+				fm.AddAssetTopicRef(adminMsg.Id, topicId, topicRef)
+			case "delete":
+				fm.DeleteAssetTopicRef(adminMsg.Id, topicRef)
+			default:
+				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
+				return
+			}
+		case "digital_twin_topic":
+			topicId := int(adminMsg.Context["topicId"].(float64))
+			topicRef := adminMsg.Context["topicRef"].(string)
+			switch adminMsg.Action {
+			case "create":
+				fm.AddDigitalTwinTopicRef(adminMsg.Id, topicRef, topicId)
+			case "delete":
+				fm.DeleteDigitalTwinTopicRef(adminMsg.Id, topicRef)
+			default:
+				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
+				return
+			}
 		case "ml_model":
-			groupId := adminMsg.Context["groupId"]
+			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
 				mlModel := fm.Admin.GetMlModel(groupId, adminMsg.Id)
@@ -213,7 +207,7 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "digitalTwin":
-			groupId := adminMsg.Context["groupId"]
+			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
 				digitalTwin := fm.Admin.GetDigitalTwin(groupId, adminMsg.Id)
@@ -228,7 +222,7 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "node":
-			groupId := adminMsg.Context["groupId"]
+			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
 				node := fm.Admin.GetNode(groupId, adminMsg.Id)
@@ -243,7 +237,7 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "wire":
-			groupId := adminMsg.Context["groupId"]
+			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
 				wire := fm.Admin.GetWire(groupId, adminMsg.Id)
@@ -258,13 +252,15 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "pipeline_action":
+			digitalTwinId := adminMsg.Id
+			reinitialize := adminMsg.Context["reinitialize"].(bool)
 			switch adminMsg.Action {
 			case "stop":
-				fm.StopNodesInDigitalTwin(adminMsg.Id)
+				fm.StopNodesInDigitalTwin(digitalTwinId)
 			case "start":
-				fm.StartNodesInDigitalTwin(adminMsg.Id)
+				fm.StartNodesInDigitalTwin(digitalTwinId, reinitialize)
 			case "restart":
-				fm.RestartNodesInDigitalTwin(adminMsg.Id)
+				fm.RestartNodesInDigitalTwin(digitalTwinId, reinitialize)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
@@ -318,5 +314,36 @@ func (fm *FlowsManager) NatsPublish(subject string, msg []byte) error {
 		fm.log.Errorf("Failed to publish message to subject %s: %v", subject, err)
 		return err
 	}
+	return nil
+}
+
+func (fm *FlowsManager) isPipelineInitialized(digitalTwin *common.DigitalTwin) bool {
+	kvstore := fm.GetDigitalTwinKvStore(digitalTwin.Id)
+	orgHash := fm.GetOrg(digitalTwin.OrgId).OrgHash
+	key := fmt.Sprintf("org_%s.dt_%s.kvstore.%s", orgHash, digitalTwin.DigitalTwinUID, "pipeline_initialized")
+
+	var isPipelineInitialized bool
+	err := kvstore.GetValue(context.Background(), key, &isPipelineInitialized)
+	if err != nil {
+		return false
+	}
+
+	fm.log.Infof("Pipeline initialized status for digital twin %d: %v XXXXXXXXXXXXXXXXXXXXXXXXXXX", digitalTwin.Id, isPipelineInitialized)
+
+	return isPipelineInitialized
+}
+
+func (fm *FlowsManager) setPipelineInitialized(digitalTwin *common.DigitalTwin, isPipelineInitialized bool) error {
+	kvstore := fm.GetDigitalTwinKvStore(digitalTwin.Id)
+	orgHash := fm.GetOrg(digitalTwin.OrgId).OrgHash
+	key := fmt.Sprintf("org_%s.dt_%s.kvstore.%s", orgHash, digitalTwin.DigitalTwinUID, "pipeline_initialized")
+
+	err := kvstore.SetValue(context.Background(), key, isPipelineInitialized)
+	if err != nil {
+		fm.log.Errorf("Failed to set pipeline_initialized in kvstore for digital twin %d: %v", digitalTwin.Id, err)
+		return err
+	}
+	fm.log.Infof("Pipeline initialization set to %v for digital twin %d", isPipelineInitialized, digitalTwin.Id)
+
 	return nil
 }

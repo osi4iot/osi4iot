@@ -6,8 +6,6 @@ import (
 	nats_pkg "pipelines/nats"
 	"strconv"
 	"strings"
-
-	"github.com/nats-io/nats.go/jetstream"
 )
 
 func (fm *FlowsManager) GetDigitalTwins() []*common.DigitalTwin {
@@ -63,9 +61,9 @@ func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 
 		// 1. Obtain nodes and wires to delete individually
 		if nodes, exists := fm.DigitalTwinNodes.Load(dtNodesKey); exists {
-			if nodesList, ok := nodes.([]*common.Node); ok {
+			if nodesList, ok := nodes.([]common.Node); ok {
 				for _, node := range nodesList {
-					nodesToDelete = append(nodesToDelete, fmt.Sprintf("%d", (*node).GetId()))
+					nodesToDelete = append(nodesToDelete, fmt.Sprintf("%d", node.GetId()))
 				}
 			}
 		}
@@ -150,21 +148,36 @@ func (fm *FlowsManager) DeleteDigitalTwin(digitalTwinId int) error {
 			fm.NodeOutputByIndex.Delete(key)
 		}
 
+		fm.DeleteDigitalTwinTopicsRefByDTid(digitalTwinId)
+
 		return nil
 	}
 	return common.ErrNotFound
 }
 
-func (fm *FlowsManager) UpdateDigitalTwin(digitalTwin *common.DigitalTwin) error {
-	digitalTwinIdStr := strconv.Itoa(digitalTwin.Id)
-	if _, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
+func (fm *FlowsManager) UpdateDigitalTwin(updatedDigitalTwin *common.DigitalTwin) error {
+	digitalTwinIdStr := strconv.Itoa(updatedDigitalTwin.Id)
+	if entry, ok := fm.DigitalTwins.Load(digitalTwinIdStr); ok {
+		digitalTwin := entry.(*common.DigitalTwin)
+		digitalTwin.Description = updatedDigitalTwin.Description
+		digitalTwin.Type = updatedDigitalTwin.Type
+		digitalTwin.DashboardID = updatedDigitalTwin.DashboardID
+		digitalTwin.MaxNumResFemFiles = updatedDigitalTwin.MaxNumResFemFiles
+		digitalTwin.ChatAssistantEnabled = updatedDigitalTwin.ChatAssistantEnabled
+		digitalTwin.ChatAssistantLanguage = updatedDigitalTwin.ChatAssistantLanguage
+		digitalTwin.DigitalTwinSimulationFormat = updatedDigitalTwin.DigitalTwinSimulationFormat
+		digitalTwin.DashboardURL = updatedDigitalTwin.DashboardURL
+		digitalTwin.SensorsRef = updatedDigitalTwin.SensorsRef
+		digitalTwin.PipelineFileName = updatedDigitalTwin.PipelineFileName
+		digitalTwin.PipelineFileLastModifDate = updatedDigitalTwin.PipelineFileLastModifDate
+
 		fm.DigitalTwins.Store(digitalTwinIdStr, digitalTwin)
 		return nil
 	}
 	return common.ErrNotFound
 }
 
-func (fm *FlowsManager) GetDigitalTwinKvStore(digitalTwinId int) jetstream.KeyValue {
+func (fm *FlowsManager) GetDigitalTwinKvStore(digitalTwinId int) *nats_pkg.KVStore {
 	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
 	if digitalTwin == nil {
 		return nil
@@ -177,16 +190,89 @@ func (fm *FlowsManager) AddDigitalTwinTopicsRef(digitalTwinTopics []*common.Digi
 		topicIdStr := strconv.Itoa(digitalTwinTopic.TopicId)
 		value, ok := fm.Topics.Load(topicIdStr)
 		if !ok {
-			fm.log.Error("Topic with ID %d does not exist", digitalTwinTopic.TopicId)
+			fm.log.Errorf("Topic with ID %d does not exist", digitalTwinTopic.TopicId)
 			return
 		}
 		topic := value.(*common.Topic)
 		key := makeDigitalTwinTopicRefKey(digitalTwinTopic.DigitalTwinId, digitalTwinTopic.TopicRef)
 		if _, exists := fm.DigitalTwinTopicsRef.Load(key); !exists {
 			fm.DigitalTwinTopicsRef.Store(key, topic)
-			fm.log.Info("Added Digital Twin Topic Reference: %s", key)
+			fm.log.Infof("Added Digital Twin Topic Reference: %s", key)
 		} else {
-			fm.log.Warn("Digital Twin Topic Reference already exists: %s", key)
+			fm.log.Warnf("Digital Twin Topic Reference already exists: %s", key)
 		}
 	}
+}
+
+func (fm *FlowsManager) AddDigitalTwinTopicRef(digitalTwinId int, topicRef string, topicId int) error {
+	topicIdStr := strconv.Itoa(topicId)
+	value, ok := fm.Topics.Load(topicIdStr)
+	if !ok {
+		fm.log.Errorf("Topic with ID %d does not exist", topicId)
+		return common.ErrNotFound
+	}
+	topic := value.(*common.Topic)
+	key := makeDigitalTwinTopicRefKey(digitalTwinId, topicRef)
+	if _, exists := fm.DigitalTwinTopicsRef.Load(key); !exists {
+		fm.DigitalTwinTopicsRef.Store(key, topic)
+		fm.log.Infof("Added Digital Twin Topic Reference: %s", key)
+		return nil
+	}
+	fm.log.Warn("Digital Twin Topic Reference already exists: %s", key)
+	return common.ErrAlreadyExists
+}
+
+func (fm *FlowsManager) GetTopicByADigitalTwinId(digitalTwinId int, topicRef string) *common.Topic {
+	indexKey := makeDigitalTwinTopicRefKey(digitalTwinId, topicRef)
+	if value, ok := fm.DigitalTwinTopicsRef.Load(indexKey); ok {
+		return value.(*common.Topic)
+	}
+	return nil
+}
+
+func (fm *FlowsManager) GetTopicsByDigitalTwinId(digitalTwinId int) map[string]*common.Topic {
+	topicsMap := make(map[string]*common.Topic)
+	fm.DigitalTwinTopicsRef.Range(func(key, value interface{}) bool {
+		digitalTwinTopicRefKey := key.(string)
+		prefix := "dt:" + strconv.Itoa(digitalTwinId)
+		if strings.HasPrefix(digitalTwinTopicRefKey, prefix) {
+			topic := value.(*common.Topic)
+			topicRef := strings.Split(digitalTwinTopicRefKey, ":")[3] // Assuming format is "dt:<digitalTwinId>:topicRef:<topicRef>"
+			topicsMap[topicRef] = topic
+		}
+		return true
+	})
+	return topicsMap
+}
+
+func (fm *FlowsManager) DeleteDigitalTwinTopicsRefByDTid(digitalTwinId int) error {
+	var digitalTwinTopicRefKeysToDelete []common.DigitalTwinTopic
+	fm.DigitalTwinTopicsRef.Range(func(key, value interface{}) bool {
+		digitalTwinTopicRefKey := key.(string)
+		prefix := "dt:" + strconv.Itoa(digitalTwinId)
+		if strings.HasPrefix(digitalTwinTopicRefKey, prefix) {
+			topic := value.(*common.Topic)
+			digitalTwinTopic := common.DigitalTwinTopic{
+				DigitalTwinId: digitalTwinId,
+				TopicRef:      strings.Split(digitalTwinTopicRefKey, ":")[3], // Assuming format is "dt:<digitalTwinId>:topicRef:<topicRef>"
+				TopicId:       topic.Id,
+			}
+			digitalTwinTopicRefKeysToDelete = append(digitalTwinTopicRefKeysToDelete, digitalTwinTopic)
+		}
+		return true
+	})
+
+	for _, topic := range digitalTwinTopicRefKeysToDelete {
+		fm.DeleteDigitalTwinTopicRef(topic.DigitalTwinId, topic.TopicRef)
+	}
+	return nil
+}
+
+func (fm *FlowsManager) DeleteDigitalTwinTopicRef(digitalTwinId int, topicRef string) error {
+	key := makeDigitalTwinTopicRefKey(digitalTwinId, topicRef)
+	if _, ok := fm.DigitalTwinTopicsRef.Load(key); ok {
+		fm.DigitalTwinTopicsRef.Delete(key)
+		return nil
+	}
+	return common.ErrNotFound
 }

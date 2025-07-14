@@ -52,7 +52,6 @@ import IRequestWithUserAndGroup from "../group/interfaces/requestWithUserAndGrou
 import { generateS3StorageToken, isS3StorageTokenValid } from "../../utils/s3StorageToken";
 import IAssetTopic from "./assetTopic.interface";
 import { deleteTopicsOfDT, getDigitalTwinByProp } from "../digitalTwin/digitalTwinDAL";
-import natsClient from "../../config/natsConfig";
 
 class AssetController implements IController {
 	public path = "/asset";
@@ -376,11 +375,7 @@ class AssetController implements IController {
 				const errorMessage = "At least one sensor type is not correct";
 				throw new HttpException(req, res, 401, errorMessage);
 			}
-			const newAsset = await createNewAsset(req.group, assetData);
-			const context = {
-				groupId: newAsset.groupId,
-			};
-			await natsClient.jsPublish("asset", "create", newAsset.id, context);
+			await createNewAsset(req.group, assetData);
 			const message = { message: `A new asset has been created` };
 			infoLogger(req, res, 200, message.message);
 			res.status(200).send(message);

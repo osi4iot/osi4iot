@@ -14,7 +14,7 @@ func NewShardedSyncMap(shardCount int) *ShardedSyncMap {
 	if shardCount <= 0 || (shardCount&(shardCount-1)) != 0 {
 		panic("shardCount must be a power of 2")
 	}
-	
+
 	return &ShardedSyncMap{
 		shards: make([]sync.Map, shardCount),
 		mask:   uint32(shardCount - 1),
@@ -68,7 +68,7 @@ func (sm *ShardedSyncMap) Range(f func(key, value interface{}) bool) {
 }
 
 // LoadOrStore retrieves the value for the key if it exists, or stores the value and returns it.
-// It is an atomic operation, ensuring that if multiple goroutines call LoadOrStore concurrently, 
+// It is an atomic operation, ensuring that if multiple goroutines call LoadOrStore concurrently,
 // only one will succeed in storing the value.
 func (sm *ShardedSyncMap) LoadOrStore(key string, value interface{}) (interface{}, bool) {
 	return sm.getShard(key).LoadOrStore(key, value)

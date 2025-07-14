@@ -374,7 +374,8 @@ export const getStateOfDigitalTwinsByGroupsIdArray = async (groupsIdArray: numbe
 export const createDigitalTwinTopic = async (
 	digitalTwinId: number,
 	topicId: number,
-	topicRef: string
+	topicRef: string,
+	isDefault = false
 ): Promise<IDigitalTwinTopic> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin_topic (
 		digital_twin_id, topic_id, topic_ref)
@@ -382,6 +383,13 @@ export const createDigitalTwinTopic = async (
 	    RETURNING  digital_twin_id AS "digitalTwinId", topic_id AS "topicId", 
 		topic_ref AS "topicRef"`;
 	const result = await pool.query(queryString, [digitalTwinId, topicId, topicRef]);
+	if (!isDefault) {
+		const context = {
+			topicRef: result.rows[0].topicRef,
+			topicId: result.rows[0].topicId,
+		};
+		await natsClient.jsPublish("digital_twin_topic", "create", result.rows[0].digitalTwinId, context);
+	}
 	return result.rows[0] as IDigitalTwinTopic;
 };
 
@@ -418,7 +426,6 @@ export const getDTTopicsByDigitalTwinId = async (digitalTwinId: number): Promise
 	const response = await pool.query(queryString, [digitalTwinId]);
 	return response.rows as IDigitalTwinTopic[];
 };
-
 
 export const getDigitalTwinMqttTopicsInfoFromByDTIdsArray = async (
 	digitalTwinIdsArray: number[]
@@ -616,6 +623,21 @@ export const verifyAndCorrectDigitalTwinReferences = async (
 			const llm2simTopic = await createTopic(0, llm2simTopicData);
 			await createDigitalTwinTopic(digitalTwinId, llm2simTopic.id, "llm2sim");
 		}
+
+		if (topicTypesToAdd.indexOf("dtmlog") !== -1) {
+			const dtmlogTopicData = {
+				topicType: "dtmlog",
+				topicName: `${digitalTwinUid}_dtmlog`,
+				description: `Log topic for DT_${digitalTwinUid}`,
+				mqttAccessControl: "Pub & Sub",
+				payloadJsonSchema: "{}",
+				requireS3Storage: false,
+				s3Folder: "",
+				parquetSchema: "{}",
+			};
+			const dtmlogTopic = await createTopic(0, dtmlogTopicData);
+			await createDigitalTwinTopic(digitalTwinId, dtmlogTopic.id, "dtmlog");
+		}
 	}
 };
 
@@ -744,7 +766,8 @@ export const createDigitalTwin = async (
 	group: IGroup,
 	asset: IAsset,
 	digitalTwinInput: CreateDigitalTwinDto,
-	dashboardId: number | null = null
+	dashboardId: number | null = null,
+	isDefault = false
 ): Promise<IDigitalTwin | null> => {
 	const groupId = group.id;
 	const assetId = asset.id;
@@ -774,6 +797,13 @@ export const createDigitalTwin = async (
 		pipelineFileLastModifDate: digitalTwinInput.pipelineFileLastModifDate,
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
+	if (!isDefault) {
+		const context = {
+			groupId: group.id,
+			digitalTwinId: digitalTwin.id,
+		};
+		await natsClient.jsPublish("digitalTwin", "create", digitalTwin.id, context);
+	}
 
 	if (digitalTwinInput.type === "Gltf 3D model" || digitalTwinInput.type === "Glb 3D model") {
 		const sim2dtmTopicData = {
@@ -785,8 +815,8 @@ export const createDigitalTwin = async (
 			s3Folder: "",
 			parquetSchema: "{}",
 		};
-		const sim2dtmTopic = await createTopic(groupId, sim2dtmTopicData);
-		await createDigitalTwinTopic(digitalTwin.id, sim2dtmTopic.id, "sim2dtm");
+		const sim2dtmTopic = await createTopic(groupId, sim2dtmTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, sim2dtmTopic.id, "sim2dtm", isDefault);
 
 		const dtm2simTopicData = {
 			topicType: "dtm2sim",
@@ -798,8 +828,8 @@ export const createDigitalTwin = async (
 			s3Folder: "",
 			parquetSchema: "{}",
 		};
-		const dtm2simTopic = await createTopic(groupId, dtm2simTopicData);
-		await createDigitalTwinTopic(digitalTwin.id, dtm2simTopic.id, "dtm2sim");
+		const dtm2simTopic = await createTopic(groupId, dtm2simTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, dtm2simTopic.id, "dtm2sim", isDefault);
 
 		const dtm2pdbTopicData = {
 			topicType: "dtm2pdb",
@@ -811,8 +841,8 @@ export const createDigitalTwin = async (
 			s3Folder: "",
 			parquetSchema: "{}",
 		};
-		const dtm2pdbTopic = await createTopic(groupId, dtm2pdbTopicData);
-		await createDigitalTwinTopic(digitalTwin.id, dtm2pdbTopic.id, "dtm2pdb");
+		const dtm2pdbTopic = await createTopic(groupId, dtm2pdbTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, dtm2pdbTopic.id, "dtm2pdb", isDefault);
 
 		const dev2dtmTopicData = {
 			topicType: "dev2dtm",
@@ -823,8 +853,8 @@ export const createDigitalTwin = async (
 			s3Folder: "",
 			parquetSchema: "{}",
 		};
-		const dev2dtmTopic = await createTopic(groupId, dev2dtmTopicData);
-		await createDigitalTwinTopic(digitalTwin.id, dev2dtmTopic.id, "dev2dtm");
+		const dev2dtmTopic = await createTopic(groupId, dev2dtmTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, dev2dtmTopic.id, "dev2dtm", isDefault);
 
 		const dtm2devTopicData = {
 			topicType: "dtm2dev",
@@ -835,8 +865,8 @@ export const createDigitalTwin = async (
 			s3Folder: "",
 			parquetSchema: "{}",
 		};
-		const dtm2devTopic = await createTopic(groupId, dtm2devTopicData);
-		await createDigitalTwinTopic(digitalTwin.id, dtm2devTopic.id, "dtm2dev");
+		const dtm2devTopic = await createTopic(groupId, dtm2devTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, dtm2devTopic.id, "dtm2dev", isDefault);
 
 		const dev2simTopicData = {
 			topicType: "dev2sim",
@@ -847,8 +877,8 @@ export const createDigitalTwin = async (
 			s3Folder: "",
 			parquetSchema: "{}",
 		};
-		const dev2simTopic = await createTopic(groupId, dev2simTopicData);
-		await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, "dev2sim");
+		const dev2simTopic = await createTopic(groupId, dev2simTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, dev2simTopic.id, "dev2sim", isDefault);
 
 		const sim2llmTopicData = {
 			topicType: "sim2llm",
@@ -859,8 +889,8 @@ export const createDigitalTwin = async (
 			s3Folder: "",
 			parquetSchema: "{}",
 		};
-		const sim2llmTopic = await createTopic(groupId, sim2llmTopicData);
-		await createDigitalTwinTopic(digitalTwin.id, sim2llmTopic.id, "sim2llm");
+		const sim2llmTopic = await createTopic(groupId, sim2llmTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, sim2llmTopic.id, "sim2llm", isDefault);
 
 		const llm2simTopicData = {
 			topicType: "llm2sim",
@@ -871,8 +901,21 @@ export const createDigitalTwin = async (
 			s3Folder: "",
 			parquetSchema: "{}",
 		};
-		const llm2simTopic = await createTopic(groupId, llm2simTopicData);
-		await createDigitalTwinTopic(digitalTwin.id, llm2simTopic.id, "llm2sim");
+		const llm2simTopic = await createTopic(groupId, llm2simTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, llm2simTopic.id, "llm2sim", isDefault);
+
+		const dtmlogTopicData = {
+			topicType: "dtmlog",
+			topicName: `${digitalTwinUid}_dtmlog`,
+			description: `Log topic for DT_${digitalTwinUid}`,
+			mqttAccessControl: "Pub & Sub",
+			payloadJsonSchema: "{}",
+			requireS3Storage: false,
+			s3Folder: "",
+			parquetSchema: "{}",
+		};
+		const dtmlogTopic = await createTopic(groupId, dtmlogTopicData, isDefault);
+		await createDigitalTwinTopic(digitalTwin.id, dtmlogTopic.id, "dtmlog", isDefault);
 	}
 
 	const sensorsRef = digitalTwinInput.sensorsRef;

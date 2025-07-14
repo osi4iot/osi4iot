@@ -15,10 +15,7 @@ import { createHomeDashboard } from "../components/group/dashboardDAL";
 import IGroup from "../components/group/interfaces/Group.interface";
 import { RoleInGroupOption } from "../components/group/interfaces/RoleInGroupOptions";
 import needle from "needle";
-import {
-	createFictitiousUserForService,
-	createFictitiousUsersForMainOrgNri,
-} from "../components/user/userDAL";
+import { createFictitiousUserForService, createFictitiousUsersForMainOrgNri } from "../components/user/userDAL";
 import INodeRedInstance from "../components/nodeRedInstance/nodeRedInstance.interface";
 import {
 	assignNodeRedInstanceToGroup,
@@ -30,17 +27,10 @@ import { CreateBucketCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 import { getOrganizations } from "../components/organization/organizationDAL";
 import { createTimescaledbOrgDataSource } from "../components/group/datasourceDAL";
 import IAsset from "../components/asset/asset.interface";
-import {
-	createNewAsset,
-	createNewAssetType,
-	updateGroupAssetsLocation,
-} from "../components/asset/assetDAL";
+import { createNewAsset, createNewAssetType, updateGroupAssetsLocation } from "../components/asset/assetDAL";
 import { createNewSensorType } from "../components/sensor/sensorDAL";
 import { nanoid } from "nanoid";
-import {
-	createDigitalTwin,
-	uploadMobilePhoneGltfFile,
-} from "../components/digitalTwin/digitalTwinDAL";
+import { createDigitalTwin, uploadMobilePhoneGltfFile } from "../components/digitalTwin/digitalTwinDAL";
 import IAssetType from "../components/asset/assetType.interface";
 import { predefinedAssetTypes } from "./predefinedAssetTypes";
 import { emptyBucket } from "./emptyS3Bucket";
@@ -81,11 +71,7 @@ export const dataBaseInitialization = async () => {
 	const grafanaState = await needle("get", grafanaUrl)
 		.then((res) => res.body.database as string)
 		.catch((err) => {
-			logger.log(
-				"error",
-				"Grafana service is not healthy: %s",
-				err.message
-			);
+			logger.log("error", "Grafana service is not healthy: %s", err.message);
 			process.exit(1);
 		});
 
@@ -95,32 +81,20 @@ export const dataBaseInitialization = async () => {
 		await needle("get", minioUrl)
 			.then(() => "ok")
 			.catch((err) => {
-				logger.log(
-					"error",
-					"Minio service is not healthy: %s",
-					err.message
-				);
+				logger.log("error", "Minio service is not healthy: %s", err.message);
 				process.exit(1);
 			});
 	}
 
 	if (timescaledbClient && postgresClient && grafanaState === "ok") {
 		const tableOrg = "grafanadb.org";
-		const queryString1a =
-			"SELECT COUNT(*) FROM grafanadb.org WHERE name = $1";
+		const queryString1a = "SELECT COUNT(*) FROM grafanadb.org WHERE name = $1";
 		const parameterArray1a = ["Main Org."];
 		let result0 = null;
 		try {
-			result0 = await postgresClient.query(
-				queryString1a,
-				parameterArray1a
-			);
+			result0 = await postgresClient.query(queryString1a, parameterArray1a);
 		} catch (err) {
-			logger.log(
-				"error",
-				`Table ${tableOrg} can not found: %s`,
-				err.message
-			);
+			logger.log("error", `Table ${tableOrg} can not found: %s`, err.message);
 			process.exit(1);
 		}
 
@@ -129,46 +103,26 @@ export const dataBaseInitialization = async () => {
 		try {
 			await timescaledbClient.query(queryString2);
 		} catch (err) {
-			logger.log(
-				"error",
-				`Table ${tableThingData} can not found in timescaledb: %s`,
-				err.message
-			);
+			logger.log("error", `Table ${tableThingData} can not found in timescaledb: %s`, err.message);
 			process.exit(1);
 		}
 
 		if (process_env.REPLICA === "1") {
 			if (result0.rows[0].count !== 0) {
 				try {
-					const listBucketsResult = await s3Client.send(
-						new ListBucketsCommand({})
-					);
+					const listBucketsResult = await s3Client.send(new ListBucketsCommand({}));
 					const bucketName = process_env.S3_BUCKET_NAME;
 					existPlatformS3Bucket =
-						listBucketsResult.Buckets.filter(
-							(bucket) => bucket.Name === bucketName
-						).length !== 0;
+						listBucketsResult.Buckets.filter((bucket) => bucket.Name === bucketName).length !== 0;
 					if (!existPlatformS3Bucket) {
-						await s3Client.send(
-							new CreateBucketCommand({ Bucket: bucketName })
-						);
-						logger.log(
-							"info",
-							`The S3 bucket for the platform has been created successfully`
-						);
+						await s3Client.send(new CreateBucketCommand({ Bucket: bucketName }));
+						logger.log("info", `The S3 bucket for the platform has been created successfully`);
 					} else {
-						logger.log(
-							"info",
-							`An S3 bucket with the name ${bucketName} already has been created`
-						);
+						logger.log("info", `An S3 bucket with the name ${bucketName} already has been created`);
 						await emptyBucket();
 					}
 				} catch (err) {
-					logger.log(
-						"error",
-						"The S3 bucket for the platform can not be created: %s",
-						err
-					);
+					logger.log("error", "The S3 bucket for the platform can not be created: %s", err);
 					process.exit(1);
 				}
 
@@ -180,10 +134,7 @@ export const dataBaseInitialization = async () => {
 											ADD COLUMN mqtt_access_control VARCHAR(10)`;
 				try {
 					await postgresClient.query(queryStringAlterOrg);
-					logger.log(
-						"info",
-						`Column acronym has been added sucessfully to Table ${tableOrg}`
-					);
+					logger.log("info", `Column acronym has been added sucessfully to Table ${tableOrg}`);
 				} catch (err) {
 					logger.log(
 						"error",
@@ -197,10 +148,7 @@ export const dataBaseInitialization = async () => {
 											mqtt_access_control = $6 WHERE name = $7`;
 				const parameterArrayUpdateOrg = [
 					process_env.MAIN_ORGANIZATION_NAME,
-					process_env.MAIN_ORGANIZATION_ACRONYM.replace(
-						/ /g,
-						"_"
-					).toUpperCase(),
+					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_").toUpperCase(),
 					"Main",
 					1,
 					process_env.MAIN_ORG_HASH,
@@ -209,20 +157,10 @@ export const dataBaseInitialization = async () => {
 				];
 
 				try {
-					await postgresClient.query(
-						queryStringUpdateOrg,
-						parameterArrayUpdateOrg
-					);
-					logger.log(
-						"info",
-						`Table ${tableOrg} has been updated sucessfully`
-					);
+					await postgresClient.query(queryStringUpdateOrg, parameterArrayUpdateOrg);
+					logger.log("info", `Table ${tableOrg} has been updated sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableOrg} can not be updated: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableOrg} can not be updated: %s`, err.message);
 				}
 
 				const tableBuilding = "grafanadb.building";
@@ -249,27 +187,16 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringBuilding);
-					logger.log(
-						"info",
-						`Table ${tableBuilding} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableBuilding} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableBuilding} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableBuilding} can not be created: %s`, err.message);
 				}
 
-				const mainOrgBuildingGeoJson =
-					"/run/configs/main_org_building.geojson";
+				const mainOrgBuildingGeoJson = "/run/configs/main_org_building.geojson";
 				let geodataBuilding = "{}";
 				if (fs.existsSync(mainOrgBuildingGeoJson)) {
 					try {
-						geodataBuilding = fs.readFileSync(
-							mainOrgBuildingGeoJson,
-							{ encoding: "utf8", flag: "r" }
-						);
+						geodataBuilding = fs.readFileSync(mainOrgBuildingGeoJson, { encoding: "utf8", flag: "r" });
 					} catch (err) {
 						logger.log(
 							"error",
@@ -279,8 +206,7 @@ export const dataBaseInitialization = async () => {
 					}
 				}
 				const buildingOuterBounds = findBuildingBounds(geodataBuilding);
-				const [buildingLongitude, buildingLatitude] =
-					findGeographicCoordinates(geodataBuilding);
+				const [buildingLongitude, buildingLatitude] = findGeographicCoordinates(geodataBuilding);
 
 				const queryStringInsertBuilding = `INSERT INTO ${tableBuilding} 
 					(name, address, city, state, zip_code, country,
@@ -302,20 +228,10 @@ export const dataBaseInitialization = async () => {
 					new Date().toISOString(),
 				];
 				try {
-					await postgresClient.query(
-						queryStringInsertBuilding,
-						queryParametersInsertBuilding
-					);
-					logger.log(
-						"info",
-						`Data in table ${tableBuilding} has been inserted sucessfully`
-					);
+					await postgresClient.query(queryStringInsertBuilding, queryParametersInsertBuilding);
+					logger.log("info", `Data in table ${tableBuilding} has been inserted sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Data in table ${tableBuilding} con not been inserted: %s`,
-						err.message
-					);
+					logger.log("error", `Data in table ${tableBuilding} con not been inserted: %s`, err.message);
 				}
 
 				const tableFloor = "grafanadb.floor";
@@ -341,20 +257,12 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringFloor);
-					logger.log(
-						"info",
-						`Table ${tableFloor} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableFloor} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableFloor} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableFloor} can not be created: %s`, err.message);
 				}
 
-				const mainOrgFloorGeoJson =
-					"/run/configs/main_org_floor.geojson";
+				const mainOrgFloorGeoJson = "/run/configs/main_org_floor.geojson";
 				let geodataFloor = "{}";
 				let floorOuterBounds: number[][];
 				if (fs.existsSync(mainOrgFloorGeoJson)) {
@@ -396,21 +304,11 @@ export const dataBaseInitialization = async () => {
 				];
 				let floor: IFloor;
 				try {
-					const response = await postgresClient.query(
-						queryStringInsertFloor,
-						queryParametersInsertFloor
-					);
+					const response = await postgresClient.query(queryStringInsertFloor, queryParametersInsertFloor);
 					floor = response.rows[0];
-					logger.log(
-						"info",
-						`Data in table ${tableFloor} has been inserted sucessfully`
-					);
+					logger.log("info", `Data in table ${tableFloor} has been inserted sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Data in table ${tableFloor} con not been inserted: %s`,
-						err.message
-					);
+					logger.log("error", `Data in table ${tableFloor} con not been inserted: %s`, err.message);
 				}
 
 				const tableUser = "grafanadb.user";
@@ -460,21 +358,13 @@ export const dataBaseInitialization = async () => {
 				try {
 					await createFictitiousUserForService(dev2pdbUser);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Fictitious user for service dev2pdb could not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Fictitious user for service dev2pdb could not be created: %s`, err.message);
 				}
 
 				try {
 					await createFictitiousUsersForMainOrgNri();
 				} catch (err) {
-					logger.log(
-						"error",
-						`Fictitious user for NRI could not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Fictitious user for NRI could not be created: %s`, err.message);
 				}
 
 				const queryStringUpdateUser =
@@ -487,35 +377,22 @@ export const dataBaseInitialization = async () => {
 						2,
 					]);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Platform admin user can not be updated: %s`,
-						err.message
-					);
+					logger.log("error", `Platform admin user can not be updated: %s`, err.message);
 				}
 				await grafanaApi.giveGrafanaAdminPermissions(2);
 				await grafanaApi.changeUserRoleInOrganization(1, 2, "Admin");
 
 				let apiKeyMainOrg: string;
 				try {
-					const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(
-						/ /g,
-						"_"
-					)
+					const apyKeyName = `ApiKey_${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")
 						.replace(/"/g, "")
 						.toUpperCase()}`;
 					const apiKeyData = { name: apyKeyName, role: "Admin" };
-					const apiKeyObj = await grafanaApi.createApiKeyToken(
-						apiKeyData
-					);
+					const apiKeyObj = await grafanaApi.createApiKeyToken(apiKeyData);
 					apiKeyMainOrg = apiKeyObj.key;
 					logger.log("info", `Api key token created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Api key token created could not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Api key token created could not be created: %s`, err.message);
 				}
 
 				const tableOrgToken = "grafanadb.org_token";
@@ -540,36 +417,19 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringOrgToken);
-					logger.log(
-						"info",
-						`Table ${tableOrgToken} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableOrgToken} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableOrgToken} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableOrgToken} can not be created: %s`, err.message);
 				}
 
 				const queryStringInsertOrgToken = `INSERT INTO ${tableOrgToken} (org_id, api_key_id, organization_key) VALUES ($1, $2, $3)`;
 				const hashedApiKey = encrypt(apiKeyMainOrg);
 				const queryParametersInsertOrgToken = [1, 1, hashedApiKey];
 				try {
-					await postgresClient.query(
-						queryStringInsertOrgToken,
-						queryParametersInsertOrgToken
-					);
-					logger.log(
-						"info",
-						`Data in table ${tableOrgToken} has been inserted sucessfully`
-					);
+					await postgresClient.query(queryStringInsertOrgToken, queryParametersInsertOrgToken);
+					logger.log("info", `Data in table ${tableOrgToken} has been inserted sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Data in table ${tableOrgToken} con not been inserted: %s`,
-						err.message
-					);
+					logger.log("error", `Data in table ${tableOrgToken} con not been inserted: %s`, err.message);
 				}
 
 				let group: IGroup;
@@ -577,14 +437,10 @@ export const dataBaseInitialization = async () => {
 					process_env.MAIN_ORGANIZATION_NAME,
 					process_env.MAIN_ORGANIZATION_ACRONYM
 				);
-				const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(
-					/ /g,
-					"_"
-				)
+				const mainOrgGroupAcronym = `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")
 					.replace(/"/g, "")
 					.toUpperCase()}_GRAL`;
-				const orgAcronym =
-					process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
+				const orgAcronym = process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_");
 				const orgName = process_env.MAIN_ORGANIZATION_NAME;
 				const tableGroup = "grafanadb.group";
 				const queryStringGroup = `
@@ -644,16 +500,11 @@ export const dataBaseInitialization = async () => {
 					const defaultMainOrgGroup = {
 						name: mainOrgGroupName,
 						acronym: mainOrgGroupAcronym,
-						email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(
-							/ /g,
-							"_"
-						)
+						email: `${process_env.MAIN_ORGANIZATION_ACRONYM.replace(/ /g, "_")
 							.replace(/"/g, "")
 							.toLocaleLowerCase()}_general@test.com`,
-						telegramChatId:
-							process_env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
-						telegramInvitationLink:
-							process_env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
+						telegramChatId: process_env.MAIN_ORGANIZATION_TELEGRAM_CHAT_ID,
+						telegramInvitationLink: process_env.MAIN_ORGANIZATION_TELEGRAM_INVITATION_LINK,
 						folderPermission: "Viewer" as FolderPermissionOption,
 						groupAdminDataArray: [mainOrgGroupAdmin],
 						floorNumber: 0,
@@ -661,18 +512,8 @@ export const dataBaseInitialization = async () => {
 						outerBounds: [] as number[][],
 						mqttAccessControl: "Pub & Sub",
 					};
-					group = await createGroup(
-						1,
-						defaultMainOrgGroup,
-						process_env.MAIN_ORGANIZATION_NAME,
-						true
-					);
-					await createHomeDashboard(
-						1,
-						orgAcronym,
-						orgName,
-						group.folderId
-					);
+					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
+					await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
 					const groupMember = {
 						userId: 2,
 						firstName: process_env.PLATFORM_ADMIN_FIRST_NAME,
@@ -681,16 +522,9 @@ export const dataBaseInitialization = async () => {
 						roleInGroup: "Admin" as RoleInGroupOption,
 					};
 					await addMembersToGroup(group, [groupMember]);
-					logger.log(
-						"info",
-						`Table ${tableGroup} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableGroup} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableGroup} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);
 				}
 
 				const tableSensorType = "grafanadb.sensor_type";
@@ -722,16 +556,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringSensorType);
-					logger.log(
-						"info",
-						`Table ${tableSensorType} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableSensorType} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableSensorType} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableSensorType} can not be created: %s`, err.message);
 				}
 
 				const sensorTypes: ISensorType[] = [];
@@ -744,29 +571,17 @@ export const dataBaseInitialization = async () => {
 							iconSvgString: sensorType.iconSvgString,
 							markerSvgFileName: sensorType.markerSvgFileName,
 							markerSvgString: sensorType.markerSvgString,
-							defaultPayloadJsonSchema: JSON.stringify(
-								sensorType.defaultPayloadJsonSchema
-							),
+							defaultPayloadJsonSchema: JSON.stringify(sensorType.defaultPayloadJsonSchema),
 							isPredefined: true,
-							dashboardRefreshString:
-								sensorType.dashboardRefreshString,
+							dashboardRefreshString: sensorType.dashboardRefreshString,
 							dashboardTimeWindow: sensorType.dashboardTimeWindow,
 						};
-						const newSensorType = await createNewSensorType(
-							defaultSensorTypeData
-						);
+						const newSensorType = await createNewSensorType(defaultSensorTypeData);
 						sensorTypes.push(newSensorType);
 					}
-					logger.log(
-						"info",
-						`Default sensor types for main org has been created sucessfully`
-					);
+					logger.log("info", `Default sensor types for main org has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Default sensor types for main org can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Default sensor types for main org can not be created: %s`, err.message);
 				}
 
 				const tableAssetType = "grafanadb.asset_type";
@@ -797,16 +612,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringAssetType);
-					logger.log(
-						"info",
-						`Table ${tableAssetType} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableAssetType} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableAssetType} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableAssetType} can not be created: %s`, err.message);
 				}
 
 				const assetTypes: IAssetType[] = [];
@@ -823,21 +631,12 @@ export const dataBaseInitialization = async () => {
 							assetStateFormat: "{}",
 							isPredefined: true,
 						};
-						const newAssetType = await createNewAssetType(
-							defaultAssetTypeData
-						);
+						const newAssetType = await createNewAssetType(defaultAssetTypeData);
 						assetTypes.push(newAssetType);
 					}
-					logger.log(
-						"info",
-						`Default asset types for main org has been created sucessfully`
-					);
+					logger.log("info", `Default asset types for main org has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Default asset types for main org can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Default asset types for main org can not be created: %s`, err.message);
 				}
 
 				const tableAsset = "grafanadb.asset";
@@ -868,16 +667,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringAsset);
-					logger.log(
-						"info",
-						`Table ${tableAsset} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableAsset} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableAsset} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableAsset} can not be created: %s`, err.message);
 				}
 
 				const tableTopic = "grafanadb.topic";
@@ -907,16 +699,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringTopic);
-					logger.log(
-						"info",
-						`Table ${tableTopic} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableTopic} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableTopic} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableTopic} can not be created: %s`, err.message);
 				}
 
 				const tableAssetTopic = "grafanadb.asset_topic";
@@ -938,16 +723,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringAssetTopic);
-					logger.log(
-						"info",
-						`Table ${tableAssetTopic} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableAssetTopic} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableAssetType} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableAssetType} can not be created: %s`, err.message);
 				}
 
 				const tableSensor = "grafanadb.sensor";
@@ -989,16 +767,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringSensor);
-					logger.log(
-						"info",
-						`Table ${tableSensor} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableSensor} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableSensor} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableSensor} can not be created: %s`, err.message);
 				}
 
 				const tableDigitalTwin = "grafanadb.digital_twin";
@@ -1040,16 +811,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringDigitalTwin);
-					logger.log(
-						"info",
-						`Table ${tableDigitalTwin} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableDigitalTwin} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableDigitalTwin} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableDigitalTwin} can not be created: %s`, err.message);
 				}
 
 				const tableDigitalTwinTopic = "grafanadb.digital_twin_topic";
@@ -1070,16 +834,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringDigitalTwinTopic);
-					logger.log(
-						"info",
-						`Table ${tableDigitalTwinTopic} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableDigitalTwinTopic} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableDigitalTwinTopic} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableDigitalTwinTopic} can not be created: %s`, err.message);
 				}
 
 				const tableDigitalTwinSensor = "grafanadb.digital_twin_sensor";
@@ -1099,16 +856,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringDigitalTwinSensor);
-					logger.log(
-						"info",
-						`Table ${tableDigitalTwinSensor} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableDigitalTwinSensor} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableDigitalTwinSensor} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableDigitalTwinSensor} can not be created: %s`, err.message);
 				}
 
 				const tableMLModel = "grafanadb.ml_model";
@@ -1132,16 +882,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringMLModel);
-					logger.log(
-						"info",
-						`Table ${tableMLModel} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableMLModel} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableMLModel} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableMLModel} can not be created: %s`, err.message);
 				}
 
 				const tableNodeRedInstance = "grafanadb.nodered_instance";
@@ -1168,32 +911,16 @@ export const dataBaseInitialization = async () => {
 				let mainNodeRedInstance: INodeRedInstance;
 				try {
 					await postgresClient.query(queryStringodeRedInstance);
-					const nodeRedInstances = await createNodeRedInstancesInOrg(
-						process_env.MAIN_ORG_NRI_HASHES,
-						1
-					);
+					const nodeRedInstances = await createNodeRedInstancesInOrg(process_env.MAIN_ORG_NRI_HASHES, 1);
 					mainNodeRedInstance = nodeRedInstances[0];
-					logger.log(
-						"info",
-						`Table ${tableNodeRedInstance} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableNodeRedInstance} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableNodeRedInstance} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableNodeRedInstance} can not be created: %s`, err.message);
 				}
 
 				try {
-					await assignNodeRedInstanceToGroup(
-						mainNodeRedInstance,
-						group.id
-					);
-					logger.log(
-						"info",
-						`NodeRed instance assigned to group with id: ${group.id}`
-					);
+					await assignNodeRedInstanceToGroup(mainNodeRedInstance, group.id);
+					logger.log("info", `NodeRed instance assigned to group with id: ${group.id}`);
 				} catch (err) {
 					logger.log(
 						"error",
@@ -1219,10 +946,7 @@ export const dataBaseInitialization = async () => {
 								topicType: "dev2pdb_wt",
 								description: `Mobile geolocation topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[0]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),
 								requireS3Storage: false,
 								s3Folder: "",
 								parquetSchema: "{}",
@@ -1232,10 +956,7 @@ export const dataBaseInitialization = async () => {
 								topicType: "dev2pdb_wt",
 								description: `Mobile accelerations topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[1]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].defaultPayloadJsonSchema),
 								requireS3Storage: false,
 								s3Folder: "",
 								parquetSchema: "{}",
@@ -1245,10 +966,7 @@ export const dataBaseInitialization = async () => {
 								topicType: "dev2pdb_wt",
 								description: `Mobile orientation topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[2]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].defaultPayloadJsonSchema),
 								requireS3Storage: false,
 								s3Folder: "",
 								parquetSchema: "{}",
@@ -1258,10 +976,7 @@ export const dataBaseInitialization = async () => {
 								topicType: "dev2pdb_wt",
 								description: `Mobile motion topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[3]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].defaultPayloadJsonSchema),
 								requireS3Storage: false,
 								s3Folder: "",
 								parquetSchema: "{}",
@@ -1271,10 +986,7 @@ export const dataBaseInitialization = async () => {
 								topicType: "dev2dtm",
 								description: `Mobile photo topic`,
 								mqttAccessControl: "Pub & Sub",
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[4]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
 								requireS3Storage: false,
 								s3Folder: "",
 								parquetSchema: "{}",
@@ -1286,77 +998,49 @@ export const dataBaseInitialization = async () => {
 								sensorType: "Mobile geolocation",
 								topicRef: "dev2pdb_1",
 								description: `Mobile geolocation`,
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[0]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[0].defaultPayloadJsonSchema),
 							},
 							{
 								sensorRef: "sensor_2",
 								sensorType: "Mobile accelerations",
 								topicRef: "dev2pdb_2",
 								description: `Mobile accelerations`,
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[1]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[1].defaultPayloadJsonSchema),
 							},
 							{
 								sensorRef: "sensor_3",
 								sensorType: "Mobile orientation",
 								topicRef: "dev2pdb_3",
 								description: `Mobile orientation`,
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[2]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[2].defaultPayloadJsonSchema),
 							},
 							{
 								sensorRef: "sensor_4",
 								sensorType: "Mobile motion",
 								topicRef: "dev2pdb_4",
 								description: `Mobile motion`,
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[3]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[3].defaultPayloadJsonSchema),
 							},
 							{
 								sensorRef: "sensor_5",
 								sensorType: "Mobile photo",
 								topicRef: "dev2pdb_5",
 								description: `Mobile photo`,
-								payloadJsonSchema: JSON.stringify(
-									predefinedSensorTypes[4]
-										.defaultPayloadJsonSchema
-								),
+								payloadJsonSchema: JSON.stringify(predefinedSensorTypes[4].defaultPayloadJsonSchema),
 							},
 						],
 					};
-					asset = await createNewAsset(group, defaultAssetData);
-					logger.log(
-						"info",
-						`Default asset for main group has been created sucessfully`
-					);
+					asset = await createNewAsset(group, defaultAssetData, true);
+					logger.log("info", `Default asset for main group has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Default asset for main group can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Default asset for main group can not be created: %s`, err.message);
 				}
 
 				try {
 					const geoJsonDataString = findGroupGeojsonData(floor, 1);
 					await updateGroupAssetsLocation(geoJsonDataString, group);
-					await updateGroupNodeRedInstanceLocation(
-						geoJsonDataString,
-						group
-					);
-					logger.log(
-						"info",
-						`Updapting geolocation for asset in group with id: ${group.id}`
-					);
+					await updateGroupNodeRedInstanceLocation(geoJsonDataString, group);
+					logger.log("info", `Updapting geolocation for asset in group with id: ${group.id}`);
 				} catch (err) {
 					logger.log(
 						"error",
@@ -1368,9 +1052,7 @@ export const dataBaseInitialization = async () => {
 				const digitalTwinData = {
 					description: "Mobile phone default DT",
 					type: "Gltf 3D model",
-					digitalTwinUid: nanoid(20)
-						.replace(/-/g, "x")
-						.replace(/_/g, "X"),
+					digitalTwinUid: nanoid(20).replace(/-/g, "x").replace(/_/g, "X"),
 					maxNumResFemFiles: 1,
 					digitalTwinSimulationFormat: "{}",
 					chatAssistantEnabled: false,
@@ -1381,24 +1063,13 @@ export const dataBaseInitialization = async () => {
 				};
 
 				try {
-					const digitalTwin = await createDigitalTwin(
-						group,
-						asset,
-						digitalTwinData
-					);
+					const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData, null, true);
 					const keyBase = `org_1/group_${group.id}/digitalTwin_${digitalTwin.id}`;
 					const gltfFileName = `${keyBase}/gltfFile/mobile_phone.gltf`;
 					await uploadMobilePhoneGltfFile(gltfFileName);
-					logger.log(
-						"info",
-						`Default mobile phone digital twin has been created sucessfully`
-					);
+					logger.log("info", `Default mobile phone digital twin has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Default mobile phone digital twin can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Default mobile phone digital twin can not be created: %s`, err.message);
 				}
 
 				const tableRefreshToken = "grafanadb.refresh_token";
@@ -1420,16 +1091,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringtableRefreshToken);
-					logger.log(
-						"info",
-						`Table ${tableRefreshToken} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableRefreshToken} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableRefreshToken} can not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableRefreshToken} can not be created: %s`, err.message);
 				}
 
 				const tableAlertNotification = "grafanadb.alert_notification";
@@ -1441,13 +1105,8 @@ export const dataBaseInitialization = async () => {
 							ON DELETE CASCADE;`;
 
 				try {
-					await postgresClient.query(
-						queryStringAlterAlertNotification
-					);
-					logger.log(
-						"info",
-						`Foreing key in table ${tableAlertNotification} has been added sucessfully`
-					);
+					await postgresClient.query(queryStringAlterAlertNotification);
+					logger.log("info", `Foreing key in table ${tableAlertNotification} has been added sucessfully`);
 				} catch (err) {
 					logger.log(
 						"error",
@@ -1477,16 +1136,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringNatsService);
-					logger.log(
-						"info",
-						`Table ${tableANatsService} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableANatsService} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableANatsService} could not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableANatsService} could not be created: %s`, err.message);
 				}
 
 				const tableFlowNode = "grafanadb.node";
@@ -1496,13 +1148,14 @@ export const dataBaseInitialization = async () => {
 					digital_twin_id bigint,
 					node_uid VARCHAR(40) UNIQUE,
 					type VARCHAR(40),
-					name VARCHAR(100),
+					name VARCHAR(50),
 					x float8 NOT NULL DEFAULT 0.0,
 					y float8 NOT NULL DEFAULT 0.0,
 					num_outputs integer NOT NULL DEFAULT 1,
 					settings jsonb NOT NULL DEFAULT '{}'::jsonb,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
+					UNIQUE(digital_twin_id, name),
 					CONSTRAINT fk_digital_twin_id
 						FOREIGN KEY(digital_twin_id)
 							REFERENCES grafanadb.digital_twin(id)
@@ -1516,16 +1169,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringFlowNode);
-					logger.log(
-						"info",
-						`Table ${tableFlowNode} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableFlowNode} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableFlowNode} could not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableFlowNode} could not be created: %s`, err.message);
 				}
 
 				const tableOutputWire = "grafanadb.wire";
@@ -1533,12 +1179,14 @@ export const dataBaseInitialization = async () => {
 				CREATE TABLE IF NOT EXISTS ${tableOutputWire}(
 					id serial PRIMARY KEY,
 					wire_uid VARCHAR(40) UNIQUE,
+					name VARCHAR(100),
 					digital_twin_id bigint,
 					node_ini_id bigint,
 					nini_output_index integer NOT NULL DEFAULT 0,
 					node_end_id bigint,
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
+					UNIQUE(digital_twin_id, name),
 					UNIQUE(node_ini_id, nini_output_index, node_end_id),
 					CONSTRAINT fk_digital_twin_id
 						FOREIGN KEY(digital_twin_id)
@@ -1561,16 +1209,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringOutputWire);
-					logger.log(
-						"info",
-						`Table ${tableOutputWire} has been created sucessfully`
-					);
+					logger.log("info", `Table ${tableOutputWire} has been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Table ${tableOutputWire} could not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Table ${tableOutputWire} could not be created: %s`, err.message);
 				}
 
 				const queryStringFlowNodeFunctions = `
@@ -1625,16 +1266,9 @@ export const dataBaseInitialization = async () => {
 
 				try {
 					await postgresClient.query(queryStringFlowNodeFunctions);
-					logger.log(
-						"info",
-						`Triggers for flow node and wire have been created sucessfully`
-					);
+					logger.log("info", `Triggers for flow node and wire have been created sucessfully`);
 				} catch (err) {
-					logger.log(
-						"error",
-						`Triggers for flow node and wire could not be created: %s`,
-						err.message
-					);
+					logger.log("error", `Triggers for flow node and wire could not be created: %s`, err.message);
 				}
 
 				pool.end(() => {
@@ -1653,9 +1287,7 @@ export const dataBaseInitialization = async () => {
 						const dataSourceQueries = [];
 						for (const org of orgs) {
 							if (org.id === 1) continue;
-							const query = createTimescaledbOrgDataSource(
-								org.id
-							);
+							const query = createTimescaledbOrgDataSource(org.id);
 							dataSourceQueries.push(query);
 						}
 						await Promise.all(dataSourceQueries);
@@ -1669,11 +1301,7 @@ export const dataBaseInitialization = async () => {
 						await Promise.all(createViewsQueries);
 					}
 				} catch (err) {
-					logger.log(
-						"error",
-						`Views in timescaledb could not be checked: %s`,
-						err.message
-					);
+					logger.log("error", `Views in timescaledb could not be checked: %s`, err.message);
 					process.exit(1);
 				}
 			}

@@ -22,10 +22,10 @@ func makeNodeOutputIndexKey(digitalTwinId int, nodeID int, outputIndex int) stri
 	return fmt.Sprintf("dt:%d:outidx:%d:%d", digitalTwinId, nodeID, outputIndex)
 }
 
-func makeDigitalTwinTopicRefKey(digitalTwinId int, topicRef int) string {
-	return fmt.Sprintf("dt:%d:topicRef:%d", digitalTwinId, topicRef)
+func makeDigitalTwinTopicRefKey(digitalTwinId int, topicRef string) string {
+	return fmt.Sprintf("dt:%d:topicRef:%s", digitalTwinId, topicRef)
 }
 
-func makeAssetTopicRefKey(assetId int, topicRef int) string {
-	return fmt.Sprintf("asset:%d:topicRef:%d", assetId, topicRef)
+func makeAssetTopicRefKey(assetId int, topicRef string) string {
+	return fmt.Sprintf("asset:%d:topicRef:%s", assetId, topicRef)
 }

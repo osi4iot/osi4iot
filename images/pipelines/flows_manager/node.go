@@ -9,11 +9,11 @@ import (
 	"time"
 )
 
-func (fm *FlowsManager) GetNode(nodeId int) *common.Node {
+func (fm *FlowsManager) GetNode(nodeId int) common.Node {
 	if value, exists := fm.Nodes.Load(strconv.Itoa(nodeId)); exists {
-		node, ok := value.(*common.Node)
+		node, ok := value.(common.Node)
 		if !ok {
-			fm.log.Errorf("Node with ID %d is not of type *common.Node", nodeId)
+			fm.log.Errorf("Node with ID %d is not of type common.Node", nodeId)
 			return nil
 		}
 		return node
@@ -21,10 +21,10 @@ func (fm *FlowsManager) GetNode(nodeId int) *common.Node {
 	return nil
 }
 
-func (fm *FlowsManager) GetNodes() []*common.Node {
-	var nodes []*common.Node
+func (fm *FlowsManager) GetNodes() []common.Node {
+	var nodes []common.Node
 	fm.Nodes.Range(func(key, value interface{}) bool {
-		nodes = append(nodes, value.(*common.Node))
+		nodes = append(nodes, value.(common.Node))
 		return true
 	})
 	return nodes
@@ -49,8 +49,8 @@ func (fm *FlowsManager) AddNode(node *common.NodeData) {
 
 	nodeIdStr := strconv.Itoa(node.Id)
 	if _, ok := fm.Nodes.Load(nodeIdStr); !ok {
-		fm.Nodes.Store(nodeIdStr, &newNode)
-		fm.addNodeToDigitalTwin(node.DigitalTwinId, &newNode)
+		fm.Nodes.Store(nodeIdStr, newNode)
+		fm.addNodeToDigitalTwin(node.DigitalTwinId, newNode)
 	} else {
 		fm.log.Warnf("Node with ID %d already exists", node.Id)
 	}
@@ -65,9 +65,9 @@ func (fm *FlowsManager) AddNodes(nodes []*common.NodeData) {
 func (fm *FlowsManager) DeleteNode(nodeId int) error {
 	nodeIdStr := strconv.Itoa(nodeId)
 	if value, ok := fm.Nodes.Load(nodeIdStr); ok {
-		node := value.(*common.Node)
-		digitalTwinId := (*node).GetDigitalTwinId()
-		fm.deleteNodeFromDigitalTwin(digitalTwinId, nodeId)
+		node := value.(common.Node)
+		digitalTwinId := node.GetDigitalTwinId()
+		fm.deleteNodeFromDigitalTwin(digitalTwinId, node.GetId())
 		fm.Nodes.Delete(nodeIdStr)
 		return nil
 	}
@@ -77,10 +77,10 @@ func (fm *FlowsManager) DeleteNode(nodeId int) error {
 func (fm *FlowsManager) UpdateNode(node *common.NodeData) error {
 	nodeIdStr := strconv.Itoa(node.Id)
 	if value, ok := fm.Nodes.Load(nodeIdStr); ok {
-		existingNode := value.(*common.Node)
-		(*existingNode).Stop(fm.log)
+		existingNode := value.(common.Node)
+		existingNode.Stop(fm.log)
 
-		if (*existingNode).GetNumOutputs() != node.NumOutputs {
+		if existingNode.GetNumOutputs() != node.NumOutputs {
 			fm.updateNodeWires(existingNode, node)
 		}
 
@@ -99,8 +99,8 @@ func (fm *FlowsManager) UpdateNode(node *common.NodeData) error {
 			Settings:      node.Settings,
 		}
 		newNode := nodes.CreateNode(*nodeData, fm.log, fm)
-		fm.Nodes.Store(nodeIdStr, &newNode)
-		fm.updateDigitalTwinNodesIndex(node.DigitalTwinId, &newNode, "replace")
+		fm.Nodes.Store(nodeIdStr, newNode)
+		fm.updateDigitalTwinNodesIndex(node.DigitalTwinId, newNode, "replace")
 		return nil
 	}
 	return common.ErrNotFound
@@ -109,26 +109,26 @@ func (fm *FlowsManager) UpdateNode(node *common.NodeData) error {
 func (fm *FlowsManager) regenerateNode(nodeId int) {
 	nodeIdStr := strconv.Itoa(nodeId)
 	if value, ok := fm.Nodes.Load(nodeIdStr); ok {
-		existingNode := value.(*common.Node)
-		(*existingNode).Stop(fm.log)
+		existingNode := value.(common.Node)
+		existingNode.Stop(fm.log)
 
 		nodeData := &common.NodeData{
-			Id:            (*existingNode).GetId(),
-			NodeUid:       (*existingNode).GetUid(),
-			OrgId:         (*existingNode).GetOrgId(),
-			GroupId:       (*existingNode).GetGroupId(),
-			AssetId:       (*existingNode).GetAssetId(),
-			DigitalTwinId: (*existingNode).GetDigitalTwinId(),
-			Name:          (*existingNode).GetName(),
-			Type:          (*existingNode).GetType(),
-			NumOutputs:    (*existingNode).GetNumOutputs(),
-			Xpos:          (*existingNode).GetXpos(),
-			Ypos:          (*existingNode).GetYpos(),
-			Settings:      (*existingNode).GetSettings(),
+			Id:            existingNode.GetId(),
+			NodeUid:       existingNode.GetUid(),
+			OrgId:         existingNode.GetOrgId(),
+			GroupId:       existingNode.GetGroupId(),
+			AssetId:       existingNode.GetAssetId(),
+			DigitalTwinId: existingNode.GetDigitalTwinId(),
+			Name:          existingNode.GetName(),
+			Type:          existingNode.GetType(),
+			NumOutputs:    existingNode.GetNumOutputs(),
+			Xpos:          existingNode.GetXpos(),
+			Ypos:          existingNode.GetYpos(),
+			Settings:      existingNode.GetSettings(),
 		}
 		newNode := nodes.CreateNode(*nodeData, fm.log, fm)
-		fm.Nodes.Store(nodeIdStr, &newNode)
-		fm.updateDigitalTwinNodesIndex((*existingNode).GetDigitalTwinId(), &newNode, "replace")
+		fm.Nodes.Store(nodeIdStr, newNode)
+		fm.updateDigitalTwinNodesIndex(existingNode.GetDigitalTwinId(), newNode, "replace")
 	} else {
 		fm.log.Errorf("Failed to regenerate node %d, it does not exist", nodeId)
 	}
@@ -141,20 +141,20 @@ func (fm *FlowsManager) RegenerateNodesInDigitalTwin(digitalTwinId int) {
 		return
 	}
 	for _, node := range nodes {
-		fm.regenerateNode((*node).GetId())
+		fm.regenerateNode(node.GetId())
 	}
 }
 
-func (fm *FlowsManager) updateNodeWires(existentNode *common.Node, updatedNode *common.NodeData) error {
-	if updatedNode.NumOutputs < (*existentNode).GetNumOutputs() {
+func (fm *FlowsManager) updateNodeWires(existentNode common.Node, updatedNode *common.NodeData) error {
+	if updatedNode.NumOutputs < existentNode.GetNumOutputs() {
 		// Remove excess output wires
-		for outputIndex := updatedNode.NumOutputs; outputIndex < (*existentNode).GetNumOutputs(); outputIndex++ {
-			outputIndexKey := makeNodeOutputIndexKey((*existentNode).GetDigitalTwinId(), (*existentNode).GetId(), outputIndex)
+		for outputIndex := updatedNode.NumOutputs; outputIndex < existentNode.GetNumOutputs(); outputIndex++ {
+			outputIndexKey := makeNodeOutputIndexKey(existentNode.GetDigitalTwinId(), existentNode.GetId(), outputIndex)
 			if value, ok := fm.NodeOutputByIndex.Load(outputIndexKey); ok {
 				wires := value.([]*common.Wire)
 				fm.NodeOutputByIndex.Delete(outputIndexKey)
 				for _, wire := range wires {
-					fm.deleteWireFromDigitalTwin((*existentNode).GetDigitalTwinId(), wire.Id)
+					fm.deleteWireFromDigitalTwin(existentNode.GetDigitalTwinId(), wire.Id)
 					if err := fm.DeleteWire(wire.Id); err != nil {
 						if err != common.ErrNotFound {
 							fm.log.Errorf("Failed to delete wire %d: %v", wire.Id, err)
@@ -168,7 +168,7 @@ func (fm *FlowsManager) updateNodeWires(existentNode *common.Node, updatedNode *
 	return nil
 }
 
-func (fm *FlowsManager) addNodeToDigitalTwin(digitalTwinId int, node *common.Node) error {
+func (fm *FlowsManager) addNodeToDigitalTwin(digitalTwinId int, node common.Node) error {
 	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
 	if digitalTwin == nil {
 		return fmt.Errorf("digital twin %d not found", digitalTwinId)
@@ -177,37 +177,37 @@ func (fm *FlowsManager) addNodeToDigitalTwin(digitalTwinId int, node *common.Nod
 	fm.updateDigitalTwinNodesIndex(digitalTwinId, node, "add")
 
 	// Initialize node input and output wires
-	fm.NodeOutputWires.Store(makeNodeOutputWiresKey(digitalTwinId, (*node).GetId()), [][]*common.Wire{})
-	fm.NodeInputWires.Store(makeNodeInputWiresKey(digitalTwinId, (*node).GetId()), []*common.Wire{})
+	fm.NodeOutputWires.Store(makeNodeOutputWiresKey(digitalTwinId, node.GetId()), [][]*common.Wire{})
+	fm.NodeInputWires.Store(makeNodeInputWiresKey(digitalTwinId, node.GetId()), []*common.Wire{})
 
 	return nil
 }
 
-func (fm *FlowsManager) updateDigitalTwinNodesIndex(digitalTwinId int, node *common.Node, action string) {
+func (fm *FlowsManager) updateDigitalTwinNodesIndex(digitalTwinId int, node common.Node, action string) {
 	indexKey := makeDTNodesKey(digitalTwinId)
-	var nodes []*common.Node
+	var nodes []common.Node
 	if value, ok := fm.DigitalTwinNodes.Load(indexKey); ok {
-		nodes = value.([]*common.Node)
+		nodes = value.([]common.Node)
 	}
 
 	switch action {
 	case "add":
 		for _, n := range nodes {
-			if (*n).GetId() == (*node).GetId() {
+			if n.GetId() == node.GetId() {
 				return
 			}
 		}
 		nodes = append(nodes, node)
 	case "remove":
 		for i, n := range nodes {
-			if (*n).GetId() == (*node).GetId() {
+			if n.GetId() == node.GetId() {
 				nodes = append(nodes[:i], nodes[i+1:]...)
 				break
 			}
 		}
 	case "replace":
 		for i, n := range nodes {
-			if (*n).GetId() == (*node).GetId() {
+			if n.GetId() == node.GetId() {
 				nodes[i] = node
 				return
 			}
@@ -224,11 +224,11 @@ func (fm *FlowsManager) deleteNodeFromDigitalTwin(digitalTwinId int, nodeId int)
 	}
 
 	nodeIdStr := strconv.Itoa(nodeId)
-	var node *common.Node
+	var node common.Node
 	if value, ok := fm.Nodes.Load(nodeIdStr); !ok {
 		return common.ErrNotFound
 	} else {
-		node = value.(*common.Node)
+		node = value.(common.Node)
 	}
 
 	fm.updateDigitalTwinNodesIndex(digitalTwinId, node, "remove")
@@ -259,7 +259,7 @@ func (fm *FlowsManager) deleteNodeFromDigitalTwin(digitalTwinId int, nodeId int)
 	fm.NodeOutputWires.Delete(makeNodeOutputWiresKey(digitalTwinId, nodeId))
 	fm.NodeInputWires.Delete(makeNodeInputWiresKey(digitalTwinId, nodeId))
 
-	for outputIndex := 0; outputIndex < (*node).GetNumOutputs(); outputIndex++ {
+	for outputIndex := 0; outputIndex < node.GetNumOutputs(); outputIndex++ {
 		outputIndexKey := makeNodeOutputIndexKey(digitalTwinId, nodeId, outputIndex)
 		fm.NodeOutputByIndex.Delete(outputIndexKey)
 	}
@@ -267,10 +267,10 @@ func (fm *FlowsManager) deleteNodeFromDigitalTwin(digitalTwinId int, nodeId int)
 	return nil
 }
 
-func (fm *FlowsManager) GetDigitalTwinNodes(digitalTwinId int) []*common.Node {
+func (fm *FlowsManager) GetDigitalTwinNodes(digitalTwinId int) []common.Node {
 	indexKey := makeDTNodesKey(digitalTwinId)
 	if value, ok := fm.DigitalTwinNodes.Load(indexKey); ok {
-		return value.([]*common.Node)
+		return value.([]common.Node)
 	}
 	return nil
 }
@@ -287,13 +287,26 @@ func (fm *FlowsManager) StartNodes() {
 	for _, digitalTwin := range digitalTwins {
 		wg.Add(1)
 
-		go func(dtId int) {
+		isPipelineInitialized := fm.isPipelineInitialized(digitalTwin)
+		needReinitialization := true
+		if isPipelineInitialized {
+			needReinitialization = false
+		}
+
+		go func(dt *common.DigitalTwin, needReinitialization bool) {
 			defer wg.Done()
-			fm.StartNodesInDigitalTwin(dtId)
-		}(digitalTwin.Id)
+			defer fm.setPipelineInitialization(dt, isPipelineInitialized)
+			fm.StartNodesInDigitalTwin(dt.Id, needReinitialization)
+		}(digitalTwin, needReinitialization)
 	}
 	wg.Wait()
 	fm.log.Info("All nodes in all digital twins have been started")
+}
+
+func (fm *FlowsManager) setPipelineInitialization(digitalTwin *common.DigitalTwin, isPipelineInitialized bool) {
+	if !isPipelineInitialized {
+		fm.setPipelineInitialized(digitalTwin, true)
+	}
 }
 
 func (fm *FlowsManager) StopNodes() {
@@ -314,7 +327,7 @@ func (fm *FlowsManager) StopNodes() {
 	fm.log.Info("All nodes in all digital twins have been stopped")
 }
 
-func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int) {
+func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool) {
 	fm.log.Infof("Starting nodes for digital twin %d", digitalTwinId)
 
 	nodes := fm.GetDigitalTwinNodes(digitalTwinId)
@@ -325,14 +338,14 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int) {
 
 	// Regenerate nodes if they are stopped
 	for _, node := range nodes {
-		if (*node).GetStatus() == common.NodeStatusStopped {
-			fm.regenerateNode((*node).GetId())
+		if node.GetStatus() == common.NodeStatusStopped {
+			fm.regenerateNode(node.GetId())
 		}
 	}
 
 	// Start each node in the digital twin
 	for _, node := range nodes {
-		(*node).Start(fm.log)
+		node.Start(fm.log, needReinitialization)
 	}
 
 	fm.log.Infof("Started %d nodes for digital twin %d, waiting for them to be ready", len(nodes), digitalTwinId)
@@ -367,8 +380,8 @@ func (fm *FlowsManager) getNotRunningNodes(digitalTwinId int) []string {
 	nodes := fm.GetDigitalTwinNodes(digitalTwinId)
 
 	for _, node := range nodes {
-		if (*node).GetStatus() != common.NodeStatusRunning {
-			notRunning = append(notRunning, fmt.Sprintf("%s(%s)", (*node).GetUid(), (*node).GetStatus().String()))
+		if node.GetStatus() != common.NodeStatusRunning {
+			notRunning = append(notRunning, fmt.Sprintf("%s(%s)", node.GetUid(), node.GetStatus().String()))
 		}
 	}
 
@@ -378,7 +391,7 @@ func (fm *FlowsManager) getNotRunningNodes(digitalTwinId int) []string {
 func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int) {
 	nodes := fm.GetDigitalTwinNodes(digitalTwinId)
 	for _, node := range nodes {
-		(*node).Stop(fm.log)
+		node.Stop(fm.log)
 	}
 
 	// Wait for all nodes to stop
@@ -403,7 +416,7 @@ func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int) {
 func (fm *FlowsManager) anyNodeRunning(digitalTwinId int) bool {
 	nodes := fm.GetDigitalTwinNodes(digitalTwinId)
 	for _, node := range nodes {
-		if (*node).GetStatus() == common.NodeStatusRunning {
+		if node.GetStatus() == common.NodeStatusRunning {
 			return true
 		}
 	}
@@ -413,21 +426,21 @@ func (fm *FlowsManager) anyNodeRunning(digitalTwinId int) bool {
 func (fm *FlowsManager) allNodesRunning(digitalTwinId int) bool {
 	nodes := fm.GetDigitalTwinNodes(digitalTwinId)
 	for _, node := range nodes {
-		if (*node).GetStatus() != common.NodeStatusRunning {
+		if node.GetStatus() != common.NodeStatusRunning {
 			return false
 		}
 	}
 	return true
 }
 
-func (fm *FlowsManager) RestartNodesInDigitalTwin(digitalTwinId int) {
+func (fm *FlowsManager) RestartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool) {
 	fm.log.Infof("Restarting nodes for digital twin %d", digitalTwinId)
 
 	// Stop all nodes first
 	fm.StopNodesInDigitalTwin(digitalTwinId)
 
 	// Start all nodes again
-	fm.StartNodesInDigitalTwin(digitalTwinId)
+	fm.StartNodesInDigitalTwin(digitalTwinId, needReinitialization)
 
 	fm.log.Infof("Restarted nodes for digital twin %d", digitalTwinId)
 }

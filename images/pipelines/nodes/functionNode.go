@@ -7,12 +7,44 @@ import (
 	"pipelines/common"
 	"pipelines/logger"
 	"pipelines/utils"
-	"time"
+	"strings"
 
 	"github.com/dop251/goja"
 	"github.com/nats-io/nats.go"
-	// "github.com/nats-io/nats.go/jetstream"
+
+	fl "pipelines/function_libray"
 )
+
+type JSGlobalRegistry struct {
+	providers []common.JSGlobalProvider
+}
+
+// NewJSGlobalRegistry creates a new registry with default providers
+func NewJSGlobalRegistry() *JSGlobalRegistry {
+	return &JSGlobalRegistry{
+		providers: []common.JSGlobalProvider{
+			&fl.CoreJSProvider{},
+			&fl.HTTPJSProvider{},
+		},
+	}
+}
+
+// RegisterProvider adds a new provider to the registry
+func (r *JSGlobalRegistry) RegisterProvider(provider common.JSGlobalProvider) {
+	r.providers = append(r.providers, provider)
+}
+
+// GetAllFunctions returns all JavaScript functions from all providers
+func (r *JSGlobalRegistry) GetAllFunctions(node common.Node, fm common.Manager, log *logger.Logger) []common.JSFunction {
+	var allFunctions []common.JSFunction
+
+	for _, provider := range r.providers {
+		functions := provider.GetJSFunctions(node, fm, log)
+		allFunctions = append(allFunctions, functions...)
+	}
+
+	return allFunctions
+}
 
 type CompiledScript struct {
 	program     *goja.Program
@@ -21,58 +53,70 @@ type CompiledScript struct {
 
 type FuncNode struct {
 	BaseNode
-	nc             *nats.Conn
-	errorSubject   string
-	script         string
-	compiledScript *CompiledScript
-	vmPool         chan *goja.Runtime
+	nc                     *nats.Conn
+	onInitializationScript string
+	onStartScript          string
+	onMessageScript        string
+	compiledScript         *CompiledScript
+	vmPool                 chan *goja.Runtime
+	jsRegistry             *JSGlobalRegistry
 }
 
 func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) {
-	script, ok := node.Settings["script"].(string)
-	if !ok || script == "" {
-		fm.Log().Errorf("FuncNode %s: 'script' setting is required", node.NodeUid)
-		return nil, fmt.Errorf("FuncNode %s: 'script' setting is required", node.NodeUid)
+	onMessageScript, ok1 := node.Settings["onMessageScript"].(string)
+	onInitializationScript, ok2 := node.Settings["onInitializationScript"].(string)
+	onStartScript, ok3 := node.Settings["onStartScript"].(string)
+	if !ok1 && !ok2 && !ok3 {
+		return nil, fmt.Errorf("missing required scripts in node settings")
 	}
+
+	org := fm.GetOrg(node.OrgId)
+	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	funNode := &FuncNode{
 		BaseNode: BaseNode{
-			Id:            node.Id,
-			NodeUid:       node.NodeUid,
-			OrgId:         node.OrgId,
-			GroupId:       node.GroupId,
-			AssetId:       node.AssetId,
-			DigitalTwinId: node.DigitalTwinId,
-			Name:          node.Name,
-			Xpos:          node.Xpos,
-			Ypos:          node.Ypos,
-			NumOutputs:    node.NumOutputs,
-			Settings:      node.Settings,
-			Type:          "Function",
-			Fm:            fm,
-			Cancel:        cancel,
-			Ctx:           ctx,
-			status:        common.NodeStatusCreated,
+			Id:             node.Id,
+			NodeUid:        node.NodeUid,
+			OrgId:          node.OrgId,
+			GroupId:        node.GroupId,
+			AssetId:        node.AssetId,
+			DigitalTwinId:  node.DigitalTwinId,
+			OrgHash:        org.OrgHash,
+			DigitalTwinUID: digitalTwin.DigitalTwinUID,
+			Name:           node.Name,
+			Xpos:           node.Xpos,
+			Ypos:           node.Ypos,
+			NumOutputs:     node.NumOutputs,
+			Settings:       node.Settings,
+			Type:           "Function",
+			Fm:             fm,
+			Cancel:         cancel,
+			Ctx:            ctx,
+			status:         common.NodeStatusCreated,
 		},
-		nc:           nil,                          // This will be set later
-		vmPool:       make(chan *goja.Runtime, 10), // Pool size of 10
-		script:       script,
-		errorSubject: "error.subject", // Default error subject
+		nc:                     nil,                          // This will be set later
+		vmPool:                 make(chan *goja.Runtime, 10), // Pool size of 10
+		jsRegistry:             NewJSGlobalRegistry(),        // Initialize the JS global registry
+		onInitializationScript: onInitializationScript,
+		onStartScript:          onStartScript,
+		onMessageScript:        onMessageScript,
 	}
 
 	fm.Log().Infof("Created FuncNode with UID: %s", funNode.NodeUid)
 
-	if err := funNode.precompileScript(fm.Log()); err != nil {
-		nodeError := fmt.Errorf("Failed to precompile script for node %s: %v", funNode.NodeUid, err)
-		funNode.handleError(nodeError)
-		return nil, nodeError
-	}
-
-	if err := funNode.initVMPool(fm.Log()); err != nil {
-		nodeError := fmt.Errorf("Failed to initialize VM pool for node %s: %v", funNode.NodeUid, err)
-		funNode.handleError(nodeError)
-		return nil, nodeError
+	if funNode.onMessageScript != "" {
+		// Precompilar solo onMessageScript
+		if err := funNode.precompileScript(fm.Log()); err != nil {
+			nodeError := fmt.Errorf("Failed to precompile script for node %s: %v", funNode.NodeUid, err)
+			funNode.handleError(nodeError)
+			return nil, nodeError
+		}
+		if err := funNode.initVMPool(fm.Log()); err != nil {
+			nodeError := fmt.Errorf("Failed to initialize VM pool for node %s: %v", funNode.NodeUid, err)
+			funNode.handleError(nodeError)
+			return nil, nodeError
+		}
 	}
 
 	fm.Log().Infof("FuncNode %s initialized successfully", funNode.NodeUid)
@@ -80,80 +124,61 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 	return funNode, nil
 }
 
-// func (n *FuncNode) Start(log *logger.Logger) {
-// 	if n.GetStatus() == common.NodeStatusRunning {
-// 		log.Infof("EmailNode %s is already running", n.NodeUid)
-// 		return
-// 	}
-// 	n.SetStatus(common.NodeStatusRunning)
+func (n *FuncNode) RegisterJSProvider(provider common.JSGlobalProvider) {
+	n.jsRegistry.RegisterProvider(provider)
+}
 
-// 	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
-// 	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
-
-// 	if len(nodeInputWires) == 0 {
-// 		log.Errorf("No input wires found for FuncNode with UID: %s", n.NodeUid)
-// 		n.SetStatus(common.NodeStatusStopped)
-// 		return
-// 	}
-
-// 	for i, wire := range nodeInputWires {
-// 		n.wg.Add(1)
-// 		go func(channelIndex int, inputWire *common.Wire) {
-// 			defer n.wg.Done()
-// 			defer func() {
-// 				log.Infof("FuncNode channel %d goroutine terminated for UID: %s", channelIndex, n.NodeUid)
-// 			}()
-
-// 			for {
-// 				select {
-// 				case <-n.Ctx.Done():
-// 					log.Infof("Stopping FuncNode channel %d with UID: %s", channelIndex, n.NodeUid)
-// 					return
-// 				case msg, ok := <-inputWire.Channel:
-// 					if !ok {
-// 						log.Infof("Channel closed for FuncNode with UID: %s", n.NodeUid)
-// 						return
-// 					}
-
-// 					if err := n.processMessage(msg, log); err != nil {
-// 						n.handleError(err)
-// 					}
-// 				}
-// 			}
-// 		}(i, wire)
-// 	}
-// }
-
-func (n *FuncNode) Start(log *logger.Logger) {
+func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("FuncNode %s is already running", n.NodeUid)
 		return
 	}
-	
+
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting FuncNode with UID: %s", n.NodeUid)
-	
-	n.handleInputWires(log, n.processMessage)
+
+	// Ejecutar onInitializationScript solo la primera vez
+	if n.onInitializationScript != "" && needReinitialization {
+		if err := n.executeInitializationScript(log); err != nil {
+			log.Errorf("Failed to execute initialization script for node %s: %v", n.NodeUid, err)
+			n.handleError(err)
+			return
+		}
+		log.Infof("Initialization script executed successfully for node %s", n.NodeUid)
+	}
+
+	// Ejecutar onStartScript cada vez que se inicia/reinicia
+	if n.onStartScript != "" {
+		if err := n.executeStartScript(log); err != nil {
+			log.Errorf("Failed to execute start script for node %s: %v", n.NodeUid, err)
+			n.handleError(err)
+			return
+		}
+		log.Infof("Start script executed successfully for node %s", n.NodeUid)
+	}
+
+	if n.onMessageScript != "" {
+		n.handleInputWires(log, n.processMessage)
+	}
 }
 
 func (n *FuncNode) precompileScript(log *logger.Logger) error {
 	vm := goja.New()
-
 	n.setupJSGlobals(vm, log)
 
-	// Compile the script
-	program, err := goja.Compile(n.NodeUid+".js", n.script, false)
+	// Compilar solo el script de mensaje
+	program, err := goja.Compile(n.NodeUid+".js", n.onMessageScript, false)
 	if err != nil {
 		return fmt.Errorf("failed to compile script: %w", err)
 	}
 
-	// Execute to obtain the process function
+	// Ejecutar para obtener la función process
 	_, err = vm.RunProgram(program)
 	if err != nil {
 		return fmt.Errorf("failed to execute script: %w", err)
 	}
 
-	// Verify that the process function exists
+	// Verificar que la función process existe
 	processFunc, ok := goja.AssertFunction(vm.Get("process"))
 	if !ok {
 		return fmt.Errorf("process function not found in script")
@@ -165,6 +190,73 @@ func (n *FuncNode) precompileScript(log *logger.Logger) error {
 	}
 
 	log.Infof("Script precompiled successfully for node: %s", n.NodeUid)
+	return nil
+}
+
+func (n *FuncNode) executeInitializationScript(log *logger.Logger) error {
+	if n.onInitializationScript == "" {
+		log.Infof("No initialization script to execute for node %s", n.NodeUid)
+		return nil
+	}
+
+	// Crear VM temporal y compilar directamente
+	vm := goja.New()
+	n.setupJSGlobals(vm, log)
+
+	program, err := goja.Compile(n.NodeUid+"_init.js", n.onInitializationScript, false)
+	if err != nil {
+		return fmt.Errorf("failed to compile initialization script: %w", err)
+	}
+
+	_, err = vm.RunProgram(program)
+	if err != nil {
+		return fmt.Errorf("failed to execute initialization script: %w", err)
+	}
+
+	initFunc, ok := goja.AssertFunction(vm.Get("init"))
+	if !ok {
+		return fmt.Errorf("init function not found in script")
+	}
+
+	_, err = initFunc(goja.Undefined())
+	if err != nil {
+		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
+		return fmt.Errorf("script execution error: %w", err)
+	}
+	return nil
+}
+
+func (n *FuncNode) executeStartScript(log *logger.Logger) error {
+	if n.onStartScript == "" {
+		log.Infof("No start script to execute for node %s", n.NodeUid)
+		return nil
+	}
+
+	// Crear VM temporal y compilar directamente
+	vm := goja.New()
+	n.setupJSGlobals(vm, log)
+
+	program, err := goja.Compile(n.NodeUid+"_start.js", n.onStartScript, false)
+	if err != nil {
+		return fmt.Errorf("failed to compile start script: %w", err)
+	}
+
+	_, err = vm.RunProgram(program)
+	if err != nil {
+		return fmt.Errorf("failed to execute start script: %w", err)
+	}
+
+	startFunc, ok := goja.AssertFunction(vm.Get("start"))
+	if !ok {
+		return fmt.Errorf("start function not found in script")
+	}
+
+	_, err = startFunc(goja.Undefined())
+	if err != nil {
+		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
+		return fmt.Errorf("script execution error: %w", err)
+	}
+
 	return nil
 }
 
@@ -191,95 +283,15 @@ func (n *FuncNode) initVMPool(log *logger.Logger) error {
 }
 
 func (n *FuncNode) setupJSGlobals(vm *goja.Runtime, log *logger.Logger) {
-	// Expose useful functions to the JavaScript context
-	vm.Set("log", func(level, message string) {
-		log.Infof("[%s] %s: %s\n", n.NodeUid, level, message)
-	})
+	// Get all JavaScript functions from registered providers
+	jsFunctions := n.jsRegistry.GetAllFunctions(n, n.Fm, log)
 
-	vm.Set("getCurrentTime", func() string {
-		return time.Now().UTC().Format(time.RFC3339)
-	})
+	// Register each function in the JavaScript VM
+	for _, jsFunc := range jsFunctions {
+		vm.Set(jsFunc.Name, jsFunc.Func)
+	}
 
-	// vm.Set("getValueFromStore", func(key string) map[string]interface{} {
-	// 	fullKey := fmt.Sprintf("org_%s.flow_%s.kvstore.%s", n.Flow.OrgHash, n.Flow.FlowUID, key)
-	// 	ctx := context.Background()
-	// 	entry, err := n.Flow.KeyValueStore.Get(ctx, fullKey)
-	// 	if err != nil {
-	// 		log.Errorf("Failed to get key %s: %v", key, err)
-	// 		return nil
-	// 	}
-	// 	var store map[string]interface{}
-	// 	if err := utils.UnmarshalData(entry.Value(), &store); err != nil {
-	// 		log.Errorf("Failed to unmarshal data for key %s: %v", key, err)
-	// 		return nil
-	// 	}
-	// 	return store
-	// })
-
-	// vm.Set("setValueInStore", func(key string, data map[string]interface{}) {
-	// 	jsonData, err := utils.MarshalData(data)
-	// 	if err != nil {
-	// 		log.Errorf("Failed to marshal data for key %s: %v", key, err)
-	// 		return
-	// 	}
-
-	// 	fullKey := fmt.Sprintf("org_%s.flow_%s.kvstore.%s", n.Flow.OrgHash, n.Flow.FlowUID, key)
-	// 	ctx := context.Background()
-	// 	entry, err := n.Flow.KeyValueStore.Get(ctx, fullKey)
-	// 	if err != nil {
-	// 		if err == jetstream.ErrKeyNotFound {
-	// 			newRevision, err := n.Flow.KeyValueStore.Put(ctx, fullKey, jsonData)
-	// 			if err != nil {
-	// 				log.Errorf("Failed to set key %s: %v", fullKey, err)
-	// 			}
-	// 			n.saveHeartbeatEntry(ctx,  newRevision, log)
-	// 			return
-	// 		} else {
-	// 			log.Errorf("Failed to get key %s: %v", fullKey, err)
-	// 			return
-	// 		}
-	// 	}
-
-	// 	if entry != nil {
-	// 		retries := 3
-	// 		for i := 0; i < retries; i++ {
-	// 			revision, err := n.getHeartbeatRevision(ctx, log)
-	// 			if err != nil {
-	// 				return
-	// 			}
-
-	// 			newRevision, err := n.Flow.KeyValueStore.Update(ctx, fullKey, jsonData, revision)
-	// 			if err != nil {
-	// 				log.Errorf("Failed to update key %s at trial %d/%d: %v", fullKey, i+1, retries, err)
-	// 			} else {
-	// 				n.saveHeartbeatEntry(ctx, newRevision, log)
-	// 				return
-	// 			}
-	// 		}
-	// 	}
-	// })
-
-	vm.Set("delay", func(duration int) {
-		if duration < 0 {
-			log.Errorf("Invalid delay duration: %d", duration)
-			return
-		}
-		time.Sleep(time.Duration(duration) * time.Millisecond)
-	})
-
-	vm.Set("httpGet", func(url string) interface{} {
-		response, err := utils.HttpGet(url)
-		if err != nil {
-			log.Errorf("Failed to get HTTP response: %v", err)
-			return nil
-		}
-
-		var responseData interface{}
-		if err := utils.UnmarshalData(response, &responseData); err != nil {
-			log.Errorf("Failed to unmarshal HTTP response: %v", err)
-		}
-		return responseData
-	})
+	log.Infof("Registered %d JavaScript global functions for node %s", len(jsFunctions), n.NodeUid)
 }
 
 func (n *FuncNode) getVM() *goja.Runtime {
@@ -317,7 +329,6 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 		// Convert JavaScript result to Go
 		processedData, err := n.convertFromJSObject(result)
 		if err != nil {
-			log.Errorf("Failed to convert JS result in node %s: %v", n.NodeUid, err)
 			return fmt.Errorf("failed to convert JS result: %w", err)
 		}
 
@@ -325,15 +336,19 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 
 		if len(nodeOutputWires) == 1 {
 			if msg, ok := processedData.(common.Message); ok {
+				n.addEventTriggerTopicType(message.Subject, &msg)
 				for _, wire := range nodeOutputWires[0] {
 					wire.Channel <- msg
 				}
-
 			} else {
 				log.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
 			}
 		} else if len(nodeOutputWires) > 1 {
 			if msgs, ok := processedData.([]common.Message); ok {
+				for idx, msg := range msgs {
+					n.addEventTriggerTopicType(message.Subject, &msg)
+					msgs[idx] = msg // Update the message in place
+				}
 				for idx, wireArray := range nodeOutputWires {
 					for _, wire := range wireArray {
 						wire.Channel <- msgs[idx]
@@ -346,6 +361,14 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 	}
 
 	return nil
+}
+
+func (n *FuncNode) addEventTriggerTopicType(subject string, msg *common.Message) {
+	eventTriggerTopicType := "dev2pdb"
+	if strings.Contains(subject, "sim2dtm") {
+		eventTriggerTopicType = "sim2dtm"
+	}
+	msg.Payload["eventTriggerTopicType"] = eventTriggerTopicType
 }
 
 // convertToJSObject convert a Go data structure to a JavaScript object
@@ -377,8 +400,8 @@ func (n *FuncNode) looksLikeMessageData(data map[string]interface{}) bool {
 		}
 	}
 
-	// We consider it looks like message data if at least 3 of the required fields are present
-	return foundFields >= 3
+	// We consider it looks like message data if at least 2 of the required fields are present
+	return foundFields >= 2
 }
 
 // convertFromJSObject convert a JavaScript object back to Go
@@ -422,31 +445,3 @@ func (n *FuncNode) convertFromJSObject(jsValue goja.Value) (interface{}, error) 
 
 	return exported, nil
 }
-
-// func (n *FuncNode) saveHeartbeatEntry(ctx context.Context, revision uint64, log *logger.Logger) {
-// 	kv := n.Flow.KeyValueStore
-// 	heartbeatValue := fmt.Sprintf("%d", revision)
-// 	fullKey := fmt.Sprintf("org_%s.flow_%s.kvstore.last_revision", n.Flow.OrgHash, n.Flow.FlowUID)
-// 	_, err := kv.Put(ctx, fullKey, []byte(heartbeatValue))
-// 	if err != nil {
-// 		log.Infof("Failed to set heartbeat entry: %v", err)
-// 	}
-// }
-
-// func (n *FuncNode) getHeartbeatRevision(ctx context.Context, log *logger.Logger) (uint64, error) {
-// 	kv := n.Flow.KeyValueStore
-// 	fullKey := fmt.Sprintf("org_%s.flow_%s.kvstore.last_revision", n.Flow.OrgHash, n.Flow.FlowUID)
-// 	heartbeatEntry, err := kv.Get(ctx, fullKey)
-// 	if err != nil {
-// 		log.Errorf("Failed to get heartbeatEntry: %v", err)
-// 		return 0, err
-// 	}
-
-// 	revision, err := strconv.ParseUint(string(heartbeatEntry.Value()), 10, 64)
-// 	if err != nil {
-// 		log.Errorf("Failed to parse heartbeat revision: %v", err)
-// 		return 0, err
-// 	}
-
-// 	return revision, nil
-// }

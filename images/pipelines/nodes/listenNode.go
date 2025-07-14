@@ -6,21 +6,61 @@ import (
 	"fmt"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/utils"
+	"slices"
+	"strings"
 
 	"github.com/nats-io/nats.go"
 )
 
 type ListenNode struct {
 	BaseNode
+	SubjectType string
 	Subject string
 }
 
+var posibleSubjectTypesForListenNode = []string{
+	"Generic nats",
+	"Generic mqtt",
+	"Topic reference",
+}
+
 func CreateListenNode(node common.NodeData, fm common.Manager) *ListenNode {
+	subjectType, ok := node.Settings["subjectType"].(string)
+	if !ok || subjectType == "" {
+		fm.Log().Errorf("ListenNode %s: 'subjectType' setting is required", node.NodeUid)
+		return nil
+	}
+
+	// Validate subjectType
+	if !slices.Contains(posibleSubjectTypesForListenNode, subjectType) {
+		fm.Log().Errorf("ListenNode %s: invalid 'subjectType' setting", node.NodeUid)
+		return nil
+	}
+
 	subject, ok := node.Settings["subject"].(string)
 	if !ok || subject == "" {
 		fm.Log().Errorf("ListenNode %s: 'subject' setting is required", node.NodeUid)
 		return nil
 	}
+
+	switch subjectType {
+	case "Generic nats":
+		// No specific processing needed for Generic nats
+	case "Generic mqtt":
+		subject = strings.ReplaceAll(subject, "/", ".")
+	case "Topic reference":
+		topicRef := subject
+		topic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, topicRef)
+		if topic == nil {
+			fm.Log().Errorf("ListenNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
+			return nil
+		}
+		subject = utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
+	}
+
+	org := fm.GetOrg(node.OrgId)
+	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ListenNode{
@@ -28,9 +68,11 @@ func CreateListenNode(node common.NodeData, fm common.Manager) *ListenNode {
 			Id:            node.Id,
 			NodeUid:       node.NodeUid,
 			OrgId:         node.OrgId,
+			OrgHash:       org.OrgHash,
 			GroupId:       node.GroupId,
 			AssetId:       node.AssetId,
 			DigitalTwinId: node.DigitalTwinId,
+			DigitalTwinUID: digitalTwin.DigitalTwinUID,
 			Name:          node.Name,
 			Xpos:          node.Xpos,
 			Ypos:          node.Ypos,
@@ -42,54 +84,12 @@ func CreateListenNode(node common.NodeData, fm common.Manager) *ListenNode {
 			Ctx:           ctx,
 			status:        common.NodeStatusCreated,
 		},
+		SubjectType: subjectType,
 		Subject: subject,
 	}
 }
 
-// func (n *ListenNode) Start(log *logger.Logger) {
-// 	if n.GetStatus() == common.NodeStatusRunning {
-// 		log.Infof("ListenNode %s is already running", n.NodeUid)
-// 		return
-// 	}
-
-// 	n.SetStatus(common.NodeStatusRunning)
-
-// 	nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
-// 	n.wg.Add(1)
-// 	go func() {
-// 		defer n.wg.Done()
-// 		defer n.SetStatus(common.NodeStatusStopped)
-
-// 		log.Infof("Starting ListenNode with UID: %s", n.NodeUid)
-// 		sub, err := n.Fm.NatsSubscribe(n.Subject, func(msg *nats.Msg) {
-// 			var message common.Message
-// 			if err := json.Unmarshal(msg.Data, &message); err != nil {
-// 				log.Infof("Failed to unmarshal message for node %s: %v", n.NodeUid, err)
-// 				n.handleError(fmt.Errorf("failed to unmarshal message: %w", err))
-// 				return
-// 			}
-
-// 			for _, wireArray := range nodeOutputWires {
-// 				for _, wire := range wireArray {
-// 					wire.Channel <- message
-// 				}
-// 			}
-// 		})
-// 		if err != nil {
-// 			log.Errorf("Failed to subscribe ListenNode with UID %s: %v", n.NodeUid, err)
-// 			n.handleError(fmt.Errorf("failed to subscribe: %w", err))
-// 			return
-// 		}
-
-// 		<-n.Ctx.Done()
-// 		log.Infof("Stopping ListenNode with UID: %s", n.NodeUid)
-// 		if err := sub.Unsubscribe(); err != nil {
-// 			log.Errorf("Failed to unsubscribe ListenNode with UID %s: %v", n.NodeUid, err)
-// 		}
-// 	}()
-// }
-
-func (n *ListenNode) Start(log *logger.Logger) {
+func (n *ListenNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("ListenNode %s is already running", n.NodeUid)
 		return
@@ -103,9 +103,14 @@ func (n *ListenNode) Start(log *logger.Logger) {
 }
 
 func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error {
-	var message common.Message
-	if err := json.Unmarshal(msg.Data, &message); err != nil {
+	var rawMessage map[string]interface{}
+	if err := json.Unmarshal(msg.Data, &rawMessage); err != nil {
 		return fmt.Errorf("failed to unmarshal message for node %s: %w", n.NodeUid, err)
+	}
+
+	message := common.Message{
+		Payload: rawMessage,
+		Subject: msg.Subject,
 	}
 
 	n.sendToOutputs(message, log)

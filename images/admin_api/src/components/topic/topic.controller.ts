@@ -1,4 +1,4 @@
-import { Router, NextFunction, Request, Response } from "express";
+import { Router, NextFunction, Response } from "express";
 import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import { basicGroupAdminAuth, groupAdminAuth, organizationAdminAuth, userAuth } from "../../middleware/auth.middleware";
@@ -227,7 +227,7 @@ class TopicController implements IController {
 	};
 
 	private deleteTopicById = async (
-		req: Request,
+		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
@@ -235,7 +235,7 @@ class TopicController implements IController {
 			const { topicId } = req.params;
 			const topic = await getTopicByProp("id", topicId);
 			if (!topic) throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
-			await deleteTopicById(parseInt(topicId, 10));
+			await deleteTopicById(req.group.id, parseInt(topicId, 10));
 			const message = { message: "Topic deleted successfully" }
 			res.status(200).json(message);
 		} catch (error) {
@@ -244,17 +244,18 @@ class TopicController implements IController {
 	};
 
 	private updateTopicById = async (
-		req: Request,
+		req: IRequestWithGroup,
 		res: Response,
 		next: NextFunction
 	): Promise<void> => {
 		try {
 			const topicData = req.body;
 			const { topicId } = req.params;
+			const groupId = req.group.id;
 			const topic = await getTopicByProp("id", topicId);
 			if (!topic) throw new ItemNotFoundException(req, res, "The topic", "id", topicId);
 			const topicUpdate = { ...topic, ...topicData };
-			await updateTopicById(parseInt(topicId, 10), topicUpdate);
+			await updateTopicById(groupId, parseInt(topicId, 10), topicUpdate);
 			const message = { message: "Topic updated successfully" }
 			res.status(200).json(message);
 		} catch (error) {

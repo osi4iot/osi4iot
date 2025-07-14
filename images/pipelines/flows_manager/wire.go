@@ -30,6 +30,7 @@ func (fm *FlowsManager) AddWire(wire *common.Wire) {
 	newWire := &common.Wire{
 		Id:              wire.Id,
 		WireUid:         wire.WireUid,
+		Name:            wire.Name,
 		OrgId:           wire.OrgId,
 		GroupId:         wire.GroupId,
 		AssetId:         wire.AssetId,
@@ -50,7 +51,7 @@ func (fm *FlowsManager) AddWire(wire *common.Wire) {
 			fm.Log().Errorf("Failed to add wire %d to digital twin %d: %v", wire.Id, wire.DigitalTwinId, err)
 		}
 	} else {
-		fm.Log().Error("Wire with ID %d already exists", wire.Id)
+		fm.Log().Warnf("Wire with ID %d already exists", wire.Id)
 	}
 }
 
@@ -99,9 +100,9 @@ func (fm *FlowsManager) AddWireToDigitalTwin(digitalTwinId int, wire *common.Wir
 	}
 
 	// Validate that the output index is valid
-	if wire.NiniOutputIndex >= (*nodeIni).GetNumOutputs() {
+	if wire.NiniOutputIndex >= nodeIni.GetNumOutputs() {
 		return fmt.Errorf("output index %d exceeds node %d outputs (%d)",
-			wire.NiniOutputIndex, wire.NodeIniId, (*nodeIni).GetNumOutputs())
+			wire.NiniOutputIndex, wire.NodeIniId, nodeIni.GetNumOutputs())
 	}
 
 	// Update NodeOutputByIndex

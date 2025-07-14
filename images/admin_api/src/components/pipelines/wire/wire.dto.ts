@@ -5,6 +5,10 @@ class CreateWireDto {
 	@IsString()
 	public wireUid?: string;
 
+	@ValidateIf((obj) => obj.name !== undefined)
+	@IsString()
+	public name?: string;
+
 	@IsNumber()
 	public digitalTwinId: number;
 

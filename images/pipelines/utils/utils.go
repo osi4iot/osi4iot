@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -52,21 +51,6 @@ func HealthCheck() {
 	}()
 }
 
-func MarshalData(data interface{}) ([]byte, error) {
-	bytesData, err := json.Marshal(data)
-	if err != nil {
-		log.Printf("Failed to marshal data: %v", err)
-		return nil, err
-	}
-	return bytesData, nil
+func TopicToNatsSubject(topicType, groupUid, topicUid string) string {
+	return fmt.Sprintf("%s.Group_%s.Topic_%s", topicType, groupUid, topicUid)
 }
-
-func UnmarshalData(data []byte, v interface{}) error {
-	err := json.Unmarshal(data, v)
-	if err != nil {
-		log.Printf("Failed to unmarshal data: %v", err)
-		return err
-	}
-	return nil
-}
-

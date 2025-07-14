@@ -68,7 +68,6 @@ import { nanoid } from "nanoid";
 import sslGroupCerticatesGenerator from "./sslGroupCerticatesGenerator";
 import infoLogger from "../../utils/logger/infoLogger";
 import { predefinedSensorTypes } from "../../initialization/predefinedSensorTypes";
-import natsClient from "../../config/natsConfig";
 
 class GroupController implements IController {
 	public path = "/group";
@@ -277,7 +276,6 @@ class GroupController implements IController {
 				});
 			}
 			const groupCreated = await createGroup(orgId, groupInput, req.organization.name);
-			await natsClient.jsPublish("group", "create", groupCreated.id);
 			const floorData = await getFloorByOrgIdAndFloorNumber(groupCreated.orgId, groupCreated.floorNumber);
 			const geoJsonDataString = findGroupGeojsonData(floorData, groupCreated.featureIndex);
 			const geojsonObj = JSON.parse(geoJsonDataString);

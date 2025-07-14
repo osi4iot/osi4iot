@@ -5,15 +5,16 @@ import CreateWireDto from "./wire.dto";
 import natsClient from "../../../config/natsConfig";
 
 export const insertWire = async (wireData: IWire, groupId: number): Promise<IWire> => {
-	const queryString = `INSERT INTO grafanadb.wire (wire_uid,
+	const queryString = `INSERT INTO grafanadb.wire (wire_uid, name,
             digital_twin_id, node_ini_id, nini_output_index, 
             node_end_id, created, updated)
-		VALUES ($1, $2, $3, $4, $5, NOW(), NOW())
+		VALUES ($1, $2, $3, $4, $5, $6, NOW(), NOW())
 		RETURNING id, wire_uid AS "wireUid", node_ini_id AS "nodeIniId",
 		nini_output_index AS "niniOutputIndex", node_end_id AS "nodeEndId",
 		created, updated`;
 	const result = await pool.query(queryString, [
 		wireData.wireUid,
+		wireData.name,
 		wireData.digitalTwinId,
 		wireData.nodeIniId,
 		wireData.niniOutputIndex,
@@ -31,10 +32,7 @@ export const insertWire = async (wireData: IWire, groupId: number): Promise<IWir
 	return result.rows[0] as IWire;
 };
 
-export const createNewWire = async (
-	wireData: CreateWireDto,
-	groupId: number
-): Promise<IWire> => {
+export const createNewWire = async (wireData: CreateWireDto, groupId: number): Promise<IWire> => {
 	let wireUid = wireData.wireUid;
 	if (wireUid === undefined || wireUid === "") {
 		wireUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
@@ -74,6 +72,7 @@ export const getWireByPropName = async (propName: string, propValue: string | nu
 	const response = await pool.query(
 		`SELECT grafanadb.wire.id,
             grafanadb.wire.wire_uid AS "wireUid",
+            grafanadb.wire.name AS "name",
             grafanadb.group.org_id AS "orgId",
             grafanadb.asset.group_id AS "groupId",
             grafanadb.asset.id AS "assetId",
@@ -98,6 +97,7 @@ export const getAllWires = async (): Promise<IWire[]> => {
 	const response = await pool.query(
 		`SELECT grafanadb.wire.id,
             grafanadb.wire.wire_uid AS "wireUid",
+            grafanadb.wire.name AS "name",
             grafanadb.group.org_id AS "orgId",
             grafanadb.asset.group_id AS "groupId",
             grafanadb.asset.id AS "assetId",
@@ -126,6 +126,7 @@ export const getWiresByGroupId = async (groupId: number): Promise<IWire[]> => {
 	const response = await pool.query(
 		`SELECT grafanadb.wire.id,
             grafanadb.wire.wire_uid AS "wireUid",
+            grafanadb.wire.name AS "name",
             grafanadb.group.org_id AS "orgId",
             grafanadb.asset.group_id AS "groupId",
             grafanadb.asset.id AS "assetId",
@@ -150,6 +151,7 @@ export const getWiresByGroupsIdArray = async (groupsIdArray: number[]): Promise<
 	const response = await pool.query(
 		`SELECT grafanadb.wire.id,
             grafanadb.wire.wire_uid AS "wireUid",
+            grafanadb.wire.name AS "name",
             grafanadb.group.org_id AS "orgId",
             grafanadb.asset.group_id AS "groupId",
             grafanadb.asset.id AS "assetId",
@@ -199,6 +201,7 @@ export const getWiresByOrgId = async (orgId: number): Promise<IWire[]> => {
 	const response = await pool.query(
 		`SELECT grafanadb.wire.id,
             grafanadb.wire.wire_uid AS "wireUid",
+            grafanadb.wire.name AS "name",
             grafanadb.group.org_id AS "orgId",
             grafanadb.asset.group_id AS "groupId",
             grafanadb.asset.id AS "assetId",
@@ -224,6 +227,7 @@ export const getWiresByDigitalTwinId = async (digitalTwinId: number): Promise<IW
 	const response = await pool.query(
 		`SELECT grafanadb.wire.id,
             grafanadb.wire.wire_uid AS "wireUid",
+            grafanadb.wire.name AS "name",
             grafanadb.group.org_id AS "orgId",
             grafanadb.asset.group_id AS "groupId",
             grafanadb.asset.id AS "assetId",
@@ -249,6 +253,7 @@ export const getWiresByNodeIniId = async (nodeIniId: number): Promise<IWire[]> =
 	const response = await pool.query(
 		`SELECT grafanadb.wire.id,
             grafanadb.wire.wire_uid AS "wireUid",
+            grafanadb.wire.name AS "name",
             grafanadb.group.org_id AS "orgId",
             grafanadb.asset.group_id AS "groupId",
             grafanadb.asset.id AS "assetId",
@@ -274,6 +279,7 @@ export const getWiresByNodeEndId = async (nodeEndId: number): Promise<IWire[]> =
 	const response = await pool.query(
 		`SELECT grafanadb.wire.id,
             grafanadb.wire.wire_uid AS "wireUid",
+            grafanadb.wire.name AS "name",
             grafanadb.group.org_id AS "orgId",
             grafanadb.asset.group_id AS "groupId",
             grafanadb.asset.id AS "assetId",

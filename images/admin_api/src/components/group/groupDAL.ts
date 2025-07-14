@@ -631,7 +631,6 @@ export const updateGroupById = async (group: IGroup): Promise<void> => {
 		group.mqttAccessControl,
 		group.id
 	]);
-	await natsClient.jsPublish("group", "update", group.id);
 }
 
 export const createView = async (group: IGroup): Promise<void> => {

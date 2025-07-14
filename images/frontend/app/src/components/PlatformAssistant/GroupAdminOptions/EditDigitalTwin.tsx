@@ -123,6 +123,28 @@ const digitalTwinTypeOptions = [
     },
 ];
 
+const restartPipelineOptions = [
+    {
+        label: "Yes",
+        value: true,
+    },
+    {
+        label: "No",
+        value: false,
+    },
+];
+
+const reinitializePipelineOptions = [
+    {
+        label: "Yes",
+        value: true,
+    },
+    {
+        label: "No",
+        value: false,
+    },
+];
+
 const chatAssistantEnabledOptions = [
     {
         label: "Yes",
@@ -182,6 +204,8 @@ type FormikType = FormikProps<{
     chatAssistantEnabled: boolean;
     chatAssistantLanguage: string;
     digitalTwinSimulationFormat: string;
+    restartPipeline: boolean;
+    reinitializePipeline: boolean;
 }>;
 
 const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, refreshDigitalTwins }) => {
@@ -226,6 +250,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [pipelineFileLastModifDateString, setPipelineFileLastModifDateString] = useState(
         storedPipelineFileLastModifDate
     );
+    const [restartPipeline, setRestartPipeline] = useState(true);
+    const [reinitializePipeline, setReinitializePipeline] = useState(false);
     const [digitalTwinType, setDigitalTwinType] = useState(digitalTwinInitialData.type);
     const [sensorsRef, setSensorsRef] = useState<string[]>([]);
     const [isGlftDataReady, setIsGlftDataReady] = useState(storedDigitalTwinType !== "Gltf 3D model");
@@ -456,7 +482,10 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     (femResFileNames[0] !== femResFileName ||
                         formatDateString(femResFilesLastModif[0]) !== formatDateString(femResFileLastModifDateString))
                 ) {
-                    if (digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles && maxNumResFemFiles >= 2) {
+                    if (
+                        digitalTwins[digitalTwinRowIndex].maxNumResFemFiles < maxNumResFemFiles &&
+                        maxNumResFemFiles >= 2
+                    ) {
                         const warningMessage =
                             "Please increase the 'Max number of FEM result files stored' before uploading a new file.";
                         toast.warning(warningMessage);
@@ -480,7 +509,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         backToTable();
                     }
                 }
-    
+
                 if (
                     gltfFile !== undefined &&
                     (storedGltfFileName !== gltfFileName ||
@@ -508,13 +537,35 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
             const storedDate = formatDateString(storedPipelineFileLastModifDate);
             const newDate = formatDateString(pipelineFileLastModifDateString);
+            console.log("Object.keys(digitalTwinPipelineData).length=", Object.keys(digitalTwinPipelineData).length);
 
-            if (Object.keys(digitalTwinPipelineData).length !== 0 && 
-            (storedPipelineFileName !== pipelineFileName || storedDate !== newDate)) {
+            if (
+                Object.keys(digitalTwinPipelineData).length !== 0 &&
+                (storedPipelineFileName !== pipelineFileName || storedDate !== newDate)
+            ) {
+                (digitalTwinPipelineData as any).reinitialize = reinitializePipeline;
                 const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
                 const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
                 getAxiosInstance(refreshToken, authDispatch)
                     .patch(urlUploadPipeline, digitalTwinPipelineData, config)
+                    .then((response: AxiosResponse<any, any>) => {
+                        toast.success(response.data.message);
+                    })
+                    .catch((error: AxiosError) => {
+                        axiosErrorHandler(error, authDispatch);
+                        backToTable();
+                    });
+            }
+
+            if (restartPipeline) {
+                const urlSetPipelineActionBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline_action`;
+                const urlSetPipelineAction = `${urlSetPipelineActionBase}/${groupId}/${digitalTwinId}`;
+                const pipelineAction = {
+                    action: "restart",
+                    reinitialize: reinitializePipeline,
+                };
+                getAxiosInstance(refreshToken, authDispatch)
+                    .post(urlSetPipelineAction, pipelineAction, config)
                     .then((response: AxiosResponse<any, any>) => {
                         toast.success(response.data.message);
                     })
@@ -579,6 +630,8 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             null,
             4
         ),
+        restartPipeline: restartPipeline,
+        reinitializePipeline: reinitializePipeline,
     };
 
     const validationSchema = Yup.object().shape({
@@ -617,6 +670,16 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
     const onchatAssistantLanguageOptions = (e: { value: string }, formik: FormikType) => {
         formik.setFieldValue("chatAssistantLanguage", e.value);
+    };
+
+    const onRestartPipelineSelectChange = (e: { value: boolean }, formik: FormikType) => {
+        formik.setFieldValue("restartPipeline", e.value);
+        setRestartPipeline(e.value);
+    };
+
+    const onReinitializePipelineSelectChange = (e: { value: boolean }, formik: FormikType) => {
+        formik.setFieldValue("reinitializePipeline", e.value);
+        setReinitializePipeline(e.value);
     };
 
     const clearGltfDataFile = () => {
@@ -766,6 +829,22 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             <label>Last modification date</label>
                                                             <div>{pipelineFileLastModifDateString}</div>
                                                         </FieldContainer>
+                                                        <FormikControl
+                                                            control="select"
+                                                            label="Need reinitialization"
+                                                            name="reinitializePipeline"
+                                                            options={reinitializePipelineOptions}
+                                                            type="text"
+                                                            onChange={(e) => onReinitializePipelineSelectChange(e, formik)}
+                                                        />
+                                                        <FormikControl
+                                                            control="select"
+                                                            label="Restart pipeline"
+                                                            name="restartPipeline"
+                                                            options={restartPipelineOptions}
+                                                            type="text"
+                                                            onChange={(e) => onRestartPipelineSelectChange(e, formik)}
+                                                        />                                                        
                                                         <SelectDataFilenButtonContainer>
                                                             <FileButton type="button" onClick={clearPipelineFile}>
                                                                 Clear

@@ -23,12 +23,17 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) *InjectNode {
 		return nil
 	}
 	
+	org := fm.GetOrg(node.OrgId)
+	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &InjectNode{
 		BaseNode: BaseNode{
 			Id:      node.Id,
 			NodeUid: node.NodeUid,
 			OrgId:   node.OrgId,
+			OrgHash: org.OrgHash,
+			DigitalTwinUID: digitalTwin.DigitalTwinUID,
 			GroupId: node.GroupId,
 			AssetId: node.AssetId,
 			DigitalTwinId: node.DigitalTwinId,
@@ -47,50 +52,7 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) *InjectNode {
 	}
 }
 
-// func (n *InjectNode) Start(log *logger.Logger) {
-// 	if n.GetStatus() == common.NodeStatusRunning {
-// 		log.Infof("InjectNode %s is already running", n.NodeUid)
-// 		return
-// 	}
-	
-// 	n.SetStatus(common.NodeStatusRunning)
-
-// 	n.wg.Add(1)
-// 	go func () {
-// 		defer n.wg.Done()
-// 		defer n.SetStatus(common.NodeStatusStopped)
-
-// 		log.Infof("Starting InjectNode with UID: %s", n.NodeUid)
-// 		sub, err := n.Fm.NatsSubscribe(n.SubjectIn, func(msg *nats.Msg) {
-// 			var message common.Message
-// 			if err := json.Unmarshal(msg.Data, &message); err != nil {
-// 				log.Infof("Failed to unmarshal message for node %s: %v", n.NodeUid, err)
-// 				n.handleError(fmt.Errorf("failed to unmarshal message: %w", err))
-// 			}
-	
-// 			subject := message.Subject
-// 			if subject != "" && subject != n.SubjectIn {
-// 				if err := n.Fm.NatsPublish(subject, msg.Data); err != nil {
-// 					n.handleError(fmt.Errorf("failed to publish message: %w", err))
-// 				}
-// 			}
-// 		})
-	
-// 		if err != nil {
-// 			log.Errorf("Failed to subscribe InjectNode with UID %s: %v", n.NodeUid, err)
-// 			n.handleError(fmt.Errorf("failed to subscribe: %w", err))
-// 			return
-// 		}
-
-// 		<-n.Ctx.Done()
-// 		log.Infof("Stopping InjectNode with UID: %s", n.NodeUid)
-// 		if err := sub.Unsubscribe(); err != nil {
-// 			log.Errorf("Failed to unsubscribe InjectNode with UID %s: %v", n.NodeUid, err)
-// 		}
-// 	}()
-// }
-
-func (n *InjectNode) Start(log *logger.Logger) {
+func (n *InjectNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("InjectNode %s is already running", n.NodeUid)
 		return

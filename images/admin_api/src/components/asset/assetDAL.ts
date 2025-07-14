@@ -257,7 +257,7 @@ export const checkSensorReferences = async (group: IGroup, assetData: CreateAsse
 	return areSensorTypesOk;
 };
 
-export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): Promise<IAsset> => {
+export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto, isDefault = false): Promise<IAsset> => {
 	const assetUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 	const groupId = group.id;
 
@@ -268,8 +268,8 @@ export const createNewAsset = async (group: IGroup, assetData: CreateAssetDto): 
 	const topics: ITopic[] = [];
 	const assetTopics: IAssetTopic[] = [];
 	for (let i = 0; i < topicsRef.length; i++) {
-		topics[i] = await createTopic(group.id, topicsRef[i]);
-		const assetTopic = await createAssetTopic(newAsset.id, topics[i].id, topicsRef[i].topicRef);
+		topics[i] = await createTopic(group.id, topicsRef[i], isDefault);
+		const assetTopic = await createAssetTopic(newAsset.id, topics[i].id, topicsRef[i].topicRef, isDefault);
 		assetTopics.push(assetTopic);
 	}
 
@@ -313,10 +313,6 @@ export const updateAssetByPropName = async (
 		asset.assetTypeId,
 		propValue,
 	]);
-	const context = {
-		groupId: asset.groupId,
-	};
-	await natsClient.jsPublish("asset", "update", asset.id, context);
 };
 
 export const deleteAssetByPropName = async (propName: string, propValue: string | number): Promise<void> => {
@@ -461,13 +457,21 @@ export const getAssetsByOrgId = async (orgId: number): Promise<IAsset[]> => {
 	return response.rows as IAsset[];
 };
 
-export const createAssetTopic = async (assetId: number, topicId: number, topicRef: string): Promise<IAssetTopic> => {
+export const createAssetTopic = async (assetId: number, topicId: number, topicRef: string, isDefault?: boolean): Promise<IAssetTopic> => {
 	const queryString = `INSERT INTO grafanadb.asset_topic (
 		asset_id, topic_id, topic_ref)
 		VALUES ($1, $2, $3)
 	    RETURNING  asset_id AS "assetId", topic_id AS "topicId", 
 		topic_ref AS "topicRef"`;
 	const result = await pool.query(queryString, [assetId, topicId, topicRef]);
+
+	if(!isDefault) {
+		const context = {
+			topicRef: result.rows[0].topicRef,
+			topicId: result.rows[0].topicId,
+		}
+		await natsClient.jsPublish("asset_topic", "create", result.rows[0].assetId, context);
+	}
 	return result.rows[0] as IAssetTopic;
 };
 

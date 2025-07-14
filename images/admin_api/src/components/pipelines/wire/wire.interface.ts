@@ -1,6 +1,7 @@
 export default interface IWire {
 	id?: number;
 	wireUid?: string;
+	name?: string;
 	orgId?: number;
 	groupId?: number;
 	assetId?: number;

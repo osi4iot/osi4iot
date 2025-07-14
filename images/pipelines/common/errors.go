@@ -8,5 +8,6 @@ var (
 	ErrInvalidInput = errors.New("invalid input")
 	ErrUnauthorized = errors.New("unauthorized")
 	ErrInternal = errors.New("internal error")
+	ErrKeyNotFound = errors.New("key not found in store")
 )
 

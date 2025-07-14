@@ -44,8 +44,7 @@ export const updateOrganizationByProp = async (propName: string, propValue: (str
 			orgData.mqttAccessControl,
 			propValue
 		];
-	const result = await pool.query(query, queryArray);
-	await natsClient.jsPublish("org", "update", result.rows[0].id);
+	await pool.query(query, queryArray);
 }
 
 export const updateOrganizationHashById = async (orgId: number, newOrgHash: string): Promise<void> => {

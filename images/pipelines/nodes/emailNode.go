@@ -18,12 +18,17 @@ type EmailNode struct {
 }
 
 func CreateEmailNode(node common.NodeData, fm common.Manager) *EmailNode {
+	org :=fm.GetOrg(node.OrgId)
+	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &EmailNode{
 		BaseNode: BaseNode{
 			Id:      node.Id,
 			NodeUid: node.NodeUid,
 			OrgId:   node.OrgId,
+			OrgHash: org.OrgHash,
+			DigitalTwinUID: digitalTwin.DigitalTwinUID,
 			GroupId: node.GroupId,
 			AssetId: node.AssetId,
 			DigitalTwinId: node.DigitalTwinId,
@@ -46,60 +51,7 @@ func CreateEmailNode(node common.NodeData, fm common.Manager) *EmailNode {
 	}
 }
 
-// func (n *EmailNode) Start(log *logger.Logger) {
-// 	if n.GetStatus() == common.NodeStatusRunning {
-// 		log.Infof("EmailNode %s is already running", n.NodeUid)
-// 		return
-// 	}
-	
-// 	n.SetStatus(common.NodeStatusRunning)
-
-// 	log.Infof("Starting EmailNode with UID: %s", n.NodeUid)
-// 	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
-
-// 	if len(nodeInputWires) == 0 {
-// 		log.Errorf("No input wires found for EmailNode with UID: %s", n.NodeUid)
-// 		n.SetStatus(common.NodeStatusStopped)
-// 		return
-// 	}
-
-// 	for i, wire := range nodeInputWires {
-// 		n.wg.Add(1)
-// 		go func(channelIndex int, inputWire *common.Wire) {
-// 			defer n.wg.Done()
-// 			defer func() {
-// 				log.Infof("EmailNode channel %d goroutine terminated for UID: %s", channelIndex, n.NodeUid)
-// 			}()
-
-// 			for {
-// 				select {
-// 				case <-n.Ctx.Done():
-// 					log.Infof("Stopping EmailNode channel %d with UID: %s", channelIndex, n.NodeUid)
-// 					return
-// 				case msg, ok := <-inputWire.Channel:
-// 					if !ok {
-// 						log.Infof("Channel closed for EmailNode with UID: %s", n.NodeUid)
-// 						return
-// 					}
-
-// 					payload := msg.Payload.(map[string]interface{})
-// 					message, ok1 := payload["message"].(string)
-// 					subject, ok2 := payload["subject"].(string)
-// 					if ok1 && ok2 {
-// 						err := utils.SendEmail(n.SMTPServer, n.From, n.To, subject, message, n.Username, n.Password)
-// 						if err != nil {
-// 							log.Errorf("Failed to send email: %v", err)
-// 						}
-// 					} else {
-// 						log.Errorf("Invalid message format in EmailNode with UID: %s", n.NodeUid)
-// 					}
-// 				}
-// 			}
-// 		}(i, wire)
-// 	}
-// }
-
-func (n *EmailNode) Start(log *logger.Logger) {
+func (n *EmailNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("EmailNode %s is already running", n.NodeUid)
 		return
@@ -112,14 +64,9 @@ func (n *EmailNode) Start(log *logger.Logger) {
 }
 
 func (n *EmailNode) processMessage(msg common.Message, log *logger.Logger) error {
-	payload, ok := msg.Payload.(map[string]any)
-	if !ok {
-		return fmt.Errorf("invalid payload format in EmailNode with UID: %s", n.NodeUid)
-	}
+	message, ok1 := msg.Payload["message"].(string)
+	subject, ok2 := msg.Payload["subject"].(string)
 
-	message, ok1 := payload["message"].(string)
-	subject, ok2 := payload["subject"].(string)
-	
 	if !ok1 || !ok2 {
 		return fmt.Errorf("missing message or subject in EmailNode with UID: %s", n.NodeUid)
 	}

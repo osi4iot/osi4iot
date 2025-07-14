@@ -45,18 +45,20 @@ func CreateNode(
 }
 
 type BaseNode struct {
-	Id            int            `json:"id"`
-	NodeUid       string         `json:"nodeUid"`
-	OrgId         int            `json:"orgId"`
-	GroupId       int            `json:"groupId"`
-	AssetId       int            `json:"assetId"`
-	DigitalTwinId int            `json:"digitalTwinId"`
-	Name          string         `json:"name"`
-	Type          string         `json:"type"`
-	Xpos          float64        `json:"x"`
-	Ypos          float64        `json:"y"`
-	Settings      map[string]any `json:"settings"`
-	NumOutputs    int            `json:"numOutputs"`
+	Id             int            `json:"id"`
+	NodeUid        string         `json:"nodeUid"`
+	OrgId          int            `json:"orgId"`
+	OrgHash        string         `json:"orgHash"`
+	GroupId        int            `json:"groupId"`
+	AssetId        int            `json:"assetId"`
+	DigitalTwinId  int            `json:"digitalTwinId"`
+	DigitalTwinUID string         `json:"digitalTwinUid"`
+	Name           string         `json:"name"`
+	Type           string         `json:"type"`
+	Xpos           float64        `json:"x"`
+	Ypos           float64        `json:"y"`
+	NumOutputs     int            `json:"numOutputs"`
+	Settings       map[string]any `json:"settings"`
 
 	Fm     common.Manager
 	Ctx    context.Context
@@ -79,8 +81,16 @@ func (n *BaseNode) GetDigitalTwinId() int {
 	return n.DigitalTwinId
 }
 
+func (n *BaseNode) GetDigitalTwinUID() string {
+	return n.DigitalTwinUID
+}
+
 func (n *BaseNode) GetOrgId() int {
 	return n.OrgId
+}
+
+func (n *BaseNode) GetOrgHash() string {
+	return n.OrgHash
 }
 
 func (n *BaseNode) GetGroupId() int {
@@ -135,7 +145,7 @@ func (n *BaseNode) Stop(log *logger.Logger) {
 	}
 
 	n.SetStatus(common.NodeStatusStopped)
-	
+
 	if n.Cancel != nil {
 		n.Cancel()
 	}
@@ -188,7 +198,7 @@ func (n *BaseNode) GetNumOutputs() int {
 
 func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Message, *logger.Logger) error) {
 	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
-	
+
 	if len(nodeInputWires) == 0 {
 		log.Errorf("No input wires found for Node with UID: %s", n.NodeUid)
 		n.SetStatus(common.NodeStatusStopped)

@@ -65,8 +65,8 @@ import type { Readable } from "stream";
 import CreatePipelineDto from "./pipeline.dto";
 import { applyPipelineAction, createDigitalTwinPipeline, updateDigitalTwinPipeline } from "./pipeline";
 import CreatePipelineActionDto from "./pipeline_action.dto";
-import natsClient from "../../config/natsConfig";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
+import { UpdatePipelineDto } from "./pipeline_update.dto";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -172,7 +172,7 @@ class DigitalTwinController implements IController {
 				`${this.path}_pipeline/:groupId/:digitalTwinId`,
 				digitalTwinAndGroupExist,
 				groupAdminAuth,
-				validationMiddleware<CreatePipelineDto>(CreatePipelineDto, true),
+				validationMiddleware<UpdatePipelineDto>(UpdatePipelineDto, true),
 				this.updatePipeline
 			)
 			.post(
@@ -182,7 +182,7 @@ class DigitalTwinController implements IController {
 				validationMiddleware<CreatePipelineActionDto>(CreatePipelineActionDto, true),
 				this.setPipelineAction
 			)
-			.get(`${this.path}_topics/user_managed/:digitalTwinId`, userAuth, this.getDigitalTwinTopicsUserManaged)
+			.get(`${this.path}_topics/user_managed`, userAuth, this.getDigitalTwinTopicsUserManaged)
 			.get(
 				`${this.path}_topics/:groupId/:digitalTwinId`,
 				groupExists,
@@ -467,12 +467,6 @@ class DigitalTwinController implements IController {
 			if (!digitalTwin)
 				throw new HttpException(req, res, 400, "The entered value of dashboardUid is not correct");
 
-			const context = {
-				groupId: group.id,
-				digitalTwinId: digitalTwin.id,
-			};
-			await natsClient.jsPublish("digitalTwin", "create", digitalTwin.id, context);
-
 			const response = {
 				message: `A new digital twin has been created`,
 				digitalTwinId: digitalTwin.id,
@@ -644,7 +638,7 @@ class DigitalTwinController implements IController {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
-			const pipelineData: CreatePipelineDto = req.body;
+			const pipelineData: UpdatePipelineDto = req.body;
 			await updateDigitalTwinPipeline(digitalTwinIdNum, pipelineData, req.group.id);
 
 			const response = {
@@ -666,9 +660,9 @@ class DigitalTwinController implements IController {
 			const { digitalTwinId } = req.params;
 			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
 			const pipelineActionData: CreatePipelineActionDto = req.body;
-			const { action } = pipelineActionData;
+			const { action, reinitialize } = pipelineActionData;
 
-			await applyPipelineAction(digitalTwinIdNum, action, req.group.id);
+			await applyPipelineAction(digitalTwinIdNum, action, reinitialize, req.group.id);
 			const response = {
 				message: `The action '${action}' has been executed for pipeline of digital twin with id ${digitalTwinIdNum}`,
 			};

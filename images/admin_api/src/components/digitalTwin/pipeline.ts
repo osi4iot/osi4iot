@@ -18,6 +18,14 @@ import {
 } from "../pipelines/wire/wireDAL";
 import IWireWithUidDto from "../pipelines/wire/wireWithUid.inteface";
 import natsClient from "../../config/natsConfig";
+import { nanoid } from "nanoid";
+import { UpdatePipelineDto } from "./pipeline_update.dto";
+
+// Función auxiliar para generar un UID único basado en el nombre
+const generateUid = (): string => {
+	const uid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
+	return uid;
+};
 
 export const createDigitalTwinPipeline = async (
 	digitalTwinId: number,
@@ -31,13 +39,22 @@ export const createDigitalTwinPipeline = async (
 
 	const nodesData = new Map<string, CreateNodeDto>();
 	const wiresData = new Map<string, IWireWithUidDto>();
+	const nodeNameToUidMap = new Map<string, string>(); // Mapeo de nombre a UID
 
 	const pipelineNodes = pipelineData.nodes;
+
+	// Primer paso: procesar todos los nodos y generar UIDs si es necesario
 	pipelineNodes.forEach((node) => {
-		if (!nodesData.has(node.nodeUid)) {
+		// Generar nodeUid si no está definido
+		const nodeUid = node.nodeUid || generateUid();
+
+		// Guardar el mapeo de nombre a UID
+		nodeNameToUidMap.set(node.name, nodeUid);
+
+		if (!nodesData.has(nodeUid)) {
 			const newNode: CreateNodeDto = {
 				digitalTwinId,
-				nodeUid: node.nodeUid,
+				nodeUid,
 				name: node.name,
 				x: node.x,
 				y: node.y,
@@ -45,22 +62,41 @@ export const createDigitalTwinPipeline = async (
 				type: node.type,
 				settings: node.settings,
 			};
-			nodesData.set(node.nodeUid, newNode);
-
-			node.wires.forEach((wireArray, outputIndex) => {
-				wireArray.forEach((wire) => {
-					if (!wiresData.has(wire.wireUid)) {
-						const newWire: IWireWithUidDto = {
-							wireUid: wire.wireUid,
-							nodeIniUid: node.nodeUid,
-							niniOutputIndex: outputIndex,
-							nodeEndUid: wire.nodeUid,
-						};
-						wiresData.set(wire.wireUid, newWire);
-					}
-				});
-			});
+			nodesData.set(nodeUid, newNode);
 		}
+	});
+
+	// Segundo paso: procesar todos los wires con los UIDs ya generados
+	pipelineNodes.forEach((node) => {
+		const nodeUid = nodeNameToUidMap.get(node.name);
+		if (!nodeUid) {
+			throw new Error(`Node UID not found for node name "${node.name}"`);
+		}
+
+		node.wires.forEach((wireArray, outputIndex) => {
+			wireArray.forEach((wire) => {
+				// Generar wireUid si no está definido
+				const wireUid = wire.wireUid || generateUid();
+
+				// Obtener el UID del nodo destino por su nombre
+				const nodeEndUid = nodeNameToUidMap.get(wire.nodeEndName);
+				if (!nodeEndUid) {
+					throw new Error(`Node with name "${wire.nodeEndName}" not found in pipeline`);
+				}
+
+				if (!wiresData.has(wireUid)) {
+					const wireName = wire.name || `${node.name}:${outputIndex}:${wire.nodeEndName}`;
+					const newWire: IWireWithUidDto = {
+						name: wireName,
+						wireUid,
+						nodeIniUid: nodeUid,
+						niniOutputIndex: outputIndex,
+						nodeEndUid,
+					};
+					wiresData.set(wireUid, newWire);
+				}
+			});
+		});
 	});
 
 	const nodes = new Map<string, INode>();
@@ -90,6 +126,7 @@ export const createDigitalTwinPipeline = async (
 			}
 
 			const newWire = {
+				name: wireData.name,
 				digitalTwinId,
 				wireUid,
 				nodeIniId,
@@ -106,13 +143,14 @@ export const createDigitalTwinPipeline = async (
 	const context = {
 		digitalTwinId,
 		groupId,
+		reinitialize: false,
 	};
 	await natsClient.jsPublish("pipeline_action", "start", digitalTwinId, context);
 };
 
 export const updateDigitalTwinPipeline = async (
 	digitalTwinId: number,
-	pipelineData: CreatePipelineDto,
+	pipelineData: UpdatePipelineDto,
 	groupId: number
 ): Promise<void> => {
 	// Get existing nodes and wires
@@ -123,16 +161,28 @@ export const updateDigitalTwinPipeline = async (
 	const existingNodesMap = new Map(existingNodes.map((node) => [node.nodeUid, node]));
 	const existingWiresMap = new Map(existingWires.map((wire) => [wire.wireUid, wire]));
 
+	// Crear mapeos de nombres a UIDs existentes
+	const existingNodeNameToUidMap = new Map(existingNodes.map((node) => [node.name, node.nodeUid]));
+	const nodeNameToUidMap = new Map<string, string>();
+
 	// Process incoming pipeline data
 	const incomingNodesMap = new Map<string, CreateNodeDto>();
 	const incomingWiresMap = new Map<string, IWireWithUidDto>();
 
-	// Extract nodes and wires from incoming pipeline
+	// Primer paso: procesar nodos y generar/reutilizar UIDs
 	pipelineData.nodes.forEach((node) => {
-		if (!incomingNodesMap.has(node.nodeUid)) {
+		// Usar UID existente si el nodo ya existe, si no, usar el proporcionado o generar uno nuevo
+		let nodeUid = node.nodeUid;
+		if (!nodeUid) {
+			nodeUid = existingNodeNameToUidMap.get(node.name) || generateUid();
+		}
+
+		nodeNameToUidMap.set(node.name, nodeUid);
+
+		if (!incomingNodesMap.has(nodeUid)) {
 			const nodeData: CreateNodeDto = {
 				digitalTwinId,
-				nodeUid: node.nodeUid,
+				nodeUid,
 				name: node.name,
 				x: node.x,
 				y: node.y,
@@ -140,23 +190,54 @@ export const updateDigitalTwinPipeline = async (
 				type: node.type,
 				settings: node.settings,
 			};
-			incomingNodesMap.set(node.nodeUid, nodeData);
-
-			// Process wires for each node
-			node.wires.forEach((wireArray, outputIndex) => {
-				wireArray.forEach((wire) => {
-					if (!incomingWiresMap.has(wire.wireUid)) {
-						const wireData: IWireWithUidDto = {
-							wireUid: wire.wireUid,
-							nodeIniUid: node.nodeUid,
-							niniOutputIndex: outputIndex,
-							nodeEndUid: wire.nodeUid,
-						};
-						incomingWiresMap.set(wire.wireUid, wireData);
-					}
-				});
-			});
+			incomingNodesMap.set(nodeUid, nodeData);
 		}
+	});
+
+	// Segundo paso: procesar wires con los UIDs ya establecidos
+	pipelineData.nodes.forEach((node) => {
+		const nodeUid = nodeNameToUidMap.get(node.name);
+		if (!nodeUid) {
+			throw new Error(`Node UID not found for node name "${node.name}"`);
+		}
+
+		node.wires.forEach((wireArray, outputIndex) => {
+			wireArray.forEach((wire) => {
+				const nodeEndUid = nodeNameToUidMap.get(wire.nodeEndName);
+				if (!nodeEndUid) {
+					throw new Error(`Node with name "${wire.nodeEndName}" not found in pipeline`);
+				}
+
+				// Buscar wire existente por origen, destino y índice de salida
+				let wireUid = wire.wireUid;
+				if (!wireUid) {
+					// Buscar wire existente que coincida con la conexión
+					const existingWire = existingWires.find((w) => {
+						const existingNodeIni = existingNodes.find((n) => n.id === w.nodeIniId);
+						const existingNodeEnd = existingNodes.find((n) => n.id === w.nodeEndId);
+						return (
+							existingNodeIni?.nodeUid === nodeUid &&
+							existingNodeEnd?.nodeUid === nodeEndUid &&
+							w.niniOutputIndex === outputIndex
+						);
+					});
+
+					wireUid = existingWire?.wireUid || generateUid();
+				}
+
+				if (!incomingWiresMap.has(wireUid)) {
+					const wireName = wire.name || `${node.name}:${outputIndex}:${wire.nodeEndName}`;
+					const wireData: IWireWithUidDto = {
+						name: wireName,
+						wireUid,
+						nodeIniUid: nodeUid,
+						niniOutputIndex: outputIndex,
+						nodeEndUid,
+					};
+					incomingWiresMap.set(wireUid, wireData);
+				}
+			});
+		});
 	});
 
 	// STEP 1: Identify nodes to delete, update and create
@@ -195,7 +276,7 @@ export const updateDigitalTwinPipeline = async (
 		}
 	});
 
-	const nodesWithNumOutputsDecreased = new Map<number, INode>();
+	const nodesWithNumOutputsDecreased = new Map<number, CreateNodeDto>();
 	// Check if any existing nodes have modified numOutputs
 	nodesToUpdate.forEach((node) => {
 		const incomingNode = node.incoming;
@@ -225,6 +306,7 @@ export const updateDigitalTwinPipeline = async (
 			}
 		}
 	});
+
 	// Identify wires to update or create
 	incomingWiresMap.forEach((incomingWire, wireUid) => {
 		const existingWire = existingWiresMap.get(wireUid);
@@ -358,14 +440,16 @@ export const updateDigitalTwinPipeline = async (
 		await Promise.all(createWirePromises);
 	}
 
+	const reinitialize = pipelineData.reinitialize || false;
 	const context = {
 		digitalTwinId,
 		groupId,
+		reinitialize,
 	};
 	await natsClient.jsPublish("pipeline_action", "restart", digitalTwinId, context);
 };
 
-export const applyPipelineAction = async (digitalTwinId: number, action: string, groupId: number): Promise<void> => {
+export const applyPipelineAction = async (digitalTwinId: number, action: string, reinitialize: boolean, groupId: number): Promise<void> => {
 	if (!["start", "stop", "restart"].includes(action)) {
 		throw new Error("Invalid action. Allowed actions are: start, stop, restart.");
 	}
@@ -378,6 +462,7 @@ export const applyPipelineAction = async (digitalTwinId: number, action: string,
 	const context = {
 		groupId,
 		digitalTwinId,
+		reinitialize
 	};
 	await natsClient.jsPublish("pipeline_action", action, digitalTwinId, context);
 };

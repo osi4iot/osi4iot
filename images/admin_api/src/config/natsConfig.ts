@@ -17,6 +17,9 @@ import { logger } from "./winston";
 export interface AdminMsgContext {
 	groupId?: number;
 	digitalTwinId?: number;
+	assetId?: number;
+	topicId?: number;
+	topicRef?: string;
 }
 
 export interface Nats {
