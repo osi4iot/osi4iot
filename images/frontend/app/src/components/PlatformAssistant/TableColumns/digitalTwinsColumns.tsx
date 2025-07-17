@@ -50,6 +50,7 @@ export interface IDigitalTwin {
     numFemResFilesLocallyStored: number;
     pipelineFileName: string;
 	pipelineFileLastModifDate: string;
+    pipelineFileData: string;
 }
 
 export interface IDigitalTwinSimulator {

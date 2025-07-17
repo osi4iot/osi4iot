@@ -32,14 +32,17 @@ import { mobilePhoneGltfFileData } from "./mobilePhoneGltfFileData";
 import { getAssetTopicByAssetIdAndTopicRef, getAssetTopicsByDigitalTwinId } from "../asset/assetDAL";
 import { getSensorDashboardByAssetId, getSensorsByAssetId } from "../sensor/sensorDAL";
 import natsClient from "../../config/natsConfig";
+import { getOrganizationByProp } from "../organization/organizationDAL";
+import PipelineFileDataDto from "./pipelineFileData.dto";
 
 export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>): Promise<IDigitalTwin> => {
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
 		digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
 		chat_assistant_enabled, chat_assistant_language, 
 		digital_twin_simulation_format, pipeline_file_name, 
-		pipeline_file_last_modif_date, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
+		pipeline_file_last_modif_date, pipeline_file_data, 
+		created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
 		scope, digital_twin_uid AS "digitalTwinUid", description,
 		type, dashboard_id AS "dashboardId",
@@ -48,6 +51,7 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 		pipeline_file_name AS "pipelineFileName",
 		pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+		pipeline_file_data AS "pipelineFileData",
 		created, updated`;
 
 	const result = await pool.query(queryString, [
@@ -63,6 +67,7 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinData.pipelineFileName,
 		digitalTwinData.pipelineFileLastModifDate,
+		digitalTwinData.pipelineFileData || "",
 	]);
 	return result.rows[0] as IDigitalTwin;
 };
@@ -79,6 +84,7 @@ export const getAllDigitalTwins = async (): Promise<IDigitalTwin[]> => {
 										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 										grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 										grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+										grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 										FROM grafanadb.digital_twin
 										INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -125,6 +131,7 @@ export const getDigitalTwinsByOrgId = async (orgId: number): Promise<IDigitalTwi
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 									grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+									grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -151,6 +158,7 @@ export const getDigitalTwinsByGroupId = async (groupId: number): Promise<IDigita
 										grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 										grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 										grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+										grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 										grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 										FROM grafanadb.digital_twin
 										INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -177,6 +185,7 @@ export const getDigitalTwinsByGroupsIdArray = async (groupsIdArray: number[]): P
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 									grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+									grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -205,6 +214,7 @@ export const getDigitalTwinByProp = async (propName: string, propValue: string |
 									grafanadb.digital_twin.digital_twin_simulation_format AS "digitalTwinSimulationFormat",
 									grafanadb.digital_twin.pipeline_file_name AS "pipelineFileName",
 									grafanadb.digital_twin.pipeline_file_last_modif_date AS "pipelineFileLastModifDate",
+									grafanadb.digital_twin.pipeline_file_data AS "pipelineFileData",
 									grafanadb.digital_twin.created, grafanadb.digital_twin.updated
 									FROM grafanadb.digital_twin
 									INNER JOIN grafanadb.group ON grafanadb.digital_twin.group_id = grafanadb.group.id
@@ -236,8 +246,9 @@ export const updateDigitalTwinById = async (
 					digital_twin_simulation_format = $7,
 					pipeline_file_name = $8,
 					pipeline_file_last_modif_date = $9,
+					pipeline_file_data = $10,
 					updated = NOW()
-					WHERE grafanadb.digital_twin.id = $10;`;
+					WHERE grafanadb.digital_twin.id = $11;`;
 	await pool.query(query, [
 		digitalTwinData.digitalTwinUid,
 		digitalTwinData.description,
@@ -248,6 +259,7 @@ export const updateDigitalTwinById = async (
 		digitalTwinData.digitalTwinSimulationFormat,
 		digitalTwinData.pipelineFileName,
 		digitalTwinData.pipelineFileLastModifDate,
+		digitalTwinData.pipelineFileData || "",
 		digitalTwinId,
 	]);
 	const context = {
@@ -257,8 +269,42 @@ export const updateDigitalTwinById = async (
 	await natsClient.jsPublish("digitalTwin", "update", digitalTwinData.id, context);
 };
 
-export const deleteDigitalTwin = async (groupId: number, digitalTwinId: number): Promise<void> => {
+export const updateDigitalTwinPipelineFileDataById = async (
+	digitalTwinId: number,
+	groupId: number,
+	digitalTwinFileData: PipelineFileDataDto
+): Promise<void> => {
+	const query = `UPDATE grafanadb.digital_twin SET 
+					pipeline_file_name = $1,
+					pipeline_file_last_modif_date = $2,
+					pipeline_file_data = $3,
+					updated = NOW()
+					WHERE grafanadb.digital_twin.id = $4;`;
+	await pool.query(query, [
+		digitalTwinFileData.pipelineFileName,
+		digitalTwinFileData.pipelineFileLastModifDate,
+		digitalTwinFileData.pipelineFileData || "",
+		digitalTwinId,
+	]);
+	const context = {
+		groupId,
+		digitalTwinId,
+	};
+	await natsClient.jsPublish("digitalTwin", "update", digitalTwinId, context);
+};
+
+
+export const deleteDigitalTwin = async (digitalTwin: IDigitalTwin): Promise<void> => {
+	const groupId = digitalTwin.groupId;
+	const digitalTwinId = digitalTwin.id;
 	await pool.query(`DELETE FROM grafanadb.digital_twin WHERE grafanadb.digital_twin.id = $1`, [digitalTwinId]);
+
+	// Delete the digital twin kv store
+	const orgId = digitalTwin.orgId;
+	const org = await getOrganizationByProp("id", orgId);
+	const kvName = `org_${org.orgHash}-dt_${digitalTwin.digitalTwinUid}`;
+	await natsClient.deleteKvStore(kvName);
+
 	const context = {
 		groupId,
 		digitalTwinId,
@@ -268,7 +314,7 @@ export const deleteDigitalTwin = async (groupId: number, digitalTwinId: number):
 
 export const deleteDigitalTwinById = async (digitalTwin: IDigitalTwin): Promise<void> => {
 	await deleteTopicsOfDT(digitalTwin.id);
-	await deleteDigitalTwin(digitalTwin.groupId, digitalTwin.id);
+	await deleteDigitalTwin(digitalTwin);
 	await deleteDashboard(digitalTwin.dashboardId);
 };
 
@@ -795,6 +841,7 @@ export const createDigitalTwin = async (
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
 		pipelineFileName: digitalTwinInput.pipelineFileName,
 		pipelineFileLastModifDate: digitalTwinInput.pipelineFileLastModifDate,
+		pipelineFileData: digitalTwinInput.pipelineFileData || "",
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 	if (!isDefault) {

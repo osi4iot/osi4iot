@@ -8,6 +8,8 @@ import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, ISe
 import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerUtils";
 import { IThreeMesh } from "../threeInterfaces";
 import { LlmMessage } from "../ChatAssistant";
+import { PipelineLog } from "../PipelineManager";
+import formatDateString from "../../../../tools/formatDate";
 
 const useSubscription = (
     mqttTopics: string | string[],
@@ -31,6 +33,7 @@ const useSubscription = (
     isGroupDTDemo: boolean,
     setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
+    handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     options: SubscribeOptions = {} as SubscribeOptions
 ) => {
     const { client } = useContext<Context>(MqttContext);
@@ -85,7 +88,8 @@ const useSubscription = (
                         setFemResFilesLastUpdate,
                         isGroupDTDemo,
                         setDigitalTwinState,
-                        handleUpdateChatAssistantMessages
+                        handleUpdateChatAssistantMessages,
+                        handleUpdateLogMessages
                     );
                 }
             };
@@ -122,7 +126,8 @@ const updateObjectsState = (
     setFemResFilesLastUpdate: (femResFilesLastUpdate: Date) => void,
     isGroupDTDemo: boolean,
     setDigitalTwinState: React.Dispatch<React.SetStateAction<string>>,
-    handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void
+    handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void,
+    handleUpdateLogMessages: (newLogMessage: PipelineLog) => void
 ) => {
     const mqttTopics = mqttTopicsData.map((topicData) => topicData.mqttTopic).filter((topic) => topic !== "");
     const sim2dtmTopicId = mqttTopicsData.filter((topic) => topic.topicRef === "sim2dtm")[0].topicId;
@@ -169,6 +174,23 @@ const updateObjectsState = (
                     sender: "assistant",
                 };
                 handleUpdateChatAssistantMessages(newMessage);
+            }
+
+            if (messageTopicRef === "dtmlog") {
+                const newLogMessage: PipelineLog = {
+                    level: mqttMessage.level,
+                    component: mqttMessage.component,
+                    name: mqttMessage.name,
+                    uid: mqttMessage.uid,
+                    message: mqttMessage.message,
+                    description: mqttMessage.description,
+                    topicUid: mqttMessage.topicUid,
+                    topicRef: mqttMessage.topicRef,
+                    payload: mqttMessage.payload || {},
+                    state: mqttMessage.state || {},
+                    date: formatDateString(new Date().toISOString()),
+                };
+                handleUpdateLogMessages(newLogMessage);
             }
 
             if (

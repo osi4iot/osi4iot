@@ -171,7 +171,7 @@ class NATSClient {
 			component,
 			action,
 			id,
-			context
+			context,
 		};
 
 		const subject = "pipelines_shard_1.admin";
@@ -232,6 +232,15 @@ class NATSClient {
 			logger.log("error", `Error creating stream '${streamConfig.name}':`, error);
 			throw error;
 		}
+	}
+
+	async deleteKvStore(kvStoreName: string): Promise<void> {
+		const kv = await this.jetstream.views.kv(kvStoreName);
+		if (!kv) {
+			logger.log("warn", `KV store '${kvStoreName}' does not exist`);
+			return;
+		}
+		await kv.destroy();
 	}
 
 	isClientConnected() {

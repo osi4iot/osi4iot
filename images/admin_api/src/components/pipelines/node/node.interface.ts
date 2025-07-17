@@ -11,6 +11,7 @@ export default interface INode {
 	y: number;
 	numOutputs: number;
 	settings: string;
+	debug?: string;
 	created?: string;
 	updated?: string;
 }

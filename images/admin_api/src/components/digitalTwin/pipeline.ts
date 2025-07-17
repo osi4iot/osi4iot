@@ -61,6 +61,7 @@ export const createDigitalTwinPipeline = async (
 				numOutputs: node.numOutputs,
 				type: node.type,
 				settings: node.settings,
+				debug: node.debug || "off",
 			};
 			nodesData.set(nodeUid, newNode);
 		}
@@ -71,6 +72,10 @@ export const createDigitalTwinPipeline = async (
 		const nodeUid = nodeNameToUidMap.get(node.name);
 		if (!nodeUid) {
 			throw new Error(`Node UID not found for node name "${node.name}"`);
+		}
+
+		if (node.numOutputs === 0) {
+			return; // Skip nodes with no outputs
 		}
 
 		node.wires.forEach((wireArray, outputIndex) => {
@@ -143,7 +148,7 @@ export const createDigitalTwinPipeline = async (
 	const context = {
 		digitalTwinId,
 		groupId,
-		reinitialize: false,
+		reinitialize: true, // Always reinitialize on creation
 	};
 	await natsClient.jsPublish("pipeline_action", "start", digitalTwinId, context);
 };
@@ -189,6 +194,7 @@ export const updateDigitalTwinPipeline = async (
 				numOutputs: node.numOutputs,
 				type: node.type,
 				settings: node.settings,
+				debug: node.debug || "off", // Default to "off" if not provided
 			};
 			incomingNodesMap.set(nodeUid, nodeData);
 		}
@@ -201,6 +207,9 @@ export const updateDigitalTwinPipeline = async (
 			throw new Error(`Node UID not found for node name "${node.name}"`);
 		}
 
+		if (node.numOutputs === 0) {
+			return; // Skip nodes with no outputs
+		}
 		node.wires.forEach((wireArray, outputIndex) => {
 			wireArray.forEach((wire) => {
 				const nodeEndUid = nodeNameToUidMap.get(wire.nodeEndName);
@@ -263,7 +272,8 @@ export const updateDigitalTwinPipeline = async (
 				existingNode.y !== incomingNode.y ||
 				existingNode.numOutputs !== incomingNode.numOutputs ||
 				existingNode.type !== incomingNode.type ||
-				JSON.stringify(existingNode.settings) !== JSON.stringify(incomingNode.settings);
+				JSON.stringify(existingNode.settings) !== JSON.stringify(incomingNode.settings) ||
+				existingNode.debug !== incomingNode.debug;
 
 			if (needsUpdate) {
 				nodesToUpdate.push({
@@ -361,6 +371,7 @@ export const updateDigitalTwinPipeline = async (
 				numOutputs: incoming.numOutputs,
 				type: incoming.type,
 				settings: incoming.settings,
+				debug: incoming.debug || "off",
 			};
 			const updatedNode = await updateNodeByPropName("id", existing.id, nodeData);
 			return { nodeUid: existing.nodeUid, node: updatedNode };
@@ -449,7 +460,12 @@ export const updateDigitalTwinPipeline = async (
 	await natsClient.jsPublish("pipeline_action", "restart", digitalTwinId, context);
 };
 
-export const applyPipelineAction = async (digitalTwinId: number, action: string, reinitialize: boolean, groupId: number): Promise<void> => {
+export const applyPipelineAction = async (
+	digitalTwinId: number,
+	action: string,
+	reinitialize: boolean,
+	groupId: number
+): Promise<void> => {
 	if (!["start", "stop", "restart"].includes(action)) {
 		throw new Error("Invalid action. Allowed actions are: start, stop, restart.");
 	}
@@ -462,7 +478,7 @@ export const applyPipelineAction = async (digitalTwinId: number, action: string,
 	const context = {
 		groupId,
 		digitalTwinId,
-		reinitialize
+		reinitialize,
 	};
 	await natsClient.jsPublish("pipeline_action", action, digitalTwinId, context);
 };

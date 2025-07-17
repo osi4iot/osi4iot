@@ -3,7 +3,6 @@ package nodes
 import (
 	"context"
 	"fmt"
-	"log"
 	"pipelines/common"
 	"pipelines/logger"
 	"pipelines/utils"
@@ -73,6 +72,9 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 	org := fm.GetOrg(node.OrgId)
 	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
 
+	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	funNode := &FuncNode{
 		BaseNode: BaseNode{
@@ -89,7 +91,9 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 			Ypos:           node.Ypos,
 			NumOutputs:     node.NumOutputs,
 			Settings:       node.Settings,
+			Debug:          node.Debug,
 			Type:           "Function",
+			LogSubject:     logSubject,
 			Fm:             fm,
 			Cancel:         cancel,
 			Ctx:            ctx,
@@ -106,7 +110,7 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 	fm.Log().Infof("Created FuncNode with UID: %s", funNode.NodeUid)
 
 	if funNode.onMessageScript != "" {
-		// Precompilar solo onMessageScript
+		// Precompile the onMessageScript and initialize the VM pool
 		if err := funNode.precompileScript(fm.Log()); err != nil {
 			nodeError := fmt.Errorf("Failed to precompile script for node %s: %v", funNode.NodeUid, err)
 			funNode.handleError(nodeError)
@@ -290,8 +294,6 @@ func (n *FuncNode) setupJSGlobals(vm *goja.Runtime, log *logger.Logger) {
 	for _, jsFunc := range jsFunctions {
 		vm.Set(jsFunc.Name, jsFunc.Func)
 	}
-
-	log.Infof("Registered %d JavaScript global functions for node %s", len(jsFunctions), n.NodeUid)
 }
 
 func (n *FuncNode) getVM() *goja.Runtime {
@@ -336,8 +338,11 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 
 		if len(nodeOutputWires) == 1 {
 			if msg, ok := processedData.(common.Message); ok {
-				n.addEventTriggerTopicType(message.Subject, &msg)
+				n.addEventTriggerTopicType(message.Topic, &msg)
 				for _, wire := range nodeOutputWires[0] {
+					if n.Debug == "on" {
+						n.handleDebug(msg, 0)
+					}
 					wire.Channel <- msg
 				}
 			} else {
@@ -346,10 +351,13 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 		} else if len(nodeOutputWires) > 1 {
 			if msgs, ok := processedData.([]common.Message); ok {
 				for idx, msg := range msgs {
-					n.addEventTriggerTopicType(message.Subject, &msg)
+					n.addEventTriggerTopicType(message.Topic, &msg)
 					msgs[idx] = msg // Update the message in place
 				}
 				for idx, wireArray := range nodeOutputWires {
+					if n.Debug == "on"{
+						n.handleDebug(msgs[idx], idx)
+					}
 					for _, wire := range wireArray {
 						wire.Channel <- msgs[idx]
 					}
@@ -376,14 +384,14 @@ func (n *FuncNode) convertToJSObject(vm *goja.Runtime, data interface{}) goja.Va
 	// Convert to JSON and then parse to get correct mapping
 	jsonData, err := utils.MarshalData(data)
 	if err != nil {
-		log.Printf("Failed to marshal data for JS conversion: %v", err)
+		n.Fm.Log().Errorf("Failed to marshal data for JS conversion: %v", err)
 		return vm.ToValue(data) // fallback
 	}
 
 	// Parse as map to have control over keys
 	var jsData map[string]interface{}
 	if err := utils.UnmarshalData(jsonData, &jsData); err != nil {
-		log.Printf("Failed to unmarshal data for JS conversion: %v", err)
+		n.Fm.Log().Errorf("Failed to unmarshal data for JS conversion: %v", err)
 		return vm.ToValue(data) // fallback
 	}
 
@@ -391,7 +399,7 @@ func (n *FuncNode) convertToJSObject(vm *goja.Runtime, data interface{}) goja.Va
 }
 
 func (n *FuncNode) looksLikeMessageData(data map[string]interface{}) bool {
-	requiredFields := []string{"timestamp", "subject", "payload"}
+	requiredFields := []string{"topic", "payload"}
 	foundFields := 0
 
 	for _, field := range requiredFields {
@@ -400,8 +408,8 @@ func (n *FuncNode) looksLikeMessageData(data map[string]interface{}) bool {
 		}
 	}
 
-	// We consider it looks like message data if at least 2 of the required fields are present
-	return foundFields >= 2
+	// We consider it looks like message data if topic and payload are both present
+	return foundFields == 2
 }
 
 // convertFromJSObject convert a JavaScript object back to Go

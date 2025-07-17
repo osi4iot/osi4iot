@@ -789,6 +789,7 @@ export const dataBaseInitialization = async () => {
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
 					pipeline_file_name VARCHAR(100),
 					pipeline_file_last_modif_date VARCHAR(100),
+					pipeline_file_data TEXT NOT NULL DEFAULT '',
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE (group_id, asset_id, scope),
@@ -1060,6 +1061,7 @@ export const dataBaseInitialization = async () => {
 					sensorsRef: ["sensor_3"],
 					pipelineFileName: "-",
 					pipelineFileLastModifDate: "-",
+					pipelineFileData: "",
 				};
 
 				try {
@@ -1153,6 +1155,7 @@ export const dataBaseInitialization = async () => {
 					y float8 NOT NULL DEFAULT 0.0,
 					num_outputs integer NOT NULL DEFAULT 1,
 					settings jsonb NOT NULL DEFAULT '{}'::jsonb,
+					debug VARCHAR(40) NOT NULL DEFAULT 'off',
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
 					UNIQUE(digital_twin_id, name),

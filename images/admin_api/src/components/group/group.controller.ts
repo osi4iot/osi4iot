@@ -417,6 +417,7 @@ class GroupController implements IController {
 				sensorsRef: ["sensor_3"],
 				pipelineFileName: "-",
 				pipelineFileLastModifDate: "-",
+				pipelineFileData: "",
 			};
 			const digitalTwin = await createDigitalTwin(groupCreated, asset, digitalTwinData);
 			const keyBase = `org_${orgId}/group_${groupCreated.id}/digitalTwin_${digitalTwin.id}`;

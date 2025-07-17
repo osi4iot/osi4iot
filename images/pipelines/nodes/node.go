@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
+	"strings"
 	"sync"
 
 	"pipelines/common"
@@ -17,31 +17,29 @@ func CreateNode(
 	node common.NodeData,
 	log *logger.Logger,
 	fm common.Manager,
-) common.Node {
+) (common.Node, error) {
+	var newNode common.Node
+	var err error
 	switch node.Type {
 	case "Listen":
-		return CreateListenNode(node, fm)
+		newNode, err = CreateListenNode(node, fm)
 	case "Inject":
-		return CreateInjectNode(node, fm)
+		newNode, err = CreateInjectNode(node, fm)
 	case "Delay":
-		return CreateDelayNode(node, fm)
+		newNode, err = CreateDelayNode(node, fm)
 	case "Function":
-		funcNode, err := CreateFuncNode(node, fm)
-		if err != nil {
-			log.Errorf("Failed to create Function node %s: %v", node.NodeUid, err)
-			return nil
-		}
-		return funcNode
+		newNode, err = CreateFuncNode(node, fm)
 	case "Telegram":
-		return CreateTelegramNode(node, fm)
+		newNode, err = CreateTelegramNode(node, fm)
 	case "Email":
-		return CreateEmailNode(node, fm)
+		newNode, err = CreateEmailNode(node, fm)
 	case "Publish":
-		return CreatePublishNode(node, fm)
+		newNode, err = CreatePublishNode(node, fm)
 	default:
 		log.Errorf("Unknown node type: %s", node.Type)
-		return nil
+		newNode, err = nil, fmt.Errorf("unknown node type: %s", node.Type)
 	}
+	return newNode, err
 }
 
 type BaseNode struct {
@@ -59,10 +57,12 @@ type BaseNode struct {
 	Ypos           float64        `json:"y"`
 	NumOutputs     int            `json:"numOutputs"`
 	Settings       map[string]any `json:"settings"`
+	Debug          string         `json:"debug"` // Indicates if debug mode is enabled
 
-	Fm     common.Manager
-	Ctx    context.Context
-	Cancel context.CancelFunc
+	LogSubject string
+	Fm         common.Manager
+	Ctx        context.Context
+	Cancel     context.CancelFunc
 
 	status      common.NodeStatus
 	statusMutex sync.RWMutex
@@ -162,38 +162,69 @@ func (n *BaseNode) SetStatus(status common.NodeStatus) {
 }
 
 func (n *BaseNode) handleError(err error) {
-	errorData := map[string]interface{}{
-		"node":  n.NodeUid,
-		"error": err.Error(),
+	if n.LogSubject == "" {
+		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
+		return
 	}
 
-	if errorJSON, marshallErr := json.Marshal(errorData); marshallErr == nil {
-		errorSubject := fmt.Sprintf("dt_%d.error", n.DigitalTwinId)
-		n.Fm.NatsPublish(errorSubject, errorJSON)
+	description := fmt.Sprintf("Error in a node type %s ", n.Type)
+	logData := common.PipelineLog{
+		Level:       "error",
+		Component:   "node",
+		Name:        n.Name,
+		Uid:         n.NodeUid,
+		Description: description,
+		Message:     err.Error(),
+	}
+
+	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
+		n.Fm.NatsPublish(n.LogSubject, logJSON)
 	} else {
-		log.Printf("Failed to marshal error data for node %s: %v", n.NodeUid, marshallErr)
+		n.Fm.Log().Errorf("Failed to marshal log error data for node %s: %v", n.NodeUid, marshallErr)
 	}
 }
 
-func (n *BaseNode) HandleInfo(info string) {
-	infoData := map[string]interface{}{
-		"node": n.NodeUid,
-		"info": info,
+func (n *BaseNode) handleDebug(message common.Message, outputIndex int) {
+	if n.LogSubject == "" {
+		n.Fm.Log().Errorf("Node %s has no log subject set", n.NodeUid)
+		return
 	}
 
-	org := n.Fm.GetOrg(n.OrgId)
-	digitalTwin := n.Fm.GetDigitalTwin(n.DigitalTwinId)
+	nodeName := n.Name
+	if outputIndex > 1 {
+		nodeName = fmt.Sprintf("%s (%d)", n.Name, outputIndex)
+	}
 
-	if infoJSON, marshallErr := json.Marshal(infoData); marshallErr == nil {
-		infoSubject := fmt.Sprintf("org_%s.dt_%s.info", org.OrgHash, digitalTwin.DigitalTwinUID)
-		n.Fm.NatsPublish(infoSubject, infoJSON)
+	topicType := strings.Split(message.Topic, ".")[0]
+	topicUid := strings.Split(message.Topic, ".")[2][6:]
+
+	logData := common.PipelineLog{
+		Level:     "debug",
+		Component: "node",
+		Name:      nodeName,
+		Uid:       n.NodeUid,
+		Message:   "Debug message sent to output",
+		TopicRef:  topicType,
+		TopicUid:  topicUid,
+		Payload:   message.Payload,
+	}
+
+	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
+		n.Fm.NatsPublish(n.LogSubject, logJSON)
 	} else {
-		log.Printf("Failed to marshal info data for node %s: %v", n.NodeUid, marshallErr)
+		n.Fm.Log().Errorf("Failed to marshal log data for node %s: %v", n.NodeUid, marshallErr)
 	}
 }
 
 func (n *BaseNode) GetNumOutputs() int {
 	return n.NumOutputs
+}
+
+func (n *BaseNode) GetDebug() string {
+	if n.Debug == "" {
+		return "off"
+	}
+	return n.Debug
 }
 
 func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Message, *logger.Logger) error) {
@@ -240,11 +271,13 @@ func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Me
 
 func (n *BaseNode) sendToOutputs(msg common.Message, log *logger.Logger) {
 	nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
-	for _, wireArray := range nodeOutputWires {
+	for outputIndex, wireArray := range nodeOutputWires {
 		for _, wire := range wireArray {
 			select {
 			case wire.Channel <- msg:
-				// Message sent successfully
+				if n.Debug == "on" {
+					n.handleDebug(msg, outputIndex)
+				}
 			case <-n.Ctx.Done():
 				log.Infof("Context cancelled while sending message from node %s", n.NodeUid)
 				return

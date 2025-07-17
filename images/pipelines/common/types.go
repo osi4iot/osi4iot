@@ -3,7 +3,6 @@ package common
 import (
 	"context"
 	nats_pkg "pipelines/nats"
-	"pipelines/utils"
 )
 
 type AdminMessage struct {
@@ -14,10 +13,9 @@ type AdminMessage struct {
 }
 
 type Message struct {
-	Timestamp utils.Timestamp `json:"timestamp"`
-	Subject   string          `json:"subject"`
-	Payload   map[string]any  `json:"payload"`
-	State     map[string]any  `json:"state"`
+	Topic   string         `json:"topic"`
+	Payload map[string]any `json:"payload"`
+	State   map[string]any `json:"state"`
 }
 
 type Org struct {
@@ -124,6 +122,7 @@ type DigitalTwin struct {
 	SensorsRef                  []string       `json:"sensorsRef"`
 	PipelineFileName            string         `json:"pipelineFileName"`
 	PipelineFileLastModifDate   string         `json:"pipelineFileLastModifDate"`
+	PipelineFileData            string         `json:"pipelineFileData"`
 	Created                     string         `json:"created"`
 	Updated                     string         `json:"updated"`
 
@@ -165,6 +164,7 @@ type NodeData struct {
 	Ypos          float64        `json:"y"`
 	Settings      map[string]any `json:"settings"`
 	NumOutputs    int            `json:"numOutputs"`
+	Debug         string         `json:"debug"`
 }
 
 type Wire struct {
@@ -183,4 +183,17 @@ type Wire struct {
 	Cancel     context.CancelFunc
 	BufferSize int
 	Channel    chan Message
+}
+
+type PipelineLog struct {
+	Level       string         `json:"level"`     // debug, error, info
+	Component   string         `json:"component"` // node, pipeline, digitalTwin
+	Name        string         `json:"name"`
+	Uid         string         `json:"uid"`
+	Message     string         `json:"message"`
+	Description string         `json:"description"`
+	TopicUid    string         `json:"topicUid"`
+	TopicRef    string         `json:"topicRef"`
+	Payload     map[string]any `json:"payload"`
+	State       map[string]any `json:"state"`
 }

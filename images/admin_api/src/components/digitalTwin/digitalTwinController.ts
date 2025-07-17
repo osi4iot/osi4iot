@@ -45,6 +45,7 @@ import {
 	getAllDTTopics,
 	getDTTopicsByGroupsIdArray,
 	getDTTopicsByDigitalTwinId,
+	updateDigitalTwinPipelineFileDataById,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -67,6 +68,7 @@ import { applyPipelineAction, createDigitalTwinPipeline, updateDigitalTwinPipeli
 import CreatePipelineActionDto from "./pipeline_action.dto";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
 import { UpdatePipelineDto } from "./pipeline_update.dto";
+import PipelineFileDataDto from "./pipelineFileData.dto";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -181,6 +183,13 @@ class DigitalTwinController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreatePipelineActionDto>(CreatePipelineActionDto, true),
 				this.setPipelineAction
+			)
+			.patch(
+				`${this.path}_pipeline_file_data/:groupId/:digitalTwinId`,
+				digitalTwinAndGroupExist,
+				groupAdminAuth,
+				validationMiddleware<PipelineFileDataDto>(PipelineFileDataDto, true),
+				this.updatePipelineFileData
 			)
 			.get(`${this.path}_topics/user_managed`, userAuth, this.getDigitalTwinTopicsUserManaged)
 			.get(
@@ -643,6 +652,26 @@ class DigitalTwinController implements IController {
 
 			const response = {
 				message: `The pipeline has been updated`,
+			};
+			res.status(200).send(response);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private updatePipelineFileData = async (
+		req: IRequestWithAssetAndGroup,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const { digitalTwinId } = req.params;
+			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
+			const pipelineFileData: PipelineFileDataDto = req.body;
+			await updateDigitalTwinPipelineFileDataById(digitalTwinIdNum, req.group.id, pipelineFileData);
+
+			const response = {
+				message: `The pipeline file data has been updated`,
 			};
 
 			res.status(200).send(response);

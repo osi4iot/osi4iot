@@ -13,47 +13,50 @@ import (
 
 type PublishNode struct {
 	BaseNode
-	SubjectType string
-	Subject     string
+	PublishTo string
+	Topic     string
 }
 
-var posibleSubjectTypesForPublishNode = []string{
+var posiblePublishToForPublishNode = []string{
 	"Generic nats",
 	"Generic mqtt",
 	"Topic reference",
-	"Message subject",
+	"Message topic",
 }
 
-func CreatePublishNode(node common.NodeData, fm common.Manager) *PublishNode {
-	subjectType, ok := node.Settings["subjectType"].(string)
-	if !ok || subjectType == "" {
-		fm.Log().Errorf("PublishNode %s: 'subjectType' setting is required", node.NodeUid)
-		return nil
+func CreatePublishNode(node common.NodeData, fm common.Manager) (*PublishNode, error) {
+	publishTo, ok := node.Settings["publishTo"].(string)
+	if !ok || publishTo == "" {
+		fm.Log().Errorf("PublishNode %s: 'publishTo' setting is required", node.NodeUid)
+		return nil, fmt.Errorf("publishTo setting is required")
 	}
 
-	// Validate subjectType
-	if !slices.Contains(posibleSubjectTypesForPublishNode, subjectType) {
-		fm.Log().Errorf("PublishNode %s: invalid 'subjectType' setting", node.NodeUid)
-		return nil
+	// Validate publishTo
+	if !slices.Contains(posiblePublishToForPublishNode, publishTo) {
+		fm.Log().Errorf("PublishNode %s: invalid 'publishTo' setting", node.NodeUid)
+		return nil, fmt.Errorf("invalid publishTo setting")
 	}
 
-	subject, ok := node.Settings["subject"].(string)
-	if !ok || subject == "" {
-		fm.Log().Errorf("PublishNode %s: 'subject' setting is required", node.NodeUid)
-		return nil
+	topic, ok := node.Settings["topic"].(string)
+	if !ok || topic == "" {
+		fm.Log().Errorf("PublishNode %s: 'topic' setting is required", node.NodeUid)
+		return nil, fmt.Errorf("topic setting is required")
 	}
 
-	switch subjectType {
+	switch publishTo {
 	case "Generic mqtt":
-		subject = strings.ReplaceAll(subject, "/", ".")
+		topic = strings.ReplaceAll(topic, "/", ".")
 	case "Topic reference":
-		topicRef := subject
-		topic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, topicRef)
-		subject = utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
+		topicRef := topic
+		topicInstance := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, topicRef)
+		topic = utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
 	}
 
 	org := fm.GetOrg(node.OrgId)
 	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
+
+	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &PublishNode{
@@ -71,15 +74,17 @@ func CreatePublishNode(node common.NodeData, fm common.Manager) *PublishNode {
 			Ypos:          node.Ypos,
 			NumOutputs:    node.NumOutputs,
 			Settings:      node.Settings,
+			Debug:         node.Debug,
 			Type:          "Publish",
+			LogSubject:    logSubject,
 			Fm:            fm,
 			Cancel:        cancel,
 			Ctx:           ctx,
 			status:        common.NodeStatusCreated,
 		},
-		SubjectType: subjectType, // Default subject type
-		Subject:     subject,
-	}
+		PublishTo: publishTo,
+		Topic:     topic,
+	}, nil
 }
 
 func (n *PublishNode) Start(log *logger.Logger, needReinitialization bool) {
@@ -100,9 +105,9 @@ func (n *PublishNode) processMessage(msg common.Message, log *logger.Logger) err
 		return fmt.Errorf("failed to marshal message for node %s: %w", n.NodeUid, err)
 	}
 
-	subject := n.Subject
-	if n.SubjectType == "Message subject" {
-		subject = msg.Subject // Use the subject from the message
+	subject := n.Topic
+	if n.PublishTo == "Message topic" {
+		subject = msg.Topic // Use the topic from the message
 	}
 
 	return n.Fm.NatsPublish(subject, jsonData)

@@ -20,6 +20,10 @@ class UpdateNodeDto {
 
 	@IsString()
 	public settings: string;
+
+	@ValidateIf((obj) => obj.debug !== undefined)
+	@IsString()
+	public debug?: string;
 }
 
 export default UpdateNodeDto;

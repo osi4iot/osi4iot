@@ -2,7 +2,7 @@ import { FC, useState, SyntheticEvent, useEffect } from "react";
 import styled from "styled-components";
 import { Formik, Form, FormikProps } from "formik";
 import * as Yup from "yup";
-import YAML from 'yaml'
+import YAML from "yaml";
 import { nanoid } from "nanoid";
 import { GLTFLoader } from "three-stdlib";
 import { useAuthState, useAuthDispatch } from "../../../contexts/authContext";
@@ -558,9 +558,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             setLocalPipelineFileLoaded(true);
             try {
                 const pipelineData = YAML.parse(pipelineFileParams.filesContent[0].content);
-                for (let inode=0; inode<pipelineData.nodes.length; inode++) {
-                    pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
-                }
                 setDigitalTwinPipelineData(pipelineData);
                 const pipelineFileName = pipelineFileParams.plainFiles[0].name;
                 setPipelineFileName(pipelineFileName);
@@ -605,9 +602,8 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             sensorsRef,
             pipelineFileName,
             pipelineFileLastModifDate: pipelineFileLastModifDateString,
+            pipelineFileData: JSON.stringify(digitalTwinPipelineData),
         };
-
-        console.log("digitalTwinData=", digitalTwinData);
 
         setIsSubmitting(true);
         getAxiosInstance(refreshToken, authDispatch)
@@ -657,8 +653,12 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                 if (Object.keys(digitalTwinPipelineData).length !== 0) {
                     const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
                     const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${data.digitalTwinId}`;
+                    const pipelineData = digitalTwinPipelineData as any;
+                    for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
+                        pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
+                    }
                     getAxiosInstance(refreshToken, authDispatch)
-                        .post(urlUploadPipeline, digitalTwinPipelineData, config)
+                        .post(urlUploadPipeline, pipelineData, config)
                         .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
                         })

@@ -34,9 +34,15 @@ func (p *CoreJSProvider) GetJSFunctions(node common.Node, fm common.Manager, log
 			},
 		},
 		{
-			Name: "getSubject",
+			Name: "getTopic",
 			Func: func(topicRef string) string {
-				return p.getSubject(fm, node, topicRef)
+				return p.getTopic(fm, node, topicRef)
+			},
+		},
+		{
+			Name: "getTopicType",
+			Func: func(msg common.Message) string {
+				return p.getTopicType(msg)
 			},
 		},
 		{
@@ -122,12 +128,16 @@ func (p *CoreJSProvider) delay(duration int, log *logger.Logger) {
 	time.Sleep(time.Duration(duration) * time.Millisecond)
 }
 
-func (p *CoreJSProvider) getSubject(fm common.Manager, node common.Node, topicRef string) string {
+func (p *CoreJSProvider) getTopic(fm common.Manager, node common.Node, topicRef string) string {
 	topic := fm.GetTopicByTopicRef(node.GetAssetId(), node.GetDigitalTwinId(), topicRef)
 	if topic == nil {
 		return ""
 	}
 	return utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
+}
+
+func (p *CoreJSProvider) getTopicType(msg common.Message) string {
+	return strings.Split(msg.Topic, ".")[0]
 }
 
 func (p *CoreJSProvider) setValueInStore(key string, data interface{}, n common.Node, fm common.Manager, log *logger.Logger) {

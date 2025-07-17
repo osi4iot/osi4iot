@@ -28,6 +28,10 @@ class CreatePipelineNodeDto {
 	@IsString()
 	public settings: string;
 
+	@ValidateIf((obj) => obj.debug !== undefined)
+	@IsString()
+	public debug?: string;
+
 	@IsArray()
 	@ValidateNested({ each: true })
 	@Type(() => CreateNodeWireDto)

@@ -15,78 +15,83 @@ import (
 
 type ListenNode struct {
 	BaseNode
-	SubjectType string
-	Subject string
+	ListenTo string
+	Topic    string
 }
 
-var posibleSubjectTypesForListenNode = []string{
+var posibleListenToForListenNode = []string{
 	"Generic nats",
 	"Generic mqtt",
 	"Topic reference",
 }
 
-func CreateListenNode(node common.NodeData, fm common.Manager) *ListenNode {
-	subjectType, ok := node.Settings["subjectType"].(string)
-	if !ok || subjectType == "" {
-		fm.Log().Errorf("ListenNode %s: 'subjectType' setting is required", node.NodeUid)
-		return nil
+func CreateListenNode(node common.NodeData, fm common.Manager) (*ListenNode, error) {
+	listenTo, ok := node.Settings["listenTo"].(string)
+	if !ok || listenTo == "" {
+		fm.Log().Errorf("ListenNode %s: 'listenTo' setting is required", node.NodeUid)
+		return nil, fmt.Errorf("listenTo setting is required")
 	}
 
-	// Validate subjectType
-	if !slices.Contains(posibleSubjectTypesForListenNode, subjectType) {
-		fm.Log().Errorf("ListenNode %s: invalid 'subjectType' setting", node.NodeUid)
-		return nil
+	// Validate listenTo
+	if !slices.Contains(posibleListenToForListenNode, listenTo) {
+		fm.Log().Errorf("ListenNode %s: invalid 'listenTo' setting", node.NodeUid)
+		return nil, fmt.Errorf("invalid 'listenTo' setting: %s", listenTo)
 	}
 
-	subject, ok := node.Settings["subject"].(string)
-	if !ok || subject == "" {
-		fm.Log().Errorf("ListenNode %s: 'subject' setting is required", node.NodeUid)
-		return nil
+	topic, ok := node.Settings["topic"].(string)
+	if !ok || topic == "" {
+		fm.Log().Errorf("ListenNode %s: 'topic' setting is required", node.NodeUid)
+		return nil, fmt.Errorf("topic setting is required")
 	}
 
-	switch subjectType {
+	switch listenTo {
 	case "Generic nats":
 		// No specific processing needed for Generic nats
 	case "Generic mqtt":
-		subject = strings.ReplaceAll(subject, "/", ".")
+		topic = strings.ReplaceAll(topic, "/", ".")
 	case "Topic reference":
-		topicRef := subject
-		topic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, topicRef)
-		if topic == nil {
+		topicRef := topic
+		topicInstance := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, topicRef)
+		if topicInstance == nil {
 			fm.Log().Errorf("ListenNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
-			return nil
+			return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
 		}
-		subject = utils.TopicToNatsSubject(topic.TopicType, topic.GroupUid, topic.TopicUid)
+		topic = utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
 	}
 
 	org := fm.GetOrg(node.OrgId)
 	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
 
+	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
+
 	ctx, cancel := context.WithCancel(context.Background())
 	return &ListenNode{
 		BaseNode: BaseNode{
-			Id:            node.Id,
-			NodeUid:       node.NodeUid,
-			OrgId:         node.OrgId,
-			OrgHash:       org.OrgHash,
-			GroupId:       node.GroupId,
-			AssetId:       node.AssetId,
-			DigitalTwinId: node.DigitalTwinId,
+			Id:             node.Id,
+			NodeUid:        node.NodeUid,
+			OrgId:          node.OrgId,
+			OrgHash:        org.OrgHash,
+			GroupId:        node.GroupId,
+			AssetId:        node.AssetId,
+			DigitalTwinId:  node.DigitalTwinId,
 			DigitalTwinUID: digitalTwin.DigitalTwinUID,
-			Name:          node.Name,
-			Xpos:          node.Xpos,
-			Ypos:          node.Ypos,
-			NumOutputs:    node.NumOutputs,
-			Settings:      node.Settings,
-			Type:          "Listen",
-			Fm:            fm,
-			Cancel:        cancel,
-			Ctx:           ctx,
-			status:        common.NodeStatusCreated,
+			Name:           node.Name,
+			Xpos:           node.Xpos,
+			Ypos:           node.Ypos,
+			NumOutputs:     node.NumOutputs,
+			Settings:       node.Settings,
+			Debug:          node.Debug,
+			Type:           "Listen",
+			LogSubject:     logSubject,
+			Fm:             fm,
+			Cancel:         cancel,
+			Ctx:            ctx,
+			status:         common.NodeStatusCreated,
 		},
-		SubjectType: subjectType,
-		Subject: subject,
-	}
+		ListenTo: listenTo,
+		Topic:    topic,
+	}, nil
 }
 
 func (n *ListenNode) Start(log *logger.Logger, needReinitialization bool) {
@@ -99,7 +104,7 @@ func (n *ListenNode) Start(log *logger.Logger, needReinitialization bool) {
 	log.Infof("Starting ListenNode with UID: %s", n.NodeUid)
 
 	n.wg.Add(1)
-	go n.handleNatsSubscription(log, n.Subject, n.processNatsMessage)
+	go n.handleNatsSubscription(log, n.Topic, n.processNatsMessage)
 }
 
 func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error {
@@ -110,7 +115,7 @@ func (n *ListenNode) processNatsMessage(msg *nats.Msg, log *logger.Logger) error
 
 	message := common.Message{
 		Payload: rawMessage,
-		Subject: msg.Subject,
+		Topic:   msg.Subject,
 	}
 
 	n.sendToOutputs(message, log)

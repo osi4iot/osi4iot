@@ -44,4 +44,5 @@ type Node interface {
 	GetDigitalTwinId() int
 	GetDigitalTwinUID() string
 	GetStatus() NodeStatus
+	GetDebug() string
 }

@@ -29,6 +29,7 @@ import useMqttState from "./MqttHook/useMqttState";
 import useSubscription from "./MqttHook/useSubscription";
 import { IThreeMesh } from "./threeInterfaces";
 import { ChatMessage, LlmMessage } from "./ChatAssistant";
+import { PipelineLog } from "./PipelineManager";
 
 export interface ISensorObject {
     node: IThreeMesh;
@@ -137,6 +138,7 @@ interface ModelProps {
     isChatAssistantOpen: boolean;
     chatMessages: ChatMessage[];
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void;
+    handleUpdateLogMessages: (newLogMessages: PipelineLog) => void;
 }
 
 const Model: FC<ModelProps> = ({
@@ -197,6 +199,7 @@ const Model: FC<ModelProps> = ({
     isChatAssistantOpen,
     chatMessages,
     handleUpdateChatAssistantMessages,
+    handleUpdateLogMessages,
 }) => {
     const camera = useThree((state) => state.camera);
     const container = canvasRef.current as HTMLCanvasElement | null;
@@ -260,7 +263,8 @@ const Model: FC<ModelProps> = ({
         setFemResFilesLastUpdate,
         digitalTwinGltfData.isGroupDTDemo,
         setDigitalTwinState,
-        handleUpdateChatAssistantMessages
+        handleUpdateChatAssistantMessages,
+        handleUpdateLogMessages
     );
 
     useLayoutEffect(() => {

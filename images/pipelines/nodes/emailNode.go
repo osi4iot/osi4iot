@@ -17,38 +17,43 @@ type EmailNode struct {
 	Password   string
 }
 
-func CreateEmailNode(node common.NodeData, fm common.Manager) *EmailNode {
-	org :=fm.GetOrg(node.OrgId)
+func CreateEmailNode(node common.NodeData, fm common.Manager) (*EmailNode, error) {
+	org := fm.GetOrg(node.OrgId)
 	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
+
+	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
+	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	return &EmailNode{
 		BaseNode: BaseNode{
-			Id:      node.Id,
-			NodeUid: node.NodeUid,
-			OrgId:   node.OrgId,
-			OrgHash: org.OrgHash,
+			Id:             node.Id,
+			NodeUid:        node.NodeUid,
+			OrgId:          node.OrgId,
+			OrgHash:        org.OrgHash,
 			DigitalTwinUID: digitalTwin.DigitalTwinUID,
-			GroupId: node.GroupId,
-			AssetId: node.AssetId,
-			DigitalTwinId: node.DigitalTwinId,
-			Name:    node.Name,
-			Xpos:    node.Xpos,
-			Ypos:    node.Ypos,
-			NumOutputs: node.NumOutputs,
-			Settings: node.Settings,
-			Type:    "Email",
-			Fm:      fm,
-			Cancel:  cancel,
-			Ctx:     ctx,
-			status:  common.NodeStatusCreated,
+			GroupId:        node.GroupId,
+			AssetId:        node.AssetId,
+			DigitalTwinId:  node.DigitalTwinId,
+			Name:           node.Name,
+			Xpos:           node.Xpos,
+			Ypos:           node.Ypos,
+			NumOutputs:     node.NumOutputs,
+			Debug:          node.Debug,
+			Settings:       node.Settings,
+			Type:           "Email",
+			LogSubject:     logSubject,
+			Fm:             fm,
+			Cancel:         cancel,
+			Ctx:            ctx,
+			status:         common.NodeStatusCreated,
 		},
 		SMTPServer: "smtp.gmail.com",
 		From:       fm.GetPlatformEmailUsername(),
 		To:         fm.GetGroupNotificationEmail(),
 		Username:   fm.GetPlatformEmailUsername(),
 		Password:   fm.GetPlatformEmailPassword(),
-	}
+	}, nil
 }
 
 func (n *EmailNode) Start(log *logger.Logger, needReinitialization bool) {
@@ -56,10 +61,10 @@ func (n *EmailNode) Start(log *logger.Logger, needReinitialization bool) {
 		log.Infof("EmailNode %s is already running", n.NodeUid)
 		return
 	}
-	
+
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting EmailNode with UID: %s", n.NodeUid)
-	
+
 	n.handleInputWires(log, n.processMessage)
 }
 
@@ -71,5 +76,10 @@ func (n *EmailNode) processMessage(msg common.Message, log *logger.Logger) error
 		return fmt.Errorf("missing message or subject in EmailNode with UID: %s", n.NodeUid)
 	}
 
-	return utils.SendEmail(n.SMTPServer, n.From, n.To, subject, message, n.Username, n.Password)
+	err := utils.SendEmail(n.SMTPServer, n.From, n.To, subject, message, n.Username, n.Password)
+	if err != nil {
+		return fmt.Errorf("Failed to send email in EmailNode %s: %v", n.NodeUid, err)
+	}
+
+	return nil
 }

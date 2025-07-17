@@ -439,9 +439,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             try {
                 const fileContent = pipelineFileParams.filesContent[0].content;
                 const pipelineData = YAML.parse(fileContent);
-                for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
-                    pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
-                }
                 setDigitalTwinPipelineData(pipelineData);
                 const pipelineFileName = pipelineFileParams.plainFiles[0].name;
                 setPipelineFileName(pipelineFileName);
@@ -537,17 +534,22 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
 
             const storedDate = formatDateString(storedPipelineFileLastModifDate);
             const newDate = formatDateString(pipelineFileLastModifDateString);
-            console.log("Object.keys(digitalTwinPipelineData).length=", Object.keys(digitalTwinPipelineData).length);
 
+            let isPipelineRestartNeeded = true;
             if (
                 Object.keys(digitalTwinPipelineData).length !== 0 &&
                 (storedPipelineFileName !== pipelineFileName || storedDate !== newDate)
             ) {
-                (digitalTwinPipelineData as any).reinitialize = reinitializePipeline;
+                isPipelineRestartNeeded = false;
+                const pipelineData = JSON.parse(JSON.stringify(digitalTwinPipelineData)) as any;
+                for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
+                    pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
+                }
+                (pipelineData as any).reinitialize = reinitializePipeline;
                 const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
                 const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
                 getAxiosInstance(refreshToken, authDispatch)
-                    .patch(urlUploadPipeline, digitalTwinPipelineData, config)
+                    .patch(urlUploadPipeline, pipelineData, config)
                     .then((response: AxiosResponse<any, any>) => {
                         toast.success(response.data.message);
                     })
@@ -557,7 +559,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     });
             }
 
-            if (restartPipeline) {
+            if (restartPipeline && isPipelineRestartNeeded) {
                 const urlSetPipelineActionBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline_action`;
                 const urlSetPipelineAction = `${urlSetPipelineActionBase}/${groupId}/${digitalTwinId}`;
                 const pipelineAction = {
@@ -592,6 +594,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             sensorsRef,
             pipelineFileName,
             pipelineFileLastModifDate: pipelineFileLastModifDateString,
+            pipelineFileData: JSON.stringify(digitalTwinPipelineData),
         };
 
         getAxiosInstance(refreshToken, authDispatch)
@@ -835,7 +838,9 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             name="reinitializePipeline"
                                                             options={reinitializePipelineOptions}
                                                             type="text"
-                                                            onChange={(e) => onReinitializePipelineSelectChange(e, formik)}
+                                                            onChange={(e) =>
+                                                                onReinitializePipelineSelectChange(e, formik)
+                                                            }
                                                         />
                                                         <FormikControl
                                                             control="select"
@@ -844,7 +849,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                                                             options={restartPipelineOptions}
                                                             type="text"
                                                             onChange={(e) => onRestartPipelineSelectChange(e, formik)}
-                                                        />                                                        
+                                                        />
                                                         <SelectDataFilenButtonContainer>
                                                             <FileButton type="button" onClick={clearPipelineFile}>
                                                                 Clear

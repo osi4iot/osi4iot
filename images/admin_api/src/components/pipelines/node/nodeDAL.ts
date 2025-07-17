@@ -7,11 +7,12 @@ import natsClient from "../../../config/natsConfig";
 
 export const insertNode = async (nodeData: INode, groupId: number): Promise<INode> => {
 	const queryString = `INSERT INTO grafanadb.node (node_uid,
-        digital_twin_id, name, type, x, y, num_outputs, settings, created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
+        digital_twin_id, name, type, x, y, num_outputs, settings, debug, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW(), NOW())
 		RETURNING id,node_uid AS "nodeUid",
 		name, type, x, y, num_outputs AS "numOutputs", 
 		settings, created, updated`;
+	console.log("nodeData.debug=", nodeData.debug);
 	const result = await pool.query(queryString, [
 		nodeData.nodeUid,
 		nodeData.digitalTwinId,
@@ -21,6 +22,7 @@ export const insertNode = async (nodeData: INode, groupId: number): Promise<INod
 		nodeData.y,
 		nodeData.numOutputs,
 		nodeData.settings,
+		nodeData.debug !== undefined ? nodeData.debug : "off",
 	]);
 	if (result.rows.length === 1) {
 		const context = {
@@ -60,8 +62,8 @@ export const updateNodeByPropName = async (
 	node: INode
 ): Promise<INode> => {
 	const query = `UPDATE grafanadb.node SET name = $1, type = $2, x = $3, y = $4, 
-				num_outputs = $5, settings = $6, updated = NOW()
-				WHERE grafanadb.node.${propName} = $7 RETURNING *;`;
+				num_outputs = $5, settings = $6, debug = $7, updated = NOW()
+				WHERE grafanadb.node.${propName} = $8 RETURNING *;`;
 	const result = await pool.query(query, [
 		node.name,
 		node.type,
@@ -69,6 +71,7 @@ export const updateNodeByPropName = async (
 		node.y,
 		node.numOutputs,
 		node.settings,
+		node.debug,
 		propValue,
 	]);
 
@@ -117,6 +120,7 @@ export const getNodeByPropName = async (
             grafanadb.node.y,
 			grafanadb.node.num_outputs AS "numOutputs",
 			grafanadb.node.settings,
+			grafanadb.node.debug,
             grafanadb.node.created, 
             grafanadb.node.updated
             FROM grafanadb.node
@@ -143,6 +147,7 @@ export const getAllNodes = async (): Promise<INode[]> => {
             grafanadb.node.y,
 			grafanadb.node.num_outputs AS "numOutputs",
 			grafanadb.node.settings,
+			grafanadb.node.debug,
             grafanadb.node.created, 
             grafanadb.node.updated
             FROM grafanadb.node
@@ -173,6 +178,7 @@ export const getNodesByGroupId = async (groupId: number): Promise<INode[]> => {
             grafanadb.node.y,
 			grafanadb.node.num_outputs AS "numOutputs",
 			grafanadb.node.settings,
+			grafanadb.node.debug,
             grafanadb.node.created, 
             grafanadb.node.updated
             FROM grafanadb.node
@@ -202,6 +208,7 @@ export const getNodesByGroupsIdArray = async (
             grafanadb.node.y,
 			grafanadb.node.num_outputs AS "numOutputs",
 			grafanadb.node.settings,
+			grafanadb.node.debug,
             grafanadb.node.created, 
             grafanadb.node.updated
             FROM grafanadb.node
@@ -242,6 +249,7 @@ export const getNodesByOrgId = async (orgId: number): Promise<INode[]> => {
             grafanadb.node.y,
 			grafanadb.node.num_outputs AS "numOutputs",
 			grafanadb.node.settings,
+			grafanadb.node.debug,
             grafanadb.node.created, 
             grafanadb.node.updated
             FROM grafanadb.node
@@ -271,6 +279,7 @@ export const getNodesByDigitalTwinId = async (
             grafanadb.node.y,
 			grafanadb.node.num_outputs AS "numOutputs",
 			grafanadb.node.settings,
+			grafanadb.node.debug,
             grafanadb.node.created, 
             grafanadb.node.updated
             FROM grafanadb.node

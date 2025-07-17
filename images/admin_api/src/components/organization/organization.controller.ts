@@ -578,6 +578,7 @@ class OrganizationController implements IController {
 					sensorsRef: ["sensor_3"],
 					pipelineFileName: "-",
 					pipelineFileLastModifDate: "-",
+					pipelineFileData: "",
 				};
 				const digitalTwin = await createDigitalTwin(group, asset, digitalTwinData);
 				const keyBase = `org_${orgId}/group_${group.id}/digitalTwin_${digitalTwin.id}`;

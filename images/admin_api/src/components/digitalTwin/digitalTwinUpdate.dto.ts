@@ -33,6 +33,9 @@ class UpdateDigitalTwinDto {
 
 	@IsString()
 	public pipelineFileLastModifDate: string;
+
+	@IsString()
+	public pipelineFileData: string;
 }
 
 export default UpdateDigitalTwinDto;

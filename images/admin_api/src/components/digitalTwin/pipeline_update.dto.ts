@@ -9,7 +9,4 @@ export class UpdatePipelineDto {
 
 	@IsBoolean()
 	public reinitialize: boolean;
-
-	// @IsBoolean()
-	// public forceUpdate: boolean;
 }

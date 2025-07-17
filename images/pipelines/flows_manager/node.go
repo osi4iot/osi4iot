@@ -1,9 +1,11 @@
 package flows_manager
 
 import (
+	"encoding/json"
 	"fmt"
 	"pipelines/common"
 	"pipelines/nodes"
+	"pipelines/utils"
 	"strconv"
 	"sync"
 	"time"
@@ -30,7 +32,7 @@ func (fm *FlowsManager) GetNodes() []common.Node {
 	return nodes
 }
 
-func (fm *FlowsManager) AddNode(node *common.NodeData) {
+func (fm *FlowsManager) AddNode(node *common.NodeData) error {
 	nodeData := &common.NodeData{
 		Id:            node.Id,
 		NodeUid:       node.NodeUid,
@@ -44,8 +46,12 @@ func (fm *FlowsManager) AddNode(node *common.NodeData) {
 		Xpos:          node.Xpos,
 		Ypos:          node.Ypos,
 		Settings:      node.Settings,
+		Debug:         node.Debug,
 	}
-	newNode := nodes.CreateNode(*nodeData, fm.log, fm)
+	newNode, err := nodes.CreateNode(*nodeData, fm.log, fm)
+	if err != nil {
+		return err
+	}
 
 	nodeIdStr := strconv.Itoa(node.Id)
 	if _, ok := fm.Nodes.Load(nodeIdStr); !ok {
@@ -54,12 +60,17 @@ func (fm *FlowsManager) AddNode(node *common.NodeData) {
 	} else {
 		fm.log.Warnf("Node with ID %d already exists", node.Id)
 	}
+
+	return nil
 }
 
-func (fm *FlowsManager) AddNodes(nodes []*common.NodeData) {
+func (fm *FlowsManager) AddNodes(nodes []*common.NodeData) error {
 	for _, node := range nodes {
-		fm.AddNode(node)
+		if err := fm.AddNode(node); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 func (fm *FlowsManager) DeleteNode(nodeId int) error {
@@ -97,8 +108,12 @@ func (fm *FlowsManager) UpdateNode(node *common.NodeData) error {
 			Xpos:          node.Xpos,
 			Ypos:          node.Ypos,
 			Settings:      node.Settings,
+			Debug:         node.Debug,
 		}
-		newNode := nodes.CreateNode(*nodeData, fm.log, fm)
+		newNode, err := nodes.CreateNode(*nodeData, fm.log, fm)
+		if err != nil {
+			return err
+		}
 		fm.Nodes.Store(nodeIdStr, newNode)
 		fm.updateDigitalTwinNodesIndex(node.DigitalTwinId, newNode, "replace")
 		return nil
@@ -106,7 +121,7 @@ func (fm *FlowsManager) UpdateNode(node *common.NodeData) error {
 	return common.ErrNotFound
 }
 
-func (fm *FlowsManager) regenerateNode(nodeId int) {
+func (fm *FlowsManager) regenerateNode(nodeId int) error {
 	nodeIdStr := strconv.Itoa(nodeId)
 	if value, ok := fm.Nodes.Load(nodeIdStr); ok {
 		existingNode := value.(common.Node)
@@ -125,13 +140,20 @@ func (fm *FlowsManager) regenerateNode(nodeId int) {
 			Xpos:          existingNode.GetXpos(),
 			Ypos:          existingNode.GetYpos(),
 			Settings:      existingNode.GetSettings(),
+			Debug:         existingNode.GetDebug(),
 		}
-		newNode := nodes.CreateNode(*nodeData, fm.log, fm)
+		newNode, err := nodes.CreateNode(*nodeData, fm.log, fm)
+		if err != nil {
+			fm.log.Errorf("Failed to regenerate node %d: %v", nodeId, err)
+			return err
+		}
 		fm.Nodes.Store(nodeIdStr, newNode)
 		fm.updateDigitalTwinNodesIndex(existingNode.GetDigitalTwinId(), newNode, "replace")
 	} else {
 		fm.log.Errorf("Failed to regenerate node %d, it does not exist", nodeId)
+		return common.ErrNotFound
 	}
+	return nil
 }
 
 func (fm *FlowsManager) RegenerateNodesInDigitalTwin(digitalTwinId int) {
@@ -348,6 +370,8 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 		node.Start(fm.log, needReinitialization)
 	}
 
+	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
+
 	fm.log.Infof("Started %d nodes for digital twin %d, waiting for them to be ready", len(nodes), digitalTwinId)
 
 	// Wait for all nodes to be running
@@ -363,13 +387,16 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 			if fm.allNodesRunning(digitalTwinId) {
 				elapsed := time.Since(startTime)
 				fm.log.Infof("All nodes in digital twin %d are running (took %v)", digitalTwinId, elapsed)
+				fm.logPipeline(digitalTwin, "info", fmt.Sprintf("Pipeline started successfully (took %v)", elapsed))
 				return
 			}
 		case <-timeoutChan:
 			// Obtain information about nodes that are not running
 			notRunningNodes := fm.getNotRunningNodes(digitalTwinId)
-			fm.log.Warnf("Timeout while waiting for nodes to start in digital twin %d. Nodes not running: %v",
+			fm.log.Warn("Timeout while waiting for nodes to start in digital twin %d. Nodes not running: %v",
 				digitalTwinId, notRunningNodes)
+			errorMessage := fmt.Sprintf("Pipeline start failed: timeout while waiting for nodes to start. Nodes not running: %v", notRunningNodes)
+			fm.logPipeline(digitalTwin, "error", errorMessage)
 			return
 		}
 	}
@@ -404,10 +431,12 @@ func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int) {
 		case <-ticker.C:
 			if !fm.anyNodeRunning(digitalTwinId) {
 				fm.log.Infof("All nodes in digital twin %d have stopped", digitalTwinId)
+				fm.logPipeline(fm.GetDigitalTwin(digitalTwinId), "info", "Pipeline stopped successfully")
 				return
 			}
 		case <-timeoutChan:
 			fm.log.Warnf("Timeout while waiting for nodes to stop in digital twin %d", digitalTwinId)
+			fm.logPipeline(fm.GetDigitalTwin(digitalTwinId), "error", "Pipeline stop failed: timeout while waiting for nodes to stop")
 			return
 		}
 	}
@@ -443,4 +472,38 @@ func (fm *FlowsManager) RestartNodesInDigitalTwin(digitalTwinId int, needReiniti
 	fm.StartNodesInDigitalTwin(digitalTwinId, needReinitialization)
 
 	fm.log.Infof("Restarted nodes for digital twin %d", digitalTwinId)
+}
+
+func (fm *FlowsManager) logPipeline(digitalTwin *common.DigitalTwin, level string, message string) {
+	var logData common.PipelineLog
+
+	dtName := fmt.Sprintf("DT: %s", digitalTwin.Description)
+	switch level {
+	case "info":
+		logData = common.PipelineLog{
+			Level:     level,
+			Component: "pipeline",
+			Name:      dtName,
+			Uid:       digitalTwin.DigitalTwinUID,
+			Message:   message,
+		}
+	case "error":
+		logData = common.PipelineLog{
+			Level:       level,
+			Component:   "pipeline",
+			Name:        dtName,
+			Uid:         digitalTwin.DigitalTwinUID,
+			Description: message,
+		}
+	}
+
+	logTopic := fm.GetTopicByTopicRef(digitalTwin.AssetId, digitalTwin.Id, "dtmlog")
+	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
+
+	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
+		fm.NatsPublish(logSubject, logJSON)
+	} else {
+		fm.Log().Errorf("Failed to marshal info data for dt %s: %v", digitalTwin.DigitalTwinUID, marshallErr)
+	}
+
 }

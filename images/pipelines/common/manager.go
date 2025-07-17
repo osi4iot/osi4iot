@@ -42,8 +42,8 @@ type Manager interface {
 
 	GetNode(nodeId int) Node
 	GetNodes() []Node
-	AddNode(node *NodeData)
-	AddNodes(nodes []*NodeData)
+	AddNode(node *NodeData) error
+	AddNodes(nodes []*NodeData) error
 	DeleteNode(nodeId int) error
 	UpdateNode(node *NodeData) error
 	GetDigitalTwinNodes(digitalTwinId int) []Node

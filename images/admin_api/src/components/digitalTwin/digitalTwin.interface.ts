@@ -16,6 +16,7 @@ export default interface IDigitalTwin {
 	sensorsRef: string[];
 	pipelineFileName: string;
 	pipelineFileLastModifDate: string;
+	pipelineFileData: string;
 	created?: string;
 	updated?: string;
 }

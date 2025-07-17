@@ -4,6 +4,7 @@ import { nanoid } from "nanoid";
 import { FaShareSquare, FaFolderOpen, FaFolderMinus, FaChartLine } from "react-icons/fa";
 import { HiShieldCheck, HiShieldExclamation } from "react-icons/hi";
 import { RiWifiLine, RiWifiOffLine } from "react-icons/ri";
+import { TiFlowMerge } from "react-icons/ti";
 import { Canvas } from "@react-three/fiber";
 import * as THREE from "three";
 import { OrbitControls } from "@react-three/drei";
@@ -46,6 +47,9 @@ import { existFemResFileLocallyStored, readFemResFile, writeFemResFile } from ".
 import { AxiosError, AxiosResponse } from "axios";
 import ChatAssistant, { ChatMessage, LlmMessage } from "./ChatAssistant";
 import { BsChatDotsFill } from "react-icons/bs";
+import PipelineManager, { PipelineLog } from "./PipelineManager";
+import DigitalTwinSimulatorModal from "./DigitalTwinSimulatorModal";
+import { SlidersHorizontal } from "lucide-react";
 
 const CanvasContainer = styled.div`
     background-color: #212121;
@@ -64,7 +68,7 @@ const SelectedObjectInfoContainer = styled.div`
     position: fixed;
     bottom: 12px;
     right: 0;
-    width: 408px;
+    width: 508px;
 `;
 
 const ObjectInfoContainer = styled.div`
@@ -120,7 +124,7 @@ const StyledDataGui = styled(DatGui)`
     }
 
     &.react-dat-gui {
-        width: 400px;
+        width: 500px;
         top: 22px;
         right: 15px;
         position: fixed;
@@ -283,7 +287,7 @@ const StyledDatButtom = styled(DatButton)`
 
 const HeaderContainer = styled.div`
     background-color: #141619;
-    width: 400px;
+    width: 500px;
     position: fixed;
     top: 220px;
     right: 15px;
@@ -376,6 +380,31 @@ const OpenFolderIcon = styled(FaFolderOpen)`
 `;
 
 const CloseFolderIcon = styled(FaFolderMinus)`
+    background-color: #141619;
+    font-size: 30px;
+    color: #3274d9;
+    margin: 10px;
+
+    &:hover {
+        color: white;
+        cursor: pointer;
+    }
+`;
+
+const TiFlowMergeIcon = styled(TiFlowMerge)`
+    background-color: #141619;
+    font-size: 30px;
+    color: #3274d9;
+    margin: 10px;
+    rotate: -90deg;
+
+    &:hover {
+        color: white;
+        cursor: pointer;
+    }
+`;
+
+const SlidersHorizontalIcon = styled(SlidersHorizontal)`
     background-color: #141619;
     font-size: 30px;
     color: #3274d9;
@@ -527,7 +556,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const [digitalTwinState, setDigitalTwinState] = useState("OK");
     const [generalTransparencyIndex, setGeneralTransparencyIndex] = useState(0);
     const [isChatAssistantOpen, setChatAssistantOpen] = useState(false);
+    const [isPipelineManagerOpen, setPipelineManagerOpen] = useState(false);
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+
+    const [logMessages, setLogMessages] = useState<PipelineLog[]>([]);
+    const [showDtSimulatorModal, setShowDtSimulatorModal] = useState<boolean>(false);
 
     const mqttOptions = {
         keepalive: 0,
@@ -604,6 +637,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
             handleGetLastMeasurementsButton();
             setIsControlPanelOpen(true);
             setChatAssistantOpen(false);
+            setPipelineManagerOpen(false);
         }
     };
 
@@ -619,13 +653,24 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         }
     };
 
+    const handlePipelineManagerOpen = () => {
+        if (digitalTwinSelected) {
+            if (isControlPanelOpen || isChatAssistantOpen) {
+                setPipelineManagerOpen(false);
+            } else {
+                setPipelineManagerOpen((prevState) => !prevState);
+            }
+        }
+    };
+
     const handleChatAssistantOpen = () => {
         if (digitalTwinSelected && digitalTwinSelected.chatAssistantEnabled) {
-        if (isControlPanelOpen) {
-            setChatAssistantOpen(false);
+            if (isControlPanelOpen) {
+                setChatAssistantOpen(false);
+            } else {
+                setChatAssistantOpen((prevState) => !prevState);
+            }
         } else {
-            setChatAssistantOpen((prevState) => !prevState);
-        }} else {
             toast.warning("Chat assistant is not enabled for this digital twin.");
         }
     };
@@ -661,6 +706,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 return newOpts;
             });
         }
+    };
+
+    const handleUpdateLogMessages = (newLogMessage: PipelineLog) => {
+        setLogMessages((prevMessages) => {
+            const newMessages = [...prevMessages];
+            newMessages.push(newLogMessage);
+            return newMessages;
+        });
     };
 
     const [opts, setOpts] = useState({
@@ -990,7 +1043,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 const resultFieldFiltered = resultFields.filter(
                     (result: { resultName: string }) => result.resultName === opts.femSimulationResult
                 )[0];
-                
+
                 const units = resultFieldFiltered.units;
                 (femMaxValueRef.current as any).innerHTML = `Max value: ${sortedFemMaxValues[0].toExponential(
                     4
@@ -1008,6 +1061,22 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         femMaxValueRef,
         femMaxValues,
     ]);
+
+    const updateDigitalTwinSimulatorState = useCallback(
+        (digitalTwinSimulatorState: Record<string, number>) => {
+            setOpts((prevOpts) => {
+                const newOpts = { ...prevOpts };
+                newOpts.digitalTwinSimulatorState = digitalTwinSimulatorState;
+                return newOpts;
+            });
+        },
+        [setOpts]
+    );
+
+    const handleOpenSimulator = useCallback(() => {
+        setShowDtSimulatorModal(true);
+        setDigitalTwinSimulatorSendData(true);
+    }, [setDigitalTwinSimulatorSendData]);
 
     return (
         <>
@@ -1123,6 +1192,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                 chatMessages={chatMessages}
                                 handleUpdateChatAssistantMessages={handleUpdateChatAssistantMessages}
                                 isChatAssistantOpen={isChatAssistantOpen}
+                                handleUpdateLogMessages={handleUpdateLogMessages}
                             />
                         </MqttConnector>
                     </Stage>
@@ -1160,6 +1230,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                             <OpenFolderIcon onClick={(e) => handleControlPanelOpenAndClose()} />
                         )}
                         <ChatAssistantIcon onClick={(e) => handleChatAssistantOpen()} />
+                        <TiFlowMergeIcon onClick={(e) => handlePipelineManagerOpen()} />
+                        <SlidersHorizontalIcon className="w-4 h-4" onClick={handleOpenSimulator} />
                         <MqttConnectionDiv>
                             MQTT
                             {isMqttConnected ? <WifiIcon /> : <NoWifiIcon />}
@@ -1455,11 +1527,26 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         )}
                     </StyledDataGui>
                 )}
+                {digitalTwinSelected && isPipelineManagerOpen && (
+                    <PipelineManager
+                        logMessages={logMessages}
+                        setLogMessages={setLogMessages}
+                        digitalTwinSelected={digitalTwinSelected}
+                    />
+                )}
                 {digitalTwinSelected && isChatAssistantOpen && (
                     <ChatAssistant
                         chatMessages={chatMessages}
                         setChatMessages={setChatMessages}
                         chatAssistantLanguage={digitalTwinSelected.chatAssistantLanguage}
+                    />
+                )}
+                {showDtSimulatorModal && (
+                    <DigitalTwinSimulatorModal
+                        digitalTwinSimulatorFormat={digitalTwinGltfData.digitalTwinSimulationFormat}
+                        setShowDigitalTwinSimulator={setShowDtSimulatorModal}
+                        updateDigitalTwinSimulatorState={updateDigitalTwinSimulatorState}
+                        setDigitalTwinSimulatorSendData={setDigitalTwinSimulatorSendData}
                     />
                 )}
                 <SelectedObjectInfoContainer>
