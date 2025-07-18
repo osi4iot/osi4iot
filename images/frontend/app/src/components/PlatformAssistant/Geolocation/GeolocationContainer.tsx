@@ -11,7 +11,7 @@ import useInterval from '../../../tools/useInterval';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import SelectFloorWithState from './SelectFloorWithState';
-import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
+import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerTools/ViewerUtils';
 import { getAxiosInstance } from '../../../tools/axiosIntance';
 import axiosErrorHandler from '../../../tools/axiosErrorHandler';
 import { IAsset } from '../TableColumns/assetsColumns';

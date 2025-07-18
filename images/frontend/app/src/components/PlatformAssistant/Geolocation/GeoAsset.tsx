@@ -6,7 +6,7 @@ import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { findOutStatus, STATUS_ALERTING, STATUS_OK, STATUS_PENDING } from "./statusTools";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 

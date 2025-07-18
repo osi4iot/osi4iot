@@ -10,7 +10,7 @@ import { IDigitalTwinState } from "./GeolocationContainer";
 import calcGeoBounds from "../../../tools/calcGeoBounds";
 import { axiosAuth, axiosAuthDigitalTwinFile, getDomainName, getProtocol } from "../../../tools/tools";
 import { useAuthDispatch, useAuthState } from "../../../contexts/authContext";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { toast } from "react-toastify";
 import { getAxiosInstance } from "../../../tools/axiosIntance";
 import axiosErrorHandler from "../../../tools/axiosErrorHandler";

@@ -1,5 +1,5 @@
-import { IFemSimulationObject, IResultRenderInfo } from "../components/PlatformAssistant/DigitalTwin3DViewer/Model";
-import { FemSimulationObjectState } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerUtils";
+import { IFemSimulationObject, IResultRenderInfo } from "../components/PlatformAssistant/DigitalTwin3DViewer/Main/Model";
+import { FemSimulationObjectState } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 
 const giveResultsLutParams = (
     femSimulationGeneralInfo: Record<string, IResultRenderInfo>,

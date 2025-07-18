@@ -3,7 +3,7 @@ import { LayerGroup } from 'react-leaflet';
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import GeoSensor from "./GeoSensor";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import GeoDigitalTwin from "./GeoDigitalTwin";

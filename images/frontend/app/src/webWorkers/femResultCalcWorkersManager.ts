@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { toast } from "react-toastify";
-import { IFemSimulationObject } from "../components/PlatformAssistant/DigitalTwin3DViewer/Model";
-import { FemSimulationObjectState } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerUtils";
+import { IFemSimulationObject } from "../components/PlatformAssistant/DigitalTwin3DViewer/Main/Model";
+import { FemSimulationObjectState } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 
 const femResultCalcWorkersManager = (
     numWorkers: number,

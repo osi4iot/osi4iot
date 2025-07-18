@@ -1,8 +1,8 @@
 import { toast } from "react-toastify";
-import { IDigitalTwinGltfData, createUrl } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData, createUrl } from "../components/PlatformAssistant/DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { IAsset } from "../components/PlatformAssistant/TableColumns/assetsColumns";
 import { write3DModelFile } from "./fileSystem";
-import { IMqttTopicData } from "../components/PlatformAssistant/DigitalTwin3DViewer/Model";
+import { IMqttTopicData } from "../components/PlatformAssistant/DigitalTwin3DViewer/Main/Model";
 import { loadAndParseGltfFile } from "./loadAndParseGltfFile";
 import { giveBrowserType } from "./tools";
 

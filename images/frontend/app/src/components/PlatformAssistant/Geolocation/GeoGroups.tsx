@@ -8,7 +8,7 @@ import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import GeoGroup from "./GeoGroup";
 import { IOrgOfGroupsManaged } from "../TableColumns/orgsOfGroupsManagedColumns";
 import { isGeoJSONObject } from "../../../tools/geojsonValidation";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";
 import { IAssetType } from "../TableColumns/assetTypesColumns";

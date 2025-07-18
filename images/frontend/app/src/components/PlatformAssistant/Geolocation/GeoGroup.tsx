@@ -9,7 +9,7 @@ import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
 import { findOutStatus } from "./statusTools";
 import { IFloor } from "../TableColumns/floorsColumns";
 import { findGroupGeojsonData } from "../../../tools/findGroupGeojsonData";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import GeoNodeRedInstance from "./GeoNodeRedInstance";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";

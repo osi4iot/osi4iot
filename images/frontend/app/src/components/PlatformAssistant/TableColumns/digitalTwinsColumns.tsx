@@ -13,7 +13,7 @@ import {
     setDigitalTwinsOptionToShow,
     useDigitalTwinsDispatch
 } from '../../../contexts/digitalTwinsOptions';
-import { DigitalTwinSimulationParameter } from '../DigitalTwin3DViewer/ViewerUtils';
+import { DigitalTwinSimulationParameter } from '../DigitalTwin3DViewer/ViewerTools/ViewerUtils';
 import {
     setReloadDashboardsTable,
     setReloadSensorsTable,

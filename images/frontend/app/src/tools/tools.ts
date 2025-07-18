@@ -1,5 +1,5 @@
 import { AxiosProgressEvent } from "axios";
-import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/threeInterfaces";
+import { IThreeMesh } from "../components/PlatformAssistant/DigitalTwin3DViewer/Types/threeInterfaces";
 import { PLATFORM_ASSISTANT_ROUTES } from "../components/PlatformAssistant/Utils/platformAssistantOptions";
 import { IWindowObjectReferences, PlatformAssistantDispatch } from "../contexts/platformAssistantContext/interfaces";
 

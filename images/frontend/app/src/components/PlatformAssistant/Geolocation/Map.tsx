@@ -18,7 +18,7 @@ import GeoBuildings from './GeoBuildings';
 import { IBuilding } from '../TableColumns/buildingsColumns';
 import { IFloor } from '../TableColumns/floorsColumns';
 import GeoGroups from './GeoGroups';
-import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerUtils';
+import { IDigitalTwinGltfData } from '../DigitalTwin3DViewer/ViewerTools/ViewerUtils';
 import { useWindowWidth } from '@react-hook/window-size';
 import { IAsset } from '../TableColumns/assetsColumns';
 import { ISensor } from '../TableColumns/sensorsColumns';

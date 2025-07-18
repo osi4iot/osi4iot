@@ -1,7 +1,7 @@
 import { FC } from "react";
 import { IDigitalTwin } from "../TableColumns/digitalTwinsColumns";
 import { IDigitalTwinState, ISensorState } from "./GeolocationContainer";
-import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerUtils";
+import { IDigitalTwinGltfData } from "../DigitalTwin3DViewer/ViewerTools/ViewerUtils";
 import GeoAsset from "./GeoAsset";
 import { IAsset } from "../TableColumns/assetsColumns";
 import { ISensor } from "../TableColumns/sensorsColumns";

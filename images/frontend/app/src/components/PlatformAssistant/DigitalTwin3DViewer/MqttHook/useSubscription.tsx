@@ -4,12 +4,12 @@ import * as THREE from "three";
 import MqttContext from "./MqttContext";
 import { IMqttContext as Context, IMessage } from "./interfaces";
 import matches from "./matches";
-import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, ISensorObject } from "../Model";
-import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerUtils";
-import { IThreeMesh } from "../threeInterfaces";
-import { LlmMessage } from "../ChatAssistant";
-import { PipelineLog } from "../PipelineManager";
+import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, ISensorObject } from "../Main/Model";
+import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerTools/ViewerUtils";
+import { IThreeMesh } from "../Types/threeInterfaces";
 import formatDateString from "../../../../tools/formatDate";
+import { LlmMessage } from "../ChatAssitant/ChatAssistant";
+import { PipelineLog } from "../Pipeline/PipelineManager";
 
 const useSubscription = (
     mqttTopics: string | string[],

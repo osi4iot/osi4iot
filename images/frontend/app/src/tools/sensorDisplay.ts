@@ -1,5 +1,5 @@
 import * as THREE from 'three'
-import { IThreeMesh } from '../components/PlatformAssistant/DigitalTwin3DViewer/threeInterfaces';
+import { IThreeMesh } from '../components/PlatformAssistant/DigitalTwin3DViewer/Types/threeInterfaces';
 
 const digitMesh = [
     [1, 0, 1, 1, 1, 1, 1], // Value 0
