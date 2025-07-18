@@ -36,6 +36,14 @@ var topicTypeArray = []string{
 	"dev2sim",
 	"sim2llm",
 	"llm2sim",
+	"dtmlog",
+	"sim2state",
+	"state2sim",
+	"inject_1",
+	"inject_2",
+	"inject_3",
+	"inject_4",
+	"inject_5",
 }
 
 type AuthEntity interface {

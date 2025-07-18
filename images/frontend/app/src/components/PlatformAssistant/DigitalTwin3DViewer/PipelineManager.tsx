@@ -9,6 +9,7 @@ import {
     RotateCcw,
     RefreshCw,
     Download,
+    CircleX,
     Upload,
     Play,
     Code,
@@ -126,7 +127,6 @@ const TabContainer = styled.div`
     background-color: #1c1a1a;
     border-top-left-radius: 8px;
     border-top-right-radius: 8px;
-    //margin-bottom: 8px;
     overflow: hidden;
 `;
 
@@ -155,7 +155,7 @@ const ActionsContainer = styled.div`
     display: flex;
     gap: 2px;
     align-items: center;
-    margin-right: 30px;
+    margin-right: 15px;
 `;
 
 const IconButton = styled.button`
@@ -877,7 +877,7 @@ interface PipelineManagerProps {
 }
 
 const PipelineManager: React.FC<PipelineManagerProps> = ({ logMessages, setLogMessages, digitalTwinSelected }) => {
-    const [width, setWidth] = useState(500);
+    const [width, setWidth] = useState(520);
     const [isDragging, setIsDragging] = useState(false);
     const dragStartRef = useRef({ x: 0, widthInicial: 0 });
     const { accessToken, refreshToken } = useAuthState();
@@ -890,13 +890,17 @@ const PipelineManager: React.FC<PipelineManagerProps> = ({ logMessages, setLogMe
     const [lastUpdate, setLastUpdate] = useState(Date.now());
 
     useEffect(() => {
-        const pipelineData = JSON.parse(digitalTwinSelected.pipelineFileData);
-        for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
-            if (typeof pipelineData.nodes[inode].settings === "string") {
-                pipelineData.nodes[inode].settings = JSON.parse(pipelineData.nodes[inode].settings);
+        if (digitalTwinSelected.pipelineFileData !== "") {
+            const pipelineData = JSON.parse(digitalTwinSelected.pipelineFileData);
+            if (Object.keys(pipelineData).length !== 0) {
+                for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
+                    if (typeof pipelineData.nodes[inode].settings === "string") {
+                        pipelineData.nodes[inode].settings = JSON.parse(pipelineData.nodes[inode].settings);
+                    }
+                }
+                setYamlContent(pipelineData);
             }
         }
-        setYamlContent(pipelineData);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -930,7 +934,7 @@ const PipelineManager: React.FC<PipelineManagerProps> = ({ logMessages, setLogMe
             const deltaX = dragStartRef.current.x - e.clientX;
             const newWidth = dragStartRef.current.widthInicial + deltaX;
 
-            const widthMin = 500;
+            const widthMin = 520;
             const widthMax = 1000;
 
             if (newWidth >= widthMin && newWidth <= widthMax) {
@@ -999,6 +1003,7 @@ const PipelineManager: React.FC<PipelineManagerProps> = ({ logMessages, setLogMe
             getAxiosInstance(refreshToken, authDispatch)
                 .post(urlSetPipelineAction, pipelineAction, config)
                 .then((response: AxiosResponse<any, any>) => {
+                    setActiveTab("logs");
                     toast.success(response.data.message);
                 })
                 .catch((error: AxiosError) => {
@@ -1030,15 +1035,44 @@ const PipelineManager: React.FC<PipelineManagerProps> = ({ logMessages, setLogMe
     }, []);
 
     const handleCancelChanges = useCallback(() => {
-        const pipelineData = JSON.parse(digitalTwinSelected.pipelineFileData);
-        for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
-            if (typeof pipelineData.nodes[inode].settings === "string") {
-                pipelineData.nodes[inode].settings = JSON.parse(pipelineData.nodes[inode].settings);
+        if (digitalTwinSelected.pipelineFileData !== "") {
+            const pipelineData = JSON.parse(digitalTwinSelected.pipelineFileData);
+            if (Object.keys(pipelineData).length !== 0) {
+                for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
+                    if (typeof pipelineData.nodes[inode].settings === "string") {
+                        pipelineData.nodes[inode].settings = JSON.parse(pipelineData.nodes[inode].settings);
+                    }
+                }
+                setYamlContent(pipelineData);
+            } else {
+                setYamlContent({});
             }
+        } else {
+            setYamlContent({});
         }
-        setYamlContent(pipelineData);
         setLastUpdate(Date.now());
     }, [digitalTwinSelected.pipelineFileData]);
+
+    const handleStopPipeline = useCallback(() => {
+        const groupId = digitalTwinSelected.groupId;
+        const digitalTwinId = digitalTwinSelected.id;
+        const urlSetPipelineActionBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline_action`;
+        const urlSetPipelineAction = `${urlSetPipelineActionBase}/${groupId}/${digitalTwinId}`;
+        const pipelineAction = {
+            action: "stop",
+            reinitialize: false,
+        };
+
+        getAxiosInstance(refreshToken, authDispatch)
+            .post(urlSetPipelineAction, pipelineAction, config)
+            .then((response: AxiosResponse<any, any>) => {
+                setActiveTab("logs");
+                toast.success(response.data.message);
+            })
+            .catch((error: AxiosError) => {
+                axiosErrorHandler(error, authDispatch);
+            });
+    }, [digitalTwinSelected.groupId, digitalTwinSelected.id, refreshToken, authDispatch, config]);
 
     const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
@@ -1049,6 +1083,7 @@ const PipelineManager: React.FC<PipelineManagerProps> = ({ logMessages, setLogMe
                 try {
                     const yamlData = YAML.parse(content);
                     setYamlContent(yamlData);
+                    setLastUpdate(Date.now());
                     toast.success("YAML file loaded successfully");
                 } catch (error) {
                     toast.error("Error parsing YAML file");
@@ -1190,6 +1225,9 @@ const PipelineManager: React.FC<PipelineManagerProps> = ({ logMessages, setLogMe
                             <TooltipWrapper tooltip="Cancel changes" onClick={handleCancelChanges}>
                                 <PencilOff className="w-4 h-4" />
                             </TooltipWrapper>
+                            <TooltipWrapper tooltip="Stop pipeline" onClick={handleStopPipeline}>
+                                <CircleX className="w-4 h-4" />
+                            </TooltipWrapper>
                             <TooltipWrapper tooltip="Reinitiate pipeline" onClick={handleReinitiate}>
                                 <RotateCcw className="w-4 h-4" />
                             </TooltipWrapper>
@@ -1215,7 +1253,7 @@ const PipelineManager: React.FC<PipelineManagerProps> = ({ logMessages, setLogMe
                     {activeTab === "logs" ? renderLogsTab() : renderYamlTab()}
                 </LogContainer>
             </Container>
-            
+
             <HiddenFileInput ref={fileInputRef} type="file" accept=".yml,.yaml" onChange={handleFileUpload} />
         </>
     );

@@ -124,7 +124,7 @@ const StyledDataGui = styled(DatGui)`
     }
 
     &.react-dat-gui {
-        width: 500px;
+        width: 520px;
         top: 22px;
         right: 15px;
         position: fixed;
@@ -287,7 +287,7 @@ const StyledDatButtom = styled(DatButton)`
 
 const HeaderContainer = styled.div`
     background-color: #141619;
-    width: 500px;
+    width: 520px;
     position: fixed;
     top: 220px;
     right: 15px;

@@ -22,7 +22,7 @@ const ChatContainer = styled.div`
     position: fixed;
     top: 282px;
     right: 15px;
-    width: 500px;
+    width: 520px;
     height: calc(100vh - 325px);
     background-color: #2c2c2c;
     border: 1px solid #444;
