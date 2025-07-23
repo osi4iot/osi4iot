@@ -6,11 +6,8 @@ import useSpeechSynthesis from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 import getVoices, { IChatVoice } from "../../../../tools/getVoices";
 import useInterval from "../../../../tools/useInterval";
+import { ChatMessage } from "../Types/types";
 
-export interface ChatMessage {
-    message: string;
-    sender: "user" | "assistant";
-}
 
 export interface LlmMessage {
     message: string;
@@ -183,6 +180,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 const grettingMessage: ChatMessage = {
                     message: voice.greeting,
                     sender: "assistant",
+                    time: new Date().toISOString(),
                 };
                 setChatMessages([grettingMessage]);
             });
@@ -197,6 +195,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         const newMessage: ChatMessage = {
             message: input,
             sender: "user",
+            time: new Date().toISOString(),
         };
         setChatMessages([...chatMessages, newMessage]);
 

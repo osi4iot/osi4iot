@@ -1,5 +1,3 @@
-import Paho from "paho-mqtt";
-
 export interface IMqttClientOptions {
   clientId: string;
   port: number;
@@ -12,11 +10,6 @@ export interface ConnectorProps {
   hostname: string;
   options?: IMqttClientOptions;
   children: React.ReactNode;
-}
-
-export interface IMqttContext {
-  connectionStatus: string | Error;
-  client?: Paho.Client | null;
 }
 
 export interface IMessageStructure {

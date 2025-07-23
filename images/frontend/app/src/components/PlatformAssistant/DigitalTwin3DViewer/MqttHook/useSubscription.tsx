@@ -1,17 +1,19 @@
-import { useContext, useEffect } from "react";
+import { useEffect } from "react";
 import { SubscribeOptions } from "paho-mqtt";
 import * as THREE from "three";
-import MqttContext from "./MqttContext";
-import { IMqttContext as Context, IMessage } from "./interfaces";
+import Paho from "paho-mqtt";
 import matches from "./matches";
 import { IAssetObject, IFemSimulationObject, IGenericObject, IMqttTopicData, ISensorObject } from "../Main/Model";
 import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState } from "../ViewerTools/ViewerUtils";
 import { IThreeMesh } from "../Types/threeInterfaces";
 import formatDateString from "../../../../tools/formatDate";
 import { LlmMessage } from "../ChatAssitant/ChatAssistant";
-import { PipelineLog } from "../Pipeline/PipelineManager";
+import { PipelineLog } from "../Pipeline/PipelineLogs.tsx";
+import { IMessage } from "./interfaces";
 
 const useSubscription = (
+    mqttClient: Paho.Client | null,
+    connectionStatus: string,
     mqttTopics: string | string[],
     mqttTopicsData: IMqttTopicData[],
     topicIdBySensorRef: Record<string, number>,
@@ -36,8 +38,6 @@ const useSubscription = (
     handleUpdateLogMessages: (newLogMessage: PipelineLog) => void,
     options: SubscribeOptions = {} as SubscribeOptions
 ) => {
-    const { client } = useContext<Context>(MqttContext);
-
     let femResultNames: string[] = [];
     if (femSimulationObjects.length && femResultData && Object.keys(femResultData).length !== 0) {
         femResultNames = femResultData.metadata.resultFields.map(
@@ -46,22 +46,22 @@ const useSubscription = (
     }
 
     useEffect(() => {
-        if (client?.isConnected) {
+        if (mqttClient?.isConnected) {
             // subscribe();
             if (typeof mqttTopics === "string") {
-                client?.subscribe(mqttTopics, options);
+                mqttClient?.subscribe(mqttTopics, options);
             } else {
                 for (const topic_i of mqttTopics as string[]) {
-                    client?.subscribe(topic_i, options);
+                    mqttClient?.subscribe(topic_i, options);
                 }
             }
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [client]);
+    }, [mqttClient]);
 
     useEffect(() => {
-        if (client?.isConnected) {
-            client.onMessageArrived = (message: any) => {
+        if (mqttClient?.isConnected) {
+            mqttClient.onMessageArrived = (message: any) => {
                 if ([mqttTopics].flat().some((rTopic) => matches(rTopic, message.destinationName))) {
                     const recievedMessage = {
                         topic: message.destinationName,
@@ -96,7 +96,7 @@ const useSubscription = (
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [
-        client,
+        mqttClient,
         sensorsState,
         assetsState,
         genericObjectsState,

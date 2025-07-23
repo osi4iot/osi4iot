@@ -12,7 +12,6 @@ export const insertNode = async (nodeData: INode, groupId: number): Promise<INod
 		RETURNING id,node_uid AS "nodeUid",
 		name, type, x, y, num_outputs AS "numOutputs", 
 		settings, created, updated`;
-	console.log("nodeData.debug=", nodeData.debug);
 	const result = await pool.query(queryString, [
 		nodeData.nodeUid,
 		nodeData.digitalTwinId,

@@ -16,6 +16,11 @@ class CreateNodeWireDto {
 	@IsString()
 	@ValidateIf((obj) => obj.nodeUid !== undefined)
 	public nodeUid?: string;
+
+	@IsOptional()
+	@IsString()
+	@ValidateIf((obj) => obj.nodeEndUid !== undefined)
+	public nodeEndUid?: string;
 }
 
 export default CreateNodeWireDto;

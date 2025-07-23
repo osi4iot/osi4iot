@@ -304,70 +304,196 @@ func (n *FuncNode) returnVM(vm *goja.Runtime) {
 	n.vmPool <- vm
 }
 
+// func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) error {
+// 	// Get VM from the pool
+// 	vm := n.getVM()
+// 	defer n.returnVM(vm)
+
+// 	// Get process function from the current VM (each VM has its own instance)
+// 	processFunc, ok := goja.AssertFunction(vm.Get("process"))
+// 	if !ok {
+// 		log.Errorf("Process function not found in VM for node %s", n.NodeUid)
+// 		return fmt.Errorf("process function not found in VM")
+// 	}
+
+// 	// Convert data to JavaScript object with correct mapping
+// 	jsData := n.convertToJSObject(vm, message)
+
+// 	// Execute processing
+// 	result, err := processFunc(goja.Undefined(), jsData)
+// 	if err != nil {
+// 		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
+// 		return fmt.Errorf("script execution error: %w", err)
+// 	}
+
+// 	// Process result
+// 	if result != nil && !goja.IsUndefined(result) && !goja.IsNull(result) {
+// 		// Convert JavaScript result to Go
+// 		processedData, err := n.convertFromJSObject(result)
+// 		if err != nil {
+// 			return fmt.Errorf("failed to convert JS result: %w", err)
+// 		}
+
+// 		nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
+
+// 		if len(nodeOutputWires) == 0 {
+// 			if msg, ok := processedData.(common.Message); ok {
+// 				if n.Debug == "on" {
+// 					n.handleDebug(msg, 0)
+// 				}
+// 			} else {
+// 				log.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
+// 			}
+// 		} else if len(nodeOutputWires) == 1 {
+// 			if msg, ok := processedData.(common.Message); ok {
+// 				n.addEventTriggerTopicType(message.Topic, &msg)
+// 				for _, wire := range nodeOutputWires[0] {
+// 					if n.Debug == "on" {
+// 						n.handleDebug(msg, 0)
+// 					}
+// 					wire.Channel <- msg
+// 				}
+// 			} else {
+// 				log.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
+// 			}
+// 		} else if len(nodeOutputWires) > 1 {
+// 			if msgs, ok := processedData.([]common.Message); ok {
+// 				for idx, msg := range msgs {
+// 					n.addEventTriggerTopicType(message.Topic, &msg)
+// 					msgs[idx] = msg // Update the message in place
+// 				}
+// 				for idx, wireArray := range nodeOutputWires {
+// 					if n.Debug == "on" {
+// 						n.handleDebug(msgs[idx], idx)
+// 					}
+// 					for _, wire := range wireArray {
+// 						wire.Channel <- msgs[idx]
+// 					}
+// 				}
+// 			} else {
+// 				log.Errorf("Processed data is not of type []Message in node %s", n.NodeUid)
+// 			}
+// 		}
+// 	}
+
+// 	return nil
+// }
+
 func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) error {
 	// Get VM from the pool
 	vm := n.getVM()
 	defer n.returnVM(vm)
 
-	// Get process function from the current VM (each VM has its own instance)
+	// Get process function from the current VM
 	processFunc, ok := goja.AssertFunction(vm.Get("process"))
 	if !ok {
 		log.Errorf("Process function not found in VM for node %s", n.NodeUid)
 		return fmt.Errorf("process function not found in VM")
 	}
 
-	// Convert data to JavaScript object with correct mapping
+	// Convert data to JavaScript object and execute
 	jsData := n.convertToJSObject(vm, message)
-
-	// Execute processing
 	result, err := processFunc(goja.Undefined(), jsData)
 	if err != nil {
 		log.Errorf("Script execution error in node %s: %v", n.NodeUid, err)
 		return fmt.Errorf("script execution error: %w", err)
 	}
 
-	// Process result
-	if result != nil && !goja.IsUndefined(result) && !goja.IsNull(result) {
-		// Convert JavaScript result to Go
-		processedData, err := n.convertFromJSObject(result)
-		if err != nil {
-			return fmt.Errorf("failed to convert JS result: %w", err)
+	// Skip processing if no result
+	if result == nil || goja.IsUndefined(result) || goja.IsNull(result) {
+		return nil
+	}
+
+	// Convert JavaScript result to Go
+	processedData, err := n.convertFromJSObject(result)
+	if err != nil {
+		return fmt.Errorf("failed to convert JS result: %w", err)
+	}
+
+	// Route to outputs based on wire count
+	nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
+
+	switch wireCount := len(nodeOutputWires);  wireCount{
+	case 0:
+		return n.handleDebugOnly(processedData, log)
+
+	case 1:
+		return n.sendToSingleOutput(processedData, message.Topic, nodeOutputWires[0], log)
+
+	default:
+		return n.sendToMultipleOutputs(processedData, message.Topic, nodeOutputWires, log)
+	}
+}
+
+// handleDebugOnly processes debug for nodes with no outputs
+func (n *FuncNode) handleDebugOnly(processedData interface{}, log *logger.Logger) error {
+	msg, ok := processedData.(common.Message)
+	if !ok {
+		log.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
+		return nil // No fallar por tipo incorrecto en debug
+	}
+
+	if n.Debug == "on" {
+		n.handleDebug(msg, 0)
+	}
+	return nil
+}
+
+// sendToSingleOutput sends message to a single output
+func (n *FuncNode) sendToSingleOutput(processedData interface{}, topic string, wires []*common.Wire, log *logger.Logger) error {
+	msg, ok := processedData.(common.Message)
+	if !ok {
+		log.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
+		return nil
+	}
+
+	n.addEventTriggerTopicType(topic, &msg)
+
+	if n.Debug == "on" {
+		n.handleDebug(msg, 0)
+	}
+
+	// Send to all wires (non-blocking)
+	for _, wire := range wires {
+		select {
+		case wire.Channel <- msg:
+		default:
+			log.Warnf("Wire channel full in node %s", n.NodeUid)
+		}
+	}
+	return nil
+}
+
+// sendToMultipleOutputs sends messages to multiple outputs
+func (n *FuncNode) sendToMultipleOutputs(processedData interface{}, topic string, nodeOutputWires [][]*common.Wire, log *logger.Logger) error {
+	msgs, ok := processedData.([]common.Message)
+	if !ok {
+		log.Errorf("Processed data is not of type []Message in node %s", n.NodeUid)
+		return nil
+	}
+
+	// Process each output (limit to available messages)
+	for idx, wireArray := range nodeOutputWires {
+		if idx >= len(msgs) {
+			break // No more messages to send
 		}
 
-		nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
+		msg := msgs[idx]
+		n.addEventTriggerTopicType(topic, &msg)
 
-		if len(nodeOutputWires) == 1 {
-			if msg, ok := processedData.(common.Message); ok {
-				n.addEventTriggerTopicType(message.Topic, &msg)
-				for _, wire := range nodeOutputWires[0] {
-					if n.Debug == "on" {
-						n.handleDebug(msg, 0)
-					}
-					wire.Channel <- msg
-				}
-			} else {
-				log.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
-			}
-		} else if len(nodeOutputWires) > 1 {
-			if msgs, ok := processedData.([]common.Message); ok {
-				for idx, msg := range msgs {
-					n.addEventTriggerTopicType(message.Topic, &msg)
-					msgs[idx] = msg // Update the message in place
-				}
-				for idx, wireArray := range nodeOutputWires {
-					if n.Debug == "on"{
-						n.handleDebug(msgs[idx], idx)
-					}
-					for _, wire := range wireArray {
-						wire.Channel <- msgs[idx]
-					}
-				}
-			} else {
-				log.Errorf("Processed data is not of type []Message in node %s", n.NodeUid)
+		if n.Debug == "on" {
+			n.handleDebug(msg, idx)
+		}
+
+		// Send to all wires in this output (non-blocking)
+		for _, wire := range wireArray {
+			select {
+			case wire.Channel <- msg:
+			default:
+				log.Warnf("Wire channel full in node %s", n.NodeUid)
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -437,6 +563,9 @@ func (n *FuncNode) convertFromJSObject(jsValue goja.Value) (interface{}, error) 
 	if mapDataArray, ok := exported.([]interface{}); ok {
 		messages := make([]common.Message, len(mapDataArray))
 		for idx, mapData := range mapDataArray {
+			if mapData == nil {
+				continue
+			}
 			if n.looksLikeMessageData(mapData.(map[string]interface{})) {
 				jsonData, err := utils.MarshalData(mapData)
 				if err != nil {

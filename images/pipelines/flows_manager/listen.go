@@ -58,12 +58,13 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "topic":
-			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				topic := fm.Admin.GetTopic(groupId, adminMsg.Id)
 				fm.AddTopic(topic)
 			case "update":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				topic := fm.Admin.GetTopic(groupId, adminMsg.Id)
 				fm.UpdateTopic(topic)
 			case "delete":
@@ -73,36 +74,39 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "asset_topic":
-			topicId := int(adminMsg.Context["topicId"].(float64))
-			topicRef := adminMsg.Context["topicRef"].(string)
 			switch adminMsg.Action {
 			case "create":
+				topicId := int(adminMsg.Context["topicId"].(float64))
+				topicRef := adminMsg.Context["topicRef"].(string)
 				fm.AddAssetTopicRef(adminMsg.Id, topicId, topicRef)
 			case "delete":
+				topicRef := adminMsg.Context["topicRef"].(string)
 				fm.DeleteAssetTopicRef(adminMsg.Id, topicRef)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
 			}
 		case "digital_twin_topic":
-			topicId := int(adminMsg.Context["topicId"].(float64))
-			topicRef := adminMsg.Context["topicRef"].(string)
 			switch adminMsg.Action {
 			case "create":
+				topicId := int(adminMsg.Context["topicId"].(float64))
+				topicRef := adminMsg.Context["topicRef"].(string)
 				fm.AddDigitalTwinTopicRef(adminMsg.Id, topicRef, topicId)
 			case "delete":
+				topicRef := adminMsg.Context["topicRef"].(string)
 				fm.DeleteDigitalTwinTopicRef(adminMsg.Id, topicRef)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return
 			}
 		case "ml_model":
-			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				mlModel := fm.Admin.GetMlModel(groupId, adminMsg.Id)
 				fm.AddMlModel(mlModel)
 			case "update":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				mlModel := fm.Admin.GetMlModel(groupId, adminMsg.Id)
 				fm.UpdateMlModel(mlModel)
 			case "delete":
@@ -112,12 +116,13 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "digitalTwin":
-			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				digitalTwin := fm.Admin.GetDigitalTwin(groupId, adminMsg.Id)
 				fm.AddDigitalTwin(digitalTwin)
 			case "update":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				digitalTwin := fm.Admin.GetDigitalTwin(groupId, adminMsg.Id)
 				fm.UpdateDigitalTwin(digitalTwin)
 			case "delete":
@@ -127,15 +132,16 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "node":
-			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				node := fm.Admin.GetNode(groupId, adminMsg.Id)
 				err := fm.AddNode(node)
 				if err != nil {
 					fm.handleNodeError(node, err)
 				}
 			case "update":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				node := fm.Admin.GetNode(groupId, adminMsg.Id)
 				err := fm.UpdateNode(node)
 				if err != nil {
@@ -148,12 +154,13 @@ func (fm *FlowsManager) Listen() {
 				return
 			}
 		case "wire":
-			groupId := int(adminMsg.Context["groupId"].(float64))
 			switch adminMsg.Action {
 			case "create":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				wire := fm.Admin.GetWire(groupId, adminMsg.Id)
 				fm.AddWire(wire)
 			case "update":
+				groupId := int(adminMsg.Context["groupId"].(float64))
 				wire := fm.Admin.GetWire(groupId, adminMsg.Id)
 				fm.UpdateWire(wire)
 			case "delete":

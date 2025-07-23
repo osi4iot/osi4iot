@@ -1,0 +1,1160 @@
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import styled, { keyframes, css } from "styled-components";
+import { X, Save, RotateCcw, Bug } from "lucide-react";
+import { indentUnit, indentOnInput } from "@codemirror/language";
+import { keymap } from "@codemirror/view";
+import { indentWithTab } from "@codemirror/commands";
+
+// Importaciones de CodeMirror
+import CodeMirror from "@uiw/react-codemirror";
+import { javascript } from "@codemirror/lang-javascript";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { useUpdateNodeInternals } from "@xyflow/react";
+import { useFormChanges } from "../Utils/customHooks";
+
+// CSS estándar para el resizing - mejor performance
+const resizableStyles = `
+  .resizable-panel {
+    width: var(--panel-width, 550px);
+    transition: none;
+  }
+  
+  .resizable-panel.dragging {
+    transition: none !important;
+    user-select: none;
+  }
+  
+  .resizable-panel:not(.dragging) {
+    transition: width 0.2s ease;
+  }
+`;
+
+// Inyectar estilos una sola vez
+if (typeof document !== "undefined" && !document.getElementById("resizable-panel-styles")) {
+    const styleSheet = document.createElement("style");
+    styleSheet.id = "resizable-panel-styles";
+    styleSheet.textContent = resizableStyles;
+    document.head.appendChild(styleSheet);
+}
+
+// Animaciones
+const slideIn = keyframes`
+  from {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+`;
+
+const slideOut = keyframes`
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+`;
+
+const reIndentCode = (code: string): string => {
+    const lines = code.split("\n");
+    let indentLevel = 0;
+    const indentSize = 4;
+
+    return lines
+        .map((line) => {
+            const trimmed = line.trim();
+
+            // Si hay contenido en la línea
+            if (trimmed.length > 0) {
+                // Reducir indentación antes de procesar closing brackets
+                if (
+                    trimmed.startsWith("}") ||
+                    trimmed.startsWith("]") ||
+                    trimmed.startsWith(")") ||
+                    trimmed.includes("} else") ||
+                    trimmed.includes("} catch") ||
+                    trimmed.includes("} finally")
+                ) {
+                    indentLevel = Math.max(0, indentLevel - 1);
+                }
+
+                const indented = " ".repeat(indentLevel * indentSize) + trimmed;
+
+                // Aumentar indentación después de opening brackets
+                if (
+                    trimmed.endsWith("{") ||
+                    trimmed.endsWith("[") ||
+                    trimmed.endsWith("(") ||
+                    (trimmed.includes("{") && !trimmed.includes("}"))
+                ) {
+                    indentLevel++;
+                }
+
+                return indented;
+            }
+
+            // Líneas vacías se mantienen vacías
+            return "";
+        })
+        .join("\n");
+};
+
+// Comando para re-indentar
+const reIndentCommand = {
+    key: "Ctrl-Shift-i",
+    run: (view: any) => {
+        const code = view.state.doc.toString();
+        const formatted = reIndentCode(code);
+
+        view.dispatch({
+            changes: {
+                from: 0,
+                to: view.state.doc.length,
+                insert: formatted,
+            },
+        });
+        return true;
+    },
+};
+
+const PanelContainer = styled.div.attrs<{ isOpen: boolean; isClosing: boolean }>((props) => ({
+    style: {
+        transform: `translateX(${props.isOpen ? "0" : "-100%"})`,
+        opacity: props.isOpen ? "1" : "0",
+    },
+    className: "resizable-panel",
+}))<{ isOpen: boolean; isClosing: boolean }>`
+    position: fixed;
+    left: 220px;
+    top: 202px;
+    height: calc(100vh - 219px);
+    background-color: #2a2a2a;
+    border-right: 1px solid #444;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
+    z-index: 1001;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+    display: flex;
+    flex-direction: column;
+
+    ${(props) =>
+        props.isClosing &&
+        css`
+            animation: ${slideOut} 0.3s ease-out forwards;
+        `}
+
+    ${(props) =>
+        props.isOpen &&
+        !props.isClosing &&
+        css`
+            animation: ${slideIn} 0.3s ease-out forwards;
+        `}
+`;
+
+// ResizeHandle sin estilos dinámicos
+const ResizeHandle = styled.div<{ isDragging: boolean }>`
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 8px;
+    height: 100%;
+    cursor: ew-resize;
+    background: ${(props) => (props.isDragging ? "rgba(59, 130, 246, 0.3)" : "transparent")};
+    border-left: ${(props) => (props.isDragging ? "2px solid #3b82f6" : "2px solid transparent")};
+    transition: all 0.2s ease;
+    z-index: 10;
+
+    &:hover {
+        background: rgba(59, 130, 246, 0.2);
+        border-left: 2px solid #3b82f6;
+    }
+
+    &::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 3px;
+        height: 40px;
+        background: #6b7280;
+        border-radius: 2px;
+        opacity: ${(props) => (props.isDragging ? 1 : 0.6)};
+        transition: opacity 0.2s ease;
+    }
+
+    &:hover::after {
+        opacity: 1;
+        background: #3b82f6;
+    }
+`;
+
+const PanelHeader = styled.div`
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    border-bottom: 1px solid #444;
+`;
+
+const PanelTitle = styled.h2`
+    color: #e7e3df;
+    font-size: 14px;
+    font-weight: 600;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: Helvetica, Arial, sans-serif;
+`;
+
+const NodeTypeIndicator = styled.span<{ nodeType: string }>`
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+    background-color: ${(props) => {
+        switch (props.nodeType) {
+            case "Function":
+                return "#c4a07d";
+            case "Listen":
+                return "#aa97aa";
+            case "Publish":
+                return "#aa97aa";
+            case "Inject":
+                return "#a6bbcf";
+            case "Delay":
+                return "#a8a152";
+            case "Email":
+                return "#4a90e2";
+            case "Telegram":
+                return "#4a90e2";
+            default:
+                return "#6b7280";
+        }
+    }};
+    color: #111827;
+`;
+
+const HeaderControls = styled.div`
+    display: flex;
+    align-items: center;
+    gap: 12px;
+`;
+
+const DebugToggle = styled.button<{ isActive: boolean }>`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    background-color: ${(props) => (props.isActive ? "#16a34a" : "#374151")};
+    color: ${(props) => (props.isActive ? "#ffffff" : "#d1d5db")};
+
+    &:hover {
+        background-color: ${(props) => (props.isActive ? "#15803d" : "#4b5563")};
+    }
+
+    &:active {
+        background-color: ${(props) => (props.isActive ? "#166534" : "#6b7280")};
+    }
+`;
+
+const CloseButton = styled.button`
+    background: none;
+    border: none;
+    color: #9ca3af;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+
+    &:hover {
+        color: #f9fafb;
+        background-color: #374151;
+    }
+`;
+
+// Estilos para las pestañas
+const TabsContainer = styled.div`
+    display: flex;
+    border-bottom: 1px solid #444;
+    background-color: #2a2a2a;
+`;
+
+const Tab = styled.button<{ isActive: boolean }>`
+    background: none;
+    border: none;
+    padding: 12px 16px;
+    color: ${(props) => (props.isActive ? "#3b82f6" : "#9ca3af")};
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: 550;
+    border-bottom: 2px solid ${(props) => (props.isActive ? "#3b82f6" : "transparent")};
+    transition: all 0.2s;
+
+    &:hover {
+        color: ${(props) => (props.isActive ? "#3b82f6" : "#f9fafb")};
+        background-color: #374151;
+    }
+`;
+
+const PanelContent = styled.div`
+    flex: 1;
+    overflow-y: auto;
+    background-color: #2a2a2a;
+
+    &::-webkit-scrollbar {
+        width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+        background: #2a2a2a;
+    }
+
+    &::-webkit-scrollbar-thumb {
+        background: #4b5563;
+        border-radius: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+        background: #6b7280;
+    }
+`;
+
+const TabContent = styled.div`
+    padding: 16px;
+`;
+
+const FormGroup = styled.div`
+    margin-bottom: 16px;
+`;
+
+const Label = styled.label`
+    display: block;
+    color: #d1d5db;
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 6px;
+`;
+
+const Input = styled.input`
+    width: 100%;
+    padding: 10px 12px;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    color: #f9fafb;
+    font-size: 14px;
+    transition: border-color 0.2s;
+
+    &:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    &::placeholder {
+        color: #9ca3af;
+    }
+`;
+
+const Select = styled.select`
+    width: 100%;
+    padding: 10px 12px;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    color: #f9fafb;
+    font-size: 14px;
+    transition: border-color 0.2s;
+
+    &:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+`;
+
+const TextArea = styled.textarea`
+    width: 100%;
+    padding: 10px 12px;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    color: #f9fafb;
+    font-size: 14px;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    transition: border-color 0.2s;
+    resize: vertical;
+    min-height: 100px;
+
+    &:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    &::placeholder {
+        color: #9ca3af;
+    }
+`;
+
+const ButtonGroup = styled.div`
+    display: flex;
+    gap: 8px;
+    padding: 16px 20px;
+    border-bottom: 1px solid #444;
+`;
+
+const Button = styled.button<{ variant?: "primary" | "secondary" }>`
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+
+    ${(props) =>
+        props.variant === "primary"
+            ? `
+    background-color: #3b82f6;
+    color: white;
+    
+    &:hover {
+      background-color: #2563eb;
+    }
+    
+    &:active {
+      background-color: #1d4ed8;
+    }
+  `
+            : `
+    background-color: #374151;
+    color: #d1d5db;
+    
+    &:hover {
+      background-color: #4b5563;
+    }
+    
+    &:active {
+      background-color: #6b7280;
+    }
+  `}
+`;
+
+const CodeMirrorWrapper = styled.div`
+    .cm-editor {
+        border: 1px solid #4b5563;
+        border-radius: 6px;
+        font-size: 16px;
+        font-family: Arial, monospace;
+    }
+
+    .cm-scroller {
+        overflow-x: auto;
+        background-color: #2a2a2a;
+
+        &::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        &::-webkit-scrollbar-track {
+            background: #2a2a2a;
+        }
+
+        &::-webkit-scrollbar-thumb {
+            background: #4b5563;
+            border-radius: 4px;
+        }
+
+        &::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+        }
+    }
+
+    .cm-focused {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+`;
+
+// Tipos para el componente
+interface NodeData {
+    label: string;
+    nodeUid: string;
+    debug: string;
+    numOutputs: number;
+    settings: any;
+}
+
+interface NodePropertiesPanelProps {
+    isOpen: boolean;
+    onClose: () => void;
+    selectedNode: {
+        id: string;
+        type: string;
+        data: NodeData;
+    } | null;
+    onUpdateNode: (nodeId: string, newData: Partial<NodeData>) => void;
+    onWidthChange?: (width: number) => void;
+    handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
+}
+
+const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
+    isOpen,
+    onClose,
+    selectedNode,
+    onUpdateNode,
+    onWidthChange,
+    handlePipelineUiChanged,
+}) => {
+    const [isClosing, setIsClosing] = useState(false);
+    const [formData, setFormData] = useState<any>({});
+    const [activeTab, setActiveTab] = useState<string>("settings");
+    const [isDebugEnabled, setIsDebugEnabled] = useState(false);
+    const { hasChanges,setOriginalData, createInputChangeHandler, createDebugToggleHandler } =
+        useFormChanges(selectedNode);
+
+    const updateNodeInternals = useUpdateNodeInternals();
+
+    // Estados para el redimensionamiento - Enfoque híbrido optimizado
+    const [width, setWidth] = useState(550);
+    const [isDragging, setIsDragging] = useState(false);
+    const dragStartRef = useRef({ x: 0, widthInicial: 0 });
+    const panelRef = useRef<HTMLDivElement>(null);
+
+    // Función para actualizar el width usando CSS nativo
+    const updatePanelWidth = useCallback((newWidth: number) => {
+        if (panelRef.current) {
+            panelRef.current.style.setProperty("--panel-width", `${newWidth}px`);
+        }
+    }, []);
+
+    // Manejar clases CSS para el estado de dragging
+    const setDraggingClass = useCallback((dragging: boolean) => {
+        if (panelRef.current) {
+            if (dragging) {
+                panelRef.current.classList.add("dragging");
+            } else {
+                panelRef.current.classList.remove("dragging");
+            }
+        }
+    }, []);
+
+    const startDrag = useCallback(
+        (e: React.MouseEvent) => {
+            setIsDragging(true);
+            setDraggingClass(true);
+            dragStartRef.current = {
+                x: e.clientX,
+                widthInicial: width,
+            };
+
+            document.body.style.userSelect = "none";
+            document.body.style.cursor = "ew-resize";
+        },
+        [width, setDraggingClass]
+    );
+
+    // OPTIMIZACIÓN MÁXIMA: Solo CSS durante el drag, sin React re-renders
+    const handleDrag = useCallback(
+        (e: MouseEvent) => {
+            if (!isDragging) return;
+
+            const deltaX = e.clientX - dragStartRef.current.x;
+            const newWidth = dragStartRef.current.widthInicial + deltaX;
+
+            const widthMin = 550;
+            const widthMax = 1000;
+
+            if (newWidth >= widthMin && newWidth <= widthMax) {
+                // Solo actualización CSS, sin setState durante el drag
+                updatePanelWidth(newWidth);
+            }
+        },
+        [isDragging, updatePanelWidth]
+    );
+
+    const finishDrag = useCallback(() => {
+        setIsDragging(false);
+        setDraggingClass(false);
+        document.body.style.userSelect = "";
+        document.body.style.cursor = "";
+
+        // Sincronizar el estado final con el valor actual del CSS
+        if (panelRef.current) {
+            const computedWidth = panelRef.current.offsetWidth;
+            setWidth(computedWidth);
+            onWidthChange?.(computedWidth);
+        }
+    }, [onWidthChange, setDraggingClass]);
+
+    useEffect(() => {
+        if (isDragging) {
+            document.addEventListener("mousemove", handleDrag);
+            document.addEventListener("mouseup", finishDrag);
+
+            return () => {
+                document.removeEventListener("mousemove", handleDrag);
+                document.removeEventListener("mouseup", finishDrag);
+            };
+        }
+    }, [isDragging, handleDrag, finishDrag]);
+
+    // Inicializar CSS custom property
+    useEffect(() => {
+        if (panelRef.current) {
+            panelRef.current.style.setProperty("--panel-width", `${width}px`);
+        }
+    }, [width]);
+
+    useEffect(() => {
+        if (selectedNode) {
+            const initialData = {
+                label: selectedNode.data.label,
+                numOutputs: selectedNode.data.numOutputs,
+                debug: selectedNode.data.debug || "off",
+                ...selectedNode.data.settings,
+            };
+
+            setFormData(initialData);
+            setOriginalData(initialData, selectedNode.type);
+            setIsDebugEnabled(selectedNode.data.debug === "on");
+
+            if (selectedNode.type === "Function") {
+                setActiveTab("onMessage");
+            } else {
+                setActiveTab("settings");
+            }
+        }
+    }, [selectedNode, setOriginalData]);
+
+    const handleClose = useCallback(() => {
+        setIsClosing(true);
+        setTimeout(() => {
+            setIsClosing(false);
+            onClose();
+        }, 300);
+    }, [onClose]);
+
+    const handleInputChange = useMemo(() => createInputChangeHandler(setFormData), [createInputChangeHandler]);
+
+    const handleDebugToggle = useMemo(
+        () => createDebugToggleHandler(setFormData, isDebugEnabled, setIsDebugEnabled),
+        [createDebugToggleHandler, isDebugEnabled]
+    );
+
+    const handleSave = useCallback(() => {
+        if (!selectedNode) return;
+
+        const { label, numOutputs, debug, ...settings } = formData;
+        const newNodeData = {
+            label,
+            numOutputs,
+            debug,
+            settings: { ...settings },
+        };
+
+        onUpdateNode(selectedNode.id, newNodeData);
+        updateNodeInternals(selectedNode.id);
+
+        // Actualizar datos originales después de guardar
+        setOriginalData(formData, selectedNode.type);
+
+        if (hasChanges) {
+            handlePipelineUiChanged(true);
+        }
+
+        handleClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [selectedNode, formData, onUpdateNode, handleClose, setOriginalData]);
+
+    const handleReset = useCallback(() => {
+        if (selectedNode) {
+            const resetData = {
+                label: selectedNode.data.label,
+                numOutputs: selectedNode.data.numOutputs || 1,
+                debug: selectedNode.data.debug || "off",
+                ...selectedNode.data.settings,
+            };
+
+            setFormData(resetData);
+            setOriginalData(resetData, selectedNode.type);
+            setIsDebugEnabled(selectedNode.data.debug === "on");
+        }
+    }, [selectedNode, setOriginalData]);
+
+    // Función para determinar si un nodo debe mostrar el selector de outputs
+    const shouldShowOutputSelector = (nodeType: string) => {
+        const excludedTypes = ["Publish", "Email", "Telegram"];
+        return !excludedTypes.includes(nodeType);
+    };
+
+    // Renderizar el selector de número de outputs
+    const renderOutputSelector = () => {
+        if (!selectedNode || !shouldShowOutputSelector(selectedNode.type)) {
+            return null;
+        }
+
+        return (
+            <FormGroup>
+                <Label>Number of outputs</Label>
+                <Select
+                    value={formData.numOutputs}
+                    onChange={(e) => handleInputChange("numOutputs", parseInt(e.target.value))}
+                >
+                    {Array.from({ length: 11 }, (_, i) => i).map((num) => (
+                        <option key={num} value={num}>
+                            {num}
+                        </option>
+                    ))}
+                </Select>
+            </FormGroup>
+        );
+    };
+
+    // Renderizar las pestañas para nodos Function
+    const renderFunctionTabs = () => {
+        const tabs = [
+            { id: "settings", label: "Settings" },
+            { id: "onInitiation", label: "On Init" },
+            { id: "onStart", label: "On Start" },
+            { id: "onMessage", label: "On Message" },
+        ];
+
+        return (
+            <>
+                <TabsContainer>
+                    {tabs.map((tab) => (
+                        <Tab key={tab.id} isActive={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}>
+                            {tab.label}
+                        </Tab>
+                    ))}
+                </TabsContainer>
+                <PanelContent>
+                    <TabContent>
+                        {activeTab === "settings" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Node Name</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.label || ""}
+                                        onChange={(e) => handleInputChange("label", e.target.value)}
+                                        placeholder="Node name"
+                                    />
+                                </FormGroup>
+                                {renderOutputSelector()}
+                            </>
+                        )}
+                        {activeTab === "onInitiation" && (
+                            <FormGroup>
+                                <CodeMirrorWrapper>
+                                    <CodeMirror
+                                        value={
+                                            formData.onInitiationScript || "function init() {\n    // Your code here\n}"
+                                        }
+                                        height="auto"
+                                        minHeight="400px"
+                                        extensions={[
+                                            javascript(),
+                                            indentUnit.of("    "),
+                                            indentOnInput(),
+                                            keymap.of([indentWithTab, reIndentCommand]),
+                                        ]}
+                                        theme={oneDark}
+                                        onChange={(value) => handleInputChange("onInitiationScript", value)}
+                                        basicSetup={{
+                                            lineNumbers: true,
+                                            foldGutter: true,
+                                            bracketMatching: true,
+                                            closeBrackets: true,
+                                            syntaxHighlighting: true,
+                                            autocompletion: true,
+                                            tabSize: 4,
+                                            searchKeymap: true,
+                                        }}
+                                    />
+                                </CodeMirrorWrapper>
+                            </FormGroup>
+                        )}
+                        {activeTab === "onStart" && (
+                            <FormGroup>
+                                <CodeMirrorWrapper>
+                                    <CodeMirror
+                                        value={formData.onStartScript || "function start() {\n    // Your code here\n}"}
+                                        height="auto"
+                                        minHeight="400px"
+                                        extensions={[
+                                            javascript(),
+                                            indentUnit.of("    "),
+                                            indentOnInput(),
+                                            keymap.of([indentWithTab, reIndentCommand]),
+                                        ]}
+                                        theme={oneDark}
+                                        onChange={(value) => handleInputChange("onStartScript", value)}
+                                        basicSetup={{
+                                            lineNumbers: true,
+                                            foldGutter: true,
+                                            bracketMatching: true,
+                                            closeBrackets: true,
+                                            syntaxHighlighting: true,
+                                            autocompletion: true,
+                                            tabSize: 4,
+                                            searchKeymap: true,
+                                        }}
+                                    />
+                                </CodeMirrorWrapper>
+                            </FormGroup>
+                        )}
+                        {activeTab === "onMessage" && (
+                            <FormGroup>
+                                <Label>On Message</Label>
+                                <CodeMirrorWrapper>
+                                    <CodeMirror
+                                        value={
+                                            formData.onMessageScript ||
+                                            "function process(msg) {\n    // Your code here\n    return msg;\n}"
+                                        }
+                                        height="auto"
+                                        minHeight="400px"
+                                        extensions={[
+                                            javascript(),
+                                            indentUnit.of("    "),
+                                            indentOnInput(),
+                                            keymap.of([indentWithTab, reIndentCommand]),
+                                        ]}
+                                        theme={oneDark}
+                                        onChange={(value) => handleInputChange("onMessageScript", value)}
+                                        basicSetup={{
+                                            lineNumbers: true,
+                                            foldGutter: true,
+                                            bracketMatching: true,
+                                            closeBrackets: true,
+                                            syntaxHighlighting: true,
+                                            autocompletion: true,
+                                            tabSize: 4,
+                                            searchKeymap: true,
+                                        }}
+                                    />
+                                </CodeMirrorWrapper>
+                            </FormGroup>
+                        )}
+                    </TabContent>
+                </PanelContent>
+            </>
+        );
+    };
+
+    // Renderizado de formularios según el tipo de nodo (sin colapsables)
+    const renderNodeContent = () => {
+        if (!selectedNode) return null;
+
+        const nodeType = selectedNode.type;
+
+        if (nodeType === "Function") {
+            return renderFunctionTabs();
+        }
+
+        // Para otros tipos de nodos, mostrar contenido simple
+        return (
+            <PanelContent>
+                <TabContent>
+                    <FormGroup>
+                        <Label>Node Name</Label>
+                        <Input
+                            type="text"
+                            value={formData.label || ""}
+                            onChange={(e) => handleInputChange("label", e.target.value)}
+                            placeholder="Node name"
+                        />
+                    </FormGroup>
+                    {renderOutputSelector()}
+                    {renderNodeSpecificFields()}
+                </TabContent>
+            </PanelContent>
+        );
+    };
+
+    const renderNodeSpecificFields = () => {
+        if (!selectedNode) return null;
+
+        const nodeType = selectedNode.type;
+
+        switch (nodeType) {
+            case "Listen":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Listen To</Label>
+                            <Select
+                                value={formData.listenTo || "Topic reference"}
+                                onChange={(e) => handleInputChange("listenTo", e.target.value)}
+                            >
+                                <option value="Topic reference">Topic reference</option>
+                                <option value="Message topic">Message topic</option>
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Topic</Label>
+                            <Input
+                                type="text"
+                                value={formData.topic || ""}
+                                onChange={(e) => handleInputChange("topic", e.target.value)}
+                                placeholder="dev2pdb_1"
+                            />
+                        </FormGroup>
+                    </>
+                );
+
+            case "Publish":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Publish To</Label>
+                            <Select
+                                value={formData.publishTo || "Message topic"}
+                                onChange={(e) => handleInputChange("publishTo", e.target.value)}
+                            >
+                                <option value="Message topic">Message topic</option>
+                                <option value="Topic reference">Topic reference</option>
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Topic</Label>
+                            <Input
+                                type="text"
+                                value={formData.topic || ""}
+                                onChange={(e) => handleInputChange("topic", e.target.value)}
+                                placeholder="dev2pdb_1"
+                            />
+                        </FormGroup>
+                    </>
+                );
+
+            case "Inject":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Inject Reference</Label>
+                            <Input
+                                type="text"
+                                value={formData.injectRef || ""}
+                                onChange={(e) => handleInputChange("injectRef", e.target.value)}
+                                placeholder="inject_1"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Repeat</Label>
+                            <Select
+                                value={formData.repeat || "none"}
+                                onChange={(e) => handleInputChange("repeat", e.target.value)}
+                            >
+                                <option value="none">None</option>
+                                <option value="interval">Interval</option>
+                                <option value="cron">Cron</option>
+                            </Select>
+                        </FormGroup>
+                        {formData.repeat === "interval" && (
+                            <FormGroup>
+                                <Label>Every (seconds)</Label>
+                                <Input
+                                    type="number"
+                                    step="0.1"
+                                    value={formData.every || 0}
+                                    onChange={(e) => handleInputChange("every", parseFloat(e.target.value))}
+                                    placeholder="1.0"
+                                />
+                            </FormGroup>
+                        )}
+                    </>
+                );
+
+            case "Delay":
+                return (
+                    <FormGroup>
+                        <Label>Duration (seconds)</Label>
+                        <Input
+                            type="number"
+                            step="0.1"
+                            value={formData.duration || 0}
+                            onChange={(e) => handleInputChange("duration", parseFloat(e.target.value))}
+                            placeholder="0.0"
+                        />
+                    </FormGroup>
+                );
+
+            case "Email":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>To Options</Label>
+                            <Select
+                                value={formData.toOptions || "Group email notification channel"}
+                                onChange={(e) => handleInputChange("toOptions", e.target.value)}
+                            >
+                                <option value="Group email notification channel">
+                                    Group email notification channel
+                                </option>
+                                <option value="Custom email">Custom email</option>
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Email Address</Label>
+                            <Input
+                                type="email"
+                                value={formData.to || ""}
+                                onChange={(e) => handleInputChange("to", e.target.value)}
+                                placeholder="myemail@example.com"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Message Options</Label>
+                            <Select
+                                value={formData.messageOptions || "Message received options"}
+                                onChange={(e) => handleInputChange("messageOptions", e.target.value)}
+                            >
+                                <option value="Message received options">Message received options</option>
+                                <option value="Custom message">Custom message</option>
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Subject</Label>
+                            <Input
+                                type="text"
+                                value={formData.subject || ""}
+                                onChange={(e) => handleInputChange("subject", e.target.value)}
+                                placeholder="Email Subject"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Body</Label>
+                            <TextArea
+                                value={formData.body || ""}
+                                onChange={(e) => handleInputChange("body", e.target.value)}
+                                placeholder="Email Body"
+                                rows={4}
+                            />
+                        </FormGroup>
+                    </>
+                );
+
+            case "Telegram":
+                return (
+                    <>
+                        <FormGroup>
+                            <Label>Options</Label>
+                            <Select
+                                value={formData.options || "Group options"}
+                                onChange={(e) => handleInputChange("options", e.target.value)}
+                            >
+                                <option value="Group options">Group options</option>
+                                <option value="Custom options">Custom options</option>
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Chat ID</Label>
+                            <Input
+                                type="text"
+                                value={formData.chatId || ""}
+                                onChange={(e) => handleInputChange("chatId", e.target.value)}
+                                placeholder="123456789"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Bot Token</Label>
+                            <Input
+                                type="text"
+                                value={formData.telegramBotToken || ""}
+                                onChange={(e) => handleInputChange("telegramBotToken", e.target.value)}
+                                placeholder="your-telegram-bot-token"
+                            />
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Message Options</Label>
+                            <Select
+                                value={formData.messageOptions || "Message received options"}
+                                onChange={(e) => handleInputChange("messageOptions", e.target.value)}
+                            >
+                                <option value="Message received options">Message received options</option>
+                                <option value="Custom message">Custom message</option>
+                            </Select>
+                        </FormGroup>
+                        <FormGroup>
+                            <Label>Message</Label>
+                            <TextArea
+                                value={formData.message || ""}
+                                onChange={(e) => handleInputChange("message", e.target.value)}
+                                placeholder="Hello from OSI4IOT!"
+                                rows={3}
+                            />
+                        </FormGroup>
+                    </>
+                );
+
+            default:
+                return <p style={{ color: "#9ca3af" }}>No additional settings available for this node type.</p>;
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <PanelContainer ref={panelRef} isOpen={isOpen} isClosing={isClosing}>
+            <ResizeHandle isDragging={isDragging} onMouseDown={startDrag} />
+            {selectedNode && (
+                <>
+                    <PanelHeader>
+                        <PanelTitle>
+                            <NodeTypeIndicator nodeType={selectedNode.type}>{selectedNode.type}</NodeTypeIndicator>
+                            Node Uid: {selectedNode.data.nodeUid}
+                        </PanelTitle>
+                        <HeaderControls>
+                            <DebugToggle isActive={isDebugEnabled} onClick={handleDebugToggle}>
+                                <Bug size={14} />
+                                {isDebugEnabled ? "Debug ON" : "Debug OFF"}
+                            </DebugToggle>
+                            <CloseButton onClick={handleClose}>
+                                <X size={16} />
+                            </CloseButton>
+                        </HeaderControls>
+                    </PanelHeader>
+
+                    {renderNodeContent()}
+
+                    <ButtonGroup>
+                        <Button variant="secondary" onClick={handleReset}>
+                            <RotateCcw size={16} />
+                            Reset
+                        </Button>
+                        <Button variant="primary" onClick={handleSave}>
+                            <Save size={16} />
+                            Save
+                        </Button>
+                    </ButtonGroup>
+                </>
+            )}
+        </PanelContainer>
+    );
+};
+
+export default NodePropertiesPanel;

@@ -222,7 +222,8 @@ const DigitalTwinSimulatorModal: FC<DigitalTwinSimulatorModalProps> = ({
         if (Object.keys(paramValues).length > 0) {
             updateDigitalTwinSimulatorState(paramValues);
         }
-    }, [paramValues, updateDigitalTwinSimulatorState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [paramValues]);
 
     // Función para centrar el modal inicialmente
     const centerModal = () => {

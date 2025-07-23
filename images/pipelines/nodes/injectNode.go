@@ -42,7 +42,6 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 
 	topic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, injectRef)
 	if topic == nil {
-		fm.Log().Errorf("InjectNode %s: topic %s not found XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX", node.NodeUid, injectRef)
 		fm.Log().Errorf("InjectNode %s: topic %s not found", node.NodeUid, injectRef)
 		return nil, fmt.Errorf("topic %s not found", injectRef)
 	}

@@ -393,7 +393,7 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 		case <-timeoutChan:
 			// Obtain information about nodes that are not running
 			notRunningNodes := fm.getNotRunningNodes(digitalTwinId)
-			fm.log.Warn("Timeout while waiting for nodes to start in digital twin %d. Nodes not running: %v",
+			fm.log.Warnf("Timeout while waiting for nodes to start in digital twin %d. Nodes not running: %v",
 				digitalTwinId, notRunningNodes)
 			errorMessage := fmt.Sprintf("Pipeline start failed: timeout while waiting for nodes to start. Nodes not running: %v", notRunningNodes)
 			fm.logPipeline(digitalTwin, "error", errorMessage)

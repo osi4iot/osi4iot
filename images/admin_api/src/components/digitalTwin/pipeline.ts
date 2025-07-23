@@ -83,10 +83,12 @@ export const createDigitalTwinPipeline = async (
 				// Generar wireUid si no está definido
 				const wireUid = wire.wireUid || generateUid();
 
-				// Obtener el UID del nodo destino por su nombre
-				const nodeEndUid = nodeNameToUidMap.get(wire.nodeEndName);
-				if (!nodeEndUid) {
-					throw new Error(`Node with name "${wire.nodeEndName}" not found in pipeline`);
+				let nodeEndUid = wire.nodeEndUid;
+				if (nodeEndUid === undefined && wire.nodeEndName) {
+					nodeEndUid = nodeNameToUidMap.get(wire.nodeEndName);
+					if (!nodeEndUid) {
+						throw new Error(`Node with name "${wire.nodeEndName}" not found in pipeline`);
+					}
 				}
 
 				if (!wiresData.has(wireUid)) {
@@ -212,9 +214,12 @@ export const updateDigitalTwinPipeline = async (
 		}
 		node.wires.forEach((wireArray, outputIndex) => {
 			wireArray.forEach((wire) => {
-				const nodeEndUid = nodeNameToUidMap.get(wire.nodeEndName);
-				if (!nodeEndUid) {
-					throw new Error(`Node with name "${wire.nodeEndName}" not found in pipeline`);
+				let nodeEndUid = wire.nodeEndUid;
+				if (nodeEndUid === undefined && wire.nodeEndName) {
+					nodeEndUid = nodeNameToUidMap.get(wire.nodeEndName);
+					if (!nodeEndUid) {
+						throw new Error(`Node with name "${wire.nodeEndName}" not found in pipeline`);
+					}
 				}
 
 				// Buscar wire existente por origen, destino y índice de salida
