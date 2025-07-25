@@ -246,7 +246,6 @@ const Model: FC<ModelProps> = ({
 
     useSubscription(
         mqttClient,
-        connectionStatus,
         mqttTopics,
         mqttTopicsData,
         topicIdBySensorRef,

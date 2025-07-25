@@ -231,8 +231,6 @@ func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Me
 	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
 
 	if len(nodeInputWires) == 0 {
-		// log.Errorf("No input wires found for Node with UID: %s", n.NodeUid)
-		// n.SetStatus(common.NodeStatusStopped)
 		return
 	}
 

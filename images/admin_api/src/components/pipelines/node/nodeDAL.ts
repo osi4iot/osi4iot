@@ -4,7 +4,6 @@ import INode from "./node.interface";
 import CreateNodeDto from "./node.dto";
 import natsClient from "../../../config/natsConfig";
 
-
 export const insertNode = async (nodeData: INode, groupId: number): Promise<INode> => {
 	const queryString = `INSERT INTO grafanadb.node (node_uid,
         digital_twin_id, name, type, x, y, num_outputs, settings, debug, created, updated)

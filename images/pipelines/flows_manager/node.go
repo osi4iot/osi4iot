@@ -48,6 +48,7 @@ func (fm *FlowsManager) AddNode(node *common.NodeData) error {
 		Settings:      node.Settings,
 		Debug:         node.Debug,
 	}
+	var err error = nil
 	newNode, err := nodes.CreateNode(*nodeData, fm.log, fm)
 	if err != nil {
 		return err
@@ -351,17 +352,33 @@ func (fm *FlowsManager) StopNodes() {
 
 func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool) {
 	fm.log.Infof("Starting nodes for digital twin %d", digitalTwinId)
-
+	
+	
 	nodes := fm.GetDigitalTwinNodes(digitalTwinId)
 	if len(nodes) == 0 {
 		fm.log.Warnf("No nodes found for digital twin %d", digitalTwinId)
 		return
 	}
 
+	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
+	numNodes := fm.GetNumOfNodesOfPipeline(digitalTwin)
+	if numNodes != len(nodes) {
+		fm.log.Errorf("Number of nodes in digital twin %d (%d) does not match the number of nodes in the pipeline file (%d)", digitalTwinId, len(nodes), numNodes)
+		errDetails := fmt.Sprintf("The number of nodes in digital twin %d (%d) does not match the number of nodes in the pipeline file (%d)", digitalTwinId, len(nodes), numNodes)
+		fm.logPipelineError(digitalTwin, "Pipeline start failed", errDetails)
+		return
+	}
+
 	// Regenerate nodes if they are stopped
 	for _, node := range nodes {
 		if node.GetStatus() == common.NodeStatusStopped {
-			fm.regenerateNode(node.GetId())
+			err := fm.regenerateNode(node.GetId())
+			if err != nil {
+				fm.log.Errorf("Failed to regenerate node %d: %v", node.GetId(), err)
+				errDetails := fmt.Sprintf("Failed to regenerate node %d: %v", node.GetId(), err)
+				fm.logPipelineError(digitalTwin, "Pipeline start failed", errDetails)
+				return
+			}
 		}
 	}
 
@@ -369,8 +386,6 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 	for _, node := range nodes {
 		node.Start(fm.log, needReinitialization)
 	}
-
-	digitalTwin := fm.GetDigitalTwin(digitalTwinId)
 
 	fm.log.Infof("Started %d nodes for digital twin %d, waiting for them to be ready", len(nodes), digitalTwinId)
 
@@ -387,7 +402,7 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 			if fm.allNodesRunning(digitalTwinId) {
 				elapsed := time.Since(startTime)
 				fm.log.Infof("All nodes in digital twin %d are running (took %v)", digitalTwinId, elapsed)
-				fm.logPipeline(digitalTwin, "info", fmt.Sprintf("Pipeline started successfully (took %v)", elapsed))
+				fm.logPipelineInfo(digitalTwin, fmt.Sprintf("Pipeline started successfully (took %v)", elapsed))
 				return
 			}
 		case <-timeoutChan:
@@ -395,8 +410,8 @@ func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitial
 			notRunningNodes := fm.getNotRunningNodes(digitalTwinId)
 			fm.log.Warnf("Timeout while waiting for nodes to start in digital twin %d. Nodes not running: %v",
 				digitalTwinId, notRunningNodes)
-			errorMessage := fmt.Sprintf("Pipeline start failed: timeout while waiting for nodes to start. Nodes not running: %v", notRunningNodes)
-			fm.logPipeline(digitalTwin, "error", errorMessage)
+			errorDetails := fmt.Sprintf("Timeout while waiting for nodes to start. Nodes not running: %v", notRunningNodes)
+			fm.logPipelineError(digitalTwin, "Pipeline start failed", errorDetails)
 			return
 		}
 	}
@@ -431,12 +446,12 @@ func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int) {
 		case <-ticker.C:
 			if !fm.anyNodeRunning(digitalTwinId) {
 				fm.log.Infof("All nodes in digital twin %d have stopped", digitalTwinId)
-				fm.logPipeline(fm.GetDigitalTwin(digitalTwinId), "info", "Pipeline stopped successfully")
+				fm.logPipelineInfo(fm.GetDigitalTwin(digitalTwinId), "Pipeline stopped successfully")
 				return
 			}
 		case <-timeoutChan:
 			fm.log.Warnf("Timeout while waiting for nodes to stop in digital twin %d", digitalTwinId)
-			fm.logPipeline(fm.GetDigitalTwin(digitalTwinId), "error", "Pipeline stop failed: timeout while waiting for nodes to stop")
+			fm.logPipelineError(fm.GetDigitalTwin(digitalTwinId), "Pipeline stop failed", "Timeout while waiting for nodes to stop")
 			return
 		}
 	}
@@ -474,27 +489,16 @@ func (fm *FlowsManager) RestartNodesInDigitalTwin(digitalTwinId int, needReiniti
 	fm.log.Infof("Restarted nodes for digital twin %d", digitalTwinId)
 }
 
-func (fm *FlowsManager) logPipeline(digitalTwin *common.DigitalTwin, level string, message string) {
+func (fm *FlowsManager) logPipelineInfo(digitalTwin *common.DigitalTwin, message string) {
 	var logData common.PipelineLog
 
 	dtName := fmt.Sprintf("DT: %s", digitalTwin.Description)
-	switch level {
-	case "info":
-		logData = common.PipelineLog{
-			Level:     level,
-			Component: "pipeline",
-			Name:      dtName,
-			Uid:       digitalTwin.DigitalTwinUID,
-			Message:   message,
-		}
-	case "error":
-		logData = common.PipelineLog{
-			Level:       level,
-			Component:   "pipeline",
-			Name:        dtName,
-			Uid:         digitalTwin.DigitalTwinUID,
-			Description: message,
-		}
+	logData = common.PipelineLog{
+		Level:     "info",
+		Component: "pipeline",
+		Name:      dtName,
+		Uid:       digitalTwin.DigitalTwinUID,
+		Message:   message,
 	}
 
 	logTopic := fm.GetTopicByTopicRef(digitalTwin.AssetId, digitalTwin.Id, "dtmlog")
@@ -506,4 +510,27 @@ func (fm *FlowsManager) logPipeline(digitalTwin *common.DigitalTwin, level strin
 		fm.Log().Errorf("Failed to marshal info data for dt %s: %v", digitalTwin.DigitalTwinUID, marshallErr)
 	}
 
+}
+
+func (fm *FlowsManager) logPipelineError(digitalTwin *common.DigitalTwin, description string, message string) {
+	var logData common.PipelineLog
+
+	dtName := fmt.Sprintf("DT: %s", digitalTwin.Description)
+	logData = common.PipelineLog{
+		Level:       "error",
+		Component:   "pipeline",
+		Name:        dtName,
+		Uid:         digitalTwin.DigitalTwinUID,
+		Description: description,
+		Message:     message,
+	}
+
+	logTopic := fm.GetTopicByTopicRef(digitalTwin.AssetId, digitalTwin.Id, "dtmlog")
+	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
+
+	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
+		fm.NatsPublish(logSubject, logJSON)
+	} else {
+		fm.Log().Errorf("Failed to marshal error data for dt %s: %v", digitalTwin.DigitalTwinUID, marshallErr)
+	}
 }

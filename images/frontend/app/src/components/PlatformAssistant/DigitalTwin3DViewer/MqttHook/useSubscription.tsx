@@ -8,12 +8,11 @@ import { AssetState, FemSimulationObjectState, GenericObjectState, SensorState }
 import { IThreeMesh } from "../Types/threeInterfaces";
 import formatDateString from "../../../../tools/formatDate";
 import { LlmMessage } from "../ChatAssitant/ChatAssistant";
-import { PipelineLog } from "../Pipeline/PipelineLogs.tsx";
+import { PipelineLog } from "../Pipeline/PipelineLogs";
 import { IMessage } from "./interfaces";
 
 const useSubscription = (
     mqttClient: Paho.Client | null,
-    connectionStatus: string,
     mqttTopics: string | string[],
     mqttTopicsData: IMqttTopicData[],
     topicIdBySensorRef: Record<string, number>,

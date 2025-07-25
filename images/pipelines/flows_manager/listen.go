@@ -7,7 +7,6 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-
 func (fm *FlowsManager) Listen() {
 	fm.JsConsumer.Consume(func(msg jetstream.Msg) {
 		var adminMsg common.AdminMessage
@@ -142,10 +141,24 @@ func (fm *FlowsManager) Listen() {
 				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
+				digitalTwinId := int(adminMsg.Context["digitalTwinId"].(float64))
 				node := fm.Admin.GetNode(groupId, adminMsg.Id)
 				err := fm.UpdateNode(node)
 				if err != nil {
-					fm.handleNodeError(node, err)
+					if err == common.ErrNotFound {
+						digitalTwin := fm.Admin.GetDigitalTwin(groupId, digitalTwinId)
+						exist := fm.CheckIfNodeExistInPipelineFile(digitalTwin, node)
+						if exist {
+							err := fm.AddNode(node)
+							if err != nil {
+								fm.handleNodeError(node, err)
+							}
+						} else {
+							fm.handleNodeError(node, err)
+						}
+					} else {
+						fm.handleNodeError(node, err)
+					}
 				}
 			case "delete":
 				fm.DeleteNode(adminMsg.Id)

@@ -9,7 +9,6 @@ import {
 } from "lucide-react";
 import styled from "styled-components";
 import React from "react";
-import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 
 export interface PipelineLog {
     level: string; // debug, error, info
@@ -669,17 +668,11 @@ LogEntry.displayName = "LogEntry";
 interface PipelineLogsProps {
     logMessages: PipelineLog[];
     setLogMessages: React.Dispatch<React.SetStateAction<PipelineLog[]>>;
-    digitalTwinSelected: IDigitalTwin;
-    pipelineNodes: any[];
-    pipelineEdges: any[];
 }
 
 const PipelineLogs: React.FC<PipelineLogsProps> = ({
     logMessages,
     setLogMessages,
-    digitalTwinSelected,
-    pipelineNodes,
-    pipelineEdges,
 }) => {
     const [filterLevel, setFilterLevel] = useState<string>("all");
 

@@ -1,6 +1,7 @@
 package flows_manager
 
 import (
+	"encoding/json"
 	"fmt"
 	"pipelines/common"
 	nats_pkg "pipelines/nats"
@@ -170,6 +171,7 @@ func (fm *FlowsManager) UpdateDigitalTwin(updatedDigitalTwin *common.DigitalTwin
 		digitalTwin.SensorsRef = updatedDigitalTwin.SensorsRef
 		digitalTwin.PipelineFileName = updatedDigitalTwin.PipelineFileName
 		digitalTwin.PipelineFileLastModifDate = updatedDigitalTwin.PipelineFileLastModifDate
+		digitalTwin.PipelineFileData = updatedDigitalTwin.PipelineFileData
 
 		fm.DigitalTwins.Store(digitalTwinIdStr, digitalTwin)
 		return nil
@@ -276,3 +278,34 @@ func (fm *FlowsManager) DeleteDigitalTwinTopicRef(digitalTwinId int, topicRef st
 	}
 	return common.ErrNotFound
 }
+
+func (fm *FlowsManager) GetNumOfNodesOfPipeline(digitalTwin *common.DigitalTwin) int {
+	numNodes := 0
+	pipelineFileData := digitalTwin.PipelineFileData
+
+	var pipelineData common.PipelineData
+	if err := json.Unmarshal([]byte(pipelineFileData), &pipelineData); err != nil {
+		fm.log.Errorf("Failed to unmarshal pipeline file data: %v", err)
+	}
+	numNodes = len(pipelineData.Nodes)
+
+	return numNodes
+}
+
+func (fm *FlowsManager) CheckIfNodeExistInPipelineFile(digitalTwin *common.DigitalTwin, node *common.NodeData) bool {
+	pipelineFileData := digitalTwin.PipelineFileData
+
+	var pipelineData common.PipelineData
+	if err := json.Unmarshal([]byte(pipelineFileData), &pipelineData); err != nil {
+		fm.log.Errorf("Failed to unmarshal pipeline file data: %v", err)
+		return false
+	}
+
+	for _, n := range pipelineData.Nodes {
+		if n.Name == node.NodeUid && n.Type == node.Type {
+			return true
+		}
+	}
+	return false
+}
+	

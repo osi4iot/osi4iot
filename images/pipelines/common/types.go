@@ -185,6 +185,19 @@ type Wire struct {
 	Channel    chan Message
 }
 
+type PipelineNode struct {
+	Name       string  `json:"name"`
+	Type       string  `json:"type"`
+	X          float64 `json:"x"`
+	Y          float64 `json:"y"`
+	NumOutputs int     `json:"num_outputs"`
+	Settings   string  `json:"settings"`
+}
+
+type PipelineData struct {
+	Nodes []PipelineNode `json:"nodes"`
+}
+
 type PipelineLog struct {
 	Level       string         `json:"level"`     // debug, error, info
 	Component   string         `json:"component"` // node, pipeline, digitalTwin

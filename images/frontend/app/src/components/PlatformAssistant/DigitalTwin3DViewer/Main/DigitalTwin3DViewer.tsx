@@ -72,7 +72,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages();
     const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs();
 
-
     const {
         canvasContainerRef,
         canvasRef,
@@ -346,8 +345,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const [pipelineNodes, setPipelineNodes] = useState(initialData.nodes);
     const [pipelineEdges, setPipelineEdges] = useState(initialData.edges);
 
-    const { 
-        handleDeployPipeline, 
+    const {
+        handleDeployPipeline,
         handleStopPipeline,
         handleFileUpload,
         handleDownloadYamlFile,
@@ -537,6 +536,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                         <Flow
                             mqttClient={mqttClient}
                             mqttConnectionStatus={connectionStatus}
+                            mqttTopicsData={digitalTwinGltfData.mqttTopicsData}
                             digitalTwinSelected={digitalTwinSelected}
                             nodes={pipelineNodes}
                             edges={pipelineEdges}
@@ -624,9 +624,6 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     <PipelineLogs
                         logMessages={logMessages}
                         setLogMessages={setLogMessages}
-                        digitalTwinSelected={digitalTwinSelected}
-                        pipelineNodes={pipelineNodes}
-                        pipelineEdges={pipelineEdges}
                     />
                 )}
 

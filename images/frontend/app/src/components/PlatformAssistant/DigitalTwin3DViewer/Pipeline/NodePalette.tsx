@@ -103,7 +103,7 @@ const nodeTypes = [
         settings: {
             injectRef: "inject_1",
             repeat: "none",
-            every: 0.0
+            every: 0.0,
         },
     },
     {
@@ -162,7 +162,7 @@ const nodeTypes = [
             telegramBotToken: "your-telegram-bot-token",
             messageOptions: "Message received options",
             message: "Hello from OSI4IOT!",
-        }
+        },
     },
 ];
 
@@ -195,8 +195,17 @@ export default function NodePalette() {
                         )
                     }
                 >
-                    <IconContainer>{node.icon}</IconContainer>
-                    <NodeLabel>{node.label}</NodeLabel>
+                    {(node.type === "Publish" || node.type === "Email" || node.type === "Telegram") ? (
+                        <>
+                            <NodeLabel>{node.label}</NodeLabel>
+                            <IconContainer>{node.icon}</IconContainer>
+                        </>
+                    ) : (
+                        <>
+                            <IconContainer>{node.icon}</IconContainer>
+                            <NodeLabel>{node.label}</NodeLabel>
+                        </>
+                    )}
                 </NodeItem>
             ))}
         </PaletteContainer>

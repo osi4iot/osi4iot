@@ -63,6 +63,7 @@ const ReactFlowWrapper = styled.div`
 export default function Flow({
     mqttClient,
     mqttConnectionStatus,
+    mqttTopicsData,
     digitalTwinSelected,
     nodes,
     edges,
@@ -73,11 +74,9 @@ export default function Flow({
     const reactFlowWrapper = useRef(null);
     const { screenToFlowPosition } = useReactFlow();
 
-    // Estados para el panel de propiedades
     const [selectedNode, setSelectedNode] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
 
-    // Define nodeTypes outside of component or memoize them without dependencies
     const nodeTypes = useMemo(
         () => ({
             Function: FunctionNode,
@@ -88,44 +87,76 @@ export default function Flow({
             Telegram: TelegramNode,
             Delay: DelayNode,
         }),
-        [] // Empty dependency array - nodeTypes won't change
+        []
     );
 
     const onNodesChange = useCallback(
-        (changes) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
+        (changes) => {
+            changes.some((change) => {
+                switch (change.type) {
+                    case "position":
+                        handlePipelineUiChanged(true);
+                        return true;
+                    case "dimensions":
+                        const found = nodes.find((node) => node.id === change.id);
+                        if (found) {
+                            return false; // No need to update if dimensions change
+                        } else {
+                            handlePipelineUiChanged(true);
+                            return true; // Update needed if node not found
+                        }
+                    default:
+                        return false;
+                }
+            });
+
+            setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot));
+        },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        []
+        [nodes]
     );
 
     const onEdgesChange = useCallback(
-        (changes) => setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
+        (changes) => {
+            changes.some((change) => {
+                if (change.type === "remove") {
+                    handlePipelineUiChanged(true);
+                    return true;
+                }
+                return false;
+            });
+            setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot));
+        },
         // eslint-disable-next-line react-hooks/exhaustive-deps
         []
     );
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    const onConnect = useCallback((params) => setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)), []);
+    const onConnect = useCallback(
+        (params) => {
+            handlePipelineUiChanged(true);
+            setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot));
+        },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        []
+    );
 
-    // Manejar clic simple en nodo (solo seleccionar) - ReactFlow maneja la selección automáticamente
     const onNodeClick = useCallback((event, node) => {
         event.stopPropagation();
-        // ReactFlow maneja la selección visual automáticamente
     }, []);
 
-    // Manejar doble clic en nodo (abrir panel)
     const onNodeDoubleClick = useCallback((event, node) => {
         event.stopPropagation();
         setSelectedNode(node);
         setIsPanelOpen(true);
     }, []);
 
-    // Manejar clic en el fondo del canvas
+
     const onPaneClick = useCallback(() => {
         setSelectedNode(null);
         setIsPanelOpen(false);
     }, []);
 
-    // Actualizar nodo
+
     const onUpdateNode = useCallback(
         (nodeId, newData) => {
             setNodes((nds) =>
@@ -146,12 +177,11 @@ export default function Flow({
         [setNodes]
     );
 
-    // Cerrar panel
     const onClosePanel = useCallback(() => {
         setIsPanelOpen(false);
         setTimeout(() => {
             setSelectedNode(null);
-        }, 300); // Esperar a que termine la animación
+        }, 300);
     }, []);
 
     const onDragOver = useCallback((event) => {
@@ -203,13 +233,13 @@ export default function Flow({
         <div style={{ width: "100%", height: "100%", display: "flex" }}>
             <NodePalette />
 
-            {/* Panel de propiedades de nodos - Now positioned absolutely and won't affect canvas */}
             <NodePropertiesPanel
                 isOpen={isPanelOpen}
                 onClose={onClosePanel}
                 selectedNode={selectedNode}
                 onUpdateNode={onUpdateNode}
                 handlePipelineUiChanged={handlePipelineUiChanged}
+                mqttTopicsData={mqttTopicsData}
             />
 
             <ReactFlowWrapper ref={reactFlowWrapper}>

@@ -30,25 +30,29 @@ func CreatePublishNode(node common.NodeData, fm common.Manager) (*PublishNode, e
 		fm.Log().Errorf("PublishNode %s: 'publishTo' setting is required", node.NodeUid)
 		return nil, fmt.Errorf("publishTo setting is required")
 	}
-
+	
 	// Validate publishTo
 	if !slices.Contains(posiblePublishToForPublishNode, publishTo) {
 		fm.Log().Errorf("PublishNode %s: invalid 'publishTo' setting", node.NodeUid)
 		return nil, fmt.Errorf("invalid publishTo setting")
 	}
-
+	
 	topic, ok := node.Settings["topic"].(string)
 	if !ok || topic == "" {
 		fm.Log().Errorf("PublishNode %s: 'topic' setting is required", node.NodeUid)
 		return nil, fmt.Errorf("topic setting is required")
 	}
-
+	
 	switch publishTo {
 	case "Generic mqtt":
 		topic = strings.ReplaceAll(topic, "/", ".")
 	case "Topic reference":
 		topicRef := topic
 		topicInstance := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, topicRef)
+		if topicInstance == nil {
+			fm.Log().Errorf("PublishNode %s: topic reference '%s' not found", node.NodeUid, topicRef)
+			return nil, fmt.Errorf("topic reference '%s' not found", topicRef)
+		}
 		topic = utils.TopicToNatsSubject(topicInstance.TopicType, topicInstance.GroupUid, topicInstance.TopicUid)
 	}
 

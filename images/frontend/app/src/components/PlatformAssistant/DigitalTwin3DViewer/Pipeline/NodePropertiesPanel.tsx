@@ -11,6 +11,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useUpdateNodeInternals } from "@xyflow/react";
 import { useFormChanges } from "../Utils/customHooks";
+import { IMqttTopicData } from "../Main/Model";
 
 // CSS estándar para el resizing - mejor performance
 const resizableStyles = `
@@ -497,7 +498,6 @@ const CodeMirrorWrapper = styled.div`
     }
 `;
 
-// Tipos para el componente
 interface NodeData {
     label: string;
     nodeUid: string;
@@ -512,11 +512,13 @@ interface NodePropertiesPanelProps {
     selectedNode: {
         id: string;
         type: string;
+        position: { x: number; y: number };
         data: NodeData;
     } | null;
     onUpdateNode: (nodeId: string, newData: Partial<NodeData>) => void;
     onWidthChange?: (width: number) => void;
     handlePipelineUiChanged: (isPipelineUiChanged: any) => void;
+    mqttTopicsData: IMqttTopicData[];
 }
 
 const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
@@ -526,15 +528,18 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     onUpdateNode,
     onWidthChange,
     handlePipelineUiChanged,
+    mqttTopicsData,
 }) => {
     const [isClosing, setIsClosing] = useState(false);
     const [formData, setFormData] = useState<any>({});
     const [activeTab, setActiveTab] = useState<string>("settings");
     const [isDebugEnabled, setIsDebugEnabled] = useState(false);
-    const { hasChanges,setOriginalData, createInputChangeHandler, createDebugToggleHandler } =
+    const { hasChanges, setOriginalData, createInputChangeHandler, createDebugToggleHandler } =
         useFormChanges(selectedNode);
-
     const updateNodeInternals = useUpdateNodeInternals();
+    const [listenTopicsRef, setListenTopicsRef] = useState<string[]>([]);
+    const [publishTopicsRef, setPublishTopicsRef] = useState<string[]>([]);
+    const [injectRefTopicsRef, setInjectRefTopicsRef] = useState<string[]>([]);
 
     // Estados para el redimensionamiento - Enfoque híbrido optimizado
     const [width, setWidth] = useState(550);
@@ -628,6 +633,41 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     }, [width]);
 
     useEffect(() => {
+        const listenTopics: string[] = [];
+        const publishTopics: string[] = [];
+        const injectRefTopics: string[] = [];
+
+        mqttTopicsData.forEach((topic) => {
+            if (topic.topicRef.slice(0, 7) === "dev2pdb") {
+                listenTopics.push(topic.topicRef);
+                publishTopics.push(topic.topicRef);
+            }
+
+            if (topic.topicRef.slice(0, 6) === "inject") {
+                injectRefTopics.push(topic.topicRef);
+            }
+        });
+
+        listenTopics.push("sim2dtm", "dev2dtm", "sim2llm", "sim2state");
+        publishTopics.push(
+            "dtm2sim",
+            "sim2dtm",
+            "dtm2pdb",
+            "dev2dtm",
+            "dtm2dev",
+            "dev2sim",
+            "sim2llm",
+            "llm2sim",
+            "state2sim",
+            "sim2state"
+        );
+
+        setListenTopicsRef(listenTopics);
+        setPublishTopicsRef(publishTopics);
+        setInjectRefTopicsRef(injectRefTopics);
+    }, [mqttTopicsData]);
+
+    useEffect(() => {
         if (selectedNode) {
             const initialData = {
                 label: selectedNode.data.label,
@@ -685,7 +725,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         }
 
         handleClose();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [selectedNode, formData, onUpdateNode, handleClose, setOriginalData]);
 
     const handleReset = useCallback(() => {
@@ -718,16 +758,13 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         return (
             <FormGroup>
                 <Label>Number of outputs</Label>
-                <Select
-                    value={formData.numOutputs}
-                    onChange={(e) => handleInputChange("numOutputs", parseInt(e.target.value))}
-                >
-                    {Array.from({ length: 11 }, (_, i) => i).map((num) => (
-                        <option key={num} value={num}>
-                            {num}
-                        </option>
-                    ))}
-                </Select>
+                <Input
+                    type="number"
+                    step="1"
+                    value={formData.numOutputs || 0}
+                    onChange={(e) => handleInputChange("numOutputs", Math.max(0, parseInt(e.target.value)))}
+                    placeholder="1"
+                />
             </FormGroup>
         );
     };
@@ -911,17 +948,31 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 onChange={(e) => handleInputChange("listenTo", e.target.value)}
                             >
                                 <option value="Topic reference">Topic reference</option>
-                                <option value="Message topic">Message topic</option>
+                                <option value="Generic nats">Generic nats</option>
+                                <option value="Generic mqtt">Generic mqtt</option>
                             </Select>
                         </FormGroup>
                         <FormGroup>
                             <Label>Topic</Label>
-                            <Input
-                                type="text"
-                                value={formData.topic || ""}
-                                onChange={(e) => handleInputChange("topic", e.target.value)}
-                                placeholder="dev2pdb_1"
-                            />
+                            {formData.listenTo === "Topic reference" ? (
+                                <Select
+                                    value={formData.topic}
+                                    onChange={(e) => handleInputChange("topic", e.target.value)}
+                                >
+                                    {listenTopicsRef.map((topic) => (
+                                        <option key={topic} value={topic}>
+                                            {topic}
+                                        </option>
+                                    ))}
+                                </Select>
+                            ) : (
+                                <Input
+                                    type="text"
+                                    value={listenTopicsRef.includes(formData.topic) ? "your_topic" : formData.topic}
+                                    onChange={(e) => handleInputChange("topic", e.target.value)}
+                                    placeholder="your_topic"
+                                />
+                            )}
                         </FormGroup>
                     </>
                 );
@@ -937,17 +988,36 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             >
                                 <option value="Message topic">Message topic</option>
                                 <option value="Topic reference">Topic reference</option>
+                                <option value="Generic nats">Generic nats</option>
+                                <option value="Generic mqtt">Generic mqtt</option>
                             </Select>
                         </FormGroup>
-                        <FormGroup>
-                            <Label>Topic</Label>
-                            <Input
-                                type="text"
-                                value={formData.topic || ""}
-                                onChange={(e) => handleInputChange("topic", e.target.value)}
-                                placeholder="dev2pdb_1"
-                            />
-                        </FormGroup>
+                        {formData.publishTo === "Topic reference" && (
+                            <FormGroup>
+                                <Label>Topic</Label>
+                                <Select
+                                    value={formData.topic}
+                                    onChange={(e) => handleInputChange("topic", e.target.value)}
+                                >
+                                    {publishTopicsRef.map((topic) => (
+                                        <option key={topic} value={topic}>
+                                            {topic}
+                                        </option>
+                                    ))}
+                                </Select>
+                            </FormGroup>
+                        )}
+                        {(formData.publishTo === "Generic nats" || formData.publishTo === "Generic mqtt") && (
+                            <FormGroup>
+                                <Label>Topic</Label>
+                                <Input
+                                    type="text"
+                                    value={publishTopicsRef.includes(formData.topic) ? "your_topic" : formData.topic}
+                                    onChange={(e) => handleInputChange("topic", e.target.value)}
+                                    placeholder="your_topic"
+                                />
+                            </FormGroup>
+                        )}
                     </>
                 );
 
@@ -956,12 +1026,16 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     <>
                         <FormGroup>
                             <Label>Inject Reference</Label>
-                            <Input
-                                type="text"
-                                value={formData.injectRef || ""}
+                            <Select
+                                value={formData.injectRef}
                                 onChange={(e) => handleInputChange("injectRef", e.target.value)}
-                                placeholder="inject_1"
-                            />
+                            >
+                                {injectRefTopicsRef.map((topic) => (
+                                    <option key={topic} value={topic}>
+                                        {topic}
+                                    </option>
+                                ))}
+                            </Select>
                         </FormGroup>
                         <FormGroup>
                             <Label>Repeat</Label>
@@ -971,7 +1045,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             >
                                 <option value="none">None</option>
                                 <option value="interval">Interval</option>
-                                <option value="cron">Cron</option>
                             </Select>
                         </FormGroup>
                         {formData.repeat === "interval" && (
@@ -981,7 +1054,9 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     type="number"
                                     step="0.1"
                                     value={formData.every || 0}
-                                    onChange={(e) => handleInputChange("every", parseFloat(e.target.value))}
+                                    onChange={(e) =>
+                                        handleInputChange("every", Math.max(0, parseFloat(e.target.value)))
+                                    }
                                     placeholder="1.0"
                                 />
                             </FormGroup>
@@ -997,7 +1072,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             type="number"
                             step="0.1"
                             value={formData.duration || 0}
-                            onChange={(e) => handleInputChange("duration", parseFloat(e.target.value))}
+                            onChange={(e) => handleInputChange("duration", Math.max(0, parseFloat(e.target.value)))}
                             placeholder="0.0"
                         />
                     </FormGroup>
@@ -1018,15 +1093,17 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <option value="Custom email">Custom email</option>
                             </Select>
                         </FormGroup>
-                        <FormGroup>
-                            <Label>Email Address</Label>
-                            <Input
-                                type="email"
-                                value={formData.to || ""}
-                                onChange={(e) => handleInputChange("to", e.target.value)}
-                                placeholder="myemail@example.com"
-                            />
-                        </FormGroup>
+                        {formData.toOptions === "Custom email" && (
+                            <FormGroup>
+                                <Label>Email Address</Label>
+                                <Input
+                                    type="email"
+                                    value={formData.to || ""}
+                                    onChange={(e) => handleInputChange("to", e.target.value)}
+                                    placeholder="myemail@example.com"
+                                />
+                            </FormGroup>
+                        )}
                         <FormGroup>
                             <Label>Message Options</Label>
                             <Select
@@ -1037,24 +1114,28 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <option value="Custom message">Custom message</option>
                             </Select>
                         </FormGroup>
-                        <FormGroup>
-                            <Label>Subject</Label>
-                            <Input
-                                type="text"
-                                value={formData.subject || ""}
-                                onChange={(e) => handleInputChange("subject", e.target.value)}
-                                placeholder="Email Subject"
-                            />
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>Body</Label>
-                            <TextArea
-                                value={formData.body || ""}
-                                onChange={(e) => handleInputChange("body", e.target.value)}
-                                placeholder="Email Body"
-                                rows={4}
-                            />
-                        </FormGroup>
+                        {formData.messageOptions === "Custom message" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Subject</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.subject || ""}
+                                        onChange={(e) => handleInputChange("subject", e.target.value)}
+                                        placeholder="Email Subject"
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>Body</Label>
+                                    <TextArea
+                                        value={formData.body || ""}
+                                        onChange={(e) => handleInputChange("body", e.target.value)}
+                                        placeholder="Email Body"
+                                        rows={4}
+                                    />
+                                </FormGroup>
+                            </>
+                        )}
                     </>
                 );
 
@@ -1064,31 +1145,35 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         <FormGroup>
                             <Label>Options</Label>
                             <Select
-                                value={formData.options || "Group options"}
+                                value={formData.options || "Group notification options"}
                                 onChange={(e) => handleInputChange("options", e.target.value)}
                             >
-                                <option value="Group options">Group options</option>
-                                <option value="Custom options">Custom options</option>
+                                <option value="Group notification options">Group notification options</option>
+                                <option value="Custom telegram options">Custom telegram options</option>
                             </Select>
                         </FormGroup>
-                        <FormGroup>
-                            <Label>Chat ID</Label>
-                            <Input
-                                type="text"
-                                value={formData.chatId || ""}
-                                onChange={(e) => handleInputChange("chatId", e.target.value)}
-                                placeholder="123456789"
-                            />
-                        </FormGroup>
-                        <FormGroup>
-                            <Label>Bot Token</Label>
-                            <Input
-                                type="text"
-                                value={formData.telegramBotToken || ""}
-                                onChange={(e) => handleInputChange("telegramBotToken", e.target.value)}
-                                placeholder="your-telegram-bot-token"
-                            />
-                        </FormGroup>
+                        {formData.options === "Custom telegram options" && (
+                            <>
+                                <FormGroup>
+                                    <Label>Chat ID</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.chatId || ""}
+                                        onChange={(e) => handleInputChange("chatId", e.target.value)}
+                                        placeholder="123456789"
+                                    />
+                                </FormGroup>
+                                <FormGroup>
+                                    <Label>Telegram Bot Token</Label>
+                                    <Input
+                                        type="text"
+                                        value={formData.telegramBotToken || ""}
+                                        onChange={(e) => handleInputChange("telegramBotToken", e.target.value)}
+                                        placeholder="your-telegram-bot-token"
+                                    />
+                                </FormGroup>
+                            </>
+                        )}
                         <FormGroup>
                             <Label>Message Options</Label>
                             <Select
@@ -1099,15 +1184,17 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                 <option value="Custom message">Custom message</option>
                             </Select>
                         </FormGroup>
-                        <FormGroup>
-                            <Label>Message</Label>
-                            <TextArea
-                                value={formData.message || ""}
-                                onChange={(e) => handleInputChange("message", e.target.value)}
-                                placeholder="Hello from OSI4IOT!"
-                                rows={3}
-                            />
-                        </FormGroup>
+                        {formData.messageOptions === "Custom message" && (
+                            <FormGroup>
+                                <Label>Message</Label>
+                                <Input
+                                    type="text"
+                                    value={formData.message || ""}
+                                    onChange={(e) => handleInputChange("message", e.target.value)}
+                                    placeholder="Hello from OSI4IOT!"
+                                />
+                            </FormGroup>
+                        )}
                     </>
                 );
 

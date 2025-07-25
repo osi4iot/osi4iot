@@ -452,7 +452,6 @@ const normalizeFormData = (data: any, nodeType: string) => {
         normalized.every = parseFloat(normalized.every) || 0;
     }
 
-    // Normalizar strings vacíos a valores por defecto
     const stringFields = [
         "label",
         "topic",
@@ -470,7 +469,6 @@ const normalizeFormData = (data: any, nodeType: string) => {
         }
     });
 
-    // Manejo mejorado de scripts para nodos Function
     if (nodeType === "Function") {
         const defaultScripts = {
             onInitiationScript: "function init() {\n    // Your code here\n}",
@@ -482,7 +480,6 @@ const normalizeFormData = (data: any, nodeType: string) => {
             if (normalized[field] === undefined || normalized[field] === null) {
                 normalized[field] = defaultValue;
             } else {
-                // Normalizar espacios en blanco y saltos de línea
                 normalized[field] = normalized[field].replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
             }
         });
@@ -491,12 +488,10 @@ const normalizeFormData = (data: any, nodeType: string) => {
     return normalized;
 };
 
-// *** HOOK CORREGIDO CON TODA LA LÓGICA INTERNA ***
 export const useFormChanges = (selectedNode: any) => {
     const [hasChanges, setHasChanges] = useState(false);
     const originalDataRef = useRef(null);
 
-    // Función interna para verificar cambios
     const checkForChangesInternal = useCallback(
         (currentData, nodeType) => {
             if (!originalDataRef.current || !selectedNode) {
@@ -512,7 +507,6 @@ export const useFormChanges = (selectedNode: any) => {
         [selectedNode]
     );
 
-    // Función para establecer los datos originales
     const setOriginalData = useCallback((data, nodeType) => {
         const normalizedData = normalizeFormData(data, nodeType);
         originalDataRef.current = normalizedData;
@@ -543,10 +537,8 @@ export const useFormChanges = (selectedNode: any) => {
         [selectedNode, checkForChangesInternal]
     );
 
-    // *** FUNCIÓN CORREGIDA: Crear handleDebugToggle sin useCallback anidado ***
     const createDebugToggleHandler = useCallback(
         (setFormData, isDebugEnabled, setIsDebugEnabled) => {
-            // Retornar función normal, no useCallback
             return () => {
                 const newDebugState = !isDebugEnabled;
                 setIsDebugEnabled(newDebugState);
@@ -558,7 +550,6 @@ export const useFormChanges = (selectedNode: any) => {
                         debug: newDebugState ? "on" : "off",
                     };
 
-                    // Verificar cambios después de actualizar
                     setTimeout(() => {
                         checkForChangesInternal(newData, selectedNode?.type);
                     }, 0);
@@ -657,6 +648,10 @@ const isStoredPipelineDataChanged = (digitalTwinSelected: IDigitalTwin, pipeline
         }
     }
 
+    if (!digitalTwinSelected || !digitalTwinSelected.pipelineFileData) {
+        return true;
+    }
+    
     const existingPipelineDataString = JSON.stringify(JSON.parse(digitalTwinSelected.pipelineFileData));
     if (JSON.stringify(parsedPipelineData) !== existingPipelineDataString) {
         return true;
