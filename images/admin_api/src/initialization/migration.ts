@@ -512,7 +512,7 @@ export const dataBaseInitialization = async () => {
 						outerBounds: [] as number[][],
 						mqttAccessControl: "Pub & Sub",
 					};
-					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true);
+					group = await createGroup(1, defaultMainOrgGroup, process_env.MAIN_ORGANIZATION_NAME, true, true);
 					await createHomeDashboard(1, orgAcronym, orgName, group.folderId);
 					const groupMember = {
 						userId: 2,
@@ -521,7 +521,7 @@ export const dataBaseInitialization = async () => {
 						email: process_env.PLATFORM_ADMIN_EMAIL,
 						roleInGroup: "Admin" as RoleInGroupOption,
 					};
-					await addMembersToGroup(group, [groupMember]);
+					await addMembersToGroup(group, [groupMember], true);
 					logger.log("info", `Table ${tableGroup} has been created sucessfully`);
 				} catch (err) {
 					logger.log("error", `Table ${tableGroup} can not be created: %s`, err.message);

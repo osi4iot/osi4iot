@@ -1,6 +1,5 @@
 import * as THREE from "three";
-import React, { FC, useRef, useState, useLayoutEffect, useCallback } from "react";
-import Paho from "paho-mqtt";
+import React, { FC, useRef, useLayoutEffect, useCallback } from "react";
 import { useThree } from "@react-three/fiber";
 import {
     AssetState,
@@ -19,8 +18,6 @@ import {
     setParameters,
 } from "../ViewerTools/ViewerUtils";
 import Lut from "../Utils/Lut";
-import { toast } from "react-toastify";
-import useSubscription from "../MqttHook/useSubscription";
 import { IThreeMesh } from "../Types/threeInterfaces";
 import Sensors from "../Objects/Sensors";
 import GenericObjects from "../Objects/GenericObjects";
@@ -138,29 +135,29 @@ interface ModelProps {
     showDtSimulatorModal: boolean;
     handleUpdateChatAssistantMessages: (newMessage: LlmMessage) => void;
     handleUpdateLogMessages: (newLogMessages: PipelineLog) => void;
-    mqttClient: Paho.Client | null;
-    connectionStatus: string;
+    
+    currentSensorsState: Record<string, SensorState>;
+    currentAssetsState: Record<string, AssetState>;
+    currentGenericObjectsState: Record<string, GenericObjectState>;
+    currentFemSimulationObjectsState: FemSimulationObjectState[];
+    setCurrentSensorsState: React.Dispatch<React.SetStateAction<Record<string, SensorState>>>;
+    setCurrentAssetsState: React.Dispatch<React.SetStateAction<Record<string, AssetState>>>;
+    setCurrentGenericObjectsState: React.Dispatch<React.SetStateAction<Record<string, GenericObjectState>>>;
+    setCurrentFemSimulationObjectsState: React.Dispatch<React.SetStateAction<FemSimulationObjectState[]>>;
 }
 
 const Model: FC<ModelProps> = ({
     digitalTwinGltfData,
     femResultData,
     sensorObjects,
-    initialSensorsState,
     sensorsVisibilityState,
     assetObjects,
-    initialAssetsState,
     assetsVisibilityState,
     femSimulationObjects,
     femSimulationGeneralInfo,
-    initialFemSimObjectsState,
     femSimulationObjectsVisibilityState,
     genericObjects,
-    initialGenericObjectsState,
     genericObjectsVisibilityState,
-    mqttTopicsData,
-    topicIdBySensorRef,
-    dashboardUrl,
     sensorsOpacity,
     highlightAllSensors,
     showAllSensorsMarker,
@@ -183,91 +180,48 @@ const Model: FC<ModelProps> = ({
     femSimulationResult,
     showFemSimulationDeformation,
     femSimulationDefScale,
-    digitalTwinSimulatorState,
-    digitalTwinSimulatorSendData,
     setFemMinValues,
     setFemMaxValues,
-    setFemResFilesLastUpdate,
-    initialDigitalTwinSimulatorState,
     openDashboardTab,
     setFemResultLoaded,
     femResultNames,
     enableWebWorkes,
     numWebWorkers,
     logElapsedTime,
-    setDigitalTwinState,
-    isChatAssistantOpen,
-    chatMessages,
-    showDtSimulatorModal,
-    handleUpdateChatAssistantMessages,
-    handleUpdateLogMessages,
-    mqttClient,
-    connectionStatus,
+    
+    // Nuevas props - Estados del padre
+    currentSensorsState,
+    currentAssetsState,
+    currentGenericObjectsState,
+    currentFemSimulationObjectsState,
+    setCurrentSensorsState,
+    setCurrentAssetsState,
+    setCurrentGenericObjectsState,
+    setCurrentFemSimulationObjectsState,
 }) => {
     const camera = useThree((state) => state.camera);
     const container = canvasRef.current as HTMLCanvasElement | null;
     const group = useRef<THREE.Group>();
-    const [sensorsState, setSensorsState] = useState<Record<string, SensorState>>(initialSensorsState);
-    const [assetsState, setAssetsState] = useState<Record<string, AssetState>>(initialAssetsState);
-    const [genericObjectsState, setGenericObjectsState] =
-        useState<Record<string, GenericObjectState>>(initialGenericObjectsState);
-    const [femSimulationObjectsState, setFemSimulationObjectsState] =
-        useState<FemSimulationObjectState[]>(initialFemSimObjectsState);
-    const mqttTopics = mqttTopicsData.map((topicData) => topicData.mqttTopic).filter((topic) => topic !== "");
-    const digitalTwinModelMqttTopic = mqttTopicsData.filter((topic) => topic.topicRef === "sim2dtm")[0] || null;
-    const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
-    const digitalTwinModelChatAssistantTopic =
-        mqttTopicsData.filter((topic) => topic.topicRef === "sim2llm")[0] || null;
 
-    const updateSensorStateString = useCallback((objName: string, state: string) => {
-        setSensorsState((prevState) => {
-            return {
-                ...prevState,
-                [objName]: { ...prevState[objName], stateString: state },
-            };
-        });
-    }, []);
+    const sensorsState = currentSensorsState;
+    const setSensorsState = setCurrentSensorsState;
+    const assetsState = currentAssetsState;
+    const setAssetsState = setCurrentAssetsState;
+    const genericObjectsState = currentGenericObjectsState;
+    const setGenericObjectsState = setCurrentGenericObjectsState;
+    const femSimulationObjectsState = currentFemSimulationObjectsState;
+    const setFemSimulationObjectsState = setCurrentFemSimulationObjectsState;
 
-    useLayoutEffect(() => {
-        setFemSimulationObjectsState(initialFemSimObjectsState);
-    }, [initialFemSimObjectsState, femSimulationObjects]);
-
-    useLayoutEffect(() => {
-        setSensorsState(initialSensorsState);
-    }, [initialSensorsState]);
-
-    useLayoutEffect(() => {
-        setAssetsState(initialAssetsState);
-    }, [initialAssetsState]);
-
-    useLayoutEffect(() => {
-        setGenericObjectsState(initialGenericObjectsState);
-    }, [initialGenericObjectsState]);
-
-    useSubscription(
-        mqttClient,
-        mqttTopics,
-        mqttTopicsData,
-        topicIdBySensorRef,
-        sensorsState,
-        assetsState,
-        genericObjectsState,
-        femSimulationObjectsState,
-        digitalTwinSimulatorSendData,
-        sensorObjects,
-        assetObjects,
-        genericObjects,
-        femSimulationObjects,
-        setAssetsState,
-        setSensorsState,
-        setGenericObjectsState,
-        setFemSimulationObjectsState,
-        femResultData,
-        setFemResFilesLastUpdate,
-        digitalTwinGltfData.isGroupDTDemo,
-        setDigitalTwinState,
-        handleUpdateChatAssistantMessages,
-        handleUpdateLogMessages
+    const updateSensorStateString = useCallback(
+        (objName: string, state: string) => {
+            setSensorsState((prevState) => {
+                return {
+                    ...prevState,
+                    [objName]: { ...prevState[objName], stateString: state },
+                };
+            });
+        },
+        [setSensorsState]
     );
 
     useLayoutEffect(() => {
@@ -378,64 +332,8 @@ const Model: FC<ModelProps> = ({
             container?.removeEventListener("mousedown", onMouseDown);
             container?.removeEventListener("touchstart", onTouch);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [camera, container, setSensorsState, setAssetsState]);
-
-    useLayoutEffect(() => {
-        if (mqttClient && mqttClient.isConnected() && digitalTwinSimulatorState !== undefined) {
-            if (digitalTwinModelMqttTopic && Object.keys(digitalTwinSimulatorState).length !== 0) {
-                if (digitalTwinSimulatorSendData) {
-                    const mqttTopic = digitalTwinModelMqttTopic.mqttTopic;
-                    const messageToSend = JSON.stringify(digitalTwinSimulatorState);
-                    if (lastMqttMessageSended !== messageToSend) {
-                        const message = new Paho.Message(messageToSend);
-                        message.destinationName = mqttTopic;
-                        mqttClient.send(message);
-                        setLastMqttMessageSended(messageToSend);
-                    }
-                } else {
-                    const dtSimStateString = JSON.stringify(digitalTwinSimulatorState);
-                    const initialDTSimStateString = JSON.stringify(initialDigitalTwinSimulatorState);
-                    if (
-                        dtSimStateString !== lastMqttMessageSended &&
-                        dtSimStateString !== initialDTSimStateString &&
-                        !(isChatAssistantOpen || showDtSimulatorModal)
-                    ) {
-                        const warningMessage =
-                            "Warning: To use the digital twin simulator, reading the measurements from the sensors must be locked.";
-                        toast.warning(warningMessage);
-                    }
-                }
-            }
-        }
-    }, [
-        mqttClient,
-        digitalTwinSimulatorState,
-        digitalTwinSimulatorSendData,
-        digitalTwinModelMqttTopic,
-        lastMqttMessageSended,
-        initialDigitalTwinSimulatorState,
-        isChatAssistantOpen,
-        showDtSimulatorModal,
-    ]);
-
-    useLayoutEffect(() => {
-        if (mqttClient && mqttClient.isConnected() && isChatAssistantOpen) {
-            if (digitalTwinModelChatAssistantTopic) {
-                const mqttTopic = digitalTwinModelChatAssistantTopic.mqttTopic;
-                if (chatMessages.length !== 0 && chatMessages[chatMessages.length - 1].sender === "user") {
-                    const messageToSend = JSON.stringify({
-                        message: chatMessages[chatMessages.length - 1].message,
-                        clientId: mqttClient.clientId,
-                    });
-                    const message = new Paho.Message(messageToSend);
-                    message.destinationName = mqttTopic;
-                    mqttClient.send(message);
-                }
-            }
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [mqttClient, isChatAssistantOpen, chatMessages]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [camera, container, setSensorsState, setAssetsState, setGenericObjectsState, setFemSimulationObjectsState]);
 
     return (
         <group ref={group as React.MutableRefObject<THREE.Group>} dispose={null}>

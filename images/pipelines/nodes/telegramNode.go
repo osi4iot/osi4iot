@@ -6,15 +6,47 @@ import (
 	"pipelines/common"
 	"pipelines/logger"
 	"pipelines/utils"
+	"strconv"
 )
 
 type TelegramNode struct {
 	BaseNode
-	BotToken string
-	ChatID   int64
+	BotToken        string
+	ChatID          int64
+	IsCustomMessage bool
+	Message         string
 }
 
 func CreateTelegramNode(node common.NodeData, fm common.Manager) (*TelegramNode, error) {
+	options, ok := node.Settings["options"].(string)
+	if !ok || options == "" {
+		return nil, fmt.Errorf("options setting is required")
+	}
+
+	chatID := int64(0)
+	isCustomMessage := false
+	message := ""
+	switch options {
+	case "Group notification options":
+		chatID = fm.GetGroupTelegramChatID(node.GroupId)
+	case "Custom telegram options":
+		isCustomMessage = true
+		chatIDStr, ok := node.Settings["chatId"].(string)
+		if !ok || chatIDStr == "" {
+			return nil, fmt.Errorf("chatId setting is required for custom options")
+		}
+		var err error
+		chatID, err = strconv.ParseInt(chatIDStr, 10, 64)
+		if err != nil {
+			return nil, fmt.Errorf("invalid chatId setting for custom options: %v", err)
+		}
+
+		if message, ok = node.Settings["message"].(string); !ok || message == "" {
+			return nil, fmt.Errorf("message setting is required for custom options")
+		}
+	default:
+		return nil, fmt.Errorf("invalid options setting: %s", options)
+	}
 
 	org := fm.GetOrg(node.OrgId)
 	digitalTwin := fm.GetDigitalTwin(node.DigitalTwinId)
@@ -46,8 +78,10 @@ func CreateTelegramNode(node common.NodeData, fm common.Manager) (*TelegramNode,
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,
 		},
-		ChatID:   fm.GetGroupTelegramChatID(),
-		BotToken: fm.GetPlatformTelegramBotToken(),
+		ChatID:          chatID,
+		BotToken:        fm.GetPlatformTelegramBotToken(),
+		IsCustomMessage: isCustomMessage,
+		Message:         message,
 	}, nil
 }
 
@@ -64,9 +98,14 @@ func (n *TelegramNode) Start(log *logger.Logger, needReinitialization bool) {
 }
 
 func (n *TelegramNode) processMessage(msg common.Message, log *logger.Logger) error {
-	message, ok := msg.Payload["message"].(string)
-	if !ok {
-		return fmt.Errorf("missing message in TelegramNode with UID: %s", n.NodeUid)
+	message := n.Message
+	if !n.IsCustomMessage {
+		var ok bool
+		message, ok = msg.Payload["message"].(string)
+		if !ok {
+			return fmt.Errorf("missing message in TelegramNode with UID: %s", n.NodeUid)
+		}
+
 	}
 
 	return utils.SendTelegramMessage(n.BotToken, n.ChatID, message, log)

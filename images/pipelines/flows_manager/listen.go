@@ -34,8 +34,28 @@ func (fm *FlowsManager) Listen() {
 			}
 		case "group":
 			switch adminMsg.Action {
+			case "create":
+				group := fm.Admin.GetGroup(adminMsg.Id)
+				fm.AddGroup(group)
+			case "update":
+				group := fm.Admin.GetGroup(adminMsg.Id)
+				fm.UpdateGroup(group)
 			case "delete":
 				fm.DeleteGroup(adminMsg.Id)
+			default:
+				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
+				return
+			}
+		case "notification_channel":
+			switch adminMsg.Action {
+			case "create":
+				channel := fm.Admin.GetNotificationChannel(adminMsg.Id)
+				fm.AddNotificationChannel(channel)
+			case "update":
+				channel := fm.Admin.GetNotificationChannel(adminMsg.Id)
+				fm.UpdateNotificationChannel(channel)
+			case "delete":
+				fm.DeleteNotificationChannel(adminMsg.Id)
 			default:
 				fm.log.Errorf("Unknown action: %s for component: %s", adminMsg.Action, adminMsg.Component)
 				return

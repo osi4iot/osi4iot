@@ -33,6 +33,7 @@ import { toast } from "react-toastify";
 import formatDateString from "../../../../tools/formatDate";
 import { IDigitalTwin } from "../../TableColumns/digitalTwinsColumns";
 import axiosErrorHandler from "../../../../tools/axiosErrorHandler";
+import { IMqttTopicData } from "../Main/Model";
 
 export const useViewerState = () => {
     const [state, setState] = useState<ViewerState>({
@@ -469,21 +470,21 @@ const normalizeFormData = (data: any, nodeType: string) => {
         }
     });
 
-    if (nodeType === "Function") {
-        const defaultScripts = {
-            onInitiationScript: "function init() {\n    // Your code here\n}",
-            onStartScript: "function start() {\n    // Your code here\n}",
-            onMessageScript: "function process(msg) {\n    // Your code here\n    return msg;\n}",
-        };
+    // if (nodeType === "Function") {
+    //     const defaultScripts = {
+    //         onInitiationScript: "function init() {\n    // Your code here\n}",
+    //         onStartScript: "function start() {\n    // Your code here\n}",
+    //         onMessageScript: "function process(msg) {\n    // Your code here\n    return msg;\n}",
+    //     };
 
-        Object.entries(defaultScripts).forEach(([field, defaultValue]) => {
-            if (normalized[field] === undefined || normalized[field] === null) {
-                normalized[field] = defaultValue;
-            } else {
-                normalized[field] = normalized[field].replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-            }
-        });
-    }
+    //     Object.entries(defaultScripts).forEach(([field, defaultValue]) => {
+    //         if (normalized[field] === undefined || normalized[field] === null) {
+    //             normalized[field] = defaultValue;
+    //         } else {
+    //             normalized[field] = normalized[field].replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+    //         }
+    //     });
+    // }
 
     return normalized;
 };
@@ -651,7 +652,7 @@ const isStoredPipelineDataChanged = (digitalTwinSelected: IDigitalTwin, pipeline
     if (!digitalTwinSelected || !digitalTwinSelected.pipelineFileData) {
         return true;
     }
-    
+
     const existingPipelineDataString = JSON.stringify(JSON.parse(digitalTwinSelected.pipelineFileData));
     if (JSON.stringify(parsedPipelineData) !== existingPipelineDataString) {
         return true;
@@ -665,7 +666,7 @@ const deployPipeline = (
     handlePipelineUiChanged: (isChanged: boolean) => void,
     handleSetPipelineLogsOpen: (open: boolean) => void,
     refreshDigitalTwins: () => void,
-    params: UsePipelineActionsProps
+    params: UsePipelineActionsParamsProps
 ) => {
     const { digitalTwinSelected, accessToken, refreshToken, authDispatch } = params;
     if (!digitalTwinSelected) {
@@ -760,7 +761,7 @@ const deployPipeline = (
     }
 };
 
-const stopPipeline = (handleSetPipelineLogsOpen: (open: boolean) => void, params: UsePipelineActionsProps) => {
+const stopPipeline = (handleSetPipelineLogsOpen: (open: boolean) => void, params: UsePipelineActionsParamsProps) => {
     const { digitalTwinSelected, accessToken, refreshToken, authDispatch } = params;
     if (!digitalTwinSelected) {
         toast.error("No digital twin selected.");
@@ -787,7 +788,10 @@ const stopPipeline = (handleSetPipelineLogsOpen: (open: boolean) => void, params
         });
 };
 
-const reinitializePipeline = (handleSetPipelineLogsOpen: (open: boolean) => void, params: UsePipelineActionsProps) => {
+const reinitializePipeline = (
+    handleSetPipelineLogsOpen: (open: boolean) => void,
+    params: UsePipelineActionsParamsProps
+) => {
     if (!params.digitalTwinSelected) {
         toast.error("No digital twin selected.");
         return;
@@ -815,7 +819,11 @@ const reinitializePipeline = (handleSetPipelineLogsOpen: (open: boolean) => void
         });
 };
 
-export const createNodesAndEdges = (pipelineData: any) => {
+export const createNodesAndEdges = (
+    pipelineData: any,
+    mqttClient: Paho.Client | null,
+    mqttTopicsData: IMqttTopicData[]
+) => {
     const nodeUidMap = new Map();
     for (const node of pipelineData.nodes) {
         nodeUidMap.set(node.name, node.nodeUid);
@@ -860,6 +868,11 @@ export const createNodesAndEdges = (pipelineData: any) => {
             x: nodeItem.x || 0,
             y: nodeItem.y || 0,
         };
+
+        if (nodeItem.type === "Inject") {
+            (nodeData as any).mqttTopics = mqttTopicsData;
+            (nodeData as any).mqttClient = mqttClient;
+        }
 
         nodes.push({
             id: nodeItem.nodeUid,
@@ -962,7 +975,7 @@ const downloadYamlFile = (
     URL.revokeObjectURL(url);
 };
 
-interface UsePipelineActionsProps {
+interface UsePipelineActionsParamsProps {
     digitalTwinSelected: IDigitalTwin | null;
     accessToken: string;
     refreshToken: string;
@@ -976,7 +989,9 @@ export const usePipelineActions = (
     setPipelineEdges: React.Dispatch<any>,
     handlePipelineUiChanged: (isChanged: boolean) => void,
     handleSetPipelineLogsOpen: (open: boolean) => void,
-    params: UsePipelineActionsProps
+    mqttClient: Paho.Client | null,
+    mqttTopicsData: IMqttTopicData[],
+    params: UsePipelineActionsParamsProps
 ) => {
     const plaformAssistantDispatch = usePlatformAssitantDispatch();
     const refreshDigitalTwins = useCallback(() => {
@@ -1004,7 +1019,7 @@ export const usePipelineActions = (
                 const content = e.target?.result as string;
                 try {
                     const yamlData = YAML.parse(content);
-                    const { nodes, edges } = createNodesAndEdges(yamlData);
+                    const { nodes, edges } = createNodesAndEdges(yamlData, mqttClient, mqttTopicsData);
                     setPipelineNodes(nodes);
                     setPipelineEdges(edges);
                     handlePipelineUiChanged(true);

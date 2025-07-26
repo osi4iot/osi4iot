@@ -18,7 +18,7 @@ import NodePropertiesPanel from "./NodePropertiesPanel";
 import { createNodesAndEdges } from "../Utils/customHooks";
 import { toast } from "react-toastify";
 
-export const processInitialPipelineData = (digitalTwinSelected) => {
+export const processInitialPipelineData = (digitalTwinSelected, mqttClient, mqttTopicsData) => {
     if (!digitalTwinSelected.pipelineFileData || digitalTwinSelected.pipelineFileData === "") {
         return { nodes: [], edges: [] };
     }
@@ -30,7 +30,7 @@ export const processInitialPipelineData = (digitalTwinSelected) => {
             return { nodes: [], edges: [] };
         }
 
-        return createNodesAndEdges(pipelineData);
+        return createNodesAndEdges(pipelineData, mqttClient, mqttTopicsData);
     } catch (error) {
         toast.error(`Error processing pipeline data: ${error.message}`);
         return { nodes: [], edges: [] };
@@ -223,10 +223,15 @@ export default function Flow({
                 },
             };
 
+            if (nodeType === "Inject") {
+                newNode.data.mqttClient = mqttClient;
+                newNode.data.mqttTopics = mqttTopicsData;
+            }
+
             setNodes((nds) => nds.concat(newNode));
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [screenToFlowPosition]
+        [screenToFlowPosition, mqttClient, mqttTopicsData]
     );
 
     return (

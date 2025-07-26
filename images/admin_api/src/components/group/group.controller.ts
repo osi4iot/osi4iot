@@ -5,7 +5,7 @@ import IController from "../../interfaces/controller.interface";
 import validationMiddleware from "../../middleware/validation.middleware";
 import organizationExists from "../../middleware/organizationExists.middleware";
 import groupExists from "../../middleware/groupExists.middleware";
-import { organizationAdminAuth, groupAdminAuth, userAuth } from "../../middleware/auth.middleware";
+import { organizationAdminAuth, groupAdminAuth, userAuth, superAdminAuth } from "../../middleware/auth.middleware";
 import IRequestWithOrganization from "../organization/interfaces/requestWithOrganization.interface";
 import AlreadyExistingItemException from "../../exceptions/AlreadyExistingItemException";
 import CreateGroupDto from "./interfaces/group.dto";
@@ -24,6 +24,8 @@ import {
 	getGroupMembersByEmailsArray,
 	getGroupMembersInTeamIdArray,
 	getGroupsManagedByUserId,
+	getNotificationAllChannels,
+	getNotificationChannelById,
 	getNumberOfGroupMemberWithAdminRole,
 	groupsWhichTheLoggedUserIsMember,
 	removeMembersInGroup,
@@ -177,6 +179,10 @@ class GroupController implements IController {
 			);
 
 		this.router.get(`${this.path}_ssl_certs/:groupId`, groupExists, groupAdminAuth, this.getSslCertsByGroupId);
+
+		this.router.get(`/notification_channels`, superAdminAuth, this.getAllNotificationChannels);
+		this.router.get(`/notification_channel/:id`, superAdminAuth, this.getNotificationChannel);
+
 	}
 
 	private groupsManagedByUsers = async (user: IUser): Promise<IGroup[]> => {
@@ -846,6 +852,36 @@ class GroupController implements IController {
 			const groupId = req.group.id;
 			const certs = await sslGroupCerticatesGenerator(groupId);
 			res.status(200).send(certs);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getAllNotificationChannels = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const notificationChannels = await getNotificationAllChannels();
+			res.status(200).send(notificationChannels);
+		} catch (error) {
+			next(error);
+		}
+	};
+
+	private getNotificationChannel = async (
+		req: IRequestWithUser,
+		res: Response,
+		next: NextFunction
+	): Promise<void> => {
+		try {
+			const channelId = parseInt(req.params.id, 10);
+			const notificationChannel = await getNotificationChannelById(channelId);
+			if (!notificationChannel) {
+				throw new ItemNotFoundException(req, res, "The notification channel", "id", channelId.toString());
+			}
+			res.status(200).send(notificationChannel);
 		} catch (error) {
 			next(error);
 		}

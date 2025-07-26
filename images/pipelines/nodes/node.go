@@ -270,10 +270,10 @@ func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Me
 func (n *BaseNode) sendToOutputs(msg common.Message, log *logger.Logger) {
 	nodeOutputWires := n.Fm.GetNodeOutputWires(n.DigitalTwinId, n.Id)
 	for outputIndex, wireArray := range nodeOutputWires {
-		for _, wire := range wireArray {
+		for idx, wire := range wireArray {
 			select {
 			case wire.Channel <- msg:
-				if n.Debug == "on" {
+				if n.Debug == "on" && idx == 0 {
 					n.handleDebug(msg, outputIndex)
 				}
 			case <-n.Ctx.Done():

@@ -141,6 +141,42 @@ func (a *Admin) GetGroup(groupId int) *common.Group {
 	return &group
 }
 
+func (a *Admin) GetNotificationChannels() []*common.NotificationChannel {
+	var channels []*common.NotificationChannel
+	url := fmt.Sprintf("%s/notification_channels", a.baseUrl)
+	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	if err != nil {
+		a.log.Errorf("failed to get notification channels: %v", err)
+		return nil
+	}
+
+	err = utils.UnmarshalData(response, &channels)
+	if err != nil {
+		a.log.Errorf("failed to unmarshal notification channels: %v", err)
+		return nil
+	}
+
+	return channels
+}
+
+func (a *Admin) GetNotificationChannel(channelId int) *common.NotificationChannel {
+	url := fmt.Sprintf("%s/notification_channel/%d", a.baseUrl, channelId)
+	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	if err != nil {
+		a.log.Errorf("failed to get notification channel %d: %v", channelId, err)
+		return nil
+	}
+
+	var channel common.NotificationChannel
+	err = utils.UnmarshalData(response, &channel)
+	if err != nil {
+		a.log.Errorf("failed to unmarshal notification channel %d: %v", channelId, err)
+		return nil
+	}
+
+	return &channel
+}
+
 func (a *Admin) GetAssets() []*common.Asset {
 	var assets []*common.Asset
 	url := fmt.Sprintf("%s/assets/user_managed", a.baseUrl)

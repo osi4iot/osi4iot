@@ -157,7 +157,7 @@ const nodeTypes = [
         numOutputs: 0,
         debug: "off",
         settings: {
-            options: "Group options",
+            options: "Group notification options",
             chatId: "123456789",
             telegramBotToken: "your-telegram-bot-token",
             messageOptions: "Message received options",

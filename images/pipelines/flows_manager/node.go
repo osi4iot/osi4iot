@@ -68,6 +68,7 @@ func (fm *FlowsManager) AddNode(node *common.NodeData) error {
 func (fm *FlowsManager) AddNodes(nodes []*common.NodeData) error {
 	for _, node := range nodes {
 		if err := fm.AddNode(node); err != nil {
+			fm.handleNodeError(node, err)
 			return err
 		}
 	}

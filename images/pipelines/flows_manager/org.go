@@ -57,6 +57,21 @@ func (fm *FlowsManager) DeleteOrg(orgId int) error {
 		fm.MLModels.Delete(mlModelIdStr)
 	}
 
+	var groupsToDelete []int
+	fm.Groups.Range(func(key, value interface{}) bool {
+		if group, ok := value.(*common.Group); ok { // Asumindo que value es *Group
+			if group.OrgId == orgId {
+				groupsToDelete = append(groupsToDelete, group.Id)
+			}
+		}
+		return true
+	})
+	for _, groupId := range groupsToDelete {
+		groupIdStr := strconv.Itoa(groupId)
+		fm.Groups.Delete(groupIdStr)
+		fm.DeleteGroup(groupId)
+	}
+
 	var digitalTwinsToDelete []int
 	fm.DigitalTwins.Range(func(key, value interface{}) bool {
 		if digitalTwin, ok := value.(*common.DigitalTwin); ok { // Asumindo que value es *DigitalTwin

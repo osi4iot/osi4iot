@@ -29,9 +29,6 @@ type Manager interface {
 	GetTopicsByDigitalTwinId(digitalTwinId int) map[string]*Topic
 	DeleteDigitalTwinTopicsRefByDTid(digitalTwinId int) error
 	DeleteDigitalTwinTopicRef(digitalTwinId int, topicRef string) error
-	
-
-	DeleteGroup(groupId int) error
 
 	GetMlModels() []*MLModel
 	GetMlModel(modelId int) *MLModel
@@ -63,6 +60,20 @@ type Manager interface {
 	DeleteOrg(orgId int) error
 	UpdateOrg(org *Org) error
 
+	GetGroups() []*Group
+	GetGroup(groupId int) *Group
+	AddGroup(group *Group)
+	AddGroups(groups []*Group)
+	DeleteGroup(groupId int) error
+	UpdateGroup(group *Group) error
+
+	GetNotificationChannels() []*NotificationChannel
+	GetNotificationChannel(channelId int) *NotificationChannel
+	AddNotificationChannel(channel *NotificationChannel)
+	AddNotificationChannels(channels []*NotificationChannel)
+	DeleteNotificationChannel(channelId int) error
+	UpdateNotificationChannel(channel *NotificationChannel) error
+
 	DeleteSensor(sensorId int) error
 
 	GetTopics() []*Topic
@@ -93,6 +104,6 @@ type Manager interface {
 	GetPlatformEmailUsername() string
 	GetPlatformEmailPassword() string
 	GetPlatformTelegramBotToken() string
-	GetGroupNotificationEmail() string
-	GetGroupTelegramChatID() int64
+	GetGroupNotificationEmail(groupId int) string
+	GetGroupTelegramChatID(groupId int) int64
 }

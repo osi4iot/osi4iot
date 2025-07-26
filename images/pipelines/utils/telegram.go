@@ -54,7 +54,7 @@ func SendTelegramMessage(botToken string, chatID int64, message string, log *log
 		return fmt.Errorf("error from Telegram API: %s", telegramResp.Result.Text)
 	}
 
-	log.Infof("Message sent successfully. ID: %d\n", telegramResp.Result.MessageID)
+	log.Infof("Message sent successfully. ID: %d", telegramResp.Result.MessageID)
 	return nil
 }
 

@@ -151,6 +151,25 @@ type MLModel struct {
 	Updated     string `json:"updated"`
 }
 
+
+type NotificationChannel struct {
+	Id                int            `json:"id"`
+	OrgId             int            `json:"orgId"`
+	Name              string         `json:"name"`
+	Type              string         `json:"type"`
+	Settings          string         `json:"settings"`
+	SecureSettings    string         `json:"secureSettings"`
+	Created           string         `json:"created"`
+	Updated           string         `json:"updated"`
+	IsDefault         bool           `json:"isDefault"`
+	Frequency         int            `json:"frequency"`
+	SendReminder      bool           `json:"sendReminder"`
+	DisableResolveMsg bool           `json:"disableResolveMessage"`
+	Uid               string         `json:"uid"`
+	ChannelType       string         `json:"channelType"`
+	ChannelSettings   map[string]any `json:"channelSettings"`
+}
+
 type NodeData struct {
 	Id            int            `json:"id"`
 	NodeUid       string         `json:"nodeUid"`

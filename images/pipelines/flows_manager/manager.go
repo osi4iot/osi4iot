@@ -9,6 +9,8 @@ import (
 	"pipelines/config"
 	"pipelines/logger"
 	"pipelines/utils"
+	"strconv"
+	"strings"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -16,6 +18,8 @@ import (
 
 type FlowsManager struct {
 	Orgs                     *common.ShardedSyncMap
+	Groups                   *common.ShardedSyncMap
+	NotificationChannels     *common.ShardedSyncMap
 	Topics                   *common.ShardedSyncMap
 	AssetTopicsRef           *common.ShardedSyncMap
 	DigitalTwinTopicsRef     *common.ShardedSyncMap
@@ -52,6 +56,8 @@ func CreateFlowsManager(
 	log *logger.Logger,
 ) *FlowsManager {
 	orgs := admin.GetOrgs()
+	groups := admin.GetGroups()
+	notificationChannels := admin.GetNotificationChannels()
 	topics := admin.GetTopics()
 	mlModels := admin.GetMlModels()
 	digitalTwins := admin.GetDigitalTwins()
@@ -62,6 +68,8 @@ func CreateFlowsManager(
 
 	flowManager := FlowsManager{
 		Orgs:                     common.NewShardedSyncMap(config.ShardCount),
+		Groups:                   common.NewShardedSyncMap(config.ShardCount),
+		NotificationChannels:     common.NewShardedSyncMap(config.ShardCount),
 		Topics:                   common.NewShardedSyncMap(config.ShardCount),
 		AssetTopicsRef:           common.NewShardedSyncMap(config.ShardCount),
 		DigitalTwinTopicsRef:     common.NewShardedSyncMap(config.ShardCount),
@@ -90,6 +98,8 @@ func CreateFlowsManager(
 	}
 
 	flowManager.AddOrgs(orgs)
+	flowManager.AddGroups(groups)
+	flowManager.AddNotificationChannels(notificationChannels)
 	flowManager.AddTopics(topics)
 	flowManager.AddAssetTopicsRef(assetsTopics)
 	flowManager.AddDigitalTwinTopicsRef(digitalTwinTopics)
@@ -120,12 +130,77 @@ func (fm *FlowsManager) GetPlatformTelegramBotToken() string {
 	return fm.PlatformTelegramBotToken
 }
 
-func (fm *FlowsManager) GetGroupNotificationEmail() string {
-	return fm.GroupNotificationEmail
+func (fm *FlowsManager) getSettingFieldForGroupNotificationChannel(groupId int, channelType string) (map[string]interface{}, error) {
+	group := fm.GetGroup(groupId)
+	if group == nil {
+		fm.Log().Errorf("Group with ID %d not found", groupId)
+		return nil, fmt.Errorf("group not found")
+	}
+
+	var notificationChannel *common.NotificationChannel = nil
+	switch channelType {
+	case "email":
+		notificationChannelId := group.EmailNotificationChannelId
+		notificationChannel = fm.GetNotificationChannel(notificationChannelId)
+	case "telegram":
+		notificationChannelId := group.TelegramNotificationChannelId
+		notificationChannel = fm.GetNotificationChannel(notificationChannelId)
+	}
+
+	if notificationChannel == nil {
+		fm.Log().Errorf("Notification channel of type '%s' for group %d not found", channelType, groupId)
+		return nil, fmt.Errorf("notification channel not found")
+	}
+
+	if notificationChannel.Type != channelType {
+		fm.Log().Errorf("Notification channel with ID %d is not of type '%s' for group %d", notificationChannel.Id, channelType, groupId)
+		return nil, fmt.Errorf("notification channel type mismatch")
+	}
+
+	var settings map[string]interface{}
+	if err := json.Unmarshal([]byte(notificationChannel.Settings), &settings); err != nil {
+		fm.Log().Errorf("Failed to unmarshal settings for notification channel %d: %v", notificationChannel.Id, err)
+		return nil, fmt.Errorf("failed to unmarshal settings")
+	}
+
+	return settings, nil
+
 }
 
-func (fm *FlowsManager) GetGroupTelegramChatID() int64 {
-	return fm.GroupTelegramChatID
+func (fm *FlowsManager) GetGroupNotificationEmail(groupId int) string {
+	settings, err := fm.getSettingFieldForGroupNotificationChannel(groupId, "email")
+	if err != nil {
+		fm.Log().Errorf("Failed to get settings for group %d: %v", groupId, err)
+		return ""
+	}
+
+	if addresses, ok := settings["addresses"].(string); ok && len(addresses) > 0 {
+		return strings.Split(addresses, ",")[0]
+	}
+
+	fm.Log().Errorf("No email addresses found in settings for notification channel of group %d", groupId)
+	return ""
+
+}
+
+func (fm *FlowsManager) GetGroupTelegramChatID(groupId int) int64 {
+	settings, err := fm.getSettingFieldForGroupNotificationChannel(groupId, "telegram")
+	if err != nil {
+		fm.Log().Errorf("Failed to get settings for group %d: %v", groupId, err)
+		return 0
+	}
+
+	if chatID, ok := settings["chatid"].(string); ok {
+		chatIDInt, err := strconv.ParseInt(chatID, 10, 64)
+		if err != nil {
+			fm.Log().Errorf("Failed to parse chat ID for group %d: %v", groupId, err)
+			return 0
+		}
+		return chatIDInt
+	}
+
+	fm.Log().Errorf("No chat ID found in settings for notification channel of group %d", groupId)
+	return 0
 }
 
 func (fm *FlowsManager) NatsSubscribe(subject string, handler nats.MsgHandler) (*nats.Subscription, error) {

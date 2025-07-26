@@ -1,11 +1,12 @@
 // DigitalTwin3DViewer.tsx
-import { FC, SetStateAction, useEffect, useMemo, useState } from "react";
+import { FC, SetStateAction, useEffect, useLayoutEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import Paho from "paho-mqtt";
 import "react-dat-gui/dist/dist/index.css";
 
 // Types and constants
-import { Viewer3DProps } from "../Types/types";
+import { IPipelineEdge, IPipelineNode, Viewer3DProps } from "../Types/types";
 import { MOUSE_BUTTONS, DAT_GUI_STYLE } from "../Utils/constants";
 
 // Components
@@ -48,9 +49,17 @@ import {
 // Handlers
 import { createHandlers } from "../Utils/handlers";
 import { useAuthDispatch, useAuthState } from "../../../../contexts/authContext";
-import { generateInitialFemSimObjectsState } from "../ViewerTools/ViewerUtils";
+import {
+    AssetState,
+    FemSimulationObjectState,
+    generateInitialFemSimObjectsState,
+    GenericObjectState,
+    SensorState,
+} from "../ViewerTools/ViewerUtils";
 import Flow, { processInitialPipelineData } from "../Pipeline/Flow";
 import { ReactFlowProvider } from "@xyflow/react";
+import useSubscription from "../MqttHook/useSubscription";
+import { toast } from "react-toastify";
 
 const resolveSetStateAction = <T extends unknown>(action: SetStateAction<T>, prevValue: T): T => {
     return typeof action === "function" ? (action as (prev: T) => T)(prevValue) : action;
@@ -341,9 +350,151 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         femMaxValueRef,
     ]);
 
-    const initialData = useMemo(() => processInitialPipelineData(digitalTwinSelected), [digitalTwinSelected]);
-    const [pipelineNodes, setPipelineNodes] = useState(initialData.nodes);
-    const [pipelineEdges, setPipelineEdges] = useState(initialData.edges);
+    const [currentSensorsState, setCurrentSensorsState] = useState<Record<string, SensorState>>({});
+    const [currentAssetsState, setCurrentAssetsState] = useState<Record<string, AssetState>>({});
+    const [currentGenericObjectsState, setCurrentGenericObjectsState] = useState<Record<string, GenericObjectState>>(
+        {}
+    );
+    const [currentFemSimulationObjectsState, setCurrentFemSimulationObjectsState] = useState<
+        FemSimulationObjectState[]
+    >([]);
+
+    // Estado para la lógica MQTT que estaba en Model
+    const [lastMqttMessageSended, setLastMqttMessageSended] = useState("");
+
+    // Derivar datos MQTT
+    const digitalTwinModelMqttTopic =
+        digitalTwinGltfData?.mqttTopicsData?.filter((topic) => topic.topicRef === "sim2dtm")[0] || null;
+    const digitalTwinModelChatAssistantTopic =
+        digitalTwinGltfData?.mqttTopicsData?.filter((topic) => topic.topicRef === "sim2llm")[0] || null;
+
+    // Sincronizar estados iniciales con estados actuales cuando cambien
+    useEffect(() => {
+        if (state.initialSensorsState) {
+            setCurrentSensorsState(state.initialSensorsState);
+        }
+    }, [state.initialSensorsState]);
+
+    useEffect(() => {
+        if (state.initialAssetsState) {
+            setCurrentAssetsState(state.initialAssetsState);
+        }
+    }, [state.initialAssetsState]);
+
+    useEffect(() => {
+        if (state.initialGenericObjectsState) {
+            setCurrentGenericObjectsState(state.initialGenericObjectsState);
+        }
+    }, [state.initialGenericObjectsState]);
+
+    useEffect(() => {
+        if (state.initialFemSimObjectsState) {
+            setCurrentFemSimulationObjectsState(state.initialFemSimObjectsState);
+        }
+    }, [state.initialFemSimObjectsState]);
+
+    useLayoutEffect(() => {
+        if (mqttClient && mqttClient.isConnected() && opts.digitalTwinSimulatorState !== undefined) {
+            if (digitalTwinModelMqttTopic && Object.keys(opts.digitalTwinSimulatorState).length !== 0) {
+                if (state.digitalTwinSimulatorSendData) {
+                    const mqttTopic = digitalTwinModelMqttTopic.mqttTopic;
+                    const messageToSend = JSON.stringify(opts.digitalTwinSimulatorState);
+                    if (lastMqttMessageSended !== messageToSend) {
+                        const message = new Paho.Message(messageToSend);
+                        message.destinationName = mqttTopic;
+                        mqttClient.send(message);
+                        setLastMqttMessageSended(messageToSend);
+                    }
+                } else {
+                    const dtSimStateString = JSON.stringify(opts.digitalTwinSimulatorState);
+                    const initialDTSimStateString = JSON.stringify(state.initialDigitalTwinSimulatorState);
+                    if (
+                        dtSimStateString !== lastMqttMessageSended &&
+                        dtSimStateString !== initialDTSimStateString &&
+                        !(state.isChatAssistantOpen || state.showDtSimulatorModal)
+                    ) {
+                        const warningMessage =
+                            "Warning: To use the digital twin simulator, reading the measurements from the sensors must be locked.";
+                        toast.warning(warningMessage);
+                    }
+                }
+            }
+        }
+    }, [
+        mqttClient,
+        opts.digitalTwinSimulatorState,
+        state.digitalTwinSimulatorSendData,
+        digitalTwinModelMqttTopic,
+        lastMqttMessageSended,
+        state.initialDigitalTwinSimulatorState,
+        state.isChatAssistantOpen,
+        state.showDtSimulatorModal,
+    ]);
+
+    // 2. Lógica para enviar mensajes del chat assistant
+    useLayoutEffect(() => {
+        if (mqttClient && mqttClient.isConnected() && state.isChatAssistantOpen) {
+            if (digitalTwinModelChatAssistantTopic) {
+                const mqttTopic = digitalTwinModelChatAssistantTopic.mqttTopic;
+                if (chatMessages.length !== 0 && chatMessages[chatMessages.length - 1].sender === "user") {
+                    const messageToSend = JSON.stringify({
+                        message: chatMessages[chatMessages.length - 1].message,
+                        clientId: mqttClient.clientId,
+                    });
+                    const message = new Paho.Message(messageToSend);
+                    message.destinationName = mqttTopic;
+                    mqttClient.send(message);
+                }
+            }
+        }
+    }, [mqttClient, state.isChatAssistantOpen, chatMessages, digitalTwinModelChatAssistantTopic]);
+
+    // Mover useSubscription aquí
+    useSubscription(
+        mqttClient,
+        digitalTwinGltfData?.mqttTopicsData?.map((topic) => topic.mqttTopic).filter((topic) => topic !== "") || [],
+        digitalTwinGltfData?.mqttTopicsData || [],
+        digitalTwinGltfData?.topicIdBySensorRef || {},
+        currentSensorsState,
+        currentAssetsState,
+        currentGenericObjectsState,
+        currentFemSimulationObjectsState,
+        state.digitalTwinSimulatorSendData,
+        state.sensorObjects,
+        state.assetObjects,
+        state.genericObjects,
+        state.femSimulationObjects,
+        setCurrentAssetsState,
+        setCurrentSensorsState,
+        setCurrentGenericObjectsState,
+        setCurrentFemSimulationObjectsState,
+        state.femResultData,
+        (date) => setState((prev) => ({ ...prev, femResFilesLastUpdate: date })),
+        digitalTwinGltfData?.isGroupDTDemo || false,
+        (digitalTwinState) =>
+            setState((prev) => ({
+                ...prev,
+                digitalTwinState: resolveSetStateAction(digitalTwinState, prev.digitalTwinState),
+            })),
+        handleUpdateChatAssistantMessages,
+        handleUpdateLogMessages
+    );
+
+
+    const [pipelineNodes, setPipelineNodes] = useState([] as IPipelineNode[]);
+    const [pipelineEdges, setPipelineEdges] = useState([] as IPipelineEdge[]);
+
+    useEffect(() => {
+        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData) {
+            const { nodes, edges } = processInitialPipelineData(
+                digitalTwinSelected,
+                mqttClient,
+                digitalTwinGltfData.mqttTopicsData
+            );
+            setPipelineNodes(nodes);
+            setPipelineEdges(edges);
+        }
+    }, [digitalTwinSelected, mqttClient, digitalTwinGltfData.mqttTopicsData]);
 
     const {
         handleDeployPipeline,
@@ -358,6 +509,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         setPipelineEdges,
         handlers.handlePipelineUiChanged,
         handlers.handleSetPipelineLogsOpen,
+        mqttClient,
+        digitalTwinGltfData.mqttTopicsData,
         {
             digitalTwinSelected,
             accessToken,
@@ -525,8 +678,14 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                                 isChatAssistantOpen={state.isChatAssistantOpen}
                                 handleUpdateLogMessages={handleUpdateLogMessages}
                                 showDtSimulatorModal={state.showDtSimulatorModal}
-                                mqttClient={mqttClient}
-                                connectionStatus={connectionStatus}
+                                currentSensorsState={currentSensorsState}
+                                currentAssetsState={currentAssetsState}
+                                currentGenericObjectsState={currentGenericObjectsState}
+                                currentFemSimulationObjectsState={currentFemSimulationObjectsState}
+                                setCurrentSensorsState={setCurrentSensorsState}
+                                setCurrentAssetsState={setCurrentAssetsState}
+                                setCurrentGenericObjectsState={setCurrentGenericObjectsState}
+                                setCurrentFemSimulationObjectsState={setCurrentFemSimulationObjectsState}
                             />
                         </Stage>
                         <OrbitControls ref={controlsRef} mouseButtons={MOUSE_BUTTONS} />
@@ -548,7 +707,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 )}
 
                 {/* FEM Simulation Legend */}
-                {state.femSimulationObjects.length !== 0 &&
+                {state.activeViewer === "3D" &&
+                    state.femSimulationObjects.length !== 0 &&
                     state.femSimulationGeneralInfo &&
                     ((state.femResultData && opts.femSimulationResult !== "None result") ||
                         opts.legendToShow !== "None result") &&
@@ -621,10 +781,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
 
                 {/* Pipeline Manager */}
                 {digitalTwinSelected && state.isPipelineLogsOpen && (
-                    <PipelineLogs
-                        logMessages={logMessages}
-                        setLogMessages={setLogMessages}
-                    />
+                    <PipelineLogs logMessages={logMessages} setLogMessages={setLogMessages} />
                 )}
 
                 {/* Chat Assistant */}
