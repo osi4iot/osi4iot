@@ -5,7 +5,7 @@ import { Handle, Position } from "@xyflow/react";
 import Paho from "paho-mqtt";
 import styled from "styled-components";
 import { toast } from "react-toastify";
-import  { useCallback } from "react";
+import { useCallback } from "react";
 
 const NodeContainer = styled.div<{ bgColor: string; hoverColor?: string; selected?: boolean }>`
     padding: 2px 4px;
@@ -28,10 +28,11 @@ const NodeContainer = styled.div<{ bgColor: string; hoverColor?: string; selecte
     }
 `;
 
-const NodeContent = styled.div`
+const NodeContent = styled.div<{ numOutputs?: number }>`
     display: flex;
     align-items: center;
     gap: 4px;
+    height: ${(props) => `${(props.numOutputs || 1) * 5 + 15}px`};
 `;
 
 const IconContainer = styled.div<{ rotate?: string }>`
@@ -71,10 +72,11 @@ const InjectNodeWrapper = styled.div`
 `;
 
 // Contenedor principal del nodo que envuelve tanto el botón como el contenido
-const NodeInjectContainer = styled.div<{ selected?: boolean }>`
+const NodeInjectContainer = styled.div<{ selected?: boolean, numOutputs?: number }>`
     display: flex;
     align-items: center;
-    height: 28px;
+    // height: 28px;
+    height: ${(props) => `${(props.numOutputs || 1) * 5 + 23}px`};
     border-radius: 5px;
     border: ${(props) => (props.selected ? "2px solid #3b82f6" : "2px solid #a09c98ff")};
     box-shadow: ${(props) =>
@@ -101,10 +103,10 @@ const NodeInjectContent = styled.div`
 
 const arrowBigRightCursor = `url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="%23000000" stroke="%23ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9h6V5l7 7-7 7v-4H6V9z"/></svg>') 10 10, pointer`;
 
-
-const InjectButtonIntegrated = styled.div`
+const InjectButtonIntegrated = styled.div<{ numOutputs?: number }>`
     width: 28px;
-    height: 24px; /* 2px menos para compensar el border del contenedor */
+    // height: 24px; /* 2px menos para compensar el border del contenedor */
+    height: ${(props) => `${(props.numOutputs || 1) * 5 + 20}px`};
     border-radius: 3px 0 0 3px;
     background-color: #7993aaff;
     display: flex;
@@ -128,10 +130,11 @@ const InjectButtonIntegrated = styled.div`
 `;
 
 // Contenido del nodo (sin el botón)
-const NodeContentContainer = styled.div<{ bgColor: string; hoverColor?: string }>`
+const NodeContentContainer = styled.div<{ bgColor: string; hoverColor?: string, numOutputs?: number }>`
     display: flex;
     align-items: center;
-    height: 24px; /* 2px menos para compensar el border del contenedor */
+    // height: 24px; /* 2px menos para compensar el border del contenedor */
+    height: ${(props) => `${(props.numOutputs || 1) * 5 + 20}px`};
     padding: 2px 4px;
     background-color: ${(props) => props.bgColor || "#c4a07dff"};
     border-radius: 0 3px 3px 0;
@@ -163,7 +166,7 @@ export function FunctionNode({ data, selected }) {
                 style={{ top: "50%", left: "-1px" }} // Centrar el input
             />
 
-            <NodeContent>
+            <NodeContent numOutputs={numOutputs}>
                 <IconContainer>
                     <SquareFunction size={20} color="#e7e3dfff" />
                 </IconContainer>
@@ -191,7 +194,7 @@ export function ListenNode({ data, selected }) {
     const numOutputs = data?.numOutputs || 0;
     return (
         <NodeContainer bgColor="#aa97aaff" hoverColor="#b5a5b5" selected={selected}>
-            <NodeContent>
+            <NodeContent numOutputs={numOutputs}>
                 <IconContainer rotate="90deg">
                     <WifiHigh size={20} color="#e7e3dfff" />
                 </IconContainer>
@@ -241,7 +244,7 @@ export function InjectNode({ data, selected }) {
                 const mqttTopic = mqttTopics.find((topic) => topic.topicRef === topicRef)?.mqttTopic;
                 if (mqttTopic) {
                     const messageToSend = JSON.stringify({
-                        timestamp: new Date().toJSON(),
+                        timestamp: Date.now(),
                     });
                     try {
                         const message = new Paho.Message(messageToSend);
@@ -264,13 +267,13 @@ export function InjectNode({ data, selected }) {
 
     return (
         <InjectNodeWrapper>
-            <NodeInjectContainer selected={selected}>
-                <InjectButtonIntegrated onClick={handleButtonClick} title="Execute Inject">
+            <NodeInjectContainer selected={selected} numOutputs={numOutputs}>
+                <InjectButtonIntegrated onClick={handleButtonClick} title="Execute Inject" numOutputs={numOutputs}>
                     <ArrowBigRight size={20} color="#e7e3dfff" />
                 </InjectButtonIntegrated>
 
-                <NodeContentContainer bgColor="#a6bbcf" hoverColor="#b0c8d1">
-                    <NodeInjectContent>
+                <NodeContentContainer bgColor="#a6bbcf" hoverColor="#b0c8d1"  numOutputs={numOutputs}>
+                    <NodeInjectContent >
                         <NodeLabel>{data?.label || "Inject"}</NodeLabel>
                     </NodeInjectContent>
                 </NodeContentContainer>
@@ -298,7 +301,7 @@ export function DelayNode({ data, selected }) {
     return (
         <NodeContainer bgColor="#a8a152ff" hoverColor="#b8b062ff" selected={selected}>
             <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
-            <NodeContent>
+            <NodeContent numOutputs={numOutputs}>
                 <IconContainer>
                     <ClockFading size={20} color="#e7e3dfff" />
                 </IconContainer>

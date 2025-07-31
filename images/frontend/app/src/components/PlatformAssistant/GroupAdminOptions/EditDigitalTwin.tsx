@@ -244,6 +244,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
     const [femResFilesLastModif, setFemResFilesLastModif] = useState<string[]>([]);
     const [femResFileName, setFemResFileName] = useState("-");
     const [femResFileLastModifDateString, setFemResFileLastModifDateString] = useState("-");
+    const storedPipelineFileData = digitalTwins[digitalTwinRowIndex].pipelineFileData;
     const storedPipelineFileName = digitalTwins[digitalTwinRowIndex].pipelineFileName || "-";
     const [pipelineFileName, setPipelineFileName] = useState(storedPipelineFileName);
     const storedPipelineFileLastModifDate = digitalTwins[digitalTwinRowIndex].pipelineFileLastModifDate || "-";
@@ -503,7 +504,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         }
                     } catch (error: any) {
                         axiosErrorHandler(error, authDispatch);
-                        backToTable();
+                        // backToTable();
                     }
                 }
 
@@ -527,7 +528,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                         }
                     } catch (error: any) {
                         axiosErrorHandler(error, authDispatch);
-                        backToTable();
+                        // backToTable();
                     }
                 }
             }
@@ -535,27 +536,49 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             const storedDate = formatDateString(storedPipelineFileLastModifDate);
             const newDate = formatDateString(pipelineFileLastModifDateString);
 
+            if (storedPipelineFileData !== "" && Object.keys(digitalTwinPipelineData).length === 0) {
+                const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
+                const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
+                getAxiosInstance(refreshToken, authDispatch)
+                    .delete(urlUploadPipeline, config)
+                    .then((response: AxiosResponse<any, any>) => {
+                        toast.success(response.data.message);
+                    })
+                    .catch((error: AxiosError) => {
+                        axiosErrorHandler(error, authDispatch);
+                    })
+                    .finally(() => {
+                        refreshDigitalTwins();
+                    });
+            }
+
             let isPipelineRestartNeeded = true;
             if (
                 Object.keys(digitalTwinPipelineData).length !== 0 &&
                 (storedPipelineFileName !== pipelineFileName || storedDate !== newDate)
             ) {
                 isPipelineRestartNeeded = false;
-                const pipelineData = JSON.parse(JSON.stringify(digitalTwinPipelineData)) as any;
-                for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
-                    pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
+                const pipelineNodes = (JSON.parse(JSON.stringify(digitalTwinPipelineData)) as any).nodes;
+                for (let inode = 0; inode < pipelineNodes.length; inode++) {
+                    pipelineNodes[inode].settings = JSON.stringify(pipelineNodes[inode].settings);
                 }
-                (pipelineData as any).reinitialize = reinitializePipeline;
+                const pipelineData = {
+                    pipelineFileName: pipelineFileName,
+                    pipelineFileLastModifDate: pipelineFileLastModifDateString,
+                    nodes: pipelineNodes,
+                    reinitialize: reinitializePipeline,
+                };
                 const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
                 const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
                 getAxiosInstance(refreshToken, authDispatch)
                     .patch(urlUploadPipeline, pipelineData, config)
                     .then((response: AxiosResponse<any, any>) => {
                         toast.success(response.data.message);
+                        refreshDigitalTwins();
                     })
                     .catch((error: AxiosError) => {
                         axiosErrorHandler(error, authDispatch);
-                        backToTable();
+                        // backToTable();
                     });
             }
 
@@ -573,7 +596,7 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
                     })
                     .catch((error: AxiosError) => {
                         axiosErrorHandler(error, authDispatch);
-                        backToTable();
+                        // backToTable();
                     });
             }
         }
@@ -592,9 +615,6 @@ const EditDigitalTwin: FC<EditDigitalTwinProps> = ({ digitalTwins, backToTable, 
             chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
-            pipelineFileName,
-            pipelineFileLastModifDate: pipelineFileLastModifDateString,
-            pipelineFileData: JSON.stringify(digitalTwinPipelineData),
         };
 
         getAxiosInstance(refreshToken, authDispatch)

@@ -11,7 +11,7 @@ import {
     useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FunctionNode, ListenNode, PublishNode, InjectNode, DelayNode, EmailNode, TelegramNode } from "./Nodes";
 import NodePalette from "./NodePalette";
 import NodePropertiesPanel from "./NodePropertiesPanel";
@@ -24,27 +24,17 @@ export const processInitialPipelineData = (digitalTwinSelected, mqttClient, mqtt
     }
 
     try {
-        const pipelineData = JSON.parse(digitalTwinSelected.pipelineFileData);
+        const pipelineNodes = JSON.parse(digitalTwinSelected.pipelineFileData);
 
-        if (Object.keys(pipelineData).length === 0) {
+        if (pipelineNodes.length === 0) {
             return { nodes: [], edges: [] };
         }
 
-        return createNodesAndEdges(pipelineData, mqttClient, mqttTopicsData);
+        return createNodesAndEdges(pipelineNodes, mqttClient, mqttTopicsData);
     } catch (error) {
         toast.error(`Error processing pipeline data: ${error.message}`);
         return { nodes: [], edges: [] };
     }
-};
-
-const nodeCounters = {
-    Function: 0,
-    Listen: 0,
-    Publish: 0,
-    Inject: 0,
-    Email: 0,
-    Telegram: 0,
-    Delay: 0,
 };
 
 // Removed the panelOpen prop from the styled component
@@ -76,6 +66,40 @@ export default function Flow({
 
     const [selectedNode, setSelectedNode] = useState(null);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
+    const [nodeCounters, setNodeCounters] = useState({});
+
+    useEffect(() => {
+        const newCounters = {
+            Function: 0,
+            Listen: 0,
+            Publish: 0,
+            Inject: 0,
+            Email: 0,
+            Telegram: 0,
+            Delay: 0,
+        };
+
+        let maxInject = 0;
+        for (const node of nodes) {
+            if (node.type in newCounters) {
+                if (node.type === "Inject") {
+                    const injectRef = node.data.settings.injectRef;
+                    if (injectRef) {
+                        const injectNumber = parseInt(injectRef.split("_")[1]);
+                        maxInject = Math.max(maxInject, injectNumber);
+                    }
+                } else {
+                    newCounters[node.type] += 1;
+                }
+            }
+        }
+        newCounters.Inject = maxInject;
+
+        setNodeCounters((prevCounters) => {
+            const hasChanged = Object.keys(newCounters).some((key) => newCounters[key] !== prevCounters[key]);
+            return hasChanged ? newCounters : prevCounters;
+        });
+    }, [nodes]);
 
     const nodeTypes = useMemo(
         () => ({
@@ -150,12 +174,10 @@ export default function Flow({
         setIsPanelOpen(true);
     }, []);
 
-
     const onPaneClick = useCallback(() => {
         setSelectedNode(null);
         setIsPanelOpen(false);
     }, []);
-
 
     const onUpdateNode = useCallback(
         (nodeId, newData) => {
@@ -207,8 +229,16 @@ export default function Flow({
 
             const nodeUid = nanoid(20).replace(/-/g, "x").replace(/_/g, "X");
 
+            if (nodeType === "Inject" && nodeCounters[nodeType] === 5) {
+                toast.error("You can only have 5 Inject nodes in the pipeline.");
+                return;
+            }
+
             const nodeNumber = nodeCounters[nodeType] + 1;
-            nodeCounters[nodeType] = nodeNumber;
+            setNodeCounters((prevCounters) => ({
+                ...prevCounters,
+                [nodeType]: nodeNumber,
+            }));
 
             const newNode = {
                 id: nodeUid,
@@ -224,6 +254,7 @@ export default function Flow({
             };
 
             if (nodeType === "Inject") {
+                newNode.data.settings.injectRef = `inject_${nodeNumber}`;
                 newNode.data.mqttClient = mqttClient;
                 newNode.data.mqttTopics = mqttTopicsData;
             }
@@ -231,7 +262,7 @@ export default function Flow({
             setNodes((nds) => nds.concat(newNode));
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [screenToFlowPosition, mqttClient, mqttTopicsData]
+        [screenToFlowPosition, mqttClient, mqttTopicsData, nodeCounters]
     );
 
     return (

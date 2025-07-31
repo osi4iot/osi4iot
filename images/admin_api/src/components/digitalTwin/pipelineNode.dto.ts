@@ -1,15 +1,14 @@
-import { IsArray, IsNumber, IsOptional, IsString, ValidateIf, ValidateNested } from "class-validator";
-import CreateNodeWireDto from "./nodeWire.dto";
-import { Type } from "class-transformer";
+import { IsArray, IsNumber, IsString, ValidateIf, ValidateNested } from "class-validator";
 
-class CreatePipelineNodeDto {
+import { Type } from "class-transformer";
+import NodeWireDto from "./nodeWire.dto";
+
+class PipelineNodeDto {
 	@IsString()
 	public name: string;
 
-	@IsOptional()
 	@IsString()
-	@ValidateIf((obj) => obj.nodeUid !== undefined)
-	public nodeUid?: string;
+	public nodeUid: string;
 
 	@ValidateIf((obj) => obj.x !== undefined)
 	@IsNumber()
@@ -34,8 +33,8 @@ class CreatePipelineNodeDto {
 
 	@IsArray()
 	@ValidateNested({ each: true })
-	@Type(() => CreateNodeWireDto)
-	public wires: CreateNodeWireDto[][];
+	@Type(() => NodeWireDto)
+	public wires: NodeWireDto[][];
 }
 
-export default CreatePipelineNodeDto;
+export default PipelineNodeDto;

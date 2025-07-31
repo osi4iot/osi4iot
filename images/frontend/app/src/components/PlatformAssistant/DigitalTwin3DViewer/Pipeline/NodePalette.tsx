@@ -88,8 +88,8 @@ const nodeTypes = [
         debug: "off",
         settings: {
             debug: "off",
-            publishTo: "Message topic",
-            topic: "dev2pdb_1",
+            publishTo: "Topic reference",
+            topic: "dtm2sim",
         },
     },
     {

@@ -7,6 +7,7 @@ import (
 	"pipelines/logger"
 	"pipelines/utils"
 	"strings"
+	"time"
 
 	"github.com/dop251/goja"
 	"github.com/nats-io/nats.go"
@@ -113,12 +114,12 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 		// Precompile the onMessageScript and initialize the VM pool
 		if err := funNode.precompileScript(fm.Log()); err != nil {
 			nodeError := fmt.Errorf("Failed to precompile script for node %s: %v", funNode.NodeUid, err)
-			funNode.handleError(nodeError)
+			funNode.HandleError(nodeError)
 			return nil, nodeError
 		}
 		if err := funNode.initVMPool(fm.Log()); err != nil {
 			nodeError := fmt.Errorf("Failed to initialize VM pool for node %s: %v", funNode.NodeUid, err)
-			funNode.handleError(nodeError)
+			funNode.HandleError(nodeError)
 			return nil, nodeError
 		}
 	}
@@ -145,7 +146,7 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.onInitializationScript != "" && needReinitialization {
 		if err := n.executeInitializationScript(log); err != nil {
 			log.Errorf("Failed to execute initialization script for node %s: %v", n.NodeUid, err)
-			n.handleError(err)
+			n.HandleError(err)
 			return
 		}
 		log.Infof("Initialization script executed successfully for node %s", n.NodeUid)
@@ -155,7 +156,7 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.onStartScript != "" {
 		if err := n.executeStartScript(log); err != nil {
 			log.Errorf("Failed to execute start script for node %s: %v", n.NodeUid, err)
-			n.handleError(err)
+			n.HandleError(err)
 			return
 		}
 		log.Infof("Start script executed successfully for node %s", n.NodeUid)
@@ -307,7 +308,11 @@ func (n *FuncNode) returnVM(vm *goja.Runtime) {
 func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) error {
 	// Get VM from the pool
 	vm := n.getVM()
+	timer := time.AfterFunc(time.Duration(n.Fm.GetFunctionsTimeout())*time.Millisecond, func() {
+		vm.Interrupt("halt processing due to timeout")
+	})
 	defer n.returnVM(vm)
+	defer timer.Stop()
 
 	// Get process function from the current VM (each VM has its own instance)
 	processFunc, ok := goja.AssertFunction(vm.Get("process"))
@@ -339,26 +344,26 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 		if len(nodeOutputWires) == 0 {
 			if msg, ok := processedData.(common.Message); ok {
 				if n.Debug == "on" {
-					n.handleDebug(msg, 0)
+					n.HandleDebug(msg, 0)
 				}
 			} else {
 				errorMsg := fmt.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
 				log.Error(errorMsg)
-				n.handleError(errorMsg)
+				n.HandleError(errorMsg)
 			}
 		} else if len(nodeOutputWires) == 1 {
 			if msg, ok := processedData.(common.Message); ok {
 				n.addEventTriggerTopicType(message.Topic, &msg)
 				for _, wire := range nodeOutputWires[0] {
 					if n.Debug == "on" {
-						n.handleDebug(msg, 0)
+						n.HandleDebug(msg, 0)
 					}
 					wire.Channel <- msg
 				}
 			} else {
 				errorMsg := fmt.Errorf("Processed data is not of type Message in node %s", n.NodeUid)
 				log.Error(errorMsg)
-				n.handleError(errorMsg)
+				n.HandleError(errorMsg)
 			}
 		} else if len(nodeOutputWires) > 1 {
 			if msgs, ok := processedData.([]common.Message); ok {
@@ -368,7 +373,7 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 				}
 				for idx, wireArray := range nodeOutputWires {
 					if n.Debug == "on" {
-						n.handleDebug(msgs[idx], idx)
+						n.HandleDebug(msgs[idx], idx)
 					}
 					for _, wire := range wireArray {
 						wire.Channel <- msgs[idx]
@@ -385,7 +390,7 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 					for idx, wireArray := range nodeOutputWires {
 						if msg1, ok1 := msgs[idx].(common.Message); ok1 {
 							if n.Debug == "on" {
-								n.handleDebug(msg1, idx)
+								n.HandleDebug(msg1, idx)
 							}
 							for _, wire := range wireArray {
 								wire.Channel <- msg1
@@ -430,17 +435,8 @@ func (n *FuncNode) convertToJSObject(vm *goja.Runtime, data interface{}) goja.Va
 }
 
 func (n *FuncNode) looksLikeMessageData(data map[string]interface{}) bool {
-	requiredFields := []string{"topic", "payload"}
-	foundFields := 0
-
-	for _, field := range requiredFields {
-		if _, exists := data[field]; exists {
-			foundFields++
-		}
-	}
-
-	// We consider it looks like message data if topic and payload are both present
-	return foundFields == 2
+	_, existsPayload := data["payload"]
+	return existsPayload
 }
 
 // convertFromJSObject convert a JavaScript object back to Go

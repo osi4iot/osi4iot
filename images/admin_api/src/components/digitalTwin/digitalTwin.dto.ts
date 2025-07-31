@@ -24,15 +24,6 @@ class CreateDigitalTwinDto {
 
 	@IsString({ each: true })
 	public sensorsRef: string[];
-
-	@IsString()
-	public pipelineFileName: string;
-
-	@IsString()
-	public pipelineFileLastModifDate: string;
-
-	@IsString()
-	public pipelineFileData: string;
 }
 
 export default CreateDigitalTwinDto;

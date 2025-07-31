@@ -45,7 +45,6 @@ import {
 	getAllDTTopics,
 	getDTTopicsByGroupsIdArray,
 	getDTTopicsByDigitalTwinId,
-	updateDigitalTwinPipelineFileDataById,
 } from "./digitalTwinDAL";
 import IDigitalTwin from "./digitalTwin.interface";
 import IDigitalTwinState from "./digitalTwinState.interface";
@@ -63,12 +62,10 @@ import IRequestWithDigitalTwinAndGroup from "../group/interfaces/requestWithDigi
 import infoLogger from "../../utils/logger/infoLogger";
 import { getAssetTopicsInfoFromByDTIdsArray } from "../asset/assetDAL";
 import type { Readable } from "stream";
-import CreatePipelineDto from "./pipeline.dto";
-import { applyPipelineAction, createDigitalTwinPipeline, updateDigitalTwinPipeline } from "./pipeline";
+import { applyPipelineAction, createDigitalTwinPipeline, deleteDigitalTwinPipeline, updateDigitalTwinPipeline } from "./pipeline";
 import CreatePipelineActionDto from "./pipeline_action.dto";
 import IDigitalTwinTopic from "./digitalTwinTopic.interface";
-import { UpdatePipelineDto } from "./pipeline_update.dto";
-import PipelineFileDataDto from "./pipelineFileData.dto";
+import PipelineDto from "./pipeline.dto";
 
 const uploadDigitalTwinFile = multer({
 	storage: multerS3({
@@ -167,15 +164,22 @@ class DigitalTwinController implements IController {
 				`${this.path}_pipeline/:groupId/:digitalTwinId`,
 				digitalTwinAndGroupExist,
 				groupAdminAuth,
-				validationMiddleware<CreatePipelineDto>(CreatePipelineDto, true),
+				validationMiddleware<PipelineDto>(PipelineDto, true),
 				this.createPipeline
 			)
 			.patch(
 				`${this.path}_pipeline/:groupId/:digitalTwinId`,
 				digitalTwinAndGroupExist,
 				groupAdminAuth,
-				validationMiddleware<UpdatePipelineDto>(UpdatePipelineDto, true),
+				validationMiddleware<PipelineDto>(PipelineDto, true),
 				this.updatePipeline
+			)
+			.delete(
+				`${this.path}_pipeline/:groupId/:digitalTwinId`,
+				digitalTwinAndGroupExist,
+				groupAdminAuth,
+				validationMiddleware<PipelineDto>(PipelineDto, true),
+				this.deletePipeline
 			)
 			.post(
 				`${this.path}_pipeline_action/:groupId/:digitalTwinId`,
@@ -183,13 +187,6 @@ class DigitalTwinController implements IController {
 				groupAdminAuth,
 				validationMiddleware<CreatePipelineActionDto>(CreatePipelineActionDto, true),
 				this.setPipelineAction
-			)
-			.patch(
-				`${this.path}_pipeline_file_data/:groupId/:digitalTwinId`,
-				digitalTwinAndGroupExist,
-				groupAdminAuth,
-				validationMiddleware<PipelineFileDataDto>(PipelineFileDataDto, true),
-				this.updatePipelineFileData
 			)
 			.get(`${this.path}_topics/user_managed`, userAuth, this.getDigitalTwinTopicsUserManaged)
 			.get(
@@ -627,7 +624,7 @@ class DigitalTwinController implements IController {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
-			const pipelineData: CreatePipelineDto = req.body;
+			const pipelineData: PipelineDto = req.body;
 			await createDigitalTwinPipeline(digitalTwinIdNum, pipelineData, req.group.id);
 
 			const response = {
@@ -647,7 +644,7 @@ class DigitalTwinController implements IController {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
-			const pipelineData: UpdatePipelineDto = req.body;
+			const pipelineData: PipelineDto = req.body;
 			await updateDigitalTwinPipeline(digitalTwinIdNum, pipelineData, req.group.id);
 
 			const response = {
@@ -659,7 +656,7 @@ class DigitalTwinController implements IController {
 		}
 	};
 
-	private updatePipelineFileData = async (
+	private deletePipeline = async (
 		req: IRequestWithAssetAndGroup,
 		res: Response,
 		next: NextFunction
@@ -667,13 +664,11 @@ class DigitalTwinController implements IController {
 		try {
 			const { digitalTwinId } = req.params;
 			const digitalTwinIdNum = parseInt(digitalTwinId, 10);
-			const pipelineFileData: PipelineFileDataDto = req.body;
-			await updateDigitalTwinPipelineFileDataById(digitalTwinIdNum, req.group.id, pipelineFileData);
+			await deleteDigitalTwinPipeline(digitalTwinIdNum, req.group.id);
 
 			const response = {
-				message: `The pipeline file data has been updated`,
+				message: `The pipeline has been deleted`,
 			};
-
 			res.status(200).send(response);
 		} catch (error) {
 			next(error);

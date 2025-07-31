@@ -470,22 +470,6 @@ const normalizeFormData = (data: any, nodeType: string) => {
         }
     });
 
-    // if (nodeType === "Function") {
-    //     const defaultScripts = {
-    //         onInitiationScript: "function init() {\n    // Your code here\n}",
-    //         onStartScript: "function start() {\n    // Your code here\n}",
-    //         onMessageScript: "function process(msg) {\n    // Your code here\n    return msg;\n}",
-    //     };
-
-    //     Object.entries(defaultScripts).forEach(([field, defaultValue]) => {
-    //         if (normalized[field] === undefined || normalized[field] === null) {
-    //             normalized[field] = defaultValue;
-    //         } else {
-    //             normalized[field] = normalized[field].replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
-    //         }
-    //     });
-    // }
-
     return normalized;
 };
 
@@ -634,18 +618,14 @@ const createPipelineData = (pipelineNodes: IPipelineNode[], pipelineEdges: IPipe
         nodes.push(nodeData);
     }
 
-    const pipelineData = {
-        nodes,
-    };
-
-    return pipelineData;
+    return nodes;
 };
 
-const isStoredPipelineDataChanged = (digitalTwinSelected: IDigitalTwin, pipelineData: any): boolean => {
-    const parsedPipelineData = Object.assign({}, pipelineData);
-    for (let inode = 0; inode < parsedPipelineData.nodes.length; inode++) {
-        if (Object.keys(parsedPipelineData.nodes[inode].settings).length !== 0) {
-            parsedPipelineData.nodes[inode].settings = JSON.stringify(parsedPipelineData.nodes[inode].settings);
+const isStoredPipelineDataChanged = (digitalTwinSelected: IDigitalTwin, pipelineDataNodes: any): boolean => {
+    const pipelineDataNodesAux = JSON.parse(JSON.stringify(pipelineDataNodes));
+    for (let inode = 0; inode < pipelineDataNodesAux.length; inode++) {
+        if (Object.keys(pipelineDataNodesAux[inode].settings).length !== 0) {
+            pipelineDataNodesAux[inode].settings = JSON.stringify(pipelineDataNodesAux[inode].settings);
         }
     }
 
@@ -654,7 +634,7 @@ const isStoredPipelineDataChanged = (digitalTwinSelected: IDigitalTwin, pipeline
     }
 
     const existingPipelineDataString = JSON.stringify(JSON.parse(digitalTwinSelected.pipelineFileData));
-    if (JSON.stringify(parsedPipelineData) !== existingPipelineDataString) {
+    if (JSON.stringify(pipelineDataNodesAux) !== existingPipelineDataString) {
         return true;
     }
     return false;
@@ -674,64 +654,51 @@ const deployPipeline = (
         return;
     }
 
-    const pipelineData = createPipelineData(pipelineNodes, pipelineEdges);
+    const pipelineDataNodes = createPipelineData(pipelineNodes, pipelineEdges);
     const config = axiosAuth(accessToken);
     const groupId = digitalTwinSelected.groupId;
     const digitalTwinId = digitalTwinSelected.id;
-    if (pipelineData && Object.keys(pipelineData).length !== 0) {
-        if (isStoredPipelineDataChanged(digitalTwinSelected, pipelineData)) {
-            const url = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_pipeline_file_data/${groupId}/${digitalTwinId}`;
-            const pipelineFileName = `pipeline_${digitalTwinSelected.digitalTwinUid}.yml`;
-            const pipelineFileLastModifDate = formatDateString(new Date().toISOString());
-            const pipelineFileData = JSON.stringify(pipelineData);
-            const newDigitalTwinData = {
-                pipelineFileName,
-                pipelineFileLastModifDate,
-                pipelineFileData,
-            };
+    const urlUploadPipelineBase = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_pipeline`;
+    const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
 
+    if (pipelineDataNodes && pipelineDataNodes.length === 0) {
+        getAxiosInstance(refreshToken, authDispatch)
+            .delete(urlUploadPipeline, config)
+            .then((response: AxiosResponse<any, any>) => {
+                handleSetPipelineLogsOpen(true);
+                handlePipelineUiChanged(false);
+                toast.success(response.data.message);
+            })
+            .catch((error: AxiosError) => {
+                axiosErrorHandler(error, authDispatch);
+            })
+            .finally(() => {
+                refreshDigitalTwins();
+            });
+        return;
+    }
+
+    if (isStoredPipelineDataChanged(digitalTwinSelected, pipelineDataNodes)) {
+        const pipelineFileName = `pipeline_${digitalTwinSelected.digitalTwinUid}.yml`;
+        const pipelineFileLastModifDate = formatDateString(new Date().toISOString());
+        for (let inode = 0; inode < pipelineDataNodes.length; inode++) {
+            if (Object.keys(pipelineDataNodes[inode].settings).length !== 0) {
+                pipelineDataNodes[inode].settings = JSON.stringify(pipelineDataNodes[inode].settings);
+            }
+        }
+        const newPipelineData = {
+            pipelineFileName,
+            pipelineFileLastModifDate,
+            nodes: pipelineDataNodes,
+        };
+
+        if (digitalTwinSelected.pipelineFileData === "") {
             getAxiosInstance(refreshToken, authDispatch)
-                .patch(url, newDigitalTwinData, config)
+                .post(urlUploadPipeline, newPipelineData, config)
                 .then((response: AxiosResponse<any, any>) => {
-                    if (response.data) {
-                        toast.success(response.data.message);
-                        for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
-                            if (Object.keys(pipelineData.nodes[inode].settings).length !== 0) {
-                                pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
-                            }
-                        }
-                        const urlUploadPipelineBase = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_pipeline`;
-                        const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${digitalTwinId}`;
-                        if (digitalTwinSelected.pipelineFileData === "") {
-                            getAxiosInstance(refreshToken, authDispatch)
-                                .post(urlUploadPipeline, pipelineData, config)
-                                .then((response: AxiosResponse<any, any>) => {
-                                    digitalTwinSelected.pipelineFileData = pipelineFileData;
-                                    digitalTwinSelected.pipelineFileName = pipelineFileName;
-                                    digitalTwinSelected.pipelineFileLastModifDate = pipelineFileLastModifDate;
-                                    handleSetPipelineLogsOpen(true);
-                                    handlePipelineUiChanged(false);
-                                    toast.success(response.data.message);
-                                })
-                                .catch((error: AxiosError) => {
-                                    axiosErrorHandler(error, authDispatch);
-                                });
-                        } else {
-                            getAxiosInstance(refreshToken, authDispatch)
-                                .patch(urlUploadPipeline, pipelineData, config)
-                                .then((response: AxiosResponse<any, any>) => {
-                                    digitalTwinSelected.pipelineFileData = pipelineFileData;
-                                    digitalTwinSelected.pipelineFileName = pipelineFileName;
-                                    digitalTwinSelected.pipelineFileLastModifDate = pipelineFileLastModifDate;
-                                    handleSetPipelineLogsOpen(true);
-                                    handlePipelineUiChanged(false);
-                                    toast.success(response.data.message);
-                                })
-                                .catch((error: AxiosError) => {
-                                    axiosErrorHandler(error, authDispatch);
-                                });
-                        }
-                    }
+                    handleSetPipelineLogsOpen(true);
+                    handlePipelineUiChanged(false);
+                    toast.success(response.data.message);
                 })
                 .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
@@ -740,24 +707,39 @@ const deployPipeline = (
                     refreshDigitalTwins();
                 });
         } else {
-            const reinitialize = true;
-            const urlSetPipelineActionBase = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_pipeline_action`;
-            const urlSetPipelineAction = `${urlSetPipelineActionBase}/${groupId}/${digitalTwinId}`;
-            const pipelineAction = {
-                action: "restart",
-                reinitialize,
-            };
-
             getAxiosInstance(refreshToken, authDispatch)
-                .post(urlSetPipelineAction, pipelineAction, config)
+                .patch(urlUploadPipeline, newPipelineData, config)
                 .then((response: AxiosResponse<any, any>) => {
                     handleSetPipelineLogsOpen(true);
+                    handlePipelineUiChanged(false);
                     toast.success(response.data.message);
                 })
                 .catch((error: AxiosError) => {
                     axiosErrorHandler(error, authDispatch);
+                })
+                .finally(() => {
+                    refreshDigitalTwins();
                 });
         }
+    } else {
+        const reinitialize = false;
+        const urlSetPipelineActionBase = `${PROTOCOL}://${DOMAIN_NAME}/admin_api/digital_twin_pipeline_action`;
+        const urlSetPipelineAction = `${urlSetPipelineActionBase}/${groupId}/${digitalTwinId}`;
+        const pipelineAction = {
+            action: "restart",
+            reinitialize,
+        };
+
+        getAxiosInstance(refreshToken, authDispatch)
+            .post(urlSetPipelineAction, pipelineAction, config)
+            .then((response: AxiosResponse<any, any>) => {
+                handleSetPipelineLogsOpen(true);
+                handlePipelineUiChanged(false);
+                toast.success(response.data.message);
+            })
+            .catch((error: AxiosError) => {
+                axiosErrorHandler(error, authDispatch);
+            });
     }
 };
 
@@ -820,26 +802,24 @@ const reinitializePipeline = (
 };
 
 export const createNodesAndEdges = (
-    pipelineData: any,
+    pipelineNodes: any,
     mqttClient: Paho.Client | null,
     mqttTopicsData: IMqttTopicData[]
 ) => {
     const nodeUidMap = new Map();
-    for (const node of pipelineData.nodes) {
+    for (const node of pipelineNodes) {
         nodeUidMap.set(node.name, node.nodeUid);
     }
 
-    for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
-        const node = pipelineData.nodes[inode];
+    for (let inode = 0; inode < pipelineNodes.length; inode++) {
+        const node = pipelineNodes[inode];
         for (let outputIndex = 0; outputIndex < node.wires.length; outputIndex++) {
             const wireArray = node.wires[outputIndex];
             if (wireArray && wireArray.length > 0) {
                 for (let wireIdx = 0; wireIdx < wireArray.length; wireIdx++) {
                     const wire = wireArray[wireIdx];
                     if (!wire.nodeEndUid) {
-                        pipelineData.nodes[inode].wires[outputIndex][wireIdx].nodeEndUid = nodeUidMap.get(
-                            wire.nodeEndName
-                        );
+                        pipelineNodes[inode].wires[outputIndex][wireIdx].nodeEndUid = nodeUidMap.get(wire.nodeEndName);
                     }
                 }
             }
@@ -848,8 +828,8 @@ export const createNodesAndEdges = (
 
     const nodes = [];
     const edges = [];
-    for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
-        const nodeItem = pipelineData.nodes[inode];
+    for (let inode = 0; inode < pipelineNodes.length; inode++) {
+        const nodeItem = pipelineNodes[inode];
 
         let settings = nodeItem.settings || {};
         if (typeof settings === "string") {
@@ -991,14 +971,9 @@ export const usePipelineActions = (
     handleSetPipelineLogsOpen: (open: boolean) => void,
     mqttClient: Paho.Client | null,
     mqttTopicsData: IMqttTopicData[],
+    refreshDigitalTwins: () => void,
     params: UsePipelineActionsParamsProps
 ) => {
-    const plaformAssistantDispatch = usePlatformAssitantDispatch();
-    const refreshDigitalTwins = useCallback(() => {
-        const reloadDigitalTwinsTable = true;
-        setReloadDigitalTwinsTable(plaformAssistantDispatch, { reloadDigitalTwinsTable });
-    }, [plaformAssistantDispatch]);
-
     const handleDeployPipeline = useCallback(() => {
         deployPipeline(
             pipelineNodes,
@@ -1019,7 +994,8 @@ export const usePipelineActions = (
                 const content = e.target?.result as string;
                 try {
                     const yamlData = YAML.parse(content);
-                    const { nodes, edges } = createNodesAndEdges(yamlData, mqttClient, mqttTopicsData);
+                    const pipelineNodes = yamlData.nodes || [];
+                    const { nodes, edges } = createNodesAndEdges(pipelineNodes, mqttClient, mqttTopicsData);
                     setPipelineNodes(nodes);
                     setPipelineEdges(edges);
                     handlePipelineUiChanged(true);

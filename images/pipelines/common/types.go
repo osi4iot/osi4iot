@@ -151,7 +151,6 @@ type MLModel struct {
 	Updated     string `json:"updated"`
 }
 
-
 type NotificationChannel struct {
 	Id                int            `json:"id"`
 	OrgId             int            `json:"orgId"`
@@ -224,8 +223,7 @@ type PipelineLog struct {
 	Uid         string         `json:"uid"`
 	Message     string         `json:"message"`
 	Description string         `json:"description"`
-	TopicUid    string         `json:"topicUid"`
-	TopicRef    string         `json:"topicRef"`
+	OutputIndex int            `json:"outputIndex"`
 	Payload     map[string]any `json:"payload"`
 	State       map[string]any `json:"state"`
 }

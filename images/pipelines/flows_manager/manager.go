@@ -36,15 +36,15 @@ type FlowsManager struct {
 	JsConsumer               jetstream.Consumer
 	log                      *logger.Logger
 	NumReplicas              int
+	FunctionsTimeout         int // Timeout for function execution in milliseconds
 	ReplicaIndex             int
 	ShardIndex               int
+	IsLeader                 bool
 	Nats                     *nats.Conn
 	JetStream                jetstream.JetStream
 	PlatformEmailUsername    string
 	PlatformEmailPassword    string
 	PlatformTelegramBotToken string
-	GroupNotificationEmail   string
-	GroupTelegramChatID      int64
 }
 
 func CreateFlowsManager(
@@ -85,6 +85,8 @@ func CreateFlowsManager(
 		NumReplicas:              config.NumReplicas,
 		ReplicaIndex:             config.ReplicaIndex,
 		ShardIndex:               config.ShardIndex,
+		IsLeader:                 config.IsRaftLeader,
+		FunctionsTimeout:         config.FunctionsTimeout,
 		Admin:                    admin,
 		JsConsumer:               jsConsumer,
 		Nats:                     natsConn,
@@ -92,8 +94,6 @@ func CreateFlowsManager(
 		PlatformEmailUsername:    config.PlatformEmailUsername,
 		PlatformEmailPassword:    config.PlatformEmailPassword,
 		PlatformTelegramBotToken: config.PlatformTelegramBotToken,
-		GroupNotificationEmail:   config.GroupNotificationEmail,
-		GroupTelegramChatID:      config.GroupTelegramChatID,
 		log:                      log,
 	}
 
@@ -212,6 +212,15 @@ func (fm *FlowsManager) NatsSubscribe(subject string, handler nats.MsgHandler) (
 	return subscription, nil
 }
 
+func (fm *FlowsManager) NatsQueueSubscribe(subject, queue string, handler nats.MsgHandler) (*nats.Subscription, error) {
+	subscription, err := fm.Nats.QueueSubscribe(subject, queue, handler)
+	if err != nil {
+		fm.log.Errorf("Failed to queue subscribe to subject %s with queue %s: %v", subject, queue, err)
+		return nil, err
+	}
+	return subscription, nil
+}
+
 func (fm *FlowsManager) NatsPublish(subject string, msg []byte) error {
 	if err := fm.Nats.Publish(subject, msg); err != nil {
 		fm.log.Errorf("Failed to publish message to subject %s: %v", subject, err)
@@ -273,4 +282,20 @@ func (fm *FlowsManager) handleNodeError(n *common.NodeData, err error) {
 	} else {
 		fm.Log().Errorf("Failed to marshal log error data for node %s: %v", n.NodeUid, marshallErr)
 	}
+}
+
+func (fm *FlowsManager) GetFunctionsTimeout() int {
+	return fm.FunctionsTimeout
+}
+
+func (fm *FlowsManager) GetNumReplicas() int {
+	return fm.NumReplicas
+}
+
+func (fm *FlowsManager) GetReplicaIndex() int {
+	return fm.ReplicaIndex
+}
+
+func (fm *FlowsManager) IsRaftLeader() bool {
+	return fm.IsLeader
 }

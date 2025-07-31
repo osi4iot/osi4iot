@@ -600,9 +600,6 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
             chatAssistantLanguage,
             digitalTwinSimulationFormat: JSON.stringify(JSON.parse(values.digitalTwinSimulationFormat)),
             sensorsRef,
-            pipelineFileName,
-            pipelineFileLastModifDate: pipelineFileLastModifDateString,
-            pipelineFileData: JSON.stringify(digitalTwinPipelineData),
         };
 
         setIsSubmitting(true);
@@ -631,7 +628,7 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         })
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
-                            backToTable();
+                            // backToTable();
                         });
                 }
 
@@ -646,25 +643,31 @@ const CreateDigitalTwin: FC<CreateDigitalTwinProps> = ({ backToTable, refreshDig
                         })
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
-                            backToTable();
+                            // backToTable();
                         });
                 }
 
                 if (Object.keys(digitalTwinPipelineData).length !== 0) {
                     const urlUploadPipelineBase = `${protocol}://${domainName}/admin_api/digital_twin_pipeline`;
                     const urlUploadPipeline = `${urlUploadPipelineBase}/${groupId}/${data.digitalTwinId}`;
-                    const pipelineData = digitalTwinPipelineData as any;
-                    for (let inode = 0; inode < pipelineData.nodes.length; inode++) {
-                        pipelineData.nodes[inode].settings = JSON.stringify(pipelineData.nodes[inode].settings);
+                    const pipelineNodes = (digitalTwinPipelineData as any).nodes
+                    for (let inode = 0; inode < pipelineNodes.length; inode++) {
+                        pipelineNodes[inode].settings = JSON.stringify(pipelineNodes[inode].settings);
+                    }
+                    const pipelineData = {
+                        pipelineFileName: pipelineFileName,
+                        pipelineFileLastModifDate: pipelineFileLastModifDateString,
+                        nodes: pipelineNodes,
                     }
                     getAxiosInstance(refreshToken, authDispatch)
                         .post(urlUploadPipeline, pipelineData, config)
                         .then((response: AxiosResponse<any, any>) => {
                             toast.success(response.data.message);
+                            refreshDigitalTwins();
                         })
                         .catch((error: AxiosError) => {
                             axiosErrorHandler(error, authDispatch);
-                            backToTable();
+                            //backToTable();
                         });
                 }
             })

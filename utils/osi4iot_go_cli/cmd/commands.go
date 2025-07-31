@@ -316,7 +316,7 @@ var cmdStop = &cobra.Command{
 			errMsg := fmt.Sprintf("Error: stopping the platform %v", err)
 			exitWithError(errMsg)
 		} else {
-			okMsg := utils.StyleOKMsg.Render("Platform has been sttoped successfully")
+			okMsg := utils.StyleOKMsg.Render("Platform has been stopped successfully")
 			fmt.Println(okMsg)
 		}
 	},

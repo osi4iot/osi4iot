@@ -110,9 +110,5 @@ func (n *PublishNode) processMessage(msg common.Message, log *logger.Logger) err
 	}
 
 	subject := n.Topic
-	if n.PublishTo == "Message topic" {
-		subject = msg.Topic // Use the topic from the message
-	}
-
 	return n.Fm.NatsPublish(subject, jsonData)
 }

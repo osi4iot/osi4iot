@@ -17,8 +17,7 @@ export interface PipelineLog {
     uid: string;
     message: string;
     description?: string;
-    topicUid?: string;
-    topicRef?: string;
+    outputIndex?: number;
     payload: Record<string, any>;
     state: Record<string, any>;
     date: string;
@@ -225,13 +224,13 @@ const ExpandButton = styled.button`
     }
 `;
 
-const TopicInfo = styled.div`
+const OutputIndex = styled.div`
     margin-bottom: 4px;
     font-size: 12px;
     color: #d1d5db;
     text-align: left;
 
-    .topic-label {
+    .label {
         font-weight: normal;
     }
 `;
@@ -242,7 +241,7 @@ const ComponentInfo = styled.div`
     color: #d1d5db;
     text-align: left;
 
-    .topic-label {
+    .label {
         font-weight: normal;
     }
 `;
@@ -602,21 +601,27 @@ const LogEntry = React.memo(({ log }: { log: PipelineLog }) => {
 
             {/* Información básica del mensaje */}
             {log.level === "debug" && (
-                <TopicInfo>
-                    Topic: <span className="topic-label">{log.topicUid}</span>
-                </TopicInfo>
+                <OutputIndex>
+                    Output Index: <span className="label">{log.outputIndex}</span>
+                </OutputIndex>
             )}
 
             {log.level === "error" && (
                 <ComponentInfo>
-                    Description: <span className="topic-label">{log.description}</span>
+                    Description: <span className="label">{log.description}</span>
                 </ComponentInfo>
             )}
 
-            {log.level === "info" && (
-                <ComponentInfo>
-                    Message: <span className="topic-label">{log.message}</span>
-                </ComponentInfo>
+            {(log.level === "info") && (
+                log.component === "node" ? (
+                    <ComponentInfo>
+                        Description: <span className="label">{log.description}</span>
+                    </ComponentInfo>
+                ) : (
+                    <ComponentInfo>
+                        Message: <span className="label">{log.message}</span>
+                    </ComponentInfo>
+                )
             )}
 
             {isExpanded && (
@@ -675,8 +680,7 @@ const PipelineLogs: React.FC<PipelineLogsProps> = ({
     setLogMessages,
 }) => {
     const [filterLevel, setFilterLevel] = useState<string>("all");
-
-
+    
     // Memoizar logs filtrados
     const filteredLogs = useMemo(() => {
         return filterLevel === "all"

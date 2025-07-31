@@ -8,33 +8,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-type Node struct {
-	Uid       string   `json:"uid"`
-	Type      string   `json:"type"`
-	Children  []string `json:"children"`
-	Subject   string   `json:"subject"`
-	SubjectIn string   `json:"subjectIn"`
-	Script    string   `json:"script"`
-	Duration  int      `json:"duration"` // Delay in milliseconds
-}
-
-type Org struct {
-	OrgId   int    `json:"orgId"`
-	OrgHash string `json:"orgHash"`
-	Flows   []Flow `json:"flows"`
-}
-
-type Flow struct {
-	FlowUID                string `json:"flowUid"`
-	Name                   string `json:"name"`
-	GroupID                int    `json:"groupId"`
-	AssetID                int    `json:"assetId"`
-	DigitalTwinID          int    `json:"digitalTwinId"`
-	GroupTelegramChatID    int64  `json:"groupTelegramChatId"`
-	GroupNotificationEmail string `json:"groupNotificationEmail"`
-	Nodes                  []Node `json:"nodes"`
-}
-
 // Config holds the entire application configuration.
 type Config struct {
 	Mode                     string            `mapstructure:"mode"`
@@ -48,15 +21,14 @@ type Config struct {
 	ReplicaIndex             int               `mapstructure:"replicaIndex"`
 	ShardIndex               int               `mapstructure:"shardIndex"`
 	NumReplicas              int               `mapstructure:"numReplicas"`
+	IsRaftLeader             bool              `mapstructure:"isRaftLeader"`
+	FunctionsTimeout         int               `mapstructure:"functionsTimeout"`
 	TelegramBotToken         string            `mapstructure:"telegramBotToken"`
 	PlatformEmailUsername    string            `mapstructure:"platformEmailUsername"`
 	PlatformEmailPassword    string            `mapstructure:"platformEmailPassword"`
 	PlatformTelegramBotToken string            `mapstructure:"platformTelegramBotToken"`
-	GroupNotificationEmail   string            `mapstructure:"groupNotificationEmail"`
-	GroupTelegramChatID      int64             `mapstructure:"groupTelegramChatId"`
 	RefreshThreshold         uint              `mapstructure:"refreshThreshold"`
 	ShardCount               int               `mapstructure:"shardCount"`
-	Orgs                     []Org             `mapstructure:"orgs"`
 }
 
 type NATSConfig struct {

@@ -50,7 +50,7 @@ type Manager interface {
 
 	StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
 	RestartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool)
-	StopNodesInDigitalTwin(digitalTwinId int)
+	StopNodesInDigitalTwin(digitalTwinId int, action string)
 	RegenerateNodesInDigitalTwin(digitalTwinId int)
 
 	GetOrgs() []*Org
@@ -97,6 +97,7 @@ type Manager interface {
 	GetNodeOutputIndex(digitalTwinId int, nodeId int, outputIndex int) []*Wire
 
 	NatsSubscribe(subject string, handler nats.MsgHandler) (*nats.Subscription, error)
+	NatsQueueSubscribe(subject, queue string, handler nats.MsgHandler) (*nats.Subscription, error)
 	NatsPublish(subject string, msg []byte) error
 
 	Log() *logger.Logger
@@ -106,4 +107,10 @@ type Manager interface {
 	GetPlatformTelegramBotToken() string
 	GetGroupNotificationEmail(groupId int) string
 	GetGroupTelegramChatID(groupId int) int64
+
+	GetFunctionsTimeout() int
+
+	GetNumReplicas() int
+	GetReplicaIndex() int
+	IsRaftLeader() bool
 }

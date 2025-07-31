@@ -146,10 +146,9 @@ const updateObjectsState = (
             const genericObjectNewState = { ...genericObjectsState };
             let isGenericObjectsStateChanged = false;
             let isfemSimulationObjectsStateChanged = false;
-            //const femSimulationObjectsNewState = [...femSimulationObjectsState];
+
             const femSimulationObjectsNewState = femSimulationObjectsState.map((obj) => ({
                 ...obj,
-                // Si solo cambia resultFieldModalValues, crea una nueva referencia para ella:
                 resultFieldModalValues: Object.fromEntries(
                     Object.entries(obj.resultFieldModalValues).map(([key, value]) => [key, [...value]])
                 ),
@@ -183,8 +182,7 @@ const updateObjectsState = (
                     uid: mqttMessage.uid,
                     message: mqttMessage.message,
                     description: mqttMessage.description,
-                    topicUid: mqttMessage.topicUid,
-                    topicRef: mqttMessage.topicRef,
+                    outputIndex: mqttMessage.outputIndex || 0,
                     payload: mqttMessage.payload || {},
                     state: mqttMessage.state || {},
                     date: formatDateString(new Date().toISOString()),

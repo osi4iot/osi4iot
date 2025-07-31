@@ -9,6 +9,7 @@ import (
 	"pipelines/utils"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go"
@@ -20,6 +21,10 @@ type InjectNode struct {
 	Repeat  string  // none, interval
 	Every   float64 // interval time in seconds
 	MsgChan chan common.Message
+	isCurrentlyLeader    bool
+	leadershipMutex      sync.RWMutex
+	periodicTaskCancel   context.CancelFunc
+	periodicListenCancel context.CancelFunc
 }
 
 func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, error) {
@@ -99,10 +104,11 @@ func CreateInjectNode(node common.NodeData, fm common.Manager) (*InjectNode, err
 			Ctx:            ctx,
 			status:         common.NodeStatusCreated,
 		},
-		TopicIn: topicIn,
-		Repeat:  repeat,
-		Every:   every,
-		MsgChan: msgChan,
+		TopicIn:           topicIn,
+		Repeat:            repeat,
+		Every:             every,
+		MsgChan:           msgChan,
+		isCurrentlyLeader: false,
 	}, nil
 }
 
@@ -115,14 +121,22 @@ func (n *InjectNode) Start(log *logger.Logger, needReinitialization bool) {
 	n.SetStatus(common.NodeStatusRunning)
 	log.Infof("Starting InjectNode with UID: %s", n.NodeUid)
 
+	// Initialize leadership status based on the current replica index and number of replicas
+	n.leadershipMutex.Lock()
+	n.isCurrentlyLeader = n.shouldRunPeriodicTasks()
+	n.leadershipMutex.Unlock()
+
 	n.wg.Add(1)
 	go n.handleNatsSubscription(log, n.TopicIn, n.processNatsMessage)
 
-	switch n.Repeat {
-	case "interval":
-		n.wg.Add(2)
-		go n.runPeriodicTask(n.Ctx, time.Duration(1000*n.Every)*time.Millisecond)
-		go n.listenToPeriodicMessages(log, n.processMessage)
+	if n.Repeat == "interval" {
+		n.wg.Add(1)
+		go n.monitorLeadershipChanges(log)
+	}
+
+	// Initialize periodic tasks if this node is the leader
+	if n.isCurrentlyLeader && n.Repeat == "interval" {
+		n.startPeriodicTasks(log)
 	}
 }
 
@@ -156,7 +170,7 @@ func (n *InjectNode) processMessage(msg common.Message, log *logger.Logger) erro
 	return nil
 }
 
-func (n *InjectNode) runPeriodicTask(ctx context.Context, interval time.Duration) {
+func (n *InjectNode) runPeriodicTask(periodicCtx context.Context, interval time.Duration) {
 	defer n.wg.Done()
 	defer n.SetStatus(common.NodeStatusStopped)
 	ticker := time.NewTicker(interval)
@@ -173,14 +187,14 @@ func (n *InjectNode) runPeriodicTask(ctx context.Context, interval time.Duration
 				Topic:   "interval/" + n.NodeUid,
 			}
 			n.MsgChan <- message
-		case <-ctx.Done():
+		case <-periodicCtx.Done():
 			n.Fm.Log().Infof("InjectNode %s context cancelled, stopping periodic task", n.NodeUid)
 			return
 		}
 	}
 }
 
-func (n *InjectNode) listenToPeriodicMessages(log *logger.Logger, processor func(common.Message, *logger.Logger) error) {
+func (n *InjectNode) listenToPeriodicMessages(listenCtx context.Context, log *logger.Logger, processor func(common.Message, *logger.Logger) error) {
 	defer n.wg.Done()
 	for {
 		select {
@@ -190,9 +204,86 @@ func (n *InjectNode) listenToPeriodicMessages(log *logger.Logger, processor func
 				continue
 			}
 			processor(msg, log)
-		case <-n.Ctx.Done():
-			log.Infof("InjectNode %s context cancelled, stopping message listening", n.NodeUid)
+		case <-listenCtx.Done():
+			log.Infof("InjectNode %s message listening stopped", n.NodeUid)
 			return
 		}
 	}
 }
+
+func (n *InjectNode) monitorLeadershipChanges(log *logger.Logger) {
+	defer n.wg.Done()
+	ticker := time.NewTicker(1 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			currentLeaderStatus := n.shouldRunPeriodicTasks()
+			
+			n.leadershipMutex.Lock()
+			wasLeader := n.isCurrentlyLeader
+			n.isCurrentlyLeader = currentLeaderStatus
+			n.leadershipMutex.Unlock()
+
+			if wasLeader != currentLeaderStatus {
+				if currentLeaderStatus {
+					log.Infof("InjectNode %s: Replica became leader, starting periodic tasks", n.NodeUid)
+					if n.Repeat == "interval" {
+						n.startPeriodicTasks(log)
+					}
+				} else {
+					log.Infof("InjectNode %s: Replica lost leadership, stopping periodic tasks", n.NodeUid)
+					n.stopPeriodicTasks()
+				}
+			}
+		case <-n.Ctx.Done():
+			log.Infof("InjectNode %s: Leadership monitoring stopped", n.NodeUid)
+			return
+		}
+	}
+}
+
+func (n *InjectNode) shouldRunPeriodicTasks() bool {
+	replicaIndex := n.Fm.GetReplicaIndex()
+	numReplicas := n.Fm.GetNumReplicas()
+	isRaftLeader := n.Fm.IsRaftLeader()
+	
+	return (replicaIndex == 1 && numReplicas == 1) || isRaftLeader
+}
+
+func (n *InjectNode) startPeriodicTasks(log *logger.Logger) {
+	n.leadershipMutex.Lock()
+	defer n.leadershipMutex.Unlock()
+
+	// If periodic tasks are already running, do nothing
+	if n.periodicTaskCancel != nil {
+		return
+	}
+
+	periodicCtx, periodicCancel := context.WithCancel(n.Ctx)
+	n.periodicTaskCancel = periodicCancel
+
+	listenCtx, listenCancel := context.WithCancel(n.Ctx)
+	n.periodicListenCancel = listenCancel
+
+	n.wg.Add(2)
+	go n.runPeriodicTask(periodicCtx, time.Duration(1000*n.Every)*time.Millisecond)
+	go n.listenToPeriodicMessages(listenCtx, log, n.processMessage)
+}
+
+func (n *InjectNode) stopPeriodicTasks() {
+	n.leadershipMutex.Lock()
+	defer n.leadershipMutex.Unlock()
+
+	if n.periodicTaskCancel != nil {
+		n.periodicTaskCancel()
+		n.periodicTaskCancel = nil
+	}
+
+	if n.periodicListenCancel != nil {
+		n.periodicListenCancel()
+		n.periodicListenCancel = nil
+	}
+}
+

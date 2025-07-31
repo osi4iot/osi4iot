@@ -8,7 +8,6 @@ import {
 	updateNodeByPropName,
 } from "../pipelines/node/nodeDAL";
 import IWire from "../pipelines/wire/wire.interface";
-import CreatePipelineDto from "./pipeline.dto";
 import {
 	createNewWire,
 	deleteWireByPropName,
@@ -19,7 +18,10 @@ import {
 import IWireWithUidDto from "../pipelines/wire/wireWithUid.inteface";
 import natsClient from "../../config/natsConfig";
 import { nanoid } from "nanoid";
-import { UpdatePipelineDto } from "./pipeline_update.dto";
+import PipelineDto from "./pipeline.dto";
+import { areCyclesInPipeline, areThereInjectTopicsInPublish } from "../pipelines/utils/cycles_detection";
+import { updateDigitalTwinPipelineFileDataById } from "./digitalTwinDAL";
+import PipelineFileDataDto from "./pipelineFileData.dto";
 
 // Función auxiliar para generar un UID único basado en el nombre
 const generateUid = (): string => {
@@ -29,7 +31,7 @@ const generateUid = (): string => {
 
 export const createDigitalTwinPipeline = async (
 	digitalTwinId: number,
-	pipelineData: CreatePipelineDto,
+	pipelineData: PipelineDto,
 	groupId: number
 ): Promise<void> => {
 	const existentNodes = await getNodesByDigitalTwinId(digitalTwinId);
@@ -37,11 +39,21 @@ export const createDigitalTwinPipeline = async (
 		throw new Error("A pipeline already exists for this digital twin.");
 	}
 
+	const pipelineNodes = pipelineData.nodes;
+
+	const hasInjectNodesInPublish = areThereInjectTopicsInPublish(pipelineNodes);
+	if (hasInjectNodesInPublish) {
+		throw new Error("The pipeline contains 'inject' topics in 'Publish' nodes, which is not allowed.");
+	}
+
+	const hasCycles = await areCyclesInPipeline(digitalTwinId, pipelineNodes);
+	if (hasCycles) {
+		throw new Error("The pipeline contains cycles, which is not allowed.");
+	}
+
 	const nodesData = new Map<string, CreateNodeDto>();
 	const wiresData = new Map<string, IWireWithUidDto>();
 	const nodeNameToUidMap = new Map<string, string>(); // Mapeo de nombre a UID
-
-	const pipelineNodes = pipelineData.nodes;
 
 	// Primer paso: procesar todos los nodos y generar UIDs si es necesario
 	pipelineNodes.forEach((node) => {
@@ -147,6 +159,13 @@ export const createDigitalTwinPipeline = async (
 
 	await Promise.all(wirePromises);
 
+	const updatePipelineDto: PipelineFileDataDto = {
+		pipelineFileName: pipelineData.pipelineFileName,
+		pipelineFileLastModifDate: pipelineData.pipelineFileLastModifDate,
+		pipelineFileData: JSON.stringify(pipelineData.nodes),
+	};
+	await updateDigitalTwinPipelineFileDataById(digitalTwinId, groupId, updatePipelineDto);
+
 	const context = {
 		digitalTwinId,
 		groupId,
@@ -157,9 +176,19 @@ export const createDigitalTwinPipeline = async (
 
 export const updateDigitalTwinPipeline = async (
 	digitalTwinId: number,
-	pipelineData: UpdatePipelineDto,
+	pipelineData: PipelineDto,
 	groupId: number
 ): Promise<void> => {
+	const hasInjectNodesInPublish = areThereInjectTopicsInPublish(pipelineData.nodes);
+	if (hasInjectNodesInPublish) {
+		throw new Error("The pipeline contains 'inject' topics in 'Publish' nodes, which is not allowed.");
+	}
+
+	const hasCycles = await areCyclesInPipeline(digitalTwinId, pipelineData.nodes);
+	if (hasCycles) {
+		throw new Error("The pipeline contains cycles, which is not allowed.");
+	}
+
 	// Get existing nodes and wires
 	const existingNodes = await getNodesByDigitalTwinId(digitalTwinId);
 	const existingWires = await getWiresByDigitalTwinId(digitalTwinId);
@@ -456,6 +485,13 @@ export const updateDigitalTwinPipeline = async (
 		await Promise.all(createWirePromises);
 	}
 
+	const updatePipelineDto: PipelineFileDataDto = {
+		pipelineFileName: pipelineData.pipelineFileName,
+		pipelineFileLastModifDate: pipelineData.pipelineFileLastModifDate,
+		pipelineFileData: JSON.stringify(pipelineData.nodes),
+	};
+	await updateDigitalTwinPipelineFileDataById(digitalTwinId, groupId, updatePipelineDto);
+
 	const reinitialize = pipelineData.reinitialize || false;
 	const context = {
 		digitalTwinId,
@@ -463,6 +499,35 @@ export const updateDigitalTwinPipeline = async (
 		reinitialize,
 	};
 	await natsClient.jsPublish("pipeline_action", "restart", digitalTwinId, context);
+};
+
+export const deleteDigitalTwinPipeline = async (digitalTwinId: number, groupId: number): Promise<void> => {
+	const reinitialize = false;
+	const context = {
+		digitalTwinId,
+		groupId,
+		reinitialize,
+	};
+	await natsClient.jsPublish("pipeline_action", "stop", digitalTwinId, context);
+
+	const existingNodes = await getNodesByDigitalTwinId(digitalTwinId);
+	const existingWires = await getWiresByDigitalTwinId(digitalTwinId);
+	if (existingWires.length !== 0) {
+		const deleteWirePromises = existingWires.map((wire) => deleteWireByPropName("id", wire.id));
+		await Promise.all(deleteWirePromises);
+	}
+
+	if (existingNodes.length !== 0) {
+		const deleteNodePromises = existingNodes.map((node) => deleteNodeByPropName("id", node.id));
+		await Promise.all(deleteNodePromises);
+	}
+
+	const updatePipelineDto: PipelineFileDataDto = {
+		pipelineFileName: "-",
+		pipelineFileLastModifDate: "-",
+		pipelineFileData: "",
+	};
+	await updateDigitalTwinPipelineFileDataById(digitalTwinId, groupId, updatePipelineDto);
 };
 
 export const applyPipelineAction = async (

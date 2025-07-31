@@ -70,6 +70,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     digitalTwinGltfData,
     close3DViewer,
     fetchFemResFileWorker,
+    refreshDigitalTwins,
 }) => {
     // Hooks
     const { accessToken, refreshToken } = useAuthState();
@@ -480,12 +481,11 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         handleUpdateLogMessages
     );
 
-
     const [pipelineNodes, setPipelineNodes] = useState([] as IPipelineNode[]);
     const [pipelineEdges, setPipelineEdges] = useState([] as IPipelineEdge[]);
 
     useEffect(() => {
-        if (digitalTwinSelected && digitalTwinSelected.pipelineFileData) {
+        if (digitalTwinSelected) {
             const { nodes, edges } = processInitialPipelineData(
                 digitalTwinSelected,
                 mqttClient,
@@ -511,6 +511,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         handlers.handleSetPipelineLogsOpen,
         mqttClient,
         digitalTwinGltfData.mqttTopicsData,
+        refreshDigitalTwins,
         {
             digitalTwinSelected,
             accessToken,

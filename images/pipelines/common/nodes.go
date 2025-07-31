@@ -45,4 +45,7 @@ type Node interface {
 	GetDigitalTwinUID() string
 	GetStatus() NodeStatus
 	GetDebug() string
+	HandleError(err error)
+	HandleDebug(msg Message, outputIndex int)
+	HandleInfo(msg string)
 }

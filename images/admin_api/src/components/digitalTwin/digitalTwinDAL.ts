@@ -39,10 +39,8 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 	const queryString = `INSERT INTO grafanadb.digital_twin (group_id, asset_id,
 		digital_twin_uid, description, type, dashboard_id, max_num_resfem_files,
 		chat_assistant_enabled, chat_assistant_language, 
-		digital_twin_simulation_format, pipeline_file_name, 
-		pipeline_file_last_modif_date, pipeline_file_data, 
-		created, updated)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, NOW(), NOW())
+		digital_twin_simulation_format, created, updated)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
 		RETURNING  id, group_id AS "groupId", asset_id AS "assetId",
 		scope, digital_twin_uid AS "digitalTwinUid", description,
 		type, dashboard_id AS "dashboardId",
@@ -65,9 +63,6 @@ export const insertDigitalTwin = async (digitalTwinData: Partial<IDigitalTwin>):
 		digitalTwinData.chatAssistantEnabled,
 		digitalTwinData.chatAssistantLanguage,
 		digitalTwinData.digitalTwinSimulationFormat,
-		digitalTwinData.pipelineFileName,
-		digitalTwinData.pipelineFileLastModifDate,
-		digitalTwinData.pipelineFileData || "",
 	]);
 	return result.rows[0] as IDigitalTwin;
 };
@@ -244,11 +239,8 @@ export const updateDigitalTwinById = async (
 					chat_assistant_enabled = $5,
 					chat_assistant_language = $6,
 					digital_twin_simulation_format = $7,
-					pipeline_file_name = $8,
-					pipeline_file_last_modif_date = $9,
-					pipeline_file_data = $10,
 					updated = NOW()
-					WHERE grafanadb.digital_twin.id = $11;`;
+					WHERE grafanadb.digital_twin.id = $8;`;
 	await pool.query(query, [
 		digitalTwinData.digitalTwinUid,
 		digitalTwinData.description,
@@ -257,9 +249,6 @@ export const updateDigitalTwinById = async (
 		digitalTwinData.chatAssistantEnabled,
 		digitalTwinData.chatAssistantLanguage,
 		digitalTwinData.digitalTwinSimulationFormat,
-		digitalTwinData.pipelineFileName,
-		digitalTwinData.pipelineFileLastModifDate,
-		digitalTwinData.pipelineFileData || "",
 		digitalTwinId,
 	]);
 	const context = {
@@ -951,9 +940,9 @@ export const createDigitalTwin = async (
 		chatAssistantEnabled: digitalTwinInput.chatAssistantEnabled,
 		chatAssistantLanguage: digitalTwinInput.chatAssistantLanguage,
 		digitalTwinSimulationFormat: digitalTwinInput.digitalTwinSimulationFormat,
-		pipelineFileName: digitalTwinInput.pipelineFileName,
-		pipelineFileLastModifDate: digitalTwinInput.pipelineFileLastModifDate,
-		pipelineFileData: digitalTwinInput.pipelineFileData || "",
+		// pipelineFileName: digitalTwinInput.pipelineFileName,
+		// pipelineFileLastModifDate: digitalTwinInput.pipelineFileLastModifDate,
+		// pipelineFileData: digitalTwinInput.pipelineFileData || "",
 	};
 	const digitalTwin = await insertDigitalTwin(digitalTwinUpdated);
 	if (!isDefault) {

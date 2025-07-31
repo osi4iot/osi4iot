@@ -539,7 +539,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     const updateNodeInternals = useUpdateNodeInternals();
     const [listenTopicsRef, setListenTopicsRef] = useState<string[]>([]);
     const [publishTopicsRef, setPublishTopicsRef] = useState<string[]>([]);
-    const [injectRefTopicsRef, setInjectRefTopicsRef] = useState<string[]>([]);
+    // const [injectRefTopicsRef, setInjectRefTopicsRef] = useState<string[]>([]);
 
     // Estados para el redimensionamiento - Enfoque híbrido optimizado
     const [width, setWidth] = useState(550);
@@ -635,16 +635,11 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
     useEffect(() => {
         const listenTopics: string[] = [];
         const publishTopics: string[] = [];
-        const injectRefTopics: string[] = [];
 
         mqttTopicsData.forEach((topic) => {
             if (topic.topicRef.slice(0, 7) === "dev2pdb") {
                 listenTopics.push(topic.topicRef);
                 publishTopics.push(topic.topicRef);
-            }
-
-            if (topic.topicRef.slice(0, 6) === "inject") {
-                injectRefTopics.push(topic.topicRef);
             }
         });
 
@@ -664,7 +659,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
 
         setListenTopicsRef(listenTopics);
         setPublishTopicsRef(publishTopics);
-        setInjectRefTopicsRef(injectRefTopics);
     }, [mqttTopicsData]);
 
     useEffect(() => {
@@ -983,10 +977,14 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                         <FormGroup>
                             <Label>Publish To</Label>
                             <Select
-                                value={formData.publishTo || "Message topic"}
-                                onChange={(e) => handleInputChange("publishTo", e.target.value)}
+                                value={formData.publishTo || "Topic reference"}
+                                onChange={(e) => {
+                                    handleInputChange("publishTo", e.target.value);
+                                    if (e.target.value === "Topic reference") {
+                                        handleInputChange("topic", "dtm2sim");
+                                    }
+                                }}
                             >
-                                <option value="Message topic">Message topic</option>
                                 <option value="Topic reference">Topic reference</option>
                                 <option value="Generic nats">Generic nats</option>
                                 <option value="Generic mqtt">Generic mqtt</option>
@@ -1024,7 +1022,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             case "Inject":
                 return (
                     <>
-                        <FormGroup>
+                        {/* <FormGroup>
                             <Label>Inject Reference</Label>
                             <Select
                                 value={formData.injectRef}
@@ -1036,7 +1034,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                     </option>
                                 ))}
                             </Select>
-                        </FormGroup>
+                        </FormGroup> */}
                         <FormGroup>
                             <Label>Repeat</Label>
                             <Select

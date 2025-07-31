@@ -16,11 +16,17 @@ type CoreJSProvider struct{}
 func (p *CoreJSProvider) GetJSFunctions(node common.Node, fm common.Manager, log *logger.Logger) []common.JSFunction {
 	return []common.JSFunction{
 		{
-			Name: "log",
-			Func: func(level, message string) {
-				p.log(level, message, node, log)
+			Name: "Logger",
+			Func: func() *NodeLogger {
+				return newLogger(node)
 			},
 		},
+		{
+			Name: "Time",
+			Func: func() *NodeTime {
+				return Time(node)
+			},
+		},	
 		{
 			Name: "getCurrentTime",
 			Func: func() string {
@@ -28,9 +34,9 @@ func (p *CoreJSProvider) GetJSFunctions(node common.Node, fm common.Manager, log
 			},
 		},
 		{
-			Name: "delay",
+			Name: "sleep",
 			Func: func(duration int) {
-				p.delay(duration, log)
+				p.sleep(duration, log)
 			},
 		},
 		{
@@ -92,7 +98,7 @@ func (p *CoreJSProvider) GetJSFunctions(node common.Node, fm common.Manager, log
 			Func: func(key string) {
 				p.deleteAllEntriesFromStore(key, node, fm, log)
 			},
-		},		
+		},
 		{
 			Name: "existsKeyInStore",
 			Func: func(key string) bool {
@@ -104,7 +110,206 @@ func (p *CoreJSProvider) GetJSFunctions(node common.Node, fm common.Manager, log
 			Func: func() []string {
 				return p.listKeysInStore(node, fm, log)
 			},
-		},		
+		},
+	}
+}
+
+type NodeLogger struct {
+	node common.Node
+}
+
+func newLogger(node common.Node) *NodeLogger {
+	return &NodeLogger{
+		node: node,
+	}
+}
+
+func (l *NodeLogger) Msg(rawMsg any) {
+	var message common.Message
+	jsonData, err := utils.MarshalData(rawMsg)
+	if err != nil {
+		return
+	}
+	err = utils.UnmarshalData(jsonData, &message)
+	if err != nil {
+		return
+	}
+
+	l.node.HandleDebug(message, 0)
+}
+
+func (l *NodeLogger) Infof(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	l.node.HandleInfo(msg)
+}
+
+func (l *NodeLogger) Errorf(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	msgErr := fmt.Errorf("%s\n", msg)
+	l.node.HandleError(msgErr)
+}
+
+type NodeTime struct{
+	node common.Node
+}
+
+func Time(node common.Node) *NodeTime {
+	return &NodeTime{
+		node: node,
+	}
+}
+
+func (t *NodeTime) Now() time.Time {
+	return time.Now()
+}
+
+func (t *NodeTime) Unix(sec int64, nsec int64) time.Time {
+	return time.Unix(sec, nsec)
+}
+
+func (t *NodeTime) LoadLocation(name string) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		t.node.HandleError(fmt.Errorf("failed to load location %s: %v", name, err))
+		return nil
+	}
+	return loc
+}
+
+func (t *NodeTime) SetNanoseconds(ns int64) time.Duration {
+	return time.Duration(ns) * time.Nanosecond
+}
+
+func (t *NodeTime) SetMilliseconds(ms int64) time.Duration {
+	return time.Duration(ms) * time.Millisecond
+}
+
+func (t *NodeTime) SetSeconds(seconds int64) time.Duration {
+	return time.Duration(seconds) * time.Second
+}
+
+func (t *NodeTime) SetMinutes(minutes int64) time.Duration {
+	return time.Duration(minutes) * time.Minute
+}
+
+func (t *NodeTime) SetHours(hours int64) time.Duration {
+	return time.Duration(hours) * time.Hour
+}
+
+func (t *NodeTime) Duration(d time.Duration) time.Duration {
+	return d
+}
+
+func (t *NodeTime) Month(month string) time.Month {
+	switch month {
+	case "January":
+		return time.January
+	case "February":
+		return time.February
+	case "March":
+		return time.March
+	case "April":
+		return time.April
+	case "May":
+		return time.May
+	case "June":
+		return time.June
+	case "July":
+		return time.July
+	case "August":
+		return time.August
+	case "September":
+		return time.September
+	case "October":
+		return time.October
+	case "November":
+		return time.November
+	case "December":
+		return time.December
+	}
+
+	return time.January
+}
+
+func (t *NodeTime) Weekday(weekday string) time.Weekday {
+	switch weekday {
+	case "Sunday":
+		return time.Sunday
+	case "Monday":
+		return time.Monday
+	case "Tuesday":
+		return time.Tuesday
+	case "Wednesday":
+		return time.Wednesday
+	case "Thursday":
+		return time.Thursday
+	case "Friday":
+		return time.Friday
+	case "Saturday":
+		return time.Saturday
+	}
+
+	return time.Sunday
+}
+
+func (t *NodeTime) Date(year int, month time.Month, day int, hour int, min int, sec int, nsec int) time.Time {
+	return time.Date(year, month, day, hour, min, sec, nsec, time.UTC)
+}
+
+func (t *NodeTime) Parse(layout, value string) *time.Time {
+	myTime, err := time.Parse(layout, value)
+	if err != nil {
+		t.node.HandleError(fmt.Errorf("failed to parse time: %v", err))
+		return nil
+	}
+	return &myTime
+}
+
+func (t *NodeTime) Since(t1 time.Time) time.Duration {
+	return time.Since(t1)
+}
+
+func (t *NodeTime) Until(t1 time.Time) time.Duration {
+	return time.Until(t1)
+}
+
+func (t *NodeTime) SetFormat(format string) string {
+	switch format {
+	case "Layout":
+		return time.Layout
+	case "ANSIC":
+		return time.ANSIC
+	case "UnixDate":
+		return time.UnixDate
+	case "RubyDate":
+		return time.RubyDate
+	case "RFC822":
+		return time.RFC822
+	case "RFC822Z":
+		return time.RFC822Z
+	case "RFC850":
+		return time.RFC850
+	case "RFC1123":
+		return time.RFC1123
+	case "RFC1123Z":
+		return time.RFC1123Z
+	case "RFC3339":
+		return time.RFC3339
+	case "RFC3339Nano":
+		return time.RFC3339Nano
+	case "Kitchen":
+		return time.Kitchen
+	case "Stamp":
+		return time.Stamp
+	case "StampMilli":
+		return time.StampMilli
+	case "StampMicro":
+		return time.StampMicro
+	case "StampNano":
+		return time.StampNano
+	default:
+		t.node.HandleError(fmt.Errorf("unknown time format: %s", format))
+		return ""
 	}
 }
 
@@ -112,17 +317,13 @@ func (p *CoreJSProvider) getFullKvStoreKey(key string, n common.Node) string {
 	return fmt.Sprintf("org_%s.dt_%s.kvstore.%s", n.GetOrgHash(), n.GetDigitalTwinUID(), key)
 }
 
-func (p *CoreJSProvider) log(level, message string, node common.Node, log *logger.Logger) {
-	log.Infof("[%s] %s: %s\n", node.GetUid(), level, message)
-}
-
 func (p *CoreJSProvider) getCurrentTime() string {
 	return time.Now().UTC().Format(time.RFC3339)
 }
 
-func (p *CoreJSProvider) delay(duration int, log *logger.Logger) {
+func (p *CoreJSProvider) sleep(duration int, log *logger.Logger) {
 	if duration < 0 {
-		log.Errorf("Invalid dgetFulelay duration: %d", duration)
+		log.Errorf("Invalid sleep duration: %d", duration)
 		return
 	}
 	time.Sleep(time.Duration(duration) * time.Millisecond)

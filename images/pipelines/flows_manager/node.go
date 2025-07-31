@@ -344,7 +344,7 @@ func (fm *FlowsManager) StopNodes() {
 		wg.Add(1)
 		go func(dtId int) {
 			defer wg.Done()
-			fm.StopNodesInDigitalTwin(dtId)
+			fm.StopNodesInDigitalTwin(dtId, "stop")
 		}(digitalTwin.Id)
 	}
 	wg.Wait()
@@ -353,8 +353,7 @@ func (fm *FlowsManager) StopNodes() {
 
 func (fm *FlowsManager) StartNodesInDigitalTwin(digitalTwinId int, needReinitialization bool) {
 	fm.log.Infof("Starting nodes for digital twin %d", digitalTwinId)
-	
-	
+
 	nodes := fm.GetDigitalTwinNodes(digitalTwinId)
 	if len(nodes) == 0 {
 		fm.log.Warnf("No nodes found for digital twin %d", digitalTwinId)
@@ -431,7 +430,7 @@ func (fm *FlowsManager) getNotRunningNodes(digitalTwinId int) []string {
 	return notRunning
 }
 
-func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int) {
+func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int, action string) {
 	nodes := fm.GetDigitalTwinNodes(digitalTwinId)
 	for _, node := range nodes {
 		node.Stop(fm.log)
@@ -447,7 +446,9 @@ func (fm *FlowsManager) StopNodesInDigitalTwin(digitalTwinId int) {
 		case <-ticker.C:
 			if !fm.anyNodeRunning(digitalTwinId) {
 				fm.log.Infof("All nodes in digital twin %d have stopped", digitalTwinId)
-				fm.logPipelineInfo(fm.GetDigitalTwin(digitalTwinId), "Pipeline stopped successfully")
+				if action == "stop" {
+					fm.logPipelineInfo(fm.GetDigitalTwin(digitalTwinId), "Pipeline stopped successfully")
+				}
 				return
 			}
 		case <-timeoutChan:
@@ -482,7 +483,7 @@ func (fm *FlowsManager) RestartNodesInDigitalTwin(digitalTwinId int, needReiniti
 	fm.log.Infof("Restarting nodes for digital twin %d", digitalTwinId)
 
 	// Stop all nodes first
-	fm.StopNodesInDigitalTwin(digitalTwinId)
+	fm.StopNodesInDigitalTwin(digitalTwinId, "restart")
 
 	// Start all nodes again
 	fm.StartNodesInDigitalTwin(digitalTwinId, needReinitialization)

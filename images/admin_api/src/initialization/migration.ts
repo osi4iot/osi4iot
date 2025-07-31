@@ -787,8 +787,8 @@ export const dataBaseInitialization = async () => {
 					chat_assistant_enabled BOOLEAN NOT NULL DEFAULT FALSE,
 					chat_assistant_language VARCHAR(20) NOT NULL DEFAULT 'none',
 					digital_twin_simulation_format jsonb NOT NULL DEFAULT '{}'::jsonb,
-					pipeline_file_name VARCHAR(100),
-					pipeline_file_last_modif_date VARCHAR(100),
+					pipeline_file_name VARCHAR(100) NOT NULL DEFAULT '-',
+					pipeline_file_last_modif_date VARCHAR(100) NOT NULL DEFAULT '-',
 					pipeline_file_data TEXT NOT NULL DEFAULT '',
 					created TIMESTAMPTZ,
 					updated TIMESTAMPTZ,
@@ -1059,9 +1059,6 @@ export const dataBaseInitialization = async () => {
 					chatAssistantEnabled: false,
 					chatAssistantLanguage: "none",
 					sensorsRef: ["sensor_3"],
-					pipelineFileName: "-",
-					pipelineFileLastModifDate: "-",
-					pipelineFileData: "",
 				};
 
 				try {

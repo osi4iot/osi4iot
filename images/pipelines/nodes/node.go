@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 
 	"pipelines/common"
@@ -161,7 +160,7 @@ func (n *BaseNode) SetStatus(status common.NodeStatus) {
 	n.status = status
 }
 
-func (n *BaseNode) handleError(err error) {
+func (n *BaseNode) HandleError(err error) {
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s encountered an error but no log subject is set", n.NodeUid)
 		return
@@ -184,35 +183,48 @@ func (n *BaseNode) handleError(err error) {
 	}
 }
 
-func (n *BaseNode) handleDebug(message common.Message, outputIndex int) {
+func (n *BaseNode) HandleDebug(message common.Message, outputIndex int) {
 	if n.LogSubject == "" {
 		n.Fm.Log().Errorf("Node %s has no log subject set", n.NodeUid)
 		return
 	}
 
-	nodeName := n.Name
-	if outputIndex > 1 {
-		nodeName = fmt.Sprintf("%s (%d)", n.Name, outputIndex)
+	logData := common.PipelineLog{
+		Level:       "debug",
+		Component:   "node",
+		Name:        n.Name,
+		Uid:         n.NodeUid,
+		Message:     "Debug message sent to output",
+		OutputIndex: outputIndex,
+		Payload:     message.Payload,
+	}
+	
+	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
+		n.Fm.NatsPublish(n.LogSubject, logJSON)
+	} else {
+		n.Fm.Log().Errorf("Failed to marshal log data for node %s: %v", n.NodeUid, marshallErr)
+	}
+}
+
+func (n *BaseNode) HandleInfo(msg string) {
+	if n.LogSubject == "" {
+		n.Fm.Log().Errorf("Node %s has no log subject set", n.NodeUid)
+		return
 	}
 
-	topicType := strings.Split(message.Topic, ".")[0]
-	topicUid := strings.Split(message.Topic, ".")[2][6:]
-
 	logData := common.PipelineLog{
-		Level:     "debug",
-		Component: "node",
-		Name:      nodeName,
-		Uid:       n.NodeUid,
-		Message:   "Debug message sent to output",
-		TopicRef:  topicType,
-		TopicUid:  topicUid,
-		Payload:   message.Payload,
+		Level:       "info",
+		Component:   "node",
+		Name:        n.Name,
+		Uid:         n.NodeUid,
+		Description: "Info message from node",
+		Message:     msg,
 	}
 
 	if logJSON, marshallErr := json.Marshal(logData); marshallErr == nil {
 		n.Fm.NatsPublish(n.LogSubject, logJSON)
 	} else {
-		n.Fm.Log().Errorf("Failed to marshal log data for node %s: %v", n.NodeUid, marshallErr)
+		n.Fm.Log().Errorf("Failed to marshal info log data for node %s: %v", n.NodeUid, marshallErr)
 	}
 }
 
@@ -259,7 +271,7 @@ func (n *BaseNode) handleInputWires(log *logger.Logger, processor func(common.Me
 					}
 
 					if err := processor(msg, log); err != nil {
-						n.handleError(err)
+						n.HandleError(err)
 					}
 				}
 			}
@@ -274,7 +286,7 @@ func (n *BaseNode) sendToOutputs(msg common.Message, log *logger.Logger) {
 			select {
 			case wire.Channel <- msg:
 				if n.Debug == "on" && idx == 0 {
-					n.handleDebug(msg, outputIndex)
+					n.HandleDebug(msg, outputIndex)
 				}
 			case <-n.Ctx.Done():
 				log.Infof("Context cancelled while sending message from node %s", n.NodeUid)
@@ -290,15 +302,16 @@ func (n *BaseNode) handleNatsSubscription(log *logger.Logger, subject string, me
 	defer n.wg.Done()
 	defer n.SetStatus(common.NodeStatusStopped)
 
-	sub, err := n.Fm.NatsSubscribe(subject, func(msg *nats.Msg) {
+	queueName := fmt.Sprintf("node_%s", n.NodeUid)
+	sub, err := n.Fm.NatsQueueSubscribe(subject, queueName, func(msg *nats.Msg) {
 		if err := messageHandler(msg, log); err != nil {
-			n.handleError(err)
+			n.HandleError(err)
 		}
 	})
 
 	if err != nil {
 		log.Errorf("Failed to subscribe Node with UID %s: %v", n.NodeUid, err)
-		n.handleError(fmt.Errorf("failed to subscribe: %w", err))
+		n.HandleError(fmt.Errorf("failed to subscribe: %w", err))
 		return
 	}
 

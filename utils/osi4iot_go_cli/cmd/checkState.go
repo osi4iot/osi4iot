@@ -25,13 +25,14 @@ func checkState(action string) {
 			exitWithWarning(errMsg)
 		}
 	case "run":
-		if platformState == data.Deleted {
+		switch platformState {
+		case data.Deleted:
 			errMsg := "The platform is deleted. Please initialize it before running it"
 			exitWithWarning(errMsg)
-		} else if platformState == data.Initiating {
+		case data.Initiating:
 			errMsg := "The platform is initializing. Please wait until it is initialized"
 			exitWithWarning(errMsg)
-		} else if platformState == data.Running {
+		case data.Running:
 			errMsg := "The platform is already running"
 			exitWithWarning(errMsg)
 		}

@@ -1,11 +1,19 @@
 import { IsOptional, IsString, ValidateIf } from "class-validator";
 
-class CreateNodeWireDto {
+class NodeWireDto {
 	@IsString()
-	public name: string;
+	public nodeEndUid: string;
 
+	@IsOptional()
 	@IsString()
-	public nodeEndName: string;
+	@ValidateIf((obj) => obj.name !== undefined)
+	public name?: string;
+
+	@IsOptional()
+	@IsString()
+	@ValidateIf((obj) => obj.nodeEndName !== undefined)
+	public nodeEndName?: string;
+
 
 	@IsOptional()
 	@IsString()
@@ -16,11 +24,6 @@ class CreateNodeWireDto {
 	@IsString()
 	@ValidateIf((obj) => obj.nodeUid !== undefined)
 	public nodeUid?: string;
-
-	@IsOptional()
-	@IsString()
-	@ValidateIf((obj) => obj.nodeEndUid !== undefined)
-	public nodeEndUid?: string;
 }
 
-export default CreateNodeWireDto;
+export default NodeWireDto;

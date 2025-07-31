@@ -166,10 +166,6 @@ class NATSClient {
 	}
 
 	async jsPublish(component: string, action: string, id: number, context?: AdminMsgContext | null): Promise<PubAck> {
-		console.log("Component:", component);
-		console.log("Action:", action);
-		console.log("ID:", id);
-
 		const js = this.getJetStream();
 		const adminMsg = {
 			component,

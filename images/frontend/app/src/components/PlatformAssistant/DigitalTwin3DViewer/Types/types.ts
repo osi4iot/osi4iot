@@ -29,6 +29,7 @@ export interface Viewer3DProps {
     digitalTwinGltfData: IDigitalTwinGltfData;
     close3DViewer: () => void;
     fetchFemResFileWorker: Worker;
+    refreshDigitalTwins: () => void;
 }
 
 export interface ViewerState {

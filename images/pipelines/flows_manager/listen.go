@@ -22,10 +22,14 @@ func (fm *FlowsManager) Listen() {
 			switch adminMsg.Action {
 			case "create":
 				org := fm.Admin.GetOrg(adminMsg.Id)
-				fm.AddOrg(org)
+				if org != nil {
+					fm.AddOrg(org)
+				}
 			case "update":
 				org := fm.Admin.GetOrg(adminMsg.Id)
-				fm.UpdateOrg(org)
+				if org != nil {
+					fm.UpdateOrg(org)
+				}
 			case "delete":
 				fm.DeleteOrg(adminMsg.Id)
 			default:
@@ -36,10 +40,14 @@ func (fm *FlowsManager) Listen() {
 			switch adminMsg.Action {
 			case "create":
 				group := fm.Admin.GetGroup(adminMsg.Id)
-				fm.AddGroup(group)
+				if group != nil {
+					fm.AddGroup(group)
+				}
 			case "update":
 				group := fm.Admin.GetGroup(adminMsg.Id)
-				fm.UpdateGroup(group)
+				if group != nil {
+					fm.UpdateGroup(group)
+				}
 			case "delete":
 				fm.DeleteGroup(adminMsg.Id)
 			default:
@@ -50,10 +58,14 @@ func (fm *FlowsManager) Listen() {
 			switch adminMsg.Action {
 			case "create":
 				channel := fm.Admin.GetNotificationChannel(adminMsg.Id)
-				fm.AddNotificationChannel(channel)
+				if channel != nil {
+					fm.AddNotificationChannel(channel)
+				}
 			case "update":
 				channel := fm.Admin.GetNotificationChannel(adminMsg.Id)
-				fm.UpdateNotificationChannel(channel)
+				if channel != nil {
+					fm.UpdateNotificationChannel(channel)
+				}
 			case "delete":
 				fm.DeleteNotificationChannel(adminMsg.Id)
 			default:
@@ -81,11 +93,15 @@ func (fm *FlowsManager) Listen() {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				topic := fm.Admin.GetTopic(groupId, adminMsg.Id)
-				fm.AddTopic(topic)
+				if topic != nil {
+					fm.AddTopic(topic)
+				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				topic := fm.Admin.GetTopic(groupId, adminMsg.Id)
-				fm.UpdateTopic(topic)
+				if topic != nil {
+					fm.UpdateTopic(topic)
+				}
 			case "delete":
 				fm.DeleteTopic(adminMsg.Id)
 			default:
@@ -123,11 +139,15 @@ func (fm *FlowsManager) Listen() {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				mlModel := fm.Admin.GetMlModel(groupId, adminMsg.Id)
-				fm.AddMlModel(mlModel)
+				if mlModel != nil {
+					fm.AddMlModel(mlModel)
+				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				mlModel := fm.Admin.GetMlModel(groupId, adminMsg.Id)
-				fm.UpdateMlModel(mlModel)
+				if mlModel != nil {
+					fm.UpdateMlModel(mlModel)
+				}
 			case "delete":
 				fm.DeleteMlModel(adminMsg.Id)
 			default:
@@ -139,11 +159,15 @@ func (fm *FlowsManager) Listen() {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				digitalTwin := fm.Admin.GetDigitalTwin(groupId, adminMsg.Id)
-				fm.AddDigitalTwin(digitalTwin)
+				if digitalTwin != nil {
+					fm.AddDigitalTwin(digitalTwin)
+				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				digitalTwin := fm.Admin.GetDigitalTwin(groupId, adminMsg.Id)
-				fm.UpdateDigitalTwin(digitalTwin)
+				if digitalTwin != nil {
+					fm.UpdateDigitalTwin(digitalTwin)
+				}
 			case "delete":
 				fm.DeleteDigitalTwin(adminMsg.Id)
 			default:
@@ -155,29 +179,33 @@ func (fm *FlowsManager) Listen() {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				node := fm.Admin.GetNode(groupId, adminMsg.Id)
-				err := fm.AddNode(node)
-				if err != nil {
-					fm.handleNodeError(node, err)
+				if node != nil {
+					err := fm.AddNode(node)
+					if err != nil {
+						fm.handleNodeError(node, err)
+					}
 				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				digitalTwinId := int(adminMsg.Context["digitalTwinId"].(float64))
 				node := fm.Admin.GetNode(groupId, adminMsg.Id)
-				err := fm.UpdateNode(node)
-				if err != nil {
-					if err == common.ErrNotFound {
-						digitalTwin := fm.Admin.GetDigitalTwin(groupId, digitalTwinId)
-						exist := fm.CheckIfNodeExistInPipelineFile(digitalTwin, node)
-						if exist {
-							err := fm.AddNode(node)
-							if err != nil {
+				if node != nil {
+					err := fm.UpdateNode(node)
+					if err != nil {
+						if err == common.ErrNotFound {
+							digitalTwin := fm.Admin.GetDigitalTwin(groupId, digitalTwinId)
+							exist := fm.CheckIfNodeExistInPipelineFile(digitalTwin, node)
+							if exist {
+								err := fm.AddNode(node)
+								if err != nil {
+									fm.handleNodeError(node, err)
+								}
+							} else {
 								fm.handleNodeError(node, err)
 							}
 						} else {
 							fm.handleNodeError(node, err)
 						}
-					} else {
-						fm.handleNodeError(node, err)
 					}
 				}
 			case "delete":
@@ -191,11 +219,15 @@ func (fm *FlowsManager) Listen() {
 			case "create":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				wire := fm.Admin.GetWire(groupId, adminMsg.Id)
-				fm.AddWire(wire)
+				if wire != nil {
+					fm.AddWire(wire)
+				}
 			case "update":
 				groupId := int(adminMsg.Context["groupId"].(float64))
 				wire := fm.Admin.GetWire(groupId, adminMsg.Id)
-				fm.UpdateWire(wire)
+				if wire != nil {
+					fm.UpdateWire(wire)
+				}
 			case "delete":
 				fm.DeleteWire(adminMsg.Id)
 			default:
@@ -207,7 +239,7 @@ func (fm *FlowsManager) Listen() {
 			reinitialize := adminMsg.Context["reinitialize"].(bool)
 			switch adminMsg.Action {
 			case "stop":
-				fm.StopNodesInDigitalTwin(digitalTwinId)
+				fm.StopNodesInDigitalTwin(digitalTwinId, "stop")
 			case "start":
 				fm.StartNodesInDigitalTwin(digitalTwinId, reinitialize)
 			case "restart":

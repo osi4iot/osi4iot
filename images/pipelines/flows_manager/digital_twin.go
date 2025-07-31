@@ -281,27 +281,23 @@ func (fm *FlowsManager) DeleteDigitalTwinTopicRef(digitalTwinId int, topicRef st
 
 func (fm *FlowsManager) GetNumOfNodesOfPipeline(digitalTwin *common.DigitalTwin) int {
 	numNodes := 0
-	pipelineFileData := digitalTwin.PipelineFileData
-
-	var pipelineData common.PipelineData
-	if err := json.Unmarshal([]byte(pipelineFileData), &pipelineData); err != nil {
+	var pipelineNodes []common.PipelineNode
+	if err := json.Unmarshal([]byte(digitalTwin.PipelineFileData), &pipelineNodes); err != nil {
 		fm.log.Errorf("Failed to unmarshal pipeline file data: %v", err)
 	}
-	numNodes = len(pipelineData.Nodes)
+	numNodes = len(pipelineNodes)
 
 	return numNodes
 }
 
 func (fm *FlowsManager) CheckIfNodeExistInPipelineFile(digitalTwin *common.DigitalTwin, node *common.NodeData) bool {
-	pipelineFileData := digitalTwin.PipelineFileData
-
-	var pipelineData common.PipelineData
-	if err := json.Unmarshal([]byte(pipelineFileData), &pipelineData); err != nil {
+	var pipelineNodes []common.PipelineNode
+	if err := json.Unmarshal([]byte(digitalTwin.PipelineFileData), &pipelineNodes); err != nil {
 		fm.log.Errorf("Failed to unmarshal pipeline file data: %v", err)
 		return false
 	}
 
-	for _, n := range pipelineData.Nodes {
+	for _, n := range pipelineNodes {
 		if n.Name == node.NodeUid && n.Type == node.Type {
 			return true
 		}
