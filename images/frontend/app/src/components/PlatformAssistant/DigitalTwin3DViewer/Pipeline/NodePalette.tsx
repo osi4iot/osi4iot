@@ -115,9 +115,9 @@ const nodeTypes = [
         numOutputs: 1,
         debug: "off",
         settings: {
-            onMessageScript: "function process(msg) {\n    // Your code here\n    return msg;\n}",
-            onStartScript: "function start() {\n    // Your code here\n}",
-            onStopScript: "function init() {\n    // Your code here\n}",
+            onMessageScript: "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n\n    return msg;\n}",
+            onStartScript: "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
+            onStopScript: "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}",
         },
     },
     {

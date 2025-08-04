@@ -15,36 +15,6 @@ import (
 	fl "pipelines/function_libray"
 )
 
-type JSGlobalRegistry struct {
-	providers []common.JSGlobalProvider
-}
-
-// NewJSGlobalRegistry creates a new registry with default providers
-func NewJSGlobalRegistry() *JSGlobalRegistry {
-	return &JSGlobalRegistry{
-		providers: []common.JSGlobalProvider{
-			&fl.CoreJSProvider{},
-			&fl.HTTPJSProvider{},
-		},
-	}
-}
-
-// RegisterProvider adds a new provider to the registry
-func (r *JSGlobalRegistry) RegisterProvider(provider common.JSGlobalProvider) {
-	r.providers = append(r.providers, provider)
-}
-
-// GetAllFunctions returns all JavaScript functions from all providers
-func (r *JSGlobalRegistry) GetAllFunctions(node common.Node, fm common.Manager, log *logger.Logger) []common.JSFunction {
-	var allFunctions []common.JSFunction
-
-	for _, provider := range r.providers {
-		functions := provider.GetJSFunctions(node, fm, log)
-		allFunctions = append(allFunctions, functions...)
-	}
-
-	return allFunctions
-}
 
 type CompiledScript struct {
 	program     *goja.Program
@@ -59,7 +29,6 @@ type FuncNode struct {
 	onMessageScript        string
 	compiledScript         *CompiledScript
 	vmPool                 chan *goja.Runtime
-	jsRegistry             *JSGlobalRegistry
 }
 
 func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) {
@@ -102,7 +71,6 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 		},
 		nc:                     nil,                          // This will be set later
 		vmPool:                 make(chan *goja.Runtime, 10), // Pool size of 10
-		jsRegistry:             NewJSGlobalRegistry(),        // Initialize the JS global registry
 		onInitializationScript: onInitializationScript,
 		onStartScript:          onStartScript,
 		onMessageScript:        onMessageScript,
@@ -129,9 +97,6 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 	return funNode, nil
 }
 
-func (n *FuncNode) RegisterJSProvider(provider common.JSGlobalProvider) {
-	n.jsRegistry.RegisterProvider(provider)
-}
 
 func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
@@ -289,7 +254,7 @@ func (n *FuncNode) initVMPool(log *logger.Logger) error {
 
 func (n *FuncNode) setupJSGlobals(vm *goja.Runtime, log *logger.Logger) {
 	// Get all JavaScript functions from registered providers
-	jsFunctions := n.jsRegistry.GetAllFunctions(n, n.Fm, log)
+	jsFunctions := fl.GetJSFunctions(n, n.Fm, log)
 
 	// Register each function in the JavaScript VM
 	for _, jsFunc := range jsFunctions {

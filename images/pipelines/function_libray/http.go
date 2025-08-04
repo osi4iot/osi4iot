@@ -6,25 +6,28 @@ import (
 	"pipelines/utils"
 )
 
-type HTTPJSProvider struct{}
+type Http struct {
+	node common.Node
+	log  *logger.Logger
+}
 
-func (p *HTTPJSProvider) GetJSFunctions(node common.Node, fm common.Manager, log *logger.Logger) []common.JSFunction {
-	return []common.JSFunction{
-		{
-			Name: "httpGet",
-			Func: func(url string) interface{} {
-				response, err := utils.HttpGet(url)
-				if err != nil {
-					log.Errorf("Failed to get HTTP response: %v", err)
-					return nil
-				}
-
-				var responseData interface{}
-				if err := utils.UnmarshalData(response, &responseData); err != nil {
-					log.Errorf("Failed to unmarshal HTTP response: %v", err)
-				}
-				return responseData
-			},
-		},
+func NewHttp(node common.Node, log *logger.Logger) *Http {
+	return &Http{
+		node: node,
+		log:  log,
 	}
+}
+
+func (h *Http) Get(url string) interface{} {
+	response, err := utils.HttpGet(url)
+	if err != nil {
+		h.log.Errorf("Failed to get HTTP response: %v", err)
+		return nil
+	}
+
+	var responseData interface{}
+	if err := utils.UnmarshalData(response, &responseData); err != nil {
+		h.log.Errorf("Failed to unmarshal HTTP response: %v", err)
+	}
+	return responseData
 }

@@ -2,16 +2,17 @@ import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import styled, { keyframes, css } from "styled-components";
 import { X, Save, RotateCcw, Bug } from "lucide-react";
 import { indentUnit, indentOnInput } from "@codemirror/language";
-import { keymap } from "@codemirror/view";
+import { completionKeymap } from "@codemirror/autocomplete";
 import { indentWithTab } from "@codemirror/commands";
 
 // Importaciones de CodeMirror
-import CodeMirror from "@uiw/react-codemirror";
-import { javascript } from "@codemirror/lang-javascript";
+import CodeMirror, { keymap } from "@uiw/react-codemirror";
+import { javascript, javascriptLanguage } from "@codemirror/lang-javascript";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { useUpdateNodeInternals } from "@xyflow/react";
 import { useFormChanges } from "../Utils/customHooks";
 import { IMqttTopicData } from "../Main/Model";
+import GeneralizedCompletion from "./Completion/Completion";
 
 // CSS estándar para el resizing - mejor performance
 const resizableStyles = `
@@ -337,6 +338,11 @@ const TabContent = styled.div`
     padding: 16px;
 `;
 
+const TabContentFunction = styled.div`
+    padding: 16px 16px 0 16px;
+`;
+
+
 const FormGroup = styled.div`
     margin-bottom: 16px;
 `;
@@ -496,6 +502,167 @@ const CodeMirrorWrapper = styled.div`
         border-color: #3b82f6;
         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
     }
+
+    /* === ESTILOS PARA EL DESPLEGABLE DE AUTOCOMPLETADO === */
+
+    /* Contenedor principal del desplegable */
+    .cm-tooltip-autocomplete {
+        background: #1e1e1e !important;
+        border: 1px solid #404040 !important;
+        border-radius: 8px !important;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
+        backdrop-filter: blur(10px) !important;
+        max-height: 300px !important;
+        min-width: 350px !important;
+        max-width: min(900px, 95vw) !important;
+        font-family: "Consolas", "Monaco", "Courier New", monospace !important;
+        font-size: 13px !important;
+    }
+
+    /* Lista de opciones */
+    .cm-tooltip-autocomplete > ul {
+        padding: 2px !important;
+        margin: 0 !important;
+        background: transparent !important;
+        max-width: min(900px, 95vw) !important;
+    }
+
+    /* Cada opción individual */
+    .cm-tooltip-autocomplete ul li {
+        padding: 6px 12px !important;
+        margin: 0 !important;
+        border-radius: 4px !important;
+        cursor: pointer !important;
+        transition: all 0.15s ease !important;
+        border-left: 3px solid transparent !important;
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+    }
+
+    /* Opción normal (no seleccionada) */
+    .cm-tooltip-autocomplete ul li:not([aria-selected="true"]) {
+        background: transparent !important;
+        color: #d4d4d4 !important;
+    }
+
+    /* Opción seleccionada - MÁXIMO CONTRASTE */
+    .cm-tooltip-autocomplete ul li[aria-selected="true"] {
+        background: #0066cc !important;
+        color: #ffffff !important;
+        border-left-color: #ffffff !important;
+        transform: translateX(3px) !important;
+        box-shadow: 0 2px 8px rgba(0, 102, 204, 0.4) !important;
+    }
+
+    /* Hover - CONTRASTE MEDIO */
+    .cm-tooltip-autocomplete ul li:hover:not([aria-selected="true"]) {
+        background: #333333 !important;
+        color: #ffffff !important;
+        border-left-color: #666666 !important;
+        transform: translateX(1px) !important;
+    }
+
+    /* === ESTILOS PARA DIFERENTES TIPOS === */
+
+    /* Métodos */
+    .cm-tooltip-autocomplete ul li[data-type="method"]::before {
+        content: "⚡";
+        color: #4fc3f7;
+        font-weight: bold;
+    }
+
+    /* Variables/Instancias */
+    .cm-tooltip-autocomplete ul li[data-type="variable"]::before,
+    .cm-tooltip-autocomplete ul li[data-type="class"]::before {
+        content: "📦";
+        color: #81c784;
+        font-weight: bold;
+    }
+
+    /* === TEXTO DE LAS OPCIONES ===  REVISAR */
+
+    /* Nombre principal de la opción */
+    .cm-completionLabel {
+        font-weight: 600 !important;
+        color: inherit !important;
+    }
+
+    /* Información detallada (tipos, parámetros) */
+    .cm-completionDetail {
+        color: #f0efefff !important;
+        font-style: italic !important;
+        font-size: 14px !important;
+        margin-right: auto !important;
+    }
+
+    /* Información adicional */
+    .cm-completionInfo {
+        color: #aaaaaa !important;
+        font-size: 14px !important;
+        max-width: 250px !important;
+    }
+
+    /* === ANIMACIONES === */
+    .cm-tooltip-autocomplete {
+        animation: slideIn 0.2s ease-out !important;
+    }
+
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    /* === SCROLL PERSONALIZADO === */
+    .cm-tooltip-autocomplete::-webkit-scrollbar {
+        width: 6px !important;
+    }
+
+    .cm-tooltip-autocomplete::-webkit-scrollbar-track {
+        background: #2d2d2d !important;
+        border-radius: 3px !important;
+    }
+
+    .cm-tooltip-autocomplete::-webkit-scrollbar-thumb {
+        background: #555555 !important;
+        border-radius: 3px !important;
+    }
+
+    .cm-tooltip-autocomplete::-webkit-scrollbar-thumb:hover {
+        background: #666666 !important;
+    }
+
+    /* === ESTILOS ADICIONALES PARA MEJOR UX === */
+
+    /* Separador visual entre diferentes tipos */
+    .cm-tooltip-autocomplete ul li + li[data-type]:not([data-type=""]) {
+        border-top: 1px solid #333333;
+        margin-top: 4px !important;
+        padding-top: 8px !important;
+    }
+
+    /* Texto de ayuda para el comando "help" */
+    .cm-tooltip-autocomplete ul li[data-type="class"] .cm-completionLabel {
+        color: #ffb74d !important;
+    }
+
+    /* === RESPONSIVE === */
+    @media (max-width: 768px) {
+        .cm-tooltip-autocomplete {
+            max-width: 90vw !important;
+            font-size: 12px !important;
+        }
+
+        .cm-tooltip-autocomplete ul li {
+            padding: 6px 10px !important;
+        }
+    }
 `;
 
 interface NodeData {
@@ -554,6 +721,12 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
         }
     }, []);
 
+    useEffect(() => {
+        if (selectedNode && selectedNode.type === "Function") {
+            updatePanelWidth(800);
+        }
+    }, [selectedNode, updatePanelWidth]);
+
     // Manejar clases CSS para el estado de dragging
     const setDraggingClass = useCallback((dragging: boolean) => {
         if (panelRef.current) {
@@ -588,15 +761,19 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             const deltaX = e.clientX - dragStartRef.current.x;
             const newWidth = dragStartRef.current.widthInicial + deltaX;
 
-            const widthMin = 550;
-            const widthMax = 1000;
+            let widthMin = 550;
+            let widthMax = 550;
+            if (selectedNode && selectedNode.type === "Function") {
+                widthMin = 800;
+                widthMax = 1370;
+            }
 
             if (newWidth >= widthMin && newWidth <= widthMax) {
                 // Solo actualización CSS, sin setState durante el drag
                 updatePanelWidth(newWidth);
             }
         },
-        [isDragging, updatePanelWidth]
+        [isDragging, selectedNode, updatePanelWidth]
     );
 
     const finishDrag = useCallback(() => {
@@ -782,7 +959,7 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                     ))}
                 </TabsContainer>
                 <PanelContent>
-                    <TabContent>
+                    <TabContentFunction>
                         {activeTab === "settings" && (
                             <>
                                 <FormGroup>
@@ -798,45 +975,52 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             </>
                         )}
                         {activeTab === "onInitiation" && (
-                            <FormGroup>
+                            <CodeMirrorWrapper>
+                                <CodeMirror
+                                    value={
+                                        formData.onInitiationScript ||
+                                        "function init() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}"
+                                    }
+                                    height="auto"
+                                    minHeight="500px"
+                                    extensions={[
+                                        javascript({ typescript: true }),
+                                        javascriptLanguage.data.of({
+                                            autocomplete: GeneralizedCompletion,
+                                        }),
+                                        indentUnit.of("    "),
+                                        indentOnInput(),
+                                        keymap.of([indentWithTab, reIndentCommand]),
+                                    ]}
+                                    theme={oneDark}
+                                    onChange={(value) => handleInputChange("onInitiationScript", value)}
+                                    basicSetup={{
+                                        lineNumbers: true,
+                                        foldGutter: true,
+                                        bracketMatching: true,
+                                        closeBrackets: true,
+                                        syntaxHighlighting: true,
+                                        autocompletion: true,
+                                        tabSize: 4,
+                                        searchKeymap: true,
+                                    }}
+                                />
+                            </CodeMirrorWrapper>
+                        )}
+                        {activeTab === "onStart" && (
                                 <CodeMirrorWrapper>
                                     <CodeMirror
                                         value={
-                                            formData.onInitiationScript || "function init() {\n    // Your code here\n}"
+                                            formData.onStartScript ||
+                                            "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}"
                                         }
                                         height="auto"
-                                        minHeight="400px"
+                                        minHeight="500px"
                                         extensions={[
-                                            javascript(),
-                                            indentUnit.of("    "),
-                                            indentOnInput(),
-                                            keymap.of([indentWithTab, reIndentCommand]),
-                                        ]}
-                                        theme={oneDark}
-                                        onChange={(value) => handleInputChange("onInitiationScript", value)}
-                                        basicSetup={{
-                                            lineNumbers: true,
-                                            foldGutter: true,
-                                            bracketMatching: true,
-                                            closeBrackets: true,
-                                            syntaxHighlighting: true,
-                                            autocompletion: true,
-                                            tabSize: 4,
-                                            searchKeymap: true,
-                                        }}
-                                    />
-                                </CodeMirrorWrapper>
-                            </FormGroup>
-                        )}
-                        {activeTab === "onStart" && (
-                            <FormGroup>
-                                <CodeMirrorWrapper>
-                                    <CodeMirror
-                                        value={formData.onStartScript || "function start() {\n    // Your code here\n}"}
-                                        height="auto"
-                                        minHeight="400px"
-                                        extensions={[
-                                            javascript(),
+                                            javascript({ typescript: true }),
+                                            javascriptLanguage.data.of({
+                                                autocomplete: GeneralizedCompletion,
+                                            }),
                                             indentUnit.of("    "),
                                             indentOnInput(),
                                             keymap.of([indentWithTab, reIndentCommand]),
@@ -855,24 +1039,28 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         }}
                                     />
                                 </CodeMirrorWrapper>
-                            </FormGroup>
                         )}
                         {activeTab === "onMessage" && (
-                            <FormGroup>
-                                <Label>On Message</Label>
                                 <CodeMirrorWrapper>
                                     <CodeMirror
                                         value={
                                             formData.onMessageScript ||
-                                            "function process(msg) {\n    // Your code here\n    return msg;\n}"
+                                            "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n    return msg;\n}"
                                         }
                                         height="auto"
-                                        minHeight="400px"
+                                        minHeight="500px"
                                         extensions={[
-                                            javascript(),
+                                            javascript({ typescript: true }),
+                                            javascriptLanguage.data.of({
+                                                autocomplete: GeneralizedCompletion,
+                                            }),
                                             indentUnit.of("    "),
                                             indentOnInput(),
-                                            keymap.of([indentWithTab, reIndentCommand]),
+                                            keymap.of([
+                                                ...completionKeymap, // Enter, Escape, flechas
+                                                indentWithTab, // Tab normal para indentación
+                                                reIndentCommand,
+                                            ]),
                                         ]}
                                         theme={oneDark}
                                         onChange={(value) => handleInputChange("onMessageScript", value)}
@@ -888,9 +1076,8 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                                         }}
                                     />
                                 </CodeMirrorWrapper>
-                            </FormGroup>
                         )}
-                    </TabContent>
+                    </TabContentFunction>
                 </PanelContent>
             </>
         );
@@ -1022,19 +1209,6 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
             case "Inject":
                 return (
                     <>
-                        {/* <FormGroup>
-                            <Label>Inject Reference</Label>
-                            <Select
-                                value={formData.injectRef}
-                                onChange={(e) => handleInputChange("injectRef", e.target.value)}
-                            >
-                                {injectRefTopicsRef.map((topic) => (
-                                    <option key={topic} value={topic}>
-                                        {topic}
-                                    </option>
-                                ))}
-                            </Select>
-                        </FormGroup> */}
                         <FormGroup>
                             <Label>Repeat</Label>
                             <Select
