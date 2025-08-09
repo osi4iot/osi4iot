@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading } from "lucide-react";
+import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import styled from "styled-components";
 
@@ -130,6 +130,18 @@ const nodeTypes = [
         debug: "off",
         settings: {
             duration: 0.0,
+        },
+    },
+    {
+        type: "LLM",
+        label: "LLM",
+        bgColor: "#B8B1FB",
+        hoverColor: "#cdc8fcff",
+        icon: <BrainCog size={30} color="#e7e3df" />,
+        numOutputs: 1,
+        debug: "off",
+        settings: {
+            systemPrompt: "",
         },
     },
     {

@@ -32,6 +32,8 @@ func CreateNode(
 		newNode, err = CreateTelegramNode(node, fm)
 	case "Email":
 		newNode, err = CreateEmailNode(node, fm)
+	case "LLM":
+		newNode, err = CreateLlmNode(node, fm)
 	case "Publish":
 		newNode, err = CreatePublishNode(node, fm)
 	default:

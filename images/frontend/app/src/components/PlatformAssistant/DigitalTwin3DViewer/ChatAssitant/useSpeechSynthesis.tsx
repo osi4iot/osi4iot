@@ -1,107 +1,54 @@
-import { useEffect, useState } from "react";
+import { useCallback } from "react";
 
-interface SpeechSynthesisProps {
-    onEnd?: () => void;
-}
+export const useSpeechSynthesis = ({ onEnd }: { onEnd: () => void }) => {
+    const speak = useCallback(({ text, voice: voiceLang }: { text: string; voice: string }) => {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            
+            // Configurar el idioma
+            utterance.lang = voiceLang;
+            
+            // Buscar una voz apropiada para el idioma
+            const voices = window.speechSynthesis.getVoices();
+            const spanishVoice = voices.find(voice => 
+                voice.lang.startsWith(voiceLang.split('-')[0]) || 
+                voice.lang.includes('es')
+            );
+            
+            if (spanishVoice) {
+                utterance.voice = spanishVoice;
+            }
+            
+            utterance.rate = 0.9;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+            
+            // Eventos
+            utterance.onend = () => {
+                console.log('Speech synthesis finished');
+                onEnd();
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('Speech synthesis error:', event);
+                onEnd();
+            };
+            
+            window.speechSynthesis.speak(utterance);
+        } else {
+            console.warn('Speech synthesis not supported');
+            setTimeout(onEnd, 2000);
+        }
+    }, [onEnd]);
 
-const useSpeechSynthesis = (props: SpeechSynthesisProps = {}) => {
-    const { onEnd = () => {} } = props;
-    const [speaking, setSpeaking] = useState(false);
-    const [supported, setSupported] = useState(false);
-
-    const handleEnd = () => {
-        setSpeaking(false);
-        onEnd();
-    };
-
-    useEffect(() => {
-        if (typeof window !== "undefined" && window.speechSynthesis) {
-            setSupported(true);
+    const cancel = useCallback(() => {
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.cancel();
+            console.log('Speech synthesis cancelled');
         }
     }, []);
 
-    interface SpeakArgs {
-        voice?: SpeechSynthesisVoice | null;
-        text?: string;
-        rate?: number;
-        pitch?: number;
-        volume?: number;
-    }
-
-    let timer: NodeJS.Timeout | null = null;
-
-    const clear = () => {
-        if (timer !== null) clearTimeout(timer);
-    };
-
-    const resumeInfinity = (target: SpeechSynthesisUtterance | null) => {
-        // prevent memory-leak in case utterance is deleted, while this is ongoing
-        if (!target && timer) {
-            return clear();
-        }
-
-        speechSynthesis.pause();
-        speechSynthesis.resume();
-
-        timer = setTimeout(function () {
-            resumeInfinity(target);
-        }, 10000);
-    };
-
-    const isAndroid = /android/i.test(navigator.userAgent);
-    const handler = (e: any) => console.debug(e.type);
-
-    const speak = (args: SpeakArgs = {}) => {
-         window.speechSynthesis.cancel();
-        const { voice = null, text = "", rate = 1, pitch = 1, volume = 1 } = args;
-        if (!supported) return;
-        setSpeaking(true);
-        // Firefox won't repeat an utterance that has been
-        // spoken, so we need to create a new instance each time
-        const utterance = new window.SpeechSynthesisUtterance();
-        utterance.onstart = () => {
-            // detection is up to you for this article as
-            // this is an own huge topic for itself
-            if (!isAndroid) {
-                resumeInfinity(utterance);
-            }
-        };
-        utterance.onerror = clear;
-        utterance.onend = clear;
-        utterance.text = text;
-        utterance.voice = voice;
-        utterance.onend = handleEnd;
-        utterance.rate = rate;
-        utterance.pitch = pitch;
-        utterance.volume = volume;
-        // SSML markup is rarely supported
-        // See: https://www.w3.org/TR/speech-synthesis/
-        utterance.onmark = handler;
-
-        // word boundaries are supported by
-        // Safari MacOS and on windows but
-        // not on Linux and Android browsers
-        utterance.onboundary = handler;
-
-        // not supported / fired
-        // on many browsers somehow
-        utterance.onpause = handler;
-        utterance.onresume = handler;
-        window.speechSynthesis.speak(utterance);
-    };
-
-    const cancel = () => {
-        if (!supported) return;
-        setSpeaking(false);
-        window.speechSynthesis.cancel();
-    };
-
-    return {
-        supported,
-        speak,
-        speaking,
-        cancel,
-    };
+    return { speak, cancel };
 };
-
-export default useSpeechSynthesis;

@@ -232,6 +232,8 @@ const NodeTypeIndicator = styled.span<{ nodeType: string }>`
                 return "#a6bbcf";
             case "Delay":
                 return "#a8a152";
+            case "LLM":
+                return "#B8B1FB";
             case "Email":
                 return "#4a90e2";
             case "Telegram":
@@ -342,7 +344,6 @@ const TabContentFunction = styled.div`
     padding: 16px 16px 0 16px;
 `;
 
-
 const FormGroup = styled.div`
     margin-bottom: 16px;
 `;
@@ -405,6 +406,30 @@ const TextArea = styled.textarea`
     transition: border-color 0.2s;
     resize: vertical;
     min-height: 100px;
+
+    &:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    &::placeholder {
+        color: #9ca3af;
+    }
+`;
+
+const TextAreaSystemPrompt = styled.textarea`
+    width: 100%;
+    padding: 10px 12px;
+    background-color: #374151;
+    border: 1px solid #4b5563;
+    border-radius: 6px;
+    color: #f9fafb;
+    font-size: 14px;
+    font-family: "Monaco", "Menlo", "Ubuntu Mono", monospace;
+    transition: border-color 0.2s;
+    resize: vertical;
+    min-height: 200px;
 
     &:focus {
         outline: none;
@@ -1008,74 +1033,74 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             </CodeMirrorWrapper>
                         )}
                         {activeTab === "onStart" && (
-                                <CodeMirrorWrapper>
-                                    <CodeMirror
-                                        value={
-                                            formData.onStartScript ||
-                                            "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}"
-                                        }
-                                        height="auto"
-                                        minHeight="500px"
-                                        extensions={[
-                                            javascript({ typescript: true }),
-                                            javascriptLanguage.data.of({
-                                                autocomplete: GeneralizedCompletion,
-                                            }),
-                                            indentUnit.of("    "),
-                                            indentOnInput(),
-                                            keymap.of([indentWithTab, reIndentCommand]),
-                                        ]}
-                                        theme={oneDark}
-                                        onChange={(value) => handleInputChange("onStartScript", value)}
-                                        basicSetup={{
-                                            lineNumbers: true,
-                                            foldGutter: true,
-                                            bracketMatching: true,
-                                            closeBrackets: true,
-                                            syntaxHighlighting: true,
-                                            autocompletion: true,
-                                            tabSize: 4,
-                                            searchKeymap: true,
-                                        }}
-                                    />
-                                </CodeMirrorWrapper>
+                            <CodeMirrorWrapper>
+                                <CodeMirror
+                                    value={
+                                        formData.onStartScript ||
+                                        "function start() {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n}"
+                                    }
+                                    height="auto"
+                                    minHeight="500px"
+                                    extensions={[
+                                        javascript({ typescript: true }),
+                                        javascriptLanguage.data.of({
+                                            autocomplete: GeneralizedCompletion,
+                                        }),
+                                        indentUnit.of("    "),
+                                        indentOnInput(),
+                                        keymap.of([indentWithTab, reIndentCommand]),
+                                    ]}
+                                    theme={oneDark}
+                                    onChange={(value) => handleInputChange("onStartScript", value)}
+                                    basicSetup={{
+                                        lineNumbers: true,
+                                        foldGutter: true,
+                                        bracketMatching: true,
+                                        closeBrackets: true,
+                                        syntaxHighlighting: true,
+                                        autocompletion: true,
+                                        tabSize: 4,
+                                        searchKeymap: true,
+                                    }}
+                                />
+                            </CodeMirrorWrapper>
                         )}
                         {activeTab === "onMessage" && (
-                                <CodeMirrorWrapper>
-                                    <CodeMirror
-                                        value={
-                                            formData.onMessageScript ||
-                                            "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n    return msg;\n}"
-                                        }
-                                        height="auto"
-                                        minHeight="500px"
-                                        extensions={[
-                                            javascript({ typescript: true }),
-                                            javascriptLanguage.data.of({
-                                                autocomplete: GeneralizedCompletion,
-                                            }),
-                                            indentUnit.of("    "),
-                                            indentOnInput(),
-                                            keymap.of([
-                                                ...completionKeymap, // Enter, Escape, flechas
-                                                indentWithTab, // Tab normal para indentación
-                                                reIndentCommand,
-                                            ]),
-                                        ]}
-                                        theme={oneDark}
-                                        onChange={(value) => handleInputChange("onMessageScript", value)}
-                                        basicSetup={{
-                                            lineNumbers: true,
-                                            foldGutter: true,
-                                            bracketMatching: true,
-                                            closeBrackets: true,
-                                            syntaxHighlighting: true,
-                                            autocompletion: true,
-                                            tabSize: 4,
-                                            searchKeymap: true,
-                                        }}
-                                    />
-                                </CodeMirrorWrapper>
+                            <CodeMirrorWrapper>
+                                <CodeMirror
+                                    value={
+                                        formData.onMessageScript ||
+                                        "function process(msg) {\n    const go = Go();\n    const { log, time } = go.All();\n\n    // Your code here\n    return msg;\n}"
+                                    }
+                                    height="auto"
+                                    minHeight="500px"
+                                    extensions={[
+                                        javascript({ typescript: true }),
+                                        javascriptLanguage.data.of({
+                                            autocomplete: GeneralizedCompletion,
+                                        }),
+                                        indentUnit.of("    "),
+                                        indentOnInput(),
+                                        keymap.of([
+                                            ...completionKeymap, // Enter, Escape, flechas
+                                            indentWithTab, // Tab normal para indentación
+                                            reIndentCommand,
+                                        ]),
+                                    ]}
+                                    theme={oneDark}
+                                    onChange={(value) => handleInputChange("onMessageScript", value)}
+                                    basicSetup={{
+                                        lineNumbers: true,
+                                        foldGutter: true,
+                                        bracketMatching: true,
+                                        closeBrackets: true,
+                                        syntaxHighlighting: true,
+                                        autocompletion: true,
+                                        tabSize: 4,
+                                        searchKeymap: true,
+                                    }}
+                                />
+                            </CodeMirrorWrapper>
                         )}
                     </TabContentFunction>
                 </PanelContent>
@@ -1246,6 +1271,19 @@ const NodePropertiesPanel: React.FC<NodePropertiesPanelProps> = ({
                             value={formData.duration || 0}
                             onChange={(e) => handleInputChange("duration", Math.max(0, parseFloat(e.target.value)))}
                             placeholder="0.0"
+                        />
+                    </FormGroup>
+                );
+
+            case "LLM":
+                return (
+                    <FormGroup>
+                        <Label>System Prompt</Label>
+                        <TextAreaSystemPrompt
+                            value={formData.systemPrompt || ""}
+                            onChange={(e) => handleInputChange("systemPrompt", e.target.value)}
+                            placeholder="Your system prompt"
+                            rows={4}
                         />
                     </FormGroup>
                 );

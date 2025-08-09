@@ -2,12 +2,21 @@ import React, { useState, KeyboardEvent, ChangeEvent, useRef, useEffect, useCall
 import styled from "styled-components";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
-import useSpeechSynthesis from "./useSpeechSynthesis";
-import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
-import getVoices, { IChatVoice } from "../../../../tools/getVoices";
-import useInterval from "../../../../tools/useInterval";
-import { ChatMessage } from "../Types/types";
+import katex from "katex";
+import "katex/dist/katex.min.css";
+import { useSpeechSynthesis } from "./useSpeechSynthesis";
 
+const useLoggedUserLogin = () => "User";
+const getVoices = (lang: string) => {
+    // Detectar el idioma y configurar apropiadamente
+    const isSpanish = lang.includes('es');
+    
+    return Promise.resolve({ 
+        greeting: isSpanish ? "¡Hola! Soy OSI. ¿En qué puedo ayudarte?" : "Hello! I'm OSI. How can I help you?",
+        recognitionLang: isSpanish ? "es-ES" : "en-US",
+        speechLang: isSpanish ? "es-ES" : "en-US"
+    });
+};
 
 export interface LlmMessage {
     message: string;
@@ -15,12 +24,24 @@ export interface LlmMessage {
     sender: "user" | "assistant";
 }
 
+export interface ChatMessage {
+    message: string;
+    sender: "user" | "assistant";
+    time: string;
+}
+
+export interface IChatVoice {
+    greeting: string;
+    recognitionLang: string;
+    speechLang: string;
+}
+
 const ChatContainer = styled.div`
     position: fixed;
-    top: 282px;
+    top: 270px;
     right: 15px;
     width: 520px;
-    height: calc(100vh - 325px);
+    height: calc(100vh - 330px);
     background-color: #2c2c2c;
     border: 1px solid #444;
     border-radius: 8px;
@@ -77,6 +98,27 @@ const Label = styled.span`
     color: #bbb;
 `;
 
+const MessageContent = styled.div`
+    .katex {
+        font-size: 1em;
+    }
+    .katex-display {
+        margin: 0.5em 0;
+        text-align: center;
+    }
+    white-space: pre-wrap;
+    word-break: break-word;
+    
+    /* Mejorar la apariencia de las matrices */
+    .katex .mord {
+        margin: 0;
+    }
+    
+    .katex .arraycolsep {
+        width: 0.5em;
+    }
+`;
+
 const InputContainer = styled.div`
     display: flex;
     border-top: 1px solid #444;
@@ -124,9 +166,86 @@ const MicButton = styled.button<{ active: boolean }>`
     }
 `;
 
+const StatusIndicator = styled.div<{ status: string }>`
+    margin-left: 5px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    background-color: ${({ status }) => {
+        switch (status) {
+            case 'listening': return '#27ae60';
+            case 'processing': return '#f39c12';
+            case 'speaking': return '#e74c3c';
+            default: return '#95a5a6';
+        }
+    }};
+    color: white;
+`;
+
+const renderLatexMessage = (message: string): string => {
+    try {
+        // Primero procesar bloques de display math \\[ ... \\]
+        let rendered = message.replace(/\\\\?\[([\s\S]*?)\\\\?\]/g, (match, latex) => {
+            try {
+                return katex.renderToString(latex.trim(), { 
+                    displayMode: true,
+                    throwOnError: false 
+                });
+            } catch (e) {
+                console.error('Error rendering display LaTeX:', e);
+                return match;
+            }
+        });
+
+        // Luego procesar math inline \\( ... \\)
+        rendered = rendered.replace(/\\\\?\(([\s\S]*?)\\\\?\)/g, (match, latex) => {
+            try {
+                return katex.renderToString(latex.trim(), { 
+                    displayMode: false,
+                    throwOnError: false 
+                });
+            } catch (e) {
+                console.error('Error rendering inline LaTeX:', e);
+                return match;
+            }
+        });
+
+        // También procesar bloques $ ... $ para compatibilidad
+        rendered = rendered.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
+            try {
+                return katex.renderToString(latex.trim(), { 
+                    displayMode: true,
+                    throwOnError: false 
+                });
+            } catch (e) {
+                console.error('Error rendering $ LaTeX:', e);
+                return match;
+            }
+        });
+
+        // Y math inline $ ... $
+        rendered = rendered.replace(/\$([^$\n]+?)\$/g, (match, latex) => {
+            try {
+                return katex.renderToString(latex.trim(), { 
+                    displayMode: false,
+                    throwOnError: false 
+                });
+            } catch (e) {
+                console.error('Error rendering $ LaTeX:', e);
+                return match;
+            }
+        });
+
+        return rendered;
+    } catch (error) {
+        console.error('Error rendering LaTeX:', error);
+        return message;
+    }
+};
+
 interface ChatAssistantProps {
     chatMessages: ChatMessage[];
-    setChatMessages: (messages: ChatMessage[]) => void;
+    setChatMessages: (messages: ChatMessage[] | ((prev: ChatMessage[]) => ChatMessage[])) => void;
     chatAssistantLanguage: string;
 }
 
@@ -136,79 +255,168 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const [input, setInput] = useState<string>("");
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
-    const [voiceAssistant, setVoiceAssistant] = useState<boolean>(false);
-    const { speak, cancel } = useSpeechSynthesis({
-        onEnd: () => {
-            if (isMounted.current) {
-                startListening();
-                setUserAction("typing");
-            }
-        },
-    });
+    const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(false);
+    const [systemStatus, setSystemStatus] = useState<'idle' | 'listening' | 'processing' | 'speaking'>('idle');
+    const lastTranscriptRef = useRef<string>("");
+    const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const handleSendRef = useRef<() => void>();
+    const speakRef = useRef<(params: { text: string; voice: string }) => void>();
+    const initializedRef = useRef<boolean>(false);
+    
     const [voice, setVoice] = useState<IChatVoice | null>(null);
-    const [transcriptLength, setTranscriptLength] = useState<number>(0);
-    const [userAction, setUserAction] = useState<string>("none");
 
+    const startListening = useCallback(() => {
+        if (!browserSupportsSpeechRecognition || !voice) {
+            console.warn("Speech recognition not supported or voice not loaded");
+            return;
+        }
+
+        try {
+            resetTranscript();
+            lastTranscriptRef.current = "";
+            SpeechRecognition.startListening({ 
+                continuous: true, 
+                language: voice.recognitionLang 
+            });
+            setSystemStatus('listening');
+            setIsVoiceEnabled(true);
+        } catch (error) {
+            console.error("Error starting speech recognition:", error);
+        }
+    }, [browserSupportsSpeechRecognition, voice, resetTranscript]);
+
+    const { speak, cancel } = useSpeechSynthesis({
+        onEnd: useCallback(() => {
+            if (isMounted.current && isVoiceEnabled) {
+                setSystemStatus('idle');
+                // Esperar un poco antes de volver a escuchar
+                setTimeout(() => {
+                    if (isMounted.current && isVoiceEnabled) {
+                        startListening();
+                    }
+                }, 500);
+            }
+        }, [isVoiceEnabled, startListening]),
+    });
+
+    // Cleanup al desmontar
     useEffect(() => {
         return () => {
             isMounted.current = false;
-            resetTranscript();
-            cancel();
-            setChatMessages([]);
-            const speechRecognition = SpeechRecognition.getRecognition();
-            if (speechRecognition) {
-                speechRecognition.continuous = false;
-                speechRecognition.abort();
-            }   
+            if (processingTimeoutRef.current) {
+                clearTimeout(processingTimeoutRef.current);
+            }
+            SpeechRecognition.stopListening();
         };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Sin dependencias para evitar loops
+
+    // Cargar voces disponibles
+    useEffect(() => {
+        const loadVoices = () => {
+            window.speechSynthesis.getVoices();
+        };
+
+        // Las voces pueden no estar disponibles inmediatamente
+        if (window.speechSynthesis.getVoices().length > 0) {
+            loadVoices();
+        } else {
+            window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
+            return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+        }
     }, []);
 
-    useInterval(() => {
-        if (transcript.length !== 0 && transcriptLength === transcript.length) {
-            setUserAction("listening");
-        } else {
-            setTranscriptLength(transcript.length);
-            setUserAction("typing");
-        }
-    }, 1000);
-
+    // Inicializar voz de saludo
     useEffect(() => {
-        if (chatMessages.length === 0) {
+        if (!initializedRef.current && chatMessages.length === 0) {
+            initializedRef.current = true;
             getVoices(chatAssistantLanguage).then((voice) => {
                 setVoice(voice as IChatVoice);
-                const grettingMessage: ChatMessage = {
+                const greetingMessage: ChatMessage = {
                     message: voice.greeting,
                     sender: "assistant",
                     time: new Date().toISOString(),
                 };
-                setChatMessages([grettingMessage]);
+                setChatMessages([greetingMessage]);
             });
         }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatAssistantLanguage]); // Removido setChatMessages y chatMessages.length
 
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-        }, [setChatMessages]);
+    // Manejar cambios en el transcript
+    useEffect(() => {
+        if (!transcript || !isVoiceEnabled) return;
 
+        // Limpiar timeout anterior
+        if (processingTimeoutRef.current) {
+            clearTimeout(processingTimeoutRef.current);
+        }
+
+        // Si el transcript cambió, actualizar el input
+        if (transcript !== lastTranscriptRef.current) {
+            setInput(transcript);
+            lastTranscriptRef.current = transcript;
+            setSystemStatus('listening');
+        }
+
+        // Esperar 2 segundos de silencio para procesar
+        processingTimeoutRef.current = setTimeout(() => {
+            if (transcript.trim() && transcript === lastTranscriptRef.current && isVoiceEnabled) {
+                setSystemStatus('processing');
+                handleSendRef.current?.();
+            }
+        }, 1000);
+
+    }, [transcript, isVoiceEnabled]); // Removido handleSend de las dependencias
 
     const handleSend = useCallback(() => {
-        if (input.trim() === "") return;
+        const messageToSend = input.trim();
+        if (messageToSend === "") return;
+
         const newMessage: ChatMessage = {
-            message: input,
+            message: messageToSend,
             sender: "user",
             time: new Date().toISOString(),
         };
-        setChatMessages([...chatMessages, newMessage]);
 
+        setChatMessages((prev: ChatMessage[]) => [...prev, newMessage]);
         setInput("");
         resetTranscript();
-    }, [input, chatMessages, setChatMessages, resetTranscript]);
+        lastTranscriptRef.current = "";
 
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [input, resetTranscript]); // Removido chatMessages y setChatMessages
+
+    // Actualizar la referencia de handleSend
     useEffect(() => {
-        if (userAction === "listening" && transcript) {
-            setInput(transcript);
-            handleSend();
+        handleSendRef.current = handleSend;
+    }, [handleSend]);
+
+    // Actualizar la referencia de speak
+    useEffect(() => {
+        speakRef.current = speak;
+    }, [speak]);
+
+    // Manejar respuestas del asistente para TTS
+    useEffect(() => {
+        if (chatMessages.length > 0) {
+            const lastMessage = chatMessages[chatMessages.length - 1];
+            
+            if (lastMessage.sender === "assistant" && 
+                lastMessage.message !== voice?.greeting && 
+                isVoiceEnabled && 
+                voice?.speechLang) {
+                
+                SpeechRecognition.stopListening();
+                setSystemStatus('speaking');
+                
+                speakRef.current?.({
+                    text: lastMessage.message,
+                    voice: voice.speechLang,
+                });
+            }
         }
-    }, [handleSend, userAction, transcript]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [chatMessages.length, voice?.greeting, voice?.speechLang, isVoiceEnabled]); // Removido 'speak' de las dependencias
 
     const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
         if (e.key === "Enter") {
@@ -220,40 +428,43 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         setInput(e.target.value);
     };
 
+    // Auto-scroll al final
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
     }, [chatMessages]);
 
-    const startListening = () => {
-        if (browserSupportsSpeechRecognition) {
-            SpeechRecognition.startListening({ continuous: true, language: voice?.recognitionLang });
-            setVoiceAssistant(true);
-        }
-    };
-
-    useEffect(() => {
-        if (chatMessages.length > 0 && chatMessages[chatMessages.length - 1].sender === "assistant") {
-            const message = chatMessages[chatMessages.length - 1].message;
-
-            if (message !== "Hello! My name is OSI. How can I help you?") {
-                if (voiceAssistant && voice?.speechLang) {
-                    SpeechRecognition.stopListening();
-                    setVoiceAssistant(false);
-                    speak({
-                        text: message,
-                        voice: voice.speechLang,
-                    });
-                }
+    const stopListening = useCallback(() => {
+        try {
+            SpeechRecognition.stopListening();
+            setIsVoiceEnabled(false);
+            setSystemStatus('idle');
+            cancel();
+            resetTranscript();
+            lastTranscriptRef.current = "";
+            
+            if (processingTimeoutRef.current) {
+                clearTimeout(processingTimeoutRef.current);
             }
+        } catch (error) {
+            console.error("Error stopping speech recognition:", error);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chatMessages]);
+    }, [cancel, resetTranscript]);
 
-    const stopListening = () => {
-        SpeechRecognition.stopListening();
-        setVoiceAssistant(false);
-        setUserAction("none");
-        cancel();
+    const toggleVoice = useCallback(() => {
+        if (isVoiceEnabled) {
+            stopListening();
+        } else {
+            startListening();
+        }
+    }, [isVoiceEnabled, stopListening, startListening]);
+
+    const getStatusText = () => {
+        switch (systemStatus) {
+            case 'listening': return 'Listening...';
+            case 'processing': return 'Processing...';
+            case 'speaking': return '🔊 Speaking...';
+            default: return 'Ready';
+        }
     };
 
     return (
@@ -262,7 +473,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 {chatMessages.map((msg, index) => (
                     <MessageBubble key={index} sender={msg.sender}>
                         <Label>{msg.sender === "assistant" ? "OSI" : userName}</Label>
-                        {msg.message}
+                        <MessageContent 
+                            dangerouslySetInnerHTML={{ 
+                                __html: renderLatexMessage(msg.message) 
+                            }} 
+                        />
                     </MessageBubble>
                 ))}
                 <div ref={messagesEndRef} />
@@ -273,12 +488,20 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                     value={input}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
-                    placeholder="Write your question..."
+                    placeholder="Type your question..."
+                    disabled={isVoiceEnabled && systemStatus === 'listening'}
                 />
                 <Button onClick={handleSend}>Send</Button>
-                <MicButton active={voiceAssistant} onClick={voiceAssistant ? stopListening : startListening}>
-                    {voiceAssistant ? <FaMicrophone /> : <FaMicrophoneSlash />}
+                <MicButton 
+                    active={isVoiceEnabled} 
+                    onClick={toggleVoice}
+                    disabled={!browserSupportsSpeechRecognition}
+                >
+                    {isVoiceEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
                 </MicButton>
+                <StatusIndicator status={systemStatus}>
+                    {getStatusText()}
+                </StatusIndicator>
             </InputContainer>
         </ChatContainer>
     );

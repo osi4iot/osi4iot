@@ -160,7 +160,7 @@ func (t *Time) GetTimeFromUnixMilli(msec int64) time.Time {
 	return time.UnixMilli(msec)
 }
 
-func (t *Time) Duration(d time.Duration) time.Duration {
+func (t *Time) CalculateDuration(d time.Duration) time.Duration {
 	return d
 }
 

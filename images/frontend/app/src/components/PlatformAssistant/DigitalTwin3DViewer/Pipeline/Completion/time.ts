@@ -571,6 +571,15 @@ export const timeClass: ClassDef = {
             source: "go_method",
         },
         {
+            label: "Duration",
+            type: "method",
+            info: "Calculate the resulting duration",
+            detail: "(duration Duration) => Duration",
+            apply: applyFunction("CalculateDuration(2 * time.Hour + 30 * time.Minute)", 18, 50),
+            returnType: "Duration",
+            source: "osi4iot",
+        },
+        {
             label: "Equal",
             type: "method",
             info: "Check if the time is equal to another time",

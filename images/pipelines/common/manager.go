@@ -96,6 +96,7 @@ type Manager interface {
 	GetNodeInputWires(digitalTwinId int, nodeId int) []*Wire
 	GetNodeOutputIndex(digitalTwinId int, nodeId int, outputIndex int) []*Wire
 
+	GetNatsClient() *nats.Conn
 	NatsSubscribe(subject string, handler nats.MsgHandler) (*nats.Subscription, error)
 	NatsQueueSubscribe(subject, queue string, handler nats.MsgHandler) (*nats.Subscription, error)
 	NatsPublish(subject string, msg []byte) error
@@ -113,4 +114,10 @@ type Manager interface {
 	GetNumReplicas() int
 	GetReplicaIndex() int
 	IsRaftLeader() bool
+
+	GetLlmProviderApiKey() string
+	GetLlmProviderUrl() string
+	GetLlmModel() string
+	GetLlmMaxTokens() int
+	GetMcpServersPath() string
 }

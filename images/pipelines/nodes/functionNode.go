@@ -15,7 +15,6 @@ import (
 	fl "pipelines/function_libray"
 )
 
-
 type CompiledScript struct {
 	program     *goja.Program
 	processFunc goja.Callable
@@ -97,7 +96,6 @@ func CreateFuncNode(node common.NodeData, fm common.Manager) (*FuncNode, error) 
 	return funNode, nil
 }
 
-
 func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.GetStatus() == common.NodeStatusRunning {
 		log.Infof("FuncNode %s is already running", n.NodeUid)
@@ -130,6 +128,7 @@ func (n *FuncNode) Start(log *logger.Logger, needReinitialization bool) {
 	if n.onMessageScript != "" {
 		n.handleInputWires(log, n.processMessage)
 	}
+
 }
 
 func (n *FuncNode) precompileScript(log *logger.Logger) error {

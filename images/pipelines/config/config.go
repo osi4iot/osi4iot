@@ -29,6 +29,11 @@ type Config struct {
 	PlatformTelegramBotToken string            `mapstructure:"platformTelegramBotToken"`
 	RefreshThreshold         uint              `mapstructure:"refreshThreshold"`
 	ShardCount               int               `mapstructure:"shardCount"`
+	LlmProviderApiKey        string            `mapstructure:"llmProviderApiKey"`
+	LlmProviderUrl           string            `mapstructure:"llmProviderUrl"`
+	LlmModel                 string            `mapstructure:"llmModel"`
+	LlmMaxTokens             int               `mapstructure:"llmMaxTokens"`
+	McpServersPath           string            `mapstructure:"mcpServersPath"`
 }
 
 type NATSConfig struct {

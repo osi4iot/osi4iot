@@ -45,6 +45,11 @@ type FlowsManager struct {
 	PlatformEmailUsername    string
 	PlatformEmailPassword    string
 	PlatformTelegramBotToken string
+	LlmProviderApiKey        string
+	LlmProviderUrl           string
+	LlmModel                 string
+	LlmMaxTokens             int
+	McpServersPath           string
 }
 
 func CreateFlowsManager(
@@ -94,6 +99,11 @@ func CreateFlowsManager(
 		PlatformEmailUsername:    config.PlatformEmailUsername,
 		PlatformEmailPassword:    config.PlatformEmailPassword,
 		PlatformTelegramBotToken: config.PlatformTelegramBotToken,
+		LlmProviderApiKey:        config.LlmProviderApiKey,
+		LlmProviderUrl:           config.LlmProviderUrl,
+		LlmModel:                 config.LlmModel,
+		LlmMaxTokens:             config.LlmMaxTokens,
+		McpServersPath:           config.McpServersPath,
 		log:                      log,
 	}
 
@@ -203,6 +213,10 @@ func (fm *FlowsManager) GetGroupTelegramChatID(groupId int) int64 {
 	return 0
 }
 
+func (fm *FlowsManager) GetNatsClient() *nats.Conn {
+	return fm.Nats
+}
+
 func (fm *FlowsManager) NatsSubscribe(subject string, handler nats.MsgHandler) (*nats.Subscription, error) {
 	subscription, err := fm.Nats.Subscribe(subject, handler)
 	if err != nil {
@@ -298,4 +312,24 @@ func (fm *FlowsManager) GetReplicaIndex() int {
 
 func (fm *FlowsManager) IsRaftLeader() bool {
 	return fm.IsLeader
+}
+
+func (fm *FlowsManager) GetLlmProviderApiKey() string {
+	return fm.LlmProviderApiKey
+}
+
+func (fm *FlowsManager) GetLlmProviderUrl() string {
+	return fm.LlmProviderUrl
+}
+
+func (fm *FlowsManager) GetLlmModel() string {
+	return fm.LlmModel
+}
+
+func (fm *FlowsManager) GetLlmMaxTokens() int {
+	return fm.LlmMaxTokens
+}
+
+func (fm *FlowsManager) GetMcpServersPath() string {
+	return fm.McpServersPath
 }

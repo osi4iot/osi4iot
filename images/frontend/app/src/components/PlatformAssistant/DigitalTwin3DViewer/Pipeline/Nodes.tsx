@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading } from "lucide-react";
+import { SquareFunction, WifiHigh, ArrowBigRight, Mail, ClockFading, BrainCog } from "lucide-react";
 import { FaTelegramPlane } from "react-icons/fa";
 import { Handle, Position } from "@xyflow/react";
 import Paho from "paho-mqtt";
@@ -72,7 +72,7 @@ const InjectNodeWrapper = styled.div`
 `;
 
 // Contenedor principal del nodo que envuelve tanto el botón como el contenido
-const NodeInjectContainer = styled.div<{ selected?: boolean, numOutputs?: number }>`
+const NodeInjectContainer = styled.div<{ selected?: boolean; numOutputs?: number }>`
     display: flex;
     align-items: center;
     // height: 28px;
@@ -130,7 +130,7 @@ const InjectButtonIntegrated = styled.div<{ numOutputs?: number }>`
 `;
 
 // Contenido del nodo (sin el botón)
-const NodeContentContainer = styled.div<{ bgColor: string; hoverColor?: string, numOutputs?: number }>`
+const NodeContentContainer = styled.div<{ bgColor: string; hoverColor?: string; numOutputs?: number }>`
     display: flex;
     align-items: center;
     // height: 24px; /* 2px menos para compensar el border del contenedor */
@@ -272,8 +272,8 @@ export function InjectNode({ data, selected }) {
                     <ArrowBigRight size={20} color="#e7e3dfff" />
                 </InjectButtonIntegrated>
 
-                <NodeContentContainer bgColor="#a6bbcf" hoverColor="#b0c8d1"  numOutputs={numOutputs}>
-                    <NodeInjectContent >
+                <NodeContentContainer bgColor="#a6bbcf" hoverColor="#b0c8d1" numOutputs={numOutputs}>
+                    <NodeInjectContent>
                         <NodeLabel>{data?.label || "Inject"}</NodeLabel>
                     </NodeInjectContent>
                 </NodeContentContainer>
@@ -306,6 +306,34 @@ export function DelayNode({ data, selected }) {
                     <ClockFading size={20} color="#e7e3dfff" />
                 </IconContainer>
                 <NodeLabel>{data?.label || "Delay Node"}</NodeLabel>
+            </NodeContent>
+            {numOutputs > 0 && (
+                <>
+                    {Array.from({ length: numOutputs }, (_, index) => (
+                        <StyledHandle
+                            key={index}
+                            type="source"
+                            position={Position.Right}
+                            id={`${data.nodeUid}-${index}`}
+                            style={getHandleStyle(index, numOutputs)}
+                        />
+                    ))}
+                </>
+            )}
+        </NodeContainer>
+    );
+}
+
+export function LlmNode({ data, selected }) {
+    const numOutputs = data?.numOutputs || 0;
+    return (
+        <NodeContainer bgColor="#B8B1FB" hoverColor="#cdc8fcff" selected={selected}>
+            <StyledHandle type="target" position={Position.Left} style={{ top: "50%", left: "-1px" }} />
+            <NodeContent numOutputs={numOutputs}>
+                <IconContainer>
+                    <BrainCog size={20} color="#e7e3dfff" />
+                </IconContainer>
+                <NodeLabel>{data?.label || "LLM Node"}</NodeLabel>
             </NodeContent>
             {numOutputs > 0 && (
                 <>
