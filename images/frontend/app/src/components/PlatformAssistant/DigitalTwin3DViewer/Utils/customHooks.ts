@@ -202,6 +202,7 @@ export const useChatMessages = () => {
         setChatMessages((prevMessages) => {
             const newMessages = [...prevMessages];
             const newMessage = {
+                userName: "Assistant",
                 message: newLlmMessage.message,
                 sender: newLlmMessage.sender,
                 time: new Date().toLocaleTimeString(),

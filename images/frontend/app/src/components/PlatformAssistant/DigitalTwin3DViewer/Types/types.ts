@@ -146,6 +146,7 @@ export interface MqttOptions {
 }
 
 export interface ChatMessage {
+    userName: string;
     message: string;
     sender: "user" | "assistant";
     time: string;

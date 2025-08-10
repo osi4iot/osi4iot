@@ -42,6 +42,7 @@ type FlowsManager struct {
 	IsLeader                 bool
 	Nats                     *nats.Conn
 	JetStream                jetstream.JetStream
+	Mode                     string
 	PlatformEmailUsername    string
 	PlatformEmailPassword    string
 	PlatformTelegramBotToken string
@@ -50,6 +51,7 @@ type FlowsManager struct {
 	LlmModel                 string
 	LlmMaxTokens             int
 	McpServersPath           string
+	MaxChatMessagesPerUser   int
 }
 
 func CreateFlowsManager(
@@ -96,6 +98,7 @@ func CreateFlowsManager(
 		JsConsumer:               jsConsumer,
 		Nats:                     natsConn,
 		JetStream:                jetStream,
+		Mode:                     config.Mode,
 		PlatformEmailUsername:    config.PlatformEmailUsername,
 		PlatformEmailPassword:    config.PlatformEmailPassword,
 		PlatformTelegramBotToken: config.PlatformTelegramBotToken,
@@ -104,6 +107,7 @@ func CreateFlowsManager(
 		LlmModel:                 config.LlmModel,
 		LlmMaxTokens:             config.LlmMaxTokens,
 		McpServersPath:           config.McpServersPath,
+		MaxChatMessagesPerUser:   config.MaxChatMessagesPerUser,
 		log:                      log,
 	}
 
@@ -126,6 +130,10 @@ func CreateFlowsManager(
 
 func (fm *FlowsManager) Log() *logger.Logger {
 	return fm.log
+}
+
+func (fm *FlowsManager) GetMode() string {
+	return fm.Mode
 }
 
 func (fm *FlowsManager) GetPlatformEmailUsername() string {
@@ -332,4 +340,8 @@ func (fm *FlowsManager) GetLlmMaxTokens() int {
 
 func (fm *FlowsManager) GetMcpServersPath() string {
 	return fm.McpServersPath
+}
+
+func (fm *FlowsManager) GetMaxChatMessagesPerUser() int {
+	return fm.MaxChatMessagesPerUser
 }

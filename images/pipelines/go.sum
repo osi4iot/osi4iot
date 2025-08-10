@@ -238,8 +238,8 @@ github.com/ollama/ollama v0.5.12/go.mod h1:ibdmDvb/TjKY1OArBWIazL3pd1DHTk8eG2MMj
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.8.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/gomega v1.5.0/go.mod h1:ex+gbHU/CVuBBDIJjb2X0qEXbFg53c61hWP/1CpauHY=
-github.com/osi4iot/mcphost v0.1.0-osi4iot h1:Q4y67mf1MHUaGbs+7gIz5PSx5CDjDWSQF91Nd2YUPog=
-github.com/osi4iot/mcphost v0.1.0-osi4iot/go.mod h1:kAI49cmH3LWjqHPrPju2co0xkln9dSbdC/xX7WgbWvI=
+github.com/osi4iot/mcphost v0.27.3-osi4iot h1:3DX/0DHTJnlbG6a7FKnGhO/g1H38JlsPurzA/ljJWSM=
+github.com/osi4iot/mcphost v0.27.3-osi4iot/go.mod h1:kAI49cmH3LWjqHPrPju2co0xkln9dSbdC/xX7WgbWvI=
 github.com/pelletier/go-toml/v2 v2.2.4 h1:mye9XuhQ6gvn5h28+VilKrrPoQVanw5PMw/TB0t5Ec4=
 github.com/pelletier/go-toml/v2 v2.2.4/go.mod h1:2gIqNv+qfxSVS7cM2xJQKtLSTLUE9V8t9Stt+h56mCY=
 github.com/perimeterx/marshmallow v1.1.4/go.mod h1:dsXbUu8CRzfYP5a87xpp0xq9S3u0Vchtcl8we9tYaXw=

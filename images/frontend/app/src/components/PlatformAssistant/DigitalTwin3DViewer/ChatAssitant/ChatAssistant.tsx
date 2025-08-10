@@ -5,8 +5,8 @@ import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
 import katex from "katex";
 import "katex/dist/katex.min.css";
 import { useSpeechSynthesis } from "./useSpeechSynthesis";
+import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 
-const useLoggedUserLogin = () => "User";
 const getVoices = (lang: string) => {
     // Detectar el idioma y configurar apropiadamente
     const isSpanish = lang.includes('es');
@@ -26,6 +26,7 @@ export interface LlmMessage {
 
 export interface ChatMessage {
     message: string;
+    userName: string;
     sender: "user" | "assistant";
     time: string;
 }
@@ -333,6 +334,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 setVoice(voice as IChatVoice);
                 const greetingMessage: ChatMessage = {
                     message: voice.greeting,
+                    userName: "Assistant",
                     sender: "assistant",
                     time: new Date().toISOString(),
                 };
@@ -358,7 +360,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             setSystemStatus('listening');
         }
 
-        // Esperar 2 segundos de silencio para procesar
+        // Esperar 1 segundo de silencio para procesar
         processingTimeoutRef.current = setTimeout(() => {
             if (transcript.trim() && transcript === lastTranscriptRef.current && isVoiceEnabled) {
                 setSystemStatus('processing');
@@ -373,6 +375,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         if (messageToSend === "") return;
 
         const newMessage: ChatMessage = {
+            userName: userName,
             message: messageToSend,
             sender: "user",
             time: new Date().toISOString(),

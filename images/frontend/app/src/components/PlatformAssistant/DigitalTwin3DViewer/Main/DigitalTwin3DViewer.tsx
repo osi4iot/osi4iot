@@ -439,6 +439,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 const mqttTopic = digitalTwinModelChatAssistantTopic.mqttTopic;
                 if (chatMessages.length !== 0 && chatMessages[chatMessages.length - 1].sender === "user") {
                     const messageToSend = JSON.stringify({
+                        userName: chatMessages[chatMessages.length - 1].userName,
                         message: chatMessages[chatMessages.length - 1].message,
                         clientId: mqttClient.clientId,
                     });

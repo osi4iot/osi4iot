@@ -2,18 +2,21 @@ package nodes
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"path/filepath"
 	"pipelines/common"
 	"pipelines/logger"
+	"pipelines/nats"
 	"pipelines/utils"
 
+	"github.com/cloudwego/eino/schema"
 	"github.com/osi4iot/mcphost/pkg/mcphost"
 )
 
 type LlmNode struct {
 	BaseNode
-	InputChan  chan string
+	InputChan  chan mcphost.ChatMessage
 	OutputChan chan string
 	McpHost    mcphost.MCPHost
 }
@@ -31,7 +34,7 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 	logTopic := fm.GetTopicByTopicRef(node.AssetId, node.DigitalTwinId, "dtmlog")
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
-	inputChan := make(chan string)
+	inputChan := make(chan mcphost.ChatMessage)
 	outputChan := make(chan string)
 	mcpServersPath := fm.GetMcpServersPath()
 
@@ -71,12 +74,17 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 	var temperature float32 = 0.7
 	var topP float32 = 0.95
 	var topK int32 = 40
+	debug := false
+	if fm.GetMode() == "debug" {
+		debug = true
+	}
+
 	hostConfig := &mcphost.HostConfig{
 		NatsClient:     fm.GetNatsClient(),
 		MCPServers:     mcpServers,
 		Model:          fm.GetLlmModel(),
 		MaxSteps:       100,
-		Debug:          true,
+		Debug:          debug,
 		SystemPrompt:   systemPrompt,
 		ProviderAPIKey: fm.GetLlmProviderApiKey(),
 		ProviderURL:    fm.GetLlmProviderUrl(),
@@ -89,10 +97,6 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 		OutputChan:     outputChan,
 	}
 
-	newMcpHost, err := mcphost.NewMCPHost(hostConfig)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create MCP host: %w", err)
-	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	llmNNode := &LlmNode{
@@ -120,8 +124,13 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 		},
 		InputChan:  inputChan,
 		OutputChan: outputChan,
-		McpHost:    newMcpHost,
 	}
+
+	newMcpHost, err := mcphost.NewMCPHost(hostConfig, llmNNode.GetChatMessages, llmNNode.SaveChatMessages)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create MCP host: %w", err)
+	}
+	llmNNode.McpHost = newMcpHost
 
 	return llmNNode, nil
 }
@@ -136,7 +145,6 @@ func (n *LlmNode) Start(log *logger.Logger, needReinitialization bool) {
 	log.Infof("Starting LLMNode with UID: %s", n.NodeUid)
 	go func() {
 		if err := n.McpHost.Run(); err != nil {
-			// Manejar el error, por ejemplo loggearlo
 			log.Errorf("MCP Host error: %v", err)
 			n.HandleError(err)
 			return
@@ -147,7 +155,7 @@ func (n *LlmNode) Start(log *logger.Logger, needReinitialization bool) {
 	n.handleMcpHostMessage(log)
 }
 
-func (n *LlmNode) sendPromptToMcpHost(msg string, log *logger.Logger) error {
+func (n *LlmNode) sendPromptToMcpHost(msg mcphost.ChatMessage, log *logger.Logger) error {
 	if n.GetStatus() != common.NodeStatusRunning {
 		log.Infof("LlmNode %s stopped during delay, discarding message", n.NodeUid)
 		return nil
@@ -158,7 +166,7 @@ func (n *LlmNode) sendPromptToMcpHost(msg string, log *logger.Logger) error {
 	return nil
 }
 
-func (n *LlmNode) handleInputWires(log *logger.Logger, processor func(string, *logger.Logger) error) {
+func (n *LlmNode) handleInputWires(log *logger.Logger, processor func(mcphost.ChatMessage, *logger.Logger) error) {
 	nodeInputWires := n.Fm.GetNodeInputWires(n.DigitalTwinId, n.Id)
 	if len(nodeInputWires) == 0 {
 		return
@@ -188,8 +196,13 @@ func (n *LlmNode) handleInputWires(log *logger.Logger, processor func(string, *l
 						continue
 					}
 
+					userName := msg.Payload["userName"].(string)
 					prompt := msg.Payload["message"].(string)
-					if err := processor(prompt, log); err != nil {
+					chatMessage := mcphost.ChatMessage{
+						UserName: userName,
+						Prompt:   prompt,
+					}
+					if err := processor(chatMessage, log); err != nil {
 						n.HandleError(err)
 					}
 				}
@@ -212,7 +225,6 @@ func (n *LlmNode) handleMcpHostMessage(log *logger.Logger) error {
 					log.Infof("Channel closed for Node with UID: %s", n.NodeUid)
 					return
 				}
-				log.Infof("Received message from MCP host for Node %s: %s", n.NodeUid, msg)
 
 				message := common.Message{
 					Payload: map[string]interface{}{
@@ -226,4 +238,272 @@ func (n *LlmNode) handleMcpHostMessage(log *logger.Logger) error {
 	}()
 
 	return nil
+}
+
+func (n *LlmNode) Stop(log *logger.Logger) {
+	if n.GetStatus() == common.NodeStatusStopped {
+		return
+	}
+
+	n.SetStatus(common.NodeStatusStopped)
+
+	if n.Cancel != nil {
+		n.McpHost.Close()
+		n.Cancel()
+	}
+
+	n.wg.Wait() //Wait for all goroutines to finish
+
+	log.Infof("Node %s stopped successfully", n.NodeUid)
+}
+
+func (n *LlmNode) GetChatMessages(userName string) []*schema.Message {
+	kvStore := n.Fm.GetDigitalTwinKvStore(n.DigitalTwinId)
+	if kvStore == nil {
+		n.Fm.Log().Errorf("Failed to get KV store for digital twin %d", n.DigitalTwinId)
+		return nil
+	}
+
+	key := n.getFullChatMessageKvStoreKey(userName)
+	chatMessageArray, err := kvStore.GetArrayValue(context.Background(), key)
+	if err != nil {
+		if err.Error() == fmt.Sprintf("key %s not found", key) {
+			return []*schema.Message{} // Retornar slice vacío si no existe la key
+		}
+		n.Fm.Log().Errorf("Failed to get chat messages for user %s: %v", userName, err)
+		return []*schema.Message{}
+	}
+
+	var chatMessages []*schema.Message
+	for i, msg := range chatMessageArray {
+		chatMsg := n.convertToMessage(msg, userName, i)
+		if chatMsg != nil {
+			chatMessages = append(chatMessages, chatMsg)
+		}
+	}
+
+	return chatMessages
+}
+
+func (n *LlmNode) SaveChatMessages(userName string, messages []*schema.Message) error {
+	// 1. Validar entrada y obtener KV store
+	if err := n.validateSaveChatInput(userName, messages); err != nil {
+		return err
+	}
+
+	kvStore := n.Fm.GetDigitalTwinKvStore(n.DigitalTwinId)
+	if kvStore == nil {
+		return fmt.Errorf("failed to get KV store for digital twin %d", n.DigitalTwinId)
+	}
+
+	// 2. Obtener mensajes existentes
+	key := n.getFullChatMessageKvStoreKey(userName)
+	currentMessages, err := n.getCurrentChatMessages(kvStore, key, userName)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve current chat messages: %w", err)
+	}
+
+	// 3. Agregar nuevos mensajes
+	updatedMessages := n.appendNewMessages(currentMessages, messages)
+	if len(updatedMessages) > n.Fm.GetMaxChatMessagesPerUser() {
+		updatedMessages = updatedMessages[len(updatedMessages)-n.Fm.GetMaxChatMessagesPerUser():]
+	}
+
+	// 4. Guardar mensajes actualizados
+	if err := kvStore.SetValue(context.Background(), key, updatedMessages); err != nil {
+		return fmt.Errorf("failed to save chat messages for user %s: %w", userName, err)
+	}
+
+	return nil
+}
+
+// validateSaveChatInput valida los parámetros de entrada
+func (n *LlmNode) validateSaveChatInput(userName string, messages []*schema.Message) error {
+	if userName == "" {
+		return fmt.Errorf("userName cannot be empty")
+	}
+	if len(messages) == 0 {
+		return fmt.Errorf("messages cannot be empty")
+	}
+	return nil
+}
+
+// getCurrentChatMessages obtiene los mensajes de chat existentes del KV store
+func (n *LlmNode) getCurrentChatMessages(kvStore *nats.KVStore, key, userName string) ([]schema.Message, error) {
+	arrayValue, err := kvStore.GetArrayValue(context.Background(), key)
+	if err != nil {
+		if err.Error() == fmt.Sprintf("key %s not found", key) {
+			return make([]schema.Message, 0), nil
+		}
+		n.Fm.Log().Errorf("Failed to get chat messages for user %s: %v", userName, err)
+		return nil, err
+	}
+
+	// Convertir valores del array a mensajes
+	currentMessages := make([]schema.Message, 0, len(arrayValue))
+	for i, msg := range arrayValue {
+		if chatMsg := n.convertToMessageValue(msg, userName, i); chatMsg != nil {
+			currentMessages = append(currentMessages, *chatMsg)
+		}
+	}
+
+	return currentMessages, nil
+}
+
+// appendNewMessages agrega los nuevos mensajes a la lista existente
+func (n *LlmNode) appendNewMessages(currentMessages []schema.Message, newMessages []*schema.Message) []schema.Message {
+	// Pre-asignar capacidad para evitar realocaciones
+	updatedMessages := make([]schema.Message, len(currentMessages), len(currentMessages)+len(newMessages))
+	copy(updatedMessages, currentMessages)
+
+	// Agregar nuevos mensajes desreferenciando los punteros
+	for _, msg := range newMessages {
+		if msg != nil {
+			updatedMessages = append(updatedMessages, *msg)
+		}
+	}
+
+	return updatedMessages
+}
+
+// convertToMessage convierte un valor del KV store a *schema.Message
+func (n *LlmNode) convertToMessage(msg interface{}, userName string, index int) *schema.Message {
+	// Método 1: Intentar conversión directa (si el tipo coincide)
+	if chatMsg, ok := msg.(schema.Message); ok {
+		return &chatMsg
+	}
+
+	// Método 2: Intentar conversión desde puntero
+	if chatMsg, ok := msg.(*schema.Message); ok {
+		return chatMsg
+	}
+
+	// Método 3: Convertir desde map[string]interface{} (caso más común)
+	if msgMap, ok := msg.(map[string]interface{}); ok {
+		return n.convertMapToMessage(msgMap, userName, index)
+	}
+
+	// Método 4: Intentar deserialización JSON como último recurso
+	if jsonBytes, err := json.Marshal(msg); err == nil {
+		var chatMsg schema.Message
+		if err := json.Unmarshal(jsonBytes, &chatMsg); err == nil {
+			return &chatMsg
+		}
+	}
+
+	n.Fm.Log().Warnf("Failed to convert message at index %d for user %s, type: %T", index, userName, msg)
+	return nil
+}
+
+// convertToMessageValue es similar a convertToMessage pero retorna valor en lugar de puntero
+func (n *LlmNode) convertToMessageValue(msg interface{}, userName string, index int) *schema.Message {
+	return n.convertToMessage(msg, userName, index)
+}
+
+// convertMapToMessage convierte un map[string]interface{} a schema.Message
+func (n *LlmNode) convertMapToMessage(msgMap map[string]interface{}, userName string, index int) *schema.Message {
+	// Método preferido: usar JSON marshaling/unmarshaling para manejar todos los campos y tipos complejos
+	jsonBytes, err := json.Marshal(msgMap)
+	if err != nil {
+		n.Fm.Log().Errorf("Failed to marshal message map for user %s at index %d: %v", userName, index, err)
+		return nil
+	}
+	
+	var message schema.Message
+	if err := json.Unmarshal(jsonBytes, &message); err != nil {
+		n.Fm.Log().Errorf("Failed to unmarshal message for user %s at index %d: %v", userName, index, err)
+		// Intentar mapeo manual como fallback
+		return n.manualMapToMessage(msgMap)
+	}
+	
+	return &message
+}
+
+// manualMapToMessage mapeo manual como fallback si falla JSON unmarshaling
+func (n *LlmNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Message {
+	message := &schema.Message{}
+	
+	// Role (RoleType)
+	if role, ok := msgMap["role"].(string); ok {
+		message.Role = schema.RoleType(role)
+	} else if roleFloat, ok := msgMap["role"].(float64); ok {
+		message.Role = schema.RoleType(fmt.Sprintf("%.0f", roleFloat))
+	}
+	
+	// Content
+	if content, ok := msgMap["content"].(string); ok {
+		message.Content = content
+	}
+	
+	// MultiContent - array de ChatMessagePart
+	if multiContent, ok := msgMap["multi_content"].([]interface{}); ok && len(multiContent) > 0 {
+		for _, part := range multiContent {
+			if partMap, ok := part.(map[string]interface{}); ok {
+				// Convertir cada parte usando JSON marshaling
+				partBytes, err := json.Marshal(partMap)
+				if err == nil {
+					var chatPart schema.ChatMessagePart
+					if json.Unmarshal(partBytes, &chatPart) == nil {
+						message.MultiContent = append(message.MultiContent, chatPart)
+					}
+				}
+			}
+		}
+	}
+	
+	// Name
+	if name, ok := msgMap["name"].(string); ok {
+		message.Name = name
+	}
+	
+	// ToolCalls - array de ToolCall
+	if toolCalls, ok := msgMap["tool_calls"].([]interface{}); ok && len(toolCalls) > 0 {
+		for _, call := range toolCalls {
+			if callMap, ok := call.(map[string]interface{}); ok {
+				// Convertir cada tool call usando JSON marshaling
+				callBytes, err := json.Marshal(callMap)
+				if err == nil {
+					var toolCall schema.ToolCall
+					if json.Unmarshal(callBytes, &toolCall) == nil {
+						message.ToolCalls = append(message.ToolCalls, toolCall)
+					}
+				}
+			}
+		}
+	}
+	
+	// ToolCallID
+	if toolCallID, ok := msgMap["tool_call_id"].(string); ok {
+		message.ToolCallID = toolCallID
+	}
+	
+	// ToolName
+	if toolName, ok := msgMap["tool_name"].(string); ok {
+		message.ToolName = toolName
+	}
+	
+	// ResponseMeta
+	if responseMeta, ok := msgMap["response_meta"].(map[string]interface{}); ok {
+		metaBytes, err := json.Marshal(responseMeta)
+		if err == nil {
+			var meta schema.ResponseMeta
+			if json.Unmarshal(metaBytes, &meta) == nil {
+				message.ResponseMeta = &meta
+			}
+		}
+	}
+	
+	// Extra - map[string]any
+	if extra, ok := msgMap["extra"].(map[string]interface{}); ok {
+		message.Extra = make(map[string]any)
+		for k, v := range extra {
+			message.Extra[k] = v
+		}
+	}
+	
+	return message
+}
+
+func (n *LlmNode) getFullChatMessageKvStoreKey(userName string) string {
+	return fmt.Sprintf("org_%s.dt_%s.kvstore.chat_messages.%s", n.GetOrgHash(), n.GetDigitalTwinUID(), userName)
 }

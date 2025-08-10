@@ -103,6 +103,7 @@ type Manager interface {
 
 	Log() *logger.Logger
 
+	GetMode() string
 	GetPlatformEmailUsername() string
 	GetPlatformEmailPassword() string
 	GetPlatformTelegramBotToken() string
@@ -120,4 +121,5 @@ type Manager interface {
 	GetLlmModel() string
 	GetLlmMaxTokens() int
 	GetMcpServersPath() string
+	GetMaxChatMessagesPerUser() int
 }

@@ -4,10 +4,11 @@ go 1.24.2
 
 require (
 	github.com/cenkalti/backoff/v4 v4.3.0
+	github.com/cloudwego/eino v0.3.41
 	github.com/dop251/goja v0.0.0-20250630131328-58d95d85e994
 	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/nats-io/nats.go v1.44.0
-	github.com/osi4iot/mcphost v0.1.0-osi4iot
+	github.com/osi4iot/mcphost v0.27.3-osi4iot
 	github.com/spf13/viper v1.20.1
 	go.uber.org/zap v1.27.0
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df
@@ -47,7 +48,6 @@ require (
 	github.com/charmbracelet/x/cellbuf v0.0.13 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
 	github.com/cloudwego/base64x v0.1.5 // indirect
-	github.com/cloudwego/eino v0.3.41 // indirect
 	github.com/cloudwego/eino-ext/components/model/claude v0.0.0-20250609074000-b7f307dffa18 // indirect
 	github.com/cloudwego/eino-ext/components/model/ollama v0.0.0-20250609074000-b7f307dffa18 // indirect
 	github.com/cloudwego/eino-ext/components/model/openai v0.0.0-20250609074000-b7f307dffa18 // indirect
