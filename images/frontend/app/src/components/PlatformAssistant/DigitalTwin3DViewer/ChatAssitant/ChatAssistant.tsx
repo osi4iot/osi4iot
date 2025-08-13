@@ -42,6 +42,8 @@ const ChatContainer = styled.div`
     top: 270px;
     right: 15px;
     width: 520px;
+    min-width: 520px;
+    max-width: calc(100vw - 100px);
     height: calc(100vh - 330px);
     background-color: #2c2c2c;
     border: 1px solid #444;
@@ -50,6 +52,44 @@ const ChatContainer = styled.div`
     font-family: Arial, sans-serif;
     display: flex;
     flex-direction: column;
+    resize: horizontal;
+    resize-origin: left;
+    
+    /* Manejo del redimensionado */
+    &::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 4px;
+        background: transparent;
+        cursor: ew-resize;
+        z-index: 10;
+    }
+    
+    &::before:hover {
+        background: rgba(50, 116, 217, 0.3);
+    }
+`;
+
+const ResizeHandle = styled.div`
+    position: absolute;
+    left: -2px;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: transparent;
+    cursor: ew-resize;
+    z-index: 10;
+    
+    &:hover {
+        background: rgba(50, 116, 217, 0.5);
+    }
+    
+    &:active {
+        background: rgba(50, 116, 217, 0.8);
+    }
 `;
 
 const MessagesContainer = styled.div`
@@ -126,52 +166,87 @@ const InputContainer = styled.div`
     padding: 8px;
     background-color: #1f1f1f;
     font-size: 0.9rem;
-    align-items: center;
+    gap: 10px;
+    align-items: flex-start;
 `;
 
-const Input = styled.input`
+const TextArea = styled.textarea`
     flex: 1;
+    min-height: 80px; /* Altura para acomodar 2 filas de botones */
     padding: 8px;
     border: 1px solid #444;
     border-radius: 4px;
     background-color: #2c2c2c;
     color: #f1f1f1;
+    resize: vertical;
+    font-family: inherit;
+    font-size: inherit;
+    line-height: 1.4;
+`;
+
+const ButtonContainer = styled.div`
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 90px;
+`;
+
+const ButtonRow = styled.div`
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    gap: 8px;
+    height: 30px;
 `;
 
 const Button = styled.button`
-    margin-left: 10px;
-    padding: 8px 16px;
+    padding: 12px;
     border: none;
     color: #fff;
     cursor: pointer;
-    border: 5px solid #141619;
-    border-radius: 10px;
+    border: 2px solid #141619;
+    border-radius: 6px;
     background-color: #3274d9;
+    font-size: 0.85rem;
+    height: 26px;
+    width: 90%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
     &:hover {
         background: #2461c0;
     }
 `;
 
 const MicButton = styled.button<{ active: boolean }>`
-    margin-left: 10px;
-    padding: 8px;
+    padding: 4px;
     border: none;
     border-radius: 50%;
     background-color: ${({ active }) => (active ? "#c0392b" : "#3274d9")};
     color: #fff;
     cursor: pointer;
-    font-size: 1rem;
+    font-size: 0.9rem;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
     &:hover {
         background-color: ${({ active }) => (active ? "#8f2b21" : "#2461c0")};
     }
+    
+    &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
 `;
 
 const StatusIndicator = styled.div<{ status: string }>`
-    margin-left: 5px;
-    padding: 4px 8px;
+    padding: 4px 6px;
     border-radius: 4px;
-    font-size: 0.7rem;
+    font-size: 0.65rem;
     background-color: ${({ status }) => {
         switch (status) {
             case 'listening': return '#27ae60';
@@ -181,6 +256,11 @@ const StatusIndicator = styled.div<{ status: string }>`
         }
     }};
     color: white;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    flex-shrink: 0;
 `;
 
 const renderLatexMessage = (message: string): string => {
@@ -264,7 +344,39 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const speakRef = useRef<(params: { text: string; voice: string }) => void>();
     const initializedRef = useRef<boolean>(false);
     
+    // Estados para el redimensionado
+    const [isResizing, setIsResizing] = useState(false);
+    const [containerWidth, setContainerWidth] = useState(520);
+    const containerRef = useRef<HTMLDivElement>(null);
     const [voice, setVoice] = useState<IChatVoice | null>(null);
+
+    // Manejo del redimensionado
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        setIsResizing(true);
+        
+        const startX = e.clientX;
+        const startWidth = containerWidth;
+        
+        const handleMouseMove = (e: MouseEvent) => {
+            const deltaX = startX - e.clientX; // Invertido porque redimensionamos desde la izquierda
+            const newWidth = Math.max(520, Math.min(window.innerWidth - 80, startWidth + deltaX));
+            setContainerWidth(newWidth);
+        };
+        
+        const handleMouseUp = () => {
+            setIsResizing(false);
+            document.removeEventListener('mousemove', handleMouseMove);
+            document.removeEventListener('mouseup', handleMouseUp);
+            document.body.style.cursor = '';
+            document.body.style.userSelect = '';
+        };
+        
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', handleMouseMove);
+        document.addEventListener('mouseup', handleMouseUp);
+    }, [containerWidth]);
 
     const startListening = useCallback(() => {
         if (!browserSupportsSpeechRecognition || !voice) {
@@ -309,7 +421,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             }
             SpeechRecognition.stopListening();
         };
-    }, []); // Sin dependencias para evitar loops
+    }, []);
 
     // Cargar voces disponibles
     useEffect(() => {
@@ -317,7 +429,6 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             window.speechSynthesis.getVoices();
         };
 
-        // Las voces pueden no estar disponibles inmediatamente
         if (window.speechSynthesis.getVoices().length > 0) {
             loadVoices();
         } else {
@@ -348,19 +459,16 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     useEffect(() => {
         if (!transcript || !isVoiceEnabled) return;
 
-        // Limpiar timeout anterior
         if (processingTimeoutRef.current) {
             clearTimeout(processingTimeoutRef.current);
         }
 
-        // Si el transcript cambió, actualizar el input
         if (transcript !== lastTranscriptRef.current) {
             setInput(transcript);
             lastTranscriptRef.current = transcript;
             setSystemStatus('listening');
         }
 
-        // Esperar 1 segundo de silencio para procesar
         processingTimeoutRef.current = setTimeout(() => {
             if (transcript.trim() && transcript === lastTranscriptRef.current && isVoiceEnabled) {
                 setSystemStatus('processing');
@@ -368,7 +476,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             }
         }, 1000);
 
-    }, [transcript, isVoiceEnabled]); // Removido handleSend de las dependencias
+    }, [transcript, isVoiceEnabled]);
 
     const handleSend = useCallback(() => {
         const messageToSend = input.trim();
@@ -389,12 +497,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [input, resetTranscript]); // Removido chatMessages y setChatMessages
 
-    // Actualizar la referencia de handleSend
+    // Actualizar las referencias
     useEffect(() => {
         handleSendRef.current = handleSend;
     }, [handleSend]);
 
-    // Actualizar la referencia de speak
     useEffect(() => {
         speakRef.current = speak;
     }, [speak]);
@@ -421,13 +528,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [chatMessages.length, voice?.greeting, voice?.speechLang, isVoiceEnabled]); // Removido 'speak' de las dependencias
 
-    const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
-        if (e.key === "Enter") {
+    const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
             handleSend();
         }
     };
 
-    const handleInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const handleInputChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
         setInput(e.target.value);
     };
 
@@ -471,7 +579,14 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     };
 
     return (
-        <ChatContainer>
+        <ChatContainer 
+            ref={containerRef}
+            style={{ width: `${containerWidth}px` }}
+        >
+            <ResizeHandle 
+                onMouseDown={handleMouseDown}
+                style={{ cursor: isResizing ? 'ew-resize' : 'ew-resize' }}
+            />
             <MessagesContainer>
                 {chatMessages.map((msg, index) => (
                     <MessageBubble key={index} sender={msg.sender}>
@@ -486,25 +601,30 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                 <div ref={messagesEndRef} />
             </MessagesContainer>
             <InputContainer>
-                <Input
-                    type="text"
+                <TextArea
                     value={input}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
-                    placeholder="Type your question..."
+                    placeholder="Type your question... (Shift+Enter for new line)"
                     disabled={isVoiceEnabled && systemStatus === 'listening'}
                 />
-                <Button onClick={handleSend}>Send</Button>
-                <MicButton 
-                    active={isVoiceEnabled} 
-                    onClick={toggleVoice}
-                    disabled={!browserSupportsSpeechRecognition}
-                >
-                    {isVoiceEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
-                </MicButton>
-                <StatusIndicator status={systemStatus}>
-                    {getStatusText()}
-                </StatusIndicator>
+                <ButtonContainer>
+                    <ButtonRow>
+                        <Button onClick={handleSend}>Send</Button>
+                    </ButtonRow>
+                    <ButtonRow>
+                        <MicButton 
+                            active={isVoiceEnabled} 
+                            onClick={toggleVoice}
+                            disabled={!browserSupportsSpeechRecognition}
+                        >
+                            {isVoiceEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
+                        </MicButton>
+                        <StatusIndicator status={systemStatus}>
+                            {getStatusText()}
+                        </StatusIndicator>
+                    </ButtonRow>
+                </ButtonContainer>
             </InputContainer>
         </ChatContainer>
     );

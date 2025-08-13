@@ -62,6 +62,8 @@ images/sensor_demo/nodejs/temp_monitoring/.env
 images/pipelines/config.yml
 images/pipelines/flow_data.yml
 images/pipelines/mcp_servers/current_date/current_date
+images/pipelines/mcp_servers/mcp_calculate_server/.venv/
+images/pipelines/mcp_servers/mcp_calculate_server/mcp_calcualte_server.egg-info/
 utils/osi4iot_cli/node_modules
 utils/osi4iot_cli/osi4iot_state_old.json
 utils/osi4iot_cli/osi4iot_state.json

@@ -65,7 +65,7 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 			Args: []string{
 				"run",
 				"--directory",
-				"/home/daniel/Tests/mcp/python_mcp/mcp_calculate_server",
+				filepath.Join(mcpServersPath, "mcp_calculate_server"),
 				"server.py",
 			},
 		},
