@@ -227,3 +227,9 @@ type PipelineLog struct {
 	Payload     map[string]any `json:"payload"`
 	State       map[string]any `json:"state"`
 }
+
+type FemResultsInfo struct {
+	FileName     string `json:"fileName"`
+	LastModified string `json:"lastModified"`
+	Size         int64  `json:"size"`
+}

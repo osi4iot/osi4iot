@@ -35,6 +35,7 @@ type Config struct {
 	LlmMaxTokens             int               `mapstructure:"llmMaxTokens"`
 	McpServersPath           string            `mapstructure:"mcpServersPath"`
 	MaxChatMessagesPerUser   int               `mapstructure:"maxChatMessagesPerUser"`
+	FemResultsPath           string            `mapstructure:"femResultsPath"`
 }
 
 type NATSConfig struct {

@@ -490,3 +490,21 @@ func (a *Admin) GetWire(groupId int, wireId int) *common.Wire {
 
 	return &wire
 }
+
+func (a *Admin) GetFemResultsInfo(groupId int, digitalTwinId int) []*common.FemResultsInfo {
+	var femResultsInfo []*common.FemResultsInfo
+	url := fmt.Sprintf("%s/digital_twin_file_list/%d/%d/femResFiles", a.baseUrl, groupId, digitalTwinId)
+	response, err := utils.HttpGetWithJwt(url, a.accessToken)
+	if err != nil {
+		a.log.Errorf("failed to get fem results info: %v", err)
+		return nil
+	}
+
+	err = utils.UnmarshalData(response, &femResultsInfo)
+	if err != nil {
+		a.log.Errorf("failed to unmarshal fem results info: %v", err)
+		return nil
+	}
+
+	return femResultsInfo
+}

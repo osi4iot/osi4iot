@@ -372,11 +372,14 @@ func (n *FuncNode) processMessage(message common.Message, log *logger.Logger) er
 }
 
 func (n *FuncNode) addEventTriggerTopicType(subject string, msg *common.Message) {
-	eventTriggerTopicType := "dev2pdb"
-	if strings.Contains(subject, "sim2dtm") {
-		eventTriggerTopicType = "sim2dtm"
+	existsEventTrigger := msg.Payload["eventTriggerTopicType"] != nil
+	if !existsEventTrigger {
+		eventTriggerTopicType := "dev2pdb"
+		if strings.Contains(subject, "sim2dtm") {
+			eventTriggerTopicType = "sim2dtm"
+		}
+		msg.Payload["eventTriggerTopicType"] = eventTriggerTopicType
 	}
-	msg.Payload["eventTriggerTopicType"] = eventTriggerTopicType
 }
 
 // convertToJSObject convert a Go data structure to a JavaScript object

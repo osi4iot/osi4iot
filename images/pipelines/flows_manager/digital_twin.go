@@ -304,4 +304,10 @@ func (fm *FlowsManager) CheckIfNodeExistInPipelineFile(digitalTwin *common.Digit
 	}
 	return false
 }
-	
+
+func (fm *FlowsManager) GetFemResultsInfo(groupId int, digitalTwinId int) []*common.FemResultsInfo {
+	var femResultsInfo []*common.FemResultsInfo
+	femResultsInfo = fm.Admin.GetFemResultsInfo(groupId, digitalTwinId)
+
+	return femResultsInfo
+}

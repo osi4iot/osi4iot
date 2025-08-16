@@ -345,8 +345,8 @@ const updateObjectsState = (
                         const fieldName = obj.node.userData.fieldName;
                         let llmResponseValue: null | number = null;
                         if (eventTriggerTopicType === "llm2sim" && messagePayloadKeys.includes("uiOpts")) {
-                            const dtSimState = mqttMessage.uiOpts.digitalTwinSimulatorState;
-                            if (dtSimState !== undefined && dtSimState[fieldName] !== undefined) {
+                            const dtSimState = mqttMessage.uiOpts?.digitalTwinSimulatorState;
+                            if (dtSimState != null && dtSimState[fieldName] != null) {
                                 llmResponseValue = mqttMessage.uiOpts.digitalTwinSimulatorState[fieldName];
                             }
                         }

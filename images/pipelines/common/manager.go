@@ -122,4 +122,7 @@ type Manager interface {
 	GetLlmMaxTokens() int
 	GetMcpServersPath() string
 	GetMaxChatMessagesPerUser() int
+
+	GetFemResultsInfo(groupId int, digitalTwinId int) []*FemResultsInfo
+	GetFemResultsPath() string
 }

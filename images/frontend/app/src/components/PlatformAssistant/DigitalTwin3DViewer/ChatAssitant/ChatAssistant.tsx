@@ -2,19 +2,16 @@ import React, { useState, KeyboardEvent, ChangeEvent, useRef, useEffect, useCall
 import styled from "styled-components";
 import SpeechRecognition, { useSpeechRecognition } from "react-speech-recognition";
 import { FaMicrophone, FaMicrophoneSlash } from "react-icons/fa";
-import katex from "katex";
-import "katex/dist/katex.min.css";
+import { MessageContent, renderLatexMessage } from "./KatexRenderer"; // Importar la función mejorada
 import { useSpeechSynthesis } from "./useSpeechSynthesis";
 import { useLoggedUserLogin } from "../../../../contexts/authContext/authContext";
 
 const getVoices = (lang: string) => {
-    // Detectar el idioma y configurar apropiadamente
-    const isSpanish = lang.includes('es');
-    
-    return Promise.resolve({ 
+    const isSpanish = lang.includes("es");
+    return Promise.resolve({
         greeting: isSpanish ? "¡Hola! Soy OSI. ¿En qué puedo ayudarte?" : "Hello! I'm OSI. How can I help you?",
         recognitionLang: isSpanish ? "es-ES" : "en-US",
-        speechLang: isSpanish ? "es-ES" : "en-US"
+        speechLang: isSpanish ? "es-ES" : "en-US",
     });
 };
 
@@ -54,10 +51,9 @@ const ChatContainer = styled.div`
     flex-direction: column;
     resize: horizontal;
     resize-origin: left;
-    
-    /* Manejo del redimensionado */
+
     &::before {
-        content: '';
+        content: "";
         position: absolute;
         left: 0;
         top: 0;
@@ -67,7 +63,7 @@ const ChatContainer = styled.div`
         cursor: ew-resize;
         z-index: 10;
     }
-    
+
     &::before:hover {
         background: rgba(50, 116, 217, 0.3);
     }
@@ -82,11 +78,11 @@ const ResizeHandle = styled.div`
     background: transparent;
     cursor: ew-resize;
     z-index: 10;
-    
+
     &:hover {
         background: rgba(50, 116, 217, 0.5);
     }
-    
+
     &:active {
         background: rgba(50, 116, 217, 0.8);
     }
@@ -122,7 +118,7 @@ interface MessageBubbleProps {
 const MessageBubble = styled.div<MessageBubbleProps>`
     padding: 8px 12px;
     border-radius: 20px;
-    max-width: 80%;
+    max-width: 90%;
     word-wrap: break-word;
     align-self: ${({ sender }) => (sender === "user" ? "flex-end" : "flex-start")};
     background-color: ${({ sender }) => (sender === "user" ? "#3a3a3a" : "#555")};
@@ -139,27 +135,6 @@ const Label = styled.span`
     color: #bbb;
 `;
 
-const MessageContent = styled.div`
-    .katex {
-        font-size: 1em;
-    }
-    .katex-display {
-        margin: 0.5em 0;
-        text-align: center;
-    }
-    white-space: pre-wrap;
-    word-break: break-word;
-    
-    /* Mejorar la apariencia de las matrices */
-    .katex .mord {
-        margin: 0;
-    }
-    
-    .katex .arraycolsep {
-        width: 0.5em;
-    }
-`;
-
 const InputContainer = styled.div`
     display: flex;
     border-top: 1px solid #444;
@@ -172,7 +147,7 @@ const InputContainer = styled.div`
 
 const TextArea = styled.textarea`
     flex: 1;
-    min-height: 80px; /* Altura para acomodar 2 filas de botones */
+    min-height: 80px;
     padding: 8px;
     border: 1px solid #444;
     border-radius: 4px;
@@ -236,7 +211,7 @@ const MicButton = styled.button<{ active: boolean }>`
     &:hover {
         background-color: ${({ active }) => (active ? "#8f2b21" : "#2461c0")};
     }
-    
+
     &:disabled {
         opacity: 0.5;
         cursor: not-allowed;
@@ -249,10 +224,14 @@ const StatusIndicator = styled.div<{ status: string }>`
     font-size: 0.65rem;
     background-color: ${({ status }) => {
         switch (status) {
-            case 'listening': return '#27ae60';
-            case 'processing': return '#f39c12';
-            case 'speaking': return '#e74c3c';
-            default: return '#95a5a6';
+            case "listening":
+                return "#27ae60";
+            case "processing":
+                return "#f39c12";
+            case "speaking":
+                return "#e74c3c";
+            default:
+                return "#95a5a6";
         }
     }};
     color: white;
@@ -262,67 +241,6 @@ const StatusIndicator = styled.div<{ status: string }>`
     white-space: nowrap;
     flex-shrink: 0;
 `;
-
-const renderLatexMessage = (message: string): string => {
-    try {
-        // Primero procesar bloques de display math \\[ ... \\]
-        let rendered = message.replace(/\\\\?\[([\s\S]*?)\\\\?\]/g, (match, latex) => {
-            try {
-                return katex.renderToString(latex.trim(), { 
-                    displayMode: true,
-                    throwOnError: false 
-                });
-            } catch (e) {
-                console.error('Error rendering display LaTeX:', e);
-                return match;
-            }
-        });
-
-        // Luego procesar math inline \\( ... \\)
-        rendered = rendered.replace(/\\\\?\(([\s\S]*?)\\\\?\)/g, (match, latex) => {
-            try {
-                return katex.renderToString(latex.trim(), { 
-                    displayMode: false,
-                    throwOnError: false 
-                });
-            } catch (e) {
-                console.error('Error rendering inline LaTeX:', e);
-                return match;
-            }
-        });
-
-        // También procesar bloques $ ... $ para compatibilidad
-        rendered = rendered.replace(/\$\$([\s\S]*?)\$\$/g, (match, latex) => {
-            try {
-                return katex.renderToString(latex.trim(), { 
-                    displayMode: true,
-                    throwOnError: false 
-                });
-            } catch (e) {
-                console.error('Error rendering $ LaTeX:', e);
-                return match;
-            }
-        });
-
-        // Y math inline $ ... $
-        rendered = rendered.replace(/\$([^$\n]+?)\$/g, (match, latex) => {
-            try {
-                return katex.renderToString(latex.trim(), { 
-                    displayMode: false,
-                    throwOnError: false 
-                });
-            } catch (e) {
-                console.error('Error rendering $ LaTeX:', e);
-                return match;
-            }
-        });
-
-        return rendered;
-    } catch (error) {
-        console.error('Error rendering LaTeX:', error);
-        return message;
-    }
-};
 
 interface ChatAssistantProps {
     chatMessages: ChatMessage[];
@@ -337,13 +255,13 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const { transcript, resetTranscript, browserSupportsSpeechRecognition } = useSpeechRecognition();
     const [isVoiceEnabled, setIsVoiceEnabled] = useState<boolean>(false);
-    const [systemStatus, setSystemStatus] = useState<'idle' | 'listening' | 'processing' | 'speaking'>('idle');
+    const [systemStatus, setSystemStatus] = useState<"idle" | "listening" | "processing" | "speaking">("idle");
     const lastTranscriptRef = useRef<string>("");
     const processingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     const handleSendRef = useRef<() => void>();
     const speakRef = useRef<(params: { text: string; voice: string }) => void>();
     const initializedRef = useRef<boolean>(false);
-    
+
     // Estados para el redimensionado
     const [isResizing, setIsResizing] = useState(false);
     const [containerWidth, setContainerWidth] = useState(520);
@@ -351,32 +269,35 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const [voice, setVoice] = useState<IChatVoice | null>(null);
 
     // Manejo del redimensionado
-    const handleMouseDown = useCallback((e: React.MouseEvent) => {
-        e.preventDefault();
-        setIsResizing(true);
-        
-        const startX = e.clientX;
-        const startWidth = containerWidth;
-        
-        const handleMouseMove = (e: MouseEvent) => {
-            const deltaX = startX - e.clientX; // Invertido porque redimensionamos desde la izquierda
-            const newWidth = Math.max(520, Math.min(window.innerWidth - 80, startWidth + deltaX));
-            setContainerWidth(newWidth);
-        };
-        
-        const handleMouseUp = () => {
-            setIsResizing(false);
-            document.removeEventListener('mousemove', handleMouseMove);
-            document.removeEventListener('mouseup', handleMouseUp);
-            document.body.style.cursor = '';
-            document.body.style.userSelect = '';
-        };
-        
-        document.body.style.cursor = 'ew-resize';
-        document.body.style.userSelect = 'none';
-        document.addEventListener('mousemove', handleMouseMove);
-        document.addEventListener('mouseup', handleMouseUp);
-    }, [containerWidth]);
+    const handleMouseDown = useCallback(
+        (e: React.MouseEvent) => {
+            e.preventDefault();
+            setIsResizing(true);
+
+            const startX = e.clientX;
+            const startWidth = containerWidth;
+
+            const handleMouseMove = (e: MouseEvent) => {
+                const deltaX = startX - e.clientX;
+                const newWidth = Math.max(520, Math.min(window.innerWidth - 80, startWidth + deltaX));
+                setContainerWidth(newWidth);
+            };
+
+            const handleMouseUp = () => {
+                setIsResizing(false);
+                document.removeEventListener("mousemove", handleMouseMove);
+                document.removeEventListener("mouseup", handleMouseUp);
+                document.body.style.cursor = "";
+                document.body.style.userSelect = "";
+            };
+
+            document.body.style.cursor = "ew-resize";
+            document.body.style.userSelect = "none";
+            document.addEventListener("mousemove", handleMouseMove);
+            document.addEventListener("mouseup", handleMouseUp);
+        },
+        [containerWidth]
+    );
 
     const startListening = useCallback(() => {
         if (!browserSupportsSpeechRecognition || !voice) {
@@ -387,11 +308,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         try {
             resetTranscript();
             lastTranscriptRef.current = "";
-            SpeechRecognition.startListening({ 
-                continuous: true, 
-                language: voice.recognitionLang 
+            SpeechRecognition.startListening({
+                continuous: true,
+                language: voice.recognitionLang,
             });
-            setSystemStatus('listening');
+            setSystemStatus("listening");
             setIsVoiceEnabled(true);
         } catch (error) {
             console.error("Error starting speech recognition:", error);
@@ -401,8 +322,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     const { speak, cancel } = useSpeechSynthesis({
         onEnd: useCallback(() => {
             if (isMounted.current && isVoiceEnabled) {
-                setSystemStatus('idle');
-                // Esperar un poco antes de volver a escuchar
+                setSystemStatus("idle");
                 setTimeout(() => {
                     if (isMounted.current && isVoiceEnabled) {
                         startListening();
@@ -432,8 +352,8 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         if (window.speechSynthesis.getVoices().length > 0) {
             loadVoices();
         } else {
-            window.speechSynthesis.addEventListener('voiceschanged', loadVoices);
-            return () => window.speechSynthesis.removeEventListener('voiceschanged', loadVoices);
+            window.speechSynthesis.addEventListener("voiceschanged", loadVoices);
+            return () => window.speechSynthesis.removeEventListener("voiceschanged", loadVoices);
         }
     }, []);
 
@@ -453,7 +373,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             });
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chatAssistantLanguage]); // Removido setChatMessages y chatMessages.length
+    }, [chatAssistantLanguage]);
 
     // Manejar cambios en el transcript
     useEffect(() => {
@@ -466,16 +386,15 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         if (transcript !== lastTranscriptRef.current) {
             setInput(transcript);
             lastTranscriptRef.current = transcript;
-            setSystemStatus('listening');
+            setSystemStatus("listening");
         }
 
         processingTimeoutRef.current = setTimeout(() => {
             if (transcript.trim() && transcript === lastTranscriptRef.current && isVoiceEnabled) {
-                setSystemStatus('processing');
+                setSystemStatus("processing");
                 handleSendRef.current?.();
             }
         }, 1000);
-
     }, [transcript, isVoiceEnabled]);
 
     const handleSend = useCallback(() => {
@@ -493,9 +412,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         setInput("");
         resetTranscript();
         lastTranscriptRef.current = "";
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [input, resetTranscript]); // Removido chatMessages y setChatMessages
+    }, [input, resetTranscript, userName, setChatMessages]);
 
     // Actualizar las referencias
     useEffect(() => {
@@ -510,15 +427,16 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
     useEffect(() => {
         if (chatMessages.length > 0) {
             const lastMessage = chatMessages[chatMessages.length - 1];
-            
-            if (lastMessage.sender === "assistant" && 
-                lastMessage.message !== voice?.greeting && 
-                isVoiceEnabled && 
-                voice?.speechLang) {
-                
+
+            if (
+                lastMessage.sender === "assistant" &&
+                lastMessage.message !== voice?.greeting &&
+                isVoiceEnabled &&
+                voice?.speechLang
+            ) {
                 SpeechRecognition.stopListening();
-                setSystemStatus('speaking');
-                
+                setSystemStatus("speaking");
+
                 speakRef.current?.({
                     text: lastMessage.message,
                     voice: voice.speechLang,
@@ -526,7 +444,7 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
             }
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [chatMessages.length, voice?.greeting, voice?.speechLang, isVoiceEnabled]); // Removido 'speak' de las dependencias
+    }, [chatMessages.length, voice?.greeting, voice?.speechLang, isVoiceEnabled]);
 
     const handleKeyPress = (e: KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === "Enter" && !e.shiftKey) {
@@ -548,11 +466,11 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
         try {
             SpeechRecognition.stopListening();
             setIsVoiceEnabled(false);
-            setSystemStatus('idle');
+            setSystemStatus("idle");
             cancel();
             resetTranscript();
             lastTranscriptRef.current = "";
-            
+
             if (processingTimeoutRef.current) {
                 clearTimeout(processingTimeoutRef.current);
             }
@@ -571,30 +489,28 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
 
     const getStatusText = () => {
         switch (systemStatus) {
-            case 'listening': return 'Listening...';
-            case 'processing': return 'Processing...';
-            case 'speaking': return '🔊 Speaking...';
-            default: return 'Ready';
+            case "listening":
+                return "Listening...";
+            case "processing":
+                return "Processing...";
+            case "speaking":
+                return "🔊 Speaking...";
+            default:
+                return "Ready";
         }
     };
 
     return (
-        <ChatContainer 
-            ref={containerRef}
-            style={{ width: `${containerWidth}px` }}
-        >
-            <ResizeHandle 
-                onMouseDown={handleMouseDown}
-                style={{ cursor: isResizing ? 'ew-resize' : 'ew-resize' }}
-            />
+        <ChatContainer ref={containerRef} style={{ width: `${containerWidth}px` }}>
+            <ResizeHandle onMouseDown={handleMouseDown} style={{ cursor: isResizing ? "ew-resize" : "ew-resize" }} />
             <MessagesContainer>
                 {chatMessages.map((msg, index) => (
                     <MessageBubble key={index} sender={msg.sender}>
                         <Label>{msg.sender === "assistant" ? "OSI" : userName}</Label>
-                        <MessageContent 
-                            dangerouslySetInnerHTML={{ 
-                                __html: renderLatexMessage(msg.message) 
-                            }} 
+                        <MessageContent
+                            dangerouslySetInnerHTML={{
+                                __html: renderLatexMessage(msg.message),
+                            }}
                         />
                     </MessageBubble>
                 ))}
@@ -605,24 +521,22 @@ const ChatAssistant: React.FC<ChatAssistantProps> = ({ chatMessages, setChatMess
                     value={input}
                     onChange={handleInputChange}
                     onKeyPress={handleKeyPress}
-                    placeholder="Type your question... (Shift+Enter for new line)"
-                    disabled={isVoiceEnabled && systemStatus === 'listening'}
+                    placeholder="Type your question..."
+                    disabled={isVoiceEnabled && systemStatus === "listening"}
                 />
                 <ButtonContainer>
                     <ButtonRow>
                         <Button onClick={handleSend}>Send</Button>
                     </ButtonRow>
                     <ButtonRow>
-                        <MicButton 
-                            active={isVoiceEnabled} 
+                        <MicButton
+                            active={isVoiceEnabled}
                             onClick={toggleVoice}
                             disabled={!browserSupportsSpeechRecognition}
                         >
                             {isVoiceEnabled ? <FaMicrophone /> : <FaMicrophoneSlash />}
                         </MicButton>
-                        <StatusIndicator status={systemStatus}>
-                            {getStatusText()}
-                        </StatusIndicator>
+                        <StatusIndicator status={systemStatus}>{getStatusText()}</StatusIndicator>
                     </ButtonRow>
                 </ButtonContainer>
             </InputContainer>

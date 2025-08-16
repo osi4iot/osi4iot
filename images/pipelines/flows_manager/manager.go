@@ -52,6 +52,7 @@ type FlowsManager struct {
 	LlmMaxTokens             int
 	McpServersPath           string
 	MaxChatMessagesPerUser   int
+	FemResultsPath           string
 }
 
 func CreateFlowsManager(
@@ -108,6 +109,7 @@ func CreateFlowsManager(
 		LlmMaxTokens:             config.LlmMaxTokens,
 		McpServersPath:           config.McpServersPath,
 		MaxChatMessagesPerUser:   config.MaxChatMessagesPerUser,
+		FemResultsPath:           config.FemResultsPath,
 		log:                      log,
 	}
 
@@ -344,4 +346,8 @@ func (fm *FlowsManager) GetMcpServersPath() string {
 
 func (fm *FlowsManager) GetMaxChatMessagesPerUser() int {
 	return fm.MaxChatMessagesPerUser
+}
+
+func (fm *FlowsManager) GetFemResultsPath() string {
+	return fm.FemResultsPath
 }

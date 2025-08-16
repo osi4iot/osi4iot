@@ -17,8 +17,13 @@ import (
 type LlmNode struct {
 	BaseNode
 	InputChan  chan mcphost.ChatMessage
-	OutputChan chan string
+	OutputChan chan mcphost.LlmResponse
 	McpHost    mcphost.MCPHost
+}
+
+type Response struct {
+	Message string         `json:"message"`
+	UiOpts  map[string]any `json:"uiOpts"`
 }
 
 func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
@@ -35,7 +40,7 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 	logSubject := utils.TopicToNatsSubject(logTopic.TopicType, logTopic.GroupUid, logTopic.TopicUid)
 
 	inputChan := make(chan mcphost.ChatMessage)
-	outputChan := make(chan string)
+	outputChan := make(chan mcphost.LlmResponse)
 	mcpServersPath := fm.GetMcpServersPath()
 
 	mcpServers := map[string]mcphost.MCPServerConfig{
@@ -43,25 +48,25 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 			Type: "builtin",
 			Name: "fs",
 			Options: map[string]any{
-				"allowed_directories": []string{"/home/daniel/Escritorio"},
+				"allowed_directories": []string{"/home/daniel/Escritorio", filepath.Join(mcpServersPath, "chroma")},
 			},
 		},
-		"task-manager": {
-			Type: "builtin",
-			Name: "todo",
-		},
-		"web-fetcher": {
-			Type: "builtin",
-			Name: "http",
-		},
+		// "task-manager": {
+		// 	Type: "builtin",
+		// 	Name: "todo",
+		// },
+		// "web-fetcher": {
+		// 	Type: "builtin",
+		// 	Name: "http",
+		// },
 		"current_date": {
-			Type: "local",
+			Type:    "local",
 			Command: []string{filepath.Join(mcpServersPath, "current_date", "current_date")},
-			Args:  []string{},
+			Args:    []string{},
 		},
 		"calculate_expression1": {
-			Type: "local",
-			Command:  []string{"uv"},
+			Type:    "local",
+			Command: []string{"uv"},
 			Args: []string{
 				"run",
 				"--directory",
@@ -69,6 +74,30 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 				"server.py",
 			},
 		},
+		"chroma": {
+			Type:    "local",
+			Command: []string{"uvx"},
+			Args: []string{
+				"chroma-mcp",
+				"--client-type",
+				"persistent",
+				"--data-dir",
+				filepath.Join(mcpServersPath, "chroma"),
+			},
+		},
+	}
+
+	femResultsInfo := fm.GetFemResultsInfo(node.GroupId, node.DigitalTwinId)
+	if len(femResultsInfo) > 0 && digitalTwin.ChatAssistantEnabled{
+		femResultsPath := fm.GetFemResultsPath()
+		orgId := fmt.Sprintf("org_%d", node.OrgId)
+		groupId := fmt.Sprintf("group_%d", node.GroupId)
+		digitalTwinId := fmt.Sprintf("dt_%d", node.DigitalTwinId)
+		mcpServers["fem_results"] = mcphost.MCPServerConfig{
+			Type:    "local",
+			Command: []string{filepath.Join(mcpServersPath, "fem_results", "fem_results")},
+			Args:    []string{"--results_path", filepath.Join(femResultsPath, orgId, groupId, digitalTwinId)},
+		}
 	}
 
 	var temperature float32 = 0.7
@@ -96,7 +125,6 @@ func CreateLlmNode(node common.NodeData, fm common.Manager) (*LlmNode, error) {
 		InputChan:      inputChan,
 		OutputChan:     outputChan,
 	}
-
 
 	ctx, cancel := context.WithCancel(context.Background())
 	llmNNode := &LlmNode{
@@ -226,13 +254,34 @@ func (n *LlmNode) handleMcpHostMessage(log *logger.Logger) error {
 					return
 				}
 
-				message := common.Message{
-					Payload: map[string]interface{}{
-						"message": msg,
-					},
+				if msg.Status == "error" {
+					errMsg := fmt.Errorf("MCP Host error: %s", msg.Message)
+					log.Errorf("MCP Host error: %v", errMsg)
+					n.HandleError(errMsg)
+					return
+				} else {
+					var message common.Message
+					var response Response
+					err := json.Unmarshal([]byte(msg.Message), &response)
+					if err != nil {
+						message = common.Message{
+							Payload: map[string]interface{}{
+								"message": msg.Message,
+							},
+						}
+					} else {
+						message = common.Message{
+							Payload: map[string]interface{}{
+								"message":               response.Message,
+								"uiOpts":                response.UiOpts,
+								"eventTriggerTopicType": "llm2sim",
+							},
+						}
+					}
+
+					n.sendToOutputs(message, log)
 				}
 
-				n.sendToOutputs(message, log)
 			}
 		}
 	}()
@@ -408,33 +457,33 @@ func (n *LlmNode) convertMapToMessage(msgMap map[string]interface{}, userName st
 		n.Fm.Log().Errorf("Failed to marshal message map for user %s at index %d: %v", userName, index, err)
 		return nil
 	}
-	
+
 	var message schema.Message
 	if err := json.Unmarshal(jsonBytes, &message); err != nil {
 		n.Fm.Log().Errorf("Failed to unmarshal message for user %s at index %d: %v", userName, index, err)
 		// Intentar mapeo manual como fallback
 		return n.manualMapToMessage(msgMap)
 	}
-	
+
 	return &message
 }
 
 // manualMapToMessage mapeo manual como fallback si falla JSON unmarshaling
 func (n *LlmNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Message {
 	message := &schema.Message{}
-	
+
 	// Role (RoleType)
 	if role, ok := msgMap["role"].(string); ok {
 		message.Role = schema.RoleType(role)
 	} else if roleFloat, ok := msgMap["role"].(float64); ok {
 		message.Role = schema.RoleType(fmt.Sprintf("%.0f", roleFloat))
 	}
-	
+
 	// Content
 	if content, ok := msgMap["content"].(string); ok {
 		message.Content = content
 	}
-	
+
 	// MultiContent - array de ChatMessagePart
 	if multiContent, ok := msgMap["multi_content"].([]interface{}); ok && len(multiContent) > 0 {
 		for _, part := range multiContent {
@@ -450,12 +499,12 @@ func (n *LlmNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Mess
 			}
 		}
 	}
-	
+
 	// Name
 	if name, ok := msgMap["name"].(string); ok {
 		message.Name = name
 	}
-	
+
 	// ToolCalls - array de ToolCall
 	if toolCalls, ok := msgMap["tool_calls"].([]interface{}); ok && len(toolCalls) > 0 {
 		for _, call := range toolCalls {
@@ -471,17 +520,17 @@ func (n *LlmNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Mess
 			}
 		}
 	}
-	
+
 	// ToolCallID
 	if toolCallID, ok := msgMap["tool_call_id"].(string); ok {
 		message.ToolCallID = toolCallID
 	}
-	
+
 	// ToolName
 	if toolName, ok := msgMap["tool_name"].(string); ok {
 		message.ToolName = toolName
 	}
-	
+
 	// ResponseMeta
 	if responseMeta, ok := msgMap["response_meta"].(map[string]interface{}); ok {
 		metaBytes, err := json.Marshal(responseMeta)
@@ -492,7 +541,7 @@ func (n *LlmNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Mess
 			}
 		}
 	}
-	
+
 	// Extra - map[string]any
 	if extra, ok := msgMap["extra"].(map[string]interface{}); ok {
 		message.Extra = make(map[string]any)
@@ -500,7 +549,7 @@ func (n *LlmNode) manualMapToMessage(msgMap map[string]interface{}) *schema.Mess
 			message.Extra[k] = v
 		}
 	}
-	
+
 	return message
 }
 

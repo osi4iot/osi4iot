@@ -195,7 +195,7 @@ export const useMqttConnection = () => {
     return { connectionStatus, mqttClient };
 };
 
-export const useChatMessages = () => {
+export const useChatMessages = (setOpts: (updater: ViewerOptions | ((prevOpts: ViewerOptions) => ViewerOptions)) => void) => {
     const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
     const handleUpdateChatAssistantMessages = useCallback((newLlmMessage: any) => {
@@ -210,6 +210,28 @@ export const useChatMessages = () => {
             newMessages.push(newMessage);
             return newMessages;
         });
+
+        if (newLlmMessage.sender === "assistant" && newLlmMessage.uiOpts != null) {
+            const updateOpts = (opts: any, updates: any) => {
+                for (const [key, value] of Object.entries(updates)) {
+                    if (typeof value === "object" && value !== null) {
+                        opts[key] = updateOpts(opts[key] ?? {}, value);
+                    } else {
+                        opts[key] = value;
+                    }
+                }
+                return opts;
+            };
+
+            setOpts((prevOpts) => updateOpts({ ...prevOpts }, newLlmMessage.uiOpts));
+
+            setOpts((prevOpts) => {
+                const newOpts = { ...prevOpts };
+                return newOpts;
+            });
+        }
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     return {

@@ -79,9 +79,8 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
     const legendRenderer = useLegendRenderer();
     const { connectionStatus, mqttClient } = useMqttConnection();
     const openDashboardTab = useOpenWindowTab();
-    const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages();
     const { logMessages, setLogMessages, handleUpdateLogMessages } = usePipelineLogs();
-
+    
     const {
         canvasContainerRef,
         canvasRef,
@@ -92,8 +91,9 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         femMinValueRef,
         selectedObjCollectionNameRef,
     } = useRefs();
-
+    
     const [opts, setOpts] = useViewerOptions([]);
+    const { chatMessages, setChatMessages, handleUpdateChatAssistantMessages } = useChatMessages(setOpts);
 
     // Initialize FEM results logic
     const femResults = useFemResults(digitalTwinSelected, legendRenderer, opts, fetchFemResFileWorker);
@@ -332,10 +332,12 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                 const resultFieldFiltered = resultFields.filter(
                     (result: { resultName: string }) => result.resultName === opts.femSimulationResult
                 )[0];
-                const units = resultFieldFiltered.units;
-                (femMaxValueRef.current as any).innerHTML = `Max value: ${sortedFemMaxValues[0].toExponential(
-                    4
-                )} ${units}`;
+                if (resultFieldFiltered) {
+                    const units = resultFieldFiltered.units;
+                    (femMaxValueRef.current as any).innerHTML = `Max value: ${sortedFemMaxValues[0].toExponential(
+                        4
+                    )} ${units}`;
+                }
             } else {
                 (femMaxValueRef.current as any).innerHTML = "Max value: -";
             }
@@ -412,7 +414,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
                     if (
                         dtSimStateString !== lastMqttMessageSended &&
                         dtSimStateString !== initialDTSimStateString &&
-                        !(state.isChatAssistantOpen || state.showDtSimulatorModal)
+                        !(state.isChatAssistantOpen || state.showDtSimulatorModal || state.activeViewer === "pipeline")
                     ) {
                         const warningMessage =
                             "Warning: To use the digital twin simulator, reading the measurements from the sensors must be locked.";
@@ -430,6 +432,7 @@ const DigitalTwin3DViewer: FC<Viewer3DProps> = ({
         state.initialDigitalTwinSimulatorState,
         state.isChatAssistantOpen,
         state.showDtSimulatorModal,
+        state.activeViewer,
     ]);
 
     // 2. Lógica para enviar mensajes del chat assistant
